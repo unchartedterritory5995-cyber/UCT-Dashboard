@@ -40,8 +40,14 @@ before the restatement hold the OLD plain-return ``m6``/``m9``/``m12``; the
 ``--restate-ranks`` mode rewrites exactly those three columns, and
 ``--restate-ranks --columns m3`` rewrites ``m3`` (below).
 
-POPULATION. Default (map §5 question 1): the cap universe minus ETFs. The ranked
-set never contains an ETF - an index fund sits on top of the very stocks it
+POPULATION. Since 2026-11-12 (owner: "everything until the indicator is 100% perfect")
+the ranked set is EVERY non-ETF ticker with a fresh daily bar and enough closes for the
+term, about 6,000 names (:func:`ranking_universe`), not the 3,418-name cap universe it
+was before: against 61 Deepvue readings the cap universe sat 5 to 8 points below Deepvue
+(it ranks all stocks) and the wide one sits within 0.1 point on average, 3.0 points off
+per reading, 93 % within 10. Warrants, rights, units and preferreds stay in (removing
+them moved the fit by 0.02 points), and so do penny and thin names (price and volume
+floors made it 2 to 7 points worse). The ranked set never contains an ETF - an index fund sits on top of the very stocks it
 summarises - but every ETF IS rated, by interpolating its score into the stock
 distribution, so SPY or XLK can carry a number on the same scale. ETFs are
 identified through ``industry_map`` (every ETF carries industry
@@ -155,8 +161,10 @@ import json
 import logging
 import math
 import os
+import re
 import sqlite3
 import time
+from array import array
 from bisect import bisect_right
 from contextlib import closing, contextmanager
 from datetime import date, datetime, timedelta
@@ -232,6 +240,23 @@ _lock_sleep = time.sleep
 #: Share of the rows checked that may drift by one rating point, and share that may
 #: be a hard mismatch, before a restate refuses to write.
 RESTATE_DRIFT_SHARE = 0.01
+#: The third restate (2026-11-12): the RATED UNIVERSE widened from the 3,418-name cap
+#: universe to every non-ETF ticker with a daily bar (``ranking_universe``, "U1" in the
+#: fit). ``--restate-universe`` re-ranks every stored session for ALL six rating columns,
+#: so it also writes the long and the m3 markers (nothing is left for those restates to
+#: do). Its OWN marker table for the same reason the m3 one has one.
+UNIVERSE_METHOD = "universe_u1_v1"
+UNIVERSE_TABLE = "rs_history_restated_universe"
+#: A session's ranked set (non-ETF names with a bars window that night) may differ from
+#: the median session's by this share before the restate refuses to write ANYTHING: a
+#: stale bars store or a half-listed night would otherwise rank against a fragment.
+UNIVERSE_BAND = 0.15
+#: ... and a session ranking fewer names than this is never written, whatever the
+#: median says (the cap universe it replaces held 3,418).
+UNIVERSE_MIN_RANKED = 3000
+#: A rating that moves by more than this many points counts as a BIG shift in the
+#: distribution summary the restate prints (the owner sees what happened).
+UNIVERSE_BIG_SHIFT = 15
 #: The columns ``--fill-column`` may fill (each one a stored component).
 FILLABLE_COLUMNS = ("m9",)
 #: The rating scale's top; the bottom is 1.
@@ -585,9 +610,70 @@ def _window_bounds(ts_list: list, to_ymd: int):
 # --------------------------------------------------------------------------- #
 
 def default_universe() -> set:
-    """``groups.cap_universe_set()`` - the same file ``rs_rank`` ranks over."""
+    """``groups.cap_universe_set()`` - the file the HOURLY ``rs_rank`` ranks over.
+
+    ⛔ NOT the nightly rating's population any more (2026-11-12): that is
+    :func:`ranking_universe`. This stays for the tools and tests that name the cap
+    universe on purpose."""
     from api.services.groups import cap_universe_set
     return set(cap_universe_set())
+
+
+#: What a rankable symbol looks like: letters and digits with ``.``/``-`` class
+#: separators, at most ten characters. Index, vol and crypto feeds held beside the
+#: equities in ``bars.db`` (``$SPX``, ``^VIX``, ``X:BTCUSD``) fail it.
+_RANKABLE_SYMBOL = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,9}$")
+
+
+def rankable_symbol(ticker) -> bool:
+    """True for a symbol that can be a stock in the ranked set: the pattern above and
+    not one of the index symbols ``api.index_bars`` routes elsewhere."""
+    tu = str(ticker or "").strip().upper()
+    if not _RANKABLE_SYMBOL.match(tu):
+        return False
+    try:
+        from api.index_bars import is_index
+        return not is_index(tu)
+    except Exception:                                        # noqa: BLE001 - the pattern alone is enough
+        return True
+
+
+def ranking_universe(*, lister=None, last_daily_ts=None) -> set:
+    """The nightly rating's candidate population (2026-11-12, owner: rank against
+    EVERYTHING, as Deepvue and IBD do): every rankable ticker that holds a DAILY bar in
+    ``bars.db``, ETFs included (the caller takes them out of the ranked set through
+    its ETF list, exactly as before).
+
+    This is only the candidate list. Each session still keeps a name only when it has a
+    FRESH bar (newest within :data:`MAX_BAR_LAG_DAYS` calendar days of the session,
+    ``_window_bounds``) and enough closes for the term being ranked, so a stale,
+    delisted-long-ago or brand-new name drops out of that session and that term by the
+    rules it always used. NO type filter (warrants, rights, units and preferreds stay
+    in) and NO price or volume floor: against 61 Deepvue readings both filters changed
+    the fit by less than half a rating point or made it 2 to 7 points worse. The
+    listing walks the primary key (one seek per ticker, ``bars_sqlite.iter_tickers``).
+
+    ``lister`` / ``last_daily_ts`` are the test seams (default: the web pod's store)."""
+    if lister is None or last_daily_ts is None:
+        from api.services import bars_sqlite
+        if lister is None:
+            def lister():                                    # noqa: E306
+                return bars_sqlite.iter_tickers(bars_sqlite._conn())
+        if last_daily_ts is None:
+            def last_daily_ts(t):                            # noqa: E306
+                return bars_sqlite.get_last_ts(t, "D")
+    out: set = set()
+    for t in lister():
+        tu = str(t or "").strip().upper()
+        if not tu or tu in out or not rankable_symbol(tu):
+            continue
+        try:
+            if last_daily_ts(tu) is None:
+                continue
+        except Exception:                                    # noqa: BLE001 - one name, not the run
+            continue
+        out.add(tu)
+    return out
 
 
 def default_etf_tickers() -> set:
@@ -801,7 +887,7 @@ def _write_marker(path: str, text: str) -> bool:
 # --------------------------------------------------------------------------- #
 
 def _resolve_population(universe, etf_tickers) -> tuple[set, set]:
-    uni = {str(t).upper() for t in (universe if universe is not None else default_universe())}
+    uni = {str(t).upper() for t in (universe if universe is not None else ranking_universe())}
     etfs = {str(t).upper() for t in (etf_tickers if etf_tickers is not None
                                      else default_etf_tickers())}
     return uni, etfs
@@ -1684,6 +1770,306 @@ def _restate_sessions(receipt, conn, keys, todo, *, etf_tickers, bars_reader, sp
 
 
 # --------------------------------------------------------------------------- #
+# re-ranking every stored session against ALL stocks (2026-11-12): U1
+# --------------------------------------------------------------------------- #
+
+#: The 63-bar term needs 64 closes: fewer and a name has no rating, so it is not in the ranked set.
+_REQUIRED_BARS = dict((label, n) for label, n, _w in IBD_TERMS)[REQUIRED_TERM]
+
+_UPSERT_SQL = (
+    f"INSERT INTO {TABLE} (session, ticker, ibd, m1, m3, m6, m9, m12, score, bars) "
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+    "ON CONFLICT(session, ticker) DO UPDATE SET ibd = excluded.ibd, m1 = excluded.m1, "
+    "m3 = excluded.m3, m6 = excluded.m6, m9 = excluded.m9, m12 = excluded.m12, "
+    "score = excluded.score, bars = excluded.bars")
+#: ``fast`` is the HOURLY fast rating the nightly stored that night; it cannot be
+#: recomputed, so the upsert never names it (a conflict keeps it, a new row has none).
+_NULL_RATINGS_SQL = (f"UPDATE {TABLE} SET ibd = NULL, m1 = NULL, m3 = NULL, m6 = NULL, "
+                     "m9 = NULL, m12 = NULL WHERE session = ? AND ticker = ?")
+_UNIVERSE_MARKERS = ((UNIVERSE_TABLE, UNIVERSE_METHOD), (RESTATED_TABLE, RESTATE_METHOD),
+                     (RESTATED_M3_TABLE, RESTATE_M3_METHOD))
+
+
+def _compact_series(rows):
+    """``(ts, closes)`` as typed arrays (4 + 8 bytes a bar, not ~70 for two lists of
+    Python numbers): the wide universe holds ~13,000 tickers x ~530 bars at once, and
+    the web pod runs with little headroom. ``None`` when there is no valid close."""
+    ts_list, closes = closes_from_rows(rows)
+    if not ts_list:
+        return None
+    return array("i", ts_list), array("d", closes)
+
+
+def _universe_windows(series: dict, etfs: set, key) -> tuple:
+    """``(closes_by_ticker, suspects, ranked_estimate)`` for ONE session: each ticker's
+    fresh window (:func:`_window_bounds`), the names today's split guard marks, and
+    how many non-ETF names have enough closes to be ranked at all (the 63-bar term
+    plus the base: 64)."""
+    ymd = session_ymd(key)
+    closes_by_ticker, suspects, ranked = {}, set(), 0
+    for t, (ts_list, closes, declared) in series.items():
+        bounds = _window_bounds(ts_list, ymd)
+        if bounds is None:
+            continue
+        win = closes[bounds[0]:bounds[1]]
+        if window_split_suspect(ts_list[bounds[0]:bounds[1]], win, declared):
+            suspects.add(t)
+        closes_by_ticker[t] = win
+        if t not in etfs and len(win) > _REQUIRED_BARS:
+            ranked += 1
+    return closes_by_ticker, suspects, ranked
+
+
+def _ranked_estimate(series: dict, etfs: set, key) -> int:
+    """The cheap version of :func:`_universe_windows` for the band check: bounds only,
+    no slicing, no split judging."""
+    ymd = session_ymd(key)
+    n = 0
+    for t, (ts_list, _closes, _declared) in series.items():
+        if t in etfs:
+            continue
+        b = _window_bounds(ts_list, ymd)
+        if b is not None and b[1] - b[0] > _REQUIRED_BARS:
+            n += 1
+    return n
+
+
+def _median(values):
+    v = sorted(values)
+    if not v:
+        return 0
+    m = len(v) // 2
+    return v[m] if len(v) % 2 else (v[m - 1] + v[m]) / 2.0
+
+
+def restate_universe(days: int = BACKFILL_DAYS, *, universe=None, etf_tickers=None, bars_reader=None,
+                     now=None, session_fn=None, sessions=None, splits_reader=None,
+                     dry_run: bool = False, max_sessions=None, split_fetch_budget=AUTO_BUDGET,
+                     band: float = UNIVERSE_BAND, log_every: int = 25) -> dict:
+    """Re-rank every stored session in the last ``days`` against ALL non-ETF stocks
+    (:func:`ranking_universe`), rewriting every rating column. Never raises.
+
+    The same :func:`compute_ratings` the nightly job calls does the work, over the same
+    candidate list, so the stored history can never disagree with tonight's rows.
+
+    * WHICH SESSIONS: every stored session in the span with no row in
+      ``rs_history_restated_universe`` (method :data:`UNIVERSE_METHOD`), newest first, at
+      most ``max_sessions`` per call. A finished store is ``nothing_to_do``; a run that
+      dies is finished by running the command again.
+    * WHAT IT WRITES, one transaction per session (retried with backoff on
+      ``database is locked``): an UPSERT of ``ibd, m1, m3, m6, m9, m12, score, bars``
+      for every ticker rated that session (a stock the cap universe never held is a NEW
+      row; an ETF row is rewritten because its interpolation distribution changed),
+      ``NULL`` ratings for a stored ticker that no longer has a window or is split-guarded
+      (never an old-universe number), and the session's marker in this restate's table AND in
+      the long and m3 tables (every column is now in its current meaning, so those restates
+      have nothing left to do). ``fast`` is never touched.
+    * ⛔ IT REFUSES, WRITING NOTHING, when (a) a session would rank fewer than
+      :data:`UNIVERSE_MIN_RANKED` names or its ranked count is outside ``band`` of the
+      median session's (a stale bars store, a half-listed night); (b) on a real run, more
+      split lists are unknown than the backfill allows. The values change by design, so
+      the comparison guard of ``--restate-ranks`` does not apply; the receipt prints the
+      shift instead (mean rating change, share moved by more than
+      :data:`UNIVERSE_BIG_SHIFT`) so the owner sees what happened.
+    * ``dry_run`` opens ``screener.db`` read-only, reads and ranks exactly as a real run
+      does and writes nothing (no row, table, receipt or split-list memo; stored answers
+      and the cache only, no provider call).
+    """
+    t0 = time.time()
+    receipt = {"ok": False, "dry_run": bool(dry_run), "session": None, "started_at": t0,
+               "finished_at": None, "universe": None, "targets": None, "rated": 0, "rows": 0,
+               "excluded_etfs": None, "short_history": 0, "split_guard": 0, "duration_ms": 0.0,
+               "note": {"source": "restate_universe", "method": UNIVERSE_METHOD,
+                        "columns": list(RESTATE_ALL_COLUMNS), "days": None, "sessions": 0,
+                        "sessions_stored": 0, "sessions_restated_before": 0, "sessions_todo": 0,
+                        "sessions_done": 0, "rows_written": 0, "rows_inserted": 0,
+                        "rows_updated": 0, "rows_nulled": 0, "band": band,
+                        "ranked": {"min": None, "median": None, "max": None},
+                        "shift": {"compared": 0, "mean": None, "big_share": None, "up_share": None},
+                        "examples": []}}
+    record = not dry_run
+    note = receipt["note"]
+    try:
+        try:
+            days = int(days)
+        except (TypeError, ValueError):
+            days = 0
+        note["days"] = days
+        if not 1 <= days <= BACKFILL_MAX_DAYS:
+            note["reason"] = f"days must be 1 to {BACKFILL_MAX_DAYS}"
+            return _finish(receipt, t0, record=False)
+        if not 0.02 <= float(band) <= 0.5:
+            note["reason"] = "band must be 0.02 to 0.5"
+            return _finish(receipt, t0, record=False)
+        if sqlite3.sqlite_version_info < (3, 24, 0):
+            note["reason"] = f"sqlite {sqlite3.sqlite_version} has no UPSERT (needs 3.24)"
+            return _finish(receipt, t0, record=False)
+        if sessions is None:
+            end = (session_fn or settled_session)(now)
+            if end is None:
+                note["reason"] = "no_session"
+                return _finish(receipt, t0, record=record)
+            sessions = trading_sessions_ending(end, days)
+        keys = sorted({session_key(s) for s in sessions})
+        note["sessions"] = len(keys)
+        receipt["session"] = keys[-1] if keys else None
+        with _backfill_conn(dry_run) as conn:
+            if conn is None or not _table_exists(conn, TABLE):
+                receipt["ok"] = True
+                note["reason"] = "nothing_to_do"
+                return _finish(receipt, t0, record=record)
+            stored_keys = _stored_sessions(conn, keys)
+            note["sessions_stored"] = len(stored_keys)
+            have_marks = _table_exists(conn, UNIVERSE_TABLE)
+            done_keys = {k for k in stored_keys if have_marks and conn.execute(
+                f"SELECT 1 FROM {UNIVERSE_TABLE} WHERE session = ? AND method = ?",
+                (k, UNIVERSE_METHOD)).fetchone()}
+            note["sessions_restated_before"] = len(done_keys)
+            todo = sorted((k for k in stored_keys if k not in done_keys), reverse=True)
+            if max_sessions is not None and int(max_sessions) >= 0:
+                todo = todo[:int(max_sessions)]
+            note["sessions_todo"] = len(todo)
+            if not todo:
+                receipt["ok"] = True
+                note["reason"] = "nothing_to_do"
+                return _finish(receipt, t0, record=record)
+            _restate_universe_sessions(receipt, conn, keys, todo, universe=universe,
+                                       etf_tickers=etf_tickers, bars_reader=bars_reader,
+                                       splits_reader=splits_reader, dry_run=dry_run,
+                                       split_fetch_budget=split_fetch_budget, band=float(band),
+                                       log_every=log_every)
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_history] restate-universe failed: %s: %s", type(e).__name__, e)
+        note["error"] = f"{type(e).__name__}: {e}"[:300]
+    return _finish(receipt, t0, record=record)
+
+
+def _restate_universe_sessions(receipt, conn, keys, todo, *, universe, etf_tickers, bars_reader,
+                               splits_reader, dry_run, split_fetch_budget, band, log_every) -> None:
+    """The body of :func:`restate_universe`: read every candidate once, check every
+    session's ranked count, then (a real run inside the guards) write each session."""
+    note = receipt["note"]
+    uni, etfs = _resolve_population(universe, etf_tickers)
+    have = {r[1] for r in conn.execute(f"PRAGMA table_info({TABLE})").fetchall()}
+    stored_cols = tuple(c for c in RESTATE_ALL_COLUMNS if c in have)
+    cols = ", ".join(stored_cols)
+    stored_tickers: set = set()
+    for key in todo:
+        stored_tickers |= {r[0] for r in conn.execute(f"SELECT ticker FROM {TABLE} WHERE session = ?",
+                                                      (key,)).fetchall()}
+    candidates = sorted(uni | etfs | stored_tickers)
+    receipt["targets"] = len(candidates)
+    receipt["universe"] = len(set(candidates) - etfs)
+    receipt["excluded_etfs"] = len(set(candidates) & etfs)
+    reader = bars_reader or default_bars_reader
+    if splits_reader is None:
+        budget = (0 if dry_run else None) if split_fetch_budget == AUTO_BUDGET else split_fetch_budget
+        splits_reader = default_splits_reader(conn, budget=budget, persist=not dry_run)
+    span = keys.index(todo[0]) - keys.index(todo[-1]) + 1
+    depth = READ_BARS + span + 10
+    end_ymd = session_ymd(todo[0])
+    series: dict = {}
+    for t in candidates:
+        try:
+            rows = reader(t, depth, end_ymd)
+        except Exception as e:                               # noqa: BLE001 - one name, not the run
+            log.debug("[rs_history] restate-universe read failed for %s: %s", t, e)
+            rows = None
+        packed = _compact_series(rows)
+        if packed is not None:
+            series[t] = (packed[0], packed[1], _split_list(splits_reader, t))
+    note["tickers_with_bars"] = len(series)
+    note["split_basis"] = {"declared": sum(1 for s in series.values() if s[2] is not None),
+                           "unknown": sum(1 for s in series.values() if s[2] is None)}
+    lists = _split_stats(splits_reader)
+    if lists is not None:
+        note["split_lists"] = lists
+    unknown = note["split_basis"]["unknown"]
+    allowed = max(BACKFILL_UNKNOWN_SPLITS_FLOOR, int(len(series) * BACKFILL_UNKNOWN_SPLITS_SHARE))
+    note["split_lists_allowed_unknown"] = allowed
+    if not dry_run and unknown > allowed:
+        # A session this writes is skipped by every later run, so a name ranked without
+        # its split list here would never be judged again: write nothing, run it again
+        # when the provider answers (the lists it did fetch are kept).
+        note["reason"] = "split_lists_unknown"
+        log.warning("[rs_history] restate-universe wrote nothing: %d split lists unknown (allowed %d)%s",
+                    unknown, allowed, " - FMP_API_KEY is not set" if (lists or {}).get("no_key") else "")
+        return
+    # ── PASS 1: the ranked count of every session. Nothing is written unless all are plausible. ──
+    ranked_by_session = {key: _ranked_estimate(series, etfs, key) for key in todo}
+    counts = list(ranked_by_session.values())
+    med = _median(counts)
+    note["ranked"] = {"min": min(counts), "median": med, "max": max(counts)}
+    bad = [(k, n) for k, n in ranked_by_session.items()
+           if n < UNIVERSE_MIN_RANKED or (med and abs(n - med) / med > band)]
+    if bad:
+        note["reason"] = "implausible_universe"
+        note["examples"] = [{"session": k, "ranked": n} for k, n in sorted(bad)[:FILL_EXAMPLES]]
+        note["implausible_sessions"] = len(bad)
+        log.warning("[rs_history] restate-universe wrote nothing: %d session(s) rank fewer than %d names "
+                    "or sit outside +/-%.0f%% of the median %s (e.g. %s)", len(bad), UNIVERSE_MIN_RANKED,
+                    100 * band, med, note["examples"][:3])
+        return
+    # ── PASS 2: rank, compare with what is stored, write (or, dry, count). ──
+    if not dry_run:
+        ensure_schema(conn)
+        for table, _method in _UNIVERSE_MARKERS:
+            conn.execute(_restated_sql(table))
+    shift = {"n": 0, "sum": 0, "big": 0, "up": 0}
+    for n, key in enumerate(todo, 1):
+        closes_by_ticker, suspects, _ranked = _universe_windows(series, etfs, key)
+        ratings = compute_ratings(closes_by_ticker, etfs, suspects=suspects)
+        stored = {r[0]: dict(zip(stored_cols, tuple(r)[1:])) for r in conn.execute(
+            f"SELECT ticker, {cols} FROM {TABLE} WHERE session = ?", (key,)).fetchall()}
+        upserts, nulls, inserted = [], [], 0
+        for t, r in ratings.items():
+            if not r.get("bars"):
+                continue
+            upserts.append((key, t, r.get("ibd"), r.get("m1"), r.get("m3"), r.get("m6"),
+                            r.get("m9"), r.get("m12"), r.get("score"), int(r.get("bars") or 0)))
+            old = stored.get(t)
+            if old is None:
+                inserted += 1
+            elif t not in etfs and old.get("ibd") is not None and r.get("ibd") is not None:
+                # the summary describes STOCKS (an ETF's number follows the stocks')
+                d = int(r["ibd"]) - int(old["ibd"])
+                shift["n"] += 1
+                shift["sum"] += d
+                shift["big"] += 1 if abs(d) > UNIVERSE_BIG_SHIFT else 0
+                shift["up"] += 1 if d > 0 else 0
+        for t in stored:
+            if not (ratings.get(t) or {}).get("bars"):
+                nulls.append((key, t))
+        counts_n = _counts_for(ratings, etfs)
+        receipt["rated"] += counts_n["rated"]
+        receipt["short_history"] += counts_n["short_history"]
+        receipt["split_guard"] += counts_n["split_guard"]
+        if not dry_run:
+            def _write(upserts=upserts, nulls=nulls, key=key):
+                conn.executemany(_UPSERT_SQL, upserts)
+                if nulls:
+                    conn.executemany(_NULL_RATINGS_SQL, nulls)
+                now_ts = time.time()
+                for table, method in _UNIVERSE_MARKERS:
+                    conn.execute(f"INSERT OR REPLACE INTO {table} (session, method, restated_at, rows) "
+                                 "VALUES (?, ?, ?, ?)", (key, method, now_ts, len(upserts)))
+            _write_with_lock_retry(conn, _write, what=f"restate-universe {key}")
+        note["rows_written"] += len(upserts)
+        note["rows_inserted"] += inserted
+        note["rows_updated"] += len(upserts) - inserted
+        note["rows_nulled"] += len(nulls)
+        receipt["rows"] += len(upserts)
+        note["sessions_done"] += 1
+        if log_every and n % log_every == 0:
+            log.info("[rs_history] restate-universe %d/%d sessions (newest first), at %s", n, len(todo), key)
+    if shift["n"]:
+        note["shift"] = {"compared": shift["n"], "mean": round(shift["sum"] / shift["n"], 2),
+                         "big_share": round(shift["big"] / shift["n"], 4),
+                         "up_share": round(shift["up"] / shift["n"], 4)}
+    receipt["ok"] = True
+
+
+# --------------------------------------------------------------------------- #
 # reads
 # --------------------------------------------------------------------------- #
 
@@ -1947,6 +2333,14 @@ def _parser():
     ap.add_argument("--columns", default="m6,m9,m12", choices=["m6,m9,m12", "m3"], metavar="COLUMNS",
                     help="with --restate-ranks: which columns to restate, m6,m9,m12 (default; the "
                          "IBD-style blend) or m3 (the equal-weighted 1/2/3-month average)")
+    ap.add_argument("--restate-universe", action="store_true",
+                    help="re-rank EVERY stored session in the last N against all non-ETF stocks (the "
+                         "wide universe) and rewrite every rating column; writes new rows for stocks "
+                         "the cap universe never held; refuses, writing nothing, when a session's "
+                         "ranked count is implausible")
+    ap.add_argument("--universe-band", type=float, default=UNIVERSE_BAND, metavar="X",
+                    help=f"with --restate-universe: how far a session's ranked count may sit from the "
+                         f"median session's before the run refuses (default {UNIVERSE_BAND}, 0.02 to 0.5)")
     ap.add_argument("--max-drift-share", type=float, default=RESTATE_DRIFT_SHARE, metavar="X",
                     help=f"with --restate-ranks: share of rows checked that may drift one rating point, "
                          f"and share that may mismatch harder, before it refuses (default "
@@ -1972,9 +2366,30 @@ def main(argv=None) -> int:
         print("rs_history: --split-fetch-budget must be 0 or more", file=sys.stderr)
         return 2
     budget = AUTO_BUDGET if args.split_fetch_budget is None else args.split_fetch_budget
-    if args.restate_ranks and args.fill_column:
-        print("rs_history: pick one of --restate-ranks and --fill-column", file=sys.stderr)
+    if sum(bool(x) for x in (args.restate_ranks, args.fill_column, args.restate_universe)) > 1:
+        print("rs_history: pick one of --restate-ranks, --restate-universe and --fill-column", file=sys.stderr)
         return 2
+    if args.restate_universe:
+        if not 0.02 <= args.universe_band <= 0.5:
+            print("rs_history: --universe-band must be 0.02 to 0.5", file=sys.stderr)
+            return 2
+        receipt = restate_universe(args.backfill_days, dry_run=args.dry_run, max_sessions=args.max_sessions,
+                                   split_fetch_budget=budget, band=args.universe_band)
+        note = receipt.get("note") or {}
+        dry = bool(receipt.get("dry_run"))
+        ranked = note.get("ranked") or {}
+        shift = note.get("shift") or {}
+        print(f"rs_history restate-universe{' (dry run)' if dry else ''}: sessions={note.get('sessions')} "
+              f"stored={note.get('sessions_stored')} already_done={note.get('sessions_restated_before')} "
+              f"todo={note.get('sessions_todo')} {'would_write' if dry else 'written'}={note.get('sessions_done')} "
+              f"rows={note.get('rows_written')} new_rows={note.get('rows_inserted')} "
+              f"updated={note.get('rows_updated')} nulled={note.get('rows_nulled')} "
+              f"ranked_min={ranked.get('min')} ranked_median={ranked.get('median')} ranked_max={ranked.get('max')} "
+              f"shift_mean={shift.get('mean')} shift_over{UNIVERSE_BIG_SHIFT}={shift.get('big_share')} "
+              f"shift_up={shift.get('up_share')} split_unknown={(note.get('split_basis') or {}).get('unknown')} "
+              f"reason={note.get('reason')} ms={receipt.get('duration_ms')} ok={receipt.get('ok')}", flush=True)
+        print("receipt " + json.dumps(receipt, sort_keys=True, default=str), flush=True)
+        return 0 if receipt.get("ok") else 1
     if args.columns != "m6,m9,m12" and not args.restate_ranks:
         print("rs_history: --columns only goes with --restate-ranks", file=sys.stderr)
         return 2

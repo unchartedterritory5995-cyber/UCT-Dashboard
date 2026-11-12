@@ -98,7 +98,7 @@ RULE_LINE = (
     "Rule: an RS new high is the RS line against SPY closing at its highest level of the "
     "last 252 bars. Before price means the stock is still more than 2% below its own high. "
     "A red day is SPY closing down 0.5% or more. The rating is IBD-style, 1 to 99, ranked "
-    "across the cap universe excluding ETFs."
+    "across every stock with a recent daily price, excluding ETFs."
 )
 #: The honesty sentence: printed whenever no measured evidence is supplied.
 #: Never a claim without a number (design plan section 9). Approved as written
