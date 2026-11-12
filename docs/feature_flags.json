@@ -3266,6 +3266,20 @@
     "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": {"retired": "2026-11-04", "state": "always on", "note": "Flag retired 2026-11-04 (notebook simplification): it was 1 on web, so the capability is always on and the code no longer reads the variable. A value left on Railway is inert (the owner removes it). To restore the gate, git revert the retiring commit.", "member_facing": {"label": "Visual playbook", "where": "Notebook"}}
   },
   "build_flags": {
+    "VITE_BARSTORE": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "owner": "owner",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "never built with it",
+      "last_changed": "never set",
+      "note": "P3-S1 BarStore chart bar source (app/src/components/chart/barStoreSwitch.js, read ONCE at module load as `=== '1'`). Off (unset) = every chart reads bars through the legacy selector (chart/useLegacyChartBars.js, SWR + IDB + mem); on = through the BarStore snapshot (chart/useBarSnapshotBars.js, data/barStore). Per-browser override: localStorage 'uct.barStore' = '1' (on) / '0' (off) wins over the build. SAFETY REASON FOR THE FLAG: it swaps the whole bar data path of every chart, so it ships OFF and the owner approves the live switch separately after a per-browser soak. Removed <= 7 days after it reaches 100% (P3-S3 deletes the legacy hook and the switch).",
+      "flip_precondition": "ON CHANGES FOR A MEMBER: every chart's bars (history, tail polling, the developing candle Writer D re-tops, the symbol handoff's prepare) come from one BarStore entry per (symbol, timeframe) instead of the SWR/IDB/mem selector. VERIFY BEFORE FLIPPING: soak with localStorage uct.barStore=1 during RTH on 1/5/15/30/60m and D (symbol scan + timeframe switches), compare against a legacy tab; confirm no blank frames, no stale tails painted as LIVE, and the request count per chart stays at one tail poll.",
+      "hold": "Owner approval required to arm (P3-S1 PR). No action until then."
+    },
     "VITE_CHART_RENDER_TOKEN": {
       "status": "armed",
       "where": [

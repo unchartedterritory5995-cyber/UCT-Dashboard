@@ -1593,6 +1593,13 @@ import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
 import { markFirstChartPaint } from '../lib/barsPackClient'
 import { useLegacyChartBars } from './chart/useLegacyChartBars'
+import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
+import { BARSTORE } from './chart/barStoreSwitch'
+
+// ⭐ P3-S1: THE chart's bar source, chosen ONCE at module load (chart/barStoreSwitch.js) — a
+// module constant, so the hook order of every StockChart render is fixed. Off → the legacy
+// SWR / IDB / mem selector; on → the BarStore snapshot. Same parameters, same 24 bindings.
+const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
 
 // ⭐ RT1 — HOW A SAVED RUNTIME-LANE DOCUMENT GETS ITS LANE on a chart that never
 // opened the member door. The registry asks this loader only when it meets a
@@ -8295,13 +8302,13 @@ export default function StockChart({
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
   const dedupMs = isIntraday ? 15000 : 60000  // 15s intraday, 60s daily/weekly
 
-  // ── Bar DATA region → chart/useLegacyChartBars.js (P3-S0 pure move; same hook-order slot) ──
+  // ── Bar DATA region → chart/useLegacyChartBars.js | chart/useBarSnapshotBars.js (P3-S1 `useChartBars`) ──
   const {
     bars, data, error, mutate, isValidating, compareData, idbReadyForRef, idbBarsRef,
     dailyRepairTodayRef, paintSymRef, _tailCatchupRef, _lastTailStatusRef, _histMutateRef,
     _resolveDailyTodaySeed, _isCustomTf, _hasOverride, _customBaseIntraday, _intradayLike,
     _histPrependOn, _loadOlder, _symU, _idbBasisMismatch, _staleContext, _tfSwitchHold,
-  } = useLegacyChartBars({
+  } = useChartBars({
     sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, dedupMs, breadthSeries, replayCutoff,
     compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane, _sessQ,
     _gridQ, instFetcher, fetchDepth, _fpBars, _fullTarget, _pinnedFull, _deepFirstPaint,
@@ -8314,6 +8321,10 @@ export default function StockChart({
     _intradayDeepBackfillEnabled, _intradaySmoothSwitchEnabled, _persistHistorySoon,
     barsSwrOnErrorRetry, fetcher,
   })
+  // P3-S1: the snapshot's developing bar (legacy shape, unix t) for Writer D's re-top under
+  // BARSTORE; null under the legacy source (its re-top keeps the reconcile path).
+  const _storeDevRef = useRef(null)
+  _storeDevRef.current = (BARSTORE && data?.developing && (!data.ticker || data.ticker === _symU)) ? data.developing : null
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
@@ -12325,17 +12336,25 @@ export default function StockChart({
       // the developing bar from a WS rollup that only accumulated since we subscribed,
       // collapsing the current candle to the "since you opened it" window — the reported
       // "bar shows correct data for a moment, then loses it until ~10s after close" bug.
-      // Intraday only.
-      if (!['D', 'W', 'M'].includes(resolvedTf)) {
+      // Intraday only — and under BARSTORE every tf (P3-S1 Writer D, below).
+      if (BARSTORE || !['D', 'W', 'M'].includes(resolvedTf)) {
         const _lt = adjustTime(last.t)
         const _lb = liveBarRef.current
+        // ⭐ P3-S1 WRITER D UNDER BARSTORE: the developing bar is THE SNAPSHOT'S (the store merged
+        // the server's developing bar, the push frames and the tick fallback — reducer I1–I4), so
+        // it is seeded verbatim and the re-top below re-applies exactly it. No reconcile here: the
+        // store already is the reconcile. A D/W/M bar the session preview owns is left to it.
+        const _sd = BARSTORE ? _storeDevRef.current : null
+        const _storeDev = (_sd && !(['D', 'W', 'M'].includes(resolvedTf) && sessionOwnsDailyRef.current))
+          ? { time: adjustTime(_sd.t), open: _sd.o, high: _sd.h, low: _sd.l, close: _sd.c, volume: Number(_sd.v) || 0, sym }
+          : null
         // lib/liveBarMerge.reconcileWithServerTail — the same rules as the comment below,
         // PLUS: a developing bar ONE bucket past the fetched tail (the live writer opened it,
         // the poll hasn't ingested it) is KEPT and re-appended by the re-top, never replaced
         // by the closed server bar. Replacing it blanked the new candle on every poll in a
         // bucket's first ~30s and then re-opened it at o=h=l=current price (the "new candle
         // glitches / its low disappears" report). Volume = max(server, live), never down.
-        const _rec = reconcileWithServerTail(_lb ? { ..._lb, sym: _lb.sym ?? _lbOwnerSym } : null,
+        const _rec = BARSTORE ? null : reconcileWithServerTail(_lb ? { ..._lb, sym: _lb.sym ?? _lbOwnerSym } : null,
           { time: _lt, open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 },
           { sym, periodSec: LIVE_PERIOD_SECONDS[resolvedTf] || 300,
             nowChart: toChartTime(Date.now() / 1000), tf: resolvedTf,
@@ -12359,7 +12378,7 @@ export default function StockChart({
           //   the price genuinely traded to, blinking while the candle is developing, then
           //   stable once it closes). Take the max/min of BOTH so a real live extension
           //   stays put and a server correction (higher/lower) is still respected.
-          liveBarRef.current = _rec.bar
+          liveBarRef.current = BARSTORE ? _storeDev : _rec.bar
         }
       }
     }
@@ -12399,7 +12418,9 @@ export default function StockChart({
 
     // Re-apply the live developing bar immediately after setData() to prevent snap-back —
     // setData() overwrites with API data (stale by seconds/minutes).
-    if (barsPushActiveRef.current && !provisionalStaleRef.current) {
+    // P3-S1: under BARSTORE this branch is THE re-top — from the snapshot's developing bar
+    // (seeded into liveBarRef above); the Finnhub re-top below is never taken.
+    if ((BARSTORE || barsPushActiveRef.current) && !provisionalStaleRef.current) {
       // Writer D of the single-writer invariant (index @ barsPushActiveRef decl) — a BRANCH,
       // not a guard: push authoritative → re-top with the PUSH-owned developing bar (liveBarRef,
       // maintained by onRealtimeBar), NOT the frozen Finnhub latestLiveRef. Without this

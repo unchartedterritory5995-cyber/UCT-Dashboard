@@ -52,6 +52,69 @@ const _IDB_FIRST_PAINT_TIMEOUT_MS = 600
 const _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS = 4000
 let _browserHasCachedBars = false
 
+/** The comparison symbol's bars (an SWR of its own URL). P3-S1: BOTH bar sources call this one
+ *  hook, so a compare overlay is identical under either switch value; P3-S3 moves it onto a store key. */
+export function useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher }) {
+  const compareSwrUrl = compareSymbol
+    ? `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${resolvedTf}&bars=${barCount}${_gridQ}`
+    : null
+  const { data: compareData } = useSWR(compareSwrUrl, instFetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
+  return compareData
+}
+
+/** The current-session daily seed (see `_resolveDailyTodaySeed` in the hook). Shared with
+ *  chart/useBarSnapshotBars.js so both bar sources state today the same way (one owner). */
+export function resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _effLivePrice, _liveSane }) {
+  if (resolvedTf !== 'D') return null
+  const _dev = _developingBarISO('D')
+  if (!_dev) return null
+  try {
+    const _sess = getExtSessionCached()
+    if (_sess && (_sess.session === 'pre' || _sess.session === 'post')) return null
+  } catch { /* fall through — the per-source ext guards below still hold */ }
+  // ⛔⛔ THE SANITY BASELINES MUST BE *THIS* SYMBOL'S (2026-11-11). This runs in the
+  // render that first carries the new symbol, when `lastBarRef` / `lastServerCloseRef`
+  // still hold the PREVIOUS ticker's close (the reset is an effect; the server close is
+  // only replaced when the new symbol paints). So every switch between two names more
+  // than 50% apart in price — META → GOOGL, NFLX → AMD, MU → INTC — rejected the new
+  // name's own seed as a "phantom", refused its cache, and waited a round trip for
+  // /api/bars: the "sometimes ~0.5 s even for liquid tickers" web report. A baseline
+  // that belongs to another symbol is no baseline; fall back to this symbol's own
+  // cached close (the IDB set for this key, else the mem cache), which still catches
+  // the 100x phantom the guard exists for.
+  // 1) Live-price store — the same `day.h`/`day.l` aggregate, at the freshest cadence
+  //    UCT has (15s server TTL behind a 2s client poll), and it carries the vendor's
+  //    own `observed_at` so the age we report is not a guess.
+  try {
+    const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
+    const _px = _snap ? _effLivePrice(_snap) : null
+    if (_px && !_snap.ext_session && _liveSane(sym, _px)
+        && _snap.day_open > 0 && _snap.day_high > 0 && _snap.day_low > 0) {
+      const _obs = Number(_snap.observed_at)
+      return {
+        t: _dev,
+        o: _snap.day_open,
+        h: Math.max(_snap.day_high, _px),
+        l: Math.min(_snap.day_low, _px),
+        c: _px,
+        src: 'live-store',
+        ageMs: Number.isFinite(_obs) && _obs > 0 ? Math.max(0, Date.now() - _obs * 1000) : null,
+      }
+    }
+  } catch { /* fall through to the pack */ }
+  // 2) Today-pack — the whole-market projection of the same snapshot. Its own client
+  //    enforces the seed ceiling; `todayPackUsable()` is that ceiling asked out loud.
+  try {
+    if (todayPackUsable()) {
+      const _tb = getTodayBar(sym)
+      if (_tb && _liveSane(sym, _tb.c)) {
+        return { t: _dev, o: _tb.o, h: _tb.h, l: _tb.l, c: _tb.c, src: 'today-pack', ageMs: null }
+      }
+    }
+  } catch { /* no seed */ }
+  return null
+}
+
 export function useLegacyChartBars({
   sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, dedupMs, breadthSeries, replayCutoff,
   compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane, _sessQ,
@@ -318,56 +381,7 @@ export function useLegacyChartBars({
   // (a 2s poll against the pack's 90s seed ceiling), not because it knows more.
   // ⛔ REGULAR SESSION ONLY, both doors. Outside RTH the daily candle is settled at
   // the 4pm close and an extended print must not move it.
-  const _resolveDailyTodaySeed = () => {
-    if (resolvedTf !== 'D') return null
-    const _dev = _developingBarISO('D')
-    if (!_dev) return null
-    try {
-      const _sess = getExtSessionCached()
-      if (_sess && (_sess.session === 'pre' || _sess.session === 'post')) return null
-    } catch { /* fall through — the per-source ext guards below still hold */ }
-    // ⛔⛔ THE SANITY BASELINES MUST BE *THIS* SYMBOL'S (2026-11-11). This runs in the
-    // render that first carries the new symbol, when `lastBarRef` / `lastServerCloseRef`
-    // still hold the PREVIOUS ticker's close (the reset is an effect; the server close is
-    // only replaced when the new symbol paints). So every switch between two names more
-    // than 50% apart in price — META → GOOGL, NFLX → AMD, MU → INTC — rejected the new
-    // name's own seed as a "phantom", refused its cache, and waited a round trip for
-    // /api/bars: the "sometimes ~0.5 s even for liquid tickers" web report. A baseline
-    // that belongs to another symbol is no baseline; fall back to this symbol's own
-    // cached close (the IDB set for this key, else the mem cache), which still catches
-    // the 100x phantom the guard exists for.
-    // 1) Live-price store — the same `day.h`/`day.l` aggregate, at the freshest cadence
-    //    UCT has (15s server TTL behind a 2s client poll), and it carries the vendor's
-    //    own `observed_at` so the age we report is not a guess.
-    try {
-      const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
-      const _px = _snap ? _effLivePrice(_snap) : null
-      if (_px && !_snap.ext_session && _liveSane(sym, _px)
-          && _snap.day_open > 0 && _snap.day_high > 0 && _snap.day_low > 0) {
-        const _obs = Number(_snap.observed_at)
-        return {
-          t: _dev,
-          o: _snap.day_open,
-          h: Math.max(_snap.day_high, _px),
-          l: Math.min(_snap.day_low, _px),
-          c: _px,
-          src: 'live-store',
-          ageMs: Number.isFinite(_obs) && _obs > 0 ? Math.max(0, Date.now() - _obs * 1000) : null,
-        }
-      }
-    } catch { /* fall through to the pack */ }
-    // 2) Today-pack — the whole-market projection of the same snapshot. Its own client
-    //    enforces the seed ceiling; `todayPackUsable()` is that ceiling asked out loud.
-    try {
-      if (todayPackUsable()) {
-        const _tb = getTodayBar(sym)
-        if (_tb && _liveSane(sym, _tb.c)) {
-          return { t: _dev, o: _tb.o, h: _tb.h, l: _tb.l, c: _tb.c, src: 'today-pack', ageMs: null }
-        }
-      }
-    } catch { /* no seed */ }
-    return null
-  }
+  const _resolveDailyTodaySeed = () => resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _effLivePrice, _liveSane })
   const _dailyTodaySeed = _resolveDailyTodaySeed()
 
   // ── THE DAILY PAINT AUTHORITY ──────────────────────────────────────────────
@@ -738,11 +752,8 @@ export function useLegacyChartBars({
   // on `isIntraday` alone; custom TFs get their own live writer below.)
   const _intradayLike = isIntraday || (_isCustomTf && _customBaseIntraday)
 
-  // ── Comparison symbol SWR fetch ──
-  const compareSwrUrl = compareSymbol
-    ? `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${resolvedTf}&bars=${barCount}${_gridQ}`
-    : null
-  const { data: compareData } = useSWR(compareSwrUrl, instFetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
+  // ── Comparison symbol SWR fetch ── (useCompareBars, shared with useBarSnapshotBars)
+  const compareData = useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher })
 
   // ── Intraday deep history = LEFT-PREPEND windows (2026-11-11, utils/historyPrepend.js) ──
   // ⛔ Replaces the one-shot `bars=3000` deep pull AND the scroll-back `setFetchDepth` x8
