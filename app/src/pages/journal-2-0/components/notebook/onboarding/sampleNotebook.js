@@ -4,8 +4,8 @@
 // The server (`api/routers/notebook_onboarding.py`) writes five notes into a folder named
 // "Sample notebook" for a paid member with no notes at all, records their ids in the
 // preference `notebook_sample` ({v:1, ids, at}), and trashes exactly those ids on remove.
-// A dismissed strip adds `dismissedAt` to the same value (the whole value is written back —
-// `usePreferences().setPref` replaces it — so the ids travel with it).
+// (Research home's strip could add `dismissedAt` to that value; go-live wave 1 retired the strip, and
+// the removal door is now the notes list's ⋯ row "Remove the sample notebook", tabs/NotebookTab.jsx.)
 //
 // ⛔ Wave 8 final review, fix I-3: "Remove it" is a TRASH door, so before the DELETE it runs
 // the bulk trash's own pre-check (lib/noteBatch.js `precheckNoteBatch`) over the sample's
@@ -30,7 +30,10 @@ export const SAMPLE_COPY = Object.freeze({
   strip: "You're looking at the sample notebook",
   remove: 'Remove it',
   removing: 'Removing…',
-  removed: 'The sample notes are in Trash. You can restore them from there.',
+  // Go-live wave 1 (A7): the notes list's ⋯ row, and its status line while it runs.
+  removeRow: 'Remove the sample notebook',
+  removingLine: 'Removing the sample notebook…',
+  removed: 'Sample notebook moved to Trash. You can restore it from there.',
   removeFailed: "We couldn't remove the sample notebook. Try again in a moment.",
   notRemoved: 'The sample was not removed:',
   uncheckedNotRemoved: `${UNCHECKED_SENTENCE} The sample was not removed:`,

@@ -13,6 +13,7 @@ import { WHATS_NEW_COPY } from './journal-2-0/components/notebook/onboarding/tou
 import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
 import { SkipLinkPortal } from '../components/skipLinks'
 import { tourProgress, TOUR_PROGRESS } from './journal-2-0/components/notebook/onboarding/tourProgress'
+import { armedCapabilities, PREVIEW_COPY } from './journal-2-0/components/notebook/onboarding/capabilityList'
 import {
   ANSWER_PREFIX, HELP_SEARCH_ID, NEW_TICKET_HREF, QUICK_ANSWERS_ID, WALKTHROUGHS_ID,
 } from '../components/helpAnchors'
@@ -390,6 +391,30 @@ function WalkthroughsSection() {
         })}
       </ul>
     </div>
+  )
+}
+
+/** Help > "What your Notebook can do" (go-live wave 1, A6). It was the first-run welcome's folded preview
+ *  (CapabilityPreview, retired with Research home); here it is a plain section beside the walkthroughs: one line per
+ *  capability ARMED for this member (capabilityList.js, each line on its own flag), no sample promotion, nothing to
+ *  press. It rides the same wave-14 switch as the walkthroughs above it, as the preview did. */
+export function NotebookCapabilitiesSection() {
+  const lines = checklistEnabled(notebookFlag) ? armedCapabilities() : []
+  if (!lines.length) return null
+  return (
+    <section className={styles.faqWrap} aria-labelledby="support-notebook-can-do">
+      <h2 id="support-notebook-can-do" className={`${styles.faqTitle} ${styles.whatsNewTitle}`}>
+        <UIcon name="book" size={13} />
+        {PREVIEW_COPY.heading}
+      </h2>
+      <ul className={styles.capabilityList}>
+        {lines.map((c) => (
+          <li key={c.id} className={styles.capabilityRow}>
+            <strong>{c.label}.</strong> {c.line}
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -1481,6 +1506,7 @@ export default function Support() {
 
         {!loading && <WhatsNewSection />}
         {!loading && <WalkthroughsSection />}
+        {!loading && <NotebookCapabilitiesSection />}
         {!loading && <QuickAnswers faqs={orderedFaqs} votes={votes} onVote={handleVote} />}
         {/* TERM-039: what is here today and what is on early for this account. */}
         {!loading && <FeatureStatusStrip />}

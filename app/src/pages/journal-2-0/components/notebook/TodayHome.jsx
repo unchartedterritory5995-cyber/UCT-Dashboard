@@ -3,12 +3,16 @@
 // brief" row). The Notebook opens on the notes list; this page no longer offers "Open the Notebook on" or a Research
 // home link. Below the cards it carries two of Research home's boxes, folded: "Reporting soon" and "Passed setups"
 // (each only while its switch is on; folded, a box is not mounted and reads nothing).
+// Go-live wave 1: three more of Research home's pieces live here. The Notices box sits at the top of the cards (it
+// renders nothing when there is nothing to tell), and "Needs review" and "Notes on your open positions" sit after the
+// cards, each drawn only when it has rows.
 //
-// ⛔⛔ ONE REQUEST. Everything here is `GET /api/j2/notes/today` (api/services/journal_two/notebook_today.py): today's
-// note (made from the member's daily template the first time today), the setups near entry, the member's names,
+// ⛔⛔ ONE REQUEST FOR THE CARDS. The phase cards are `GET /api/j2/notes/today` (api/services/journal_two/notebook_today.py):
+// today's note (made from the member's daily template the first time today), the setups near entry, the member's names,
 // what is open from yesterday, on this day, the market line and the ET session. The cards never fetch on mount (the
 // auth gate serialises every lazy read behind it); a card's own ask (adding names, writing the recap) runs only when
-// the member presses it.
+// the member presses it. The two review sections read `GET /api/j2/notebook/home` (useNotebookHome) only AFTER that
+// read has answered, so they never delay a card; the Notices box makes its own two reads (NoticesBox.jsx).
 //
 // The page is a lazy view (tabs/NotebookTab.jsx `lazyView`): its bytes are not on the Notebook's first open.
 //
@@ -26,6 +30,8 @@ import useSWR from 'swr'
 import { AuthContext } from '../../../../context/AuthContext'
 import usePreferences from '../../../../hooks/usePreferences'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
+import useNotebookHome from '../../hooks/useNotebookHome'
+import NoticesPanel from '../../surfaces/today/panels/NoticesPanel'
 import LoadFailed from '../LoadFailed'
 import CollapsibleSection from '../CollapsibleSection'
 import EmptyNamesAsk from './EmptyNamesAsk'
@@ -515,6 +521,60 @@ function MoreBoxes({ onOpenNote }) {
   )
 }
 
+/** Go-live wave 1: the headings of Research home's two review sections, as the Daily brief names them. */
+export const NEEDS_REVIEW_TITLE = 'Needs review'
+export const OPEN_POSITIONS_TITLE = 'Notes on your open positions'
+export const OPEN_POSITION_TAG = 'Open position'
+
+/** Why a note is in "Needs review": the server's own reasons (notebook_home.py `reviewReasons`), joined. */
+export function reviewReasonsLine(note) {
+  return (Array.isArray(note?.reviewReasons) ? note.reviewReasons : [])
+    .map((r) => (typeof r?.text === 'string' ? r.text.trim() : '')).filter(Boolean).join(' · ')
+}
+
+/** One of Research home's note sections. Drawn only when it has rows: no heading, no empty line, no skeleton. The
+ *  server already caps each section at five. */
+function HomeNotesCard({ id, title, notes, line, onOpenNote }) {
+  if (!Array.isArray(notes) || notes.length === 0) return null
+  return (
+    <Card id={id} title={title} testId={`today-${id}`}>
+      <ul className={styles.list}>
+        {notes.map((n) => {
+          const sub = line(n)
+          return (
+            <li key={n.id}>
+              <button type="button" className={styles.memory} onClick={() => onOpenNote?.({ id: n.id, title: n.title })}>
+                <span className={styles.noteTitle}>
+                  {n.ticker && <span className={styles.tk}>{n.ticker}</span>} {n.title?.trim() || 'Untitled'}
+                </span>
+                {sub && <span className={styles.from}>{sub}</span>}
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </Card>
+  )
+}
+
+/** "Needs review" and "Notes on your open positions", after the phase cards. The read waits for the cards' own read
+ *  (`ready`), so it never competes with it, and nothing is drawn while it is in flight or when both are empty. A failed
+ *  read draws nothing either: these are extras on a page whose cards already answered. */
+function HomeNotes({ ready, onOpenNote }) {
+  const { home } = useNotebookHome({ enabled: ready })
+  const review = home?.needsReview || []
+  const positions = home?.openPositionResearch || []
+  if (!ready || (review.length === 0 && positions.length === 0)) return null
+  return (
+    <div className={styles.grid} data-today-home-notes="">
+      <HomeNotesCard id="needs-review" title={NEEDS_REVIEW_TITLE} notes={review} line={reviewReasonsLine}
+        onOpenNote={onOpenNote} />
+      <HomeNotesCard id="open-positions" title={OPEN_POSITIONS_TITLE} notes={positions} line={() => OPEN_POSITION_TAG}
+        onOpenNote={onOpenNote} />
+    </div>
+  )
+}
+
 // ── the page ─────────────────────────────────────────────────────────────────────────────────
 
 /** Milliseconds to the next ET wall-clock time `hh:mm` (today's, else tomorrow's). */
@@ -669,8 +729,11 @@ export default function TodayHome({
         </div>
       </header>
       {error && <LoadFailed compact what="Today" error={error} onRetry={refresh} />}
+      {/* Go-live wave 1: Research home's Notices, at the top of the cards (nothing at all when there is nothing). */}
+      <NoticesPanel />
       {!error && <div className={styles.grid}>{order.map(card)}</div>}
       <FirstRunSlot onOpenNote={onOpenNote} onOpenToday={refresh} />
+      <HomeNotes ready={Boolean(data || error)} onOpenNote={onOpenNote} />
       <MoreBoxes onOpenNote={onOpenNote} />
     </div>
   )

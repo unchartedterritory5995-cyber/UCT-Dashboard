@@ -543,7 +543,7 @@ def test_the_sentences_the_walk_compares_against_are_read_from_source(walk):
     assert js(sample_js, "refused").startswith("You already have notes")
     assert js(sample_js, "add") == "Add a sample notebook"
     assert js(sample_js, "remove") == "Remove it"            # never the `removeAnyway`/`removed` keys
-    assert js(sample_js, "removed").startswith("The sample notes are in Trash")
+    assert js(sample_js, "removed").startswith("Sample notebook moved to Trash")
     assert js(walk["TOUR_COPY_JS"], "next") == "Next" and js(walk["TOUR_COPY_JS"], "done") == "Done"
     assert py(walk["SAMPLE_PY"], "REFUSED_SENTENCE").startswith("You already have notes")
     assert py(walk["PUBLIC_PAYLOAD_PY"], "NEUTRAL_LINE").endswith("public pages.")

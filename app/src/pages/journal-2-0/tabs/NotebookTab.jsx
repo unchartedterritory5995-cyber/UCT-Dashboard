@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
-import { mutate as globalMutate, useSWRConfig } from 'swr'
+import useSWR, { mutate as globalMutate, useSWRConfig } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
 import { applyTargetToParams } from '../lib/searchNavigation'
 import { passageNavigationState } from '../lib/openCitation'
@@ -58,7 +58,7 @@ import { TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorV
 import { NOTEBOOK_LIST_HASH, NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
-  joinUndo, runNoteBatch, undoFor,
+  joinUndo, precheckNoteBatch, runNoteBatch, undoFor,
 } from '../lib/noteBatch'
 import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
@@ -98,6 +98,9 @@ import { holdImageForNote } from '../lib/pendingImageInsert'
 import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
 import GettingStartedChecklist from '../components/notebook/GettingStartedChecklist'
 import SampleNotebookDoor, { useAddSampleNotebook } from '../components/notebook/onboarding/SampleNotebookDoor'
+import {
+  SAMPLE_COPY, SAMPLE_PREF, SAMPLE_URL, describeSampleHold, isNotebookKey, readSamplePref, removeSampleNotebook, removedMessage,
+} from '../components/notebook/onboarding/sampleNotebook'
 import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
@@ -113,6 +116,15 @@ import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 // route in App.jsx already does (review M-5).
 // `fallback` (Task 7.3): a view that is not a page region -- the bulk bar -- passes `null` so nothing
 // flashes while its chunk loads; every other view keeps the skeleton.
+// Go-live wave 1 (A7): the sample's status read (asked for once ⋯ has been opened) and the "anyway" op of its removal.
+// A failed read THROWS (Wave 10 F7), so it shows no row rather than a row for a sample that may be gone.
+const SAMPLE_STATUS_SWR = Object.freeze({ revalidateOnFocus: false, shouldRetryOnError: false })
+const fetchSampleStatus = (url) => fetch(url, { credentials: 'include' }).then((r) => {
+  if (!r.ok) throw new Error(String(r.status))
+  return r.json()
+})
+const REMOVE_SAMPLE_OP = 'remove-sample'
+
 function lazyView(load, label, fallback) {
   const Chunk = lazyChunk(load)
   function LazyNotebookView(props) {
@@ -1873,7 +1885,8 @@ export default function NotebookTab() {
   const runAnyway = (anyway) => {
     if (!anyway || bulkBusyRef.current) return
     setBulkNotice(null)
-    if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true, format: anyway.args?.format })
+    if (anyway.op === REMOVE_SAMPLE_OP) removeSample({ acceptUnchecked: true })
+    else if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true, format: anyway.args?.format })
     // N1 (wave 6 fix round 2): `anyway.args`/`anyway.ctx` are the op's OWN —
     // dropping them to `{}` is exactly N1 (a `renameTag` retry with no
     // `{from, to}` 400s at the server, and its own success sentence would
@@ -2227,7 +2240,7 @@ export default function NotebookTab() {
 
   // VIS-5: the empty folder names its folder. Read from the folders list FolderSidebar already fetched
   // (the same SWR key, never a second request); a folder not in it yet reads as "this folder".
-  const { cache: swrCache } = useSWRConfig()
+  const { cache: swrCache, mutate: swrMutate } = useSWRConfig()
   const activeFolderName = (folderId
     && swrCache.get('/api/j2/note-folders')?.data?.folders?.find((f) => f.id === folderId)?.name) || 'this folder'
   // "Move notes…": back to All notes, where every note can be selected and moved with the bulk bar's Move.
@@ -2276,6 +2289,48 @@ export default function NotebookTab() {
   const viewMenu = useMenuButton()
   const newMenu = useMenuButton()
   const moreMenu = useMenuButton()
+
+  // Go-live wave 1 (A7): "Remove the sample notebook", a row of ⋯ at every width while the sample is active. It was
+  // Research home's strip ("Remove it"); the flow is the same: the bulk trash's pre-check over the sample notes still
+  // out of Trash (a note holding unsent words holds the whole removal back and is named; a device that could not be
+  // asked gets a confirmed "Remove anyway" in the list's notice line), then the DELETE, then every Notebook read
+  // refreshed and one sentence saying what happened.
+  // ⛔ ONE READ, ON DEMAND: the sample's status (`GET /api/j2/onboarding/sample-notebook`) is asked for the first time ⋯
+  // opens, and only for a member whose preferences record a sample at all (onboarding switch on), never on every open.
+  const sampleRecorded = notebookFlag('notebook_onboarding_enabled') === true && Boolean(readSamplePref(prefs?.[SAMPLE_PREF]))
+  const [moreMenuAsked, setMoreMenuAsked] = useState(false)
+  useEffect(() => { if (moreMenu.open) setMoreMenuAsked(true) }, [moreMenu.open])
+  const { data: sampleStatus } = useSWR(sampleRecorded && moreMenuAsked ? SAMPLE_URL : null, fetchSampleStatus, SAMPLE_STATUS_SWR)
+  const sampleActiveIds = Array.isArray(sampleStatus?.activeIds) ? sampleStatus.activeIds : []
+  const removingSampleRef = useRef(false)
+  const removeSample = async ({ acceptUnchecked = false } = {}) => {
+    if (removingSampleRef.current || !sampleActiveIds.length) return
+    removingSampleRef.current = true
+    setBulkNotice({ message: SAMPLE_COPY.removingLine, tone: 'info' })
+    try {
+      const hold = describeSampleHold(
+        await precheckNoteBatch({ ids: sampleActiveIds, op: 'trash', blockedNoteIds, acceptUnchecked }),
+        { titleOf },
+      )
+      if (hold) {
+        setBulkNotice({ message: hold.message, tone: 'error', anyway: hold.anyway ? { ...hold.anyway, op: REMOVE_SAMPLE_OP } : undefined })
+        return
+      }
+      const out = await removeSampleNotebook()
+      if (!out.ok) {
+        setBulkNotice({ message: out.message, tone: 'error' })
+        return
+      }
+      swrMutate(isNotebookKey)
+      handleImported()   // the list, the tree, the counts and the folders (the sample's folder may be gone)
+      setBulkNotice({ message: removedMessage(out), tone: 'info' })
+    } catch (e) {
+      console.error('[notebook] remove sample notebook failed', e)
+      setBulkNotice({ message: SAMPLE_COPY.removeFailed, tone: 'error' })
+    } finally {
+      removingSampleRef.current = false
+    }
+  }
   const currentView = VIEW_MODES.find((m) => m.id === viewMode) || VIEW_MODES[0]
   // The view goes in the address (`?view=board`), so a reload or a shared link opens it again. The URL
   // effect above reads the same param, so this is one fact in one place, not a second store.
@@ -2347,6 +2402,8 @@ export default function NotebookTab() {
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
     stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true) },
+    // Go-live wave 1 (A7): at every width, only while the sample is active (its status read says so).
+    sampleActiveIds.length > 0 && { key: 'remove-sample', label: SAMPLE_COPY.removeRow, icon: 'trash', run: () => removeSample() },
   ].filter(Boolean)
 
   // A successful import can create notes AND folders — refresh both. Notes

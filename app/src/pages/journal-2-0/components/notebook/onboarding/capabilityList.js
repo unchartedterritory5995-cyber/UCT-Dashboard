@@ -133,8 +133,9 @@ export const PREVIEW_COPY = Object.freeze({
   // ⛔ Truthful about what the click adds (wave 14 integration round 2): example notes in their
   // own folder, one example passed setup and one example notice, and NO trade -- a sample trade
   // would land in the member's P&L and stats. tests/test_sample_notebook_trade_exclusion.py
-  // reads this line.
-  sampleTail: 'puts example notes in their own folder, plus one example passed setup and one example notice. It adds no trades. You can remove it all in one click.',
+  // reads this line (a single-quoted string with no apostrophe inside: that is how it is read).
+  // Go-live wave 1 (A7): the removal door is the notes list's More menu row, so the line names it.
+  sampleTail: 'puts example notes in their own folder, plus one example passed setup and one example notice. It adds no trades. To take it all out again, choose Remove the sample notebook in the More menu of your notes list.',
 })
 
 /** The lines armed for this member, in list order: the line's own flag and every one it `requires`.

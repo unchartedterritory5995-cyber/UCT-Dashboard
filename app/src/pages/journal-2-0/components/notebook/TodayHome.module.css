@@ -154,6 +154,9 @@ button.row:hover { background: var(--bg-hover); border-color: rgba(220, 187, 94,
 .memory:hover { background: var(--bg-hover); }
 .quote { font-size: 14px; line-height: 1.45; }
 .from { font-size: 12px; color: var(--text-muted); }
+/* Go-live wave 1: a note row of "Needs review" / "Notes on your open positions" (a `.memory` button): the title on one
+   line, then why it is listed. */
+.noteTitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 
 .action {
   min-height: 36px;

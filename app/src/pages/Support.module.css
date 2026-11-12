@@ -537,6 +537,20 @@
   color: var(--text-bright);
 }
 .walkthroughRow:last-child { border-bottom: none; }
+/* Go-live wave 1: "What your Notebook can do", one plain line per capability. */
+.capabilityList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.capabilityRow {
+  padding: 7px 2px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.capabilityRow:last-child { border-bottom: none; }
 /* Help > What's new (wave 14, W14-C2): one line of lead under the heading. */
 .whatsNewTitle {
   margin-top: 0;
