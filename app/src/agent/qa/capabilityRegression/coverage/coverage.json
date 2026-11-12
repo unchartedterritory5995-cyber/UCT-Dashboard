@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 186,
-  "withProductionKinds": 177,
+  "all": 188,
+  "withProductionKinds": 179,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 186,
-  "withAnyRegressionCase": 134,
+  "capabilities": 188,
+  "withAnyRegressionCase": 136,
   "perProtection": {
    "nl": {
-    "covered": 132,
-    "applicable": 186
+    "covered": 133,
+    "applicable": 188
    },
    "routing": {
-    "covered": 129,
-    "applicable": 186
+    "covered": 130,
+    "applicable": 188
    },
    "args": {
-    "covered": 134,
-    "applicable": 186
+    "covered": 136,
+    "applicable": 188
    },
    "execution": {
-    "covered": 132,
-    "applicable": 186
+    "covered": 133,
+    "applicable": 188
    },
    "receipt": {
-    "covered": 104,
-    "applicable": 186
+    "covered": 105,
+    "applicable": 188
    },
    "refusal": {
-    "covered": 33,
-    "applicable": 186
+    "covered": 34,
+    "applicable": 188
    },
    "permission": {
-    "covered": 179,
-    "applicable": 186
+    "covered": 181,
+    "applicable": 188
    },
    "undo": {
-    "covered": 61,
-    "applicable": 118
+    "covered": 62,
+    "applicable": 120
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 186
+    "applicable": 188
    },
    "phrasings": {
-    "covered": 128,
-    "applicable": 186
+    "covered": 129,
+    "applicable": 188
    }
   }
  },
@@ -6550,6 +6550,108 @@
     "permission": [],
     "undo": [
      "layout.unpinFromBar: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "multiChart.cell": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "gridCell",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": true,
+    "execution": false,
+    "receipt": false,
+    "refusal": true,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [
+     "refuse.multiChart.cell-grid-closed"
+    ],
+    "execution": [],
+    "receipt": [],
+    "refusal": [
+     "refuse.multiChart.cell-grid-closed"
+    ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "multiChart.set": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "multiChart.grid.layout: \"can you split my screen into a two by three grid of charts\"",
+     "multiChart.grid.layout: \"open Multi Chart with two rows and three columns\"",
+     "multiChart.grid.syncCrosshair: \"link the crosshairs across the multi chart grid\"",
+     "multiChart.grid.syncCrosshair: \"turn on crosshair sync for the grid\""
+    ],
+    "routing": [
+     "multiChart.grid.layout: \"can you split my screen into a two by three grid of charts\"",
+     "multiChart.grid.layout: \"open Multi Chart with two rows and three columns\"",
+     "multiChart.grid.syncCrosshair: \"link the crosshairs across the multi chart grid\"",
+     "multiChart.grid.syncCrosshair: \"turn on crosshair sync for the grid\""
+    ],
+    "args": [
+     "corpus multiChart.grid.layout",
+     "corpus multiChart.grid.syncCrosshair"
+    ],
+    "execution": [
+     "multiChart.grid.layout (c)",
+     "multiChart.grid.syncCrosshair (c)"
+    ],
+    "receipt": [
+     "multiChart.grid.layout (c)",
+     "multiChart.grid.syncCrosshair (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "multiChart.grid.layout: undo restores",
+     "multiChart.grid.syncCrosshair: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
