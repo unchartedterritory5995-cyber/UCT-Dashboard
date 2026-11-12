@@ -39,6 +39,19 @@ def _boot_mark(name: str) -> None:
     _BOOT_MARKS.append((name, time.monotonic() - _BOOT_T0))
 
 
+def _previous_shutdown() -> dict | None:
+    """What the previous pod's shutdown took (written by lifespan's last lines to the shared volume)."""
+    try:
+        with open(os.path.join(os.environ.get("DATA_DIR") or "/data", "last_shutdown.json"), encoding="utf-8") as f:
+            d = json.load(f)
+        return {"took_s": d.get("took_s"), "ago_s": int(time.time() - float(d.get("at", 0)))}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+_PREVIOUS_SHUTDOWN = _previous_shutdown()   # read once, at import, before this pod could overwrite it
+
+
 def _boot_summary() -> dict:
     marks = list(_BOOT_MARKS)
     if not marks:
@@ -49,6 +62,7 @@ def _boot_summary() -> dict:
         "import_s": round(by.get("lifespan-start", marks[0][1]), 2),
         "to_serving_s": round(by["ready"], 2) if "ready" in by else None,
         "slowest": [{"from": n, "s": d} for n, d in sorted(segs, key=lambda x: -x[1])[:5]],
+        "previous_shutdown": _PREVIOUS_SHUTDOWN,
     }
 
 
@@ -10200,6 +10214,7 @@ async def lifespan(app: FastAPI):
         # Research depth (lane gaps-research): each job is ALWAYS registered and checks its
         # own surface flag on every run, so arming takes effect without a scheduler change
         # and unset does nothing at all.
+        _boot_mark("S10203")
         try:
             def _filing_search_reindex_job():
                 from api.services import filing_search as _fs
@@ -10244,6 +10259,7 @@ async def lifespan(app: FastAPI):
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
+        _boot_mark("S10247")
         try:
             from api.services import indicator_support_loop as _isl
             _scheduler.add_job(
@@ -10256,21 +10272,29 @@ async def lifespan(app: FastAPI):
 
         # Chart-data monitor dead-man (P0a): the worker-side synthetic monitor POSTs a heartbeat
         # here after every cycle; this job pages ops once when the beats stop (chart_monitor/deadman.py).
+        _boot_mark("S10259")
         try:
             from api.services.chart_monitor import deadman as _cm_deadman
             _cm_deadman.register(_scheduler)
         except Exception as e:
             print(f"[startup] chart monitor dead-man registration failed (non-fatal): {e}")
 
+        _boot_mark("S10265")
         _scheduler.start()
+        _boot_mark("S10266")
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
+        _boot_mark("S10267")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
+        _boot_mark("S10268")
         print("[startup] Churn risk check scheduled -- daily at 9:00 AM ET")
+        _boot_mark("S10269")
         print("[startup] MRR snapshot scheduled -- daily at 11:59 PM ET")
+        _boot_mark("S10270")
         if _compass_automation_on:
             print("[startup] Compass automation ENABLED -- proactive scans, daily focus, EOD recap, weekly digest scheduled")
         else:
             print("[startup] Compass automation PAUSED -- all scheduled Compass/voice jobs skipped; manual surfaces unaffected (set COMPASS_AUTOMATION_ENABLED=1 to resume)")
+        _boot_mark("S10274")
         print("[startup] Pattern engine jobs scheduled -- outcomes (4h interval), stats (06:00 UTC daily), universe scan (1h interval)")
 
         # -- Massive WebSocket consumer (Phase 1: feeds OptionsFlow page) ----
@@ -10280,6 +10304,7 @@ async def lifespan(app: FastAPI):
         # Set MASSIVE_WS_DRY_RUN=1 on first deploy to verify behavior without
         # writing to FlowDB; flip to 0 once /api/massive/status shows healthy
         # counters during market hours.
+        _boot_mark("S10283")
         try:
             from api.massive_ws_worker import start as _start_massive_ws
             if _start_massive_ws():
@@ -10295,6 +10320,7 @@ async def lifespan(app: FastAPI):
         # force-exits the process if flow.db inserts stop during market hours
         # (consumer loop wedged). Self-gated on MASSIVE_WS_ENABLED=1, so it's
         # a no-op whenever this service doesn't own the consumer.
+        _boot_mark("S10298")
         try:
             from api import flow_watchdog
             if flow_watchdog.start("web"):
@@ -10309,6 +10335,7 @@ async def lifespan(app: FastAPI):
         # if WS is locked out (e.g. max_connections), Flat Files still populates
         # the page each morning, so the manual /options-flow-admin upload can
         # be retired regardless of WS status.
+        _boot_mark("S10312")
         try:
             from api import massive_flatfiles_worker
             if massive_flatfiles_worker.register_jobs(_scheduler):
@@ -10321,15 +10348,22 @@ async def lifespan(app: FastAPI):
         # of live-flow write gaps from Massive's flat file. Ships dark
         # (FLOW_GAP_AUTOFILL_ENABLED=0); startup_check re-bumps the flow CSV
         # cache version after a recent fill (the offset is process-local).
+        _boot_mark("S10324")
         try:
             from api import flow_gap_autofill
-            flow_gap_autofill.startup_check()
+            # ⛔ OFF THE BOOT PATH (2026-11-12): measured 7.45 s of the pod's 19.8 s to serving (/api/health
+            # boot, segment S10324) — its archive prune scans flow_fill_archive (no index on archived_at) and
+            # its connection waits up to 30 s on flow.db's write lock. Every deploy is a gap for members
+            # until the pod serves, and nothing needs this before the first request: it is a once-per-boot
+            # cache-bust (a fill in the last 24 h) and a prune, both safe a few seconds later.
+            threading.Thread(target=flow_gap_autofill.startup_check, name="gap-fill-startup-check", daemon=True).start()
             if flow_gap_autofill.register_jobs(_scheduler):
                 print("[startup] Flow gap-autofill cron registered (16:45/21:00/08:00 ET Mon-Fri)")
         except Exception as e:
             print(f"[startup] Flow gap-autofill registration failed (non-fatal): {e}")
         # Tape-spool gap sweeps (only where the spool/consumer runs; the module
         # gates itself on FLOW_TAPE_SPOOL/REPLAY_ENABLED).
+        _boot_mark("S10333")
         try:
             from api import flow_tape_spool
             if flow_tape_spool.register_jobs(_scheduler):
@@ -10339,6 +10373,7 @@ async def lifespan(app: FastAPI):
         # Nightly offsite backup of flow.db to R2 (deploy-survival B4). Ships
         # dark (FLOW_BACKUP_ENABLED=0); 02:30 ET Mon-Sat. flow.db currently has
         # backups only on the same volume = no corruption/loss recovery.
+        _boot_mark("S10342")
         try:
             from api import flow_backup
             if flow_backup.register_jobs(_scheduler):
@@ -10349,6 +10384,7 @@ async def lifespan(app: FastAPI):
         # the P1b screenshots feature). Ships dark (J2_ATTACHMENT_BACKUP_ENABLED=0);
         # 02:45 ET Mon-Sat. Attachments live only on the WEB volume = no recovery
         # path without this — which is why it registers in the web scheduler.
+        _boot_mark("S10352")
         try:
             from api import j2_attachments_backup
             if j2_attachments_backup.register_jobs(_scheduler):
@@ -10359,6 +10395,7 @@ async def lifespan(app: FastAPI):
         # above covers (community.db, charts_layouts.db, user_definitions.db, ...).
         # Ships dark (STORE_BACKUP_ENABLED unset); 03:05 ET daily. The evidence is the
         # restore rehearsal, tools/store_restore.py --rehearse, never this job's exit.
+        _boot_mark("S10362")
         try:
             from api.services import store_backup
             if store_backup.register_jobs(_scheduler):
@@ -10369,6 +10406,7 @@ async def lifespan(app: FastAPI):
         # (Journal A+ Phase 2). Ships dark (EXCURSION_ENGINE_ENABLED=0);
         # 03:10 ET Mon-Sat. Idempotent (skips already-computed trade_refs);
         # commits per row so its writer locks on auth.db stay short.
+        _boot_mark("S10372")
         try:
             from api.services.journal_two import excursion_jobs
             if excursion_jobs.register_jobs(_scheduler):
@@ -10387,6 +10425,7 @@ async def lifespan(app: FastAPI):
         # (J2_ATTACHMENT_GC_ENABLED=0); 03:40 ET Mon-Sat, deliberately AFTER
         # the 02:45 attachments backup so the last pre-sweep tarball still
         # holds everything the sweep removes.
+        _boot_mark("S10390")
         try:
             from api.services.journal_two import attachment_gc
             if attachment_gc.register_jobs(_scheduler):
@@ -10398,6 +10437,7 @@ async def lifespan(app: FastAPI):
         # own docstring for why this is the one exception to the
         # dark-by-default convention above); 03:20 ET, before the 03:40
         # attachment GC.
+        _boot_mark("S10401")
         try:
             from api.services.journal_two import notes as _j2_notes
             if _j2_notes.register_trash_purge_job(_scheduler):
@@ -10409,6 +10449,7 @@ async def lifespan(app: FastAPI):
         # main purge reaches only once (user_definitions.db; the saved-indicator alert tables in
         # auth.db) and finishes a restore's pending tombstone replay. Cheap (indexed deletes, one
         # scrub pass) -- not a heavy job. ON by default; kill switch TOMBSTONE_SWEEP_ENABLED=0.
+        _boot_mark("S10412")
         try:
             from api.services import tombstone_sweep
             if tombstone_sweep.register_jobs(_scheduler):
@@ -10421,6 +10462,7 @@ async def lifespan(app: FastAPI):
         # pass, and a one-shot boot catch-up); its kill switch
         # NOTEBOOK_TASK_REMINDERS_ENABLED is read at every RUN, never here, so
         # flipping it needs no restart. Never email, never Discord.
+        _boot_mark("S10424")
         try:
             from api.services.journal_two import note_tasks as _j2_note_tasks
             if _j2_note_tasks.register_task_reminder_job(_scheduler):
@@ -10429,6 +10471,7 @@ async def lifespan(app: FastAPI):
             print(f"[startup] notebook task reminders registration failed (non-fatal): {e}")
         # Notebook widgets wave 9 (Task 9.9): optional routine reminders, one bell per routine per
         # ET day. Wave 9's flag is read at every RUN, never here. In-app bell only.
+        _boot_mark("S10432")
         try:
             from api.services.journal_two import routine_reminders as _j2_routine_reminders
             if _j2_routine_reminders.register_routine_reminder_job(_scheduler):
@@ -10438,6 +10481,7 @@ async def lifespan(app: FastAPI):
         # Tier 2 part B (R-T2B-2): Notebook earnings follow-up notices. The registrar wires 16:45 ET and
         # 18:00 ET mon-fri and a one-shot boot catch-up (always on: its flag was retired 2026-11-04).
         # In-app bell only.
+        _boot_mark("S10441")
         try:
             from api.services.journal_two import earnings_followup as _j2_followup
             if _j2_followup.register_followup_jobs(_scheduler):
@@ -10453,6 +10497,7 @@ async def lifespan(app: FastAPI):
         # max_instances=1 because two sweeps would race on the same members.
         # Cadence ruling: every 15 minutes (2,000 embeds per run caps a fully
         # armed pod at ~192k blocks/day). Rail: tests/test_notebook_semantic_sweep_registered.py.
+        _boot_mark("S10456")
         try:
             from api.services.journal_two import note_semantic as _j2_note_semantic
             _scheduler.add_job(_j2_note_semantic.sweep_job, "interval", minutes=15,
@@ -10592,6 +10637,7 @@ async def lifespan(app: FastAPI):
 
     _boot_mark("ready"); _boot_log()
     yield
+    _shutdown_t0 = time.monotonic()  # the deploy gap includes this pod's shutdown (2026-11-12)
     try:
         trade_exchange_news_router.stop_background()
     except Exception as e:
@@ -10672,6 +10718,13 @@ async def lifespan(app: FastAPI):
         if _vol_stop:
             _vol_stop()
     except Exception:
+        pass
+    _shutdown_s = round(time.monotonic() - _shutdown_t0, 1)
+    print(f"[shutdown] lifespan shutdown took {_shutdown_s}s (Railway starts the new pod only after this pod exits)")
+    try:  # the NEXT pod reports it in /api/health `boot.previous_shutdown_s` (this pod's own log is gone with it)
+        with open(os.path.join(os.environ.get("DATA_DIR") or "/data", "last_shutdown.json"), "w", encoding="utf-8") as _sf:
+            json.dump({"took_s": _shutdown_s, "at": time.time()}, _sf)
+    except Exception:  # noqa: BLE001 - observability never blocks a shutdown
         pass
 
 # ⭐ OPEN_READS_GATE (api/open_reads_gate.py) — the staged gate over TERM-026's

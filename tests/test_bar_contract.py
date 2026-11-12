@@ -35,7 +35,7 @@ from api.services import bars_sqlite as bs
 ROOT = Path(__file__).resolve().parents[1]
 ET = ZoneInfo("America/New_York")
 FIELDS = ("contract", "grid", "session", "cache_key", "series_rev", "history_rev",
-          "verified_through", "sealed_through", "complete_through", "developing")
+          "verified_through", "sealed_through", "complete_through", "developing", "adj_basis")
 
 
 def et(y, mo, d, h=0, mi=0, s=0):
@@ -546,8 +546,8 @@ def test_stream_and_rest_agree_on_the_60m_grid_per_session():
 
 # ── E. census: every ohlcv writer accounts for series_rev ───────────────────
 
-_WRITE_SQL = re.compile(r"(INTO\s+(main\.)?ohlcv\b|DELETE\s+FROM\s+(main\.)?ohlcv\b|DROP\s+TABLE[^\n]*ohlcv)",
-                        re.I)
+_WRITE_SQL = re.compile(r"(INTO\s+(main\.)?ohlcv\b|DELETE\s+FROM\s+(main\.)?ohlcv\b"
+                        r"|UPDATE\s+(main\.)?ohlcv\b|DROP\s+TABLE[^\n]*ohlcv)", re.I)
 _ACCOUNTS = ("bump_series_revs", "bump_store_floor", "_bump_merged_rev")
 #: Writers that never touch the LIVE store (they build a separate export database).
 _EXEMPT = {

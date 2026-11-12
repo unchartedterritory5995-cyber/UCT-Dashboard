@@ -84,11 +84,17 @@ vi.mock('../context/AuthContext', () => ({
   useIsPaid: () => false,
   AuthContext: { Provider: ({ children }) => children },
 }))
-vi.mock('../utils/barsIDB', () => ({
+// The REAL module's exports, every IDB touch stubbed: a new export (P4 persist's
+// idbGetHistoryEntry …) can never again strand the BARSTORE=true case on "no export on the mock".
+vi.mock('../utils/barsIDB', async (importOriginal) => ({
+  ...(await importOriginal()),
   idbGet: async () => null, idbPut: async () => {}, mergeDelta: (_a, b) => b,
   idbDelete: async () => {}, idbDeleteIntraday: async () => {}, idbCountKeys: async () => 0,
   idbImportPack: async () => {}, idbApplyDelta: async () => {}, idbPutMonotonic: async () => {},
   _findRecentBarByT: () => null, _closeMismatch: () => false,
+  // BarStore persist (P3-S1 review fix 6): the deep-history segment + hole detector.
+  idbPutHistory: async () => null, idbGetHistory: async () => null, idbGetHistoryEntry: async () => null,
+  _intradayGapStart: () => null,
 }))
 
 function barsFor(spec) {

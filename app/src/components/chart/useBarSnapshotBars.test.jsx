@@ -8,6 +8,7 @@ import { useBarSnapshotBars, chartKeyFor } from './useBarSnapshotBars'
 import { getBarStore, _resetBarStoreForTests } from '../../data/barStore/index'
 import { keyOf } from '../../data/barStore/types'
 import { memClear } from '../../utils/barsMemCache'
+import { tailRetriesExhausted } from '../../utils/intradayTailPoll'
 
 // Tue 2026-09-22 13:17 ET (EDT) — mid-session.
 const clock = pinWallClock('2026-09-22T17:17:00Z')
@@ -59,8 +60,8 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
     ])
   })
 
-  it('empty → nothing; provisional → CONTEXT minus its last candle, live writers FROZEN', () => {
-    const p = params()
+  it('empty → nothing; provisional → CONTEXT minus its last candle, developing channel FROZEN (null)', () => {
+    const p = params({ _storeDevRef: { current: 'unset' }, _storeDevPaintRef: { current: vi.fn() } })
     const { result } = renderHook(() => useBarSnapshotBars(p))
     expect(result.current.bars).toBeNull()
     // A local copy that stops at 10:00 (behind the 13:15 frontier).
@@ -69,7 +70,9 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
     const r = result.current
     expect(r.bars).toHaveLength(local.length - 1)
     expect(r.bars).toBe(r._staleContext)
-    expect(p.provisionalStaleRef.current).toBe(true)
+    expect(p._storeDevRef.current).toBeNull()
+    // P3-S2: the legacy writers' freeze flag is not the store path's — never written here.
+    expect(p.provisionalStaleRef.current).toBe(false)
     expect(r.data).toBeUndefined()                   // no server answer yet
   })
 
@@ -81,29 +84,66 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
     const r = result.current
     expect(r.bars).toHaveLength(rows.length)
     expect(r.bars[r.bars.length - 1].t).toBe(et(13, 15))
-    expect(p.provisionalStaleRef.current).toBe(false)
     expect(r._staleContext).toBeNull()
     // `data.developing` is THE developing bar Writer D re-tops from.
     expect(r.data.developing).toEqual({ t: et(13, 15), o: 10, h: 11, l: 9, c: 10.5, v: 100 })
     expect(r.data.ticker).toBe('SIMX')
   })
 
-  it('a push frame moves the developing bar: same rows, new developing (Writer D input follows)', () => {
-    const { result } = renderHook(() => useBarSnapshotBars(params()))
+  it('a push frame moves the developing bar: same rows, new developing (Writer D input follows)', async () => {
+    const p = params({ _storeDevRef: { current: null }, _storeDevPaintRef: { current: vi.fn() } })
+    renderHook(() => useBarSnapshotBars(p))
     dispatch({ type: 'rest-full', payload: { ticker: 'SIMX', tf: '5', bars: fiveMin(9, 30, 13, 15) } })
+    expect(p._storeDevRef.current).toMatchObject({ t: et(13, 15), o: 10, h: 11, c: 10.5 })
+    const n0 = p._storeDevPaintRef.current.mock.calls.length   // a render that advanced the bar paints it too
     dispatch({ type: 'push-bar', event: { sym: 'SIMX', bar: { t: et(13, 15) * 1000, o: 10, h: 11.6, l: 9, c: 11.4, v: 180 }, rev: Date.now() } })
-    expect(result.current.data.developing).toMatchObject({ t: et(13, 15), o: 10, h: 11.6, c: 11.4 })
-    expect(result.current.bars[result.current.bars.length - 1]).toMatchObject({ h: 11.6, c: 11.4 })
+    await act(() => new Promise((r) => setTimeout(r, 40)))   // one frame: the dev channel flushes
+    expect(p._storeDevRef.current).toMatchObject({ t: et(13, 15), o: 10, h: 11.6, c: 11.4 })
+    expect(p._storeDevPaintRef.current.mock.calls.length - n0).toBe(1)
   })
 
-  it('a prior-session tail (> 8 h) freezes the writers even after the server answered', () => {
-    const p = params()
+  // INVARIANT (P3-S1 review fix 1, render cost): a change that moves ONLY the developing bar
+  // (devRev) never re-renders the chart's bar hook and never changes `bars` / `data` identity —
+  // the base path (legacyBars copy, setData, indicators, resample) runs per baseRev; every such
+  // change is painted through the dev channel, coalesced to ONE paint per frame, with the newest
+  // bar. A bucket roll (base change) does re-render, once.
+  it('INVARIANT: N developing-only frames ⇒ 0 re-renders, same bars identity, ≤ 1 paint per frame (newest bar)', async () => {
+    const paint = vi.fn()
+    const p = params({ _storeDevRef: { current: null }, _storeDevPaintRef: { current: paint } })
+    let renders = 0
+    const { result } = renderHook(() => { renders++; return useBarSnapshotBars(p) })
+    dispatch({ type: 'rest-full', payload: { ticker: 'SIMX', tf: '5', bars: fiveMin(9, 30, 13, 15) } })
+    const bars0 = result.current.bars, data0 = result.current.data, r0 = renders
+    const n0 = paint.mock.calls.length
+    // seeded random walk of 200 frames inside the 13:15 bucket (synthetic prices)
+    let seed = 7, hi = 11, lo = 9, c = 10.5
+    const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 }
+    for (let i = 0; i < 200; i++) {
+      c = Math.round((c + (rnd() - 0.5) * 0.2) * 100) / 100
+      hi = Math.max(hi, c); lo = Math.min(lo, c)
+      dispatch({ type: 'push-bar', event: { sym: 'SIMX', bar: { t: et(13, 15) * 1000, o: 10, h: hi, l: lo, c, v: 100 + i }, rev: Date.now() + i + 1 } })
+    }
+    expect(renders - r0, 'no re-render on developing-only changes').toBe(0)
+    expect(result.current.bars).toBe(bars0)
+    expect(result.current.data).toBe(data0)
+    await act(() => new Promise((r) => setTimeout(r, 40)))
+    expect(paint.mock.calls.length - n0).toBe(1)             // coalesced: one frame, one paint
+    expect(p._storeDevRef.current).toMatchObject({ t: et(13, 15), h: hi, l: lo, c })
+    // A new bucket is a BASE change: one re-render, the closed bar is in `bars`.
+    dispatch({ type: 'push-bar', event: { sym: 'SIMX', bar: { t: et(13, 20) * 1000, o: c, h: c, l: c, c, v: 5 }, rev: Date.now() + 1000 } })
+    expect(renders - r0).toBeGreaterThanOrEqual(1)
+    expect(result.current.bars).not.toBe(bars0)
+  })
+
+  it('a prior-session tail (> 8 h) freezes the developing channel even after the server answered', () => {
+    const p = params({ _storeDevRef: { current: 'unset' }, _storeDevPaintRef: { current: vi.fn() } })
     renderHook(() => useBarSnapshotBars(p))
     const y = (h, m) => et(h, m) - 86400
     const rows = []
     for (let t = y(9, 30); t <= y(15, 55); t += 300) rows.push(b(t))
     dispatch({ type: 'rest-full', payload: { ticker: 'SIMX', tf: '5', bars: rows } })
-    expect(p.provisionalStaleRef.current).toBe(true)
+    expect(p._storeDevRef.current).toBeNull()
+    expect(p.provisionalStaleRef.current).toBe(false)
   })
 
   it('no_data → data.no_data, no error; warming → error.warming (the legacy SWR shapes)', () => {
@@ -147,5 +187,25 @@ describe('useBarSnapshotBars — keys and the daily paint authority', () => {
     expect(result.current.bars).toBeNull()
     act(() => { const st = getBarStore(); st.registry.dispatch(KD, { type: 'rest-full', key: KD, gen: st.getSnapshot(KD).gen, payload: { ticker: 'SIMD', tf: 'D', bars: [...days, { t: '2026-09-21', o: 10, h: 11, l: 9, c: 10.5, v: 1 }, { t: '2026-09-22', o: 10, h: 11, l: 9, c: 10.5, v: 1 }] } }) })
     expect(result.current.bars?.[result.current.bars.length - 1]?.t).toBe('2026-09-22')
+  })
+})
+
+// P3-S1 review fix 5 — the DELAYED badge under BARSTORE: the badge's input (`_tailCatchupRef`,
+// read as tailRetriesExhausted(state, `${sym}_${_barsTf}`)) follows the STORE's catch-up budget
+// (network.tailExhausted), and a flip re-renders the chart.
+describe('useBarSnapshotBars — DELAYED from the store catch-up budget', () => {
+  it('network.tailExhausted flips map onto the badge state, with a re-render', () => {
+    const net = getBarStore().network
+    let spent = false
+    const cbs = new Set()
+    vi.spyOn(net, 'tailExhausted').mockImplementation((k) => k === K && spent)
+    vi.spyOn(net, 'subscribeTailBudget').mockImplementation((k, cb) => { cbs.add(cb); return () => cbs.delete(cb) })
+    const { result } = renderHook(() => useBarSnapshotBars(params()))
+    expect(tailRetriesExhausted(result.current._tailCatchupRef.current, 'SIMX_5')).toBe(false)
+    act(() => { spent = true; for (const cb of cbs) cb() })
+    expect(tailRetriesExhausted(result.current._tailCatchupRef.current, 'SIMX_5')).toBe(true)
+    act(() => { spent = false; for (const cb of cbs) cb() })
+    expect(tailRetriesExhausted(result.current._tailCatchupRef.current, 'SIMX_5')).toBe(false)
+    vi.restoreAllMocks()
   })
 })

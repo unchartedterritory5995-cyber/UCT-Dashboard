@@ -67,6 +67,10 @@ const ROOT = (() => {
 
 const SRC_REL = 'app/src/components/StockChart.jsx'
 const SRC = fs.readFileSync(path.join(ROOT, SRC_REL), 'utf8')
+// P3-S2: the legacy writers MOVED out of StockChart into one gated module (inert under BARSTORE).
+// Both files are derived; in the module a writer is the top-level function that owns the update.
+const LEGACY_REL = 'app/src/components/chart/legacyLiveWriters.js'
+const LEGACY = fs.readFileSync(path.join(ROOT, LEGACY_REL), 'utf8')
 
 const FN_TYPES = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'])
 const isCandleRef = (n) => !!n && n.type === 'MemberExpression' &&
@@ -75,8 +79,8 @@ const isCandleRef = (n) => !!n && n.type === 'MemberExpression' &&
 
 /** Every `.update()` call on the candle series, grouped by the writer function
  *  that owns it — the outermost function nested directly inside the component. */
-function deriveWriters() {
-  const ast = Parser.extend(jsx()).parse(SRC, {
+function deriveWriters(src = SRC, { topLevel = false } = {}) {
+  const ast = Parser.extend(jsx()).parse(src, {
     ecmaVersion: 'latest', sourceType: 'module', locations: true,
   })
   /** fn node -> Map(name -> "is this name bound to candleSeriesRef.current here?").
@@ -127,7 +131,8 @@ function deriveWriters() {
   for (const call of calls.filter(writesCandle)) {
     // stack[0] is the component function itself; stack[1] is the effect /
     // useCallback / subscription handler that IS the writer.
-    const fn = call.stack.length >= 2 ? call.stack[1] : call.stack[0]
+    // (module: the top-level function itself — each writer is its own hook / function there.)
+    const fn = topLevel ? call.stack[0] : (call.stack.length >= 2 ? call.stack[1] : call.stack[0])
     if (!byFn.has(fn)) byFn.set(fn, { node: fn, line: fn.loc.start.line, updates: [] })
     byFn.get(fn).updates.push(call.line)
   }
@@ -156,6 +161,14 @@ function mentions(node, name) {
 
 const WRITERS = [
   {
+    id: 'S', what: "the STORE's developing-bar paint (StockChart `_storeDevPaintRef`, BARSTORE only)",
+    witness: '_storeDevPaintedRef',
+    guarded: false, freezesOnProvisionalStale: false,
+    note: 'P3-S2. Called only by the BarStore source (the useBarSnapshotBars dev channel and ' +
+          'the BARSTORE branch of liveAfterSetData), when no legacy writer is mounted — there is nothing ' +
+          'to arbitrate with. Its freeze is the channel yielding null (useBarSnapshotBars).',
+  },
+  {
     id: 'A', what: 'livePrices tick effect (Finnhub)',
     witness: 'barStartVolRef',
     guarded: true, freezesOnProvisionalStale: true,
@@ -167,10 +180,17 @@ const WRITERS = [
     note: 'B IS the writer, so its guard is NEGATED: `if (!barsPushActiveRef.current) return`.',
   },
   {
-    id: 'D', what: 'updateChart post-setData re-top',
-    witness: 'CandlestickSeries',
+    id: 'D', what: 'updateChart post-setData seed + re-top (legacyAfterSetData — the Finnhub branch)',
+    witness: '_retopLive',
     guarded: true, freezesOnProvisionalStale: true,
-    note: 'A BRANCH, not an early return: push-owned re-top vs Finnhub re-top.',
+    note: 'A BRANCH, not an early return: push-owned re-top (D-retop) vs Finnhub re-top.',
+  },
+  {
+    id: 'D-retop', what: 'Writer D push re-top (legacyPushRetop): after setData',
+    witness: '_vUpD',
+    guarded: true, freezesOnProvisionalStale: true,
+    note: 'P3-S2: the store branch left it (now writer S). It owns the branch condition ' +
+          'barsPushActiveRef && !provisionalStaleRef.',
   },
   {
     id: 'F', what: 'custom-TF live developing bar',
@@ -199,7 +219,7 @@ const WRITERS = [
 ]
 
 describe('the single-writer index is derived, not counted', () => {
-  const derived = deriveWriters()
+  const derived = [...deriveWriters(SRC), ...deriveWriters(LEGACY, { topLevel: true })]
 
   it('finds a developing-bar writer for every ledger row and no others', () => {
     // Non-vacuity FIRST: a resolver that found nothing would make every
@@ -242,13 +262,23 @@ describe('the single-writer index is derived, not counted', () => {
     // F is safe only because push can never engage on a custom timeframe. That
     // is not a comment; it is `realtimeTfEligible`, and if its vocabulary ever
     // grows to admit a non-native code, F becomes a real dual-write.
-    const m = SRC.match(/const realtimeTfEligible = (\[[^\]]*\])\.includes\(resolvedTf\)/)
+    const m = LEGACY.match(/const realtimeTfEligible = (\[[^\]]*\])\.includes\(resolvedTf\)/)
     expect(m, 'realtimeTfEligible is no longer a membership test — re-derive writer F')
       .toBeTruthy()
     expect(JSON.parse(m[1].replace(/'/g, '"'))).toEqual(['1', '5', '15', '30', '60'])
-    expect(SRC).toContain('_barsPushEnabled() && realtimeTfEligible')
+    expect(LEGACY).toContain('_barsPushEnabled() && realtimeTfEligible')
     // P3-S0: the provisional-stale assignment moved with the bars selector into useLegacyChartBars.js.
     const LEGACY_BARS = fs.readFileSync(path.join(ROOT, 'app/src/components/chart/useLegacyChartBars.js'), 'utf8')
     expect(LEGACY_BARS).toMatch(/provisionalStaleRef\.current = isIntraday &&/)
+  })
+})
+
+describe('P3-S2: where the developing-bar writers live', () => {
+  it('StockChart holds exactly ONE developing-bar writer — the store paint; every legacy one is in the gated module', () => {
+    const sc = deriveWriters(SRC)
+    expect(sc.map((w) => WRITERS.find((r) => mentions(w.node, r.witness))?.id)).toEqual(['S'])
+    const legacy = deriveWriters(LEGACY, { topLevel: true })
+    expect(legacy.map((w) => WRITERS.find((r) => mentions(w.node, r.witness))?.id).sort())
+      .toEqual(['A', 'B', 'C', 'D', 'D-retop', 'E', 'F'])
   })
 })

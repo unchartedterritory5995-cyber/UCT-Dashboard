@@ -123,4 +123,35 @@ describe('P3-S1 adapter item 2 — no SWR preload: the prepared key IS the chart
       }
     }
   })
+
+  // INVARIANT (P3-S1 review fix 4): ONE key function serves the chart and the facade, keyed by
+  // the PANE's session — a pane whose extended setting differs from the view-global one still
+  // prepares / peeks exactly the key it subscribes to (60m: `_60` vs `_60e`).
+  it('a prepare / peek for a pane names THAT pane key, whatever the global view session', async () => {
+    const { chartKeyFor } = await import('./useBarSnapshotBars')
+    const { createPrefetch } = await vi.importActual('../../data/barStore/prefetch')
+    for (const globalExt of [false, true]) {
+      for (const pane of [false, true]) {
+        const asked = [], peeked = []
+        const store = {
+          peek: (k) => { peeked.push(k); return null },
+          registry: { acquire() {}, release() {} },
+          persist: { hydrate: async () => null, savedAtOf: () => null },
+          ensure: async (k, o) => { asked.push([k, o.session]); return { key: k, status: 'current', restSeen: true, depth: 9, gen: 0 } },
+        }
+        const f = createPrefetch({ store, extended: () => globalExt, tickerMeta: () => {} })
+        for (const tf of ['1', '5', '15', '30', '60', 'D', '2', '120']) {
+          const chart = chartKeyFor({ sym: 'aaa', resolvedTf: tf, showExtended: pane, replayCutoff: null, hasOverride: false })
+          expect(f.keyFor('aaa', tf, { showExtended: pane }), `${tf} pane=${pane} global=${globalExt}`).toBe(chart)
+        }
+        const k60 = chartKeyFor({ sym: 'AAA', resolvedTf: '60', showExtended: pane, replayCutoff: null, hasOverride: false })
+        expect(await f.prepareForDisplay('AAA', '60', { showExtended: pane })).toBe('current')
+        expect(asked).toEqual([[k60, pane ? 'eth' : 'rth']])
+        peeked.length = 0
+        f.peekDisplayable('AAA', '60', { showExtended: pane })
+        f.peekBars('AAA', '60', { showExtended: pane })
+        expect(new Set(peeked), `peeks pane=${pane} global=${globalExt}`).toEqual(new Set([k60]))
+      }
+    }
+  })
 })

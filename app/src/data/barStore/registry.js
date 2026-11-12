@@ -11,9 +11,25 @@
 //     subscribers stay attached and are notified.
 //   • A subscriber is called only when its key's snapshot identity changes, and only for
 //     its own key (S7).
+//   • ⭐ SPLIT NOTIFY (render cost). A change that moves ONLY the developing bar (devRev —
+//     reducer.isDevOnlyChange) is not a base change. Subscribers say what they need:
+//       wake 'all'  (default) every change, synchronously (persist, the D/W/M fold);
+//       wake 'base' only base changes — `getBaseSnapshot` is the snapshot as of the last one
+//                   (the chart's setData / indicators / resample input, identity-stable
+//                   across every tick);
+//       wake 'dev'  only developing-bar changes, COALESCED to one call per animation frame
+//                   (the latest snapshot), for a series.update() paint.
+//     Invalidation rule of the base view: it is replaced on EVERY non-dev change (baseRev,
+//     status, meta, identity) and on invalidate; it is never older than the last such change.
 
-import { reduce, initialState, invalidate as invalidateState, refreshStatus } from './reducer'
+import { reduce, initialState, invalidate as invalidateState, refreshStatus, isDevOnlyChange } from './reducer'
 import { parseKey } from './types'
+
+/** One frame (requestAnimationFrame; a 16 ms timer where there is none). */
+export function defaultFrame(fn) {
+  if (typeof requestAnimationFrame === 'function') return requestAnimationFrame(() => fn())
+  return setTimeout(fn, 16)
+}
 
 /** Default per-tf depth caps (bars held per entry). */
 export const DEFAULT_DEPTH_CAPS = Object.freeze({
@@ -28,12 +44,13 @@ export const DEFAULT_BAR_BUDGET = 2_500_000
  * @param {number} [opts.barBudget]
  * @param {Record<string, number>} [opts.depthCaps]
  * @param {() => object} [opts.ctx]  the reducer ctx at call time (clock, streamLive…)
+ * @param {(fn: Function) => any} [opts.frame]  the dev-channel coalescing tick (default: one frame)
  */
 export function createRegistry({
   maxKeys = DEFAULT_MAX_KEYS, barBudget = DEFAULT_BAR_BUDGET,
-  depthCaps = DEFAULT_DEPTH_CAPS, ctx = () => ({}),
+  depthCaps = DEFAULT_DEPTH_CAPS, ctx = () => ({}), frame = defaultFrame,
 } = {}) {
-  /** @type {Map<string, {state:object, refs:number, subs:Set<Function>, used:number}>} */
+  /** @type {Map<string, {state:object, base:object, refs:number, subs:Set<{cb:Function, wake:string, pending?:boolean}>, used:number}>} */
   const entries = new Map()
   let clock = 0
   let totalBars = 0
@@ -46,18 +63,34 @@ export function createRegistry({
   function _entry(key) {
     let e = entries.get(key)
     if (!e) {
-      e = { state: initialState(key, ctxFor(key)), refs: 0, subs: new Set(), used: ++clock }
+      const state = initialState(key, ctxFor(key))
+      e = { state, base: state, refs: 0, subs: new Set(), used: ++clock }
       entries.set(key, e)
     }
     return e
   }
 
+  function _flushDev(e, sub) {
+    sub.pending = false
+    if (!e.subs.has(sub)) return   // unsubscribed meanwhile
+    try { sub.cb(e.state) } catch { /* never blocks the others */ }
+  }
+
   function _set(key, e, next) {
     if (next === e.state) return false
+    const devOnly = isDevOnlyChange(e.state, next)
     totalBars += next.depth - e.state.depth
     e.state = next
-    for (const cb of [...e.subs]) {
-      try { cb(next) } catch { /* a subscriber's failure never blocks the others */ }
+    if (!devOnly) e.base = next
+    for (const sub of [...e.subs]) {
+      if (sub.wake === 'dev') {
+        if (!devOnly || sub.pending) continue
+        sub.pending = true
+        frame(() => _flushDev(e, sub))
+        continue
+      }
+      if (sub.wake === 'base' && devOnly) continue
+      try { sub.cb(next) } catch { /* a subscriber's failure never blocks the others */ }
     }
     return true
   }
@@ -76,6 +109,8 @@ export function createRegistry({
   return {
     /** Current snapshot (creates an empty entry; touches LRU). */
     getSnapshot(key) { const e = _entry(key); e.used = ++clock; return e.state },
+    /** The snapshot as of the last BASE change (split notify; see header). */
+    getBaseSnapshot(key) { const e = _entry(key); e.used = ++clock; return e.base },
     /** Snapshot if held, else null — never creates, never touches LRU. */
     peek(key) { return entries.get(key)?.state ?? null },
     has(key) { return entries.has(key) },
@@ -87,12 +122,14 @@ export function createRegistry({
       _evict()
     },
     refs(key) { return entries.get(key)?.refs ?? 0 },
-    /** Subscribe to one key's snapshot changes. Returns the unsubscribe function. */
-    subscribe(key, cb) {
+    /** Subscribe to one key's snapshot changes (`wake`: 'all' | 'base' | 'dev', see header).
+     *  Returns the unsubscribe function. */
+    subscribe(key, cb, { wake = 'all' } = {}) {
       const e = _entry(key)
-      e.subs.add(cb)
+      const sub = { cb, wake, pending: false }
+      e.subs.add(sub)
       e.used = ++clock
-      return () => { e.subs.delete(cb); _evict() }
+      return () => { e.subs.delete(sub); _evict() }
     },
     /** Apply one reducer action to `key`; returns the (possibly unchanged) snapshot. */
     dispatch(key, action, extraCtx) {
