@@ -1234,9 +1234,9 @@ function ChartToolbar({
     const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; _saveArr(LS_HIDDEN, n); return n
   }), [])
   const toggleFavoriteTool = useCallback((id) => {
-    const n = toggledFavorites(favoriteTools, id)
-    setFavoriteTools(n); writeFavoriteTools(n)
-  }, [favoriteTools])
+    // functional update: two toggles in one tick (a click and an Agent star) each build on the other's result
+    setFavoriteTools(prev => { const n = toggledFavorites(prev, id); writeFavoriteTools(n); return n })
+  }, [])
   const moveFavToolbar = useCallback((p) => { setFavPos(p); try { localStorage.setItem(LS_FAVPOS, JSON.stringify(p)) } catch { /* ignore */ } }, [])
   const openFavMenu = useCallback(() => {
     const r = favBtnRef.current?.getBoundingClientRect()

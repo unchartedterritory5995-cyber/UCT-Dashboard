@@ -125,11 +125,11 @@ def decide_with_reason(changed_paths, patterns, run, jobs_required) -> tuple[str
     if not touches_agent(changed_paths, patterns):
         return SUCCESS, "no Agent paths changed"
     if run is None:
-        return PENDING, "Agent paths changed: waiting for the agent ci push run of this exact SHA"
+        return PENDING, "Agent paths changed: waiting for the agent ci run of this exact SHA"
     if not isinstance(run, dict) or run.get("error"):
         return FAILURE, f"could not read the agent ci run: {(run or {}).get('error', run)}"[:140]
     if run.get("status") != "completed":
-        return PENDING, f"agent ci push run is {run.get('status')}"
+        return PENDING, f"agent ci run is {run.get('status')}"
     by_name: dict[str, list] = {}
     for j in run.get("jobs") or []:
         by_name.setdefault(j.get("name"), []).append(j.get("conclusion"))
@@ -142,8 +142,8 @@ def decide_with_reason(changed_paths, patterns, run, jobs_required) -> tuple[str
     if bad:
         return FAILURE, f"{len(bad)} Agent job(s) not success: {bad[0]}"[:140]
     if run.get("conclusion") != SUCCESS:
-        return FAILURE, f"agent ci push run concluded {run.get('conclusion')}"
-    return SUCCESS, f"agent ci push run passed all {len(jobs_required)} required jobs"
+        return FAILURE, f"agent ci run concluded {run.get('conclusion')}"
+    return SUCCESS, f"agent ci run passed all {len(jobs_required)} required jobs"
 
 
 def decide(changed_paths, patterns, run, jobs_required) -> str:

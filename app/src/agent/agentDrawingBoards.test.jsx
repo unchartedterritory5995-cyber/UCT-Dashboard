@@ -131,6 +131,7 @@ describe('Drawing Boards: delete (a card that names the board, no Undo)', () => 
     expect(res.ok).toBe(true)
     expect(names()).toEqual(['Swing', 'Board 2'])                     // the unnamed board is numbered by its place, as in the panel
     expect(res.undo).toBeNull()
+    expect(res.lines.join(' ')).not.toMatch(/undo it|Undo/)          // the receipt offers no Undo
     expect(res.lines.join(' ')).toMatch(/Deleted the drawing board “Earnings” and its 2 drawings\. This can't be undone\./)
   })
 
