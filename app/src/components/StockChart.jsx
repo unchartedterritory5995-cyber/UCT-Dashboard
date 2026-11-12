@@ -11687,6 +11687,17 @@ export default function StockChart({
           // Logical index of the newest REAL candle on the candle series (the framing rail,
           // tools/intraday_symswitch_framing_harness.py: right margin = visibleRange().to - this).
           newestIndex: () => newestLogicalIndex(chartRef.current, candleSeriesRef.current, 0),
+          // The newest candle the renderer holds: its time (unix seconds, or a date string for D/W/M)
+          // and close. The desktop all-day soak (uct-desktop scripts/proofs/soak.mjs) samples it to
+          // prove a chart left open all day is still live (time advances, close moves).
+          newestBar: () => {
+            try {
+              const d = candleSeriesRef.current?.data?.()
+              const last = d && d.length ? d[d.length - 1] : null
+              if (!last) return null
+              return { time: last.time ?? null, close: Number.isFinite(last.close) ? last.close : (Number.isFinite(last.value) ? last.value : null), count: d.length }
+            } catch { return null }
+          },
           // Read-only: what each ENGINE series actually handed the renderer
           // (the fundamentals acceptance harness reads plotted values from here).
           engineSeries: () => {
