@@ -76,9 +76,9 @@ export const TOPICS = [
   {
     id: 'layouts', title: 'Saved layouts',
     words: [/\blayouts?\b/, /\bworkspaces?\b/],
-    caps: ['layout.current', 'layout.list', 'layout.open', 'layout.saveAs', 'layout.saveCurrent', 'layout.rename', 'layout.create', 'layout.delete', 'layout.duplicate'], productHas: true,
-    canDo: 'list, open, save as, rename, duplicate, delete your own layouts, create a new blank one, and save the board into the layout that is open',
-    known: () => ['layout version history', 'dock pins', 'sharing a layout'],
+    caps: ['layout.current', 'layout.list', 'layout.open', 'layout.saveAs', 'layout.saveCurrent', 'layout.rename', 'layout.create', 'layout.delete', 'layout.duplicate', 'layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar'], productHas: true,
+    canDo: 'list, open, save as, rename, duplicate, delete your own layouts, create a new blank one, and save the board into the layout that is open; and on the layout bar along the bottom of Charts (desktop), pin a layout to the bar, take one off it (it stays in your layouts) or move it to another spot',
+    known: () => ['layout version history', 'sharing a layout'],
     planned: null,
   },
   {

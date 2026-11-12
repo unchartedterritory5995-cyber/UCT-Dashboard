@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 185,
-  "withProductionKinds": 176,
+  "all": 186,
+  "withProductionKinds": 177,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 185,
-  "withAnyRegressionCase": 133,
+  "capabilities": 186,
+  "withAnyRegressionCase": 134,
   "perProtection": {
    "nl": {
-    "covered": 130,
-    "applicable": 185
+    "covered": 132,
+    "applicable": 186
    },
    "routing": {
-    "covered": 127,
-    "applicable": 185
+    "covered": 129,
+    "applicable": 186
    },
    "args": {
-    "covered": 133,
-    "applicable": 185
+    "covered": 134,
+    "applicable": 186
    },
    "execution": {
-    "covered": 130,
-    "applicable": 185
+    "covered": 132,
+    "applicable": 186
    },
    "receipt": {
-    "covered": 102,
-    "applicable": 185
+    "covered": 104,
+    "applicable": 186
    },
    "refusal": {
-    "covered": 34,
-    "applicable": 185
+    "covered": 33,
+    "applicable": 186
    },
    "permission": {
-    "covered": 178,
-    "applicable": 185
+    "covered": 179,
+    "applicable": 186
    },
    "undo": {
-    "covered": 59,
-    "applicable": 117
+    "covered": 61,
+    "applicable": 118
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 185
+    "applicable": 186
    },
    "phrasings": {
-    "covered": 126,
-    "applicable": 185
+    "covered": 128,
+    "applicable": 186
    }
   }
  },
@@ -6184,6 +6184,60 @@
     "phrasings": []
    }
   },
+  "layout.moveOnBar": {
+   "domain": "layout",
+   "group": "layoutBar",
+   "target": "layoutDock",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "layout.moveOnBar: \"move Breadth to the front of the bar\"",
+     "layout.moveOnBar: \"put my Breadth layout first on the layouts bar\"",
+     "layout.moveOnBar: \"move the Breadth layout to spot 1 on the bar\""
+    ],
+    "routing": [
+     "layout.moveOnBar: \"move Breadth to the front of the bar\"",
+     "layout.moveOnBar: \"put my Breadth layout first on the layouts bar\"",
+     "layout.moveOnBar: \"move the Breadth layout to spot 1 on the bar\""
+    ],
+    "args": [
+     "corpus layout.moveOnBar"
+    ],
+    "execution": [
+     "layout.moveOnBar (c)"
+    ],
+    "receipt": [
+     "layout.moveOnBar (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "layout.moveOnBar: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "layout.open": {
    "domain": "layout",
    "group": "layouts",
@@ -6236,6 +6290,60 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layout.pinToBar": {
+   "domain": "layout",
+   "group": "layoutBar",
+   "target": "layoutDock",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "layout.pinToBar: \"pin my Breadth layout to the bar\"",
+     "layout.pinToBar: \"pin the Breadth layout to the dock\"",
+     "layout.pinToBar: \"put my Breadth layout on the layout bar\""
+    ],
+    "routing": [
+     "layout.pinToBar: \"pin my Breadth layout to the bar\"",
+     "layout.pinToBar: \"pin the Breadth layout to the dock\"",
+     "layout.pinToBar: \"put my Breadth layout on the layout bar\""
+    ],
+    "args": [
+     "corpus layout.pinToBar"
+    ],
+    "execution": [
+     "layout.pinToBar (c)"
+    ],
+    "receipt": [
+     "layout.pinToBar (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "layout.pinToBar: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
@@ -6393,10 +6501,10 @@
     "phrasings": []
    }
   },
-  "multiChart.cell": {
-   "domain": "multiChart",
-   "group": "multiChart",
-   "target": "gridCell",
+  "layout.unpinFromBar": {
+   "domain": "layout",
+   "group": "layoutBar",
+   "target": "layoutDock",
    "risk": "local",
    "reversible": true,
    "undo": "exact",
@@ -6404,49 +6512,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
-   "protections": {
-    "nl": false,
-    "routing": false,
-    "args": true,
-    "execution": false,
-    "receipt": false,
-    "refusal": true,
-    "permission": true,
-    "undo": false,
-    "multiStep": false,
-    "phrasings": false
-   },
-   "phrasings": 0,
-   "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [
-     "refuse.multiChart.cell-grid-closed"
-    ],
-    "execution": [],
-    "receipt": [],
-    "refusal": [
-     "refuse.multiChart.cell-grid-closed"
-    ],
-    "permission": [],
-    "undo": [],
-    "multiStep": [],
-    "phrasings": []
-   }
-  },
-  "multiChart.set": {
-   "domain": "multiChart",
-   "group": "multiChart",
-   "target": "multiChart",
-   "risk": "local",
-   "reversible": true,
-   "undo": "exact",
-   "query": false,
-   "surfaces": [
-    "charts"
-   ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -6459,37 +6525,31 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 4,
+   "phrasings": 3,
    "evidence": {
     "nl": [
-     "multiChart.grid.layout: \"can you split my screen into a two by three grid of charts\"",
-     "multiChart.grid.layout: \"open Multi Chart with two rows and three columns\"",
-     "multiChart.grid.syncCrosshair: \"link the crosshairs across the multi chart grid\"",
-     "multiChart.grid.syncCrosshair: \"turn on crosshair sync for the grid\""
+     "layout.unpinFromBar: \"take Main Trading off the bar\"",
+     "layout.unpinFromBar: \"unpin my Main Trading layout\"",
+     "layout.unpinFromBar: \"remove Main Trading from the layout bar\""
     ],
     "routing": [
-     "multiChart.grid.layout: \"can you split my screen into a two by three grid of charts\"",
-     "multiChart.grid.layout: \"open Multi Chart with two rows and three columns\"",
-     "multiChart.grid.syncCrosshair: \"link the crosshairs across the multi chart grid\"",
-     "multiChart.grid.syncCrosshair: \"turn on crosshair sync for the grid\""
+     "layout.unpinFromBar: \"take Main Trading off the bar\"",
+     "layout.unpinFromBar: \"unpin my Main Trading layout\"",
+     "layout.unpinFromBar: \"remove Main Trading from the layout bar\""
     ],
     "args": [
-     "corpus multiChart.grid.layout",
-     "corpus multiChart.grid.syncCrosshair"
+     "corpus layout.unpinFromBar"
     ],
     "execution": [
-     "multiChart.grid.layout (c)",
-     "multiChart.grid.syncCrosshair (c)"
+     "layout.unpinFromBar (c)"
     ],
     "receipt": [
-     "multiChart.grid.layout (c)",
-     "multiChart.grid.syncCrosshair (c)"
+     "layout.unpinFromBar (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
-     "multiChart.grid.layout: undo restores",
-     "multiChart.grid.syncCrosshair: undo restores"
+     "layout.unpinFromBar: undo restores"
     ],
     "multiStep": [],
     "phrasings": []

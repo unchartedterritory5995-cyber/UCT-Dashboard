@@ -1471,10 +1471,36 @@
    ],
    "fast": true
   },
+  "layout.moveOnBar": {
+   "domain": "layout",
+   "group": "layoutBar",
+   "target": "layoutDock",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "layout.open": {
    "domain": "layout",
    "group": "layouts",
    "target": "layouts",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "layout.pinToBar": {
+   "domain": "layout",
+   "group": "layoutBar",
+   "target": "layoutDock",
    "risk": "local",
    "reversible": true,
    "undo": "exact",
@@ -1523,10 +1549,10 @@
    ],
    "fast": true
   },
-  "multiChart.cell": {
-   "domain": "multiChart",
-   "group": "multiChart",
-   "target": "gridCell",
+  "layout.unpinFromBar": {
+   "domain": "layout",
+   "group": "layoutBar",
+   "target": "layoutDock",
    "risk": "local",
    "reversible": true,
    "undo": "exact",
@@ -1534,20 +1560,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
-  },
-  "multiChart.set": {
-   "domain": "multiChart",
-   "group": "multiChart",
-   "target": "multiChart",
-   "risk": "local",
-   "reversible": true,
-   "undo": "exact",
-   "query": false,
-   "surfaces": [
-    "charts"
-   ],
-   "fast": false
+   "fast": true
   },
   "news.catalysts": {
    "domain": "news",
