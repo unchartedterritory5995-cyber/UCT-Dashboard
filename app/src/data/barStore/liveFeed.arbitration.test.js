@@ -135,9 +135,12 @@ describe('A3 — one source per bucket, judged by trade time (arbitrateTick)', (
     expect(arbitrateTick(held, { src: M, ms: T + 60_100 }, { trade: T + 59_900 }, st(B), T + 60_200).arb).toEqual({ bucket: B + 60, src: M })
   })
 
-  it('an untimed entry (send-time updated_at) never decides a boundary and never holds a bucket', () => {
-    expect(arbitrateTick(null, { src: U, ms: T + 60_500 }, {}, st(B), T + 60_500).accept).toBe(false)   // would open the next bucket
-    expect(arbitrateTick(null, { src: U, ms: T + 1000 }, {}, st(null), T + 1000).accept).toBe(false)    // no bar to fold into
+  it('an untimed entry (send-time updated_at) acts only while both trusted sources are quiet, opens only the wall-clock bucket, holds nothing', () => {
+    expect(arbitrateTick(null, { src: U, ms: T + 60_500 }, {}, st(B), T + 60_500)).toEqual({ accept: true, arb: null })   // opens the wall bucket
+    expect(arbitrateTick(null, { src: U, ms: T + 60_500 }, {}, st(B), T + 59_500).accept).toBe(false)   // a FUTURE bucket: never closes this one early
+    expect(arbitrateTick(null, { src: U, ms: T + 60_500 }, {}, st(B), T + 125_000).accept).toBe(false)  // a stale send time: not the wall bucket
+    expect(arbitrateTick(null, { src: U, ms: T + 1000 }, {}, st(null), T + 1000).accept).toBe(true)    // no bar yet: the wall bucket
+    expect(arbitrateTick(null, { src: U, ms: T + 60_500 }, { trade: T + 59_000 }, st(B), T + 60_500).accept).toBe(false)  // a trusted source is live
     expect(arbitrateTick(null, { src: U, ms: T + 5000 }, { massive: T + 4000 }, st(B), T + 5000).accept).toBe(false)  // a trusted source is live
     expect(arbitrateTick(null, { src: U, ms: T + 9000 }, { massive: T + 4000 }, st(B), T + 9000)).toEqual({ accept: true, arb: null })
   })
@@ -207,7 +210,11 @@ describe('A4 — a tick is bucketed by its own time', () => {
 //       cadence and lag) — the bar never freezes while a source prints — and within a bucket the
 //       source changes only when the holder went quiet (at most Massive → trade feed → Massive for
 //       one quiet stretch, never back and forth); a bucket opened after Massive resumed is Massive's.
-//   P3  an untimed live-price entry (send-time updated_at, no trade_ts) never opens or closes a bucket.
+//   P3  an untimed live-price entry (send-time updated_at, no trade_ts) moves the bar only while both
+//       trusted sources are quiet, and then only into the WALL-CLOCK bucket its own time lies in —
+//       never a past bucket, never a future one (it never closes a bucket early).
+//   P4  a print the reducer refuses (sanity) never holds a bucket: a stream of refused trade-feed
+//       prints interleaved with valid Massive ticks — the bar follows Massive.
 // Every tf the store keys (intraday on both sessions, D/W/M on the RTH day; custom tfs aggregate a
 // base key, so they inherit it). Prices carry their feed in the last digit (units of 1e-4, mod 3):
 // server ≡ 0, Massive ≡ 1, trade feed ≡ 2.
@@ -312,26 +319,66 @@ describe('D2 — one quality-ranked source per bucket (seeded, every tf)', () =>
     })
   })
 
-  it(`P3 an untimed entry (send-time updated_at) never opens or closes a bucket (${N} seeds)`, () => {
+  it(`P3 an untimed entry moves the bar only into the wall-clock bucket, only while trusted sources are quiet (${N} seeds)`, () => {
     forSeeds(N, 1156000, (r, seed) => {
       const tf = r.pick(TFS), session = isDateTf(tf) ? 'rth' : r.pick(['rth', 'eth'])
       const start = (etUnix('2026-11-12', 600 + r.int(0, 280)) + r.int(0, 59)) * 1000
       const w = world(tf, session, start)
       w.rest(1, 100)
-      let px = 100
+      let px = 100, lastTrusted = -Infinity
       for (let step = 0; step < 300; step++) {
         w.clock.ms += r.int(200, 4000); vi.setSystemTime(w.clock.ms)
         px = Math.round((px + r.float(-0.01, 0.01)) * 1e4) / 1e4
-        if (r.chance(0.2)) w.prices.set('SIM', px, { trade_ts: w.clock.ms - r.int(0, 500) })
-        if (r.chance(0.1)) w.candle.tick('SIM', px, w.clock.ms - r.int(0, 1500), w.clock.ms)
+        if (r.chance(0.2)) { const ts = w.clock.ms - r.int(0, 500); w.prices.set('SIM', px, { trade_ts: ts }); lastTrusted = Math.max(lastTrusted, ts) }
+        if (r.chance(0.1)) { const ts = w.clock.ms - r.int(0, 1500); w.candle.tick('SIM', px, ts, w.clock.ms); lastTrusted = Math.max(lastTrusted, ts) }
         const before = w.registry.getSnapshot(w.key)
-        // the untimed entry: `updated_at` = the SEND time (this second), never a trade time
+        // the untimed entry: `updated_at` = a SEND time (now, or a stale one), or none at all
+        const sentS = Math.floor(w.clock.ms / 1000) - (r.chance(0.3) ? r.int(1, 400) : 0)
         const upx = Math.round((px + r.float(-0.02, 0.02)) * 1e4) / 1e4
-        w.prices.set('SIM', upx, r.chance(0.5) ? { updated_at: Math.floor(w.clock.ms / 1000) } : {})
+        w.prices.set('SIM', upx, r.chance(0.7) ? { updated_at: sentS } : {})
         const after = w.registry.getSnapshot(w.key)
-        const ctx = `seed ${seed} tf ${tf} ${session} step ${step}`
-        check(after.developing?.t === before.developing?.t, () => `P3 an untimed entry moved the bucket ${before.developing?.t}→${after.developing?.t} — ${ctx}`)
-        check(after.bars.length === before.bars.length, () => `P3 an untimed entry closed a bucket — ${ctx}`)
+        const b0 = before.developing?.t, b1 = after.developing?.t
+        if (b1 === b0) continue
+        const ctx = `seed ${seed} tf ${tf} ${session} step ${step} ${b0}→${b1}`
+        check(b1 === w.bucket(w.clock.ms), () => `P3 an untimed entry moved the bar off the wall-clock bucket — ${ctx}`)
+        check(b0 == null || b1 > b0, () => `P3 an untimed entry moved the bar backwards — ${ctx}`)
+        check(w.clock.ms - lastTrusted >= SOURCE_QUIET_MS, () => `P3 an untimed entry moved the bar while a trusted source was live — ${ctx}`)
+      }
+    })
+  })
+
+  it('untimed-only symbol (no trade_ts, no Finnhub trades): the bar rolls with the wall-clock minute', () => {
+    const T = etUnix('2026-11-12', 611) * 1000
+    const w = world('1', 'rth', T + 30_000)
+    w.rest(1, 100)
+    for (let k = 31; k < 200; k++) {                    // 10:11:31 … 10:14:19, an entry every second
+      w.clock.ms = T + k * 1000; vi.setSystemTime(w.clock.ms)
+      w.prices.set('SIM', 100 + (k % 7) * 0.001, { updated_at: Math.floor(w.clock.ms / 1000) })
+      expect(w.registry.getSnapshot(w.key).developing.t, `t+${k}s`).toBe(w.bucket(w.clock.ms))
+    }
+  })
+
+  it(`P4 refused trade-feed prints never hold a bucket: the bar follows Massive (${N} seeds)`, () => {
+    forSeeds(N, 1157000, (r, seed) => {
+      const tf = r.pick(TFS), session = isDateTf(tf) ? 'rth' : r.pick(['rth', 'eth'])
+      const start = (etUnix('2026-11-12', 600 + r.int(0, 280)) + r.int(0, 59)) * 1000
+      const w = world(tf, session, start)
+      w.rest(1, 100)
+      let base = 100, lastMassivePx = null, lastChange = w.clock.ms, prev = null
+      for (let step = 0; step < 120; step++) {
+        w.clock.ms += r.int(200, 1000); vi.setSystemTime(w.clock.ms)
+        base += r.float(-0.01, 0.01)
+        // a refused print (wildly off — the reducer's sanity refuses it), arriving < the bound apart
+        w.candle.tick('SIM', Math.round(base * r.pick([20, 0.05]) * 1e4) / 1e4, w.clock.ms - r.int(0, 300), w.clock.ms)
+        if (r.chance(0.7)) {
+          lastMassivePx = Math.round(base * 1e4) / 1e4
+          w.prices.set('SIM', lastMassivePx, { trade_ts: w.clock.ms - r.int(0, 300) })
+        }
+        const d = w.registry.getSnapshot(w.key).developing
+        const ctx = () => `seed ${seed} tf ${tf} ${session} step ${step}`
+        if (!prev || d.t !== prev.t || d.c !== prev.c) lastChange = w.clock.ms
+        prev = d
+        if (lastMassivePx != null) check(d.c === lastMassivePx, () => `P4 the close is not Massive's newest print (frozen ${(w.clock.ms - lastChange) / 1000}s) — ${ctx()}`)
       }
     })
   })

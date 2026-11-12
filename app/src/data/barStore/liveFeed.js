@@ -35,7 +35,7 @@ import * as priceStream from '../../lib/priceStreamManager'
 import { realtimeBarsEnabled } from '../../lib/realtimeBarsGate'
 import { isRthBar, computeBarTime } from '../../components/chart/barTime'
 import { ACTION, parseKey, isDateTf, isIntradayTf, DEV_SRC, dateLabelToUnix } from './types'
-import { bucketOf } from './reducer'
+import { bucketOf, tickAdmission } from './reducer'
 
 /** Client↔exchange clock margin for the fold's volume anchor (one minute). */
 export const FOLD_SKEW_MARGIN_S = 60
@@ -87,9 +87,13 @@ export function liveTickTimeMs(entry, receiptMs) {
  *     can change only after the holder stopped printing, never back and forth tick by tick.
  *   • Quiet is judged in TRADE time (both feeds' own clocks), never by arrival or a wall clock — a
  *     feed that lags is simply older, whatever its ticks' arrival.
- *   • UNTIMED never decides a boundary: it folds only into the developing bar's own bucket, only
- *     while both trusted sources are quiet by the wall clock (the only clock it has), and it holds
- *     nothing (any trusted tick outranks it).
+ *   • UNTIMED (send-time `updated_at`) is the last resort — a symbol outside Massive coverage with
+ *     no Finnhub trades — and acts only while both trusted sources are quiet by the wall clock (the
+ *     only clock it has): it folds into the developing bar's own bucket, or opens the WALL-CLOCK
+ *     bucket when its own time lies in it — never a past bucket, never a future one, so it never
+ *     closes a bucket early. It holds nothing (any trusted tick outranks it).
+ *   • Quiet counts only ADMISSIBLE prints (reducer.tickAdmission — the caller's job): a print the
+ *     reducer refuses never claims a bucket nor keeps its source live.
  *   • Never an older bucket than the developing / newest closed one (the reducer's rule too).
  * Pure. Returns {accept, arb} — `arb` = {bucket, src} the holder after this tick.
  * @param {{bucket:number, src:string}|null} arb
@@ -109,8 +113,9 @@ export function arbitrateTick(arb, tick, last, state, nowMs) {
   if ((devT != null && tb < devT) || (lastT != null && tb <= lastT)) return no
   const quiet = (src, atMs) => !finite(last?.[src]) || atMs - last[src] >= SOURCE_QUIET_MS
   if (tick.src === TICK_SRC.UNTIMED) {
-    if (devT == null || tb !== devT) return no
     if (!quiet(TICK_SRC.MASSIVE, nowMs) || !quiet(TICK_SRC.TRADE, nowMs)) return no
+    const opensWall = finite(nowMs) && tb === bucketOf(Math.floor(nowMs / 1000), state) && (devT == null || tb > devT)
+    if (tb !== devT && !opensWall) return no
     return { accept: true, arb }
   }
   if (tick.src !== TICK_SRC.MASSIVE && tick.src !== TICK_SRC.TRADE) return no
@@ -288,7 +293,7 @@ export function createLiveFeed({
   function _attach(key, session) {
     const p = parseKey(key)
     const off = []
-    const a = { refs: 0, off, fold: null, arb: null, massiveMs: null }
+    const a = { refs: 0, off, fold: null, arb: null, live: { massive: null, trade: null } }
     if (!p || p.window) return a   // a replay slice has no live edge
     const sTf = streamTf(p)
     const sSess = streamSession(p, session)
@@ -332,12 +337,21 @@ export function createLiveFeed({
     // a later bucket or a quiet holder replaces it).
     const tick = (src, price, ms) => {
       if (!finite(price) || !finite(ms) || isStreamLive(key, session)) return
-      // the period bar is RTH: an extended-hours print never claims the day (see _dispatchTick)
+      const st = registry.peek(key) ?? { key, sym: p.sym, tf: p.tf, bars: [], developing: null }
+      // A print the reducer would refuse (sanity, a closed / past bucket) neither claims a bucket
+      // nor keeps its source live — else a stream of refused prints froze the bar (#1157 review).
+      if (!tickAdmission(st, { price, ts: ms })) return
+      if (src !== TICK_SRC.UNTIMED) a.live[src] = Math.max(finite(a.live[src]) ? a.live[src] : -Infinity, ms)
+      // the period bar is RTH: an extended-hours print (it still proves its source live) never
+      // claims the day (see _dispatchTick)
       if (isDateTf(p.tf) && !isRthBar(Math.floor(ms / 1000))) return
-      const last = { massive: a.massiveMs, trade: _num(candle?.getLastTrade?.(p.sym)?.tradeMs) }
-      const r = arbitrateTick(a.arb, { src, ms }, last, registry.peek(key) ?? { key, tf: p.tf }, now())
-      a.arb = r.arb
-      if (r.accept) _dispatchTick(key, session, price, ms, a)
+      const r = arbitrateTick(a.arb, { src, ms }, a.live, st, now())
+      if (!r.accept) return
+      const before = registry.peek(key)?.developing ?? null
+      _dispatchTick(key, session, price, ms, a)
+      const after = registry.peek(key)?.developing ?? null
+      // The holder is committed only once the bar took the print (it moved, or already shows it).
+      if (after && (after !== before || (after.t === r.arb?.bucket && after.c === price))) a.arb = r.arb
     }
     if (candle?.subscribe) {
       off.push(candle.subscribe(p.sym, () => {
@@ -350,8 +364,6 @@ export function createLiveFeed({
         const x = prices.getSnapshot?.()?.prices?.[p.sym]
         if (!x) return
         const lt = liveTickTime(x, now())
-        // Massive's newest trade is OBSERVED whether or not this tick is accepted (quiet = by it).
-        if (lt.trusted) a.massiveMs = Math.max(finite(a.massiveMs) ? a.massiveMs : -Infinity, lt.ms)
         tick(lt.trusted ? TICK_SRC.MASSIVE : TICK_SRC.UNTIMED, Number(x.price), lt.ms)
       }))
     }
