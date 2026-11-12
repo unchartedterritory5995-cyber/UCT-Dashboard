@@ -740,7 +740,7 @@
    "wrong": {
     "So each trade is likelier to win": "Good sizing doesn't stop losses. It limits what a loss costs you, not whether the trade wins.",
     "Because regulators cap it at 2%": "No regulator sets it. Investopedia says the 2% rule is not a requirement of any regulator. It's a trader's own limit.",
-    "So you can hold losers longer": "Risk per trade is your planned loss at the stop. Hold past the stop, and that plan no longer caps the loss."
+    "So you can hold losers longer": "Risk per trade is your planned loss at the stop. Hold past the stop, and you lose more than you planned."
    },
    "simple": "So you survive losing streaks: small risk keeps a run of losses from ending your trading.",
    "tier": "core",
@@ -869,17 +869,17 @@
    "rung": 5,
    "format": "scenario",
    "house": true,
-   "story": "Our market reading has turned Yellow: rough, volatile, and breakouts keep failing. Your plan scales risk by the setup and the market, from 0.25% to 2%.",
+   "story": "Our market reading has turned Yellow. The market is volatile and breakouts keep failing. Your plan scales risk by the setup and the market, from 0.25% to 2%.",
    "q": "A decent setup shows up. How much do you risk?",
    "choices": [
-    "Near the low end of the range",
+    "Less than in a Green reading",
     "The full 2%, setups are rare now",
     "Above 2%, to catch the next move",
-    "The same as in a strong market"
+    "The same as in a Green reading"
    ],
-   "answer": "Near the low end of the range",
-   "why": "Near the low end. Our market guide says a Yellow reading means smaller and fewer trades. Investopedia agrees that in shaky, volatile markets it can make sense to trade smaller. Fidelity's Hirsch says to play more defense when the outlook turns negative. Your plan scales by the market, so Yellow pulls your risk down.",
-   "lesson_line": "A rough market means smaller risk. Save your larger risk for a healthy one.",
+   "answer": "Less than in a Green reading",
+   "why": "Less than in a Green reading. Our market guide gives full risk per grade in Green, and smaller and fewer trades in Yellow. Investopedia agrees that in volatile markets it can make sense to trade smaller. Fidelity's Hirsch says to play more defense when the outlook turns negative. Your plan scales by the market, so Yellow pulls your risk down.",
+   "lesson_line": "A Yellow reading means smaller risk. Save full risk per grade for a Green one.",
    "facts": [
     "h11",
     "f13",
@@ -890,9 +890,9 @@
    "wrong": {
     "The full 2%, setups are rare now": "Yellow calls for smaller, not the max. And 1.5% is the most any setup grade uses.",
     "Above 2%, to catch the next move": "Never. 2% is the ceiling in any market.",
-    "The same as in a strong market": "Our guide gives full risk per grade only in a Green reading. Yellow means smaller and fewer."
+    "The same as in a Green reading": "Our guide gives full risk per grade only in a Green reading. Yellow means smaller and fewer."
    },
-   "simple": "Risk near the low end, because a Yellow reading calls for smaller and fewer trades.",
+   "simple": "Less than in Green, because our guide says a Yellow reading means smaller and fewer trades.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1006,7 +1006,7 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "Your account sat at its high. Then three A+ trades in a row each lost 1.5% of that high value. The next setup is another A+.",
+   "story": "Three A+ trades in a row hit their stops. Your account is now 4.5% below its high. The next setup is another A+.",
    "q": "Under our rules, how much do you risk on it?",
    "choices": [
     "Your usual A+ rate, as before",
@@ -1015,7 +1015,7 @@
     "2%, after three losses I'm due"
    ],
    "answer": "Your usual A+ rate, as before",
-   "why": "Your usual A+ rate, as before. We have no losing-streak rule: only the drawdown ladder, in percent, cuts size. Three 1.5% losses put you three 1.5% losses below the high, under the ladder's first step at 6%. So nothing changes. Losses in a row don't make the next trade likelier to win, so don't raise the bet either.",
+   "why": "Your usual A+ rate, as before. We have no losing-streak rule: only the drawdown ladder, in percent, cuts size. At 4.5% below the high, you are under the ladder's first step at 6%. So nothing changes. Losses in a row don't make the next trade likelier to win, so don't raise the bet either.",
    "lesson_line": "We have no losing-streak rule. Only the drawdown ladder, in percent, cuts your size.",
    "facts": [
     "h8",
@@ -1033,7 +1033,7 @@
     "2%, after three losses I'm due": "That's the gambler's fallacy. Losses in a row don't make the next trade likelier to win. And 1.5% is the most any grade uses.",
     "Less, until you win again": "That's a losing-streak rule, and we don't have one. Results cut size only through the drawdown ladder, from 6% down."
    },
-   "simple": "Your usual A+ rate, because we have no losing-streak rule and three 1.5% losses stay under the ladder's 6% step.",
+   "simple": "Your usual A+ rate, because we have no losing-streak rule and 4.5% down is under the ladder's 6% step.",
    "deeper": {
     "trap": "After a few losses, one pull is to win it back fast or to feel due a winner. Another is to cut size because the streak stings. None of them is our rule. The drawdown, read in percent from the account's high, decides when size comes down."
    },
@@ -1132,7 +1132,7 @@
    "q": "What does our rule say?",
    "choices": [
     "Cap it at 1.5%, our grade limit",
-    "Cap it at 3%, your loss limit",
+    "Cap it at 3%, our loss limit",
     "Fine, it's the market's money",
     "Fine, if the stop is tight"
    ],
@@ -1152,7 +1152,7 @@
    "wrong": {
     "Fine, it's the market's money": "That's the house money effect: taking more risk after wins. Profits in your account are your money.",
     "Fine, if the stop is tight": "A tight stop changes your share count, not your risk. 4% is 4% wherever the stop sits.",
-    "Cap it at 3%, your loss limit": "Our 3% is where the stop usually sits below the buy, a loss on the position, not the account. An A+ risks at most 1.5% of the account."
+    "Cap it at 3%, our loss limit": "Our 3% is where the stop usually sits below the buy, a loss on the position, not the account. An A+ risks at most 1.5% of the account."
    },
    "simple": "Cap it at 1.5%, because that's the most an A+ setup gets, and a winning streak never raises it.",
    "deeper": {
@@ -1404,7 +1404,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f06, f23, f02+f03, f30); choices balanced, 'So ...' grammar tell fixed. Wrong note for 'hold losers longer' claimed 'turns a small loss into a big one' with no cited fact; reworded to the definition of risk per trade (f05, w1), f05 added."
+   "notes": "Key right (f06, f23, f02+f03 = exactly 20% on Investopedia's flat case, f30); choices balanced, no tell. One defect: the wrong note for 'So you can hold losers longer' says 'Hold past the stop, and that plan no longer caps the loss', which implies the plan caps the loss when you do keep the stop. q16 in this lesson teaches the opposite ('1% is the plan, not a cap on the loss', FINRA f42). Reworded so the two questions agree."
   },
   "q08": {
    "status": "pass",
@@ -1428,7 +1428,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Second-answer risk against the rulebook: F65 (h11) says Yellow = smaller and fewer, but Orange = only A+ setups. 'Rough, breakouts keep failing' could read as Orange, where a decent setup is skipped, and the why quoted only the Yellow half. Story now states a Yellow reading so the key follows h11 directly. 'A scarce setup isn't a safer one' had no fact; wrong notes rewritten to h3/h11."
+   "notes": "Key direction right under F65 (h11: Green full risk per grade, Yellow smaller and fewer), backed by f13 and f28. Two defects. (1) The key 'Near the low end of the range' overreaches the rule: F65 says only 'smaller' than full risk per grade, and A1/h3 say under 1% is already normal, so a decent setup in Green also sits near the low end of 0.25% to 2%; the key does not separate Yellow from Green, and the simple line ('near the low end, because Yellow calls for smaller') leaps past what the rule says. Key now states exactly what F65 says: less than in a Green reading. (2) The story's colon ('tur"
   },
   "q12": {
    "status": "pass",
@@ -1452,13 +1452,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right under B17 (h8) + A8 (h9); 'gambler's fallacy' verified on the Van Tharp page 2026-11-12. Two defects: (1) the why's 'less than 6% below the high' rests on an uncomputed 3 x 1.5%, and 'lost 1.5% of it' was ambiguous (of the high, or of a shrinking account); story pinned to 'of that high value' and a calc added (4.5). (2) w2 and A1 teach 'recent results' as a factor, so 'Less, until you win again' looks defensible; the wrong note now says results cut size only through the drawdown ladder (h8 quote)."
+   "notes": "Key right under B17 (h8: no losing-streak rule, size cut only by the drawdown ladder) and A8 (h9: first step at 6% down); wrong notes grounded (martingale f15/f16, gambler's fallacy f36, 1.5% top h3). Defect: the previous verify note says 'a calc added (4.5)', but the question has no calc, and the why now reads 'Three 1.5% losses put you three 1.5% losses below the high', a garbled, circular line that never states the drawdown. A calc cannot be added: the validator requires a choice key to show the calc's number, and this key has none. Fixed by giving the drawdown in the story itself (4.5% bel"
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (FINRA f42, Investopedia f04). Deeper said the stop 'fills near that price' at the open: FINRA's page (re-fetched 2026-11-12) never mentions gaps or the open, so that mechanism is unsupported. Also 'greater than 2%' in a 1% question confuses; now f04's claim 'bigger than planned'."
+   "fixed": false,
+   "notes": "Own answer False before reading the key. FINRA quote (f42) re-fetched 2026-11-12: both sentences on the page verbatim; Tier 1 alone carries the key, f04 (Investopedia gap/slippage) adds. Rulebook agrees (A7: 'a gap can jump the stop'). No second answer: a stop is a trigger, not a fill guarantee. Simple says no more than the why. Does not answer another question."
   },
   "q17": {
    "status": "pass",
@@ -1470,7 +1470,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (E49 h4, A1 h3, D45 h5). Tell: the story names 'an A+' and only the key echoes it ('the A+ top'). Key reworded to 'Cap it at 1.5%, our grade limit', parallel to 'Cap it at 3%, your loss limit'; why/simple lead with the new key."
+   "notes": "Key right: E49 (h4) A+ 1% to 1.5%, A1 (h3) 1.5% the most any grade uses, D45 (h5) no raise after winners; no second defensible choice. Tell: the key says 'our grade limit' and the question asks 'What does our rule say?', while its parallel distractor says 'your loss limit'. The lone 'our' matching the question marks the key. Distractor now 'our loss limit' (the 3% is A13, our own position-loss line, so the trap is real), and its wrong note starts plainly."
   },
   "q19": {
    "status": "pass",

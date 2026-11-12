@@ -924,9 +924,16 @@
       "quote": "While long on detail, short-term charts can be volatile and contain a lot of noise.",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/what-are-charts"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: What Is Day Trading? How It Works, Strategies, & Risks (Joe Mazzola, October 29, 2026)",
+      "quote": "Real-time charts: Price charts that update throughout the day, often on one-minute or five-minute timeframes.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/introduction-to-pattern-day-trader-rules"
      }
     ],
-    "summary": "A position trader works from weekly charts, with monthly for the main trend and daily to fine-tune entries and exits. Match the chart to the style: the daily for a day trader's bias, the weekly for a swing trader, weekly and monthly for the long term. On a daily chart each bar is one day; on a weekly chart each bar is one week. Short-term charts show more detail but also a lot of noise."
+    "summary": "A position trader works from weekly charts, with monthly for the main trend and daily to fine-tune entries and exits. Match the chart to the style: the daily for a day trader's bias, the weekly for a swing trader, weekly and monthly for the long term. On a daily chart each bar is one day; on a weekly chart each bar is one week. Short-term charts show more detail but also a lot of noise. Day traders often use one-minute or five-minute charts that update through the day."
    },
    "facts": {
     "given": "You hold trades for months. Which bar size best suits your main chart? One week One hour Five minutes One quarter"
@@ -937,7 +944,7 @@
    "unit": "F11.01",
    "why": "One week. Investopedia's example position trader focuses on weekly charts, with the monthly for the main trend and the daily to refine entries. StockCharts points long-term holders to the weekly and monthly. On a weekly chart each bar is one week. Hourly and minute bars carry a lot of noise across months.",
    "wrong": {
-    "Five minutes": "That's a day trader's bar. A months-long hold doesn't turn on a move that small.",
+    "Five minutes": "That's a day trader's bar. Schwab says day traders often use one- or five-minute charts.",
     "One hour": "Too short for a hold of months. Short-term charts carry a lot of noise.",
     "One quarter": "Too coarse for a hold of months. Investopedia's position trader focuses on weekly bars and saves even the monthly for the main trend."
    }
@@ -1056,7 +1063,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The count can still matter. FINRA's new standards replace the old day trade count. But a broker still on the old rules may count this one in a margin account. There, same-day stop-outs on swing plans add up."
+    "trap": "The plan doesn't change the count. In a margin account, your broker may count day trades. Same-day stop-outs on swing plans can add up, so check how your broker counts them."
    },
    "depth": {
     "sources": [
@@ -1087,16 +1094,9 @@
       "quote": "replace in their entirety the outdated day trading margin requirements, including the day trade count requirements for designating a customer as a “pattern day trader” and the $25,000 pattern day trader minimum equity requirement.",
       "tier": 1,
       "url": "https://www.finra.org/rules-guidance/notices/26-10"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Day Trade (glossary)",
-      "quote": "Exceptions to this definition include: a long security position held overnight and sold the next day prior to any new purchase of the same security",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/day-trade"
      }
     ],
-    "summary": "A day trade is buying and then selling, or selling and then buying, the same security on the same day. Day trading is buying and selling, or shorting and buying back, the same security on one day. During the transition, your broker may still run the old day trading rules or may already use the new ones. FINRA's new intraday margin standards replace the old day trading rules, including the pattern day trader count and its $25,000 minimum. A stock held overnight and sold the next day, before any new buy of it, is not a day trade."
+    "summary": "A day trade is buying and then selling, or selling and then buying, the same security on the same day. Day trading is buying and selling, or shorting and buying back, the same security on one day. During the transition, your broker may still run the old day trading rules or may already use the new ones. FINRA's new intraday margin standards replace the old day trading rules, including the pattern day trader count and its $25,000 minimum."
    },
    "facts": {
     "given": "Is that a day trade? You buy a breakout at 10:15 a.m., planning to hold it for weeks. It reverses, and your stop fills at 2:40 p.m. the same day. Yes, in and out the same day No, you planned a swing trade No, your stop sold it, not you Yes, any stop-out is a day trade"
@@ -2245,7 +2245,7 @@
   "difficulty": 1,
   "id": "si_8571714379e5",
   "lesson_origin": "session",
-  "lesson_text": "True. Bulkowski says his breakout setup can be used on any time scale. He runs it on the 1- or 5-minute chart with a tight stop. Weinstein's method buys a breakout above a base read on the weekly chart. ChartSchool says the same of gaps: its strategies apply to intraday, daily and weekly gaps. The chart you pick sets the clock. We size from the stop, so a wider stop means fewer shares. The pattern doesn't pick your style. The chart you read it on does.",
+  "lesson_text": "True. Bulkowski says his breakout setup can be used on any time scale. He runs it on the 1- or 5-minute chart with a tight stop. Weinstein's method buys a breakout above a base read on the weekly chart. ChartSchool says the same of gaps: its strategies apply to intraday, daily and weekly gaps. The shape is the same on both. What changes is the chart you read it on. The pattern doesn't pick your style. The chart you read it on does.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -2293,25 +2293,18 @@
       "quote": "gap trading strategies can be applied to weekly, end-of-day or intraday gaps.",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/gap-trading-strategies"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The house sizing rule, section 3: size from the stop (owner quoted)",
-      "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#3-size-from-the-stop"
      }
     ],
-    "summary": "Bulkowski says the same breakout setup can be used on any time scale. Bulkowski's day-trading breakout runs on the 1- or 5-minute chart with a tight stop. In Bulkowski's reading, Weinstein's entry is a buy stop just above the base: a breakout from a range. Weinstein's stages are read on the weekly chart. ChartSchool's gap strategies can be applied to intraday, daily and weekly gaps. The owner sizes from the stop: the risk is the stop distance times the position size."
+    "summary": "Bulkowski says the same breakout setup can be used on any time scale. Bulkowski's day-trading breakout runs on the 1- or 5-minute chart with a tight stop. In Bulkowski's reading, Weinstein's entry is a buy stop just above the base: a breakout from a range. Weinstein's stages are read on the weekly chart. ChartSchool's gap strategies can be applied to intraday, daily and weekly gaps."
    },
    "facts": {
     "given": "A breakout from a sideways range can be traded on a 1-minute chart or on a weekly chart."
    },
    "lesson_line": "The pattern doesn't pick your style. The chart you read it on does.",
-   "simple": "True, because the same breakout shape shows up on any chart, and the chart you pick sets how long you hold.",
+   "simple": "True, because the same breakout shape can be traded on any time scale, from 1-minute bars to weekly ones.",
    "tier": "core",
    "unit": "F11.02",
-   "why": "True. Bulkowski says his breakout setup can be used on any time scale. He runs it on the 1- or 5-minute chart with a tight stop. Weinstein's method buys a breakout above a base read on the weekly chart. ChartSchool says the same of gaps: its strategies apply to intraday, daily and weekly gaps. The chart you pick sets the clock. We size from the stop, so a wider stop means fewer shares."
+   "why": "True. Bulkowski says his breakout setup can be used on any time scale. He runs it on the 1- or 5-minute chart with a tight stop. Weinstein's method buys a breakout above a base read on the weekly chart. ChartSchool says the same of gaps: its strategies apply to intraday, daily and weekly gaps. The shape is the same on both. What changes is the chart you read it on."
   },
   "review_status": "draft",
   "skill_id": "styles.setups_fit",
@@ -3545,7 +3538,7 @@
    "choices": [
     "Position trading: costs pile up",
     "Position trading: no trend to ride",
-    "Every style, chop hurts all alike",
+    "Day trading: breakouts fail in days",
     "Day trading: too little range in a day"
    ],
    "kind": "mcq",
@@ -3555,7 +3548,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Chop hurts every style a little, so 'it hurts all alike' feels safe. The sources don't treat them alike. A position trade needs the trend to keep going for weeks or months. A day trade needs only enough movement inside one session. That is why Investopedia says day trading might even have the advantage when the market goes sideways."
+    "trap": "'Breakouts fail within days' sounds like trouble for the fastest style. But a day trade is over by the close and needs only enough movement inside one session. A position trade needs the trend to keep going for weeks or months, and a choppy market takes that away. That is why Investopedia says day trading might even have the advantage when the market goes sideways."
    },
    "depth": {
     "sources": [
@@ -3596,13 +3589,6 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "FINRA: Frequent Intraday Trading: Understanding the Basics (published 2026-06-04)",
-      "quote": "Investors who actively trade securities, including stocks or options, throughout the day might attempt to profit from small price movements, typically related to volatile stocks",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/frequent-intraday-trading"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (updated 2026-08-11)",
       "quote": "Like investors, position traders may hold a security for weeks or months.",
       "tier": 2,
@@ -3614,12 +3600,26 @@
       "quote": "Frequent trading can also come with higher costs that might erode your returns",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/frequent-intraday-trading"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (updated 2026-08-11)",
+      "quote": "a day trade, by definition, is one in which the trader enters and exits the trade within the same trading day, holding positions for seconds, minutes, or hours.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investopedia: Day Trader Basics: Techniques, Strategies, and Risks Explained (James Chen, updated 2026-09-29)",
+      "quote": "Price volatility and average day range are critical to a day trader. A security must have sufficient price movement for a day trader to achieve a profit.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/d/daytrader.asp"
      }
     ],
-    "summary": "Position traders follow trends. Position trading suits a bull market with a strong trend best. In a flat, sideways market, day trading might have the edge. Moving average crossover signals work in a good trend and get whipsawed without one. A position trader sits through smaller rallies and pullbacks while the trend holds. Intraday traders go after small moves, usually in volatile stocks. Position traders hold for weeks or months. More trading means more costs eating into returns."
+    "summary": "Position traders follow trends. Position trading suits a bull market with a strong trend best. In a flat, sideways market, day trading might have the edge. Moving average crossover signals work in a good trend and get whipsawed without one. A position trader sits through smaller rallies and pullbacks while the trend holds. Position traders hold for weeks or months. More trading means more costs eating into returns. A day trade opens and closes in the same session. A day trader needs a stock that moves enough in a day."
    },
    "facts": {
-    "given": "Which style has the hardest time here, and why? The market has chopped sideways for months. Breakouts fail within days, and no group leads for long. Position trading: no trend to ride Day trading: too little range in a day Every style, chop hurts all alike Position trading: costs pile up"
+    "given": "Which style has the hardest time here, and why? The market has chopped sideways for months. Breakouts fail within days, and no group leads for long. Position trading: no trend to ride Day trading: too little range in a day Day trading: breakouts fail in days Position trading: costs pile up"
    },
    "lesson_line": "Long holds need a trend to ride. No trend, nothing to hold for.",
    "simple": "Position trading, because it needs a lasting trend to ride, and a choppy market doesn't give one.",
@@ -3627,8 +3627,8 @@
    "unit": "F11.02",
    "why": "Position trading: no trend to ride. Position traders are trend followers, and they hold as long as the trend stays intact. Investopedia calls the style ideally suited to a bull market with a strong trend. In a flat, sideways market, it says day trading might have the advantage. Without a strong trend, moving average crossover signals also get whipsawed.",
    "wrong": {
-    "Day trading: too little range in a day": "Chop still moves inside each session. In a flat, sideways market, Investopedia says day trading might even have the advantage.",
-    "Every style, chop hurts all alike": "The trend matters most to the longest hold. A position trade needs the trend to keep going, and a choppy market takes that away.",
+    "Day trading: breakouts fail in days": "A day trade is out by the close, before a breakout has days to fail. In a flat, sideways market, Investopedia says day trading might even have the advantage.",
+    "Day trading: too little range in a day": "Nothing here says the daily range shrank. Chop takes away a lasting trend, and that hurts the longest hold the most.",
     "Position trading: costs pile up": "Right style, wrong reason. Costs pile up with frequent trading, and a position trader holds for weeks or months."
    }
   },
@@ -4116,7 +4116,7 @@
  },
  {
   "answer_json": {
-   "answer": "None: stop, size and exit all stay"
+   "answer": "None: every part stays in the plan"
   },
   "difficulty": 1,
   "id": "si_d7b02fdc176a",
@@ -4125,7 +4125,7 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "None: stop, size and exit all stay",
+    "None: every part stays in the plan",
     "The size, it's only for a few hours",
     "The stop, since you'll be watching",
     "The exit, you're out by the close"
@@ -4197,7 +4197,7 @@
     "summary": "A day trader's plan still sets when to enter and exit, how much to risk and what to trade. Every trade is the same set of decisions: what, how much, when in, when out. Intraday trading needs strict money management, like any style. Every trader needs a written plan. In a fast market, a triggered sell stop can fill well below the stop price. A quick drop can trigger a stop, and the stock can then bounce right back. Shares are the dollars you'll risk divided by the distance from entry to stop. Our rule: every position has a real stop order with the broker."
    },
    "facts": {
-    "given": "You move from swing trades to day trades. Which part of your trade plan can you drop? None: stop, size and exit all stay The stop, since you'll be watching The size, it's only for a few hours The exit, you're out by the close"
+    "given": "You move from swing trades to day trades. Which part of your trade plan can you drop? None: every part stays in the plan The stop, since you'll be watching The size, it's only for a few hours The exit, you're out by the close"
    },
    "lesson_line": "A shorter hold is no reason for a thinner plan.",
    "simple": "None of them, because a day trade still needs a stop, a size and an exit, just over less time.",
@@ -4988,7 +4988,7 @@
   "difficulty": 2,
   "id": "si_a1b2ab5ddf78",
   "lesson_origin": "session",
-  "lesson_text": "Whether to sit through reports. A US company files a 10-Q for each of its first three fiscal quarters, and a 10-K for the year. A six-month hold spans more than one quarter. News outside trading hours can gap a stock past your stop. In Fidelity's example a stop at 95 sold near 90 after overnight earnings. Our rule: hold through a report only if the trade is up 5R. A day trade closes the same day, so it has no hold-or-sell call to make. Our rule still bars any new buy in the 3 days before a report. A long hold sits through quarterly reports. Decide what you'll do at each one before you buy.",
+  "lesson_text": "Whether to sit through reports. A US company files a 10-Q for each of its first three fiscal quarters, and a 10-K for the year. A six-month hold spans more than one quarter. News outside trading hours can gap a stock past your stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap. Our rule: hold through a report only if the trade is up 5R. A day trade closes the same day, so it has no hold-or-sell call to make. Our rule still bars any new buy in the 3 days before a report. A long hold sits through quarterly reports. Decide what you'll do at each one before you buy.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -5113,9 +5113,9 @@
    "simple": "Whether to sit through reports, because a six-month hold spans reports that can gap the stock past your stop.",
    "tier": "extended",
    "unit": "F11.03",
-   "why": "Whether to sit through reports. A US company files a 10-Q for each of its first three fiscal quarters, and a 10-K for the year. A six-month hold spans more than one quarter. News outside trading hours can gap a stock past your stop. In Fidelity's example a stop at 95 sold near 90 after overnight earnings. Our rule: hold through a report only if the trade is up 5R. A day trade closes the same day, so it has no hold-or-sell call to make. Our rule still bars any new buy in the 3 days before a report.",
+   "why": "Whether to sit through reports. A US company files a 10-Q for each of its first three fiscal quarters, and a 10-K for the year. A six-month hold spans more than one quarter. News outside trading hours can gap a stock past your stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap. Our rule: hold through a report only if the trade is up 5R. A day trade closes the same day, so it has no hold-or-sell call to make. Our rule still bars any new buy in the 3 days before a report.",
    "wrong": {
-    "Nothing extra, the stop covers it": "A gap can jump the stop. In Fidelity's example a stop at 95 sold near 90 after overnight earnings.",
+    "Nothing extra, the stop covers it": "A gap can jump the stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap.",
     "Where the first 10-minute low is": "That's a short-term stop for a trade near the open. A months-long hold judges exits on a longer timeframe.",
     "Which hourly bar you'll buy on": "Every trade decides when to enter, in any style. Your entry bar does nothing when a report gaps the stock."
    }
@@ -5741,7 +5741,7 @@
    "unit": "F11.03",
    "why": "Cap the size. 1% risk over a 0.25% stop works out to 400% of the account. Risk per trade and position size are two separate limits. Our max position is 40% of the account. A tight stop never justifies more, because a gap can jump the stop. So the size is the smaller of the risk-based size and the cap.",
    "wrong": {
-    "Buy the full 400%, on margin": "With borrowed money, a small move against you can wipe out a big part of the account. And a fast market can fill a stop well below it.",
+    "Buy the full 400%, on margin": "A small price move the wrong way can wipe out a big part of the account. And a fast market can fill a stop well below it.",
     "Tighten the stop even further": "A tighter stop makes the formula's size even bigger, and normal swings hit it sooner.",
     "Widen the stop to shrink the size": "The stop belongs where the idea fails. Moving it to fix the size gets it backwards; adjust the position instead."
    }
@@ -6869,7 +6869,7 @@
   "difficulty": 2,
   "id": "si_f36b357598b9",
   "lesson_origin": "session",
-  "lesson_text": "Review them and keep logging. Six trades is far too few to judge a setup. Tharp says you need a minimum of thirty trades for a good idea of expectancy. Small samples give jumpy, unreliable results. But Schwab warns a losing streak can point to a real problem with the strategy, so check the six for one. Our rules have no losing-streak size cut. A losing run cuts size only through drawdown: how far, in percent, the account sits below its peak. Don't size up to win it back: a streak doesn't make a win due. Six trades is a streak, not a verdict. Review them, then log more before you judge.",
+  "lesson_text": "Review them and keep logging. Six trades is far too few to judge a setup. Tharp says you need a minimum of thirty trades for a good idea of expectancy. Small samples give jumpy, unreliable results. But Schwab warns a losing streak can point to a real problem with the strategy, so check the six for one. Don't size up to win it back: a streak doesn't make a win due. Six trades is a streak, not a verdict. Review them, then log more before you judge.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -6930,23 +6930,9 @@
       "quote": "after a losing streak, the next bet has a better chance of being a winner. If that's your belief, you'll be tempted to increase your position size when you shouldn't.",
       "tier": 2,
       "url": "https://vantharp.com/tharp-think-trading-concepts/"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "No losing-streak rule: size is cut only by the drawdown ladder, in percent (A8, B13, B14).",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "A drawdown is how far the account is below its highest value, open trades included, checked at least weekly.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Tharp: you need at least thirty trades to get a good idea of a system's expectancy. Small samples give jumpy, unreliable results. From too small a sample you can't draw a trustworthy conclusion. Losing streaks happen to good traders, but sometimes one points to a real problem with the strategy. After a streak, check whether you're net up or down, then look for patterns in your wins and losses. Believing a win is due after a losing streak (the gambler's fallacy) tempts you to size up when you shouldn't. Our rule B17: there is no losing-streak size cut; only the drawdown ladder, in percent, cuts size. Our rule A8: a drawdown is how far the account sits below its peak; the ladder cuts size by it."
+    "summary": "Tharp: you need at least thirty trades to get a good idea of a system's expectancy. Small samples give jumpy, unreliable results. From too small a sample you can't draw a trustworthy conclusion. Losing streaks happen to good traders, but sometimes one points to a real problem with the strategy. After a streak, check whether you're net up or down, then look for patterns in your wins and losses. Believing a win is due after a losing streak (the gambler's fallacy) tempts you to size up when you shouldn't."
    },
    "facts": {
     "given": "What's your next step? Your new breakout setup tested well on past charts. Live, you've taken six trades by the plan. All six lost. Review them and keep logging Drop it and start a new setup Double size to win it back Keep going and skip the review"
@@ -6955,7 +6941,7 @@
    "simple": "Review the six and keep logging, because six trades is too few to judge, but a streak can hide a real flaw.",
    "tier": "extended",
    "unit": "F11.04",
-   "why": "Review them and keep logging. Six trades is far too few to judge a setup. Tharp says you need a minimum of thirty trades for a good idea of expectancy. Small samples give jumpy, unreliable results. But Schwab warns a losing streak can point to a real problem with the strategy, so check the six for one. Our rules have no losing-streak size cut. A losing run cuts size only through drawdown: how far, in percent, the account sits below its peak. Don't size up to win it back: a streak doesn't make a win due.",
+   "why": "Review them and keep logging. Six trades is far too few to judge a setup. Tharp says you need a minimum of thirty trades for a good idea of expectancy. Small samples give jumpy, unreliable results. But Schwab warns a losing streak can point to a real problem with the strategy, so check the six for one. Don't size up to win it back: a streak doesn't make a win due.",
    "wrong": {
     "Double size to win it back": "That's the gambler's fallacy. Believing a win is due after a losing streak tempts you to size up when you shouldn't.",
     "Drop it and start a new setup": "Small samples give jumpy, unreliable results. Hop now and you start from zero with another tiny sample.",
@@ -7280,7 +7266,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Fast pattern reading, a real strength, can work against a trader who switches to holding for weeks.",
+   "q": "Steenbarger says fast pattern reading, a real strength, can work against a trader who switches to holding for weeks.",
    "subject": "F11.04#q18"
   },
   "reveal_json": {
@@ -7314,7 +7300,7 @@
     "summary": "A fast trader's quick pattern reading can become a distraction on longer time frames. Trading problems can come from using your strengths in the wrong place, not only from weaknesses. Bellafiore: trading the wrong style or time frame is like making a great point guard play center."
    },
    "facts": {
-    "given": "Fast pattern reading, a real strength, can work against a trader who switches to holding for weeks."
+    "given": "Steenbarger says fast pattern reading, a real strength, can work against a trader who switches to holding for weeks."
    },
    "lesson_line": "A strength in one style can trip you up in another. Trade where your strength fits.",
    "simple": "True, because fast pattern reading can become a distraction on trades held for weeks.",
@@ -8102,7 +8088,7 @@
    ],
    "kind": "fill",
    "q": "Tap the word that fits the blank.",
-   "sentence": "Bid-ask spreads are usually widest right at the ___, then narrow as the day goes on.",
+   "sentence": "On a typical day, bid-ask spreads are widest right at the ___.",
    "subject": "F11.05#q03"
   },
   "reveal_json": {
@@ -8133,7 +8119,7 @@
     "summary": "Across S&P 500 stocks, bid-ask spreads are typically widest at the open and narrow toward the close. NYSE spreads are widest at the start of the day, dip through the middle and turn up a little at the end. Buy at the ask and sell straight back at the bid, and you lose the spread on every share."
    },
    "facts": {
-    "given": "Tap the word that fits the blank. Bid-ask spreads are usually widest right at the ___, then narrow as the day goes on."
+    "given": "Tap the word that fits the blank. On a typical day, bid-ask spreads are widest right at the ___."
    },
    "lesson_line": "The first minutes are usually the priciest to trade. Wide spreads come with the open.",
    "simple": "The open. Spreads are usually widest in the first minutes, so that is often the priciest time to trade.",
@@ -8218,7 +8204,7 @@
    "unit": "F11.05",
    "why": "It prices in the news since the last close. The 9:30 a.m. open takes in everything that broke overnight at once. News outside trading hours can unbalance buy and sell orders. Then a stock can open far from the prior close. That is why the open often swings hardest.",
    "wrong": {
-    "Big funds do most of their trading then": "That's not what drives the open. Institutions may do a lot of their trading late in the day. The open takes in the news since the close.",
+    "Big funds do most of their trading then": "Our sources put a lot of institutional trading late in the day, not mostly at the open. The open's swing comes from the news since the close.",
     "Earnings come out right at 9:30 a.m.": "Companies usually report before the open or after the close, not at the bell. The open reacts to news that's already out.",
     "Spreads are tightest at the open": "The other way round. Spreads are typically widest at the open and narrow through the day."
    }
@@ -8288,102 +8274,6 @@
   "skill_id": "styles.time_of_day",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F11/F11.05.json#q05",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "Index funds, to match their benchmark"
-  },
-  "difficulty": 1,
-  "id": "si_a29efe16c659",
-  "lesson_origin": "session",
-  "lesson_text": "Index funds, to match their benchmark. Index-fund managers generally trade near the close. Institutions may do a lot of their trading late in the day too. On a Russell rebalance Friday the flow is huge: $219.9 billion traded in the closing moments on NYSE in June 2026. Money that tracks an index tends to trade the close. That's part of why the last minutes get busy.",
-  "module": "F11",
-  "prompt_json": {
-   "choices": [
-    "Companies, to report earnings at 4:00",
-    "Index funds, to match their benchmark",
-    "Fed watchers, to react to 2:00 news",
-    "Day traders, to open overnight trades"
-   ],
-   "kind": "mcq",
-   "q": "On a normal day, who does a lot of trading near the close, and why?",
-   "subject": "F11.05#q06"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Trading Near the Bells (Kevin Horner, Nov. 26, 2024)",
-      "quote": "For example, index-fund managers generally trade near the close to match the returns of their benchmark.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/trading-near-bells"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Trading Near the Bells (Kevin Horner, Nov. 26, 2024)",
-      "quote": "This is largely because institutional investors may do a lot of trading late in the day.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/trading-near-bells"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FTSE Russell (LSEG): Russell US Indexes reconstitution (overview, 2026 calendar and FAQ)",
-      "quote": "At the June 2026 reconstitution, $219.9 billion and $334.0 billion in US stocks traded in the closing moments of Friday trading on the New York Stock Exchange (NYSE) and Nasdaq exchanges, respectively.",
-      "tier": 1,
-      "url": "https://www.lseg.com/en/ftse-russell/russell-reconstitution"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Best Times of the Day, Week, and Month to Trade Stocks (Peter Gratton, updated April 28, 2026)",
-      "quote": "The last hour of trading (3 p.m. to 4 p.m. ET) typically sees another surge in activity, as institutional investors and day traders close positions and react to late-breaking news.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/day-trading/best-time-day-week-month-trade-stocks/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: What Is Earnings Season? (Investor Insights, July 23, 2024)",
-      "quote": "Companies usually release their earnings reports and accompanying press releases before the market opens or after it closes.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/earnings-season"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Board of Governors of the Federal Reserve System: Federal Reserve issues FOMC statement (Oct. 28, 2026)",
-      "quote": "October 28, 2026 Federal Reserve issues FOMC statement For release at 2:00 p.m. EDT",
-      "tier": 1,
-      "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Board of Governors of the Federal Reserve System: Meeting calendars and information (2026 FOMC meetings)",
-      "quote": "October 27-28 Statement: PDF | HTML Implementation Note Press Conference December 8-9",
-      "tier": 1,
-      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
-     }
-    ],
-    "summary": "Index-fund managers generally trade near the close to match their benchmark. Institutions may do a lot of their trading late in the day. On the June 2026 reconstitution Friday, $219.9 billion traded in the closing moments on NYSE and $334.0 billion on Nasdaq. Activity surges again in the last hour, as institutions and day traders close positions. Companies usually report earnings before the open or after the close. The Fed released its Oct. 28, 2026 statement at 2:00 p.m. Eastern, during the trading session. The Fed's last 2026 meeting is Dec. 8-9, a Tuesday and Wednesday."
-   },
-   "facts": {
-    "given": "On a normal day, who does a lot of trading near the close, and why? Index funds, to match their benchmark Companies, to report earnings at 4:00 Day traders, to open overnight trades Fed watchers, to react to 2:00 news"
-   },
-   "lesson_line": "Money that tracks an index tends to trade the close. That's part of why the last minutes get busy.",
-   "simple": "Index funds trade near the close, because they want to match the index they track.",
-   "tier": "core",
-   "unit": "F11.05",
-   "why": "Index funds, to match their benchmark. Index-fund managers generally trade near the close. Institutions may do a lot of their trading late in the day too. On a Russell rebalance Friday the flow is huge: $219.9 billion traded in the closing moments on NYSE in June 2026.",
-   "wrong": {
-    "Companies, to report earnings at 4:00": "Companies usually report before the open or after the close, and a report isn't a trade.",
-    "Day traders, to open overnight trades": "Day traders close out late in the day. The last hour sees them closing positions, not opening overnight ones.",
-    "Fed watchers, to react to 2:00 news": "A normal day has no Fed statement. One comes after a Fed meeting: on Oct. 28, 2026, it came out at 2:00 p.m. Index-fund managers generally trade near the close."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "styles.time_of_day",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F11/F11.05.json#q06",
   "type": "recall",
   "version": 1
  },
@@ -9633,7 +9523,7 @@
    "choices": [
     "Wait until the first half hour ends",
     "Skip it, since the open is too wild",
-    "Wait for the quieter midday stretch",
+    "Buy now, set the stop once it calms",
     "Buy now, with the stop and size set"
    ],
    "kind": "mcq",
@@ -9667,19 +9557,12 @@
       "quote": "The opening and closing hours of the trading day tend to be the most volatile and active periods. When U.S. markets open at 9:30 a.m. ET, it processes all events and news releases since the previous day's close",
       "tier": 2,
       "url": "https://www.investopedia.com/day-trading/best-time-day-week-month-trade-stocks/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Best Times of the Day, Week, and Month to Trade Stocks (Peter Gratton, updated April 28, 2026)",
-      "quote": "The first and last hours of a trading day are the busiest, offering the most prospects. The middle of the day tends to be the calmest and most stable period of most trading days.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/day-trading/best-time-day-week-month-trade-stocks/"
      }
     ],
-    "summary": "Our rulebook has no time-of-day rule. Our rule: every planned buy has its entry, stop and size written down before the market opens. The open and the close are the most volatile, active hours, and the 9:30 a.m. open absorbs all the news since the prior close. The first and last hours are the busiest; the middle of the day tends to be the calmest."
+    "summary": "Our rulebook has no time-of-day rule. Our rule: every planned buy has its entry, stop and size written down before the market opens. The open and the close are the most volatile, active hours, and the 9:30 a.m. open absorbs all the news since the prior close."
    },
    "facts": {
-    "given": "What do our rules say to do? At 9:34 a.m., a stock on your focus list hits its planned entry. The open is swinging hard today. Buy now, with the stop and size set Wait until the first half hour ends Skip it, since the open is too wild Wait for the quieter midday stretch"
+    "given": "What do our rules say to do? At 9:34 a.m., a stock on your focus list hits its planned entry. The open is swinging hard today. Buy now, with the stop and size set Wait until the first half hour ends Skip it, since the open is too wild Buy now, set the stop once it calms"
    },
    "lesson_line": "We have no time-of-day rule. The planned entry decides, not the clock.",
    "simple": "Buy now, because our rulebook has no time-of-day rule and your written plan is the trigger.",
@@ -9687,8 +9570,8 @@
    "unit": "F11.05",
    "why": "Buy now, with the stop and size set. Our rulebook has no time-of-day rule. Every planned buy has its entry, stop and size written before the open. The open tends to swing hardest, but the clock is not the trigger.",
    "wrong": {
+    "Buy now, set the stop once it calms": "The stop doesn't wait. Our rule: every planned buy has its entry, stop and size written down before the market opens.",
     "Skip it, since the open is too wild": "The open does tend to swing hardest. But we have no time-of-day rule, so the swing alone is no reason to skip.",
-    "Wait for the quieter midday stretch": "Midday tends to be calmer, but the clock isn't our trigger. We have no time-of-day rule.",
     "Wait until the first half hour ends": "That's a time-of-day rule, and we don't have one. The planned entry is the trigger."
    }
   },

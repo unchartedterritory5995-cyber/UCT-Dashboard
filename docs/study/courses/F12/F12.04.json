@@ -1314,7 +1314,7 @@
    ],
    "answer": "The setup itself needs a hard look",
    "why": "The setup itself needs a hard look. Your process grades say you traded it the way you planned. Over a stretch like this, the results taken together start to tell you something. A losing run can be bad luck, or it can point to a real problem with the strategy. Check whether you make or lose money net, then look for patterns in the wins and losses. It does not mean drop the setup at once.",
-   "lesson_line": "Clean process on a setup with no edge still loses. The pile of trades tells you which one you have.",
+   "lesson_line": "Good process can't save a setup with no edge. Over months, the pile of trades shows if yours has one.",
    "facts": [
     "f36",
     "f59",
@@ -1497,8 +1497,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Lesson line 'Expect yours to as well' asserts your own grades will drift, but the study (f22) tested people judging OTHERS' decisions and the why itself says so; the file's own conflicts note says effects on self-judging are only suggested. Softened to a watch-for, which no fact has to prove."
+   "fixed": false,
+   "notes": "Solved cold as True from f22 (Baron and Hershey abstract: thinking rated better when the outcome was favorable; 'more competent' also in the quote). 1988 is in the source title. f33 checked on the Wharton page: the speaker is Duke, so 'Duke sees the same thing' holds; 'does not show it' is a fair read of 'does not necessarily bear that out'. Statement 103 chars, no lone absolute; T/F balance in the lesson 3 True, 2 False. 'Happened to' leans toward the luck framing but does not decide the answer. Lesson line is a watch-for, not a claim about self-grading, so the others-vs-self gap is respected"
   },
   "q09": {
    "status": "pass",
@@ -1582,7 +1582,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Simple said 'after 40 clean trades', but the story says 'almost every trade graded A', so not all 40 were clean: a number claim the story does not support. Reworded to 'the trades were taken well' (22 words). Deeper and why pass (f36, f55, f59, f60)."
+   "notes": "Key decided cold and matches: clean process plus a losing pile over six months points at the setup (f36, f59, f60, f55); consistent with rulebook E59 (monthly review of the numbers) and 'Trade it bigger' is rightly wrong (D45, E49). Choices 30-34 chars, key tied longest with a distractor, echoes balanced. Only the lesson line breaks: 'The pile of trades tells you which one you have' has no clear antecedent ('which one' of what?), and 'a setup with no edge still loses' states as fact what the why only says may be so (f59: bad luck or a real problem). Reworded to a clear line that stays inside f"
   },
   "q23": {
    "status": "pass",

@@ -1269,7 +1269,7 @@
    "key": "q22",
    "rung": 9,
    "format": "scenario",
-   "story": "Your account sank to 11% below its high, its lowest point. Your last five trades followed your plan and won, but they were small. It's still 11% below the high.",
+   "story": "Last month your account sank to 11% below its high, its lowest point. This month your five trades followed your plan and won, but they were small. It's still about 11% below the high.",
    "q": "Under our rules, what's your max position now?",
    "choices": [
     "5% of the account",
@@ -1278,7 +1278,7 @@
     "40% of the account"
    ],
    "answer": "5% of the account",
-   "why": "5% of the account. At 11% down you're past the 10% rung, so the max is 5%. Our ladder reads the account in percent, not your streak. A rung comes back only when the account wins back half of the drawdown. Small wins haven't done that yet.",
+   "why": "5% of the account. At about 11% down you're past the 10% rung, so the max is 5%. Our ladder reads the account in percent, not your streak. A rung comes back only when the account wins back half of the drawdown. Small wins haven't done that yet.",
    "lesson_line": "Size comes back with the account, not with a hot streak.",
    "facts": [
     "h04",
@@ -1293,11 +1293,11 @@
    ],
    "wrong": {
     "8% of the account": "That's one rung back. A rung comes back when the account wins back half of the drawdown, not after a streak.",
-    "10% of the account": "That's the cap at 6% down. You're 11% down, past the 10% rung, so the max is 5%.",
+    "10% of the account": "That's the cap at 6% down. You're about 11% down, past the 10% rung, so the max is 5%.",
     "40% of the account": "That's the normal cap. It returns only once the account is within 5% of its peak."
    },
    "skill": "risk.drawdown",
-   "simple": "5%, because at 11% down the cap is 5%, and a hot streak doesn't change it.",
+   "simple": "5%, because at about 11% down the cap is 5%, and a run of small wins doesn't change it.",
    "deeper": {
     "trap": "The trap is reading a hot streak as the all-clear. Schwab suggests sizing back up as you show a new track record. Our rule replaces that. The ladder reads the account in percent, and a rung comes back only when the account wins back half of the drawdown."
    },
@@ -1306,7 +1306,8 @@
     "score": 3,
     "reasons": [
      "rests on the owner's rulebook (A8, B14, B17)",
-     "rewritten in the final check (streak vs account)"
+     "rewritten in the final check (streak vs account)",
+     "fixed in the cold check (house flag, month timing, facts trimmed)"
     ]
    },
    "batch": "wave9"
@@ -1425,7 +1426,7 @@
     "15%",
     "10%",
     "8%",
-    "20%",
+    "5%",
     "6%"
    ],
    "answer": "15%",
@@ -1873,7 +1874,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Three defects. (1) house: true missing although the key is now our rule (B14); the resolver asked for it by hand and the merge dropped it. (2) Answers-each-other: q29 (rung 5) and q30 (rung 6) both reveal 'one rung each time the account wins back half of the drawdown' and 'normal cap within 5% of the peak', so this rung-9 recall question is free by the time it is asked. (3) The stem 'Under our ladder' hints the key 'In steps'. Rewritten as a rung-9 application of the same rule to the story's real trap (a winning streak with no account recovery), using 11% so q29's '12% -> 5%' story does not ha"
+   "notes": "Key 5% decided first from A8/B14 (h04, h06, h13) and B17 (h10): about 11% down sits past the 10% rung and short of 15%, and no half of the drawdown has been won back. Key right, choices all 17 chars, no tell. Defects: (1) 'house': true is still missing although the previous verify entry says it was fixed; the key is our rule (A8, B14, B17). (2) Story logic: 'sank to 11%, its lowest point', then five wins, then 'still 11%' reads as a contradiction, and with no timing the 11% fall could all be this month, so B16's 8% monthly limit (taught in q27, q28, q33) would close the month to new trades and"
   },
   "q23": {
    "status": "pass",
@@ -1897,7 +1898,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answers-each-other: the new why lists '10% at 6% down, 8% at 8%, 5% at 10%', which hands over q08's whole key at the same rung (3) and the rungs q14, q15 and q23 ask for, the very thing the resolver trimmed out of q08's why. Why shortened to the 15% rule and the shift from capping to stopping; all other fields unchanged."
+   "notes": "Key 15% decided first from B13 (h05) and A8 (h04); h05 quote verbatim. Why, simple and lesson_line are grounded and no longer list the rungs (q08, q14, q15, q23 stay unanswered). One break: the '20%' bank item is defensible as a fill. Under our rules you are also not opening new trades at a 20% drawdown (you passed 15% on the way), so 'At a 20% drawdown we stop opening new trades' is not false. Swapped for '5%', which is a real ladder number (the cap at 10% down, and the within-5% return in A8) and so a fair lure, but no reading makes it the stop. Every other field unchanged. q26 (rung 3) teac"
   },
   "q27": {
    "status": "pass",

@@ -1256,18 +1256,19 @@
     "Line 4"
    ],
    "answer": "Line 2",
-   "why": "Line 2. A feeling isn't an exit. A plan sets, in advance, the price where you cut a loss. Line 2 leaves that open until you're already in. Our rule puts a real stop order with the broker on every position. Line 3 is good practice, since knowing the earnings date lets you plan for it.",
+   "why": "Line 2. A feeling isn't an exit. A plan sets, in advance, when you cut a loss. Line 2 leaves that open until you're already in. Our rule puts a real stop order with the broker on every position. Line 3 is good practice, since knowing the earnings date lets you plan for it.",
    "lesson_line": "A feeling is not a stop. Write the price down before you buy.",
    "facts": [
     "f36",
     "f54",
     "f10",
     "f13",
+    "f14",
     "f15",
     "h14"
    ],
    "wrong": {
-    "Line 1": "Line 1 is fine. A breakout entry on heavy volume is a clear trigger.",
+    "Line 1": "Line 1 is fine. Buying over $31.20 follows a set entry rule.",
     "Line 3": "Line 3 is fine. Checking the earnings date before you buy is good practice.",
     "Line 4": "Line 4 is fine. Recording the trade and the reason is part of the job."
    },
@@ -1562,7 +1563,7 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "1. Holding a breakout bought eight trading days ago, up 3%. 2. Earnings come out after tomorrow's close. 3. Stop: 2% under the price, under the last higher low. 4. Plan: hold full size through the report, since the stop caps the loss.",
+   "story": "1. Holding a breakout bought eight trading days ago, up 3%, about 1R. 2. Earnings come out after tomorrow's close. 3. Stop: 4% under the price, under the last higher low. 4. Plan: hold full size through the report, since the stop caps the loss.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1571,8 +1572,8 @@
     "Line 4"
    ],
    "answer": "Line 4",
-   "why": "Line 4. A stop can't cap an earnings gap. The report lands after the close, and the next open can be far below the stop. Our rule holds a trade through a report only when it is up 5R. At full size no third has gone at 3R yet, so it is short of that. This plan trusts the stop instead.",
-   "lesson_line": "Into earnings, the stop is no protection. We hold through a report only when the trade is up 5R.",
+   "why": "Line 4. A stop can't cap an earnings gap. The report lands after the close, and the next open can be far below the stop. Our rule holds a trade through a report only when it is up 5R. This one is up about 1R, so the plan breaks that rule and trusts the stop instead.",
+   "lesson_line": "Into earnings, a gap can skip right past the stop. We hold through a report only when the trade is up 5R.",
    "facts": [
     "f30",
     "f09",
@@ -1580,8 +1581,7 @@
     "f22",
     "h05",
     "f46",
-    "h09",
-    "h04"
+    "h09"
    ],
    "wrong": {
     "Line 1": "Line 1 is fine. It's just where the trade stands.",
@@ -1598,7 +1598,7 @@
     "reasons": [
      "rests on the owner's rulebook (B22)",
      "a number set by a rule that can change (5R)",
-     "story Line 1 reworded here (clear of C33's time stop); fixed before (verify notes)"
+     "story Lines 1 and 3 reworded here (R stated so B22 decides; stop kept under the entry); fixed before (verify notes)"
     ]
    },
    "batch": "wave9"
@@ -1655,7 +1655,7 @@
    "format": "tf",
    "q": "A stop 3% under your entry limits the loss to 3%, even if earnings gap the stock down overnight.",
    "answer": "False",
-   "why": "False. A stop is a trigger, not a guaranteed price. If earnings gap the stock below it overnight, the stop becomes a market order and sells at the next available price. That can be far lower than the 3% you planned.",
+   "why": "False. A stop is a trigger, not a guaranteed price. If earnings gap the stock below it overnight, the stop becomes a market order and sells at the next available price. The loss can end up far bigger than the 3% you planned.",
    "lesson_line": "A stop is a trigger, not a guarantee. It can't catch a gap.",
    "facts": [
     "f02",
@@ -1995,8 +1995,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key Line 1 correct (f58, h20). Line 4 note grounded by h25 (E52). But Line 2's note ('a plain setup you can plan') and Line 3's note ('a clear entry trigger') had no cited fact (f14/f11 not in facts). Reworded both to claims f11 and f14 carry, without copying q01's Line 3 note; f11 and f14 added."
+   "fixed": false,
+   "notes": "My answer before the key: Line 1 (size picked before the stop). Matches. f58 and f59 re-read live on StockCharts today, word for word; h20 (A3) and h25 (E52) match sizing_rule.md section 9. The other lines are clean under the rulebook: a pullback to the rising 21-day line is a setup, over the prior day's high is an entry, and the 21-day trail closed below is E52. There is no second answer and no tell (the choices are the same four labels). The 'squeezed to fit' line comes from the story's own words ('find a stop that fits'). The wrong notes are grounded by f11, f14 and h25 and are not copied f"
   },
   "q05": {
    "status": "pass",
@@ -2032,7 +2032,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key Line 2 correct. But the new f53 sentence ('Once you're in, emotions and loss aversion get in the way') is word for word q06's key reasoning, so q10's why answers q06. Replaced with f54's angle (a plan sets the loss exit in advance); D41 kept; f53 dropped."
+   "notes": "My answer before the key: Line 2. Matches, and there is no second answer: five weeks to earnings is far outside B22's 3 days, and the journal line is B27. Two grounding defects. (1) Line 1's wrong note says 'A breakout entry on heavy volume is a clear trigger', but no cited fact says this. It is the same defect the last checker fixed in q04, so the note is now tied to f14 (entry rules set before you buy), which has been added to the facts. (2) The why says a plan sets 'the price where you cut a loss', but f54 says only 'when you'll cut your losses'. It now follows f54, and D41 (h14) still carr"
   },
   "q11": {
    "status": "pass",
@@ -2080,7 +2080,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key Line 4 correct (f30, f46, h09). Two defects: (1) Line 1 'three weeks ago, up 3%' lets a rulebook reader argue Line 1 too: C33 sells a trade still under 1R after 10 trading days, and with A13 stops near 3%, up 3% is about 1R or less. 'Eight trading days ago' keeps it under C33's 10 days and still clear of B22's 3-day window. (2) f35 (Investopedia 'halve the size', the web view B22 replaced) stayed in facts though no text uses it; dropped, same reasoning the resolver used for f68 in q16."
+   "notes": "My answer before the key: Line 4. It matches, and no other line is defensible (Line 1 is under C33's 10 days, Line 2 is no new buy, so B22's 3-day window does not apply, and Line 3 is the h05 trail). But B22 makes the key depend on the trade being short of 5R, and the story never gives R. 'Up 3%' would be 5R with a 0.6% starting stop. The why closes the gap with a chain of inferences: at full size, no third was sold, so the trade is under 3R, so it is under 5R. B19 itself says the owner 'mostly waits for 5R' rather than trimming at 3R, so full size does not prove the trade is under 3R. Fix: Li"
   },
   "q19": {
    "status": "pass",
@@ -2092,7 +2092,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key False correct (f02, f01, f46). Deeper's 'That is why our rule holds a trade through a report only when it is up 5R' states a reason for B22 that the rulebook never gives (unsupported cause). Also the FINRA market-order line read as the SEC's. Reworded to state B22 plainly with sources apart; f35 (replaced web view, unused) dropped; risk now reflects the cited house rule."
+   "notes": "My answer before the key: False. Matches (f01 and f02, with f46/f30). The key does not contradict the rulebook: under B20 a gap loss can still run past the plan, up to the 2R ceiling and more. The absolute 'even if' in the stem is the misconception being tested, which is acceptable for a true/false item. One defect: the why's last sentence 'That can be far lower than the 3% you planned' sets a price ('the next available price') against a percent. Reworded to say the loss can end up far bigger than the 3% planned. That rests on f01 ('markedly different than your stop price') and f30. FINRA f01 "
   },
   "q21": {
    "status": "pass",

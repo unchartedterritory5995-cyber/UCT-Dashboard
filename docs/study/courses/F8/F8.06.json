@@ -831,6 +831,7 @@
    "facts": [
     "f08",
     "f09",
+    "g04",
     "g05"
    ],
    "simple": "The missing word is correction, because step 4 fixes the flawed logic before step 5 explains why it is right.",
@@ -1293,8 +1294,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f08: correction to that flawed logic). Choices 28-31 chars, key not longest, no tell. But the stem states 'Step 4 asks you to come up with a correction', which hands q10 its blank (q10 lists the steps in order and blanks step 4's 'correction'). Stem reworded so it no longer names the step 4 label; all other fields unchanged."
+   "fixed": false,
+   "notes": "Cold answer from f08/g05 (step 4: a correction to that flawed logic) matches the key. Choices 28-31 chars, key not longest, no lone absolute or hedge. Entry-rules note rests on b02, push-down note on t01. Stem no longer names the step 4 label. The why says 'a correction', which is what q10 blanks, but q01's why and w2 already say step 4 is the correction, so q10 is deliberate recall, not a new leak."
   },
   "q07": {
    "status": "pass",
@@ -1318,7 +1319,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Word-echo tell inside the item: the sentence ends 'the ___, and why it's correct', so 'correction' is found from 'correct' with no knowledge of the method. Changed the closing to 'why it's right', the lesson's own step 5 label (q08/q09 choice 'why the fix is right'), a fair paraphrase of f09 'Explain why that correction is correct'. Why and simple unchanged and still true. q06 stem also fixed so it no longer gives this blank away."
+   "notes": "Key right (f08, g05). Bank has no second fit, and 'why it's right' does not echo 'correction'. Defect: the why says 'The five steps run in order' and describes steps 1 and 2, but the cited facts (f08, f09, g05) cover only steps 3 to 5. The count 'five' and the step 1-2 wording need g04 (s2 quotes steps 1 and 2). Fix adds g04 to facts; the text stays the same."
   },
   "q11": {
    "status": "pass",
@@ -1347,8 +1348,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Re-fetched s1 2026-11-12: f18, f19, f20 are verbatim on the page (step 1, 3 and 4 of Tendler's poker example). Key decided cold from f18/f19: matches. Choices 32-35 chars, key not longest, shares no content word with the story. Defects: (1) the deeper trap cites b02 (recurring mistakes persist after technical fixes), but leaving tables or playing fewer hands is not a technical fix, so the fact does not support the point; (2) 'Avoiding the trigger is not a correction' and the wrong note's 'the urge ... waits for the next game' had no cited fact; (3) sw2 and b02 cited but unused. Now tied to t01"
+   "fixed": false,
+   "notes": "Re-fetched s1 2026-11-12. In Tendler's poker example, step 1 is f20, step 3 is f18 ('I'm trying to control how they play, which obviously is impossible') and step 4 is f19. Key decided cold, and it matches. Choices 32-35 chars, key not longest, and it shares no content word with the story. 'Better player' is not a second answer: the story names only the control flaw, and that choice ignores it. Avoidance notes rest on f08/g05 (step 4 corrects the logic) plus t01. It overlaps in principle with q20 (step 4 must target the flaw), but it does not give q20's key or its t04 wording."
   },
   "q16": {
    "status": "pass",
@@ -1371,8 +1372,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right per f01/b01, and it agrees with our rulebook (C28 no chasing). Defects: the story is one sentence, but the contract asks 2 to 4 for a scenario; the why's 'are the market, not your thinking' and the wrong notes' 'normal trading friction' / 'nothing in your thinking broke' had no cited fact. Story gets a second sentence; the slow-week and fill lines now rest on f01 (the rock drives repeated errors)."
+   "fixed": false,
+   "notes": "Story is two sentences. Cold answer: the recurring mistake (f01 repetitive errors, b01 chasing price), and it matches. The key is backed by s1 and s2 (g06). Stop-out note rests on h07. Fits rulebook C28 (no chasing). 'again' is the decision cue, not a tell: the story does not repeat it, and the lengths are similar (27-35 chars). No other defensible answer. It does not answer any other question."
   },
   "q20": {
    "status": "pass",

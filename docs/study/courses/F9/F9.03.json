@@ -1479,32 +1479,27 @@
    "story": "Over 150 trades, your setup has won 45% at about +2R. Now you've lost six in a row, each by your rules, each about 1R.",
    "q": "What do the six losses tell you about the setup?",
    "choices": [
-    "Little, six trades is too few",
+    "Little, the sample is too small",
     "It's broken, stop trading it",
     "A winner is now due, size up",
     "The stop is too wide, tighten it"
    ],
-   "answer": "Little, six trades is too few",
-   "why": "Little. Six trades is a tiny sample, and 150 trades at 45% and +2R say far more. Losses of 1R each mean you followed the plan. Still watch for a change in the market, since no system works forever. Our rule never cuts size for a streak. Instead, the cap on new positions shrinks as the account falls below its peak.",
+   "answer": "Little, the sample is too small",
+   "why": "Little. Six trades is a tiny sample, and 150 trades at 45% and +2R say far more. Losses of about 1R each mean you followed the plan. Still watch for a change in the market, since no system works forever.",
    "lesson_line": "Judge a setup on a big sample of trades, not on the last few.",
    "facts": [
     "f13",
     "f42",
     "f43",
     "f57",
-    "f58",
-    "f59",
-    "f36",
-    "h03",
-    "h04",
-    "h07"
+    "f59"
    ],
    "wrong": {
     "It's broken, stop trading it": "Six trades is too few to judge. Van Tharp wants at least thirty just to get a good idea.",
-    "The stop is too wide, tighten it": "Your losses were 1R, as planned. A tighter stop just gets hit more often.",
+    "The stop is too wide, tighten it": "Your losses were about 1R, as planned, so the stop did its job. Six trades can't show a stop is too wide.",
     "A winner is now due, size up": "A losing run doesn't make a winner due, so it's no reason to size up."
    },
-   "simple": "Little, because six trades are far too few to judge a setup that 150 trades say has an edge.",
+   "simple": "Little, because six trades are far too few to outweigh what 150 trades show.",
    "deeper": {
     "trap": "The trap is acting on the last few trades. Van Tharp wants at least thirty trades just to get a good idea of a system's expectancy. Small samples swing more and tell you less. Six losers in a row feel like proof, but they are a small sample inside a big one."
    },
@@ -1645,7 +1640,7 @@
     "A single loss bigger than 1R"
    ],
    "answer": "The account's drop from its peak",
-   "simple": "The account's drop from its peak, because we have no losing-streak rule and no daily loss limit.",
+   "simple": "The account's drop from its peak, because only that drop, in percent, cuts our size.",
    "why": "The account's drop from its peak. We have no losing-streak rule and no daily loss limit. As the account falls further below its highest value, open trades included, the cap on each new position shrinks. At 15% down, we open no new trades.",
    "lesson_line": "We count no losing streaks. As the account falls below its peak, our position cap shrinks.",
    "facts": [
@@ -1657,7 +1652,7 @@
    "wrong": {
     "A string of losing trades in a row": "We have no losing-streak rule. A streak matters only through the drop it causes in the account.",
     "Hitting a daily loss limit": "We have no daily loss limit. Size comes down as the account falls below its peak.",
-    "A single loss bigger than 1R": "One big loss has no rule of its own. It counts through the drop it causes below the peak."
+    "A single loss bigger than 1R": "One loss doesn't cut size by itself. It counts through the drop it causes below the peak."
    },
    "tier": "core",
    "risk": {
@@ -1832,8 +1827,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper trap added 'to size up and win it back'; the 'win it back' motive is in no cited fact (f59 only says you are tempted to size up). Rewritten to f59's own claim."
+   "fixed": false,
+   "notes": "Solved cold: 55%, with replacement each draw is independent (f40). Key matches. No second defensible answer: the story fixes replacement, so 'cold streak' and 'due' fail, and 'Tiny' is the pre-named seven-run chance, answered correctly in wrong. Calc q*100=55 grounded. f59 quote confirmed on the Van Tharp page (gamblers fallacy sentence). Deeper's 'a streak is never a reason to size up' fits B17. The lone numeric key is the point of the item, not a give-away. Answers no other question (q18's 2.8 is not stated)."
   },
   "q22": {
    "status": "pass",
@@ -1857,7 +1852,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Why says 'It cuts size only when the account falls a set percent below its peak'. Stated alone, that is false against the rulebook: D38 (grade), F65 (market reading) and B16 (monthly 8% limit) also cut or stop size. B17's 'only' answers losing streaks, not every cause. The sizing line is now tied to h07's cap; h07 added to facts."
+   "notes": "Key right (solved cold: little, six is a tiny sample against 150). Three defects: (1) why says 'Our rule never cuts size for a streak. Instead, the cap on new positions shrinks as the account falls below its peak' which is word for word q29's answer, shown on every attempt; it is also off the question (what the losses say about the setup) and misleads here, since six 1R losses can themselves reach the 6% ladder rung. (2) wrong line for the stop choice says 'A tighter stop just gets hit more often', which is q27's key. (3) key repeats 'six' from the stem, the only choice that does. Fix drops th"
   },
   "q26": {
    "status": "pass",
@@ -1881,7 +1876,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key is right among the choices (B17, A8), but the stem 'what cuts the size of your new trades' and the why, simple, lesson_line and daily-limit note claim only the drop from peak cuts size. The rulebook also cuts size by grade (D38) and market reading (F65), and stops new trades at the 8% monthly limit (B16). Fixes: the stem is limited to loss-based cuts, 'only' is removed wherever no quote carries it, and the why teaches h07's shrinking cap and the 15% stop. Choices and key are unchanged, and every number is in h07."
+   "notes": "Key right (solved cold from B17: size is cut only by the drawdown ladder). Defects: (1) wrong line 'One big loss has no rule of its own' is false against the rulebook: B20 is a rule for a big loss on a gap (get out if the first 30 minutes take the loss past 2R). It must say only that one loss does not cut size by itself (B17). (2) simple justifies by elimination ('because we have no losing-streak rule and no daily loss limit') and gives no reason for the key; rewritten from h03/h04. Monthly 8% limit (B16) is not a choice, so no second answer. Leak from q25's why is removed by the q25 fix."
   }
  }
 }

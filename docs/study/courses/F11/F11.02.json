@@ -901,17 +901,16 @@
    "format": "tf",
    "q": "A breakout from a sideways range can be traded on a 1-minute chart or on a weekly chart.",
    "answer": "True",
-   "why": "True. Bulkowski says his breakout setup can be used on any time scale. He runs it on the 1- or 5-minute chart with a tight stop. Weinstein's method buys a breakout above a base read on the weekly chart. ChartSchool says the same of gaps: its strategies apply to intraday, daily and weekly gaps. The chart you pick sets the clock. We size from the stop, so a wider stop means fewer shares.",
+   "why": "True. Bulkowski says his breakout setup can be used on any time scale. He runs it on the 1- or 5-minute chart with a tight stop. Weinstein's method buys a breakout above a base read on the weekly chart. ChartSchool says the same of gaps: its strategies apply to intraday, daily and weekly gaps. The shape is the same on both. What changes is the chart you read it on.",
    "lesson_line": "The pattern doesn't pick your style. The chart you read it on does.",
    "facts": [
     "f51",
     "f50",
     "f66",
     "f46",
-    "f21",
-    "h7"
+    "f21"
    ],
-   "simple": "True, because the same breakout shape shows up on any chart, and the chart you pick sets how long you hold.",
+   "simple": "True, because the same breakout shape can be traded on any time scale, from 1-minute bars to weekly ones.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1461,7 +1460,7 @@
    "choices": [
     "Position trading: no trend to ride",
     "Day trading: too little range in a day",
-    "Every style, chop hurts all alike",
+    "Day trading: breakouts fail in days",
     "Position trading: costs pile up"
    ],
    "answer": "Position trading: no trend to ride",
@@ -1473,18 +1472,19 @@
     "f65",
     "f33",
     "f41",
-    "f06",
     "f40",
-    "f07"
+    "f07",
+    "f39",
+    "f60"
    ],
    "wrong": {
-    "Day trading: too little range in a day": "Chop still moves inside each session. In a flat, sideways market, Investopedia says day trading might even have the advantage.",
-    "Every style, chop hurts all alike": "The trend matters most to the longest hold. A position trade needs the trend to keep going, and a choppy market takes that away.",
-    "Position trading: costs pile up": "Right style, wrong reason. Costs pile up with frequent trading, and a position trader holds for weeks or months."
+    "Day trading: too little range in a day": "Nothing here says the daily range shrank. Chop takes away a lasting trend, and that hurts the longest hold the most.",
+    "Position trading: costs pile up": "Right style, wrong reason. Costs pile up with frequent trading, and a position trader holds for weeks or months.",
+    "Day trading: breakouts fail in days": "A day trade is out by the close, before a breakout has days to fail. In a flat, sideways market, Investopedia says day trading might even have the advantage."
    },
    "simple": "Position trading, because it needs a lasting trend to ride, and a choppy market doesn't give one.",
    "deeper": {
-    "trap": "Chop hurts every style a little, so 'it hurts all alike' feels safe. The sources don't treat them alike. A position trade needs the trend to keep going for weeks or months. A day trade needs only enough movement inside one session. That is why Investopedia says day trading might even have the advantage when the market goes sideways."
+    "trap": "'Breakouts fail within days' sounds like trouble for the fastest style. But a day trade is over by the close and needs only enough movement inside one session. A position trade needs the trend to keep going for weeks or months, and a choppy market takes that away. That is why Investopedia says day trading might even have the advantage when the market goes sideways."
    },
    "tier": "expert",
    "risk": {
@@ -1622,8 +1622,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key re-derived from f09/f39/f55: intraday chart. Balanced choices, no tell. The weekly wrong note ('trends that run weeks or months') was backed by none of the cited facts. Fix adds f56 (position trader focuses on weekly charts) and f40 (weeks or months)."
+   "fixed": false,
+   "notes": "Derived intraday before looking. f09 (Hill page), f39 (Schwab) and f55 (Investopedia) were all re-fetched 2026-11-12 and the quotes match. The choices run 30 to 32 characters, with no tell and no silly choice. The weekly note is backed by f56 and f40. It does not answer q08: the q08 story never says same-day."
   },
   "q02": {
    "status": "pass",
@@ -1647,7 +1647,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True holds: f51 (any time scale), f50 (1- or 5-minute chart), and f66/f46 (Weinstein weekly base breakout). 'The stop scales with it' had no cited support once f49 was removed: no fact gives a wider stop on longer charts. Fix ties the tight stop to f50 and keeps h7's size-from-the-stop line."
+   "notes": "True holds. f51, f50 (hcrl), f66 (TradingWeinstein), f46 (Stages) and f21 (gaps) were re-fetched and match. Defect: the closing lines 'The chart you pick sets the clock. We size from the stop, so a wider stop means fewer shares' rest on nothing in q05's facts. No cited fact says a weekly breakout has a wider stop, which is why the earlier 'stop scales' line was cut. The sizing line now hints at that same unsupported claim. The simple line ('sets how long you hold') goes beyond the facts too. Adding f47 to support the hold would leak q04's key (a trader holding for months), so both lines are dr"
   },
   "q06": {
    "status": "pass",
@@ -1658,8 +1658,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Daily re-derived from h4, h15 and f30. Agrees with E52. The '21-day' echo is accepted for a rung 3 recognition item. Two wrong notes lacked a fact: '21-day average barely moves in one session' is not in any quote, and the noise and weekly-bar claims cited nothing. Fix grounds the notes in f30, f27 and f29 and adds those facts."
+   "fixed": false,
+   "notes": "Derived the daily chart. h4 matches the TRADE_PLANS.md Launchpad row word for word. h15 matches sizing_rule.md E52, and the key agrees with E52 (sell on a close below the 21-day). The hourly choice is the strongest rival, since Schwab f36 says an hourly chart can time exits. It fails because the trail is a close below a daily average. The '21-day' to 'daily' echo is the skill being tested at rung 3, not a giveaway. f30, f27, f29 and f36 were re-fetched and match. The why's line that a shorter entry chart does not move where the trade is managed overlaps q17's theme. q17 also needs the Kicker's"
   },
   "q08": {
    "status": "pass",
@@ -1676,8 +1676,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Swing re-derived from f37, f19, f20 and f34. The new volume distractor is grounded: ChartSchool was re-fetched 2026-11-12 and f67 is on the page. Defect: the story reuses Schwab's $150 to $185 three-week run as the flagpole. The why then cites that same run as Schwab's example. f38 does not say whether that run was the pole or the move after the breakout. Schwab refused WebFetch on 2026-11-12, so it cannot be checked. Fix drops that clause and f38, and adds f36 for 'daily bars'. The story numbers stand as question givens."
+   "fixed": false,
+   "notes": "Derived swing. f37, f34, f36 and f43 (Schwab) and f19, f20 and f67 (ChartSchool flag) were re-fetched 2026-11-12 and match. Schwab is reachable by curl. Its context confirms that $150 to $185 over three weeks is the flagpole, followed by a couple of weeks of consolidation on declining volume. So the story matches the source, and the earlier worry about f38 is settled. The choices run 25 to 30 characters, with no tell. The volume distractor is wrong for a grounded reason (f67). Minor: 'Holding for years is investing' is a definition with no quote behind it. It decides nothing."
   },
   "q11": {
    "status": "pass",
@@ -1700,8 +1700,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Weekly re-derived from f23 and f24. The new 'zoomed-out daily' choice is a real confusion. The why and simple say 'five daily bars make a week', but no cited quote gives it. Fix adds f29 (a weekly bar runs Monday's open to Friday's close)."
+   "fixed": false,
+   "notes": "Derived weekly from the stem's times-five rule and f29. f23, f24 and f25 (Elder page) and f29 were re-fetched and match. The monthly, hourly and zoomed-out choices each fail for their own reason. It does not leak q11, whose stem already gives 5 days a week, or q22. Minor: 'one well-known method' is an ungrounded adjective. It is harmless and could later read 'not a law'."
   },
   "q15": {
    "status": "pass",
@@ -1737,7 +1737,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Position trading re-derived from f63, f64, f65 and f41. The new choices are sound: two Position choices, and each distractor fails for its own reason. Tell: the story's 'no group holds a trend' gives the key's 'no trend to ride' its word. Fix rewords the story. The why's 'moving average signals' overreaches f33, which is about crossover systems, so it is narrowed. Investopedia f64 and f65 stay unverifiable (risk 4)."
+   "notes": "The key is right. f63, f64 and f65 (Investopedia position page, which curl reached with a 200 today), f41 (Schwab) and f33 (ChartSchool MAs) were re-fetched and match. Tell: two of the four choices start 'Position trading', and the key is one of them. A guesser lands on the right style through that overlap alone. Fix: two Day and two Position choices. The new 'Day trading: breakouts fail in days' lifts the story's own words as a lure and fails on f39 plus f65. 'Every style, chop hurts all alike' is dropped, so the deeper trap is rewritten to the new lure. f06 is no longer used. f39 and f60 are"
   },
   "q21": {
    "status": "pass",

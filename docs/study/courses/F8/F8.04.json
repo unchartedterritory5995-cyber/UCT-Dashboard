@@ -617,6 +617,24 @@
    "source": "s6",
    "quote": "Overconfidence is the tendency to overestimate one’s own abilities, skills and knowledge.",
    "claim": "Overconfidence means overestimating your own skill and knowledge."
+  },
+  {
+   "id": "f62",
+   "source": "s10",
+   "quote": "Another one to watch out for is Entitlement Tilt, which is caused by a belief that your prior work, knowledge, and experience means that you deserve to win.",
+   "claim": "Tendler: one kind of tilt comes from believing your work, knowledge and experience mean you deserve to win."
+  },
+  {
+   "id": "f63",
+   "source": "s8",
+   "quote": "Ultimately, trading is a marathon, not a sprint, and even the most seasoned runners trip up occasionally.",
+   "claim": "Schwab: even the most seasoned traders trip up now and then."
+  },
+  {
+   "id": "h13",
+   "source": "h2",
+   "quote": "B17. No losing-streak rule: size is cut only by the drawdown ladder, in percent (A8, B13, B14).",
+   "claim": "Our rules have no losing-streak rule: size is cut only by the drawdown ladder."
   }
  ],
  "walkthroughs": [
@@ -685,13 +703,13 @@
    "term": "tilt",
    "q": "What does it mean to be on tilt?",
    "choices": [
-    "You're letting emotion make calls",
+    "You're letting emotion take over",
     "You're stuck in a long losing streak",
     "You've hit your monthly loss limit",
     "You're trading bigger than usual"
    ],
-   "answer": "You're letting emotion make calls",
-   "why": "You're letting emotion make your calls. Researchers define tilt as out-of-control decisions driven by negative emotions. Tendler calls it a problem with anger while you perform. A big loss often sets it off, but the loss itself is not tilt. Tilt is the emotion taking over the decisions that follow.",
+   "answer": "You're letting emotion take over",
+   "why": "You're letting emotion take over. Researchers define tilt as out-of-control decisions driven by negative emotions. Tendler calls it a problem with anger while you perform. A big loss often sets it off, but the loss itself is not tilt. Tilt is the emotion taking over the decisions that follow.",
    "lesson_line": "Tilt isn't the loss. It's what the loss does to your next decision.",
    "facts": [
     "f55",
@@ -724,20 +742,22 @@
    "format": "tf",
    "q": "No amount of experience makes a trader immune to tilt.",
    "answer": "True",
-   "why": "True. One study of poker players found experienced players took bad luck more maturely than beginners. That is calmer, not immune. Tendler adds that you can have a tilt problem and have no idea it's tilt. So write your rules down before the session, however long you've traded.",
+   "why": "True. Experience helps: one study found experienced poker players took bad luck more maturely than beginners. But Tendler names a tilt that experience can feed: believing your work, knowledge and experience mean you deserve to win. Schwab adds that even the most seasoned trip up. So write your rules down before each session.",
    "lesson_line": "Nobody is immune to tilt. Written rules protect you when experience doesn't.",
    "facts": [
     "f58",
-    "f59",
+    "f62",
+    "f63",
     "f24"
    ],
-   "simple": "True, because one study found experienced players took bad luck more calmly, and calmer is not immune.",
+   "simple": "True, because even seasoned traders trip up, and Tendler says experience can even feed a kind of tilt.",
    "tier": "core",
    "risk": {
     "score": 2,
     "reasons": [
      "fixed before",
-     "statement turned around so the key is True: absolutes no longer always read False"
+     "statement turned around so the key is True: absolutes no longer always read False",
+     "key now rests on Tendler (s10, experience can feed tilt) and Schwab (s8, the most seasoned trip up), not on the inference 'calmer, not immune'"
     ]
    },
    "batch": "wave9"
@@ -1464,7 +1484,9 @@
     "f16",
     "f47",
     "f41",
-    "h12"
+    "h12",
+    "h05",
+    "h13"
    ],
    "wrong": {
     "Right away, to win back the 4%": "That's revenge on a delay. The 4% comes back through good trades, not bigger ones.",
@@ -1473,13 +1495,15 @@
    },
    "simple": "Bring your risk back step by step while your trades keep following your plan, not to win money back fast.",
    "deeper": {
-    "trap": "One big winner feels like proof you're back. But one result says little. Tendler warns that money is not a reliable measure of performance in the short term. Count clean trades taken by your plan, not dollars made."
+    "trap": "One big winner feels like proof you're back. But one result says little. Tendler warns that money is not a reliable measure of performance in the short term. Judge a run of trades taken by your plan, not one good day.",
+    "counter": "Our rules have no losing-streak rule. Size is cut only by the drawdown ladder, and its first rung is at 6% down. So a 4% hit doesn't force a smaller size. Cutting your risk here was your own call, which our range of 0.25% to 2% allows."
    },
    "tier": "expert",
    "risk": {
-    "score": 2,
+    "score": 3,
     "reasons": [
-     "rests on a sizing view our rulebook may replace (B17: size is cut only by the drawdown ladder)"
+     "fixed before",
+     "the key is general practice (Schwab, Tendler); our rulebook has no losing-streak rule (B17), and the deeper counter says so"
     ]
    },
    "batch": "wave9"
@@ -1662,13 +1686,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f55, f31). Two wrong notes rest on facts the question did not cite: 'a symptom tilt can cause' (bigger size) needs f10; 'a rule that stops tilt from costing more' needs a loss-limit control fact (f39). Facts list only."
+   "notes": "Before reading the key I picked 'emotion has taken over your decisions' (f55, f31). The key is right. The only defect is wording: 'You're letting emotion make calls' is not idiomatic (it should be 'make the calls'), and in a stock app 'calls' also means call options, which F6 teaches. A beginner could misread the key. The fix rewords the key to 'You're letting emotion take over' (32 characters; the other choices are 36, 34 and 32, so the key is not the longest), which matches the simple line and the why. The wrong notes keep their choice text. The why's first sentence follows the new key. Ever"
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True defensible (f58 calmer not immune, f59). But the why's CBOT line ('highly loss-averse too') is offered as evidence of tilt, and loss aversion is not tilt; it supports nothing here and points at q17's study. Replaced with a rules line grounded in f24."
+   "notes": "Before reading the key I said True. But the cited facts don't support it. f58 says experienced players handled bad luck MORE maturely, which leans against the key. f59 is a general line about anyone. The why's own reasoning, 'That is calmer, not immune', is the writer's inference, and no quote says it. Re-reading the cited pages turned up direct support from two publishers. Tendler's s10 page names a tilt that experience feeds. Schwab's s8 page, on recovering from big losses, says even the most seasoned trip up. I confirmed both on fresh plain-curl copies (2026-11-12) and added them as new fac"
   },
   "q03": {
    "status": "pass",
@@ -1679,8 +1703,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f52). Tell: the stem's 'get you back to even' echoes the key 'break-even', so word matching finds it. Stem reworded to 'win it all back'; why follows."
+   "fixed": false,
+   "notes": "Before reading the key I picked the break-even effect: after prior losses, a chance to break even is especially attractive (f52, the Thaler and Johnson abstract, re-read on RePEc 2026-11-12). The stem says 'win it all back', which does not echo the word 'break-even'. The distractors are real and wrong: house money is risk after a gain (f53), disposition is holding losers and selling winners (f08, re-read on Investor.gov), and overconfidence is overestimating your skill (f61). Three choices say 'effect' and one says 'bias', and the lengths are balanced. No second defensible answer. The effect's"
   },
   "q05": {
    "status": "pass",
@@ -1697,8 +1721,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f39, f12, f10); choices balanced; deeper example grounded (h08, h02, h03). Only the risk reason is stale: it still says the stem assumes a daily loss limit, which the new stem no longer does. Owner flag on trades-per-day cap stands."
+   "fixed": false,
+   "notes": "Before reading the key I picked a cap on trades per day. Tendler's f39 names controls on 'the number of trades/day, or a daily loss-limit' (re-read on s11). Investopedia's f12 sets limits on how many trades. f10 says revenge raises frequency as well as size. 'Besides a loss limit' removes the competing answer, and the stem no longer assumes a daily limit. The distractors are real misconceptions. A tighter stop shrinks each loss but not the count, a profit target applies to good days, and a bigger watchlist ties to f13's shotgun approach. The key is the shortest choice and none are absolutes. O"
   },
   "q08": {
    "status": "cut",
@@ -1788,13 +1812,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key fits f21 and f47; A1 (h12) allows risk to vary with recent results. But the why said 'Neither short-term P&L ... decides it', which contradicts A1's 'recent results', and it taught Schwab's 'raise position size' after losses, the view B17 replaced. Verdict also read 'As' against the key's 'While'."
+   "notes": "Before reading the key I said: step risk back up as execution holds (f21 Schwab, f47 Tendler, f16). The key matches and the distractors are wrong for grounded reasons (f41, f16). Two breaks against the rulebook. (1) The deeper trap ends 'Count clean trades taken by your plan, not dollars made'. That again pits P&L against execution, while A1 (h12) picks risk partly by recent results. The earlier checker removed the same clash from the why but not from the deeper. (2) The rulebook's B17 says there is no losing-streak rule and size is cut only by the drawdown ladder, whose first rung is 6% down."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 40000 x 8 / 100 - 2600 = 600 checks; matches h03 (from the month's starting value). Deeper counter's 'Many traders use a daily limit' is a frequency claim no fact supports; reworded to Schwab's own example (f25)."
+   "fixed": false,
+   "notes": "I worked it before reading the key: 8% of $40,000 is $3,200, and $3,200 minus $2,600 leaves $600. The calc matches. It agrees with B16 (h03: 8% down in a calendar month, from the month's starting value, means no new trades for the rest of the month), which I checked word for word in sizing_rule.md section 9. The stem fixes the clock (month) and the base (the month began at $40,000), so a peak-to-trough reading is ruled out. Every number in the why, simple and deeper comes from the stem, the calc or h03. The deeper counter rests on f25 and h02 (B15) and makes no claim about frequency. It overla"
   },
   "q24": {
    "status": "pass",
@@ -1805,8 +1829,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right per F67 (h04). But the story ('still angry about yesterday's loss') shows tilt carrying over to the next day, which is q13's True key; the two answer each other. Story now sets anger on a non-trading cause the same morning. Deeper's 'stricter on purpose' claims an intent no quote gives; trimmed."
+   "fixed": false,
+   "notes": "Before reading the key I said no new trades that day, per F67 (h04: tired, sick, angry or distracted means no new trades that day, checked word for word in section 9). 'Slept badly' is tired and 'angry' is stated, so the house key is forced. The choices are two 'No new trades' and two 'Take it', with balanced lengths and no absolute. Each wrong choice is a real middle path (Schwab's 15-minute pause from f25, half size, list quality from h09), and the wrong notes ground each one. The anger now comes from a call before the open, not yesterday's loss, so q13's carry-over key stays hidden. Its pau"
   }
  }
 }

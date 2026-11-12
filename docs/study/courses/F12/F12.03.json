@@ -1056,7 +1056,7 @@
     "Feelings are noise, drop that field"
    ],
    "answer": "Fear is cutting your winners short",
-   "why": "Fear is cutting your winners short. The emotion field says anxious on 7 of 8 early exits, and each stock went on to hit your target. Steenbarger calls worry and nervousness clues to track. Once you see a fear pattern, you can work on it. A report for the SEC says investors tend to sell winning positions, and that this habit is counterproductive.",
+   "why": "Fear is cutting your winners short. The emotion field says anxious on 7 of 8 early exits, and each stock went on to hit your target. Steenbarger calls worry and nervousness clues to track. Once you see a fear pattern, you can work on it. A report for the SEC describes the disposition effect: investors tend to sell winning positions and hold onto losing ones. Odean found it widespread and counterproductive. A planned sale is not this. A sale out of fear, before your plan, is.",
    "lesson_line": "Same feeling on the same mistake is a pattern. The emotion field is how you find it.",
    "facts": [
     "f32",
@@ -1463,7 +1463,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key, story and why are sound (f32, f44, f45; 7 of 8 and All 8 are in the story). But the wrong note on 'Those exits were sound risk control' says 'Your stop is your risk control', which no cited fact supports. f34 (the exit point set at entry is your risk) supports it; added to facts."
+   "notes": "I decided the key on my own first (fear cutting winners short) and it matches. The story numbers (7 of 8, all 8) come from the story itself. Choices are 33-35 chars with no tell, and no choice is silly. I confirmed f32 (TraderFeed 2008), f34 (vantharp.com) and f44/f45 (SEC PDF, pdftotext, 2026-11-12) on the live pages. No other question gives this one away: q04 only places a nervous note in the emotion field. THE BREAK: f44's quote cuts the definition off at 'sell winning positions'. The real sentence goes on: 'and to hold onto losing positions.' So the why's line 'investors tend to sell winni"
   },
   "q17": {
    "status": "pass",

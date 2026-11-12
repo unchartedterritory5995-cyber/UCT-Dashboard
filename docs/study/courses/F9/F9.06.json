@@ -1211,7 +1211,7 @@
    "skill": "risk.partials",
    "rung": 8,
    "format": "numeric",
-   "q": "Four trades each risk 1% of the account from entry. You sell half of one and raise another's stop to entry. Total open risk from entry now?",
+   "q": "Four trades each risk 1% of the account. You sell half of one, stop kept, and raise another's stop to entry. Total open risk from entry now?",
    "answer": 2.5,
    "suffix": "%",
    "calc": {
@@ -1460,8 +1460,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why and wrong note say a stop cannot stop a gap below the entry, but f35 (Fidelity: stop orders will not protect you from gaps) is not cited; f09 alone does not mention gaps. Added f35 to facts. Key, h08 line and O'Neil line verified."
+   "fixed": false,
+   "notes": "Answered cold: a stop at entry is there to keep a winner from becoming a loss (f14, f38, f01/f08). Distractors are each wrong on cited facts: a pullback above entry does not reach the stop, a gap goes through it (f09, f35), and a close stop raises the shake-out risk (f13). Choices are 26-29 chars with no tell, and the stem is 96 chars. h08 is quoted word for word from rulebook B19. The wrong note on the dip covers the same idea as q20's key, but walkthrough w3 step 3 already teaches it and q20 asks it as a case, so q05 does not give q20 away."
   },
   "q06": {
    "status": "pass",
@@ -1502,8 +1502,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc verified ($600; 1R=$1, 3R=$23, 200 = a third, breakeven at first trim per TRADE_PLANS/B19). But the lesson line 'the rest can't cost you capital, gaps aside' is an absolute that q17 itself contradicts (a fast drop without a gap can fill below the stop, f09/f10). Narrowed to the fill condition."
+   "fixed": false,
+   "notes": "Recomputed: 1R = $1, so 3R = $23. 200 of 600 is a third (h01, B19). 200 x $3 = $600, and the 400 left exit at $20 for $0, so the total is $600. The calc gives 600 (its stop arg is the moved $20 stop, which is in the stem). Breakeven at the first trim fits B19 (2R to 5R) and TRADE_PLANS line 10. The fill condition is stated (f02). Stem is 131 chars. The $ prefix rules out an answer in R. Coming after q07, it does not answer q07 or q23."
   },
   "q13": {
    "status": "cut",
@@ -1538,8 +1538,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key verified against TRADE_PLANS rows (Kicker, Oops, Slingshot, Launchpad = 4 of 6 name 'under each higher low'); TRADE_PLANS line 9 lets the detector's own trail stand beside E52, so not against the rulebook. Defects: (1) 'A fixed percent ... is a real kind of trailing stop' (wrong note, deeper) has no supporting quote: f03 says 'by the specified amount', percent is never quoted, and both SEC and Investopedia pages were unreachable (403 / blocked) to confirm one. Reworded the distractor to a fixed amount and cited f03. (2) deeper said 'our plans follow ... a close under the 10-day or 21-day',"
+   "fixed": false,
+   "notes": "Checked against TRADE_PLANS.md rows: Kicker, Oops Reversal, Slingshot and Launchpad all name 'under each higher low'. That is 4 of the 6 trade plans (HVE names no trail, Gap Support names the gap top), so 'most' holds. The why's 'three also name a moving average' (10, 10, rising 21) is correct. E52's default (a close under the 10/21-day) is not among the choices, so no second answer, and TRADE_PLANS line 9 lets a detector's own trail stand beside E52, so the key does not go against section 9. The 200-day lure is wrong under E52. Fixed amount is a real trailing stop (f03) but not ours. Choices "
   },
   "q19": {
    "status": "pass",
@@ -1550,14 +1550,14 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key, why and choices verified (f13/f34/f10, h08 'ideally', f39 Mabe; longest choice is a wrong one). Deeper calls the risk removed 'a small risk', a judgment no cited fact supports (the risk is the full first stop distance). Reworded to the supported cost."
+   "fixed": false,
+   "notes": "Answered cold: the catch is being shaken out by a normal dip (f13, f34, f10). The other three are each wrong: the move cuts capital risk rather than adding it, breakeven locks in no profit, and a sell stop sets no ceiling. The longest choice (36 chars) is a wrong one, so there is no tell toward the key. h08 is quoted word for word from B19 with 'ideally' kept. The Mabe line is attributed (f39). The deeper text states only the cost the facts support."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc 2x1 + 1x0.5 = 2.5 verified. The changed simple line is 23 words, over the 22-word sentence limit. Shortened, keeping 'the one you sold half of'."
+   "notes": "The math is right (2 x 1% + 0.5% + 0 = 2.5%), but the stem never says the half-sold trade keeps its stop. It says that only in the why ('because its stop didn't move'). This lesson teaches our plan as 'sell a third and move the stop to breakeven' (q12, TRADE_PLANS line 10), so a member who learned the house plan can read the trim as also moving that stop to entry and answer 2%. The fix states 'stop kept' in the stem and keeps the entry base. The new stem is exactly 140 chars, and the why, calc and answer are unchanged."
   },
   "q22": {
    "status": "cut",

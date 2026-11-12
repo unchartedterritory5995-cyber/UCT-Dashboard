@@ -1143,7 +1143,7 @@
     "Keep going and skip the review"
    ],
    "answer": "Review them and keep logging",
-   "why": "Review them and keep logging. Six trades is far too few to judge a setup. Tharp says you need a minimum of thirty trades for a good idea of expectancy. Small samples give jumpy, unreliable results. But Schwab warns a losing streak can point to a real problem with the strategy, so check the six for one. Our rules have no losing-streak size cut. A losing run cuts size only through drawdown: how far, in percent, the account sits below its peak. Don't size up to win it back: a streak doesn't make a win due.",
+   "why": "Review them and keep logging. Six trades is far too few to judge a setup. Tharp says you need a minimum of thirty trades for a good idea of expectancy. Small samples give jumpy, unreliable results. But Schwab warns a losing streak can point to a real problem with the strategy, so check the six for one. Don't size up to win it back: a streak doesn't make a win due.",
    "lesson_line": "Six trades is a streak, not a verdict. Review them, then log more before you judge.",
    "facts": [
     "f46",
@@ -1151,9 +1151,7 @@
     "f57",
     "f67",
     "f68",
-    "f53",
-    "f74",
-    "f78"
+    "f53"
    ],
    "wrong": {
     "Drop it and start a new setup": "Small samples give jumpy, unreliable results. Hop now and you start from zero with another tiny sample.",
@@ -1166,10 +1164,9 @@
    },
    "tier": "extended",
    "risk": {
-    "score": 3,
+    "score": 2,
     "reasons": [
-     "re-keyed in wave9 to our rule B17: no losing-streak size cut (Schwab's 'trade smaller' f69 dropped)",
-     "final check: size line narrowed to B17's scope (a losing run cuts size only through drawdown); grade and market reading still set size",
+     "cold check 2026-11-12: B17 size lines (f74, f78) dropped; 'a losing run cuts size only through drawdown' overreached against B16 (monthly loss limit) and A1 (recent results pick risk), and no choice is about cutting size",
      "Schwab s19 and Investopedia s15 unreachable 2026-11-12; f56, f57, f67, f68 rest on the 2026-11-09 read"
     ]
    },
@@ -1307,7 +1304,7 @@
    "skill": "styles.lane",
    "rung": 8,
    "format": "tf",
-   "q": "Fast pattern reading, a real strength, can work against a trader who switches to holding for weeks.",
+   "q": "Steenbarger says fast pattern reading, a real strength, can work against a trader who switches to holding for weeks.",
    "answer": "True",
    "why": "True. Steenbarger says when a fast trader tries longer time frames, the near-term pattern reading, a strength, can actually become a distraction. He adds that trading problems can come from misapplying strengths, not only from weaknesses. Bellafiore compares the wrong style or time frame to asking a great point guard to play center. It does not mean a fast trader can never hold longer. It means his strength can turn into a distraction there.",
    "lesson_line": "A strength in one style can trip you up in another. Trade where your strength fits.",
@@ -1324,7 +1321,7 @@
    "risk": {
     "score": 2,
     "reasons": [
-     "rests on two linked publishers only (Steenbarger and Bellafiore, see conflicts)",
+     "rests on two linked publishers only (Steenbarger and Bellafiore, see conflicts); the pattern-reading claim itself is Steenbarger's, so the statement now names him",
      "flipped to a True statement in wave9 to balance True and False and break the absolute-means-False pattern",
      "final check: why and deeper kept to f18's 'can'"
     ]
@@ -1611,7 +1608,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f46 re-read live, f56, f67). Defect: 'Size is cut only when the account falls a set percent below its peak' drops B17's context. Our rules also size by grade (D38) and the market reading guides size (F65, A10). B17 says only a losing streak's cut runs through the drawdown ladder. Reworded to that. Schwab s19 (403) and Investopedia s15 still unreachable 2026-11-12; f56, f57, f67, f68 rest on the 2026-11-09 read. The question still lacks 'house': true although the why teaches B17."
+   "notes": "Derived cold: review and keep logging (f46 re-read live on the Tharp page 2026-11-12: 'a minimum of thirty trades'; f56, f57 Investopedia; f67, f68 Schwab). Key matches. Choices 26 to 30 characters, no tell, no second key. 'The gambler's fallacy Tharp warns about' confirmed: the Tharp page uses the term next to f53. Defect: the why's size line 'A losing run cuts size only through drawdown' is a lone absolute that the rulebook does not hold. B16 (8% monthly loss limit: no new trades for the month) also reacts to losses, apart from the drawdown ladder, and A1 lets 'recent results' pick risk insi"
   },
   "q15": {
    "status": "pass",
@@ -1635,13 +1632,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "True from f18 and f19 (re-read live) and f30 (re-read live). Defect: f18 says the strength 'can' pose distractions, but the deeper says it IS 'a distraction on long ones', and the why ends on 'won't simply carry over', which is stronger than f18. Both reworded to f18's 'can'."
+   "notes": "Derived cold: True. f18 and f19 re-read live on TraderFeed 2026-11-12; the page defines the longer time frames as 'intraday or multi-day/week swings', so 'holding for weeks' fits. Defect: the statement gives Steenbarger's own view as an unnamed fact. Source s3's why_reliable says 'Used only for his own views, named as his', and f30 (Bellafiore) backs only the general wrong-time-frame point, not the pattern-reading claim. Fix: name him in the statement (118 characters). Remaining weakness, not fixable without leaving f18's 'can': it is the lesson's only hedged TF statement and is keyed True. It"
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key re-derived from f50 (re-read live), f27 (re-read live) and f61. Defect: the why's 'Size is cut only when the account falls a set percent below its peak' is wrong as a general line. In a choppy market our market reading guides smaller, fewer trades (F65, A10), and grade sets size (D38). The question is not about size since 'Shrink' left, so the two size sentences, f74 and f78 are dropped. For the owner: a choppy market may change the market reading (B18, F65), which this lesson never teaches. Investopedia s16 (f61) unreachable 2026-11-12; it rests on the 2026-11-09 read."
+   "fixed": false,
+   "notes": "Derived cold: study what changed and adapt it. f50 (Tharp, re-read live 2026-11-12: 'Systems must be evaluated and revised to adapt to changing market conditions'), f27 (TraderFeed 2015, re-read live), f61 (Investopedia, prior read): three publishers. Tried to break it. 'Keep trading it and wait it out' gets some backing from f58 (stay the course through losing streaks), but 60 steady losers after a market change is not the same as an ordinary streak, and f61 in the same article says strategies that don't adapt fail. Under the rulebook, 60 steady losses would probably reach the drawdown ladder"
   },
   "q20": {
    "status": "pass",

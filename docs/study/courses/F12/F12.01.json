@@ -608,14 +608,14 @@
    "format": "mcq",
    "q": "Which of these is an entry rule you could actually follow?",
    "choices": [
-    "Buy on a move over $42.10",
+    "Buy on a move over $36.40",
     "Buy when it starts to break out",
     "Buy once it looks strong",
-    "Buy near $42 if it holds up"
+    "Buy near $36 if it holds up"
    ],
-   "answer": "Buy on a move over $42.10",
-   "why": "Buy on a move over $42.10. Investopedia says a tactical trader typically looks to enter at exact price levels or only when very specific requirements are met. Schwab says setting entry rules before you buy reduces the guesswork. The other three leave the call to how it looks in the moment. A rule is followable when two people reading it would buy at the same price.",
-   "lesson_line": "A real entry rule is exact. Two people reading it would buy at the same price.",
+   "answer": "Buy on a move over $36.40",
+   "why": "Buy on a move over $36.40. Investopedia says a tactical trader typically looks to enter at exact price levels or only when very specific requirements are met. Schwab says setting entry rules before you buy reduces the guesswork. The other three leave the call to how it looks in the moment. A rule is followable when two people reading it would act at the same price.",
+   "lesson_line": "A real entry rule is exact. Two people reading it would act at the same price.",
    "facts": [
     "f23",
     "f10"
@@ -623,10 +623,10 @@
    "wrong": {
     "Buy when it starts to break out": "Break out over what price? With no level, you'd be deciding in the moment, which is what the plan is there to stop.",
     "Buy once it looks strong": "That's a feeling, not a rule. Two people reading it would buy at two different prices.",
-    "Buy near $42 if it holds up": "It names a price, but 'near' and 'holds up' aren't exact. Two people reading it could buy at different prices."
+    "Buy near $36 if it holds up": "It names a price, but 'near' and 'holds up' aren't exact. Two people reading it could buy at different prices."
    },
    "skill": "process.plan",
-   "simple": "Buy on a move over $42.10, because an exact price leaves nothing to guess when the moment comes.",
+   "simple": "Buy on a move over $36.40, because an exact price leaves less to guess when the moment comes.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -742,18 +742,21 @@
    "format": "tf",
    "q": "A pre-trade checklist should ask which way the overall market is trending.",
    "answer": "True",
-   "why": "True. IBKR's trading checklist includes market direction: up, down or sideways. Investopedia's plan says to factor in the overall market condition. The stock you pick still trades inside that market. Checking the market does not replace checking the stock.",
+   "why": "True. Investopedia's plan says to factor in the overall market condition. IBKR's trading checklist includes market direction: up, down or sideways. Our own rule picks the risk on each trade partly by the market. Checking the market does not replace checking the stock.",
    "lesson_line": "Check the market, not just the stock.",
    "facts": [
+    "f35",
     "f48",
-    "f35"
+    "h7"
    ],
    "skill": "process.plan",
-   "simple": "True, because a trading checklist asks which way the market is trending, and a plan factors in the whole market.",
+   "simple": "True, because a plan factors in the overall market, not just the stock you picked.",
    "tier": "core",
    "risk": {
-    "score": 0,
-    "reasons": []
+    "score": 1,
+    "reasons": [
+     "IBKR quote (f48) could not be fetched on two checks; key now also rests on the owner's rulebook (section 9, A1)"
+    ]
    },
    "batch": "wave9"
   },
@@ -1335,7 +1338,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key correct (f23 exact price levels, f10). Tell: the key was the only choice with a number, so a member could pick it by spotting the price without knowing why. Replaced 'Buy when volume comes in' with a choice that names a price but stays vague ('near', 'holds up'), so the question tests exactness, not the dollar sign. Why unchanged; still true for the new choice."
+   "notes": "I picked the same key before reading it. f23 (Investopedia trading-plan page) and f10 (Schwab) are both on their pages, word for word (fetched 2026-11-12). Nothing breaks the key, and the owner's rules agree (D39 entry written down, E57 market orders, C28 buy point). Two repairs. (1) The price $42.10 repeats q09's story ('buy XYZ on a move over $42.10'), which shows a plan with this exact line, so seeing q09 first gives away q04. The price is changed to $36.40, a number that comes only from the question. (2) The simple line 'leaves nothing to guess' says more than Schwab's 'reduces the guesswo"
   },
   "q05": {
    "status": "pass",
@@ -1359,7 +1362,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "True stands on f48 (IBKR) plus f35 (Investopedia). But the why says IBKR's checklist 'starts with' market direction and 'It comes first', and the lesson line says check the market before the stock: f48's quote gives no order, and the IBKR page returned HTTP 403 (unreachable), so the order claim cannot be confirmed. Removed the order claims."
+   "notes": "I answered True before reading the key. f35 ('Factor in the overall market condition.') is on the Investopedia 10 Steps page, word for word (fetched 2026-11-12). The owner's rulebook agrees: B18 says a market filter decides when the account trades, and A1/h7 picks risk partly by the market. f48 (IBKR checklist) could NOT be checked again: WebFetch got 403 and curl was blocked, the same as the last check, and a web search for the exact line found nothing. s9 is third-party content and must never carry a key alone. Fix: the why now leads with the checked Investopedia quote, cites our own rule (h"
   },
   "q09": {
    "status": "pass",

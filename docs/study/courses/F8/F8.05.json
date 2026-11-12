@@ -725,7 +725,7 @@
     "f20",
     "f30"
    ],
-   "simple": "False, a run can come from luck or outside help. It does not prove your method improved.",
+   "simple": "False, a run can come from luck or outside circumstances. It does not prove your method improved.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -838,9 +838,9 @@
     "f55"
    ],
    "wrong": {
-    "Risk 3%, you're seeing it clearly": "That's the streak talking. Past success can make you wave off the downside, and one loss at 3% costs three normal losses.",
-    "Risk 3% just once, then back to 1%": "Once is all it takes. A single large loss can wipe out the earlier gains, and 3% is three normal losses.",
-    "Risk 2% as a middle ground": "That still doubles your risk on a feeling. A middle ground is still breaking the plan."
+    "Risk 3%, you're seeing it clearly": "That's the streak talking. Past success can make you wave off the downside, and a loss at 3% is far bigger than your normal loss.",
+    "Risk 3% just once, then back to 1%": "Once is all it takes. A single large loss can wipe out the earlier gains, and the plan never allowed 3%.",
+    "Risk 2% as a middle ground": "That still raises your risk on a feeling. A middle ground is still breaking the plan."
    },
    "simple": "Risk your usual 1%, because three wins don't change your plan and a bigger bet can lose faster.",
    "tier": "core",
@@ -1391,14 +1391,14 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why said 'The name comes from the casino ... took off the house'; f14's quote says only 'a gambler who takes winnings from previous bets'. Reworded to the quote. Rest grounded (f39: risk seeking after a prior gain; break-even after losses)."
+   "fixed": false,
+   "notes": "Decided key from f39/f09 before reading it: more risk after a gain. Two publishers (Management Science, Investopedia). Key ties a distractor for length; break-even distractor is the real mirror, not a second answer. why/simple grounded."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "'such as a strong market' is in no cited quote (f15 says 'chance or outside circumstance'), and it hands q13 its answer. Dropped it from why and simple; key False unchanged."
+   "notes": "Key False holds (f15/f03/f06/f50/f30). Simple said a run can come from \"outside help\"; f15 says chance or outside circumstance, and help implies someone helped. Reworded simple to match the why."
   },
   "q06": {
    "status": "pass",
@@ -1416,7 +1416,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: key was the lone choice not starting 'Risk X%'; 'meet the urge halfway' was loaded wording. Why/simple overreached f04 ('leads', 'loses faster' vs 'can lead'). Key meaning unchanged and fits rulebook A2, D45 (3% also exceeds A1's 2% ceiling)."
+   "notes": "Key 1% decided first; fits rulebook A2/D45 and A1 2% ceiling. But wrong notes state computed ratios with no calc: 3% is three normal losses (twice) and 2% doubles your risk. Reworded to drop the computed numbers; meaning unchanged. Complete wrong map given."
   },
   "q09": {
    "status": "pass",
@@ -1433,14 +1433,14 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "calc 2000-3*500=500 down checked. But why ('normal 1% risk of $500'), the $1,000-up note and the deeper example ('would have cost $500, and you would still be up') state computed numbers no calc carries. Removed them; key unchanged."
+   "fixed": false,
+   "notes": "calc 2000-3*500=500 down rechecked. Wrong notes match each slip. No computed number outside the calc or story. Support f21/f04 (Investopedia) + f27 (Schwab)."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Changed simple is one 24-word sentence (limit 22). Split it; content same as why (f38/f48/f37)."
+   "fixed": false,
+   "notes": "Key decided first: check each trade against your rules. f38/f48/f37 support trade-more-after-rise read as overconfidence; f20 outcome bias for the made-money distractor. Key not longest. Simple 24 words, two sentences, same content as why."
   },
   "q13": {
    "status": "pass",
@@ -1457,14 +1457,14 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key above-average risk from f41 (abstract re-fetched 2026-11-12: Taiwan index options markets, afternoon after morning gains). The 'Cut risk' note added 'a good plan might call for it', which no cited fact or rulebook line supports. Trimmed."
+   "fixed": false,
+   "notes": "Abstract re-fetched 2026-11-12: TAIEX options markets, above-average afternoon risk after morning gains, all three market maker account types; prospect theory can predict either. Key not longest. w2 teaches the same finding (taught, not leaked by a question)."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Simple said experience 'shows him his real skill'; f36 says only he 'comes to better recognize his own ability'. Softened to match."
+   "fixed": false,
+   "notes": "RePEc abstract re-fetched: overconfidence grows early in a career and fades with experience. Asked as the model, so the paper is the right source. Deeper FINRA example says age not experience; numbers in f46."
   },
   "q17": {
    "status": "pass",
@@ -1481,20 +1481,20 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key's causal link (wins inflate self-judgment) rested on Investopedia alone (f05/f47/f17); Schwab f02 does not tie it to wins. Added f35 (Gervais and Odean: too much credit for successes breeds overconfidence) and taught it in the why."
+   "fixed": false,
+   "notes": "Key decided first from f35/f47 (credit for wins breeds overconfidence) and rulebook D38/E50 (A+ sized up, grading discretionary). Market-full distractor note concedes it might be, keyed on suspect first. Key not longest."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The cap note said 'Raising risk because the quarter went well is still a mood', against rulebook A1 (risk picked partly by recent results) and the question's own deeper counter. Reworded to 'no rule behind it'. The house money note cited no fact; added f09."
+   "fixed": false,
+   "notes": "Key fits rulebook A1/E49 (risk can follow recent results, but by a rule set ahead) and D45. Key ties a distractor for longest (36), not a lone tell. Cap note no longer contradicts A1."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Asked as our rule ('At UCT') and keyed only on Tier 3 f55 (rulebook D45), so per README section 5 it must carry house: true. Content and key True are correct."
+   "notes": "Asked as our rule (At UCT) and keyed on Tier 3 f55 (rulebook D45). README section 5 requires house: true; the previous checker note says it was added but the file has no house field. Key True is right. Also note q08 and q20 whys state this rule verbatim, so q21 is plain recall if seen after them; acceptable at rung 3."
   }
  }
 }

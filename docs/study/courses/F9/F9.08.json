@@ -1093,25 +1093,23 @@
    "rung": 8,
    "format": "tf",
    "house": true,
-   "q": "By our rules, a stop usually sits within about 3% of the buy price.",
-   "answer": "True",
-   "why": "True. \"I almost never take a loss greater than 3%.\" The stop usually sits within about 3% of the buy. By default it goes a few cents under the day's low or the prior day's low. About 3% is where it usually lands, not a hard rule. If the honest stop doesn't fit the risk, skip.",
-   "lesson_line": "The stop usually sits within about 3% of the buy. If the honest stop doesn't fit, skip.",
+   "q": "By our rules, the default stop goes exactly at the day's low, not under it.",
+   "answer": "False",
+   "why": "False. By default the stop goes a few cents under the day's low or the prior day's low, so it sits below the low, not on it. The stop comes first, and the size comes from the stop. If the honest stop does not fit the risk, skip the trade.",
+   "lesson_line": "Default stop: a few cents under the day's low or the prior day's low.",
    "facts": [
-    "h06",
     "h21"
    ],
-   "simple": "True, our stop usually sits within about 3% of the buy. That is a guide, not a hard rule.",
+   "simple": "False, the default stop goes a few cents under the low, not exactly on it.",
    "deeper": {
-    "trap": "About 3% is where the stop usually lands, not a rule that sets it. The stop goes a few cents under the day's low. If that low is far below your buy, the honest stop is wider. The share math then gives fewer shares, or you skip."
+    "trap": "Your usual stop distance is a guide, not a rule that sets it. The stop goes a few cents under the day's low. If that low is far below your buy, the honest stop is wider. The share math then gives fewer shares, or you skip."
    },
    "tier": "expert",
    "risk": {
-    "score": 5,
+    "score": 3,
     "reasons": [
-     "rests on the owner's rulebook (A13, A3)",
-     "a house number taught as a guideline (sizing_rule section 8 item 3)",
-     "fixed before (owner named in the claim)"
+     "rests on the owner's rulebook (A3, F62)",
+     "re-aimed off A13 so q21 no longer gives away q22's key"
     ]
    },
    "batch": "wave9"
@@ -1246,26 +1244,27 @@
    "rung": 9,
    "format": "scenario",
    "house": true,
-   "story": "Five winners in a row. You feel sharp. The next setup is a B, and you want to risk 2% on it.",
-   "q": "What do our rules let you risk?",
+   "story": "Five winners in a row. You feel sharp. Our market reading is Green. The next setup is a B, and you want to risk 2% on it.",
+   "q": "What do our rules let you risk on it?",
    "choices": [
-    "0.5% to 1%, by its grade",
+    "0.5% to 1%, the B range",
     "2%, the absolute ceiling",
-    "1.5%, sized up for the streak",
-    "0.25% to 0.5%, sized down"
+    "1.5%, earned by the streak",
+    "0.25% to 0.5%, the B range"
    ],
-   "answer": "0.5% to 1%, by its grade",
-   "why": "0.5% to 1%. A B setup is normal size, at 0.5% to 1% of the account. A run of winners never raises risk past the rules. 1.5% is the most any grade uses, and only A+. 2% is the absolute ceiling, and no grade uses it. The grade sets the risk; your streak does not.",
+   "answer": "0.5% to 1%, the B range",
+   "why": "0.5% to 1%. A B setup is normal size, at 0.5% to 1% of the account. A run of winners never raises risk past the rules. 1.5% is the top of the A+ range, and 0.25% to 0.5% is for B- or lower. 2% is the absolute ceiling, and no grade uses it. The grade sets the risk; your streak does not.",
    "lesson_line": "Winners don't raise the risk. The grade does, and a B is 0.5% to 1%.",
    "facts": [
     "h08",
     "h20",
-    "h19"
+    "h19",
+    "h23"
    ],
    "wrong": {
     "2%, the absolute ceiling": "2% is the absolute ceiling, and no grade uses it. A B setup sits at 0.5% to 1%.",
-    "0.25% to 0.5%, sized down": "That's the B- or lower range. A B setup is normal size, 0.5% to 1%.",
-    "1.5%, sized up for the streak": "1.5% is the top of the A+ range. A streak doesn't turn a B into an A+, and winners never raise risk past the rules."
+    "0.25% to 0.5%, the B range": "That's the B- or lower range. A B setup is normal size, 0.5% to 1%.",
+    "1.5%, earned by the streak": "1.5% is the top of the A+ range. A streak doesn't turn a B into an A+, and winners never raise risk past the rules."
    },
    "simple": "You may risk 0.5% to 1%, because a B setup gets that range and a winning streak never raises it.",
    "deeper": {
@@ -1360,20 +1359,20 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Second defensible answer: the stem asked what sets the share count, but when the cap binds (q10) the count IS account x 40% / price, and the cap distractor's own note admits the cap limits it. Stem now asks for the count before the cap check; everything else stands (h01, h21, h03)."
+   "fixed": false,
+   "notes": "Own answer before key: account x risk % / (entry - stop), A5 (h01). Matches. 'Before the cap check' closes the cap-binds second answer. Choices balanced in length (31-34), no lone absolute. why/simple grounded in h01, h21, h03. Numbers none outside quotes. Does not give away another key beyond what w1 teaches."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "simple said 40% is 'a ceiling the risk math never goes past'; the risk math can go past it (q10, h01), only the final size cannot. Rewritten from h01/h03."
+   "fixed": false,
+   "notes": "True per A7 (h03). Drawdown ladder lowering the cap is covered in why from h01's '(A7, or the ladder's cap in a drawdown, A8)', so 'max position' as the normal ceiling stands. 20%-25% history is in h03. simple says the final size never passes 40%, correct per h01. q05 stem already names the 40% cap, so q02 adds no new give-away."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Silly choices: in 'an A+ setup risks 1% to ___', the bank words 0.5% and 0.25% make a range that runs downward, so they are excluded by grammar alone. Sentence re-cast so every bank word fits; all bank numbers come from h08/h19. Key unchanged (1.5%, h08)."
+   "fixed": false,
+   "notes": "1.5% per E49 (h08) and A1 (h19: 1.5% is the most any grade uses, 2% the ceiling). Every bank word fits the sentence grammatically; 2% is cleanly excluded by h19. No date or market dependence. q25's old '1.5%, the most a grade uses' give-away is gone (see q25 fix, which also softens 'sized up' so it no longer ties 1.5% to A+ via h07)."
   },
   "q04": {
    "status": "pass",
@@ -1474,20 +1473,20 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Against the rulebook's declined list: section 9 records the owner refusing 'leveraged ETFs count at face value, not at their leverage' (71, 'NO'). So 'same cap' in why and 'size them like anything else' / 'sized ... like any other trade' teach face-value counting the owner declined. Removed; what remains is E54 (h15) and the SEC mechanics (f07, f08). Owner flag: confirm how a 2x or 3x ETF counts toward the 40% cap."
+   "fixed": false,
+   "notes": "False per E54 (h15: preferred, no extra rules). The why no longer says 'same cap', so it does not teach the face-value counting the owner declined (rule 71). 'Stop first, then the same share math' rests on h21/h01 and 'no extra rules'. SEC pages (f07, f08) returned 403 to this machine; the file's cold-check line records the quote checker found them. 'Loses 2% for every 1%' follows f08 word for word and sits right after the daily-move line from f07. No banned word 'leverage' in member text."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Unsupported fact: why said 'Buying close to that low keeps it within about 3%' and lesson_line taught 'Buy near the low'; no cited quote (h06, h21) or rulebook line says to buy near the low, so it taught a rule the rulebook never gives. simple also repeated itself ('usually ... the usual spot'). Rebuilt from h06 and h21 only."
+   "notes": "Gives away q22. q21's statement 'a stop usually sits within about 3% of the buy price' tells the member the 3% is measured from the buy, which is q22's key ('3% of what?' -> the position's value); q22's stem quoting the 3% line also hints q21 True in the other order. Any A13 true/false names the buy, so q21 is re-aimed at the default stop placement (A3/F62, h21), which no other question keys and q22 does not reveal. q22 stays the lesson's one A13 question. Every word grounded in h21 ('by default a few cents under the day's low or the prior day's low'; 'if the honest stop does not fit the risk,"
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Silly choice: '3% of the day's price range' is not a reading anyone would hold. Replaced with 'All your positions together' (the book, h05), a real confusion with account-level loss. Key, why and the other notes stand. Minor overlap kept: q21's statement ('within about 3% of the buy price') hints at this key, but q22's real test is position vs account, which q21 does not give away."
+   "fixed": false,
+   "notes": "Own answer: 3% of the position, per A13's gloss (h06: 'a loss on the position, not the account'). Matches. Account reading closed by h19 (2% ceiling); book and buying-power choices are real confusions with their own notes (h05, f02). Key is a little shorter than the rest but not a tell. Passes on condition that q21 is re-aimed as given; with the old q21 the two give each other away."
   },
   "q23": {
    "status": "pass",
@@ -1505,7 +1504,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Questions answering each other: the choice '1.5%, the most a grade uses' is shown before the member answers and states q03's key outright. Re-worded to the streak temptation; note grounded in h08 and h20. Key unchanged (h08, h20)."
+   "notes": "Key 0.5% to 1% is right (E49 h08, D45 h20). Three repairs: (1) the choice '0.25% to 0.5%, sized down' hands q04 its key (B- or lower is 'sized down', h07), so both ranges now carry the same label and the member must know which is the B range; (2) '1.5%, sized up for the streak' ties 1.5% to A+ via h07's 'A+ sized up', a hint for q03, so it reads 'earned by the streak'; (3) the story names no market reading, and in Orange a B is not taken at all (h23), so the story now says Green, as q04 does, and the question asks what the rules let you risk on it. All numbers from h08, h19; Green from h23."
   },
   "q26": {
    "status": "pass",

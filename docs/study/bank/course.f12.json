@@ -180,17 +180,17 @@
  },
  {
   "answer_json": {
-   "answer": "Buy on a move over $42.10"
+   "answer": "Buy on a move over $36.40"
   },
   "difficulty": 1,
   "id": "si_7a493082d98b",
   "lesson_origin": "session",
-  "lesson_text": "Buy on a move over $42.10. Investopedia says a tactical trader typically looks to enter at exact price levels or only when very specific requirements are met. Schwab says setting entry rules before you buy reduces the guesswork. The other three leave the call to how it looks in the moment. A rule is followable when two people reading it would buy at the same price. A real entry rule is exact. Two people reading it would buy at the same price.",
+  "lesson_text": "Buy on a move over $36.40. Investopedia says a tactical trader typically looks to enter at exact price levels or only when very specific requirements are met. Schwab says setting entry rules before you buy reduces the guesswork. The other three leave the call to how it looks in the moment. A rule is followable when two people reading it would act at the same price. A real entry rule is exact. Two people reading it would act at the same price.",
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Buy on a move over $42.10",
-    "Buy near $42 if it holds up",
+    "Buy on a move over $36.40",
+    "Buy near $36 if it holds up",
     "Buy once it looks strong",
     "Buy when it starts to break out"
    ],
@@ -219,15 +219,15 @@
     "summary": "An active trader's plan enters and exits at exact prices or on very specific conditions. Set the entry rule before you buy, so you aren't guessing at the moment."
    },
    "facts": {
-    "given": "Which of these is an entry rule you could actually follow? Buy on a move over $42.10 Buy when it starts to break out Buy once it looks strong Buy near $42 if it holds up"
+    "given": "Which of these is an entry rule you could actually follow? Buy on a move over $36.40 Buy when it starts to break out Buy once it looks strong Buy near $36 if it holds up"
    },
-   "lesson_line": "A real entry rule is exact. Two people reading it would buy at the same price.",
-   "simple": "Buy on a move over $42.10, because an exact price leaves nothing to guess when the moment comes.",
+   "lesson_line": "A real entry rule is exact. Two people reading it would act at the same price.",
+   "simple": "Buy on a move over $36.40, because an exact price leaves less to guess when the moment comes.",
    "tier": "core",
    "unit": "F12.01",
-   "why": "Buy on a move over $42.10. Investopedia says a tactical trader typically looks to enter at exact price levels or only when very specific requirements are met. Schwab says setting entry rules before you buy reduces the guesswork. The other three leave the call to how it looks in the moment. A rule is followable when two people reading it would buy at the same price.",
+   "why": "Buy on a move over $36.40. Investopedia says a tactical trader typically looks to enter at exact price levels or only when very specific requirements are met. Schwab says setting entry rules before you buy reduces the guesswork. The other three leave the call to how it looks in the moment. A rule is followable when two people reading it would act at the same price.",
    "wrong": {
-    "Buy near $42 if it holds up": "It names a price, but 'near' and 'holds up' aren't exact. Two people reading it could buy at different prices.",
+    "Buy near $36 if it holds up": "It names a price, but 'near' and 'holds up' aren't exact. Two people reading it could buy at different prices.",
     "Buy once it looks strong": "That's a feeling, not a rule. Two people reading it would buy at two different prices.",
     "Buy when it starts to break out": "Break out over what price? With no level, you'd be deciding in the moment, which is what the plan is there to stop."
    }
@@ -471,7 +471,7 @@
   "difficulty": 1,
   "id": "si_e9e2e4cccb2e",
   "lesson_origin": "session",
-  "lesson_text": "True. IBKR's trading checklist includes market direction: up, down or sideways. Investopedia's plan says to factor in the overall market condition. The stock you pick still trades inside that market. Checking the market does not replace checking the stock. Check the market, not just the stock.",
+  "lesson_text": "True. Investopedia's plan says to factor in the overall market condition. IBKR's trading checklist includes market direction: up, down or sideways. Our own rule picks the risk on each trade partly by the market. Checking the market does not replace checking the stock. Check the market, not just the stock.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -487,6 +487,13 @@
     "sources": [
      {
       "accessed": "2026-11-09",
+      "name": "Investopedia: 10 Steps To Building a Winning Trading Plan (Cedric Thompson, updated July 1, 2026)",
+      "quote": "Factor in the overall market condition.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/articles/trading/04/042104.asp"
+     },
+     {
+      "accessed": "2026-11-09",
       "name": "Interactive Brokers: IBKR Campus, Golden Rules of Trading, lesson 3: Importance of a Trading Checklist",
       "quote": "Market Direction: Understanding whether the market is trending upwards, downwards, or moving sideways.",
       "tier": 2,
@@ -494,22 +501,22 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Investopedia: 10 Steps To Building a Winning Trading Plan (Cedric Thompson, updated July 1, 2026)",
-      "quote": "Factor in the overall market condition.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/articles/trading/04/042104.asp"
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Risk 0.25% to 2% of the account on a trade, picked by setup quality, recent results, the market and your edge. Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "A trading checklist asks which way the market is trending. A plan takes the overall market into account."
+    "summary": "A plan takes the overall market into account. A trading checklist asks which way the market is trending. Our risk per trade runs from 0.25% to 2% of the account; under 1% is normal and 2% is the absolute ceiling."
    },
    "facts": {
     "given": "A pre-trade checklist should ask which way the overall market is trending."
    },
    "lesson_line": "Check the market, not just the stock.",
-   "simple": "True, because a trading checklist asks which way the market is trending, and a plan factors in the whole market.",
+   "simple": "True, because a plan factors in the overall market, not just the stock you picked.",
    "tier": "core",
    "unit": "F12.01",
-   "why": "True. IBKR's trading checklist includes market direction: up, down or sideways. Investopedia's plan says to factor in the overall market condition. The stock you pick still trades inside that market. Checking the market does not replace checking the stock."
+   "why": "True. Investopedia's plan says to factor in the overall market condition. IBKR's trading checklist includes market direction: up, down or sideways. Our own rule picks the risk on each trade partly by the market. Checking the market does not replace checking the stock."
   },
   "review_status": "draft",
   "skill_id": "process.plan",
@@ -2931,7 +2938,7 @@
     "Reading the futures each morning"
    ],
    "kind": "mcq",
-   "q": "Which step would have flagged it in time?",
+   "q": "What would have protected you from that 11% drop?",
    "story": "You skipped Monday's recap and Tuesday's prep. At 4:05 p.m. Tuesday, a stock you hold reports. It falls 11% after hours.",
    "subject": "F12.02#q17"
   },
@@ -2987,10 +2994,10 @@
     "summary": "Earnings usually come out before the open or after the close. A weak report after the close can drop a stock fast in after-hours trading. Each week, find the earnings dates and economic news that matter to what you own. News after the close can gap a stock lower the next day. A gap past your stop can cost more than you planned. We make no new buys in the 3 days before a report, and hold through one only when up 5R."
    },
    "facts": {
-    "given": "Which step would have flagged it in time? You skipped Monday's recap and Tuesday's prep. At 4:05 p.m. Tuesday, a stock you hold reports. It falls 11% after hours. Checking earnings dates for holdings Reading the futures each morning A tighter stop order on that holding The midday check on market volume"
+    "given": "What would have protected you from that 11% drop? You skipped Monday's recap and Tuesday's prep. At 4:05 p.m. Tuesday, a stock you hold reports. It falls 11% after hours. Checking earnings dates for holdings Reading the futures each morning A tighter stop order on that holding The midday check on market volume"
    },
    "lesson_line": "Every day, check who reports tonight and tomorrow morning. Decide before the close, not after the gap.",
-   "simple": "Checking earnings dates for what you hold, because reports usually come out before the open or after the close.",
+   "simple": "Checking earnings dates for what you hold, because knowing the date lets you decide before the close, not after the gap.",
    "tier": "extended",
    "unit": "F12.02",
    "why": "Checking earnings dates for holdings. Companies usually report before the open or after the close. A weak report after the close can drop a stock fast in after-hours trading. Check the week ahead for earnings on what you own. Our rule: no new buys in the 3 days before a report. Hold through one only if the trade is up 5R. Knowing on Monday gave you Tuesday's session to act on that rule.",
@@ -3379,6 +3386,13 @@
      },
      {
       "accessed": "2026-11-09",
+      "name": "Investopedia: 10 Steps To Building a Winning Trading Plan (Cedric Thompson, updated 2026-07-01)",
+      "quote": "Above all, don’t let impulse guide you during the trading day.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/articles/trading/04/042104.asp"
+     },
+     {
+      "accessed": "2026-11-09",
       "name": "StockCharts.com: A Day in the Life of a Stock Market Trader - Redux (Gatis Roze, June 7, 2013)",
       "quote": "you must design and choreograph your pit stop routines to reflect the time parameters and constraints of your existing day",
       "tier": 2,
@@ -3413,7 +3427,7 @@
       "url": "https://www.nyse.com/markets/hours-calendars"
      }
     ],
-    "summary": "Roze works out his plans for both outcomes while the market is closed. Write rules that don't change while you're trading, and rework them when the market is closed. Build the routine around the time your real day allows. Steenbarger's morning covers overseas markets, the day's economic reports, yesterday's indicators and the overnight futures. The first and last hours of the session are usually the most volatile and active. Every planned buy has its entry, stop and size written down before the open. The NYSE core session runs from 9:30 a.m. to 4:00 p.m. ET."
+    "summary": "Roze works out his plans for both outcomes while the market is closed. Write rules that don't change while you're trading, and rework them when the market is closed. Don't trade on impulse during the session. Build the routine around the time your real day allows. Steenbarger's morning covers overseas markets, the day's economic reports, yesterday's indicators and the overnight futures. The first and last hours of the session are usually the most volatile and active. Every planned buy has its entry, stop and size written down before the open. The NYSE core session runs from 9:30 a.m. to 4:00 p.m. ET."
    },
    "facts": {
     "given": "Where does the heavy planning go? You work days. You get 20 minutes before work and about an hour after 5 p.m. Evenings: list, levels, stops, size Mornings: scan everything from scratch Lunch break: scan and buy midday Skip prep and react to the open"
@@ -3426,7 +3440,7 @@
    "wrong": {
     "Lunch break: scan and buy midday": "Midday is for checking what you hold. Building the plan belongs to the hours when the market is closed.",
     "Mornings: scan everything from scratch": "There's no time for that. Twenty minutes is for checking the plan, not building it.",
-    "Skip prep and react to the open": "Then every decision is made on impulse, at the busiest, most volatile time of day."
+    "Skip prep and react to the open": "Then you decide on impulse, with no entry, stop or size written down before the open."
    }
   },
   "review_status": "draft",
@@ -4822,7 +4836,7 @@
   "difficulty": 3,
   "id": "si_7c214081d942",
   "lesson_origin": "session",
-  "lesson_text": "Fear is cutting your winners short. The emotion field says anxious on 7 of 8 early exits, and each stock went on to hit your target. Steenbarger calls worry and nervousness clues to track. Once you see a fear pattern, you can work on it. A report for the SEC says investors tend to sell winning positions, and that this habit is counterproductive. Same feeling on the same mistake is a pattern. The emotion field is how you find it.",
+  "lesson_text": "Fear is cutting your winners short. The emotion field says anxious on 7 of 8 early exits, and each stock went on to hit your target. Steenbarger calls worry and nervousness clues to track. Once you see a fear pattern, you can work on it. A report for the SEC describes the disposition effect: investors tend to sell winning positions and hold onto losing ones. Odean found it widespread and counterproductive. A planned sale is not this. A sale out of fear, before your plan, is. Same feeling on the same mistake is a pattern. The emotion field is how you find it.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -4894,7 +4908,7 @@
    "simple": "Fear is making you sell too soon, because the same anxious feeling shows up on nearly every early exit.",
    "tier": "extended",
    "unit": "F12.03",
-   "why": "Fear is cutting your winners short. The emotion field says anxious on 7 of 8 early exits, and each stock went on to hit your target. Steenbarger calls worry and nervousness clues to track. Once you see a fear pattern, you can work on it. A report for the SEC says investors tend to sell winning positions, and that this habit is counterproductive.",
+   "why": "Fear is cutting your winners short. The emotion field says anxious on 7 of 8 early exits, and each stock went on to hit your target. Steenbarger calls worry and nervousness clues to track. Once you see a fear pattern, you can work on it. A report for the SEC describes the disposition effect: investors tend to sell winning positions and hold onto losing ones. Odean found it widespread and counterproductive. A planned sale is not this. A sale out of fear, before your plan, is.",
    "wrong": {
     "Feelings are noise, drop that field": "That field is what found the pattern. Without it you'd see early exits, not why.",
     "Those exits were sound risk control": "Your stop is your risk control. These exits came early, out of anxiety, on trades that went on to work.",
@@ -7296,7 +7310,7 @@
   "difficulty": 3,
   "id": "si_f39cd8603a59",
   "lesson_origin": "session",
-  "lesson_text": "The setup itself needs a hard look. Your process grades say you traded it the way you planned. Over a stretch like this, the results taken together start to tell you something. A losing run can be bad luck, or it can point to a real problem with the strategy. Check whether you make or lose money net, then look for patterns in the wins and losses. It does not mean drop the setup at once. Clean process on a setup with no edge still loses. The pile of trades tells you which one you have.",
+  "lesson_text": "The setup itself needs a hard look. Your process grades say you traded it the way you planned. Over a stretch like this, the results taken together start to tell you something. A losing run can be bad luck, or it can point to a real problem with the strategy. Check whether you make or lose money net, then look for patterns in the wins and losses. It does not mean drop the setup at once. Good process can't save a setup with no edge. Over months, the pile of trades shows if yours has one.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -7350,7 +7364,7 @@
    "facts": {
     "given": "What does that tell you? Six months, 40 trades on one setup. Almost every trade graded A on process. Taken together, the setup has lost money. The setup itself needs a hard look Nothing, only process grades count Your grades have been too harsh Trade it bigger to win it back"
    },
-   "lesson_line": "Clean process on a setup with no edge still loses. The pile of trades tells you which one you have.",
+   "lesson_line": "Good process can't save a setup with no edge. Over months, the pile of trades shows if yours has one.",
    "simple": "The setup needs a hard look: the trades were taken well, so the losses may point to a setup with no edge.",
    "tier": "expert",
    "unit": "F12.04",
@@ -9249,7 +9263,7 @@
   "difficulty": 3,
   "id": "si_043782fc8244",
   "lesson_origin": "session",
-  "lesson_text": "Run it as usual, losses and all. Tendler notes that bad stretches are exactly when people stop journaling, and his advice is to do it anyway. Look for the patterns in the losses. That is how you find what to fix. UCT's own rule is to review the week every weekend, ideally, and a bad week is no exception. The week you least want to review is the one you most need to.",
+  "lesson_text": "Run it as usual, losses and all. Tendler notes that people stop journaling when results are so bad they don't want to review them. His advice for the bad days is to do it anyway. Look for the patterns in the losses. That is how you find what to fix. UCT's own rule is to review the week every weekend, ideally, and a bad week is no exception. The week you least want to review is the one you most need to.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -9328,10 +9342,10 @@
    "simple": "Run it as usual, because the worst week is when you most need to find what went wrong.",
    "tier": "expert",
    "unit": "F12.05",
-   "why": "Run it as usual, losses and all. Tendler notes that bad stretches are exactly when people stop journaling, and his advice is to do it anyway. Look for the patterns in the losses. That is how you find what to fix. UCT's own rule is to review the week every weekend, ideally, and a bad week is no exception.",
+   "why": "Run it as usual, losses and all. Tendler notes that people stop journaling when results are so bad they don't want to review them. His advice for the bad days is to do it anyway. Look for the patterns in the losses. That is how you find what to fix. UCT's own rule is to review the week every weekend, ideally, and a bad week is no exception.",
    "wrong": {
     "Look only at the week's P&L": "The total tells you it was bad, not why. CME puts the why and how of your trading ahead of the profit or loss.",
-    "Review only the winners this week": "This week the losses hold the lesson. You want to know why you lost, so you don't repeat it.",
+    "Review only the winners this week": "Skip the losers and you skip the lesson. CME says to find out why you lost, so you don't repeat the mistake.",
     "Skip it and start fresh Monday": "Then Monday starts with whatever caused the losses still in place."
    }
   },
@@ -9521,7 +9535,7 @@
   "difficulty": 2,
   "id": "si_e91809724ec5",
   "lesson_origin": "session",
-  "lesson_text": "True. UCT has no losing-streak rule. Our rulebook says size is cut by the drawdown ladder, in percent. A drawdown is how far the account is below its highest value, open trades included. We check it at least weekly. Schwab says there is no harm in trading smaller while you work out a problem. UCT's rulebook does not take that view. A losing streak sets no size rule at UCT. The drawdown, in percent, does.",
+  "lesson_text": "True. UCT has no losing-streak rule. Our rulebook says size is cut by the drawdown ladder, in percent. A drawdown is how far the account is below its highest value, open trades included. We check it at least weekly. It measures the account's fall from its peak, not the losses in a row. A losing streak sets no size rule at UCT. The drawdown, in percent, does.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -9529,12 +9543,12 @@
     "False"
    ],
    "kind": "tf",
-   "q": "UCT has no losing-streak rule: size is cut by how far the account is down, in percent.",
+   "q": "UCT has no losing-streak rule: size is cut by the drawdown, the percent the account sits below its highest value.",
    "subject": "F12.05#q25"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Trading smaller after a run of losses sounds safe, and Schwab suggests it. UCT's rulebook replaced that view for us: there is no losing-streak rule. Watch the drawdown instead, measured from the account's highest value, open trades included."
+    "trap": "A run of losses feels like it should trigger a fixed size cut. UCT has no losing-streak rule. The drawdown ladder does the cutting, and it measures the account's fall from its highest value, open trades included."
    },
    "depth": {
     "sources": [
@@ -9551,25 +9565,18 @@
       "quote": "A drawdown is how far the account is below its highest value, open trades included, checked at least weekly.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Breaking Bad Trade Behaviors (Kevin Horner, 2025-10-01)",
-      "quote": "As a trader works to figure out what needs fixing, there's no harm in reducing the size of your trades.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors"
      }
     ],
-    "summary": "UCT's rule: there is no losing-streak rule; size is cut by the drawdown ladder, in percent. UCT's rule: a drawdown is how far the account sits below its highest value, open trades included, checked at least weekly. While you work out what needs fixing, trading smaller is fine."
+    "summary": "UCT's rule: there is no losing-streak rule; size is cut by the drawdown ladder, in percent. UCT's rule: a drawdown is how far the account sits below its highest value, open trades included, checked at least weekly."
    },
    "facts": {
-    "given": "UCT has no losing-streak rule: size is cut by how far the account is down, in percent."
+    "given": "UCT has no losing-streak rule: size is cut by the drawdown, the percent the account sits below its highest value."
    },
    "lesson_line": "A losing streak sets no size rule at UCT. The drawdown, in percent, does.",
    "simple": "True. UCT cuts size by the drawdown, in percent, not by counting losses in a row.",
    "tier": "extended",
    "unit": "F12.05",
-   "why": "True. UCT has no losing-streak rule. Our rulebook says size is cut by the drawdown ladder, in percent. A drawdown is how far the account is below its highest value, open trades included. We check it at least weekly. Schwab says there is no harm in trading smaller while you work out a problem. UCT's rulebook does not take that view."
+   "why": "True. UCT has no losing-streak rule. Our rulebook says size is cut by the drawdown ladder, in percent. A drawdown is how far the account is below its highest value, open trades included. We check it at least weekly. It measures the account's fall from its peak, not the losses in a row."
   },
   "review_status": "draft",
   "skill_id": "process.review",
@@ -10352,7 +10359,7 @@
   "difficulty": 1,
   "id": "si_7527d2bde6df",
   "lesson_origin": "session",
-  "lesson_text": "What is moving the whole market. The book's heading for the section reads: First Know What Is Moving the Market. It comes first, before intraday fundamentals, the stock's own news. Steenbarger adds that much of the skill is knowing which play to call when. Start with the market, then the stock, then the trade.",
+  "lesson_text": "What is moving the whole market. The book's heading for the section reads: First Know What Is Moving the Market. It comes first in his breakdown, before the sections on the stock and on how you traded it. Start with the market, then the stock, then the trade.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -10384,6 +10391,13 @@
      },
      {
       "accessed": "2026-11-09",
+      "name": "FT Press (Pearson Education): The PlayBook: An Inside Look at How to Think Like a Professional Trader (Mike Bellafiore; first printing July 2013): the publisher's sample pages (contents, introduction, index)",
+      "quote": "Intraday Fundamentals: Trade with Real Order Flow Behind Your Stocks",
+      "tier": 2,
+      "url": "https://ptgmedia.pearsoncmg.com/images/9780132937641/samplepages/0132937646.pdf"
+     },
+     {
+      "accessed": "2026-11-09",
       "name": "Brett Steenbarger, TraderFeed: Resources for Developing Your Trading Playbook (2018-01-21)",
       "quote": "For a basketball or football team, a playbook is a set of plays that the team runs in various situations.",
       "tier": 2,
@@ -10395,16 +10409,9 @@
       "quote": "Much of the skill of a coach is knowing which plays to call when.",
       "tier": 2,
       "url": "https://traderfeed.blogspot.com/2018/01/resources-for-developing-your-trading.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SMB Capital (SMB Training blog): Six and Half Hours of Fun! (Mike Bellafiore, 2010-07-31)",
-      "quote": "SMB coined the term “intraday fundamentals”. It refers to the study of news patterns that provide us clues to how a stock may move intraday.",
-      "tier": 2,
-      "url": "https://www.smbtraining.com/blog/6-12-hours-of-fun"
      }
     ],
-    "summary": "The big picture section comes first: know what is moving the market. The book's PlayBook sections: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review. A team's playbook is the set of plays it runs in different situations. Much of the skill is knowing which play fits which situation. Intraday fundamentals means the news behind a stock and the clues it gives about how the stock may move."
+    "summary": "The big picture section comes first: know what is moving the market. The book's PlayBook sections: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review. The intraday fundamentals section is about the real buying and selling a stock's news brings in. A team's playbook is the set of plays it runs in different situations. Much of the skill is knowing which play fits which situation."
    },
    "facts": {
     "given": "Bellafiore's book starts each trade breakdown with the big picture. What does that section look at? What is moving the whole market Why this one stock is moving Where your stop goes on the trade The stock's long-term weekly chart"
@@ -10413,11 +10420,11 @@
    "simple": "The big picture looks at what is moving the whole market, because you start with the market before the stock.",
    "tier": "core",
    "unit": "F12.06",
-   "why": "What is moving the whole market. The book's heading for the section reads: First Know What Is Moving the Market. It comes first, before intraday fundamentals, the stock's own news. Steenbarger adds that much of the skill is knowing which play to call when.",
+   "why": "What is moving the whole market. The book's heading for the section reads: First Know What Is Moving the Market. It comes first in his breakdown, before the sections on the stock and on how you traded it.",
    "wrong": {
     "The stock's long-term weekly chart": "That's still one stock. The big picture looks past any one name to the whole market, and it comes first.",
     "Where your stop goes on the trade": "That's about your own trade, not the market. The big picture comes first and looks at the whole market.",
-    "Why this one stock is moving": "That's the next section, intraday fundamentals: the news behind the stock."
+    "Why this one stock is moving": "That's about one stock, and his sections on the stock come after. The big picture comes first and looks at the whole market."
    }
   },
   "review_status": "draft",
@@ -10906,7 +10913,7 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "All three of them",
+    "None, B was too small",
     "B, the small winner",
     "A, the biggest winner",
     "C, to learn from it"
@@ -10945,23 +10952,16 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "StockCharts.com: Ten Questions to Ask Yourself at Year-End (David Keller, CMT, The Mindful Investor, 2021-12-31)",
-      "quote": "What was your best trade this year? And what tools/insights/approaches/indicators/charts helped you identify that winning trade?",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/articles-mindfulinvestor-2021-12-ten-questions-to-ask-yourself-781/"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
       "quote": "The stop is the exit. It only moves up, never down or wider.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Bellafiore has his traders write up, after every session, the setup that made the most sense to them that day. A playbook is the plays and patterns that make sense to you and that you want to trade more of. A playbook trade starts with a pattern of market behavior that has paid over a defined time frame. Review your best trade by asking what helped you find it. Our rule: the stop is the exit, and it only moves up, never down or wider."
+    "summary": "Bellafiore has his traders write up, after every session, the setup that made the most sense to them that day. A playbook is the plays and patterns that make sense to you and that you want to trade more of. A playbook trade starts with a pattern of market behavior that has paid over a defined time frame. Our rule: the stop is the exit, and it only moves up, never down or wider."
    },
    "facts": {
-    "given": "Which one goes in your playbook tonight? Three trades today. A was a big winner on a tip from a friend. B was a small winner on your own setup, traded as written. C lost after you moved your stop lower. B, the small winner A, the biggest winner C, to learn from it All three of them"
+    "given": "Which one goes in your playbook tonight? Three trades today. A was a big winner on a tip from a friend. B was a small winner on your own setup, traded as written. C lost after you moved your stop lower. B, the small winner A, the biggest winner C, to learn from it None, B was too small"
    },
    "lesson_line": "Archive the play you'd gladly run again: the setup that made the most sense.",
    "simple": "B goes in, because it is your own setup traded as written, a play you can spot and run again.",
@@ -10970,8 +10970,8 @@
    "why": "B, the small winner. It is your own setup, traded as written: a play you can spot again and want more of. Bellafiore asks for the setup that made the most sense that day. A paid more, but a tip is not a pattern of market behavior you can spot again. C broke your plan: our stop only moves up, never lower.",
    "wrong": {
     "A, the biggest winner": "A tip isn't a play. A playbook trade starts with a pattern you can spot again.",
-    "All three of them": "That's a trade log. The playbook holds the setup that made the most sense that day.",
-    "C, to learn from it": "You moved your stop lower, and our stop only moves up. A broken plan isn't a play to repeat."
+    "C, to learn from it": "You moved your stop lower, and our stop only moves up. A broken plan isn't a play to repeat.",
+    "None, B was too small": "The size of the win isn't the test. B is your own setup run as written, and his desk writes one up every session."
    }
   },
   "review_status": "draft",
@@ -12494,7 +12494,7 @@
   "difficulty": 2,
   "id": "si_d2fcc27e178b",
   "lesson_origin": "session",
-  "lesson_text": "Line 2. A feeling isn't an exit. A plan sets, in advance, the price where you cut a loss. Line 2 leaves that open until you're already in. Our rule puts a real stop order with the broker on every position. Line 3 is good practice, since knowing the earnings date lets you plan for it. A feeling is not a stop. Write the price down before you buy.",
+  "lesson_text": "Line 2. A feeling isn't an exit. A plan sets, in advance, when you cut a loss. Line 2 leaves that open until you're already in. Our rule puts a real stop order with the broker on every position. Line 3 is good practice, since knowing the earnings date lets you plan for it. A feeling is not a stop. Write the price down before you buy.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -12542,6 +12542,13 @@
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: 5 Elements of a Smart Trade Plan (2024-10-23)",
+      "quote": "Determining your entry rules before you buy reduces the guesswork when deciding when to enter a trade.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan (2024-10-23)",
       "quote": "Record your trades in a trading journal.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
@@ -12554,7 +12561,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "A trading plan must say how and when you get out with a loss. A plan sets, in advance, when you cut a loss. Decide how you will get out before you place the trade. Check for news ahead, such as earnings dates, on what you hold. Log every trade in a journal. Our rule D41: every position has a real stop order with the broker, not one kept in your head."
+    "summary": "A trading plan must say how and when you get out with a loss. A plan sets, in advance, when you cut a loss. Decide how you will get out before you place the trade. Check for news ahead, such as earnings dates, on what you hold. Set the entry rule before you buy. Log every trade in a journal. Our rule D41: every position has a real stop order with the broker, not one kept in your head."
    },
    "facts": {
     "given": "Which line breaks the plan? 1. Bought the breakout over $31.20 on heavy volume. 2. Set no stop; I'd sell if it started to feel wrong. 3. Earnings were five weeks out; I noted the date. 4. Wrote the entry and my reason in my journal. Line 1 Line 2 Line 3 Line 4"
@@ -12563,9 +12570,9 @@
    "simple": "Line 2, because selling when it feels wrong is not a stop, and a plan needs a real exit price.",
    "tier": "core",
    "unit": "F12.07",
-   "why": "Line 2. A feeling isn't an exit. A plan sets, in advance, the price where you cut a loss. Line 2 leaves that open until you're already in. Our rule puts a real stop order with the broker on every position. Line 3 is good practice, since knowing the earnings date lets you plan for it.",
+   "why": "Line 2. A feeling isn't an exit. A plan sets, in advance, when you cut a loss. Line 2 leaves that open until you're already in. Our rule puts a real stop order with the broker on every position. Line 3 is good practice, since knowing the earnings date lets you plan for it.",
    "wrong": {
-    "Line 1": "Line 1 is fine. A breakout entry on heavy volume is a clear trigger.",
+    "Line 1": "Line 1 is fine. Buying over $31.20 follows a set entry rule.",
     "Line 3": "Line 3 is fine. Checking the earnings date before you buy is good practice.",
     "Line 4": "Line 4 is fine. Recording the trade and the reason is part of the job."
    }
@@ -13245,7 +13252,7 @@
   "difficulty": 3,
   "id": "si_c79f521677a8",
   "lesson_origin": "session",
-  "lesson_text": "Line 4. A stop can't cap an earnings gap. The report lands after the close, and the next open can be far below the stop. Our rule holds a trade through a report only when it is up 5R. At full size no third has gone at 3R yet, so it is short of that. This plan trusts the stop instead. Into earnings, the stop is no protection. We hold through a report only when the trade is up 5R.",
+  "lesson_text": "Line 4. A stop can't cap an earnings gap. The report lands after the close, and the next open can be far below the stop. Our rule holds a trade through a report only when it is up 5R. This one is up about 1R, so the plan breaks that rule and trusts the stop instead. Into earnings, a gap can skip right past the stop. We hold through a report only when the trade is up 5R.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -13256,7 +13263,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Holding a breakout bought eight trading days ago, up 3%. 2. Earnings come out after tomorrow's close. 3. Stop: 2% under the price, under the last higher low. 4. Plan: hold full size through the report, since the stop caps the loss.",
+   "story": "1. Holding a breakout bought eight trading days ago, up 3%, about 1R. 2. Earnings come out after tomorrow's close. 3. Stop: 4% under the price, under the last higher low. 4. Plan: hold full size through the report, since the stop caps the loss.",
    "subject": "F12.07#q18"
   },
   "reveal_json": {
@@ -13313,25 +13320,18 @@
       "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "A gap between sessions can jump past a stop, so the fill can be far from the stop price. Disappointing earnings after the close can drop a stock fast before the next open. Once the stop price is hit, a stop turns into a market order, and the fill can be far from the stop. Earnings can surprise you, so it may be best to avoid trading around them. Our trail: under each higher low, or under the 10-day average. When a stock gaps past the stop, it sells at the next available price, not at the stop. Our rule B22: no new buys in the 3 days before a report, and we hold through a report only when the trade is up 5R. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+    "summary": "A gap between sessions can jump past a stop, so the fill can be far from the stop price. Disappointing earnings after the close can drop a stock fast before the next open. Once the stop price is hit, a stop turns into a market order, and the fill can be far from the stop. Earnings can surprise you, so it may be best to avoid trading around them. Our trail: under each higher low, or under the 10-day average. When a stock gaps past the stop, it sells at the next available price, not at the stop. Our rule B22: no new buys in the 3 days before a report, and we hold through a report only when the trade is up 5R."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Holding a breakout bought eight trading days ago, up 3%. 2. Earnings come out after tomorrow's close. 3. Stop: 2% under the price, under the last higher low. 4. Plan: hold full size through the report, since the stop caps the loss. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Holding a breakout bought eight trading days ago, up 3%, about 1R. 2. Earnings come out after tomorrow's close. 3. Stop: 4% under the price, under the last higher low. 4. Plan: hold full size through the report, since the stop caps the loss. Line 1 Line 2 Line 3 Line 4"
    },
-   "lesson_line": "Into earnings, the stop is no protection. We hold through a report only when the trade is up 5R.",
+   "lesson_line": "Into earnings, a gap can skip right past the stop. We hold through a report only when the trade is up 5R.",
    "simple": "Line 4, because an earnings gap can open far below a stop, so the stop can't cap the loss.",
    "tier": "extended",
    "unit": "F12.07",
-   "why": "Line 4. A stop can't cap an earnings gap. The report lands after the close, and the next open can be far below the stop. Our rule holds a trade through a report only when it is up 5R. At full size no third has gone at 3R yet, so it is short of that. This plan trusts the stop instead.",
+   "why": "Line 4. A stop can't cap an earnings gap. The report lands after the close, and the next open can be far below the stop. Our rule holds a trade through a report only when it is up 5R. This one is up about 1R, so the plan breaks that rule and trusts the stop instead.",
    "wrong": {
     "Line 1": "Line 1 is fine. It's just where the trade stands.",
     "Line 2": "Line 2 is fine. Knowing the report date is exactly what lets you plan for it.",
@@ -13445,7 +13445,7 @@
   "difficulty": 3,
   "id": "si_ff25b913452e",
   "lesson_origin": "session",
-  "lesson_text": "False. A stop is a trigger, not a guaranteed price. If earnings gap the stock below it overnight, the stop becomes a market order and sells at the next available price. That can be far lower than the 3% you planned. A stop is a trigger, not a guarantee. It can't catch a gap.",
+  "lesson_text": "False. A stop is a trigger, not a guaranteed price. If earnings gap the stock below it overnight, the stop becomes a market order and sells at the next available price. The loss can end up far bigger than the 3% you planned. A stop is a trigger, not a guarantee. It can't catch a gap.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -13507,7 +13507,7 @@
    "simple": "False, because a gap can open below the stop, and the stop then sells at whatever price comes next.",
    "tier": "extended",
    "unit": "F12.07",
-   "why": "False. A stop is a trigger, not a guaranteed price. If earnings gap the stock below it overnight, the stop becomes a market order and sells at the next available price. That can be far lower than the 3% you planned."
+   "why": "False. A stop is a trigger, not a guaranteed price. If earnings gap the stock below it overnight, the stop becomes a market order and sells at the next available price. The loss can end up far bigger than the 3% you planned."
   },
   "review_status": "draft",
   "skill_id": "process.mistakes",

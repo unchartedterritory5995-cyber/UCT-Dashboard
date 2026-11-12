@@ -1053,7 +1053,7 @@
    ],
    "answer": "Skip it. It's past our 4% line",
    "why": "Skip it. $84.80 is 6% past the $80 buy point, and our chase line is 4%. The stop would still sit under $80, so the distance grows and the shares shrink. IBD warns that the further past the buy point you buy, the greater the risk of a shakeout. Cutting size or a good grade doesn't move the line. Any price more than 4% past $80 is a chase.",
-   "lesson_line": "I'd rather miss it than chase it. Past 4%, the next setup is the trade.",
+   "lesson_line": "Better to miss it than chase it. Past 4%, the next setup is the trade.",
    "facts": [
     "h10",
     "h11",
@@ -1265,7 +1265,7 @@
    },
    "prefix": "$",
    "why": "$54. One R is the risk from the $60 entry to the $57 stop. Twice that below the entry is $54. If the first 30 minutes take the stock under $54, the loss is past 2R, and our rule says get out.",
-   "lesson_line": "Know your 2R price before a gap day. Past it, the gap rule stops waiting.",
+   "lesson_line": "Know your 2R price ahead of time. If the first 30 minutes take the loss past it, get out.",
    "facts": [
     "h19",
     "h18"
@@ -1365,17 +1365,17 @@
    "rung": 7,
    "format": "tf",
    "house": true,
-   "q": "After a string of winners, you may raise your risk per trade above the rules while you're hot.",
+   "q": "After a string of winners, a hot hand can justify risking more than 2% on one trade.",
    "answer": "False",
-   "why": "False. Never raise risk past the rules after a run of winners. Our rules set risk inside a range, 0.25% to 2% of the account. However hot the streak, it never lifts that limit.",
-   "lesson_line": "A hot streak earns nothing above the rules. Risk comes from the plan, not the mood.",
+   "why": "False. Never raise risk past the rules after a run of winners. Our rules set risk at 0.25% to 2% of the account on a trade, so 2% is the top, however hot the streak. Recent results can help pick a risk inside that range, never above it.",
+   "lesson_line": "A hot streak never lifts risk past the rules. 2% of the account is the top.",
    "facts": [
     "h28",
     "h36"
    ],
-   "simple": "False, because a run of winners never earns more risk than the rules allow.",
+   "simple": "False, because a run of winners never lifts risk past the rules, and 2% of the account is the top of our range.",
    "deeper": {
-    "trap": "The trap is that it feels earned. After a run of winners, more size seems like pressing your edge. But the limit comes from the rules, not the streak. However hot you feel, risk stays inside what the rules allow."
+    "trap": "The trap is that it feels earned. After a run of winners, more size seems like pressing your edge. Recent results can move your risk inside the 0.25% to 2% range. They never move the top."
    },
    "tier": "extended",
    "risk": {
@@ -1607,7 +1607,7 @@
    "rung": 9,
    "format": "scenario",
    "house": true,
-   "story": "You were stopped out of a stock on Monday. On Wednesday it sets up again: a fresh pivot and a clean low to risk against.",
+   "story": "You were stopped out of a stock on Monday. On Wednesday the setup triggers again: a fresh pivot and a clean low to risk against.",
    "q": "Can you trade it again, and how?",
    "choices": [
     "Take it as a new trade, own stop",
@@ -1647,15 +1647,15 @@
    "rung": 9,
    "format": "mcq",
    "house": true,
-   "q": "Which set of numbers does our monthly review name?",
+   "q": "Our monthly review names win rate and expectancy. Which other numbers does it name?",
    "choices": [
-    "Win rate, average R, expectancy",
+    "Average win and average loss, in R",
     "Dollar profit for the whole month",
     "Trade count and the biggest winner",
     "The index's return that month"
    ],
-   "answer": "Win rate, average R, expectancy",
-   "why": "Win rate, average win and loss in R, and expectancy, plus other statistics. Win rate is winning trades out of all trades. Expectancy is what you make per dollar risked, on average: the mean R of your trades. Dollars alone can't show whether the process is working. A journal keeps you on process, not P/L.",
+   "answer": "Average win and average loss, in R",
+   "why": "Average win and average loss, in R. Each month we review win rate, average win and loss in R, and expectancy, plus other statistics. Win rate is winning trades out of all trades. Expectancy is what you make per dollar risked, on average: the mean R of your trades. A journal keeps you on process, not the ups and downs of P/L.",
    "lesson_line": "Each month: win rate, average win and loss in R, expectancy. Process numbers, not just dollars.",
    "facts": [
     "h33",
@@ -1664,13 +1664,13 @@
     "f21"
    ],
    "wrong": {
-    "The index's return that month": "That measures the market, not your trading. The review names win rate, average win and loss in R, and expectancy.",
-    "Dollar profit for the whole month": "A good month in dollars can hide a bad process. A journal keeps you on process, not P/L.",
-    "Trade count and the biggest winner": "One big winner says nothing about the average trade. The review names win rate, average win and loss in R, and expectancy."
+    "The index's return that month": "That measures the market, not your trading. The review names average win and loss in R.",
+    "Dollar profit for the whole month": "Dollars aren't on the list. The review is in R, and a journal keeps you on process, not P/L.",
+    "Trade count and the biggest winner": "One big winner says nothing about the average trade. The review names average win and loss in R."
    },
-   "simple": "Win rate, average R and expectancy, because they show if your process works, which dollars alone can't.",
+   "simple": "Average win and loss in R, because the monthly review names them beside win rate and expectancy.",
    "deeper": {
-    "counter": "A big dollar month can hide a weak process, such as one lucky winner covering many sloppy losses. The average R per trade shows it. That's why the review is in R, not just dollars."
+    "counter": "A big dollar month can hide a weak process, such as one lucky winner covering many sloppy losses. Average win and loss in R show it. That's why the review is in R, not just dollars."
    },
    "tier": "expert",
    "risk": {
@@ -1735,14 +1735,14 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h05). Distractor 'Only when the reading is Green' answers 'when', not 'where', so it is eliminable on grammar alone (silly-choice tell). Replaced with a real 'where' misconception (the short-term average as the short line), wrong by h05. Key 35 chars, longest choice 36. h02 dropped from facts (no longer used)."
+   "fixed": false,
+   "notes": "Decided cold from h05 (shorts only below the 200-day, never above it unless parabolic): key matches. Lengths 35/32/36/35, key not longest, no lone absolute. Each wrong note rests on h05. It shows the parabolic exception that q22 tests, but q22 (rung 7) tests spotting the burst from the story, and q02/w2 already state the exception, so it gives nothing away. h04, h05, h06 match sizing_rule.md B26 and D46 word for word."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key True by h15. The simple's 'only at 5R' can read as exactly 5R; h15 says 'only if the trade is up 5R'. Restated in the rule's words; gap risk kept (f07, f08, f16)."
+   "fixed": false,
+   "notes": "True by h15 (B22, verbatim). 'Under 5R, sell before the report' follows directly from 'hold through a report only if up 5R'. f07 and f08 were re-read on FINRA's live page and f16 on Fidelity's live page today; all three are verbatim. q05 does not answer q15 (q15 asks for the R count; 5R is only its comparison line) and does not answer q10."
   },
   "q06": {
    "status": "pass",
@@ -1784,7 +1784,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h10; 6% is in the story). The note on 'Buy it. The stop can go under $80' only says shares shrink; h11 says chasing costs size, not risk, so the note never says why the buy breaks our rule. A member could reply 'fewer shares is fine'. Note now names the 4% line."
+   "notes": "Key right: 80 x 1.06 = 84.80 is 6% past the buy point, beyond h10's 4%. The notes rest on h10, h11 and f27. One problem: the lesson_line 'I'd rather miss it than chase it' is a first-person quote that no fact backs, and a member could read it as the owner's own words. Changed to a plain maxim. Nothing else changed."
   },
   "q13": {
    "status": "pass",
@@ -1820,7 +1820,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "calc 60 - 2*(60-57) = 54 checked. Why's last sentence ('without waiting for a 30-minute low to set a new stop') reads an intrabar exit into h19, which says only 'if the first 30 minutes take the loss past 2R, get out'. Narrowed to the rule's words."
+   "notes": "Calc checked: 60 - 2*(60-57) = 54. The key and why are right, and the why stays in h19's words. But the lesson_line 'Past it, the gap rule stops waiting' still says to exit the moment price crosses, which the last fix took out of the why: h19 says only 'if the first 30 minutes take the loss past 2R, get out'. 'Before a gap day' also suggests you can know a gap is coming. Lesson_line restated in the rule's words."
   },
   "q19": {
    "status": "pass",
@@ -1838,7 +1838,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key False by h28. Why's 'A hot streak is a mood' is a claim no cited fact supports (and A1 lists recent results as an input). Replaced with a sentence resting on h28 + h36 only."
+   "notes": "False is right by h28. Two breaks. (1) The statement answers itself: 'raise your risk per trade above the rules' is false on its own words, so it tests nothing at rung 7. (2) The lesson_line still says 'not the mood', the claim with no fact behind it that the last pass took out of the why. Also, h36 lists recent results as an input to risk, and the item never says that, so a member could think a streak can never change risk at all. Rewritten around the 2% top of h36's range (0.25% to 2%) plus h28. Every number comes from the h36 quote."
   },
   "q22": {
    "status": "pass",
@@ -1855,8 +1855,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h31, h38) but it was the LONGEST choice (34 vs 31): a tell. Lengthened the two 'all eight' distractors in parallel form (36 each). The full-size note's 'eight stops hit together' had no cited fact; now rests on h02 + h31."
+   "fixed": false,
+   "notes": "Decided cold from h31 + h38: a few positions, more only as the first ones work. Key matches. Lengths 34/36/29/36, key not longest. The two 'All eight' choices are parallel and both wrong by h31, which points away from the key, not to it. 'None until Green holds a week' is wrong by h31 (start when it turns Green). Up to 10 and the focus list rest on h02 and h26 (in the story). F68 is its own rule, not one of A10's market-reading guides, so 'all eight at full size' cannot be defended. Answers no other question."
   },
   "q25": {
    "status": "pass",
@@ -1874,13 +1874,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h21). 'Buy it, but with no stop this time' is a silly choice nobody picks. Replaced with the real misconception h22 names (a stop kept in your head). Key 32, longest 35."
+   "notes": "Key right by h21. But h21's condition is that the setup 'triggers again', and the story only says it 'sets up again'. Strictly, a setup that has not triggered is not yet a trade, so 'Take it' runs ahead of the rule, and a careful member could say 'not yet'. The story now says the setup triggers again. Choices, why and notes unchanged. Monday to Wednesday is the 2nd try this week, which E56's 3-a-week limit allows, so that rule (not taught here) does not conflict."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h33). Two of three distractors carried 'only' (absolute tell), and 'The index's return that month' stayed arguable under h33's 'and other statistics'. Asking which set the review NAMES closes both without absolutes. Key 30, longest 34."
+   "notes": "The key 'Win rate, average R, expectancy' misstates h33. The rule names 'average win and loss in R', and 'average R' (the mean R per trade) is expectancy itself (f20: 'the mean R of an R-multiple distribution'), so the key lists one number twice and drops the one the rule names. The deeper counter's 'The average R per trade shows it' repeats the slip. Writing the full set within 40 characters needs slash shorthand, so the stem now gives win rate and expectancy and asks for the other number named. That keeps 'names' (the last pass's fix against 'and other statistics'). f20 was re-read on the Va"
   }
  }
 }

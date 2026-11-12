@@ -87,7 +87,7 @@ def apply(doc: dict, upgrades: dict, batch: str, checks: dict | None = None, ext
             if isinstance(ck.get("fix"), dict) and ck["fix"]:
                 fx = dict(ck["fix"])
                 # a checker sometimes ships the fact its fix cites inside the fix itself: add it to the lesson
-                embedded = ([fx.pop("new_fact")] if isinstance(fx.get("new_fact"), dict) else []) + list(fx.pop("new_facts", None) or [])
+                embedded = ([fx.pop("new_fact")] if isinstance(fx.get("new_fact"), dict) else []) + list(fx.pop("new_facts", None) or []) + list(fx.pop("add_facts", None) or [])
                 fx.pop("new_fact", None)
                 fx.pop("house", None)
                 have = {x.get("id") for x in doc.get("facts") or []}

@@ -751,12 +751,12 @@
    "format": "mcq",
    "q": "You move from swing trades to day trades. Which part of your trade plan can you drop?",
    "choices": [
-    "None: stop, size and exit all stay",
+    "None: every part stays in the plan",
     "The stop, since you'll be watching",
     "The size, it's only for a few hours",
     "The exit, you're out by the close"
    ],
-   "answer": "None: stop, size and exit all stay",
+   "answer": "None: every part stays in the plan",
    "why": "None of them. Schwab's day-trading page says a day trader still plans when to enter and exit, how much to risk, and what to trade. Only the clock is shorter. Watching the screen is not a stop. Our rule is a real stop order with the broker, not one kept in your head. Being out by the close is a deadline, not an exit price.",
    "lesson_line": "A shorter hold is no reason for a thinner plan.",
    "facts": [
@@ -1137,7 +1137,7 @@
     "Nothing extra, the stop covers it"
    ],
    "answer": "Whether to sit through reports",
-   "why": "Whether to sit through reports. A US company files a 10-Q for each of its first three fiscal quarters, and a 10-K for the year. A six-month hold spans more than one quarter. News outside trading hours can gap a stock past your stop. In Fidelity's example a stop at 95 sold near 90 after overnight earnings. Our rule: hold through a report only if the trade is up 5R. A day trade closes the same day, so it has no hold-or-sell call to make. Our rule still bars any new buy in the 3 days before a report.",
+   "why": "Whether to sit through reports. A US company files a 10-Q for each of its first three fiscal quarters, and a 10-K for the year. A six-month hold spans more than one quarter. News outside trading hours can gap a stock past your stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap. Our rule: hold through a report only if the trade is up 5R. A day trade closes the same day, so it has no hold-or-sell call to make. Our rule still bars any new buy in the 3 days before a report.",
    "lesson_line": "A long hold sits through quarterly reports. Decide what you'll do at each one before you buy.",
    "facts": [
     "i01",
@@ -1157,7 +1157,7 @@
    ],
    "wrong": {
     "Where the first 10-minute low is": "That's a short-term stop for a trade near the open. A months-long hold judges exits on a longer timeframe.",
-    "Nothing extra, the stop covers it": "A gap can jump the stop. In Fidelity's example a stop at 95 sold near 90 after overnight earnings.",
+    "Nothing extra, the stop covers it": "A gap can jump the stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap.",
     "Which hourly bar you'll buy on": "Every trade decides when to enter, in any style. Your entry bar does nothing when a report gaps the stock."
    },
    "simple": "Whether to sit through reports, because a six-month hold spans reports that can gap the stock past your stop.",
@@ -1505,7 +1505,7 @@
     "f02"
    ],
    "wrong": {
-    "Buy the full 400%, on margin": "With borrowed money, a small move against you can wipe out a big part of the account. And a fast market can fill a stop well below it.",
+    "Buy the full 400%, on margin": "A small price move the wrong way can wipe out a big part of the account. And a fast market can fill a stop well below it.",
     "Widen the stop to shrink the size": "The stop belongs where the idea fails. Moving it to fix the size gets it backwards; adjust the position instead.",
     "Tighten the stop even further": "A tighter stop makes the formula's size even bigger, and normal swings hit it sooner."
    },
@@ -1630,7 +1630,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is right (my own read of f11/f15/f42 before the key: none can be dropped). Choices balanced 33-35 chars, no tell; every why and wrong-note line has a cited fact (f11, f01, f19, h22). Only defect: the Resolver asked for house true because the why teaches D41 (h22) as our rule, and the merged file still lacks it."
+   "notes": "Key right on my own read (f11, f15, f42: a day trade plan still sets entry, exit and risk; D41/h22 real broker stop). Two defects. (1) The why and the stop note teach D41 as 'Our rule' but the question has no \"house\": true; the earlier checker flagged this and the merged file still lacks it. (2) The key 'None: stop, size and exit all stay' reads as 'the stop stays the same', which clashes with q08 in the same lesson, whose key is that where the stop sits changes from style to style. Reworded the key so it says every part stays IN the plan (34 chars, the others 33-36, no length tell). Wrong not"
   },
   "q02": {
    "status": "pass",
@@ -1659,8 +1659,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h08 session's low, h15 a few cents under). The wrong note for 'A flat 10% under your entry' said 'A flat percent ignores the chart', and q18 in the same lesson keys our Kicker stop as 3.5% under entry, a flat percent. So the note was a rule the lesson itself breaks. Reworded so it only says what the Go Signal plan does."
+   "fixed": false,
+   "notes": "Decided before the key: TRADE_PLANS.md 'The Go Signal' says Stop: the session's low (h08), and F62 (h15) puts it a few cents under, so 'Just under the session's low' is right. The trigger chart (h09) does not move the stop. Choices 26-30 chars, key not the longest; the 10% in a distractor comes from the question itself (and f41). The 30-minute distractor is not B20 (that is only for a gap against the stop). The why gives the entry, which q11's stem already states, so it does not answer q11; q11 names no session low, so it does not answer q06. House flag present."
   },
   "q07": {
    "status": "pass",
@@ -1672,7 +1672,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f20, f21, f41). The new facts f19 and f48 support the last line, but the line 'Because the stop moves, the size moves with it' reads like moving an open stop. q22 in the same lesson teaches that our stop only moves up, never down or wider (A4). Reworded to say where the stop is placed, not that it moves."
+   "notes": "Key right (f20, f21, f41: stop placement follows the timeframe; h10 2% hard ceiling, f11 plan, f16 review are fixed in every style). Choices 20-21 chars, no tell. Defect: the choice 'Our 2% risk ceiling' and its note teach A1 as ours ('2% is our hard ceiling'), so the question needs \"house\": true like q02, and it lacks it. Its 'written plan' note restates q01's key, but q01 (rung 1) comes first, so it only reinforces it. With q01's key reworded (every part stays in the plan) the two no longer read as contradicting each other."
   },
   "q09": {
    "status": "pass",
@@ -1696,7 +1696,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (i01, i02 quarterly reports; f08, f27 gaps; h16 B22). 'Overnight earnings' was checked against the Fidelity transcript PDF (text decoded 2026-11-12): 'the night before and earnings happen and it's now trading at 90'. Fixes: (1) house true, which the Resolver asked for, since the why teaches B22 as ours; (2) the wrong note 'A stop can't catch a gap' was an absolute. Now it is the owner's own line 'a gap can jump the stop' (A7); h19 is added to the facts; (3) the hourly-bar note said 'Entry timing matters in both styles' with no cited fact. It now rests on f15 (every trade decides when"
+   "notes": "Key right on my own read: a six-month hold spans quarterly reports (i01, i02), gaps can jump a stop (f08, f27, f28, h19), and B22 (h16) makes hold-through-a-report a rule only a held trade needs. No second defensible answer. Defects: (1) the why teaches B22 as 'Our rule' but \"house\": true is missing (the previous checker's notes say it was added; the file does not have it). (2) The why and the 'Nothing extra' note say the Fidelity stop sold near 90 'after overnight earnings', but no cited quote contains 'earnings': f38 is cut off at 'the night before and', f39 and f40 say only near 90 and gapp"
   },
   "q13": {
    "status": "pass",
@@ -1737,14 +1737,14 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 2.5% is right (calc 25 x 10 / 100). But the choice 'Risk is still 0.5%, same as before' and its note ('25% times 2%') put a computed number in the text with no calc, the defect the Resolver removed from the deeper trap. Replaced with a real misconception, mixing up the stop's 10% with account risk. Its numbers come from the question and the calc, and it rests on h18 (A13, 'a loss on the position, not the account'), which is added. The key (34 chars) is still not the longest choice (35)."
+   "fixed": false,
+   "notes": "Calculated before the key: 25% x 10% = 2.5% of the account (calc), over the A1 2% ceiling (h10); h12 is the owner's size-times-stop line. All numbers come from the story or the calc. Distractors are real mix-ups: size alone is risk, a farther stop means less risk, and the stop's 10% read as account risk (h18). Key 34 chars, longest 35, no tell. The 25% is under the A7 40% cap, so no second problem competes with the key. House flag present. It does not answer q20 (no cap) or q09."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: the formula gives 400% (calc), and A7 caps any position at 40% (h20). A5 makes the size the smaller of the two (h21). Fixes: (1) house true, which the Resolver asked for (the key rests on A7 and A5); (2) the new 'Tighten' note says 'normal swings hit it sooner' and no cited fact said so. f02 (FINRA: a quick move can trigger a stop, then the stock rebounds) is added. Separate from this question: the unit's conflicts line on q20 ('no house cap number is keyed') is now stale. The integrator should update it."
+   "notes": "Key right: 1 / 0.25 x 100 = 400% (calc); A7 caps any position at 40% (h20) and A5 makes the size the smaller of the two (h21). 'Widen the stop' breaks A3 and f48; 'on margin' still breaks A7 and B24's 200% book. Defects: (1) \"house\": true is missing, though the key rests on A7 and A5 and the why says 'Our max position' (the previous checker's notes say it was added; the file does not have it). (2) The margin note opens 'With borrowed money', but f13's quote never mentions borrowed money ('But this can also lead to bigger losses...'), and the Schwab page refused this session's fetch, so the con"
   },
   "q21": {
    "status": "pass",

@@ -1475,7 +1475,7 @@
     "Look only at the week's P&L"
    ],
    "answer": "Run it as usual, losses and all",
-   "why": "Run it as usual, losses and all. Tendler notes that bad stretches are exactly when people stop journaling, and his advice is to do it anyway. Look for the patterns in the losses. That is how you find what to fix. UCT's own rule is to review the week every weekend, ideally, and a bad week is no exception.",
+   "why": "Run it as usual, losses and all. Tendler notes that people stop journaling when results are so bad they don't want to review them. His advice for the bad days is to do it anyway. Look for the patterns in the losses. That is how you find what to fix. UCT's own rule is to review the week every weekend, ideally, and a bad week is no exception.",
    "lesson_line": "The week you least want to review is the one you most need to.",
    "facts": [
     "f60",
@@ -1488,7 +1488,7 @@
    ],
    "wrong": {
     "Skip it and start fresh Monday": "Then Monday starts with whatever caused the losses still in place.",
-    "Review only the winners this week": "This week the losses hold the lesson. You want to know why you lost, so you don't repeat it.",
+    "Review only the winners this week": "Skip the losers and you skip the lesson. CME says to find out why you lost, so you don't repeat the mistake.",
     "Look only at the week's P&L": "The total tells you it was bad, not why. CME puts the why and how of your trading ahead of the profit or loss."
    },
    "simple": "Run it as usual, because the worst week is when you most need to find what went wrong.",
@@ -1593,19 +1593,18 @@
    "skill": "process.review",
    "rung": 6,
    "format": "tf",
-   "q": "UCT has no losing-streak rule: size is cut by how far the account is down, in percent.",
+   "q": "UCT has no losing-streak rule: size is cut by the drawdown, the percent the account sits below its highest value.",
    "answer": "True",
    "simple": "True. UCT cuts size by the drawdown, in percent, not by counting losses in a row.",
-   "why": "True. UCT has no losing-streak rule. Our rulebook says size is cut by the drawdown ladder, in percent. A drawdown is how far the account is below its highest value, open trades included. We check it at least weekly. Schwab says there is no harm in trading smaller while you work out a problem. UCT's rulebook does not take that view.",
+   "why": "True. UCT has no losing-streak rule. Our rulebook says size is cut by the drawdown ladder, in percent. A drawdown is how far the account is below its highest value, open trades included. We check it at least weekly. It measures the account's fall from its peak, not the losses in a row.",
    "lesson_line": "A losing streak sets no size rule at UCT. The drawdown, in percent, does.",
    "facts": [
     "f72",
-    "f73",
-    "f45"
+    "f73"
    ],
    "house": true,
    "deeper": {
-    "trap": "Trading smaller after a run of losses sounds safe, and Schwab suggests it. UCT's rulebook replaced that view for us: there is no losing-streak rule. Watch the drawdown instead, measured from the account's highest value, open trades included."
+    "trap": "A run of losses feels like it should trigger a fixed size cut. UCT has no losing-streak rule. The drawdown ladder does the cutting, and it measures the account's fall from its highest value, open trades included."
    },
    "tier": "extended",
    "risk": {
@@ -1684,8 +1683,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key Trade A rederived: 500/200 = 2.5R (calc); B is 1.5R, less per dollar risked. Two defects. (1) Distractor 'Trade B, it made $1,000 more' carries a computed number (1500 - 500) with no calc; replaced with '$1,500 in all', which is in the question. (2) 'A tie, since both trades won' is a silly filler, not a real misconception; replaced with 'Can't tell without the win rate', which fails for its own reason against f55 and f52. Lengths now 30/30/34/31, key not longest. Why unchanged."
+   "fixed": false,
+   "notes": "Rederived before the key: A = 500/200 = 2.5R (calc), B = 1500/1000 = 1.5R, so A paid more per dollar risked. Key matches. f52 (Tharp: P&L as a ratio of initial risk) and f54 ('per dollar you risk') back the why; f55 backs the win-rate wrong note. Choices 30/30/34/31, no lone absolute, no silly choice; B's 1.5R is never stated as a number, so nothing ungrounded. Simple stays inside the why. Does not answer q09/q10 (those are win rate and average R over a list)."
   },
   "q04": {
    "status": "pass",
@@ -1744,8 +1743,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 9 + (-7) = 2 correct; why's numbers all come from the question. The why and lesson_line say pricing mistakes in R shows their cost, but no cited fact covers R. Added f52 (Tharp: read profits and losses as multiples of initial risk). Text unchanged."
+   "fixed": false,
+   "notes": "Rederived: +9R + (-7R) = +2R; calc matches, every number in the why and simple is in the question. Question 108 chars. 'Gave back most' (7 of 9) is fair. f23 quote matches the why's paraphrase; f52 covers pricing in R. Deeper's tags (chased entry, late exit, added to a loser) agree with A5 (no adding) and C28. Does not give away q23's split (different numbers and a different ask)."
   },
   "q14": {
    "status": "pass",
@@ -1799,7 +1798,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Only the deeper changed, and it now repeats the why almost word for word (Tendler, people stop journaling, look for patterns). That is a copied explanation that adds nothing. Rewrote it to a new angle the cited facts support: the total says it was bad, not why (f32, CME), and split the losses into rule breaks and by-the-rules trades (f23, Steenbarger). Added f23."
+   "notes": "Key rederived and right (Tendler f60/f62 confirmed in context on the live page: f62 is about journaling soon after a day of intense emotion and losses). Two defects. (1) Why says bad stretches are 'exactly when' people stop journaling; Tendler only lists it as one reason the habit lapses. Reworded to what f60 says. (2) The 'Review only the winners' wrong note says 'this week the losses hold the lesson', which leans toward a losers-only review and sits against q02 and f26 (both successes and setbacks teach). Reworded to f31 (CME: know why you lose so you don't repeat mistakes). Choices, simple,"
   },
   "q23": {
    "status": "pass",
@@ -1817,7 +1816,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True rederived from f72 (B17, quoted verbatim from section 9) and f73 (A8, verbatim). The simple overreaches: 'a run of losses does not cut your size' is false whenever that run pushes the account down 6% or more, because then the ladder cuts it. It also reads against q21's bench-it key. Reworded so it says what B17 says. Why, lesson_line and deeper hold. Owner points stand: the A1 'recent results' and F65 tension, and the statement is a recall item sitting at rung 6."
+   "notes": "Key True is right: B17 verbatim (f72) and A8's definition (f73). Defects. (1) The why and deeper say UCT's rulebook rejects Schwab's 'no harm in trading smaller' view. Section 9 does not: A1 picks each trade's risk by setup quality, recent results, the market and your edge, so trading smaller after losses is allowed by choice. B17 removes a mandatory streak rule, not the option to size down. The Schwab contrast overreaches and contradicts A1; removed it and f45. (2) 'How far the account is down' is loose (down from what?); A8 measures from the highest value. The statement now names the drawdow"
   },
   "q26": {
    "status": "pass",

@@ -1289,7 +1289,7 @@
     "h07"
    ],
    "wrong": {
-    "Hesitating on a good entry": "This trader is pushing, not holding back. Hesitating comes from fear.",
+    "Hesitating on a good entry": "This trader is pushing to get the money back, not holding back on an entry.",
     "Selling a winner too early": "There's no winner here. The trade already lost, and the trader wants the money back.",
     "Buying a stock everyone's chasing": "The focus is one position the trader already lost on, not a new hot name."
    },
@@ -1320,18 +1320,15 @@
     "Take a month off from trading"
    ],
    "answer": "Write a rule for when you buy",
-   "why": "Write a rule for when you buy. Tendler calls tightening your rules the correct first step. Only if the mistakes keep costing you after that does the answer lie in the mental game. Investopedia says a plan should set exactly when you enter. Our own rule is one example: never buy more than 4% above the buy point. You can't break a rule you don't have.",
+   "why": "Write a rule for when you buy. Tendler calls tightening your rules the correct first step. Investopedia says a plan should set exactly when you enter. Our own rule is one example: never buy more than 4% above the buy point. You can't break a rule you don't have.",
    "lesson_line": "Write the rule first. You can't break a rule you don't have.",
    "facts": [
     "f22",
-    "f23",
     "f86",
-    "f57",
-    "f58",
     "h05"
    ],
    "wrong": {
-    "Work on your fear of missing out": "Maybe later. Tendler says you tighten the rules first, then look at the mental side if the mistakes keep coming.",
+    "Work on your fear of missing out": "Maybe later. Tendler says tightening your rules is the correct first step, and you don't have an entry rule yet.",
     "Cut your size in half for now": "Smaller size can limit the damage, but it fixes nothing. The gap in your plan is still there.",
     "Take a month off from trading": "You'd come back with the same gap in your plan."
    },
@@ -1470,8 +1467,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h01 B27, f54, f71); choices 26-28 chars, no tell. Defect: the 'Only when it costs you a lot' note says 'Small mistakes repeat too' and attributes 'a map with gaps hides the pattern' to Tendler; no fact says either. Replaced with our B27 (h01, every trade) and f11 (record before, during and after your mistakes)."
+   "fixed": false,
+   "notes": "Own answer before the key: same day (h01 B27 'every trade the same day', f54 journals after the close). Matches. Choices 26-28 chars, no tell; 'Never, forget it' is Tendler's named habit (f14), not silly. Wrong notes grounded in f71, h01, f11, f14. Why says nothing about hindsight, so it does not pre-answer q04. B27 quote checked in sizing_rule.md section 9."
   },
   "q04": {
    "status": "pass",
@@ -1506,8 +1503,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "75 = 6/8*100, calc right, why fine. Defect: the lesson_line still teaches 'Name each mistake the same way every time', the same method sentence the Resolver dropped from the why as ungrounded. Replaced with a line grounded in f75 (look for recurring mistakes)."
+   "fixed": false,
+   "notes": "6/8*100 = 75; arith calc runs with named args (courses_lib _arith). Every number is in the question or the calc. Why and lesson line rest on f75 (recurring mistakes). No leak to other items."
   },
   "q10": {
    "status": "pass",
@@ -1555,13 +1552,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is f20, the map's own mistake line; distractors clearly off. Defect: the why ends 'you can catch the mistake before it happens'; f41 and f64 say spot it in real time and limit the damage, not prevent it beforehand. Last sentence reworded to f41."
+   "notes": "Key right: re-read Tendler's sample map on the Goodreads post; 'Trading mistake' line is f20 and the map lists it last, after thoughts, emotions, behaviors and decisions, and the post says to look for earlier signals, so 'comes first/last' holds. Story drops the map's revenge words. Defect: the 'Hesitating on a good entry' wrong note says 'Hesitating comes from fear'; no cited fact says that (f17 ties fear to early exits, not hesitation). Reworded to rest on the story and f19."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: no entry rule yet, so tighten the rules first (f22/f23, f86, h05 C28). Choices 29-32 chars, story no longer echoes the key. Defect: the deeper note still ends 'Map the emotion only if you still break it', which is q19's story and key word for word (rule known, still broken, map the emotion). Cut that line. Also dropped f33 (training wheels), which nothing in q18 uses now."
+   "notes": "Key right: no entry rule yet, so write one first (f22 correct first step, f86 rules for exactly when to enter, h05 C28 4%). Choices 29-32 chars, no tell. Defect: the why still says 'Only if the mistakes keep costing you after that does the answer lie in the mental game', and the FOMO wrong note says 'then look at the mental side if the mistakes keep coming'. At rung 8 this plays before q19 and states q19's key (rule in place, still broken, so it is emotional). The previous pass cut the same idea from the deeper note but left it here. Removed both; dropped f23 (now unused in q18) and the unused"
   },
   "q19": {
    "status": "pass",
@@ -1572,8 +1569,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "True from f26 before the key; the flip is fine and has no hedge or absolute. Defect: the new line 'Tendler says they drive a mistake you repeat and can't stop' is f24, the exact rule q19 tests (q19's why quotes it). At rung 8 it runs before q19 and answers it. Replaced with f34 (pretending an emotion isn't there only manages the problem), which still says emotions are not to be ignored. Facts: f24 swapped for f34."
+   "fixed": false,
+   "notes": "True from f26 before the key. Two publishers: Tendler (signals, real problem elsewhere) and Steenbarger f59 (fear and greed are not the issues); the why and counter state Steenbarger's different root honestly. No absolute or hedge in the statement. f34 replaces the old f24 line, so it no longer answers q19. Simple stays within f26/f29."
   }
  }
 }

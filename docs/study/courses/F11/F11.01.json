@@ -1027,11 +1027,12 @@
     "f49",
     "f54",
     "f51",
-    "f52"
+    "f52",
+    "f20"
    ],
    "wrong": {
     "One hour": "Too short for a hold of months. Short-term charts carry a lot of noise.",
-    "Five minutes": "That's a day trader's bar. A months-long hold doesn't turn on a move that small.",
+    "Five minutes": "That's a day trader's bar. Schwab says day traders often use one- or five-minute charts.",
     "One quarter": "Too coarse for a hold of months. Investopedia's position trader focuses on weekly bars and saves even the monthly for the main trend."
    },
    "simple": "One week, because each weekly bar sums up a whole week, which fits a trade you hold for months.",
@@ -1104,8 +1105,7 @@
     "f10",
     "f18",
     "f9",
-    "f6",
-    "f11"
+    "f6"
    ],
    "wrong": {
     "No, you planned a swing trade": "The plan doesn't decide it. Bought and sold on the same day is a day trade.",
@@ -1114,7 +1114,7 @@
    },
    "simple": "Yes, because you bought and sold the same stock on the same day, and your plan doesn't change that.",
    "deeper": {
-    "trap": "The count can still matter. FINRA's new standards replace the old day trade count. But a broker still on the old rules may count this one in a margin account. There, same-day stop-outs on swing plans add up."
+    "trap": "The plan doesn't change the count. In a margin account, your broker may count day trades. Same-day stop-outs on swing plans can add up, so check how your broker counts them."
    },
    "tier": "extended",
    "risk": {
@@ -1387,8 +1387,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key daily is right (f29 Schwab, f47 Investopedia). Wrong note for 1-minute said 'mostly noise'; f52 only supports 'a lot of noise' (the why already says that). Wording aligned."
+   "fixed": false,
+   "notes": "Decided daily before the key: f29 (Schwab: longer period like a daily for the setup, hourly for entries) and f47 (Investopedia: daily charts for decisions). No weekly choice, so Murphy's weekly cannot collide. Key 13 chars, not longest. Wrong notes grounded (f20, f52, f49). Hourly note says 'not for the setup' only after answering; q12 stem does not name the daily. Could not break it."
   },
   "q06": {
    "status": "cut",
@@ -1429,8 +1429,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Hourly is right (f29, f47). But the why and simple still named the daily chart as where the setup is found, which hands over q05's key; the resolver only fixed the sentence. Now says 'a longer chart', as Schwab's quote does ('a longer period (like a daily chart)')."
+   "fixed": false,
+   "notes": "Hourly by f29 (Schwab, could not re-fetch: 403) and f47 (60-minute short-term trend). Weekly/monthly/quarterly are all longer than a swing setup chart; no second defensible fill for a swing trader. Stem says 'a longer chart', not daily, so it does not hand over q05. Could not break it."
   },
   "q13": {
    "status": "pass",
@@ -1442,7 +1442,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Weekly is right (f49 Investopedia, f54 StockCharts). Two defects: 'mostly noise' overreaches f52 ('a lot of noise'); the 'One hour' note said hourly bars time entries on trades that last days, which hands over q12's key. Note now rests on f52 only."
+   "notes": "Weekly is right (f49; f54 re-read on StockCharts: weekly and monthly for long-term). But the 'Five minutes' wrong note 'A months-long hold doesn't turn on a move that small' is q20's key (hold for months, 5-minute sell signal is not a reason to exit). Note now rests on f20 only; f20 added to facts."
   },
   "q15": {
    "status": "pass",
@@ -1454,13 +1454,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right by f10/f18. Two defects: (1) the new wrong note 'A stop that fills on a later day ends a held trade, not a day trade' restates the overnight exception and hands over q08's key, the very thing the resolver removed from q01; (2) the deeper says a broker on the old rules 'counts this one' unconditionally, but the old definition applies in a margin account (f10) and the story names no margin account."
+   "notes": "Key right by f10/f18 (no plan test in either definition). But the deeper says 'FINRA's new standards replace the old day trade count' and that a broker on the old rules may still count it: that is q19's key (FINRA replaced it; ask your broker), and q16 (rung 7) comes before q19 (rung 8). Deeper rewritten without the FINRA replacement; grounded in f9 (brokers may still run the old requirements), f6 (they include the day trade count) and f10 (margin account). f11 was cited but unused; dropped."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Hold is right (f31, f32, f42). 'Sell, the trend is broken' contradicts the story's own 'weekly uptrend is still intact', a silly choice anyone can strike from the story. Replaced with a plausible wrong sell grounded in f32/f42. Two Hold, two Sell; key 25 chars, not longest. A4 note stays (owner flag on judging a position trader by A4 kept)."
+   "fixed": false,
+   "notes": "Hold by f31/f32 (Schwab) and f42 (re-read on Fidelity). Story states the weekly uptrend is intact, so no sell choice is defensible; 'lower your stop' fails on A4 (no gap in the story, so the B20 exception does not apply). Two Hold, two Sell; key not longest. Deeper teaches E52 as ours correctly. Minor: h04 is listed in facts but not used in any text; harmless."
   },
   "q18": {
    "status": "pass",
@@ -1471,20 +1471,20 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f6, f8, f9). The lone-hedge tell survived: the key is the only 'ask your broker' choice against three absolutes ('Right, save', 'No minimum ... at all', 'can't keep'). Swapped the margin-minimum absolute for a wrong 'ask' choice, so the member must know FINRA replaced the rule (f6). Why's $2,000 line still grounded in f4. Choices 29-35 chars, key not longest."
+   "fixed": false,
+   "notes": "Key right: FINRA Notice 26-10 re-fetched today (Effective June 4, 2026; phase-in ends October 20, 2027; replaces day trading margin requirements). f9 (Investor.gov, 403 today) carries the broker transition. Story pins November 2026, so not date-ambiguous. $2,000 from f4. The replaced/kept twin choices are parallel but the knowledge test is real; key 34 chars, not longest (35). Once q16's deeper is fixed, nothing earlier hands it over."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right (f52 StockCharts, f50 Investopedia: two publishers). But the why and the deeper both said a months-long hold is judged on weekly bars, which is q14's key. Weekly removed, f49/f54 dropped. 'Mostly noise' in simple overreached f52. Note: q14's distractor notes still cover minute-bar noise, so the pair overlaps by design (the resolver kept both: bar size vs exit decision)."
+   "fixed": false,
+   "notes": "False by f52 (re-read on ChartSchool: 'a lot of noise') and f50 (Investopedia). Rulebook does not flip it: B20 uses a 30-minute bar for gaps against the stop, not a 5-minute signal on a months-long hold. Simple matches the why. The hand-over from q14's 'Five minutes' note is fixed in q14."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Swing trader is right (f26, f39, f27). The why said 'The one same-day stop-out was a day trade', which is q16's key outright. Reworded so the stop-out only fails to change the usual hold. Numbers come from the story."
+   "fixed": false,
+   "notes": "Swing trader by f26/f39/f27; 2 to 12 trading days is days to weeks; numbers from the story. Why does not call the stop-out a day trade, so q16's key is not repeated. Deeper rests on h01 (C35) and says the key does not. Key shortest-but-one; no tell. Could not break it."
   }
  }
 }

@@ -803,17 +803,17 @@
     "The stock's long-term weekly chart"
    ],
    "answer": "What is moving the whole market",
-   "why": "What is moving the whole market. The book's heading for the section reads: First Know What Is Moving the Market. It comes first, before intraday fundamentals, the stock's own news. Steenbarger adds that much of the skill is knowing which play to call when.",
+   "why": "What is moving the whole market. The book's heading for the section reads: First Know What Is Moving the Market. It comes first in his breakdown, before the sections on the stock and on how you traded it.",
    "lesson_line": "Start with the market, then the stock, then the trade.",
    "facts": [
     "f16",
     "f04",
+    "f17",
     "f33",
-    "f34",
-    "f30"
+    "f34"
    ],
    "wrong": {
-    "Why this one stock is moving": "That's the next section, intraday fundamentals: the news behind the stock.",
+    "Why this one stock is moving": "That's about one stock, and his sections on the stock come after. The big picture comes first and looks at the whole market.",
     "Where your stop goes on the trade": "That's about your own trade, not the market. The big picture comes first and looks at the whole market.",
     "The stock's long-term weekly chart": "That's still one stock. The big picture looks past any one name to the whole market, and it comes first."
    },
@@ -1047,7 +1047,7 @@
     "B, the small winner",
     "A, the biggest winner",
     "C, to learn from it",
-    "All three of them"
+    "None, B was too small"
    ],
    "answer": "B, the small winner",
    "why": "B, the small winner. It is your own setup, traded as written: a play you can spot again and want more of. Bellafiore asks for the setup that made the most sense that day. A paid more, but a tip is not a pattern of market behavior you can spot again. C broke your plan: our stop only moves up, never lower.",
@@ -1056,13 +1056,12 @@
     "f01",
     "f21",
     "f39",
-    "f52",
     "h08"
    ],
    "wrong": {
     "A, the biggest winner": "A tip isn't a play. A playbook trade starts with a pattern you can spot again.",
     "C, to learn from it": "You moved your stop lower, and our stop only moves up. A broken plan isn't a play to repeat.",
-    "All three of them": "That's a trade log. The playbook holds the setup that made the most sense that day."
+    "None, B was too small": "The size of the win isn't the test. B is your own setup run as written, and his desk writes one up every session."
    },
    "simple": "B goes in, because it is your own setup traded as written, a play you can spot and run again.",
    "deeper": {
@@ -1376,8 +1375,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answers each other with q02: the q ('nightly write-up') and sentence ('After each session, archive...') state q02's True outright. Dropped the session/nightly wording; 'that day' kept so every bank word stays grammatical (adding 'to you' would make 'sense' the only grammatical fit, a tell). why/simple/lesson_line unchanged."
+   "fixed": false,
+   "notes": "Keyed 'sense' before looking, from f01, checked word for word in the Pearson sample (Introduction, What's Inside: 'archive a trading setup that made the most sense to them during that day'). f21 confirms it. 'money' is the only near-miss: f22 says 'a best trade', but the stem asks for his wording and the quote settles it. 'volume' and 'headlines' fit the sentence, so no grammar tell. q01 and w1 teach 'make sense' earlier, which is meant as recall, not a give-away. Rung 2 comes after q02's rung 1, so the 'that day' wording does not hand q02 its answer."
   },
   "q05": {
    "status": "pass",
@@ -1395,7 +1394,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The why's 'The stock's chart levels sit under technical analysis' and the weekly-chart wrong note's 'is technical analysis' state q09's rule (the same reason the resolver trimmed q08's why). Removed both; the wrong note now rests on f16/f04 only. f25 dropped from facts as no longer used."
+   "notes": "Key is right: f16 is in the sample's contents ('The Big Picture: First Know What Is Moving the Market', p.19), and f04 puts it first. Two defects. (1) The why ends with 'Steenbarger adds that much of the skill is knowing which play to call when' (f33/f34). That line says nothing about what the big picture section covers, and 'adds' falsely implies he backs the key. Removed, with f33 and f34. (2) The why ('before intraday fundamentals, the stock's own news') and the wrong note ('the next section, intraday fundamentals: the news behind the stock') state q08's key (news goes under intraday fundam"
   },
   "q08": {
    "status": "pass",
@@ -1437,7 +1436,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Unsupported claims: 'belongs in your journal' (why and C note; no cited fact, f36 not cited and blurs playbook and journal), 'C taught a lesson' (not in the story), and 'the only one you could run again' (overreach: C's setup may be yours too; it is the trade as run that is not a play). Rewritten on f01/f21/f39/h08."
+   "notes": "Key B is right (f01, f21, f39; h08 rules out C), and no second answer holds: A came from a tip, not a play, and C broke the stop rule. Two defects. (1) 'All three of them' is an 'all of the above' choice, since A, B and C are the other three choices, and the voice rule bans that. Replaced with 'None, B was too small'. That choice is the real profit-grading mistake the deeper note warns about, and f01 (his desk archives a setup every session) refutes it. It is 21 characters, in line with the others (19, 21, 19). (2) f52 (Keller: 'What was your best trade this year?') is cited but not used. Read"
   },
   "q15": {
    "status": "cut",
@@ -1460,8 +1459,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key from f08/f09; choices and notes fine. The lesson line still says 'in one line', the same unsourced phrase the resolver removed from the deeper note; f09 says 'clearly, definitively, and instantly'."
+   "fixed": false,
+   "notes": "Keyed from f08/f09 before looking. Both quotes are word for word in the sample (Introduction: 'Recently, I met with a series of very experienced but underperforming traders. The common denominator ... none of them had a methodology to archive their favorite setups'). 'He didn't name risk' holds: the passage names only the missing method and 'flying by the seat of their pants'. f20 ('You Are Trading Too Many Stocks') is in the contents. The key ties 'Not enough chart indicators to use' for longest (34 each), so it is not a lone-longest tell. The lesson line no longer says 'in one line'. Minor: "
   },
   "q19": {
    "status": "cut",
@@ -1478,8 +1477,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (D38/h11; adding breaks A5/h12, half the account breaks A7/h14). Two defects. (1) Tell: 'Go past 2% risk' announces its own rule break under 'Under our rules'; replaced by 'Risk 3% of the account on it' (3 is in the question; the h13 ceiling refutes it). (2) The why, lesson line and trap teach 'never past 2%' as the A+ cap and 'ceiling is 2% of the account' (reads as position size, against the 40% cap). h13 says 1.5% is the most any grade uses, 2% is the absolute ceiling (E49). Now taught that way. Still open for the owner: A+ is not defined in this unit (E50, already flagged)."
+   "fixed": false,
+   "notes": "Keyed A+ before looking, from D38/h11. Each wrong choice breaks a rule in section 9: adding breaks A5/h12, 3% breaks A1/h13 (2% ceiling), half the account breaks A7/h14 (40%). Every number in the why and lesson line is in h13/h14 (1.5%, 2%, 40%) or in the choice itself (3%). No tell: the key is the shortest choice (25 against 30, 27, 26), and 'as it moves your way' is a condition too, so the key is not the lone conditional. Bellafiore's 'add size responsibly' (f14) makes 'Add shares' a real mistake, and 'Under our rules' settles it. Grades are taught in F9.08/F9.09, so the question can be answ"
   }
  }
 }

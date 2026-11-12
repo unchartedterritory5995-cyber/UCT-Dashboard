@@ -536,7 +536,7 @@
    "wrong": {
     "Because regulators cap it at 2%": "No regulator sets it. Investopedia says the 2% rule is not a requirement of any regulator. It's a trader's own limit.",
     "So each trade is likelier to win": "Good sizing doesn't stop losses. It limits what a loss costs you, not whether the trade wins.",
-    "So you can hold losers longer": "Risk per trade is your planned loss at the stop. Hold past the stop, and that plan no longer caps the loss."
+    "So you can hold losers longer": "Risk per trade is your planned loss at the stop. Hold past the stop, and you lose more than you planned."
    }
   },
   "review_status": "draft",
@@ -770,23 +770,23 @@
  },
  {
   "answer_json": {
-   "answer": "Near the low end of the range"
+   "answer": "Less than in a Green reading"
   },
   "difficulty": 2,
   "id": "si_8311f22eb984",
   "lesson_origin": "session",
-  "lesson_text": "Near the low end. Our market guide says a Yellow reading means smaller and fewer trades. Investopedia agrees that in shaky, volatile markets it can make sense to trade smaller. Fidelity's Hirsch says to play more defense when the outlook turns negative. Your plan scales by the market, so Yellow pulls your risk down. A rough market means smaller risk. Save your larger risk for a healthy one.",
+  "lesson_text": "Less than in a Green reading. Our market guide gives full risk per grade in Green, and smaller and fewer trades in Yellow. Investopedia agrees that in volatile markets it can make sense to trade smaller. Fidelity's Hirsch says to play more defense when the outlook turns negative. Your plan scales by the market, so Yellow pulls your risk down. A Yellow reading means smaller risk. Save full risk per grade for a Green one.",
   "module": "F9",
   "prompt_json": {
    "choices": [
     "Above 2%, to catch the next move",
     "The full 2%, setups are rare now",
-    "The same as in a strong market",
-    "Near the low end of the range"
+    "The same as in a Green reading",
+    "Less than in a Green reading"
    ],
    "kind": "mcq",
    "q": "A decent setup shows up. How much do you risk?",
-   "story": "Our market reading has turned Yellow: rough, volatile, and breakouts keep failing. Your plan scales risk by the setup and the market, from 0.25% to 2%.",
+   "story": "Our market reading has turned Yellow. The market is volatile and breakouts keep failing. Your plan scales risk by the setup and the market, from 0.25% to 2%.",
    "subject": "F9.01#q11"
   },
   "reveal_json": {
@@ -831,17 +831,17 @@
     "summary": "Rule F65, a guide: as the market reading weakens, trade smaller and fewer, then only A+ setups, then mostly cash. In shaky, volatile markets, it can make sense to trade smaller. When the market outlook turns negative, play more defense: fewer new buys and faster exits. Our rule: risk 0.25% to 2% of the account on a trade, chosen by the setup, your recent results, the market and your edge; never above 2%. Rule A1: under 1% is normal, 1.5% is the most any setup grade uses, and 2% is the absolute ceiling."
    },
    "facts": {
-    "given": "A decent setup shows up. How much do you risk? Our market reading has turned Yellow: rough, volatile, and breakouts keep failing. Your plan scales risk by the setup and the market, from 0.25% to 2%. Near the low end of the range The full 2%, setups are rare now Above 2%, to catch the next move The same as in a strong market"
+    "given": "A decent setup shows up. How much do you risk? Our market reading has turned Yellow. The market is volatile and breakouts keep failing. Your plan scales risk by the setup and the market, from 0.25% to 2%. Less than in a Green reading The full 2%, setups are rare now Above 2%, to catch the next move The same as in a Green reading"
    },
-   "lesson_line": "A rough market means smaller risk. Save your larger risk for a healthy one.",
-   "simple": "Risk near the low end, because a Yellow reading calls for smaller and fewer trades.",
+   "lesson_line": "A Yellow reading means smaller risk. Save full risk per grade for a Green one.",
+   "simple": "Less than in Green, because our guide says a Yellow reading means smaller and fewer trades.",
    "tier": "extended",
    "unit": "F9.01",
-   "why": "Near the low end. Our market guide says a Yellow reading means smaller and fewer trades. Investopedia agrees that in shaky, volatile markets it can make sense to trade smaller. Fidelity's Hirsch says to play more defense when the outlook turns negative. Your plan scales by the market, so Yellow pulls your risk down.",
+   "why": "Less than in a Green reading. Our market guide gives full risk per grade in Green, and smaller and fewer trades in Yellow. Investopedia agrees that in volatile markets it can make sense to trade smaller. Fidelity's Hirsch says to play more defense when the outlook turns negative. Your plan scales by the market, so Yellow pulls your risk down.",
    "wrong": {
     "Above 2%, to catch the next move": "Never. 2% is the ceiling in any market.",
     "The full 2%, setups are rare now": "Yellow calls for smaller, not the max. And 1.5% is the most any setup grade uses.",
-    "The same as in a strong market": "Our guide gives full risk per grade only in a Green reading. Yellow means smaller and fewer."
+    "The same as in a Green reading": "Our guide gives full risk per grade only in a Green reading. Yellow means smaller and fewer."
    }
   },
   "review_status": "draft",
@@ -1083,7 +1083,7 @@
   "difficulty": 3,
   "id": "si_b9b4092eea22",
   "lesson_origin": "session",
-  "lesson_text": "Your usual A+ rate, as before. We have no losing-streak rule: only the drawdown ladder, in percent, cuts size. Three 1.5% losses put you three 1.5% losses below the high, under the ladder's first step at 6%. So nothing changes. Losses in a row don't make the next trade likelier to win, so don't raise the bet either. We have no losing-streak rule. Only the drawdown ladder, in percent, cuts your size.",
+  "lesson_text": "Your usual A+ rate, as before. We have no losing-streak rule: only the drawdown ladder, in percent, cuts size. At 4.5% below the high, you are under the ladder's first step at 6%. So nothing changes. Losses in a row don't make the next trade likelier to win, so don't raise the bet either. We have no losing-streak rule. Only the drawdown ladder, in percent, cuts your size.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -1094,7 +1094,7 @@
    ],
    "kind": "mcq",
    "q": "Under our rules, how much do you risk on it?",
-   "story": "Your account sat at its high. Then three A+ trades in a row each lost 1.5% of that high value. The next setup is another A+.",
+   "story": "Three A+ trades in a row hit their stops. Your account is now 4.5% below its high. The next setup is another A+.",
    "subject": "F9.01#q15"
   },
   "reveal_json": {
@@ -1170,13 +1170,13 @@
     "summary": "Rule B17: we have no losing-streak rule; only the drawdown ladder, in percent, cuts size. Rule A8: under 6% below the high, the normal position cap holds; the cap steps down from 6% down, and at 15% down no new trades. Rule A1: under 1% is normal, 1.5% is the most any setup grade uses, and 2% is the absolute ceiling. Rule E49: an A+ setup risks 1% to 1.5%, A and B setups 0.5% to 1%, and B- or lower 0.25% to 0.5%. Our rule: risk 0.25% to 2% of the account on a trade, chosen by the setup, your recent results, the market and your edge; never above 2%. Believing you are due a winner after losses (the gambler's fallacy) tempts you to size up when you shouldn't. The martingale system doubles the bet after every loss. Under the martingale, a few losses in a row can wipe out everything you came with. A big loss can push traders to get too aggressive trying to win it back fast."
    },
    "facts": {
-    "given": "Under our rules, how much do you risk on it? Your account sat at its high. Then three A+ trades in a row each lost 1.5% of that high value. The next setup is another A+. Your usual A+ rate, as before Less, until you win again 3%, to win the losses back 2%, after three losses I'm due"
+    "given": "Under our rules, how much do you risk on it? Three A+ trades in a row hit their stops. Your account is now 4.5% below its high. The next setup is another A+. Your usual A+ rate, as before Less, until you win again 3%, to win the losses back 2%, after three losses I'm due"
    },
    "lesson_line": "We have no losing-streak rule. Only the drawdown ladder, in percent, cuts your size.",
-   "simple": "Your usual A+ rate, because we have no losing-streak rule and three 1.5% losses stay under the ladder's 6% step.",
+   "simple": "Your usual A+ rate, because we have no losing-streak rule and 4.5% down is under the ladder's 6% step.",
    "tier": "extended",
    "unit": "F9.01",
-   "why": "Your usual A+ rate, as before. We have no losing-streak rule: only the drawdown ladder, in percent, cuts size. Three 1.5% losses put you three 1.5% losses below the high, under the ladder's first step at 6%. So nothing changes. Losses in a row don't make the next trade likelier to win, so don't raise the bet either.",
+   "why": "Your usual A+ rate, as before. We have no losing-streak rule: only the drawdown ladder, in percent, cuts size. At 4.5% below the high, you are under the ladder's first step at 6%. So nothing changes. Losses in a row don't make the next trade likelier to win, so don't raise the bet either.",
    "wrong": {
     "2%, after three losses I'm due": "That's the gambler's fallacy. Losses in a row don't make the next trade likelier to win. And 1.5% is the most any grade uses.",
     "3%, to win the losses back": "Raising the bet to win back losses is the martingale habit, and a few more losses can take everything. 3% also breaks our 2% ceiling.",
@@ -1339,7 +1339,7 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Cap it at 3%, your loss limit",
+    "Cap it at 3%, our loss limit",
     "Cap it at 1.5%, our grade limit",
     "Fine, if the stop is tight",
     "Fine, it's the market's money"
@@ -1415,7 +1415,7 @@
     "summary": "Rule E49: an A+ setup risks 1% to 1.5%, A and B setups 0.5% to 1%, and B- or lower 0.25% to 0.5%. Rule A1: under 1% is normal, 1.5% is the most any setup grade uses, and 2% is the absolute ceiling. Rule D45: a run of winners never lets you raise risk past the rules. Rule A13: our stop usually sits within about 3% of the buy price, a loss on the position, not on the account. Our rule: risk 0.25% to 2% of the account on a trade, chosen by the setup, your recent results, the market and your edge; never above 2%. Getting more aggressive after a win or a loss, outside your rules, is a mistake. After winning trades, people tend to take on more risk. Even a high-conviction trade should be a calculated risk, not a gamble."
    },
    "facts": {
-    "given": "What does our rule say? You've closed three winners in a row and feel sharp. The next setup is an A+. You want to risk 4% on it. Cap it at 1.5%, our grade limit Cap it at 3%, your loss limit Fine, it's the market's money Fine, if the stop is tight"
+    "given": "What does our rule say? You've closed three winners in a row and feel sharp. The next setup is an A+. You want to risk 4% on it. Cap it at 1.5%, our grade limit Cap it at 3%, our loss limit Fine, it's the market's money Fine, if the stop is tight"
    },
    "lesson_line": "Wins don't raise your risk. An A+ gets 1% to 1.5%, and 2% is the absolute ceiling.",
    "simple": "Cap it at 1.5%, because that's the most an A+ setup gets, and a winning streak never raises it.",
@@ -1423,7 +1423,7 @@
    "unit": "F9.01",
    "why": "Cap it at 1.5%. Our grade guide puts an A+ at 1% to 1.5%, and 1.5% is the most any grade uses. A run of winners never raises risk past the rules. 4% is far past even our 2% absolute ceiling.",
    "wrong": {
-    "Cap it at 3%, your loss limit": "Our 3% is where the stop usually sits below the buy, a loss on the position, not the account. An A+ risks at most 1.5% of the account.",
+    "Cap it at 3%, our loss limit": "Our 3% is where the stop usually sits below the buy, a loss on the position, not the account. An A+ risks at most 1.5% of the account.",
     "Fine, if the stop is tight": "A tight stop changes your share count, not your risk. 4% is 4% wherever the stop sits.",
     "Fine, it's the market's money": "That's the house money effect: taking more risk after wins. Profits in your account are your money."
    }
@@ -5751,16 +5751,16 @@
  },
  {
   "answer_json": {
-   "answer": "Little, six trades is too few"
+   "answer": "Little, the sample is too small"
   },
   "difficulty": 3,
   "id": "si_1d4b33ba9005",
   "lesson_origin": "session",
-  "lesson_text": "Little. Six trades is a tiny sample, and 150 trades at 45% and +2R say far more. Losses of 1R each mean you followed the plan. Still watch for a change in the market, since no system works forever. Our rule never cuts size for a streak. Instead, the cap on new positions shrinks as the account falls below its peak. Judge a setup on a big sample of trades, not on the last few.",
+  "lesson_text": "Little. Six trades is a tiny sample, and 150 trades at 45% and +2R say far more. Losses of about 1R each mean you followed the plan. Still watch for a change in the market, since no system works forever. Judge a setup on a big sample of trades, not on the last few.",
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Little, six trades is too few",
+    "Little, the sample is too small",
     "It's broken, stop trading it",
     "A winner is now due, size up",
     "The stop is too wide, tighten it"
@@ -5807,60 +5807,25 @@
      {
       "accessed": "2026-11-09",
       "name": "Van Tharp Institute: Tharp Think Trading Concepts (2024 page)",
-      "quote": "Manage losing streaks. Make sure that your position sizing algorithm helps you reduce the position size when your account equity is dropping.",
-      "tier": 2,
-      "url": "https://vantharp.com/tharp-think-trading-concepts/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Van Tharp Institute: Tharp Think Trading Concepts (2024 page)",
       "quote": "The gambler’s fallacy can be paraphrased like this: after a losing streak, the next bet has a better chance of being a winner. If that’s your belief, you’ll be tempted to increase your position size when you shouldn’t.",
       "tier": 2,
       "url": "https://vantharp.com/tharp-think-trading-concepts/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Understanding the Risk/Reward Ratio: A Guide for Stock Investors (Adam Hayes, updated 2026-07-18)",
-      "quote": "they would certainly reduce the size of the potential loss (assuming no change to the number of shares), but they will have increased the likelihood that the price action will trigger their stop loss order.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/r/riskrewardratio.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "No losing-streak rule: size is cut only by the drawdown ladder, in percent",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "A drawdown is how far the account is below its highest value, open trades included",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "On the way down: under 6% down, the normal cap (A7); 6% down, max position 10%; 8% down, 8%; 10% down, 5%; 15% down, no new trades (B13).",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "You need at least thirty trades to get a good idea of a system's expectancy. Small samples swing more and tell you less. Extreme results are more likely in small samples. No system makes money forever; you keep checking it as the market changes. In a losing streak, your sizing should shrink as the account drops. Believing a winner is due after a losing streak tempts you to size up when you shouldn't. A closer stop shrinks the loss but gets hit more often. We have no losing-streak rule: only the drawdown ladder, in percent, cuts size. A drawdown is how far the account sits below its peak, open trades included. The further the account falls below its peak, the smaller the cap on each new position, down to no new trades."
+    "summary": "You need at least thirty trades to get a good idea of a system's expectancy. Small samples swing more and tell you less. Extreme results are more likely in small samples. No system makes money forever; you keep checking it as the market changes. Believing a winner is due after a losing streak tempts you to size up when you shouldn't."
    },
    "facts": {
-    "given": "What do the six losses tell you about the setup? Over 150 trades, your setup has won 45% at about +2R. Now you've lost six in a row, each by your rules, each about 1R. Little, six trades is too few It's broken, stop trading it A winner is now due, size up The stop is too wide, tighten it"
+    "given": "What do the six losses tell you about the setup? Over 150 trades, your setup has won 45% at about +2R. Now you've lost six in a row, each by your rules, each about 1R. Little, the sample is too small It's broken, stop trading it A winner is now due, size up The stop is too wide, tighten it"
    },
    "lesson_line": "Judge a setup on a big sample of trades, not on the last few.",
-   "simple": "Little, because six trades are far too few to judge a setup that 150 trades say has an edge.",
+   "simple": "Little, because six trades are far too few to outweigh what 150 trades show.",
    "tier": "expert",
    "unit": "F9.03",
-   "why": "Little. Six trades is a tiny sample, and 150 trades at 45% and +2R say far more. Losses of 1R each mean you followed the plan. Still watch for a change in the market, since no system works forever. Our rule never cuts size for a streak. Instead, the cap on new positions shrinks as the account falls below its peak.",
+   "why": "Little. Six trades is a tiny sample, and 150 trades at 45% and +2R say far more. Losses of about 1R each mean you followed the plan. Still watch for a change in the market, since no system works forever.",
    "wrong": {
     "A winner is now due, size up": "A losing run doesn't make a winner due, so it's no reason to size up.",
     "It's broken, stop trading it": "Six trades is too few to judge. Van Tharp wants at least thirty just to get a good idea.",
-    "The stop is too wide, tighten it": "Your losses were 1R, as planned. A tighter stop just gets hit more often."
+    "The stop is too wide, tighten it": "Your losses were about 1R, as planned, so the stop did its job. Six trades can't show a stop is too wide."
    }
   },
   "review_status": "draft",
@@ -6145,12 +6110,12 @@
     "given": "After losses, what does our rule use to cut the size of new trades? The account's drop from its peak A string of losing trades in a row Hitting a daily loss limit A single loss bigger than 1R"
    },
    "lesson_line": "We count no losing streaks. As the account falls below its peak, our position cap shrinks.",
-   "simple": "The account's drop from its peak, because we have no losing-streak rule and no daily loss limit.",
+   "simple": "The account's drop from its peak, because only that drop, in percent, cuts our size.",
    "tier": "core",
    "unit": "F9.03",
    "why": "The account's drop from its peak. We have no losing-streak rule and no daily loss limit. As the account falls further below its highest value, open trades included, the cap on each new position shrinks. At 15% down, we open no new trades.",
    "wrong": {
-    "A single loss bigger than 1R": "One big loss has no rule of its own. It counts through the drop it causes below the peak.",
+    "A single loss bigger than 1R": "One loss doesn't cut size by itself. It counts through the drop it causes below the peak.",
     "A string of losing trades in a row": "We have no losing-streak rule. A streak matters only through the drop it causes in the account.",
     "Hitting a daily loss limit": "We have no daily loss limit. Size comes down as the account falls below its peak."
    }
@@ -7731,7 +7696,7 @@
   "difficulty": 3,
   "id": "si_00802643716b",
   "lesson_origin": "session",
-  "lesson_text": "5% of the account. At 11% down you're past the 10% rung, so the max is 5%. Our ladder reads the account in percent, not your streak. A rung comes back only when the account wins back half of the drawdown. Small wins haven't done that yet. Size comes back with the account, not with a hot streak.",
+  "lesson_text": "5% of the account. At about 11% down you're past the 10% rung, so the max is 5%. Our ladder reads the account in percent, not your streak. A rung comes back only when the account wins back half of the drawdown. Small wins haven't done that yet. Size comes back with the account, not with a hot streak.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -7742,7 +7707,7 @@
    ],
    "kind": "mcq",
    "q": "Under our rules, what's your max position now?",
-   "story": "Your account sank to 11% below its high, its lowest point. Your last five trades followed your plan and won, but they were small. It's still 11% below the high.",
+   "story": "Last month your account sank to 11% below its high, its lowest point. This month your five trades followed your plan and won, but they were small. It's still about 11% below the high.",
    "subject": "F9.04#q22"
   },
   "reveal_json": {
@@ -7818,15 +7783,15 @@
     "summary": "Our ladder down: under 6% the normal cap; at 6% down a 10% max position; at 8%, 8%; at 10%, 5%; at 15%, no new trades. The way back: one rung up each time the account wins back half of the drawdown, and the normal cap once the account is within 5% of its peak. On the way back up a separate rule runs: one rung up for each half of the drawdown won back, and the normal cap within 5% of the peak. We have no losing-streak rule; only the drawdown ladder, in percent, cuts size. Our normal cap is 40% of the account, raised on 2026-11-09 from the old 20% to 25%. After a big loss, trade smaller, then size back up as you prove you are following your system again. After a big loss, come back to the market gradually. In a losing streak, trade smaller while you find the problem, and size back up once results recover. Cutting size after losses and adding it back after wins is meant to limit your exposure in a downturn."
    },
    "facts": {
-    "given": "Under our rules, what's your max position now? Your account sank to 11% below its high, its lowest point. Your last five trades followed your plan and won, but they were small. It's still 11% below the high. 5% of the account 8% of the account 10% of the account 40% of the account"
+    "given": "Under our rules, what's your max position now? Last month your account sank to 11% below its high, its lowest point. This month your five trades followed your plan and won, but they were small. It's still about 11% below the high. 5% of the account 8% of the account 10% of the account 40% of the account"
    },
    "lesson_line": "Size comes back with the account, not with a hot streak.",
-   "simple": "5%, because at 11% down the cap is 5%, and a hot streak doesn't change it.",
+   "simple": "5%, because at about 11% down the cap is 5%, and a run of small wins doesn't change it.",
    "tier": "expert",
    "unit": "F9.04",
-   "why": "5% of the account. At 11% down you're past the 10% rung, so the max is 5%. Our ladder reads the account in percent, not your streak. A rung comes back only when the account wins back half of the drawdown. Small wins haven't done that yet.",
+   "why": "5% of the account. At about 11% down you're past the 10% rung, so the max is 5%. Our ladder reads the account in percent, not your streak. A rung comes back only when the account wins back half of the drawdown. Small wins haven't done that yet.",
    "wrong": {
-    "10% of the account": "That's the cap at 6% down. You're 11% down, past the 10% rung, so the max is 5%.",
+    "10% of the account": "That's the cap at 6% down. You're about 11% down, past the 10% rung, so the max is 5%.",
     "40% of the account": "That's the normal cap. It returns only once the account is within 5% of its peak.",
     "8% of the account": "That's one rung back. A rung comes back when the account wins back half of the drawdown, not after a streak."
    }
@@ -8053,7 +8018,7 @@
     "15%",
     "10%",
     "8%",
-    "20%",
+    "5%",
     "6%"
    ],
    "kind": "fill",
@@ -9008,7 +8973,7 @@
   "difficulty": 1,
   "id": "si_2425e13465a7",
   "lesson_origin": "session",
-  "lesson_text": "False. The SEC's guide says four or five stocks won't make the stock part of a portfolio diversified. It points to at least a dozen. Our rule is 5 to 10 positions, fewer than that dozen. So each position's size does the protecting. Schwab says diversification starts by committing only part of your capital to any one position. A handful of stocks isn't diversified. Your position sizes have to do the protecting.",
+  "lesson_text": "False. The SEC's guide says the stock part of your portfolio won't be diversified if you own only four or five individual stocks. It says you need at least a dozen carefully selected stocks to be truly diversified. Four or five stocks isn't a diversified portfolio. The SEC's guide points to at least a dozen.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -9035,32 +9000,18 @@
       "quote": "You'll need at least a dozen carefully selected individual stocks to be truly diversified.",
       "tier": 1,
       "url": "https://www.investor.gov/additional-resources/general-resources/publications-research/info-sheets/beginners-guide-asset"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan (2024-10-23)",
-      "quote": "Diversification is a simple and effective way to reduce portfolio risk, and it starts on the front end by committing only part of your capital to any one position.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Hold 5 to 10 positions.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Four or five stocks is not a diversified stock portfolio. The SEC's guide puts real diversification at a dozen or more carefully chosen stocks. Keeping each position to part of your capital is the first line of risk control. Our rule A9: the book holds 5 to 10 positions."
+    "summary": "Four or five stocks is not a diversified stock portfolio. The SEC's guide puts real diversification at a dozen or more carefully chosen stocks."
    },
    "facts": {
     "given": "The SEC's investor guide counts four or five stocks as a diversified stock portfolio."
    },
-   "lesson_line": "A handful of stocks isn't diversified. Your position sizes have to do the protecting.",
+   "lesson_line": "Four or five stocks isn't a diversified portfolio. The SEC's guide points to at least a dozen.",
    "simple": "False, because the SEC guide says four or five stocks is not diversified and points to at least a dozen.",
    "tier": "core",
    "unit": "F9.05",
-   "why": "False. The SEC's guide says four or five stocks won't make the stock part of a portfolio diversified. It points to at least a dozen. Our rule is 5 to 10 positions, fewer than that dozen. So each position's size does the protecting. Schwab says diversification starts by committing only part of your capital to any one position."
+   "why": "False. The SEC's guide says the stock part of your portfolio won't be diversified if you own only four or five individual stocks. It says you need at least a dozen carefully selected stocks to be truly diversified."
   },
   "review_status": "draft",
   "skill_id": "risk.heat",
@@ -9353,11 +9304,11 @@
    "choices": [
     "Size it down to 1%, same stop",
     "Same size, move the stop closer",
-    "Buy half now, add the rest later",
-    "Same size, the cap can stretch"
+    "Raise the cap to 7% this once",
+    "Buy half now, add the rest later"
    ],
    "kind": "mcq",
-   "q": "How do you fit it under the cap?",
+   "q": "How do you fit it within the cap?",
    "story": "Your rule caps total open risk at 6%. Your open trades risk 5% now. A new setup would risk 1.5% at your usual size.",
    "subject": "F9.05#q12"
   },
@@ -9408,7 +9359,7 @@
      "fn": "arith",
      "result": 1.0
     },
-    "given": "How do you fit it under the cap? Your rule caps total open risk at 6%. Your open trades risk 5% now. A new setup would risk 1.5% at your usual size. Size it down to 1%, same stop Same size, move the stop closer Same size, the cap can stretch Buy half now, add the rest later"
+    "given": "How do you fit it within the cap? Your rule caps total open risk at 6%. Your open trades risk 5% now. A new setup would risk 1.5% at your usual size. Size it down to 1%, same stop Same size, move the stop closer Buy half now, add the rest later Raise the cap to 7% this once"
    },
    "lesson_line": "To fit the cap, change the size. Never squeeze the stop.",
    "simple": "Buy fewer shares so the trade risks 1%, and leave the stop where it belongs.",
@@ -9416,9 +9367,9 @@
    "unit": "F9.05",
    "why": "Size it down to 1%, same stop. Your cap is 6% and 5% is already at risk, so 1% of room is left. You buy fewer shares and keep the stop where the chart says it belongs. StockCharts' advice: place your stops where they'll work and adjust the position. The SEC says to pick a stop with normal short-term swings in mind, and a squeezed stop ignores them.",
    "wrong": {
-    "Buy half now, add the rest later": "That's scaling in. Our size goes on at one price with one stop, and we never add.",
-    "Same size, move the stop closer": "That squeezes the stop to fit the math. Put the stop where it works and adjust the size instead.",
-    "Same size, the cap can stretch": "The question is how to fit it under your 6%. Stretching the limit doesn't fit it. 5% plus 1.5% goes past your own rule."
+    "Buy half now, add the rest later": "Once the rest goes on, the full 1.5% sits on top of your 5%, past your 6%. And our size goes on at one price with one stop; we never add.",
+    "Raise the cap to 7% this once": "The cap is the rule. Bending it for one good-looking setup is how total risk creeps up.",
+    "Same size, move the stop closer": "That squeezes the stop to fit the math. Put the stop where it works and adjust the size instead."
    }
   },
   "review_status": "draft",
@@ -10047,7 +9998,7 @@
   "answer_json": {
    "answer": "True"
   },
-  "difficulty": 2,
+  "difficulty": 1,
   "id": "si_fa49169ab34f",
   "lesson_origin": "session",
   "lesson_text": "True. Our rulebook calls total open risk a guide that varies, not a hard cap. Our market reading guides it: Green, full risk per grade; Yellow, smaller and fewer; Red, mostly cash. Our total open risk is a guide. It shrinks as the market weakens.",
@@ -10086,7 +10037,7 @@
    },
    "lesson_line": "Our total open risk is a guide. It shrinks as the market weakens.",
    "simple": "True, because our rulebook treats total open risk as a guide that moves with the market, not a hard cap.",
-   "tier": "extended",
+   "tier": "core",
    "unit": "F9.05",
    "why": "True. Our rulebook calls total open risk a guide that varies, not a hard cap. Our market reading guides it: Green, full risk per grade; Yellow, smaller and fewer; Red, mostly cash."
   },
@@ -11797,7 +11748,7 @@
   "module": "F9",
   "prompt_json": {
    "kind": "fill_numeric",
-   "q": "Four trades each risk 1% of the account from entry. You sell half of one and raise another's stop to entry. Total open risk from entry now?",
+   "q": "Four trades each risk 1% of the account. You sell half of one, stop kept, and raise another's stop to entry. Total open risk from entry now?",
    "subject": "F9.06#q21",
    "suffix": "%"
   },
@@ -11842,7 +11793,7 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "Four trades each risk 1% of the account from entry. You sell half of one and raise another's stop to entry. Total open risk from entry now?"
+    "given": "Four trades each risk 1% of the account. You sell half of one, stop kept, and raise another's stop to entry. Total open risk from entry now?"
    },
    "lesson_line": "After every sale or stop move, add your open risk back up.",
    "simple": "2.5%, because two trades risk 1% each, the one you sold half of risks 0.5%, and the one at entry, nothing.",
@@ -13984,7 +13935,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "counter": "Both views are real. For a long-term investor, the biggest risk of timing is being out of the market at critical times. IBD's view for active traders: make money when the market trends higher, and protect profits when it heads lower."
+    "counter": "Both views are real. Investopedia says the biggest risk of market timing is usually being out of the market at critical times. IBD's view: make money when the market trends higher, and protect profits when it heads lower."
    },
    "depth": {
     "sources": [
@@ -14070,17 +14021,17 @@
  },
  {
   "answer_json": {
-   "answer": "More cash, and build a watch list"
+   "answer": "More cash, build a watch list"
   },
   "difficulty": 3,
   "id": "si_743e6cea5cb6",
   "lesson_origin": "session",
-  "lesson_text": "More cash, and build a watch list. New buys in a correction are riskier, since most stocks follow the market down. Your last five breakouts failing says the same. Growth leaders can fall fast when the market turns. Use the time to find the stocks you'll want when a new uptrend starts, so you're ready to act. Cash is a position. In a correction, hold more cash and build a sharp watch list.",
+  "lesson_text": "More cash, build a watch list. New buys in a correction are riskier, since most stocks follow the market down. Your last five breakouts failing says the same. Growth leaders can fall fast when the market turns. Use the time to find the stocks you'll want when a new uptrend starts, so you're ready to act. Cash is a position. In a correction, hold more cash and build a sharp watch list.",
   "module": "F9",
   "prompt_json": {
    "choices": [
     "Borrow on margin to buy the dip",
-    "More cash, and build a watch list",
+    "More cash, build a watch list",
     "Size up to win the losses back",
     "Go all cash and stop watching"
    ],
@@ -14139,6 +14090,13 @@
      },
      {
       "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: Glossary: Margin Account",
+      "quote": "Margin increases investors’ purchasing power, but also exposes investors to the potential for larger losses.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/margin-account"
+     },
+     {
+      "accessed": "2026-11-09",
       "name": "FINRA: Brokerage Accounts: margin accounts and cash accounts",
       "quote": "You can lose more funds than you deposit in the margin account.",
       "tier": 1,
@@ -14152,16 +14110,16 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "New buys in a correction are riskier because most stocks follow the market down. In a correction, build your watch list for the next uptrend. Make money in uptrends and protect it when the market turns down. Growth leaders can fall fast when the market turns. Buying in a correction risks a further decline as it continues. A sharp correction can be disastrous for short-term traders on heavy margin. On margin you can lose more than you deposit. Our rule: never force a trade; cash is a position."
+    "summary": "New buys in a correction are riskier because most stocks follow the market down. In a correction, build your watch list for the next uptrend. Make money in uptrends and protect it when the market turns down. Growth leaders can fall fast when the market turns. Buying in a correction risks a further decline as it continues. A sharp correction can be disastrous for short-term traders on heavy margin. Margin raises buying power and the size of possible losses. On margin you can lose more than you deposit. Our rule: never force a trade; cash is a position."
    },
    "facts": {
-    "given": "What's the best use of your account now? The market is in a correction. Your last five breakouts failed within days. Few stocks are holding their moves. More cash, and build a watch list Go all cash and stop watching Borrow on margin to buy the dip Size up to win the losses back"
+    "given": "What's the best use of your account now? The market is in a correction. Your last five breakouts failed within days. Few stocks are holding their moves. More cash, build a watch list Go all cash and stop watching Borrow on margin to buy the dip Size up to win the losses back"
    },
    "lesson_line": "Cash is a position. In a correction, hold more cash and build a sharp watch list.",
    "simple": "Hold more cash and build a watch list, since new buys in a correction are riskier.",
    "tier": "expert",
    "unit": "F9.07",
-   "why": "More cash, and build a watch list. New buys in a correction are riskier, since most stocks follow the market down. Your last five breakouts failing says the same. Growth leaders can fall fast when the market turns. Use the time to find the stocks you'll want when a new uptrend starts, so you're ready to act.",
+   "why": "More cash, build a watch list. New buys in a correction are riskier, since most stocks follow the market down. Your last five breakouts failing says the same. Growth leaders can fall fast when the market turns. Use the time to find the stocks you'll want when a new uptrend starts, so you're ready to act.",
    "wrong": {
     "Borrow on margin to buy the dip": "A correction can keep going. Borrowing into it grows your losses, and you can lose more than you put in.",
     "Go all cash and stop watching": "Stepping back is right, but keep watching. IBD says use this time to build a watch list for the next uptrend.",
@@ -15851,12 +15809,12 @@
  },
  {
   "answer_json": {
-   "answer": "True"
+   "answer": "False"
   },
   "difficulty": 3,
   "id": "si_6e5be7cabfbc",
   "lesson_origin": "session",
-  "lesson_text": "True. \"I almost never take a loss greater than 3%.\" The stop usually sits within about 3% of the buy. By default it goes a few cents under the day's low or the prior day's low. About 3% is where it usually lands, not a hard rule. If the honest stop doesn't fit the risk, skip. The stop usually sits within about 3% of the buy. If the honest stop doesn't fit, skip.",
+  "lesson_text": "False. By default the stop goes a few cents under the day's low or the prior day's low, so it sits below the low, not on it. The stop comes first, and the size comes from the stop. If the honest stop does not fit the risk, skip the trade. Default stop: a few cents under the day's low or the prior day's low.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -15864,22 +15822,15 @@
     "False"
    ],
    "kind": "tf",
-   "q": "By our rules, a stop usually sits within about 3% of the buy price.",
+   "q": "By our rules, the default stop goes exactly at the day's low, not under it.",
    "subject": "F9.08#q21"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "About 3% is where the stop usually lands, not a rule that sets it. The stop goes a few cents under the day's low. If that low is far below your buy, the honest stop is wider. The share math then gives fewer shares, or you skip."
+    "trap": "Your usual stop distance is a guide, not a rule that sets it. The stop goes a few cents under the day's low. If that low is far below your buy, the honest stop is wider. The share math then gives fewer shares, or you skip."
    },
    "depth": {
     "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
@@ -15888,16 +15839,16 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Our stop usually sits within about 3% of the buy price; that 3% is a loss on the position, not the account. Stop first, a few cents under the day's low or the prior day's low; size comes from the stop; if the honest stop does not fit the risk, skip."
+    "summary": "Stop first, a few cents under the day's low or the prior day's low; size comes from the stop; if the honest stop does not fit the risk, skip."
    },
    "facts": {
-    "given": "By our rules, a stop usually sits within about 3% of the buy price."
+    "given": "By our rules, the default stop goes exactly at the day's low, not under it."
    },
-   "lesson_line": "The stop usually sits within about 3% of the buy. If the honest stop doesn't fit, skip.",
-   "simple": "True, our stop usually sits within about 3% of the buy. That is a guide, not a hard rule.",
+   "lesson_line": "Default stop: a few cents under the day's low or the prior day's low.",
+   "simple": "False, the default stop goes a few cents under the low, not exactly on it.",
    "tier": "expert",
    "unit": "F9.08",
-   "why": "True. \"I almost never take a loss greater than 3%.\" The stop usually sits within about 3% of the buy. By default it goes a few cents under the day's low or the prior day's low. About 3% is where it usually lands, not a hard rule. If the honest stop doesn't fit the risk, skip."
+   "why": "False. By default the stop goes a few cents under the day's low or the prior day's low, so it sits below the low, not on it. The stop comes first, and the size comes from the stop. If the honest stop does not fit the risk, skip the trade."
   },
   "review_status": "draft",
   "skill_id": "risk.our_rules",
@@ -16137,23 +16088,23 @@
  },
  {
   "answer_json": {
-   "answer": "0.5% to 1%, by its grade"
+   "answer": "0.5% to 1%, the B range"
   },
   "difficulty": 3,
   "id": "si_c5bc017c6c18",
   "lesson_origin": "session",
-  "lesson_text": "0.5% to 1%. A B setup is normal size, at 0.5% to 1% of the account. A run of winners never raises risk past the rules. 1.5% is the most any grade uses, and only A+. 2% is the absolute ceiling, and no grade uses it. The grade sets the risk; your streak does not. Winners don't raise the risk. The grade does, and a B is 0.5% to 1%.",
+  "lesson_text": "0.5% to 1%. A B setup is normal size, at 0.5% to 1% of the account. A run of winners never raises risk past the rules. 1.5% is the top of the A+ range, and 0.25% to 0.5% is for B- or lower. 2% is the absolute ceiling, and no grade uses it. The grade sets the risk; your streak does not. Winners don't raise the risk. The grade does, and a B is 0.5% to 1%.",
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "1.5%, sized up for the streak",
-    "0.25% to 0.5%, sized down",
-    "0.5% to 1%, by its grade",
+    "1.5%, earned by the streak",
+    "0.25% to 0.5%, the B range",
+    "0.5% to 1%, the B range",
     "2%, the absolute ceiling"
    ],
    "kind": "mcq",
-   "q": "What do our rules let you risk?",
-   "story": "Five winners in a row. You feel sharp. The next setup is a B, and you want to risk 2% on it.",
+   "q": "What do our rules let you risk on it?",
+   "story": "Five winners in a row. You feel sharp. Our market reading is Green. The next setup is a B, and you want to risk 2% on it.",
    "subject": "F9.08#q25"
   },
   "reveal_json": {
@@ -16182,21 +16133,28 @@
       "quote": "Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Risk by grade: A+ 1% to 1.5% of the account, A and B 0.5% to 1%, B- or lower 0.25% to 0.5%. A run of winners never raises your risk past the rules. Under 1% risk is normal, 1.5% is the most any grade uses, and 2% is the absolute ceiling."
+    "summary": "Risk by grade: A+ 1% to 1.5% of the account, A and B 0.5% to 1%, B- or lower 0.25% to 0.5%. A run of winners never raises your risk past the rules. Under 1% risk is normal, 1.5% is the most any grade uses, and 2% is the absolute ceiling. Our market reading guides risk: Green full risk per grade, Yellow smaller and fewer, Orange only A+ setups, Red mostly cash and shorts."
    },
    "facts": {
-    "given": "What do our rules let you risk? Five winners in a row. You feel sharp. The next setup is a B, and you want to risk 2% on it. 0.5% to 1%, by its grade 2%, the absolute ceiling 1.5%, sized up for the streak 0.25% to 0.5%, sized down"
+    "given": "What do our rules let you risk on it? Five winners in a row. You feel sharp. Our market reading is Green. The next setup is a B, and you want to risk 2% on it. 0.5% to 1%, the B range 2%, the absolute ceiling 1.5%, earned by the streak 0.25% to 0.5%, the B range"
    },
    "lesson_line": "Winners don't raise the risk. The grade does, and a B is 0.5% to 1%.",
    "simple": "You may risk 0.5% to 1%, because a B setup gets that range and a winning streak never raises it.",
    "tier": "expert",
    "unit": "F9.08",
-   "why": "0.5% to 1%. A B setup is normal size, at 0.5% to 1% of the account. A run of winners never raises risk past the rules. 1.5% is the most any grade uses, and only A+. 2% is the absolute ceiling, and no grade uses it. The grade sets the risk; your streak does not.",
+   "why": "0.5% to 1%. A B setup is normal size, at 0.5% to 1% of the account. A run of winners never raises risk past the rules. 1.5% is the top of the A+ range, and 0.25% to 0.5% is for B- or lower. 2% is the absolute ceiling, and no grade uses it. The grade sets the risk; your streak does not.",
    "wrong": {
-    "0.25% to 0.5%, sized down": "That's the B- or lower range. A B setup is normal size, 0.5% to 1%.",
-    "1.5%, sized up for the streak": "1.5% is the top of the A+ range. A streak doesn't turn a B into an A+, and winners never raise risk past the rules.",
+    "0.25% to 0.5%, the B range": "That's the B- or lower range. A B setup is normal size, 0.5% to 1%.",
+    "1.5%, earned by the streak": "1.5% is the top of the A+ range. A streak doesn't turn a B into an A+, and winners never raise risk past the rules.",
     "2%, the absolute ceiling": "2% is the absolute ceiling, and no grade uses it. A B setup sits at 0.5% to 1%."
    }
   },
@@ -17374,7 +17332,7 @@
   "difficulty": 2,
   "id": "si_94d987c5fbbb",
   "lesson_origin": "session",
-  "lesson_text": "Skip it. $84.80 is 6% past the $80 buy point, and our chase line is 4%. The stop would still sit under $80, so the distance grows and the shares shrink. IBD warns that the further past the buy point you buy, the greater the risk of a shakeout. Cutting size or a good grade doesn't move the line. Any price more than 4% past $80 is a chase. I'd rather miss it than chase it. Past 4%, the next setup is the trade.",
+  "lesson_text": "Skip it. $84.80 is 6% past the $80 buy point, and our chase line is 4%. The stop would still sit under $80, so the distance grows and the shares shrink. IBD warns that the further past the buy point you buy, the greater the risk of a shakeout. Cutting size or a good grade doesn't move the line. Any price more than 4% past $80 is a chase. Better to miss it than chase it. Past 4%, the next setup is the trade.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -17418,7 +17376,7 @@
    "facts": {
     "given": "What do you do? A leader clears its $80 buy point on big volume while you're away from the screen. When you look, it's at $84.80, 6% past the buy point. Skip it. It's past our 4% line Buy it. The stop can go under $80 Buy half size to catch up Skip it, unless it's an A+ setup"
    },
-   "lesson_line": "I'd rather miss it than chase it. Past 4%, the next setup is the trade.",
+   "lesson_line": "Better to miss it than chase it. Past 4%, the next setup is the trade.",
    "simple": "Skip it, because $84.80 is 6% past the $80 buy point, beyond our 4% chase line.",
    "tier": "core",
    "unit": "F9.09",
@@ -17738,7 +17696,7 @@
   "difficulty": 2,
   "id": "si_ea23c855b492",
   "lesson_origin": "session",
-  "lesson_text": "$54. One R is the risk from the $60 entry to the $57 stop. Twice that below the entry is $54. If the first 30 minutes take the stock under $54, the loss is past 2R, and our rule says get out. Know your 2R price before a gap day. Past it, the gap rule stops waiting.",
+  "lesson_text": "$54. One R is the risk from the $60 entry to the $57 stop. Twice that below the entry is $54. If the first 30 minutes take the stock under $54, the loss is past 2R, and our rule says get out. Know your 2R price ahead of time. If the first 30 minutes take the loss past it, get out.",
   "module": "F9",
   "prompt_json": {
    "kind": "fill_numeric",
@@ -17781,7 +17739,7 @@
     },
     "given": "Entry $60, stop $57. The stock gaps down. Below what price does the first 30 minutes' loss pass 2R, our gap-rule ceiling?"
    },
-   "lesson_line": "Know your 2R price before a gap day. Past it, the gap rule stops waiting.",
+   "lesson_line": "Know your 2R price ahead of time. If the first 30 minutes take the loss past it, get out.",
    "simple": "$54, because one R here is $60 minus $57, and twice that below the $60 entry lands at $54.",
    "tier": "extended",
    "unit": "F9.09",
@@ -17939,7 +17897,7 @@
   "difficulty": 3,
   "id": "si_e4f6494aabce",
   "lesson_origin": "session",
-  "lesson_text": "False. Never raise risk past the rules after a run of winners. Our rules set risk inside a range, 0.25% to 2% of the account. However hot the streak, it never lifts that limit. A hot streak earns nothing above the rules. Risk comes from the plan, not the mood.",
+  "lesson_text": "False. Never raise risk past the rules after a run of winners. Our rules set risk at 0.25% to 2% of the account on a trade, so 2% is the top, however hot the streak. Recent results can help pick a risk inside that range, never above it. A hot streak never lifts risk past the rules. 2% of the account is the top.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -17947,12 +17905,12 @@
     "False"
    ],
    "kind": "tf",
-   "q": "After a string of winners, you may raise your risk per trade above the rules while you're hot.",
+   "q": "After a string of winners, a hot hand can justify risking more than 2% on one trade.",
    "subject": "F9.09#q21"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is that it feels earned. After a run of winners, more size seems like pressing your edge. But the limit comes from the rules, not the streak. However hot you feel, risk stays inside what the rules allow."
+    "trap": "The trap is that it feels earned. After a run of winners, more size seems like pressing your edge. Recent results can move your risk inside the 0.25% to 2% range. They never move the top."
    },
    "depth": {
     "sources": [
@@ -17974,13 +17932,13 @@
     "summary": "Never raise risk past the rules after a run of winners. Our rules set risk at 0.25% to 2% of the account per trade, picked by setup quality, recent results, the market and your edge."
    },
    "facts": {
-    "given": "After a string of winners, you may raise your risk per trade above the rules while you're hot."
+    "given": "After a string of winners, a hot hand can justify risking more than 2% on one trade."
    },
-   "lesson_line": "A hot streak earns nothing above the rules. Risk comes from the plan, not the mood.",
-   "simple": "False, because a run of winners never earns more risk than the rules allow.",
+   "lesson_line": "A hot streak never lifts risk past the rules. 2% of the account is the top.",
+   "simple": "False, because a run of winners never lifts risk past the rules, and 2% of the account is the top of our range.",
    "tier": "extended",
    "unit": "F9.09",
-   "why": "False. Never raise risk past the rules after a run of winners. Our rules set risk inside a range, 0.25% to 2% of the account. However hot the streak, it never lifts that limit."
+   "why": "False. Never raise risk past the rules after a run of winners. Our rules set risk at 0.25% to 2% of the account on a trade, so 2% is the top, however hot the streak. Recent results can help pick a risk inside that range, never above it."
   },
   "review_status": "draft",
   "skill_id": "risk.trade_rules",
@@ -18463,7 +18421,7 @@
    ],
    "kind": "mcq",
    "q": "Can you trade it again, and how?",
-   "story": "You were stopped out of a stock on Monday. On Wednesday it sets up again: a fresh pivot and a clean low to risk against.",
+   "story": "You were stopped out of a stock on Monday. On Wednesday the setup triggers again: a fresh pivot and a clean low to risk against.",
    "subject": "F9.09#q27"
   },
   "reveal_json": {
@@ -18497,7 +18455,7 @@
     "summary": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. The stop only moves up, never down or wider; the gap rule is the one exception. Every position has a real stop order with the broker."
    },
    "facts": {
-    "given": "Can you trade it again, and how? You were stopped out of a stock on Monday. On Wednesday it sets up again: a fresh pivot and a clean low to risk against. Take it as a new trade, own stop Skip it. It already stopped you out Buy it, with the stop in your head Take it, keeping Monday's stop"
+    "given": "Can you trade it again, and how? You were stopped out of a stock on Monday. On Wednesday the setup triggers again: a fresh pivot and a clean low to risk against. Take it as a new trade, own stop Skip it. It already stopped you out Buy it, with the stop in your head Take it, keeping Monday's stop"
    },
    "lesson_line": "A stop-out closes a trade, not a stock. A fresh trigger is a fresh trade.",
    "simple": "Take it as a new trade with its own stop, because a fresh trigger is a new trade under every rule.",
@@ -18519,27 +18477,27 @@
  },
  {
   "answer_json": {
-   "answer": "Win rate, average R, expectancy"
+   "answer": "Average win and average loss, in R"
   },
   "difficulty": 3,
   "id": "si_50bc683827c9",
   "lesson_origin": "session",
-  "lesson_text": "Win rate, average win and loss in R, and expectancy, plus other statistics. Win rate is winning trades out of all trades. Expectancy is what you make per dollar risked, on average: the mean R of your trades. Dollars alone can't show whether the process is working. A journal keeps you on process, not P/L. Each month: win rate, average win and loss in R, expectancy. Process numbers, not just dollars.",
+  "lesson_text": "Average win and average loss, in R. Each month we review win rate, average win and loss in R, and expectancy, plus other statistics. Win rate is winning trades out of all trades. Expectancy is what you make per dollar risked, on average: the mean R of your trades. A journal keeps you on process, not the ups and downs of P/L. Each month: win rate, average win and loss in R, expectancy. Process numbers, not just dollars.",
   "module": "F9",
   "prompt_json": {
    "choices": [
     "Dollar profit for the whole month",
     "The index's return that month",
     "Trade count and the biggest winner",
-    "Win rate, average R, expectancy"
+    "Average win and average loss, in R"
    ],
    "kind": "mcq",
-   "q": "Which set of numbers does our monthly review name?",
+   "q": "Our monthly review names win rate and expectancy. Which other numbers does it name?",
    "subject": "F9.09#q28"
   },
   "reveal_json": {
    "deeper": {
-    "counter": "A big dollar month can hide a weak process, such as one lucky winner covering many sloppy losses. The average R per trade shows it. That's why the review is in R, not just dollars."
+    "counter": "A big dollar month can hide a weak process, such as one lucky winner covering many sloppy losses. Average win and loss in R show it. That's why the review is in R, not just dollars."
    },
    "depth": {
     "sources": [
@@ -18575,17 +18533,17 @@
     "summary": "Each month, review win rate, average win and loss in R, expectancy and other statistics. Expectancy is what a system makes per dollar risked, on average: the mean R of its trades. Win rate is the number of winning trades out of all trades. A journal keeps you focused on process instead of the ups and downs of P/L."
    },
    "facts": {
-    "given": "Which set of numbers does our monthly review name? Win rate, average R, expectancy Dollar profit for the whole month Trade count and the biggest winner The index's return that month"
+    "given": "Our monthly review names win rate and expectancy. Which other numbers does it name? Average win and average loss, in R Dollar profit for the whole month Trade count and the biggest winner The index's return that month"
    },
    "lesson_line": "Each month: win rate, average win and loss in R, expectancy. Process numbers, not just dollars.",
-   "simple": "Win rate, average R and expectancy, because they show if your process works, which dollars alone can't.",
+   "simple": "Average win and loss in R, because the monthly review names them beside win rate and expectancy.",
    "tier": "expert",
    "unit": "F9.09",
-   "why": "Win rate, average win and loss in R, and expectancy, plus other statistics. Win rate is winning trades out of all trades. Expectancy is what you make per dollar risked, on average: the mean R of your trades. Dollars alone can't show whether the process is working. A journal keeps you on process, not P/L.",
+   "why": "Average win and average loss, in R. Each month we review win rate, average win and loss in R, and expectancy, plus other statistics. Win rate is winning trades out of all trades. Expectancy is what you make per dollar risked, on average: the mean R of your trades. A journal keeps you on process, not the ups and downs of P/L.",
    "wrong": {
-    "Dollar profit for the whole month": "A good month in dollars can hide a bad process. A journal keeps you on process, not P/L.",
-    "The index's return that month": "That measures the market, not your trading. The review names win rate, average win and loss in R, and expectancy.",
-    "Trade count and the biggest winner": "One big winner says nothing about the average trade. The review names win rate, average win and loss in R, and expectancy."
+    "Dollar profit for the whole month": "Dollars aren't on the list. The review is in R, and a journal keeps you on process, not P/L.",
+    "The index's return that month": "That measures the market, not your trading. The review names average win and loss in R.",
+    "Trade count and the biggest winner": "One big winner says nothing about the average trade. The review names average win and loss in R."
    }
   },
   "review_status": "draft",

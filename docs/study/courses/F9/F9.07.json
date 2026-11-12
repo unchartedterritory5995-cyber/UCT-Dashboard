@@ -1494,7 +1494,7 @@
    },
    "simple": "Missing a sharp rebound, since bear markets often end abruptly and the turn is hard to predict.",
    "deeper": {
-    "counter": "Both views are real. For a long-term investor, the biggest risk of timing is being out of the market at critical times. IBD's view for active traders: make money when the market trends higher, and protect profits when it heads lower."
+    "counter": "Both views are real. Investopedia says the biggest risk of market timing is usually being out of the market at critical times. IBD's view: make money when the market trends higher, and protect profits when it heads lower."
    },
    "tier": "expert",
    "risk": {
@@ -1513,13 +1513,13 @@
    "story": "The market is in a correction. Your last five breakouts failed within days. Few stocks are holding their moves.",
    "q": "What's the best use of your account now?",
    "choices": [
-    "More cash, and build a watch list",
+    "More cash, build a watch list",
     "Go all cash and stop watching",
     "Borrow on margin to buy the dip",
     "Size up to win the losses back"
    ],
-   "answer": "More cash, and build a watch list",
-   "why": "More cash, and build a watch list. New buys in a correction are riskier, since most stocks follow the market down. Your last five breakouts failing says the same. Growth leaders can fall fast when the market turns. Use the time to find the stocks you'll want when a new uptrend starts, so you're ready to act.",
+   "answer": "More cash, build a watch list",
+   "why": "More cash, build a watch list. New buys in a correction are riskier, since most stocks follow the market down. Your last five breakouts failing says the same. Growth leaders can fall fast when the market turns. Use the time to find the stocks you'll want when a new uptrend starts, so you're ready to act.",
    "lesson_line": "Cash is a position. In a correction, hold more cash and build a sharp watch list.",
    "facts": [
     "f62",
@@ -1528,6 +1528,7 @@
     "f71",
     "f73",
     "f74",
+    "f54",
     "f29",
     "f77"
    ],
@@ -1725,8 +1726,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper trap said holding a loser 'trades a rule problem for a bigger loss': no cited fact says the loss gets bigger (the stock can recover), and it was an unsourced absolute. Rewritten to the wrong note's supported framing (risk you never planned) plus our rule f82, without copying the wrong note word for word. Key, why, wrong notes pass: f17, f15, f59, f60 support them, and the stop note cites house fact f82 (A4)."
+   "fixed": false,
+   "notes": "Key decided first from f17 (FINRA, re-read live 2026-11-12: 'engage in intraday trading in a cash account, be sure that you fully pay ... with settled funds'): buy only with settled cash. Both trades are good faith violations by f15. Holding the loser also avoids the violation but breaks our A4 (f82, stop is the exit), and the wrong note says so; not a second best habit. Three, 12 and 90 are in f59/f60, named as Fidelity's. Lengths 26/34/31/27, key shortest, no tell. Stem does not answer q10 or q14."
   },
   "q19": {
    "status": "pass",
@@ -1750,19 +1751,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key, choices, why, wrong notes and simple pass: f66, f67 (Investopedia) and f68 (Schwab) agree on missing the upswing (two Tier 2 publishers); f70, f33, f49, f50 back the wrong notes; choices 30/32/29/30, no tell. Schwab returned an authorization error on 2026-11-12 (unreachable now); a separate agent's 2026-11 read of the same page (F7.08 f55) also places the quote in a bear market passage, so 'bear markets' stands. DEFECT: the deeper counter ('A swing trader whose breakouts keep failing may still choose cash to protect profits, then watch for the new uptrend') mirrors q23's story and key alm"
+   "notes": "Key, choices, why, wrong notes and simple hold: Investopedia Market Timing (re-read 2026-11-12) and Schwab (re-read 2026-11-12: 'they often end as abruptly as they began, with a quick rebound' in a bear market passage) agree, two Tier 2 publishers. f70 inflation backed by the Cash Is King page. DEFECT in deeper counter: 'For a long-term investor, the biggest risk of timing is ...' pins Investopedia's line to long-term investors (the page says it of 'investors who try to time the market') and drops its 'usually considered'; 'IBD's view for active traders' adds a label IBD's page does not use. R"
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key decided first from f62/f63: more cash and a watch list. Tell: the key was the only careful choice against three aggressive ones (full size, margin, size up), so it could be picked without reading the story. Replaced 'Keep buying breakouts at full size' with a careful-but-wrong choice that f63 refutes ('use this time to look for stocks to add to your watch list'). 'All cash' alone is not the error (our D46 says mostly cash in a Red market); the 'stop watching' half is, and the wrong note says so. Deeper trap still matches the two remaining aggressive choices. Lengths 32/29/31/30. Simple and"
+   "notes": "Key decided first from f62/f63 (IBD, both quotes re-read live 2026-11-12): more cash and a watch list; fits our D44 and D46. DEFECT: the key is the single longest choice, 33 characters against 29/31/30 (the earlier note's 32/29/31/30 miscounted), against README section 5 ('Do not make the right choice the longest'). Shortened to 'More cash, build a watch list' (29, tied shortest) and the why's verdict to match. Also the margin wrong note says borrowing 'grows your losses', which is f54, not cited; f54 added to facts. Everything else passes."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key decided first from f78/f81 (A7, B24): 200% in a Green market. All house quotes checked word for word in sizing_rule.md section 9 (A7, B24, F60, B18). Three defects: (1) TELL: the stem said 'margin rule', and 200% is the only choice above 100%, the only one that needs margin, so the word gave the key away; stem now names the app's market reading (f83) without the word margin. (2) Wrong note used the jargon 'Our book'. (3) Deeper counter said 'That's why our rule ties it to a Green market': a causal claim about the owner's reasons no rulebook line states; reworded to what the rule does. Why "
+   "fixed": false,
+   "notes": "Key decided first from sizing_rule.md section 9 A7 ('up to 200% of the account in a Green market'), B24 (total long positions up to 200%) and F60: 200%. All four house quotes (f78, f79, f80, f81, f83) are word for word in section 9. Distractors are real confusions (100% non-Green, 40% one position, 50% Reg T, f23). Lengths 25/25/24/24. Stem no longer says margin. Wrong note repeats q04's 50% only after answering, and q01's why already teaches it."
   }
  }
 }

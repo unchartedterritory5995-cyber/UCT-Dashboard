@@ -938,8 +938,8 @@
     "h06"
    ],
    "wrong": {
-    "So you never take a losing trade": "A plan still has losses. It keeps them small: stick to the plan and take small losses quickly.",
-    "So a fast move can't leave you behind": "You'll still miss moves. The plan stops you from chasing the ones you miss.",
+    "So you never take a losing trade": "A plan still has losses. Stick to it and take small losses quickly.",
+    "So a fast move can't leave you behind": "You'll still miss moves. A plan set in advance keeps you from a spur-of-the-moment chase.",
     "So you know where the stock will go next": "A plan fixes your own choices in advance, so you don't decide on the spur of the moment. It doesn't say where the stock goes."
    },
    "skill": "psych.fomo",
@@ -1194,11 +1194,11 @@
    "key": "q15",
    "rung": 6,
    "format": "scenario",
-   "story": "You planned to buy the breakout over $40, stop $37. You got busy and missed it. It now trades at $44, and you feel sick about it.",
+   "story": "You planned to buy the breakout over $40, stop $39. You got busy and missed it. It now trades at $44, and you're kicking yourself.",
    "q": "What do you do?",
    "choices": [
     "Wait for a pullback, higher low",
-    "Buy now with the old stop at $37",
+    "Buy now with the old stop at $39",
     "Wait for a new high, then buy",
     "Buy double size to catch up"
    ],
@@ -1215,9 +1215,9 @@
     "f22"
    ],
    "wrong": {
-    "Buy now with the old stop at $37": "That's the old stop with a much higher entry, so your risk per share grows. And $44 is past our 4% line.",
     "Buy double size to catch up": "Size can't fix a late entry. It just makes the chase bigger.",
-    "Wait for a new high, then buy": "A new high is even further past the $40 buy point, beyond our 4% line. The further past, the greater the shakeout risk."
+    "Wait for a new high, then buy": "A new high is even further past the $40 buy point, beyond our 4% line. The further past, the greater the shakeout risk.",
+    "Buy now with the old stop at $39": "That's the old stop with a much higher entry. The risk per share is now several times what you planned."
    },
    "skill": "psych.fomo",
    "simple": "Wait for a pullback that holds a higher low, because a regret buy after a missed move often lands near a peak.",
@@ -1313,7 +1313,7 @@
    "key": "q18",
    "rung": 7,
    "format": "numeric",
-   "q": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top?",
+   "q": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top, in %?",
    "answer": 91,
    "calc": {
     "fn": "arith",
@@ -1326,7 +1326,7 @@
    },
    "suffix": "%",
    "why": "91%. That's $120.75 minus $10.97, divided by $120.75, rounded. The run came on social media hype, from around $5 to about $120 in under three weeks. Many who arrived late endured significant pain. This measures how far down a buyer at the top was a few weeks later, not a final result.",
-   "lesson_line": "When the hype is everywhere, you're probably late. Late buyers take the worst of the fall.",
+   "lesson_line": "When the hype is everywhere, you're probably late. Many who came late here endured significant pain.",
    "facts": [
     "f18",
     "f17",
@@ -1441,7 +1441,7 @@
     "Buy before the signal to beat it"
    ],
    "answer": "Grade each day on your process",
-   "why": "Grade each day on your process. Steenbarger's client saw the market move away from his ideal entry and chased it. All too often that led to paper-cut losses. The fix: he graded himself each day purely on process, not on profit and loss. Stick to the plan and take small losses quickly.",
+   "why": "Grade each day on your process. Steenbarger's client saw the market move away from his ideal entry and chased it. All too often that led to paper-cut losses. The fix: he graded himself each day purely on process, not on profit and loss. Stick with your plan, and don't let the fear of missing out make the decision.",
    "lesson_line": "Score your day on the process, not the P&L.",
    "facts": [
     "f54",
@@ -1548,7 +1548,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "You've chased three moves this week and been stopped out of all three. You're angry. Another stock is ripping, and you feel the pull.",
-   "q": "What do you do right now?",
+   "q": "By our rules, what do you do right now?",
    "choices": [
     "Step back; no new trades today",
     "Buy, this one will make it back",
@@ -1567,7 +1567,7 @@
    ],
    "wrong": {
     "Buy, this one will make it back": "That's trading to win money back, not trading a setup. Rhodes says don't give in to that urge.",
-    "Enter, but with a very tight stop": "A tight stop on a chase often gets whipsawed. Steenbarger sees chasers stopped out often.",
+    "Enter, but with a very tight stop": "Angry means no new trades, stop or no stop. And chasers frequently get whipsawed and stopped out.",
     "Take a short break, then trade it": "Our rule is stricter than a breather. Angry means no new trades that day, not a pause and back in."
    },
    "skill": "psych.fomo",
@@ -1670,7 +1670,7 @@
    ],
    "answer": "Buy now with a market order",
    "simple": "Buy now, because the trigger hit, the price is still inside our 4% line, and the plan was set last night.",
-   "why": "Buy now with a market order. The plan was written before the open, the stock cleared $50, and $50.60 is well within 4% of it. Our entries are market orders. Buying strength at your trigger is the plan, not a chase. The size comes from the stop, so at $50.60 the shares shrink a little.",
+   "why": "Buy now with a market order. The plan was written before the open, the stock cleared $50, and $50.60 is well within 4% of it. Our entries are market orders. Buying strength at your trigger is the plan, not a chase. The size comes from the stop: risk per share is now bigger than planned, so you buy fewer shares.",
    "lesson_line": "When your written trigger hits inside 4%, buy it. Buying at the trigger is the plan, not a chase.",
    "facts": [
     "h06",
@@ -1697,7 +1697,7 @@
     ]
    },
    "deeper": {
-    "trap": "The trap is treating every fast move as a chase. A chase is buying far past the buy point. Here the price sits just over the trigger you wrote last night, well inside our 4% line. Buy it, and size from the stop at the real price. A fill a little over $50 means a few fewer shares, not a skipped trade."
+    "trap": "The trap is treating every fast move as a chase. A chase is buying far past the buy point. Here the price sits just over the trigger you wrote last night, well inside our 4% line. Buy it, and size from the stop at the real price. Risk per share is bigger than planned, so you buy fewer shares. You don't skip the trade."
    },
    "batch": "wave9"
   },
@@ -1819,7 +1819,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Simple overreached: 'fear or excitement ... can't choose for you' is an absolute; f35 says a plan removes SOME of the emotion. Reworded to f33's spur-of-the-moment claim. Wrong note and key fine."
+   "notes": "Key derived independently from f33/f35 and holds; no second defensible choice; key 37 chars, not longest. Broke on a wrong note: 'The plan stops you from chasing the ones you miss' is an absolute no fact supports (f35: a plan removes SOME emotion). 'It keeps them small' also claims more than f30. Both notes reworded to f33 and f30's own claims. D39 in the why is teach-then-recall for q28, not a giveaway."
   },
   "q08": {
    "status": "pass",
@@ -1867,7 +1867,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key derived from f37 + h04 and holds. But the why ('Buying now out of regret is how late entries get caught near a peak') and simple ('gets late buyers caught near a top') state as certain what f20 says happens 'often'. Both hedged to match f20. Choices and wrong notes fine. Note for integrator: the story's $37 stop is 7.5% under $40, far past A13's usual 3% (not keyed, left as is)."
+   "notes": "Key derived from f37 + h04 ($44 is 10% past $40) and holds. Two problems in the story: (1) the planned stop $37 is 7.5% under the $40 buy, against A13 (stop usually within about 3%), so a house-flavored story models a plan our rulebook would not write; changed to $39 (2.5%). (2) 'you feel sick about it' collides with F67's word 'sick' (no new trades that day), inviting a rulebook reading the choices do not offer; changed to 'you're kicking yourself'. Wrong note for the buy-now choice updated to the new numbers ($5 vs $1 risk per share, from the question). Every number from the question, f22 or"
   },
   "q16": {
    "status": "pass",
@@ -1885,7 +1885,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Deeper example's last sentence 'The buyers who came last, on the loudest buzz, bought closest to the top' is unsupported and arguably false (the very last buyers bought on the way down). Replaced with f18's own claim (late arrivals endured significant pain) and f15 stated as the general point, not as a GameStop fact. Every number still from f17/f18."
+   "notes": "Calc (120.75-10.97)/120.75*100 = 90.9, rounds to 91; numbers from f18. Two defects: (1) the question asks 'how far down' with no unit while sister numerics (q14, q20) say 'in %'; a dollar answer ($109.78) is a fair reading, so 'in %' added (136 chars). (2) the lesson line 'Late buyers take the worst of the fall' is the same overreach the last checker removed from the deeper example (the latest buyers bought on the way down); now uses f18's own words."
   },
   "q19": {
    "status": "pass",
@@ -1903,7 +1903,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Rulebook conflict: the wrong note and deeper counter say a wider stop on a chase 'adds risk' / 'is more risk'. Our rules size from the stop (A3, h12) and C28 says chasing costs size, not risk (h05), so a wider stop buys fewer shares at the same dollar risk. Reworded both to the house framing; 'changes what you are trying to win' (unsupported) softened to follow f55; h12, h05, h08 added for the new claims."
+   "notes": "Key derived from f54/f55 and confirmed live on TraderFeed (he 'graded himself at the end of the day purely on process grounds', whether the day was profitable or not). No second defensible choice; lengths 29-33. Broke on the why's last line: 'Stick to the plan and take small losses quickly' ends by endorsing the very small stop-outs the story names as the problem. Replaced with f03's claim, which is already cited."
   },
   "q22": {
    "status": "pass",
@@ -1921,7 +1921,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: the key was the only choice that did not enter a trade (lone patient answer, the unit's own flagged pattern), and 'Go in with double the size' was a weak filler. Replaced it with the real misconception F67 replaced, a short breather then trade (f45/f32's web view). The why now shows our rule goes further than Farrell and Schwab, so the web view cannot defend the new distractor. Key unchanged; choices 26-33 chars, key 30 not longest."
+   "notes": "Key rests on F67 (h07, angry = no new trades that day). The question did not say 'by our rules', and the web view (Farrell f45, confirmed live on ChartSchool; Schwab f32) supports a breather, so 'Take a short break, then trade it' is defensible for a reader without the house rule. Question now says 'By our rules' (38 chars) and is marked house, like q27/q28. Also the tight-stop wrong note claimed f59 says tight stops get whipsawed (f59 says chasers do) and skipped the real reason; reworded to F67 plus f59's own claim."
   },
   "q25": {
    "status": "pass",
@@ -1939,7 +1939,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Rulebook conflict: the story says 'size set' at a $50 trigger and the deeper trap says the size is set 'so the work is to follow them'. Filled at $50.60 with stop $49.20, keeping that size raises risk per share from $0.80 to $1.40, the very thing q11 teaches against; A5/C28 (h12, h05) size from the real entry, so the shares shrink. Why and trap now say so; h12 and h05 added. Key and choices hold ($50.60 is 1.2% over $50, inside C28; E57 market orders; A5 no adding)."
+   "notes": "Key holds: $50.60 is 1.2% over $50 (inside C28), E57 market orders, A5 no adding, stop $49.20 is 2.8% under $50.60 (inside A13). Broke on a number claim: the why says the shares 'shrink a little' and the trap 'a few fewer shares'. From the question: risk per share goes from $0.80 to $1.40, so the same dollar risk buys about 43% fewer shares, not a little. Why and trap now state the $0.80 to $1.40 change from the question's numbers."
   },
   "q28": {
    "status": "pass",

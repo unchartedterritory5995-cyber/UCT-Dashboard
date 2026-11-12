@@ -1109,7 +1109,7 @@
     "A good newsletter's stock tips": "Tips are someone else's thinking. Steenbarger and Toghraie list newsletter tips among the things that won't create elite performance.",
     "Natural talent and instinct": "This view puts the work first. Steenbarger: elite performers spend more time practising and preparing than performing."
    },
-   "simple": "Directed practice and review, because the best in any field spend more time on practice than on the real thing.",
+   "simple": "Practice and review, because the best in any field train far more than they perform.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1125,7 +1125,7 @@
    "skill": "psych.routine",
    "rung": 3,
    "format": "fill",
-   "q": "Finish the line.",
+   "q": "Finish the line. It sums up Tendler's advice on improving a routine.",
    "sentence": "When your routine needs work, add new things ___ at a time.",
    "bank": [
     "one",
@@ -1259,7 +1259,7 @@
    },
    "simple": "Add a written if-then plan for that pattern, because a plan made before the bell beats a rush made in the moment.",
    "deeper": {
-    "example": "Written before the open: if I take a loss, then I stand up and take 15 minutes before the next order. If the setup triggers again, then it is a new trade with its own stop and every rule. The rule decides, not the sting of the last loss."
+    "example": "Written before the open: if I feel the urge to jump straight back in after a loss, then I stand up and take 15 minutes before the next order. If the setup triggers again, then it is a new trade with its own stop and every rule. The rule decides, not the sting of the last loss."
    },
    "tier": "core",
    "risk": {
@@ -1633,7 +1633,7 @@
    ],
    "wrong": {
     "No, reviews are for losing weeks": "Steenbarger: studying your successes is how you define your best practices.",
-    "No, but raise your size next week": "Skipping the review is the problem. And our rule: never raise risk past the rules after a run of winners.",
+    "No, but raise your size next week": "Skipping the review is the problem. Size is a separate call, and our rule caps it: never raise risk past the rules after a run of winners.",
     "Yes, the profit still needs to be logged": "You journaled every trade the same day, so the profit is already logged. The weekly review is for lessons: what you did well becomes a goal to repeat."
    },
    "simple": "Yes, because a great week shows you what to repeat, and dropping the review when things go well is a warning sign.",
@@ -1805,13 +1805,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Unsupported claim: the indicators note and the why both say tools still help; no cited fact says that (fz1, fz4 say only that tools and tips will not build elite performance). Replaced with lines fz2/fz4 support."
+   "notes": "Own answer from fi3, fd1, fz1, fz2, fz4 before the key: directed practice and review. Matches. Quotes fz1, fz2, fz4 re-read on the live Fidelity page (authors Steenbarger and Toghraie); lengths 28/33/30/26, no tell. Break found in the simple: 'the best in any field spend more time on practice' overreaches fd1, which names elite performers in music, theater, sports and chess only. Simple now restates fd1's own claim. Newsletter-tips owner flag stays as recorded in risk/conflicts."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Grammar tell: 'add ___ new thing at a time' takes only 'one' (three/five/ten + singular 'thing' is ungrammatical). Sentence reworded so every bank word fits. Also the why still taught fc1 'one goal at a time', which is q19's key point (the two answer each other); swapped for ff1 (change is daily, massive change in one day derails), which also grounds the simple's 'fix everything at once'."
+   "notes": "Own answer from ta2: one. Matches; all bank words fit the sentence. ff1 re-read on the live s6 page: the 'change daily / massive changes in one day' paragraph is Steenbarger's own (the 'one action at a time' line is the rabbi's, correctly not cited). Break: the stem 'Finish the line.' presents 'add new things one at a time' as a general truth, while a source in this same file (s10, Steenbarger's 'shattering' routines post, see conflicts) says real change can mean shattering a routine rather than small tweaks. Tie the line to Tendler, whose words it paraphrases, so the key is unambiguous. Overl"
   },
   "q08": {
    "status": "pass",
@@ -1829,7 +1829,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: the key 'An if-then rule for after a loss' repeats the story's words ('After a losing trade'), and it is the only choice that echoes the loss. Key reworded to a neutral form wa1 supports ('written if-then plans'); lengths 29/31/33/33. Why opener and simple follow it; wrong notes unchanged."
+   "notes": "Own answer from ta6 + wa1: a written if-then plan. Matches. Lengths 29/31/33/33; key does not echo the story. Smaller size is not forbidden (A1 lets risk vary with recent results), but it does not answer the stem's pattern; the wrong note says so without claiming a rule. Break in the deeper example: it applies Schwab's 15 minutes (wa2) to a different trigger ('if I take a loss'), while wa2's trigger is 'an urge to break a trading rule'. Read as written it is a mandatory pause after every loss, which is not in any quote. Trigger now matches the story's urge, so the 15 rests on wa2."
   },
   "q11": {
    "status": "pass",
@@ -1870,8 +1870,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Rulebook clash in the why: Schwab's line that even seasoned traders get hurt near the opening bell (wc1) reads, in a 9:25 a.m. story, as a reason to avoid the open; C30 says no time-of-day rule (the same reason ia2 was dropped). Sentence and wc1 removed; key still rests on D39, E58 and Investor.gov (Tier 1)."
+   "fixed": false,
+   "notes": "Own answer from D39, E58 and ig1 (Investor.gov, Tier 1: never invest in anything you haven't researched): hold off. Matches. Tried: 'planned buy' loophole in D39 (an unplanned buy is not literally named) is closed by ig1 and by F64/D44 in the rulebook; 'small starter' also clashes with A5 (one price, one stop, no adding); 9:30 is in the story and ny1; wc1 opening-bell line already removed per C30. Lengths 30/34/34/28, no tell. No rival answer."
   },
   "q18": {
    "status": "cut",
@@ -1882,8 +1882,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Timing slip: the goal is set tonight for tomorrow, but deeper and lesson_line say 'check it tonight', which reads as today. Changed to 'at the close'. Rest grounded (fc1-fc3, fl4, ta2)."
+   "fixed": false,
+   "notes": "Own answer from fc1, fc2, fc3 (all three re-read on the live FIGS page) + ta2: one fix, stated specifically. Matches. Lengths 28/29/24/27; 'Just be more disciplined' is one goal but vague, so it tests fc3 rather than repeating q07. No rulebook clash. 'Tendler says the same' overlaps q07's line, but q19's why is shown only after answering and q07 sits earlier (rung 3 vs 7)."
   },
   "q20": {
    "status": "pass",
@@ -1895,7 +1895,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Two rulebook points. (1) Story says you skip the review on Friday afternoon, but B27 puts the weekly review on the weekend, so a Friday skip is not yet a skip; story now says this weekend. (2) Why says a great week is not a reason 'to raise risk', but A1 lets risk vary with recent results inside 0.25%-2%; only D45 'past the rules' is forbidden. Why now says 'past the rules'."
+   "notes": "Own answer from fi2, fr1 (both re-read on the live pages), tb6 (re-read: 'it' is journaling) and B27: yes, good weeks hold lessons. Matches. Two Yes, two No; key 38 chars, longest is a wrong choice (40). 'Profit still needs to be logged' is closed by the story (journaled every trade the same day). Break in the wrong note for 'No, but raise your size next week': it answers a choice about raising size with D45 alone, which reads as if raising size after wins is against our rules, while A1 lets risk vary with recent results inside 0.25%-2% and only D45's 'past the rules' is forbidden (the same po"
   },
   "q22": {
    "status": "pass",

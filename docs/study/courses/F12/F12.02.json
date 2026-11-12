@@ -1432,7 +1432,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "You skipped Monday's recap and Tuesday's prep. At 4:05 p.m. Tuesday, a stock you hold reports. It falls 11% after hours.",
-   "q": "Which step would have flagged it in time?",
+   "q": "What would have protected you from that 11% drop?",
    "choices": [
     "Checking earnings dates for holdings",
     "Reading the futures each morning",
@@ -1455,7 +1455,7 @@
     "The midday check on market volume": "Volume says nothing about a report date. The earnings calendar does.",
     "A tighter stop order on that holding": "A stop can't stop a report. The stock can gap past it, and the fill can land far below."
    },
-   "simple": "Checking earnings dates for what you hold, because reports usually come out before the open or after the close.",
+   "simple": "Checking earnings dates for what you hold, because knowing the date lets you decide before the close, not after the gap.",
    "deeper": {
     "trap": "A tighter stop feels like protection here. It isn't. The report lands at 4:05 p.m., after the close, so the stock can open far below the stop the next morning. A gap past your stop can cost more than you planned. What works is knowing the date and applying our rule before the close."
    },
@@ -1625,6 +1625,7 @@
    "facts": [
     "rl1",
     "it1",
+    "it2",
     "rr1",
     "t1",
     "ib3",
@@ -1634,7 +1635,7 @@
    "wrong": {
     "Mornings: scan everything from scratch": "There's no time for that. Twenty minutes is for checking the plan, not building it.",
     "Lunch break: scan and buy midday": "Midday is for checking what you hold. Building the plan belongs to the hours when the market is closed.",
-    "Skip prep and react to the open": "Then every decision is made on impulse, at the busiest, most volatile time of day."
+    "Skip prep and react to the open": "Then you decide on impulse, with no entry, stop or size written down before the open."
    },
    "simple": "Evenings, because that is your longest window and the market is closed, so the short morning only checks the plan.",
    "deeper": {
@@ -1759,14 +1760,14 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "simple drops ic3's hedge: 'leaders come from leading groups' states as a rule what Investopedia says 'usually' holds. Re-worded to keep the hedge, 22 words."
+   "fixed": false,
+   "notes": "I reached the key on my own (market trend + group) before looking; it fits ic1, m1, ic3, r3a and the owner's C31 and B18. Choices are 30-36 characters and the key is not the longest. Every note rests on a cited fact (m1, ir2) or plain reasoning with no number. simple keeps ic3's 'usually'. Minor: 'its sector' could grammatically point at 'the market', but the stem makes the stock the clear referent. q19 applies m1 at rung 8 with the house reading; it teaches and then applies the same idea, so this is not a leak."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key (C32, h12) is right and I reached it independently. Defect: the stem 'What do you do when the number hits?' rules out 'Buy all three before it comes out' by grammar alone (a choice about before cannot answer 'when it hits'), a tell. Stem re-asked so all four choices answer it. Everything else holds: 8:30 is in the story, 9:30 in fn1, wrong notes on fp1, fs3, h10, h12. Integrator: conflicts line 3 still says q08 keys adjusting the plan to the report."
+   "fixed": false,
+   "notes": "I reached the key on my own from C32 (h12): CPI days are traded like any other day, so you read the futures and run the plan. All four choices now answer 'How do you handle the report?' and none is ruled out by grammar. 8:30 comes from the story, 9:30 from fn1. The buy-before note rests on fs3 + h10 (E58), and the scrap note on fp1. Key 35 characters, max 38. Integrator: conflicts line 3 still says 'q08 keys adjusting the plan to the report'. That is stale; it now keys running the plan."
   },
   "q09": {
    "status": "pass",
@@ -1813,14 +1814,14 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key from h5 (D41) + sb5, gap caveat ips2. Defect: the story's 'stops planned just under yesterday's lows' states q10's key outright, so a member who meets q16 first (challenge pools) is handed q10. The stop level is not needed for q16's ask; removed, and h2 dropped from facts. This also keeps F62 satisfied, since no level is named."
+   "fixed": false,
+   "notes": "I reached the key on my own from D41 (h5) + sb5. No second right answer: an alert only notifies, and a member at work cannot act on it. The gap caveat (ips2) keeps the why from overclaiming, and the trap agrees with A7 ('a gap can jump the stop'). The story no longer names a stop level, so q10 is not leaked. Choices are 26-30 characters and the key is not the longest."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key from fe1 + ss3 + fr2 + h6 (B22); why's 3 days and 5R are in h6, 4:05 and 11% in the story. Defect: the distractor 'Placing a stop under yesterday's low' (and the trap built on it) presents q10's key as standard practice, so q17 answers q10. Replaced with a same-length (36 chars) stop distractor so the key is not left the longest; note and trap rest on ips2."
+   "notes": "The key is right (fe1 + fr2 + ss3 + h6/B22) and I reached it on my own. The defect is a grammar tell, the same kind fixed in q08: the stem asks 'Which step would have flagged it', and 'A tighter stop order on that holding' cannot flag anything, so grammar alone rules it out. The stem now asks what would have protected you, which makes the stop choice a real temptation (the misconception the trap teaches) and leaves the key the only answer. The simple's 'because' now says why the check helps. Its 'decide before the close' rests on fe1 + sb4 and the why's B22 line. 11% is in the story. The key a"
   },
   "q18": {
    "status": "pass",
@@ -1843,20 +1844,20 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key from ss2/ss3/rl1 + h7. Defect: the looser-stops note's 'only makes the next loss bigger' is an absolute no cited fact supports. Re-worded to the claim that follows from ips1 (risk is entry minus stop), and ips1 added to facts."
+   "fixed": false,
+   "notes": "I reached the key on my own (stops, reports, tomorrow's plan) from ss2, ss3 and rl1. The why adds B27 (h7, journal the same day), so nothing contradicts the rulebook. The looser-stops note now rests on h11 + ips1. Choices are 35-37 characters and the key is the shortest. Lesson-level notes only: the key's 'reports due' is the same idea q17 tests, but w3 already teaches it and q17 asks it in a different frame (which step), so I treat it as teach-then-apply, not a leak. The revenge-trading line appears in both the wrong note and deeper.trap; that is acceptable inside one item."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (rl1 + rr1 + h8, D39), size now in the key. Defect: the why says that after 5 p.m. 'the market is closed', but no cited fact gives the session's end; fn1 (core session 9:30 a.m. to 4:00 p.m. ET) is in the file but not cited. Added."
+   "notes": "The key is right (rl1 + rr1 + h8/D39, fn1 for the closed market) and I reached it on my own. Defect: the 'Skip prep and react to the open' note says 'every decision is made on impulse, at the busiest, most volatile time of day'. That is an absolute, and it drops ib3's 'tend to be' and ib3's co-claim about the closing hour. It also reads as a time-of-day warning, but the owner has none (C30). Re-grounded on the missing plan (h8, D39) and impulse (it2, added to facts). Lesson-level: q11's why ('the narrowing happens tonight', same 20-minute frame) points toward q22's key. That is consistent teac"
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key from h13 (E52) and I reached it from the story's 'fast mover'. Defect: 'Lower the stop to give it more room' repeats q13's 'Lower stops to give trades more room' (and q21's looser stops), with the same h11 note, a pattern tell across the lesson. Replaced with the 21-day, which tests the rule itself (fast mover vs steadier). Key 34, new choice 34, cancel 35, close 31: key not longest. h11 still used by the cancel note and the why."
+   "fixed": false,
+   "notes": "I reached the key on my own from E52 (h13) and the story's 'fast mover'. The 21-day is wrong by the same rule (steadier names only), so there is no second right answer. Choices are 31-35 characters and the key is not the longest. The cancel note rests on h11 ('The stop is the exit') and the close note on h13. The why's timing (sell on a close below it, so check in the recap) follows from h13. E51 puts the trail on the last third after trims, but the stem asks only what 'our trail rule' has you do, so it does not create a second answer. q15 is cut, so its 'Raise it to today's closing price' no "
   }
  }
 }

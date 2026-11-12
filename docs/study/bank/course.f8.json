@@ -1276,7 +1276,7 @@
    "why": "Taking the same trade again. In Tendler's map, the trading mistake is taking the same trade over and over, until it's clear you're wrong and getting nowhere. The decision underneath is revenge: getting the money back. The thought and the fixation on one position and its P&L come first. Learn those, and you can spot them in real time and limit the damage.",
    "wrong": {
     "Buying a stock everyone's chasing": "The focus is one position the trader already lost on, not a new hot name.",
-    "Hesitating on a good entry": "This trader is pushing, not holding back. Hesitating comes from fear.",
+    "Hesitating on a good entry": "This trader is pushing to get the money back, not holding back on an entry.",
     "Selling a winner too early": "There's no winner here. The trade already lost, and the trader wants the money back."
    }
   },
@@ -1294,7 +1294,7 @@
   "difficulty": 3,
   "id": "si_ae8351491af6",
   "lesson_origin": "session",
-  "lesson_text": "Write a rule for when you buy. Tendler calls tightening your rules the correct first step. Only if the mistakes keep costing you after that does the answer lie in the mental game. Investopedia says a plan should set exactly when you enter. Our own rule is one example: never buy more than 4% above the buy point. You can't break a rule you don't have. Write the rule first. You can't break a rule you don't have.",
+  "lesson_text": "Write a rule for when you buy. Tendler calls tightening your rules the correct first step. Investopedia says a plan should set exactly when you enter. Our own rule is one example: never buy more than 4% above the buy point. You can't break a rule you don't have. Write the rule first. You can't break a rule you don't have.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -1323,31 +1323,10 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Jared Tendler (author's blog): Why the Mental Game Matters in Trading (2021-03-08)",
-      "quote": "But when the bleeding continues, that’s proof the answer won’t come from that side of the game.",
-      "tier": 2,
-      "url": "https://www.goodreads.com/author_blog_posts/21190726-why-the-mental-game-matters-in-trading"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Investopedia: Trading Plan: Definition, How It Works, Rules, and Examples (Cory Mitchell, updated 2024-05-03)",
       "quote": "A tactical trader should come up with rules for exactly when they will enter a trade.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/t/trading-plan.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Brett Steenbarger, TraderFeed: How to Become Your Own Trading Psychologist (daily entries 2026-09-22 to 2026-10-02)",
-      "quote": "We often hear that trading success is 80 (or 90!) percent psychology. This is not even vaguely credible.",
-      "tier": 2,
-      "url": "https://traderfeed.blogspot.com/2026/09/how-to-become-your-own-trading.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Brett Steenbarger, TraderFeed: How to Become Your Own Trading Psychologist (daily entries 2026-09-22 to 2026-10-02)",
-      "quote": "Too often, traders try to make money in markets before they've gone through the mastery process",
-      "tier": 2,
-      "url": "https://traderfeed.blogspot.com/2026/09/how-to-become-your-own-trading.html"
      },
      {
       "accessed": "2026-11-12",
@@ -1357,7 +1336,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Tightening your skills and your rules is the right first step. If the mistakes keep costing you after that, the answer isn't technical. A trading plan spells out exactly when you enter. Steenbarger rejects the claim that trading success is 80 or 90 percent psychology. Many traders put money at risk before they have mastered their method. Our rule C28: never buy more than 4% above the buy point."
+    "summary": "Tightening your skills and your rules is the right first step. A trading plan spells out exactly when you enter. Our rule C28: never buy more than 4% above the buy point."
    },
    "facts": {
     "given": "What do you fix first? You keep buying stocks after big run-ups, and most of those trades lose. Your written plan lists stocks to watch, and nothing more. Write a rule for when you buy Work on your fear of missing out Cut your size in half for now Take a month off from trading"
@@ -1366,11 +1345,11 @@
    "simple": "Write an entry rule first, because you can't break a rule you don't have, so the gap in the plan comes first.",
    "tier": "expert",
    "unit": "F8.01",
-   "why": "Write a rule for when you buy. Tendler calls tightening your rules the correct first step. Only if the mistakes keep costing you after that does the answer lie in the mental game. Investopedia says a plan should set exactly when you enter. Our own rule is one example: never buy more than 4% above the buy point. You can't break a rule you don't have.",
+   "why": "Write a rule for when you buy. Tendler calls tightening your rules the correct first step. Investopedia says a plan should set exactly when you enter. Our own rule is one example: never buy more than 4% above the buy point. You can't break a rule you don't have.",
    "wrong": {
     "Cut your size in half for now": "Smaller size can limit the damage, but it fixes nothing. The gap in your plan is still there.",
     "Take a month off from trading": "You'd come back with the same gap in your plan.",
-    "Work on your fear of missing out": "Maybe later. Tendler says you tighten the rules first, then look at the mental side if the mistakes keep coming."
+    "Work on your fear of missing out": "Maybe later. Tendler says tightening your rules is the correct first step, and you don't have an entry rule yet."
    }
   },
   "review_status": "draft",
@@ -2236,9 +2215,9 @@
    "unit": "F8.02",
    "why": "So you decide before emotions kick in. Fidelity: set your process in advance so you aren't making spur-of-the-moment choices at temporary peaks or valleys. A plan removes some of the emotion and guesswork. It does not stop losses or catch every move. Our rule: every planned buy has its entry, stop and size written down before the market opens.",
    "wrong": {
-    "So a fast move can't leave you behind": "You'll still miss moves. The plan stops you from chasing the ones you miss.",
+    "So a fast move can't leave you behind": "You'll still miss moves. A plan set in advance keeps you from a spur-of-the-moment chase.",
     "So you know where the stock will go next": "A plan fixes your own choices in advance, so you don't decide on the spur of the moment. It doesn't say where the stock goes.",
-    "So you never take a losing trade": "A plan still has losses. It keeps them small: stick to the plan and take small losses quickly."
+    "So you never take a losing trade": "A plan still has losses. Stick to it and take small losses quickly."
    }
   },
   "review_status": "draft",
@@ -2720,14 +2699,14 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Buy now with the old stop at $37",
+    "Buy now with the old stop at $39",
     "Wait for a new high, then buy",
     "Wait for a pullback, higher low",
     "Buy double size to catch up"
    ],
    "kind": "mcq",
    "q": "What do you do?",
-   "story": "You planned to buy the breakout over $40, stop $37. You got busy and missed it. It now trades at $44, and you feel sick about it.",
+   "story": "You planned to buy the breakout over $40, stop $39. You got busy and missed it. It now trades at $44, and you're kicking yourself.",
    "subject": "F8.02#q15"
   },
   "reveal_json": {
@@ -2786,7 +2765,7 @@
     "summary": "Rhodes' rule: if you miss a trade, wait for a pullback before putting it on. The fear of missing makes you chase instead of buying pullbacks. After missing a fast move, regret pulls traders into it late. That late entry breaks discipline and often buys near a peak. The further past the buy point you buy, the greater the risk of getting shaken out. Our rule C28: never buy more than 4% above the buy point. Risk per share is the distance from your entry down to your stop."
    },
    "facts": {
-    "given": "What do you do? You planned to buy the breakout over $40, stop $37. You got busy and missed it. It now trades at $44, and you feel sick about it. Wait for a pullback, higher low Buy now with the old stop at $37 Wait for a new high, then buy Buy double size to catch up"
+    "given": "What do you do? You planned to buy the breakout over $40, stop $39. You got busy and missed it. It now trades at $44, and you're kicking yourself. Wait for a pullback, higher low Buy now with the old stop at $39 Wait for a new high, then buy Buy double size to catch up"
    },
    "lesson_line": "Missed the break: let it go, or wait for the pullback. Don't buy your regret.",
    "simple": "Wait for a pullback that holds a higher low, because a regret buy after a missed move often lands near a peak.",
@@ -2795,7 +2774,7 @@
    "why": "Wait for a pullback and a higher low. Rhodes' rule: if a trade is missed, wait for a correction before putting it on. At $44 the stock is well over 4% past the $40 breakout, past our limit for a buy. A regret buy after a missed move often lands near a peak.",
    "wrong": {
     "Buy double size to catch up": "Size can't fix a late entry. It just makes the chase bigger.",
-    "Buy now with the old stop at $37": "That's the old stop with a much higher entry, so your risk per share grows. And $44 is past our 4% line.",
+    "Buy now with the old stop at $39": "That's the old stop with a much higher entry. The risk per share is now several times what you planned.",
     "Wait for a new high, then buy": "A new high is even further past the $40 buy point, beyond our 4% line. The further past, the greater the shakeout risk."
    }
   },
@@ -2894,11 +2873,11 @@
   "difficulty": 3,
   "id": "si_ef29719f29e6",
   "lesson_origin": "session",
-  "lesson_text": "91%. That's $120.75 minus $10.97, divided by $120.75, rounded. The run came on social media hype, from around $5 to about $120 in under three weeks. Many who arrived late endured significant pain. This measures how far down a buyer at the top was a few weeks later, not a final result. When the hype is everywhere, you're probably late. Late buyers take the worst of the fall.",
+  "lesson_text": "91%. That's $120.75 minus $10.97, divided by $120.75, rounded. The run came on social media hype, from around $5 to about $120 in under three weeks. Many who arrived late endured significant pain. This measures how far down a buyer at the top was a few weeks later, not a final result. When the hype is everywhere, you're probably late. Many who came late here endured significant pain.",
   "module": "F8",
   "prompt_json": {
    "kind": "fill_numeric",
-   "q": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top?",
+   "q": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top, in %?",
    "subject": "F8.02#q18",
    "suffix": "%"
   },
@@ -2942,9 +2921,9 @@
      "fn": "arith",
      "result": 91.0
     },
-    "given": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top?"
+    "given": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top, in %?"
    },
-   "lesson_line": "When the hype is everywhere, you're probably late. Late buyers take the worst of the fall.",
+   "lesson_line": "When the hype is everywhere, you're probably late. Many who came late here endured significant pain.",
    "simple": "About 91%, because the stock fell from $120.75 to $10.97 within a few weeks of its top.",
    "tier": "extended",
    "unit": "F8.02",
@@ -3139,7 +3118,7 @@
   "difficulty": 3,
   "id": "si_cd44dfd2372e",
   "lesson_origin": "session",
-  "lesson_text": "Grade each day on your process. Steenbarger's client saw the market move away from his ideal entry and chased it. All too often that led to paper-cut losses. The fix: he graded himself each day purely on process, not on profit and loss. Stick to the plan and take small losses quickly. Score your day on the process, not the P&L.",
+  "lesson_text": "Grade each day on your process. Steenbarger's client saw the market move away from his ideal entry and chased it. All too often that led to paper-cut losses. The fix: he graded himself each day purely on process, not on profit and loss. Stick with your plan, and don't let the fear of missing out make the decision. Score your day on the process, not the P&L.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -3225,7 +3204,7 @@
    "simple": "Grade each day on whether you followed your plan, not on the money you made.",
    "tier": "expert",
    "unit": "F8.02",
-   "why": "Grade each day on your process. Steenbarger's client saw the market move away from his ideal entry and chased it. All too often that led to paper-cut losses. The fix: he graded himself each day purely on process, not on profit and loss. Stick to the plan and take small losses quickly.",
+   "why": "Grade each day on your process. Steenbarger's client saw the market move away from his ideal entry and chased it. All too often that led to paper-cut losses. The fix: he graded himself each day purely on process, not on profit and loss. Stick with your plan, and don't let the fear of missing out make the decision.",
    "wrong": {
     "Buy before the signal to beat it": "That's FOMO's other face: in before the signal, on fear.",
     "Trade more names so you miss less": "More names means more chances to chase. You'll always miss moves; the job is the best ones.",
@@ -3420,7 +3399,7 @@
     "Enter, but with a very tight stop"
    ],
    "kind": "mcq",
-   "q": "What do you do right now?",
+   "q": "By our rules, what do you do right now?",
    "story": "You've chased three moves this week and been stopped out of all three. You're angry. Another stock is ripping, and you feel the pull.",
    "subject": "F8.02#q24"
   },
@@ -3469,7 +3448,7 @@
     "summary": "When emotions run high, step back before acting. When emotions are driving, slow down or take a break. Rhodes' rule: don't give in to the urge to win back losses. Steenbarger: traders who chase a trend out of FOMO often get whipsawed and stopped out. Our rule F67: tired, sick, angry or distracted means no new trades that day."
    },
    "facts": {
-    "given": "What do you do right now? You've chased three moves this week and been stopped out of all three. You're angry. Another stock is ripping, and you feel the pull. Step back; no new trades today Buy, this one will make it back Take a short break, then trade it Enter, but with a very tight stop"
+    "given": "By our rules, what do you do right now? You've chased three moves this week and been stopped out of all three. You're angry. Another stock is ripping, and you feel the pull. Step back; no new trades today Buy, this one will make it back Take a short break, then trade it Enter, but with a very tight stop"
    },
    "lesson_line": "Angry after a run of losses means no new trades today. Step away from the screen.",
    "simple": "Take no new trades today, because you're angry after three chased losses and the pull is emotion, not a setup.",
@@ -3478,7 +3457,7 @@
    "why": "Step back; no new trades today. Our rule: tired, sick, angry or distracted means no new trades that day. Bob Farrell's rule: when emotions run high, take a breather and step back. Schwab says slow down or take a break. Our rule goes further: no new trades until tomorrow. Chasing to win losses back is the urge Rhodes says not to give in to.",
    "wrong": {
     "Buy, this one will make it back": "That's trading to win money back, not trading a setup. Rhodes says don't give in to that urge.",
-    "Enter, but with a very tight stop": "A tight stop on a chase often gets whipsawed. Steenbarger sees chasers stopped out often.",
+    "Enter, but with a very tight stop": "Angry means no new trades, stop or no stop. And chasers frequently get whipsawed and stopped out.",
     "Take a short break, then trade it": "Our rule is stricter than a breather. Angry means no new trades that day, not a pause and back in."
    }
   },
@@ -3649,7 +3628,7 @@
   "difficulty": 2,
   "id": "si_37f79f4d4c38",
   "lesson_origin": "session",
-  "lesson_text": "Buy now with a market order. The plan was written before the open, the stock cleared $50, and $50.60 is well within 4% of it. Our entries are market orders. Buying strength at your trigger is the plan, not a chase. The size comes from the stop, so at $50.60 the shares shrink a little. When your written trigger hits inside 4%, buy it. Buying at the trigger is the plan, not a chase.",
+  "lesson_text": "Buy now with a market order. The plan was written before the open, the stock cleared $50, and $50.60 is well within 4% of it. Our entries are market orders. Buying strength at your trigger is the plan, not a chase. The size comes from the stop: risk per share is now bigger than planned, so you buy fewer shares. When your written trigger hits inside 4%, buy it. Buying at the trigger is the plan, not a chase.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -3665,7 +3644,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is treating every fast move as a chase. A chase is buying far past the buy point. Here the price sits just over the trigger you wrote last night, well inside our 4% line. Buy it, and size from the stop at the real price. A fill a little over $50 means a few fewer shares, not a skipped trade."
+    "trap": "The trap is treating every fast move as a chase. A chase is buying far past the buy point. Here the price sits just over the trigger you wrote last night, well inside our 4% line. Buy it, and size from the stop at the real price. Risk per share is bigger than planned, so you buy fewer shares. You don't skip the trade."
    },
    "depth": {
     "sources": [
@@ -3742,7 +3721,7 @@
    "simple": "Buy now, because the trigger hit, the price is still inside our 4% line, and the plan was set last night.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "Buy now with a market order. The plan was written before the open, the stock cleared $50, and $50.60 is well within 4% of it. Our entries are market orders. Buying strength at your trigger is the plan, not a chase. The size comes from the stop, so at $50.60 the shares shrink a little.",
+   "why": "Buy now with a market order. The plan was written before the open, the stock cleared $50, and $50.60 is well within 4% of it. Our entries are market orders. Buying strength at your trigger is the plan, not a chase. The size comes from the stop: risk per share is now bigger than planned, so you buy fewer shares.",
    "wrong": {
     "Buy half now, half on a dip": "Our rule puts the full size on at one price with one stop. No adding later.",
     "Buy with a limit order at $50": "Our entries are market orders, not limits. The plan says buy once it clears $50, and it has.",
@@ -5363,7 +5342,7 @@
     "given": "What does our hard rule say? Your swing trade just reached 3R. It's still above its rising moving averages. You want to sell it all. Sell a third, trail the rest Sell it all, a profit is a profit Hold it all, skip the trim Sell half, let the rest ride"
    },
    "lesson_line": "Pay yourself into strength, then let the trail decide when the rest is done.",
-   "simple": "Sell a third and trail the rest, because our rule takes a third off at 3R and lets the rest ride.",
+   "simple": "Sell a third and trail the rest, because our hard rule takes a third off at 3R.",
    "tier": "expert",
    "unit": "F8.03",
    "why": "Sell a third, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. The hard rule for the first trim is a third at 3R. The rest stays on and follows the trail. Selling it all here cuts a winner: Hirsch says selling too soon can hurt almost as much as losing trades.",
@@ -5387,7 +5366,7 @@
   "difficulty": 3,
   "id": "si_33546940e570",
   "lesson_origin": "session",
-  "lesson_text": "True. A planned partial locks in some profit while the rest keeps working. Hirsch calls selling half on a double one of the simplest ways to lock in profits and still let winners ride. Farley says to protect gains with trailing stops or partial profits. Our rule sells partials into strength too, and trails the rest. A fear exit is a sale on a wobble, at no level you set. Selling into strength by plan is a method. Selling on a wobble is fear.",
+  "lesson_text": "True. A planned partial locks in some profit while the rest keeps working. Fidelity says to have a plan for how you might exit even before you enter. Hirsch calls selling half on a double one of the simplest ways to lock in profits and still let winners ride. Farley says to protect gains with trailing stops or partial profits. Our rule sells partials into strength too, and trails the rest. A fear exit is a sale on a wobble, at no level you set. Selling into strength by plan is a method. Selling on a wobble is fear.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -5400,10 +5379,17 @@
   },
   "reveal_json": {
    "deeper": {
-    "counter": "Same stock, two exits. One trader sells a third at the trim level she set before entry and trails the rest. Another sells everything on the first red day because it feels shaky. Both took a profit. Only the second let fear pick the price. The test is not whether you sold, but whether the plan or the feeling set the level."
+    "counter": "Same stock, two exits. One trader sells part at the trim level she set before entry and trails the rest. Another sells everything on the first red day because it feels shaky. Both took a profit. Only the second let fear pick the price. The test is not whether you sold, but whether the plan or the feeling set the level."
    },
    "depth": {
     "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: Exit Strategies (Fidelity Learning Center)",
+      "quote": "Even before you enter a trade, it can be helpful to have a plan for how you might exit the trade.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies"
+     },
      {
       "accessed": "2026-11-09",
       "name": "Fidelity Investments: Techniques for Managing Positions (Jeffrey A. Hirsch, adapted from the Stock Trader's Almanac, Wiley)",
@@ -5440,7 +5426,7 @@
       "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle"
      }
     ],
-    "summary": "In Hirsch's view, selling half on a double is one of the simplest ways to lock in profits and still let the winner ride. Farley's rule: protect gains with trailing stops or partial profits. Selling too soon can hurt returns almost as much as losing trades; take some gains, then trail a stop. Fear of loss leads investors to hold losers too long and sell winners too quickly. Our rule: hold winners by selling partials into strength and trailing the rising moving averages."
+    "summary": "Plan your exit before you enter the trade. In Hirsch's view, selling half on a double is one of the simplest ways to lock in profits and still let the winner ride. Farley's rule: protect gains with trailing stops or partial profits. Selling too soon can hurt returns almost as much as losing trades; take some gains, then trail a stop. Fear of loss leads investors to hold losers too long and sell winners too quickly. Our rule: hold winners by selling partials into strength and trailing the rising moving averages."
    },
    "facts": {
     "given": "Selling part of a winner at a level you set before entry is a method, not a fear exit."
@@ -5449,7 +5435,7 @@
    "simple": "True, a sale at a level you planned is a method, while a fear sale on a wobble has no plan.",
    "tier": "expert",
    "unit": "F8.03",
-   "why": "True. A planned partial locks in some profit while the rest keeps working. Hirsch calls selling half on a double one of the simplest ways to lock in profits and still let winners ride. Farley says to protect gains with trailing stops or partial profits. Our rule sells partials into strength too, and trails the rest. A fear exit is a sale on a wobble, at no level you set."
+   "why": "True. A planned partial locks in some profit while the rest keeps working. Fidelity says to have a plan for how you might exit even before you enter. Hirsch calls selling half on a double one of the simplest ways to lock in profits and still let winners ride. Farley says to protect gains with trailing stops or partial profits. Our rule sells partials into strength too, and trails the rest. A fear exit is a sale on a wobble, at no level you set."
   },
   "review_status": "draft",
   "skill_id": "psych.fear",
@@ -5658,7 +5644,7 @@
   "difficulty": 3,
   "id": "si_c7f373a43405",
   "lesson_origin": "session",
-  "lesson_text": "Skip it, the report is too close. Our rule: no new buys in the 3 days before an earnings report. On Monday, a Wednesday report is inside that window. Investopedia flags gap risk around earnings reports. A stop is a trigger, not a guaranteed price, so a gap past it can cost more than you planned. A rule set before the trigger decides. Near earnings, ours says no new buys.",
+  "lesson_text": "Skip it, the report is too close. Our rule: no new buys in the 3 days before an earnings report. On Monday, a Wednesday report is inside that window. Investopedia flags gap risk around earnings reports. A stop is a trigger, not a guaranteed price, so a gap past it can cost more than you planned. A rule set before the trigger decides. In the 3 days before earnings, ours says no new buys.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -5719,7 +5705,7 @@
    "facts": {
     "given": "What does our rule say to do? Your setup triggers on a Monday. The chart and the market check both pass. The company reports earnings on Wednesday. Skip it, the report is too close Take it, since every other rule passes Wait, then buy the day before it Take it with a tighter stop"
    },
-   "lesson_line": "A rule set before the trigger decides. Near earnings, ours says no new buys.",
+   "lesson_line": "A rule set before the trigger decides. In the 3 days before earnings, ours says no new buys.",
    "simple": "Skip it, because our rule allows no new buys in the 3 days before an earnings report.",
    "tier": "expert",
    "unit": "F8.03",
@@ -5922,19 +5908,19 @@
  },
  {
   "answer_json": {
-   "answer": "You're letting emotion make calls"
+   "answer": "You're letting emotion take over"
   },
   "difficulty": 1,
   "id": "si_1db798d957a1",
   "lesson_origin": "session",
-  "lesson_text": "You're letting emotion make your calls. Researchers define tilt as out-of-control decisions driven by negative emotions. Tendler calls it a problem with anger while you perform. A big loss often sets it off, but the loss itself is not tilt. Tilt is the emotion taking over the decisions that follow. Tilt isn't the loss. It's what the loss does to your next decision.",
+  "lesson_text": "You're letting emotion take over. Researchers define tilt as out-of-control decisions driven by negative emotions. Tendler calls it a problem with anger while you perform. A big loss often sets it off, but the loss itself is not tilt. Tilt is the emotion taking over the decisions that follow. Tilt isn't the loss. It's what the loss does to your next decision.",
   "module": "F8",
   "prompt_json": {
    "choices": [
     "You're trading bigger than usual",
     "You're stuck in a long losing streak",
     "You've hit your monthly loss limit",
-    "You're letting emotion make calls"
+    "You're letting emotion take over"
    ],
    "kind": "mcq",
    "q": "What does it mean to be on tilt?",
@@ -6010,13 +5996,13 @@
     "summary": "Researchers define tilt as out-of-control decisions driven by negative emotions. Tendler: tilt is a problem with anger while you perform. Strong emotions such as anger are a key reason people make irrational choices. In fast trading it is hard to keep emotions out of decisions, and that can lead to costly mistakes. Losing streaks happen to good traders; sometimes a streak also points to a flaw worth checking. Tilt often started with disbelief right after a big loss, before any anger. Revenge trading usually means raising both the size and the number of trades to win losses back. Tendler: firm controls on trades per day, or a daily loss limit, keep the damage in check. Our loss limit is monthly: 8% down in a calendar month means no new trades until the month ends."
    },
    "facts": {
-    "given": "What does it mean to be on tilt? You're letting emotion make calls You're stuck in a long losing streak You've hit your monthly loss limit You're trading bigger than usual"
+    "given": "What does it mean to be on tilt? You're letting emotion take over You're stuck in a long losing streak You've hit your monthly loss limit You're trading bigger than usual"
    },
    "lesson_line": "Tilt isn't the loss. It's what the loss does to your next decision.",
    "simple": "Being on tilt means emotion has taken over your trade decisions, often after a big loss.",
    "tier": "core",
    "unit": "F8.04",
-   "why": "You're letting emotion make your calls. Researchers define tilt as out-of-control decisions driven by negative emotions. Tendler calls it a problem with anger while you perform. A big loss often sets it off, but the loss itself is not tilt. Tilt is the emotion taking over the decisions that follow.",
+   "why": "You're letting emotion take over. Researchers define tilt as out-of-control decisions driven by negative emotions. Tendler calls it a problem with anger while you perform. A big loss often sets it off, but the loss itself is not tilt. Tilt is the emotion taking over the decisions that follow.",
    "wrong": {
     "You're stuck in a long losing streak": "A streak can set tilt off, but losing streaks happen to good traders too. Tilt is the emotion that takes over afterward.",
     "You're trading bigger than usual": "That's a symptom tilt can cause. Tilt is the emotion behind it.",
@@ -6037,7 +6023,7 @@
   "difficulty": 1,
   "id": "si_dee5f3fa910c",
   "lesson_origin": "session",
-  "lesson_text": "True. One study of poker players found experienced players took bad luck more maturely than beginners. That is calmer, not immune. Tendler adds that you can have a tilt problem and have no idea it's tilt. So write your rules down before the session, however long you've traded. Nobody is immune to tilt. Written rules protect you when experience doesn't.",
+  "lesson_text": "True. Experience helps: one study found experienced poker players took bad luck more maturely than beginners. But Tendler names a tilt that experience can feed: believing your work, knowledge and experience mean you deserve to win. Schwab adds that even the most seasoned trip up. So write your rules down before each session. Nobody is immune to tilt. Written rules protect you when experience doesn't.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -6061,9 +6047,16 @@
      {
       "accessed": "2026-11-09",
       "name": "Jared Tendler (author's site): Surprising Facts About Tilt (2023-05-08)",
-      "quote": "You may have a Tilt problem and have no idea it’s Tilt",
+      "quote": "Another one to watch out for is Entitlement Tilt, which is caused by a belief that your prior work, knowledge, and experience means that you deserve to win.",
       "tier": 2,
       "url": "https://jaredtendler.com/surprising-facts-about-tilt/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: Trading Psychology: Recovering From Big Losses (Henry Hoenig, 2026-02-10)",
+      "quote": "Ultimately, trading is a marathon, not a sprint, and even the most seasoned runners trip up occasionally.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/trading-psychology-recovering-from-big-losses"
      },
      {
       "accessed": "2026-11-09",
@@ -6073,16 +6066,16 @@
       "url": "https://www.schwab.com/learn/story/trading-psychology-recovering-from-big-losses"
      }
     ],
-    "summary": "Experienced players handled bad luck and losing more maturely than beginners. Tendler: you can have a tilt problem without knowing it's tilt. Write if-then plans and commit to them before each session."
+    "summary": "Experienced players handled bad luck and losing more maturely than beginners. Tendler: one kind of tilt comes from believing your work, knowledge and experience mean you deserve to win. Schwab: even the most seasoned traders trip up now and then. Write if-then plans and commit to them before each session."
    },
    "facts": {
     "given": "No amount of experience makes a trader immune to tilt."
    },
    "lesson_line": "Nobody is immune to tilt. Written rules protect you when experience doesn't.",
-   "simple": "True, because one study found experienced players took bad luck more calmly, and calmer is not immune.",
+   "simple": "True, because even seasoned traders trip up, and Tendler says experience can even feed a kind of tilt.",
    "tier": "core",
    "unit": "F8.04",
-   "why": "True. One study of poker players found experienced players took bad luck more maturely than beginners. That is calmer, not immune. Tendler adds that you can have a tilt problem and have no idea it's tilt. So write your rules down before the session, however long you've traded."
+   "why": "True. Experience helps: one study found experienced poker players took bad luck more maturely than beginners. But Tendler names a tilt that experience can feed: believing your work, knowledge and experience mean you deserve to win. Schwab adds that even the most seasoned trip up. So write your rules down before each session."
   },
   "review_status": "draft",
   "skill_id": "psych.tilt",
@@ -7401,7 +7394,8 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "One big winner feels like proof you're back. But one result says little. Tendler warns that money is not a reliable measure of performance in the short term. Count clean trades taken by your plan, not dollars made."
+    "counter": "Our rules have no losing-streak rule. Size is cut only by the drawdown ladder, and its first rung is at 6% down. So a 4% hit doesn't force a smaller size. Cutting your risk here was your own call, which our range of 0.25% to 2% allows.",
+    "trap": "One big winner feels like proof you're back. But one result says little. Tendler warns that money is not a reliable measure of performance in the short term. Judge a run of trades taken by your plan, not one good day."
    },
    "depth": {
     "sources": [
@@ -7439,9 +7433,23 @@
       "quote": "A1. Risk 0.25% to 2% of the account on a trade, picked by setup quality, recent results, the market and your edge.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "On the way down: under 6% down, the normal cap (A7); 6% down, max position 10%; 8% down, 8%; 10% down, 5%; 15% down, no new trades (B13).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "B17. No losing-streak rule: size is cut only by the drawdown ladder, in percent (A8, B13, B14).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Come back smaller, and add size back as you show you are executing your system again. After a string of losses, trade smaller while you review, and size back up once results recover. Raise size only while execution holds, and settle in before the next step up. Short-term P&L is not a reliable measure of how well you are trading. Our risk per trade runs from 0.25% to 2%, picked partly by recent results."
+    "summary": "Come back smaller, and add size back as you show you are executing your system again. After a string of losses, trade smaller while you review, and size back up once results recover. Raise size only while execution holds, and settle in before the next step up. Short-term P&L is not a reliable measure of how well you are trading. Our risk per trade runs from 0.25% to 2%, picked partly by recent results. Our drawdown ladder: normal cap under 6% down, then 10% at 6% down, 8% at 8%, 5% at 10%, no new trades at 15%. Our rules have no losing-streak rule: size is cut only by the drawdown ladder."
    },
    "facts": {
     "given": "When should your risk per trade go back to normal? A tilt day cost you 4% last week. Since then you've cut your risk per trade and taken eight trades, all by your plan. While your execution holds up Right away, to win back the 4% After your next big winner Never, staying small is safer"
@@ -8344,7 +8352,7 @@
     "given": "A run of winning trades shows your method has gotten better."
    },
    "lesson_line": "A streak is a result. Your edge shows over your whole record, not a few trades.",
-   "simple": "False, a run can come from luck or outside help. It does not prove your method improved.",
+   "simple": "False, a run can come from luck or outside circumstances. It does not prove your method improved.",
    "tier": "core",
    "unit": "F8.05",
    "why": "False. A run can come from luck or from outside circumstances, not only your skill. More wins do hint at more ability. But traders take too much credit for their successes, and that is how overconfidence builds. Your edge shows over your whole history, as your average gain or loss per trade."
@@ -8619,9 +8627,9 @@
    "unit": "F8.05",
    "why": "Risk your usual 1%. Your plan set the risk before the trade, and three wins did not change the plan. Our rule: never raise risk past the rules after a run of winners. Overconfidence can lead to positions bigger than is wise, and those lose money faster. Past success can make you wave off the downside.",
    "wrong": {
-    "Risk 2% as a middle ground": "That still doubles your risk on a feeling. A middle ground is still breaking the plan.",
-    "Risk 3% just once, then back to 1%": "Once is all it takes. A single large loss can wipe out the earlier gains, and 3% is three normal losses.",
-    "Risk 3%, you're seeing it clearly": "That's the streak talking. Past success can make you wave off the downside, and one loss at 3% costs three normal losses."
+    "Risk 2% as a middle ground": "That still raises your risk on a feeling. A middle ground is still breaking the plan.",
+    "Risk 3% just once, then back to 1%": "Once is all it takes. A single large loss can wipe out the earlier gains, and the plan never allowed 3%.",
+    "Risk 3%, you're seeing it clearly": "That's the streak talking. Past success can make you wave off the downside, and a loss at 3% is far bigger than your normal loss."
    }
   },
   "review_status": "draft",
@@ -10610,12 +10618,19 @@
      {
       "accessed": "2026-11-09",
       "name": "Betfair Australia, The Automation Hub: Correcting Your Emotions (Mental Game series, part 5, by Jared Tendler)",
+      "quote": "Step 1: Describe the problem in detail. Step 2: Explain why it makes sense that you have this problem, or why you think, feel, or react that way.",
+      "tier": 2,
+      "url": "https://betfair-datascientists.github.io/mentalGame/correctingyouremotions"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Betfair Australia, The Automation Hub: Correcting Your Emotions (Mental Game series, part 5, by Jared Tendler)",
       "quote": "Step 3: Explain why the logic in Step 2 is flawed. Step 4: Come up with a correction to that flawed logic. Step 5: Explain why that correction is correct.",
       "tier": 2,
       "url": "https://betfair-datascientists.github.io/mentalGame/correctingyouremotions"
      }
     ],
-    "summary": "Step 4: come up with a correction to that flawed logic. Step 5: explain why the correction is correct. Steps 3 to 5: show the logic is flawed, correct it, and explain why the correction is correct."
+    "summary": "Step 4: come up with a correction to that flawed logic. Step 5: explain why the correction is correct. Steps 1 and 2: describe the problem in detail, then explain why it makes sense that you react that way. Steps 3 to 5: show the logic is flawed, correct it, and explain why the correction is correct."
    },
    "facts": {
     "given": "Fill in the missing step. Problem, why it makes sense, why that logic is flawed, the ___, and why it's right."
@@ -12153,7 +12168,7 @@
     "given": "Steenbarger treats trading as a performance field, like sport or music. In that view, what builds top performance? Directed practice and review A sharper set of chart indicators A good newsletter's stock tips Natural talent and instinct"
    },
    "lesson_line": "Train like an athlete: prepare, perform, review. Better tools don't replace the reps.",
-   "simple": "Directed practice and review, because the best in any field spend more time on practice than on the real thing.",
+   "simple": "Practice and review, because the best in any field train far more than they perform.",
    "tier": "core",
    "unit": "F8.07",
    "why": "Directed practice and review. Steenbarger notes that every performance field uses practice sessions to keep the performer in shape and rehearse the challenges of live performance. Elite performers spend more time practising and preparing than performing. In a Fidelity piece, he and Adrienne Toghraie add that elite performance won't come from better indicators, faster software or newsletter tips. Investopedia agrees that discipline can't be found in expensive trading software. Better tools don't replace the practice.",
@@ -12187,7 +12202,7 @@
     "five"
    ],
    "kind": "fill",
-   "q": "Finish the line.",
+   "q": "Finish the line. It sums up Tendler's advice on improving a routine.",
    "sentence": "When your routine needs work, add new things ___ at a time.",
    "subject": "F8.07#q07"
   },
@@ -12219,7 +12234,7 @@
     "summary": "Improve a routine one small addition at a time. Change is a daily job, and trying to change everything at once tends to derail it. Small steps add up to big changes."
    },
    "facts": {
-    "given": "Finish the line. When your routine needs work, add new things ___ at a time."
+    "given": "Finish the line. It sums up Tendler's advice on improving a routine. When your routine needs work, add new things ___ at a time."
    },
    "lesson_line": "One small change you keep beats a big overhaul you drop.",
    "simple": "One, because a single small change you can keep beats trying to fix everything at once.",
@@ -12442,7 +12457,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "example": "Written before the open: if I take a loss, then I stand up and take 15 minutes before the next order. If the setup triggers again, then it is a new trade with its own stop and every rule. The rule decides, not the sting of the last loss."
+    "example": "Written before the open: if I feel the urge to jump straight back in after a loss, then I stand up and take 15 minutes before the next order. If the setup triggers again, then it is a new trade with its own stop and every rule. The rule decides, not the sting of the last loss."
    },
    "depth": {
     "sources": [
@@ -13287,7 +13302,7 @@
    "unit": "F8.07",
    "why": "Yes. Good weeks hold lessons to repeat. Steenbarger turns what you did well into goals to repeat and expand. Studying your successes is how you find your best practices. Tendler warns that dropping the journal when things go well is a sign of subtle overconfidence. Our rule: review the week every weekend, ideally. A great week is not a reason to skip it, or to raise risk past the rules.",
    "wrong": {
-    "No, but raise your size next week": "Skipping the review is the problem. And our rule: never raise risk past the rules after a run of winners.",
+    "No, but raise your size next week": "Skipping the review is the problem. Size is a separate call, and our rule caps it: never raise risk past the rules after a run of winners.",
     "No, reviews are for losing weeks": "Steenbarger: studying your successes is how you define your best practices.",
     "Yes, the profit still needs to be logged": "You journaled every trade the same day, so the profit is already logged. The weekly review is for lessons: what you did well becomes a goal to repeat."
    }

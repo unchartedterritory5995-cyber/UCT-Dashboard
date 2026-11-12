@@ -573,21 +573,19 @@
    "format": "tf",
    "q": "The SEC's investor guide counts four or five stocks as a diversified stock portfolio.",
    "answer": "False",
-   "why": "False. The SEC's guide says four or five stocks won't make the stock part of a portfolio diversified. It points to at least a dozen. Our rule is 5 to 10 positions, fewer than that dozen. So each position's size does the protecting. Schwab says diversification starts by committing only part of your capital to any one position.",
-   "lesson_line": "A handful of stocks isn't diversified. Your position sizes have to do the protecting.",
+   "why": "False. The SEC's guide says the stock part of your portfolio won't be diversified if you own only four or five individual stocks. It says you need at least a dozen carefully selected stocks to be truly diversified.",
+   "lesson_line": "Four or five stocks isn't a diversified portfolio. The SEC's guide points to at least a dozen.",
    "facts": [
     "f16",
-    "f17",
-    "f07",
-    "h05"
+    "f17"
    ],
    "simple": "False, because the SEC guide says four or five stocks is not diversified and points to at least a dozen.",
    "tier": "core",
    "risk": {
-    "score": 3,
+    "score": 2,
     "reasons": [
      "fixed before",
-     "the why teaches the rulebook's A9 (5 to 10 positions)"
+     "final check: house inference about position size dropped; keys only the SEC fact"
     ]
    },
    "batch": "wave9"
@@ -757,12 +755,12 @@
    "rung": 5,
    "format": "scenario",
    "story": "Your rule caps total open risk at 6%. Your open trades risk 5% now. A new setup would risk 1.5% at your usual size.",
-   "q": "How do you fit it under the cap?",
+   "q": "How do you fit it within the cap?",
    "choices": [
     "Size it down to 1%, same stop",
     "Same size, move the stop closer",
-    "Same size, the cap can stretch",
-    "Buy half now, add the rest later"
+    "Buy half now, add the rest later",
+    "Raise the cap to 7% this once"
    ],
    "answer": "Size it down to 1%, same stop",
    "calc": {
@@ -782,9 +780,9 @@
     "h01"
    ],
    "wrong": {
-    "Same size, the cap can stretch": "The question is how to fit it under your 6%. Stretching the limit doesn't fit it. 5% plus 1.5% goes past your own rule.",
     "Same size, move the stop closer": "That squeezes the stop to fit the math. Put the stop where it works and adjust the size instead.",
-    "Buy half now, add the rest later": "That's scaling in. Our size goes on at one price with one stop, and we never add."
+    "Buy half now, add the rest later": "Once the rest goes on, the full 1.5% sits on top of your 5%, past your 6%. And our size goes on at one price with one stop; we never add.",
+    "Raise the cap to 7% this once": "The cap is the rule. Bending it for one good-looking setup is how total risk creeps up."
    },
    "simple": "Buy fewer shares so the trade risks 1%, and leave the stop where it belongs.",
    "deeper": {
@@ -795,7 +793,8 @@
     "score": 4,
     "reasons": [
      "computed key",
-     "rests on the owner's rulebook (h01 in a wrong note; A10 says total open risk is a guide, see owner_flags)"
+     "rests on the owner's rulebook (h01 in a wrong note)",
+     "final check: dropped 'the cap can stretch', which q23 and A10 make defensible"
     ]
    },
    "batch": "wave9"
@@ -1159,7 +1158,7 @@
   {
    "key": "q23",
    "skill": "risk.heat",
-   "rung": 6,
+   "rung": 3,
    "format": "tf",
    "house": true,
    "q": "Under our rulebook, the total open risk we carry changes with the market.",
@@ -1171,12 +1170,13 @@
     "h03",
     "h08"
    ],
-   "tier": "extended",
+   "tier": "core",
    "risk": {
     "score": 2,
     "reasons": [
      "rests on the owner's rulebook (A10, F65)",
-     "new in wave9 to teach A10 as ours (see owner_flags)"
+     "new in wave9 to teach A10 as ours (see owner_flags)",
+     "final check: moved to rung 3 as the earlier checker asked"
     ]
    },
    "batch": "wave9"
@@ -1248,7 +1248,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "'so our book is not diversified by the SEC's measure' is our own inference, not a quote: the SEC line is about individual stocks, and our positions can be ETFs (E54 prefers leveraged ETFs), so it can be wrong. Replaced with the count fact (h05) and the size point (f07). The why teaches A9; consider house:true if the tool allows."
+   "notes": "Own answer False from f16 (SEC, Tier 1; page 403s to the fetcher today, confirmed by the earlier checker). Key right, no second answer. Broken part is the teaching added on top: 'So each position's size does the protecting' and the lesson line 'Your position sizes have to do the protecting' are an inference no fact says. f07 (Schwab) is about diversification, and our rulebook protects through the stop and the risk per trade (A3, A4, A5), while allowing positions up to 40% (A7) and a 200% book (B24). Telling members size is the protection overreaches and sits badly beside A7. Fix: keep only the"
   },
   "q07": {
    "status": "pass",
@@ -1284,7 +1284,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Choices and notes fine (key not longest; 'cap can stretch' note rests on the question; A10 tension is owner flag 1). Deeper trap said 'a routine dip takes you out' as a certainty; f20 supports only that short-term swings can trigger a stop. Hedged."
+   "notes": "Own answer: size down to the 1% of room, same stop (calc 6 - 5 = 1; f30 confirmed live on StockCharts). Two breaks. (1) The choice 'Same size, the cap can stretch' collides with q23 and the owner's A10 in this same lesson: q23 teaches that our total open risk is a guide, not a hard cap, so a member who just learned that has a real reason to pick 'the cap can stretch'. Dropped; three choices are allowed. (2) 'Buy half now, add the rest later' was ruled out only by the house rule h01 in a non-house question; the half alone fits under the cap. Wrong note now first rules it out from the story (onc"
   },
   "q13": {
    "status": "pass",
@@ -1295,8 +1295,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right and Tier 1: FINRA lists individual tech companies plus a tech fund under 'Concentration due to correlated assets' (confirmed live). Choice lengths balanced. The 'Hedges it' note stated co-movement as a certainty; FINRA says 'tend'. Hedged."
+   "fixed": false,
+   "notes": "Own answer 'Adds more of the same risk' before reading the key. f14 and f13 confirmed live on FINRA under 'Concentration due to correlated assets' (Tier 1). Choices 26/28/24/24 chars, key not longest; no silly choice; every wrong note hedged with 'tends'. Not the struck correlation-counting rule: it states a FINRA fact, not a sizing rule, and nothing contradicts E54 (leveraged ETFs preferred). Minor: its why restates q03's answer (industry stocks tend to move together), but q03 sits at rung 2 and plays first; the same FINRA fact is the lesson's teaching, so left as is."
   },
   "q15": {
    "status": "cut",
@@ -1343,14 +1343,14 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 20 x 15 / 100 = 3 right; bare-number choices fine. Deeper misquotes A7: the rulebook says a tight stop never justifies a position bigger THAN THE CAP ('than that'), not a bigger position at all; as written it contradicts A5, where a tighter stop gives more shares. Rewritten without the bad paraphrase. Fact h06's claim carries the same truncation ('never a reason for a bigger position') and should read 'bigger than the position cap'."
+   "fixed": false,
+   "notes": "Own answer 3%: 20 x 15 / 100 = 3, calc agrees; 1% is given in the story. Bare-number choices, each a real misreading. f18/f19/f33 support the gap point. Deeper matches A7 ('a tight stop never justifies a bigger position than that: a gap can jump the stop'). Does not contradict B20: the account is down 3% at the open whatever the 30-minute rule later does. Outside the question: fact h06's claim still truncates A7 ('never a reason for a bigger position'); it should read 'never a reason for a position bigger than the 40% cap'."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True is right (h03 A10, h08 F65 match sizing_rule.md). Plain recall of a rule is a Learn item, not rung 6 (Practise, use it on a case); rung 3 also evens the unit's spread at 6/6/6. The why named Green/Yellow/Red without saying what they are; now ties them to our market reading as h08 does."
+   "notes": "Own answer True from h03 (A10) and h08 (F65), both verbatim in sizing_rule.md section 9. Key, why and lines are right. But the earlier checker's rung fix was recorded and never applied: it is plain recall of a rule (a Learn item), still at rung 6. With rung 3 the live questions spread 6/6/6 (Learn/Practise/Prove). Its tension with q12's 'the cap can stretch' is fixed on q12's side."
   }
  }
 }

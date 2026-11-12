@@ -1252,7 +1252,7 @@
     "Hold it all, skip the trim": "Our hard rule takes a third off at 3R. Skipping it leaves the whole gain riding on one exit.",
     "Sell half, let the rest ride": "Half is Hirsch's way on a double. Our hard rule takes a third at 3R, and the rest follows the trail."
    },
-   "simple": "Sell a third and trail the rest, because our rule takes a third off at 3R and lets the rest ride.",
+   "simple": "Sell a third and trail the rest, because our hard rule takes a third off at 3R.",
    "deeper": {
     "trap": "The trap is the urge to bank it all at the first big number. 3R feels like a win to protect. But the stock is still above its rising averages, so nothing in the plan says the trend is over. A third off pays you. The trail decides when the rest is done, not your nerves."
    },
@@ -1318,9 +1318,10 @@
    "format": "tf",
    "q": "Selling part of a winner at a level you set before entry is a method, not a fear exit.",
    "answer": "True",
-   "why": "True. A planned partial locks in some profit while the rest keeps working. Hirsch calls selling half on a double one of the simplest ways to lock in profits and still let winners ride. Farley says to protect gains with trailing stops or partial profits. Our rule sells partials into strength too, and trails the rest. A fear exit is a sale on a wobble, at no level you set.",
+   "why": "True. A planned partial locks in some profit while the rest keeps working. Fidelity says to have a plan for how you might exit even before you enter. Hirsch calls selling half on a double one of the simplest ways to lock in profits and still let winners ride. Farley says to protect gains with trailing stops or partial profits. Our rule sells partials into strength too, and trails the rest. A fear exit is a sale on a wobble, at no level you set.",
    "lesson_line": "Selling into strength by plan is a method. Selling on a wobble is fear.",
    "facts": [
+    "f29",
     "f57",
     "f58",
     "f26",
@@ -1329,7 +1330,7 @@
    ],
    "simple": "True, a sale at a level you planned is a method, while a fear sale on a wobble has no plan.",
    "deeper": {
-    "counter": "Same stock, two exits. One trader sells a third at the trim level she set before entry and trails the rest. Another sells everything on the first red day because it feels shaky. Both took a profit. Only the second let fear pick the price. The test is not whether you sold, but whether the plan or the feeling set the level."
+    "counter": "Same stock, two exits. One trader sells part at the trim level she set before entry and trails the rest. Another sells everything on the first red day because it feels shaky. Both took a profit. Only the second let fear pick the price. The test is not whether you sold, but whether the plan or the feeling set the level."
    },
    "tier": "expert",
    "risk": {
@@ -1443,7 +1444,7 @@
    "answer": "Skip it, the report is too close",
    "simple": "Skip it, because our rule allows no new buys in the 3 days before an earnings report.",
    "why": "Skip it, the report is too close. Our rule: no new buys in the 3 days before an earnings report. On Monday, a Wednesday report is inside that window. Investopedia flags gap risk around earnings reports. A stop is a trigger, not a guaranteed price, so a gap past it can cost more than you planned.",
-   "lesson_line": "A rule set before the trigger decides. Near earnings, ours says no new buys.",
+   "lesson_line": "A rule set before the trigger decides. In the 3 days before earnings, ours says no new buys.",
    "facts": [
     "h03",
     "f52",
@@ -1617,7 +1618,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Story fix holds. Two problems remain. (1) The distractor 'Sell half, move stop to breakeven' mixes in part of OUR rule: B19 moves the stop to breakeven at 2R to 5R, so the wrong-note implies breakeven is wrong. Replaced with Hirsch's half alone ('Sell half, let the rest ride', f57), so only the fraction differs. (2) 'Hold it all, skip the trim' is close to what B19 says the owner mostly does (waits for 5R); asking 'our hard rule' makes the key the B19 hard rule and leaves no second answer. Key 'trail the rest' matches A11 ('sell some into strength and trail the rest'); E51 (another third at 5R"
+   "notes": "Key is right: B19's hard rule is a third at 3R, and A11/h01 trail the rest. No second answer, no length tell, f26 and f57 quotes confirmed live on Fidelity. One defect: the simple line says our rule 'lets the rest ride', which is the exact wording of the wrong choice 'Sell half, let the rest ride'. A learner then reads our rule and the wrong choice as the same. It also says more than the rule, since E51 takes another third at 5R. The simple now uses the key's own words."
   },
   "q20": {
    "status": "cut",
@@ -1629,7 +1630,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Flip to True is sound (f57, f58, h01; A12 plans Trim before entry). But the why says 'Our rule is the same' right after Farley's 'lock in what you can as early as you can' and Hirsch's half on a double. Our rule is not the same (B19: a third at 3R). Reworded so we only share the method."
+   "notes": "True holds (f57, f58, h01). Two defects. (1) The deeper counter says 'sells a third at the trim level ... and trails the rest'. That is q19's key word for word, and q19 is in the same rung. Seen first, it gives q19 away. Changed to 'sells part'. (2) Nothing in the why supported 'set before entry' in the statement. Added Fidelity's line on planning the exit before you enter (f29, already a lesson fact)."
   },
   "q22": {
    "status": "pass",
@@ -1647,7 +1648,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key correct under B22 (h03 verbatim): on Monday a Wednesday report is inside the 3-day window, whether days are counted by calendar or by trading days. Skip plus Wait against two Takes, so no lone-choice tell; key not longest. Defect: the why says 'Earnings can gap a stock past your stop', but no cited fact links earnings to gaps (f53 is about gaps in general). The earnings-gap link is only in f52, so f52 is now cited for that fact alone; its halve-size view is not taught. Also tightened the 'every other rule passes' note, which said 'rule says no' twice."
+   "notes": "Key is right under B22 (h03 is the rule's own words). On Monday a Wednesday report is inside the 3-day window, before or after the open. No second answer, and the key is not the longest choice. The deeper is copied word for word from q20, but q20 is cut, so learners never see it twice. One defect: the lesson line says 'Near earnings, ours says no new buys'. 'Near' includes the days after a report, which B22 does not cover. Now it names the 3 days before."
   }
  }
 }

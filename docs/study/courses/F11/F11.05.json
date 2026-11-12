@@ -832,7 +832,7 @@
    "rung": 2,
    "format": "fill",
    "q": "Tap the word that fits the blank.",
-   "sentence": "Bid-ask spreads are usually widest right at the ___, then narrow as the day goes on.",
+   "sentence": "On a typical day, bid-ask spreads are widest right at the ___.",
    "bank": [
     "open",
     "close",
@@ -882,7 +882,7 @@
    "wrong": {
     "Earnings come out right at 9:30 a.m.": "Companies usually report before the open or after the close, not at the bell. The open reacts to news that's already out.",
     "Spreads are tightest at the open": "The other way round. Spreads are typically widest at the open and narrow through the day.",
-    "Big funds do most of their trading then": "That's not what drives the open. Institutions may do a lot of their trading late in the day. The open takes in the news since the close."
+    "Big funds do most of their trading then": "Our sources put a lot of institutional trading late in the day, not mostly at the open. The open's swing comes from the news since the close."
    },
    "simple": "The open swings more because it has to take in all the news since the last close at once.",
    "tier": "core",
@@ -1510,7 +1510,7 @@
     "Buy now, with the stop and size set",
     "Wait until the first half hour ends",
     "Skip it, since the open is too wild",
-    "Wait for the quieter midday stretch"
+    "Buy now, set the stop once it calms"
    ],
    "answer": "Buy now, with the stop and size set",
    "simple": "Buy now, because our rulebook has no time-of-day rule and your written plan is the trigger.",
@@ -1519,13 +1519,12 @@
    "facts": [
     "h8",
     "h9",
-    "f52",
-    "f51"
+    "f52"
    ],
    "wrong": {
     "Wait until the first half hour ends": "That's a time-of-day rule, and we don't have one. The planned entry is the trigger.",
     "Skip it, since the open is too wild": "The open does tend to swing hardest. But we have no time-of-day rule, so the swing alone is no reason to skip.",
-    "Wait for the quieter midday stretch": "Midday tends to be calmer, but the clock isn't our trigger. We have no time-of-day rule."
+    "Buy now, set the stop once it calms": "The stop doesn't wait. Our rule: every planned buy has its entry, stop and size written down before the market opens."
    },
    "deeper": {
     "trap": "The open's swings are a fact about the market, not a rule for you. Your entry, stop and size were written before the open. Act on them."
@@ -1588,13 +1587,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The new simple says the open is 'often the priciest time to trade', and the lesson line says the same. That rests on spread = cost (f39), which q03 does not cite. Added f39 to facts; text unchanged."
+   "notes": "Cold answer: open (f23 Cboe, f66 McInish and Wood; two Tier 2 publishers agree). Re-read the Cboe page on 2026-11-12: 'typically widest at the open', over 'all names in the S&P 500', so 'large US stocks' holds. Defect is a tell: the sentence's own second half ('then narrow as the day goes on') gives the blank away, because only a start-of-day word can be followed by narrowing all day. Rewrote the sentence so the member has to choose between open and close. The bank, key, why, simple and lesson line stay as they are and still fit. The why already covers the late uptick (f66), so close stays pla"
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f52). The rewritten 'Big funds' note ends 'not at 9:30', but f45 says only that institutions may trade a lot late in the day; it says nothing about the open. Dropped the overreach and closed on f52's reason instead. Also noted: q04's stem ('the open often swings harder') states q08's answer, though w1 already teaches it."
+   "notes": "Cold answer: the open takes in the news since the last close (f52 Investopedia, f43 Schwab). Key right, not the longest (33 chars against 32 to 39), no lone hedge. Defect: the 'Big funds' wrong note opens 'That's not what drives the open.' No cited fact says that. f45 says only that institutions may trade a lot late in the day, and f22 says the opening print is among the day's largest trades, so the flat denial overreaches. Rewrote the note so it stays inside f45 and f52. Noted and left: the stem ('the open often swings harder') presupposes q08's answer, but w1 step 2 teaches that before any q"
   },
   "q05": {
    "status": "pass",
@@ -1603,10 +1602,10 @@
    "notes": "upgraded wave9; awaiting cold re-read"
   },
   "q06": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f44), choices balanced (35-37 chars). The Fed watchers note reads 'a Fed meeting, like the one at 2:00 p.m. on Oct. 28', which says the meeting was at 2:00. f34 says the STATEMENT was released at 2:00 p.m.; f33 puts the meeting on Oct. 27-28. Rewrote the note so the 2:00 time goes with the statement. Risk unchanged: Schwab (f44, f45) was unreachable again on 2026-11-12 (authorization error page), so the key still rests on the checker's 2026-11-09 read."
+   "fixed": false,
+   "notes": "The key ('Index funds, to match their benchmark') rests on one Tier 2 publisher, Schwab (f44; f45 is Schwab too). The support rule needs one Tier 1 fact or two Tier 2 publishers. Schwab's page returned an authorization error again on 2026-11-12. I looked for a second source: the FTSE Russell page, both NYSE closing-auction notes (s4, s5) and the Cboe note do not say index funds trade the close. Investopedia blocks fetches. The Nasdaq crosses PDF cannot be parsed here. The normal-day framing is also contested: a Nasdaq economist's piece (search snippet only, page timed out) says the MOC is 'mor"
   },
   "q07": {
    "status": "cut",
@@ -1696,7 +1695,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key is right under C30 (h8) and D39 (h9). The four choices are 35 chars each, with no lone hedge. Defect: the deeper trap says 'The Kicker's 30-minute range is one setup's trigger', which hands q12 its key (q12 is the same rung, and the serving order is not fixed). Rewrote the trap on h9 alone and dropped h1, which nothing else in q21 uses. Minor, left: the story's 'open is swinging hard' also restates q08's answer, but w1 already teaches it."
+   "notes": "Cold answer under the rulebook: buy now on the written plan. C30 (h8) says no time-of-day rule. D39 (h9) puts entry, stop and size in writing before the open. D41 requires a real stop order. No second defensible choice, and the key fits section 9. Defect is a tell: the key is the only choice that acts, against three time-based ways to wait or skip, so a member can pick the odd one out without knowing the rule. Replaced the midday choice (a near-repeat of 'wait') with a 'buy now' that breaks D39 by setting the stop later. That leaves two buys and two waits, all 35 characters. Dropped f51, which"
   }
  }
 }
