@@ -1,28 +1,16 @@
 # Study overbuild: RESUME GUIDE (read this first in any new window)
 
-## >>> PAUSED 2026-11-12: WEEKLY USAGE LIMIT HIT (resets 4am America/Chicago). Nothing is running. <<<
+## >>> RESUMED 2026-11-12 after the weekly reset. RUNNING NOW: <<<
 
-**Committed (local, not pushed):** pilot, waves 1, 2 (+ verify for 9 of 10 lessons, 5b19fd0434), 3 (0c1701c2c3, before verify),
-4 for 7 of 10 lessons (63548c850f: SET.32, 33, 34, 40, 42, 43, 45, before verify). Library: **2,109 of 5,187 live questions have a simple
-answer; 790 choice questions still have 3 answers.** Working tree clean.
+| Run id | What | Args (in `_study-resume\overbuild\`) |
+|---|---|---|
+| `wf_0345faab-94f` | combined VERIFY (verifyR1): SET.13 + wave 3 + wave 4 merged lessons, 202 questions | `verifyR1_args.json`, check files land in `<scratch>gentserifyR1erify\` |
+| `wf_ddcf83d9-ddf` | wave 4b: fresh re-run of SET.41, SET.44, SET.46 (175 questions) | `wave4b_args.json` |
+| `wf_d55a56e7-ac0` | wave 5: SET.47 to SET.54 (503 questions) | `wave5_args.json` |
 
-**Held, NOT merged:** SET.41, SET.44, SET.46. The usage limit killed their check / red-team agents, and the pipeline then ran resolve and
-re-check with no independent check, so their output is not trusted. Re-run them fresh as `wave4b`.
-
-**On resume, run these in order (all args files are in `_study-resume\overbuild\`; script paths are in the same folder):**
-1. `sync_scratch.sh`, then `git log --oneline -8`.
-2. Verify runs with `overbuild-verify.js`:
-   - `wave2_verify_SET13_args.json` (12 questions; the one lesson the limit cut from wave 2's verify)
-   - `wave3_verify_args.json` (116 questions)
-   - `wave4_verify_args.json` (74 questions, the 7 merged lessons)
-   Apply each with `python -m scripts.study.apply_upgrade docs/study/courses/SET/<unit>.json <empty.json> --check <scratch>/agents/<wave>/verify/<unit>.check.json --batch <wave> --write`, then gates, commit.
-3. `wave4b_args.json` with `overbuild-wave-routed.js` (SET.41, 44, 46; 175 questions, 6 chunks). Then integrate, verify, gates, commit.
-4. Waves 5 to 9 (`wave5_args.json` ... `wave9_args.json`), max 3 workflows at once.
-
-**A lesson learned from this pause:** when an agent fails (usage limit), `parallel()` returns null and the pipeline carries on, so resolve and
-re-check run without the check. After any run with failures, look at the failure list and HOLD every chunk whose check, red-team or
-check+break agent failed. A future fix: make the wave script skip resolve and re-check when the check stage returned null.
-
+The wave script now HOLDS a chunk when its writer, check, red-team, check+break or resolver agent fails (it returns `held: [...]` and logs it); never merge a held chunk.
+Committed before resuming: pilot, waves 1 to 3, wave 2 verify (9/10), wave 4 for 7/10 lessons. Still to launch after these: waves 6 to 9 (`wave6..9_args.json`).
+If this window dies: resume each run with `resumeFromRunId` + its args file.
 
 ## 1. What this is, in his words
 
