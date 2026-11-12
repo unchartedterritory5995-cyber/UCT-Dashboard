@@ -21732,28 +21732,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     return out
   })()
-  /** ⭐ Engine 51 — `x = input.enum(E.m, …)` at the top level, declared once and never
-   *  reassigned: its call, parsed. The value lane holds no enum type, so the binding is
-   *  opaque; the static enum reader reads the default member here instead. */
-  const enumInputs = (() => {
-    const out = new Map()
-    const count = new Map()
-    for (const st of stmts || []) {
-      const h = st.header || []
-      const eq = findTop(h, (t) => isPunct(t, '='))
-      if (eq < 1) continue
-      const nameTok = h[eq - 1]
-      if (!nameTok || nameTok.kind !== 'ident') continue
-      count.set(nameTok.value, (count.get(nameTok.value) || 0) + 1)
-      const rhs = h.slice(eq + 1)
-      if (!(rhs[0] && rhs[0].kind === 'ident' && rhs[0].value === 'input.enum')) continue
-      let node = null
-      try { node = parseWholeExpression(rhs) } catch { node = null }
-      if (node && node.type === 'call') out.set(nameTok.value, node)
-    }
-    for (const name of [...out.keys()]) if (count.get(name) !== 1 || !neverReassigned(name)) out.delete(name)
-    return out
-  })()
   const enumMemberOf = (name) => {
     const dot = typeof name === 'string' ? name.indexOf('.') : -1
     if (dot <= 0) return null
@@ -21805,8 +21783,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         try { last = makeResolver(scopeEnv).finalBindings.get(node.name) } catch { last = null }
         return last === b && neverReassigned(node.name) ? staticEnumValue(b.seed, b.seedEnv || scope, null, depth + 1) : null
       }
-      // a top-level `x = input.enum(E.m, …)` the value lane holds as opaque (`enumInputs`)
-      if (!local && b.kind === 'opaque' && enumInputs.has(node.name)) return staticEnumValue(enumInputs.get(node.name), scope, null, depth + 1)
       return null
     }
     if (node.type === 'call') {

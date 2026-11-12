@@ -110,6 +110,21 @@ describe('B1 · a position fixed before bar 0 is read through the four shapes', 
     expect(positionOf(t) || '').not.toContain('bottom_center')
   })
 
+  it('control: a `var` switch the script reassigns is not read as its first value', () => {
+    const t = T('p = input.string("Middle")\nvar where = switch p\n    "Top Left" => position.top_left\n    "Middle" => position.middle_center\n'
+      + 'if close > open\n    where := position.top_left\nvar table t = table.new(where, 1, 1)\n' + CELL)
+    expect(positionOf(t) || '').not.toContain('middle_center')
+  })
+
+  it('a per-bar choice between two fixed strings handed to a helper is lifted out of the call (uncharted-volume-v2\'s shape)', () => {
+    const t = T('p = input.string("Bottom Left")\nf(s) =>\n    switch s\n        "Top Center" => position.top_center\n        "Bottom Left" => position.bottom_left\n        => position.top_right\n'
+      + 'var table t = table.new(f(close > open ? "Top Center" : p), 1, 1)\n' + CELL)
+    expect(tableCreate(t)).toHaveLength(1)
+    const pos = JSON.parse(positionOf(t))
+    expect(pos.node.t).toBe('if')
+    expect([pos.node.then.s, pos.node.else.s]).toEqual(['top_center', 'bottom_left'])
+  })
+
   it('control: an input the member can move (a declared knob, or one handed a value) is never read at its default', () => {
     const src = '//@version=6\nindicator("r51", overlay = true)\np = input.string("Bottom Left", "where", options = ["Bottom Left", "Top Right"])\n'
       + 'f(s) =>\n    switch s\n        "Bottom Left" => position.bottom_left\n        => position.top_right\n'
