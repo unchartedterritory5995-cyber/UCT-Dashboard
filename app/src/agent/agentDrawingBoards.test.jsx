@@ -1,5 +1,5 @@
 // Drawing Boards execution (C1-167 switch, C1-168 create, C1-169 rename, C1-170 delete).
-// CI trigger 11-12: the master re-merge (dcfe73fbfc, barStore only) and the ChartToolbar fix touched no Agent path, so this line starts the agent ci push run.
+// CI trigger 11-12: the master re-merges (dcfe73fbfc barStore; 44f2b7bf50 Pine engine 51) and the ChartToolbar fix touched no Agent path, so this line starts the agent ci push run.
 // The Agent writes through the Boards panel's own store writers (host.drawingBoards → drawingsStore), reads the result
 // back, and waits for the server's tracings_doc. Delete is always a confirmation card that names the board and its
 // drawings and has no Undo. An unnamed or ambiguous board is asked about, never picked, and a board request aimed at
