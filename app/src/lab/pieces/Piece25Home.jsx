@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import coach from '../../components/intro/assets/compass-mark.png'
+import coach from '../../components/intro/assets/compass-mark.webp'
 import d5 from '../duo.module.css'
 
 /** Round 5, piece 5: the home, the way Duolingo lays it out (owner: "too confusing, check out a ton of apps LIKE

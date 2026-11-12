@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { prefersReducedMotion, fullIntroDue, markFullIntroPlayed } from './introStorage'
 import { isCompactHeaderRoute } from '../../pages/journal-2-0/lib/compactHeaderRoute'
 import useFocusTrap from '../mobile/useFocusTrap'
-import compassMark from './assets/compass-mark.png'
+import compassMark from './assets/compass-mark.webp'
 import parchmentMark from './assets/parchment-mark.png'
 import styles from './IntroAnimation.module.css'
 

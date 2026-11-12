@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import coach from '../../components/intro/assets/compass-mark.png'
+import coach from '../../components/intro/assets/compass-mark.webp'
 import d5 from '../duo.module.css'
 
 /** Round 6, piece 5: the home, higher production (owner: "cool but can be a lot better and higher quality").
