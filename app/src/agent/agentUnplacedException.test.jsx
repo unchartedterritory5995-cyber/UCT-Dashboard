@@ -95,3 +95,4 @@ describe('control: a non-chart possessive is never read as a chart exception', (
 })
 
 // agent-ci-required validation B (Agent path): expect pending, then success after the push run. Close unmerged.
+// agent-ci-required validation B step 2b: an Agent-path push after the merge-only-style head — expect pending, then success.
