@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { useMenuButton } from './NewNoteMenu'
-import SavedViewsMenuGroup from './SavedViewsMenuGroup'
+import SavedViewsMenuGroup, { SAVED_VIEWS_FAILED } from './SavedViewsMenuGroup'
 
 const VIEWS = [
   { id: 'v1', name: 'Active Theses', viewType: 'list' },
@@ -181,10 +181,26 @@ describe('with no saved views', () => {
     expect(menu()).toBeNull()
   })
 
-  it('without that door (the list is still loading, or failed) the group is not drawn at all', () => {
+  it('without that door while the list is still loading, the group is not drawn at all', () => {
     render(<Harness views={[]} onAddStarterViews={null} />)
     fireEvent.click(screen.getByRole('button', { name: 'View' }))
     expect(within(menu()).queryByRole('group', { name: 'Saved views' })).toBeNull()
+  })
+
+  // Go-live wave 1 (D3): a failed read is said, quietly, in the Saved views place; nothing offered, nothing to press.
+  it('the read failed: the group says "Saved views could not be loaded." and offers nothing', () => {
+    render(<Harness views={[]} onAddStarterViews={null} loadFailed />)
+    fireEvent.click(screen.getByRole('button', { name: 'View' }))
+    const g = group()
+    expect(g).toHaveTextContent(SAVED_VIEWS_FAILED)
+    expect(SAVED_VIEWS_FAILED).toBe('Saved views could not be loaded.')
+    expect(within(g).queryAllByRole('menuitem')).toHaveLength(0)
+  })
+
+  it('CONTROL: a failed read with views still on hand lists them (the line is for an empty group only)', () => {
+    openGroup({ loadFailed: true })
+    expect(within(group()).getAllByRole('menuitem', { name: /Active Theses|Watching/ }).length).toBeGreaterThan(0)
+    expect(group()).not.toHaveTextContent(SAVED_VIEWS_FAILED)
   })
 
   it('CONTROL: with views, the starter door is not offered even when handed in', () => {

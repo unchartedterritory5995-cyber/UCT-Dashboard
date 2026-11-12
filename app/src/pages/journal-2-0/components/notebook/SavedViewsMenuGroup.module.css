@@ -21,6 +21,13 @@
   align-items: center;
   gap: 2px;
 }
+/* Go-live wave 1 (D3): the one quiet line when the saved views could not be read. */
+.failed {
+  margin: 0;
+  padding: 4px 12px 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
 .apply {
   flex: 1;
   min-width: 0;

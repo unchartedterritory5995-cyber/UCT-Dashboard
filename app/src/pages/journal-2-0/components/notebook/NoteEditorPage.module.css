@@ -792,7 +792,13 @@
      ~600px viewport — the occlusion the old in-column toolbar's de-sticky
      rule existed to prevent (review finding: that rule targeted a selector
      nothing renders any more). */
-  .chrome { position: static; }
+  /* Go-live wave 1 (D1): and `z-index: auto` with it. `.chrome` is a FLEX ITEM of `.page`, and a flex item with a
+     z-index makes a stacking context even while it is static. Static, it kept its z 40 context, so everything inside
+     the chrome -- the More panel (NoteMoreMenu, fixed, z 60) included -- painted INSIDE z 40, under the phone note's
+     folders button and back chevron (NotebookTab.module.css, z 41 outside the chrome): the folders button sat on top
+     of the open panel's "Find in note" row (measured at 390). Static, the chrome overlaps nothing, so it needs no
+     layer of its own; the panel's 60 now counts against the buttons' 41. Rail: NoteEditorPage.phoneStacking.test.js. */
+  .chrome { position: static; z-index: auto; }
   .toolBtn { padding: 8px 12px; font-size: 15px; min-height: var(--tap-min, 44px); }
   /* Wave 10 lane D3P (D-3 PHONE): at 390 px the full formatting row wrapped to ~8 rows and
      pushed the note's title below the first screen (L3, measured). A phone keeps Undo / Redo,
@@ -1208,7 +1214,9 @@
 .desktopOnly { display: none; }
 .menuAnchor { position: relative; display: inline-flex; }
 @media (min-width: 1025px) {
-  .desktopOnly { display: contents; }
+  /* Go-live wave 1 (D6): `:not([hidden])`, so the HTML `hidden` attribute still wins up here (`display: contents` is a
+     stronger rule than the UA's `[hidden] { display: none }` and painted a hidden desktop-only element). */
+  .desktopOnly:not([hidden]) { display: contents; }
   .toolbarRow .foldDesktop,
   .headerControls .foldDesktop { display: none; }
   /* Only Ask's toggle: its panel lives in the same box and opens from the "AI" menu. */

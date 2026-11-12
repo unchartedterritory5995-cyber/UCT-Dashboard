@@ -188,3 +188,55 @@ Left for the go-live pass (after the owner has looked):
 - Visiting the Daily brief creates today's daily note and a "Daily" folder (the old Today home did the same).
 - The dictate button is drawn taller than its neighbours in the formatting row (it was before, too).
 - Final whole-branch review, walkthrough re-pointing, the fin walk, door audit and first-open byte budget.
+
+## Go-live wave 1: close what the simplification left open
+
+Folded (Research home's pieces, and where a member reaches each now):
+- Notices: the Daily brief, at the top of the cards (`NoticesPanel`, the Journal Today panel's lazy boundary, reused as is; it renders nothing with nothing to tell).
+- Needs review: the Daily brief, a "Needs review" card after the phase cards, only when it has rows; each row carries the server's `reviewReasons` texts. The `GET /api/j2/notebook/home` read waits for the cards' own read (`useNotebookHome({ enabled })`).
+- Connected to your open positions: the Daily brief, "Notes on your open positions", same rules, rows tagged "Open position".
+- Sample notebook removal: the notes list's More menu row "Remove the sample notebook", at every width while the sample is active. The status read (`GET /api/j2/onboarding/sample-notebook`) is made the first time the More menu opens, and only when the preferences record a sample. Same flow as the strip (trash pre-check, confirmed "Remove anyway" in the list's notice line, DELETE), then "Sample notebook moved to Trash. You can restore it from there." (`SAMPLE_COPY.removed`). A failed status read is said by the list's LoadFailed line ("your sample notebook's status").
+- "What your Notebook can do": Help (Support.jsx `NotebookCapabilitiesSection`, after Walkthroughs), plain lines from `armedCapabilities()`, on the wave-14 switch as before. `PREVIEW_COPY.sampleTail` names the new removal door.
+
+Dropped (rulings): Active theses (the starter saved view and the Board view cover it); the Learn menu (Help > Walkthroughs lists every tour); CapabilityPreview; SetupsBox; the strip's dismiss "x".
+
+Not done (ruling A3): the "Needs Review" starter saved view still filters only `review_date <= today`. The filter language is AND-only and its `neq` compiles to SQL `!=`, which drops a note with NO thesis status, so "not closed, or no status" cannot be expressed without a server change.
+
+Deleted: `ResearchHome.jsx` and `.module.css` and its 23 test files; `SetupsBox.jsx`/`.module.css` and `a11y/setupsBox.a11y.test.jsx`; `onboarding/LearnMenu.jsx`/`.module.css`, `LearnMenuPanel.jsx`, seven `LearnMenu.*` tests and `a11y/learnMenu.a11y.test.jsx`; `onboarding/CapabilityPreview.jsx`/`.module.css`/test and `a11y/capabilityPreview.a11y.test.jsx`; `onboarding/learnMenuCopy.js` (`LEARN_COPY`, `isNew` with it; the `.newBadge` CSS went with LearnMenu.module.css); NewNoteMenu's default export and `CaretMenu` (and the `.split/.main/.caret` CSS); `learnTours.js` keeps only `startTour` (GettingStartedList's); `lib/todayHome.js` `LANDINGS`; FloatingOrb's `onPhoneNotebook` term; the `vi.mock` of ResearchHome in 22 NotebookTab suites, `blockedNoteSurface` and `offlineOptInEvent` (and the three now-vacuous "research-home is not shown" asserts).
+
+Walkthroughs re-pointed:
+- New engine feature: a step may carry `tier` (`phone`, `wide`, `touch`, `desktop`; `onboarding/tourTiers.js`, read once when the tour loads). GenericTourEngine drops the other tiers' steps, so each width counts and walks only its own. Registry rails allow the key and check that every tour keeps a step at phone, tablet and desktop width and that a kept `waitFor` names a kept later step.
+- `voice-notes`: starts `?view=all`. Wide: the New menu arrow (`templates`) waiting for "Voice note" (`new-note-voice`, a literal anchor through the new MenuRows `render`), then that row twice. Phone: the More menu (`styles-button`) waiting for its new phone-only "Voice note" row (`new-note-voice-phone`), then that row.
+- `review-drafts`: starts `?view=all`. Wide: the New menu arrow waiting for "Today's recap", then the three rows (`review-drafts-daily/-weekly/-monthly`). Phone: the More menu waiting for its new phone-only Reviews group (`review-drafts-phone`), then the group.
+- `earnings-prep`, `passed-setups`: start `?view=today`; the Daily brief unfolds both boxes while a tour is wanted.
+- `notebook-basics`: the `first-run` step and the Replay door's 8 s wait for it are gone; it opens on the folders panel. `sidebar` copy: folders and tags; `view-switcher` copy: saved views are in View too.
+- `writing-help`: desktop: "AI" (`note-ai`) waiting for the menu's "Writing help" (`writing-help-menu`, its own anchor now: the header button and the menu item each carry one); touch: the header icon (`writing-help`). `preview` points at the header controls (`ask-row`, on every tier) so the tour stays within six steps.
+- `image-docx-import` `add`: says Attach a file is under Aa on a wide screen.
+- Rails: `todayLanding.tours` `DEFERRED_TO_GO_LIVE` is empty and models the Daily brief by reading TodayHome's imports; `tourReachability` models the list and the Daily brief, and gains a rail that every step's file is modelled and reached from App.jsx (an AST import walk).
+
+Phone and tablet: the More menu gains phone-only "Voice note" and "Reviews" (the "+ New" group is not drawn on a phone, and reviews had no other phone door on the list since Task 5); "Ask your Notebook" is touch tier (<=1024px) and the toolbar "AI" hides at <=1024px (brief D2; the code showed it on a tablet before). The phone note's More panel now covers the folders button and the back chevron (`.chrome` at <=640px drops its z-index: a static flex item with a z-index was still a stacking context).
+
+Minors: the View menu says "Saved views could not be loaded." on a failed read; a New-menu review shows "Drafting today's recap…" (held until it lands) and its rows are disabled meanwhile; the selected row tint is `color-mix` over `--accent` and outranks the hover rule; `.desktopOnly:not([hidden])`; a zero-notes list axe rail; the delete-confirm heading fallback has its test again; the list's "+ New" carries `data-start-note` (the voice tour's "Make a note first" card focuses it).
+
+Copy fixed: Support getting started, templates and the daily note, the sample notebook; ThesisReviewSection ("on your Daily brief"); FirstRunSheet (the Daily brief's Your names card; Today's note on the notes list); stale comments in NotebookTab, setupsBoardLink, GettingStartedList, gettingStarted, tourRegistry, tourProgress, NoticesBox/ReportingSoon CSS and others.
+
+Pre-existing tests changed (old behaviour deliberately changed):
+- `FolderSidebar.test.jsx`: the H14 case drives the panel through the `#search` door with a probe in place of Research home's HomeSearch.
+- Review drafts: the `ResearchHome.reviewAccount.finAi` and `.reviewLanding` cases moved to `lib/reviewDraftRun.test.js` (account id, landing on the collapsed block, the daily notice, the server's reason); `.reviewsSkipLink` deleted (box markup only); `invalidateNoteViews.test.jsx` drives the recap through `draftReview`.
+- `NewNoteMenu.test.jsx`, `a11y/newNoteMenu.a11y.test.jsx`: the engine cases run on the list form; the split button's own markup cases are gone; a new MenuRows `render` case.
+- `NotebookTour.test.jsx`, `.coldReplay`, `baseTour.zeroDrift`: the first step is `sidebar`; the Replay door opens at once (the cold-replay file now pins that).
+- `learnTours.test.js` keeps the `startTour` cases; `b4Styles.test.jsx` lost its Learn-group case.
+- `b1Core`, `b2Trading`, `b3Research`, `b4Styles` tests and `tourRegistry.test.js` allow a step's `tier`; the `b1Core`/`b2Trading`/`tourStart` tests pin the `?view=all` starts; `b1VoiceNotes.steps.test.js` pins the new shape.
+- `NoteEditorPage.calmToolbar.test.jsx`: the menu item's anchor is `writing-help-menu`; `.desktopOnly:not([hidden])`.
+- `SavedViewsMenuGroup.test.jsx`: "loading or failed draws nothing" is "loading draws nothing" (failed says so).
+- `tourAnchors.test.js` CONTROL reads FolderSidebar.jsx; `FirstRunGate.lazy.test.js` reads TodayHome.jsx for the inline slot; `loadFailedConsumers.test.js` names NotebookTab as the sample status consumer; `notebookSurfaces.js` and `contrastAudit.js` drop the deleted surfaces; `usePreferences.additionsOnly.test.js` drops `notebook_sample` (its only client write site was Research home); `persistenceManifest.json` `notebook_sample` has no client files; `notebookTokens.baseline.json` shrank and the CEILING dropped to font-size 201, border-radius 75, spacing 1202, icon-size 215.
+- Python (edited, not run, per the box rules): `tests/test_sample_notebook_trade_exclusion.py` (sampleTail names "Remove the sample notebook"), `tests/test_notebook_wave8_walk.py` line 546 (`removed` starts "Sample notebook moved to Trash").
+
+Deferred (for the later task that owns `tools/notebook_*.py`):
+- `tests/test_notebook_wave8_walk.py::test_the_tour_steps_are_read_in_order_with_every_title` expects the base tour to start `first-run` / "Welcome to your Notebook"; it starts `sidebar` / "Folders and tags" now. Its walk readers and `tools/notebook_fin_walk*.py` (the "remove sample" step, Research home's screens, the Learn menu) need the same pass.
+- `NEEDS_NOTES` still names `voice-notes` (a member with no notes gets "Make a note first"); the list's New menu is on screen with no notes, so it can be dropped (kept to leave the mechanism's own tests untouched).
+- The Notices box mounts above the Daily brief's cards and can push them down when it has rows (no reserved space, by ruling).
+
+- `a11y/surfaceCoverage.test.js` "every file in the population has an entry" is red on this branch for three files earlier tasks added without an axe entry: `NoteFormatMenu.jsx` (Task 4), `NotebookAiPanel.jsx` (Task 5), `SavedViewsMenuGroup.jsx` (Task 2). Not this wave's files; each needs a recipe (or a true `coveredBy`) in `a11y/notebookSurfaces.js`.
+
+Pre-existing failures seen (not caused here, not changed): `components/screener/reachable.test.js` "nothing committed is connected to nothing" (five non-Notebook modules: agentExecTune, railScan, railSupport, WhatElseOpenPrompt, useDayFacts; no Notebook module is flagged now); `lib/persistence/persistenceManifest.test.js` two census cases (unresolved StockChart/barStoreSwitch keys, a missing known key), unrelated to the Notebook; `GenericTourEngine.test.jsx` "on Home with Start a note there" failed once inside a 25-file batch (focus landed on <body>) and passed on its own (load flake).

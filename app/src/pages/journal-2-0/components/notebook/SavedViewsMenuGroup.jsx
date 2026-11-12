@@ -18,6 +18,9 @@ import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import menuStyles from './NewNoteMenu.module.css'
 import styles from './SavedViewsMenuGroup.module.css'
 
+/** Go-live wave 1 (D3): what the group says when the saved views could not be read. */
+export const SAVED_VIEWS_FAILED = 'Saved views could not be loaded.'
+
 /** The mode's icon; an unrecognised viewType (older, or saved by a newer client) falls back to List's. */
 const iconFor = (viewType) => VIEW_MODES.find((m) => m.id === viewType)?.icon || 'rows'
 
@@ -27,6 +30,9 @@ export default function SavedViewsMenuGroup({
   // null while the starter set must not be offered (the list has not answered, or failed): offering it then would
   // add four views beside ones the member may already have.
   onAddStarterViews = null,
+  // Go-live wave 1 (D3): the saved views' read failed. With none to show, the group says so in one quiet line
+  // (the list's own failure line, LoadFailed, carries the retry), instead of drawing nothing.
+  loadFailed = false,
 }) {
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
@@ -45,7 +51,7 @@ export default function SavedViewsMenuGroup({
     ;[...rows].find((el) => el.getAttribute('data-saved-view-row') === id)?.focus()
   })
 
-  if (!views.length && !onAddStarterViews) return null
+  if (!views.length && !onAddStarterViews && !loadFailed) return null
 
   const startRename = (view) => { finished.current = false; setEditingId(view.id); setEditName(view.name) }
   const finishRename = (id, save) => {
@@ -60,7 +66,9 @@ export default function SavedViewsMenuGroup({
   return (
     <div ref={groupRef} role="group" aria-label="Saved views" className={styles.group} data-saved-views-group="">
       <div className={styles.label} aria-hidden="true">Saved views</div>
-      {!views.length ? (
+      {!views.length && loadFailed ? (
+        <p className={styles.failed}>{SAVED_VIEWS_FAILED}</p>
+      ) : !views.length ? (
         <button type="button" role="menuitem" className={menuStyles.item} onClick={menu.run(onAddStarterViews)}>
           <UIcon name="sliders" {...TOOLBAR_ICON} /> Add thesis starter views
         </button>

@@ -163,7 +163,8 @@
 .selectRow:focus-within .selectBox,
 .selectRow.selectWrapOn .selectBox,
 .selectRow.selectingAny .selectBox { opacity: 1; }
-.selectRow.selectWrapOn { background: rgba(220, 187, 94, 0.06); }
+/* Go-live wave 1 (D5): a selected row's tint is the list's (NotebookTab.module.css, `.rows > [data-note-row]`), on the
+   accent token, so the hover rule there cannot paint over it. */
 
 /* Touch tier (phone AND tablet): the whole box is a 44px finger target and
    it is never dimmed — there is no hover to reveal it. */

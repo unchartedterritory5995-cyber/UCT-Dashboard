@@ -230,3 +230,50 @@ describe('the toolbar names the daily note', () => {
     expect(within(bar()).queryByRole('button', { name: 'Today' })).toBeNull()
   })
 })
+
+// Go-live wave 1 (D5): a selected row's tint is on the accent token and stays under hover and keyboard focus.
+describe('the selected row: a token tint that hover does not paint over', () => {
+  const tabCss = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/tabs/NotebookTab.module.css'), 'utf8')
+  const cardCss = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/NoteCard.module.css'), 'utf8')
+  const rule = (css, sel) => parseRules(css).find((x) => x.selector.split(',').map((s) => s.trim()).includes(sel))
+  const bg = (css, sel) => {
+    const r = rule(css, sel)
+    return r ? Object.fromEntries(declarations(r).map((d) => [d.prop, d.value])).background : undefined
+  }
+  const SELECTED = '.rows > [data-note-row]:has(input[type="checkbox"]:checked)'
+  /** CSS specificity [ids, classes, types] of a simple selector chain (enough for these rules). */
+  const weight = (sel) => {
+    const inner = [...sel.matchAll(/:has\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)].map((m) => m[1])
+    const outer = sel.replace(/:has\(([^()]*(?:\([^()]*\))?[^()]*)\)/g, '')
+    const count = (s) => [
+      (s.match(/#[\w-]+/g) || []).length,
+      (s.match(/\.[\w-]+|\[[^\]]+\]|:(?!has)[\w-]+/g) || []).length,
+      (s.match(/(^|[\s>+~])[a-z][\w-]*/gi) || []).length,
+    ]
+    const best = inner.map(count).reduce((a, b) => (a[1] > b[1] ? a : b), [0, 0, 0])
+    const o = count(outer)
+    return [o[0] + best[0], o[1] + best[1], o[2] + best[2]]
+  }
+  const beats = (a, b) => a[0] !== b[0] ? a[0] > b[0] : a[1] !== b[1] ? a[1] > b[1] : a[2] > b[2]
+
+  it('the tint is on the accent token (no raw colour), and a hovered or focused selected row has its own', () => {
+    expect(bg(tabCss, SELECTED)).toMatch(/var\(--accent\)/)
+    expect(bg(tabCss, SELECTED)).not.toMatch(/rgba?\(|#[0-9a-f]{3,8}\b/i)
+    expect(bg(tabCss, `${SELECTED}:hover`)).toMatch(/var\(--accent\)/)
+    expect(bg(tabCss, `${SELECTED}:has(:focus-visible)`)).toMatch(/var\(--accent\)/)
+    expect(bg(tabCss, `${SELECTED}:hover`)).not.toBe(bg(tabCss, '.rows > [data-note-row]:hover'))
+  })
+
+  it('the selected rules outrank the plain hover rule, so hover never wins over a selection', () => {
+    expect(beats(weight(SELECTED), weight('.rows > [data-note-row]:hover'))).toBe(true)
+    expect(beats(weight(`${SELECTED}:hover`), weight('.rows > [data-note-row]:hover'))).toBe(true)
+  })
+
+  it('NoteCard no longer paints its own raw-colour selected background on a row', () => {
+    expect(rule(cardCss, '.selectRow.selectWrapOn')).toBeUndefined()
+  })
+
+  it('CONTROL: the weight check can say no', () => {
+    expect(beats(weight('.rows > [data-note-row]'), weight('.rows > [data-note-row]:hover'))).toBe(false)
+  })
+})

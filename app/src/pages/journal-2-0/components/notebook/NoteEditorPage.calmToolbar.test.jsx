@@ -167,7 +167,9 @@ describe('the stylesheet carries the desktop split', () => {
     expect(declares(DESKTOP, '.toolbarRow .foldDesktop', 'display', 'none')).toBe(true)
     expect(declares(DESKTOP, '.headerControls .foldDesktop', 'display', 'none')).toBe(true)
     expect(declares(DESKTOP, '.askFolded [data-ask-toggle]', 'display', 'none')).toBe(true)
-    expect(declares(DESKTOP, '.desktopOnly', 'display', 'contents')).toBe(true)
+    // Go-live wave 1 (D6): shown at desktop only while it is not `[hidden]`, so the attribute still hides it there.
+    expect(declares(DESKTOP, '.desktopOnly:not([hidden])', 'display', 'contents')).toBe(true)
+    expect(declares(DESKTOP, '.desktopOnly', 'display', 'contents')).toBe(false)
     // base: hidden everywhere else
     expect(declares(CSS, '.desktopOnly', 'display', 'none')).toBe(true)
   })
@@ -337,7 +339,11 @@ describe('the header\'s AI control', () => {
     let menu = screen.getByRole('menu', { name: 'AI' })
     const items = within(menu).getAllByRole('menuitem')
     expect(items.map((el) => el.textContent.trim())).toEqual(['Ask about this note', 'Writing help'])
-    expect(items[1]).toHaveAttribute('data-tour', 'writing-help')
+    // Go-live wave 1 (C5): the menu item carries the desktop walkthrough step's own anchor; the header button keeps
+    // `writing-help` (the touch step's), and "AI" carries `note-ai`.
+    expect(items[1]).toHaveAttribute('data-tour', 'writing-help-menu')
+    expect(within(header()).getByRole('button', { name: 'Writing help' })).toHaveAttribute('data-tour', 'writing-help')
+    expect(ai).toHaveAttribute('data-tour', 'note-ai')
     fireEvent.click(items[0])
     expect(await screen.findByRole('dialog', { name: 'Ask This note' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Close Ask' }))

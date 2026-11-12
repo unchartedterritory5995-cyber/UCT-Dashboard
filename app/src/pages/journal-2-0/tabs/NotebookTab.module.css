@@ -182,9 +182,11 @@
   padding-inline: 8px;
   border-left: 1px solid var(--bg);
 }
-/* A ⋯ row a phone needs (Today, From a template, Import) while "+ New" and Today give way to the floating
-   "+" (S12). Desktop has them on the row itself, so the menu leaves them out there. */
+/* A ⋯ row a phone needs (Today, From a template, Import, Voice note, Reviews) while "+ New" and Today give way to the
+   floating "+" (S12). Desktop has them on the row itself, so the menu leaves them out there. */
 .phoneOnlyItem { display: none !important; }
+/* Go-live wave 1 (D2): a ⋯ row the whole touch tier needs ("Ask your Notebook": the row's "AI" is desktop-only). */
+.touchOnlyItem { display: none !important; }
 .phoneFolders { display: none; }
 .search {
   flex: 1;
@@ -271,6 +273,17 @@
 .rows > [data-note-row]:hover,
 .rows > [data-note-row]:has(:focus-visible) {
   background: var(--bg-hover);
+}
+/* Go-live wave 1 (D5): a SELECTED row's tint, on the accent token (it follows the theme), and it stays under hover
+   and keyboard focus. It was a raw rgba on NoteCard's wrapper, which the hover rule above painted over (a hovered
+   selected row looked unselected). These rules outrank the hover rule (the ticked box in `:has` adds weight), and a
+   hovered or focused selected row is a step stronger, so both states still read. */
+.rows > [data-note-row]:has(input[type="checkbox"]:checked) {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.rows > [data-note-row]:has(input[type="checkbox"]:checked):hover,
+.rows > [data-note-row]:has(input[type="checkbox"]:checked):has(:focus-visible) {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 /* the loading placeholder for a row: two lines, no box */
 .noteRowSkeleton {
@@ -380,6 +393,10 @@
   /* The icon-only ⋯ and ▾ need the WIDTH too — a 44px-tall, 32px-wide target is
      still a miss on the axis the finger is moving along. */
   .toolBtn { min-width: var(--tap-min, 44px); }
+  /* Go-live wave 1 (D2): the list's "AI" is a desktop control (>=1025px); on the touch tier ⋯ carries "Ask your
+     Notebook" (`.touchOnlyItem`). The phone rule below hides it too, with "+ New" and Today. */
+  .newWrap .aiBtn { display: none; }
+  .touchOnlyItem { display: flex !important; }
 }
 
 /* S12 (B13): the in-note Folders door exists on a phone only (it opens the FolderSheet). */
