@@ -52,3 +52,16 @@ Then integrate with `apply_upgrade <lesson> upgraded.json final.json --check che
   full library at this cost is about 230M tokens, risk-routed about 120-150M. Report for the owner: StudyReview/plan/Pilot-report.html.
 - Tool facts: apply_upgrade applies cuts LAST; it can set calc and chart; it cannot change `format` (change by hand, as for SET.07 q33).
 - Open: the owner's choice of scale (A all / B risk-routed / C priority first) and his pilot review. Do NOT launch a full wave before he picks.
+
+## WAVE 1 RUNNING (started 2026-11-11, option B risk-routed, Sonnet high effort): SET.08 to SET.11, 287 questions
+- Workflow run `wf_30dcada7-1b0` (an earlier launch with a placeholder args list was stopped at once and its scratch cleared).
+  Script `overbuild-wave-routed-wf_c1ee93a9-04f.js` and args `wave1_args.json` are in `C:\Users\pgosz\uct-worktrees\_study-resume\overbuild\`.
+  Resume: Workflow({scriptPath: <that .js>, resumeFromRunId: "wf_30dcada7-1b0", args: {chunks: <wave1_args.json>}}).
+- 13 chunks: 4 FULL (the 49 high-risk questions: research, write, check + red team, resolve, recheck) and 9 LIGHT (238 stable
+  questions: write, one combined check-and-break agent, resolve, targeted recheck). Scratch: `.../scratchpad/agents/wave1/<chunk>/`.
+- Why: the owner asked whether to "delegate to Sonnet on high effort with a strong prompt"; the pilot already ran that way. Per-question
+  agents would cost MORE (fixed re-read overhead each time), so batching ~25-35 questions per agent plus risk routing is the cheaper form.
+  This wave also MEASURES the light path's real cost (estimate: about 20k tokens/question vs 44k for the full path).
+- After it finishes: integrate each lesson with `apply_upgrade <lesson> <chunk>/upgraded.json <chunk>/final.json ... --check <chunk>/check_final.json --batch wave1 --write`
+  (all chunks of a lesson in one command; cuts apply last), fix any validator problems by hand, run gen_courses, strict audit, tests,
+  quote check; consider a verify pass on questions edited after the recheck; then report cost and quality (the light path's defect rate vs full).
