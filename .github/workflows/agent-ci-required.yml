@@ -18,6 +18,14 @@
 # is a few API calls: sparse checkout of two files, PyYAML, no node, no tests; well under a minute.
 #
 # The code that runs is the DEFAULT BRANCH's copy (sparse checkout below), so a PR cannot edit its own verdict.
+#
+# LIMITS (stated on purpose, AUDIT T1 review of #1153):
+#  - FORK PRs ARE NOT SUPPORTED: a fork PR's pull_request token is read-only (the status POST fails) and only agent ci PUSH
+#    runs count, so a fork PR can never pass this check; it needs an explicit owner override. This repo takes no fork PRs.
+#  - A FAILED status POST makes the job exit non-zero (the exception propagates) and the run shows red; the SHA keeps its
+#    PREVIOUS status until a later run posts again. This case relies on that visible job failure, never on the status alone.
+#  - workflow_run fires for agent ci runs on ANY branch, so the status is also posted on non-PR SHAs (harmless; a status
+#    on a commit no PR points at blocks nothing).
 name: agent ci required
 
 on:
@@ -64,7 +72,7 @@ jobs:
           TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          python -m pip install --quiet pyyaml
+          python -m pip install --quiet pyyaml==6.0.2   # pinned: this job holds statuses:write on every PR
           if [ "$EVENT" = "pull_request" ]; then
             python tools/agent_ci_required.py --event pull_request --sha "$PR_SHA" --pr "$PR_NUMBER"
           else
