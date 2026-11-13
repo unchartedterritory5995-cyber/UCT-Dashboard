@@ -6,7 +6,7 @@
 // Each lands BOTH, each op read back from StockChart's own state — or stops after the first with an honest receipt. Never a
 // step outside replay (no stepBar scroll), never an op on the mode captured at plan time.
 import { createRef } from 'react'
-import { render, cleanup, act } from '@testing-library/react'
+import { render, cleanup } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('lightweight-charts', async (importOriginal) => {

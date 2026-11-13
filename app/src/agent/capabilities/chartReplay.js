@@ -184,7 +184,7 @@ function plannedReplay(r, op, w) {
 }
 
 /** Unchanged state (a no-op) when the replay is already where the op would put it. */
-function alreadyThere(r, { op, bars, speed }) {
+function alreadyThere(r, { op, speed }) {
   const i = r.index ?? 0, last = r.total - 1
   if (op === 'enter') return r.mode
   if (op === 'exit') return !r.mode
@@ -197,7 +197,7 @@ function alreadyThere(r, { op, bars, speed }) {
   return false
 }
 
-function describe(b, a, { op, bars, date, speed } = {}) {
+function describe(b, a, { op, bars, speed } = {}) {
   const vd = a.viewDo
   if (!vd) return null
   const r = b.view.replay, w = vd.want, n = r.total
