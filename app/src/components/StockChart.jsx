@@ -237,7 +237,7 @@ import SharedIndicatorsPrompt from './chart/SharedIndicatorsPrompt'
 import UnavailableIndicators from './chart/UnavailableIndicators'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
-import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl } from '../utils/prefetchBars'
+import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
 import { resolveShowExtended } from '../utils/viewSession'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import { LIVE_PERIOD_SECONDS } from '../lib/liveBarMerge'
@@ -1607,7 +1607,8 @@ import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
-import { markFirstChartPaint } from '../lib/barsPackClient'
+import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient'
+import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
 import { useLegacyChartBars } from './chart/useLegacyChartBars'
 import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
 import { BARSTORE } from './chart/barStoreSwitch'
@@ -1643,6 +1644,21 @@ engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
 // 1-2 s after them. ⛔ REGISTERED HERE, in the chart's module, for the reason above: a page
 // that never loads a chart never arms it, and it adds nothing to another route's bytes.
 armServerWarm()
+// ...and the small per-symbol reads (the header's stats, the split label, the event
+// markers below) ride the same tell (`lib/symbolResourceWarm.js`). The two bindings are
+// read inside the call: a stand-in prefetch module must never cost the chart its load.
+armSymbolResourceWarm(() => [registerSymbolWarmer, afterFirstChartPaint])
+
+// ONE spelling of each per-symbol marker key: the chart's own `useSWR` asks under it and
+// the rows ahead are asked for under it. The fetchers are module-level for the same
+// reason: the answer a warm lands is the answer the chart's own fetch would have produced.
+const markersKeyOf = (s) => `/api/chart/markers/${encodeURIComponent(s)}?days=36500`
+const newsKeyOf = (s) => `/api/chart-news/${encodeURIComponent(s)}?days=60`
+const deskKeyOf = (s) => `/api/education/tickers/${encodeURIComponent(s)}/mentions`
+// A warm takes a BACKGROUND bars slot: it never queues a chart a member is looking at.
+const markersWarmFetch = (url) => fetcher(url, undefined, { background: true })
+const newsFetch = (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { news: [] })
+const deskFetch = (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { mentions: [] })
 
 const NOOP = () => {}
 
@@ -4129,7 +4145,7 @@ export default function StockChart({
   const { data: markersData } = useSWR(
     // Request the full window so earnings markers load back to inception alongside
     // the deep price history (backend caps + post-filters; badges cull off-screen).
-    markersEnabled && sym && !_econId && !_study ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
+    markersEnabled && sym && !_econId && !_study ? markersKeyOf(sym) : null,
     instFetcher,
     {
       dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
@@ -4139,9 +4155,17 @@ export default function StockChart({
 
   // ── News markers — /api/chart-news ──
   const showNews = !!cs.markers?.news
+  const deskEnabled = !!cs.markers?.desk
+  // ⚡ The rows a member is about to reach get these three asked for ahead, while this chart
+  // shows them (lib/symbolResourceWarm.js). Off (a null key function) exactly when the
+  // chart's own key below is null for every symbol: the setting is off, or a study chart.
+  // (An economic series is never pre-asked: the warmer takes plain instrument symbols only.)
+  useSymbolResource(markersEnabled && !_study ? markersKeyOf : null, markersWarmFetch)
+  useSymbolResource(showNews && !_study ? newsKeyOf : null, newsFetch)
+  useSymbolResource(deskEnabled && !_study ? deskKeyOf : null, deskFetch)
   const { data: newsData } = useSWR(
-    showNews && sym && !_econId && !_study ? `/api/chart-news/${encodeURIComponent(sym)}?days=60` : null,
-    (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { news: [] }),
+    showNews && sym && !_econId && !_study ? newsKeyOf(sym) : null,
+    newsFetch,
     {
       dedupingInterval: 30 * 60 * 1000,  // 30 minutes
       revalidateOnFocus: false,
@@ -4184,10 +4208,9 @@ export default function StockChart({
   // a NULL SWR key and no request is made at all. A non-OK response degrades to an
   // empty list, and buildDeskMentionMarkers is null-safe on `undefined` data — an
   // error here must never take the other marker categories down with it.
-  const deskEnabled = !!cs.markers?.desk
   const { data: deskData } = useSWR(
-    deskEnabled && sym && !_econId && !_study ? `/api/education/tickers/${encodeURIComponent(sym)}/mentions` : null,
-    (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { mentions: [] }),
+    deskEnabled && sym && !_econId && !_study ? deskKeyOf(sym) : null,
+    deskFetch,
     {
       dedupingInterval: 30 * 60 * 1000,  // 30 minutes — matches the endpoint's TTL cache
       revalidateOnFocus: false,

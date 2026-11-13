@@ -197,6 +197,34 @@ describe('a server without the route, and a request that fails', () => {
     expect(singleCalls.length).toBe(6)
   })
 
+  it('⭐ a server that answers the route with a PAGE (the catch-all of this app, a 200) is the same "no such route"', async () => {
+    // production's own answer for an API path it does not route: 200, text/html, the app shell
+    const page = { ok: true, status: 200, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'text/html; charset=utf-8' : null) },
+      json: async () => { throw new SyntaxError('Unexpected token <') } }
+    const json = { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => wire(9) }
+    const urls = []
+    vi.stubGlobal('fetch', vi.fn(async (url) => { urls.push(String(url)); return String(url).includes(SERVER_COLUMNS_BATCH_PATH) ? page : json }))
+    __setServerBatchFetcherForTests('default')
+    for (const a of ASKS) ensureColumns(a.defId, SYM, TF, a.inputs)
+    await tick(); await tick()
+    // the chart still draws, through the single route…
+    for (const a of ASKS) expect(cachedColumns(a.defId, SYM, TF, a.inputs)).not.toBeNull()
+    expect(urls.filter((u) => u.includes(SERVER_COLUMNS_BATCH_PATH)).length).toBe(1)
+    // …and the route is remembered as absent: the next symbol does not ask it again
+    expect(batchAvailable()).toBe(false)
+    for (const a of ASKS) ensureColumns(a.defId, 'AAPL', TF, a.inputs)
+    await tick(); await tick()
+    expect(urls.filter((u) => u.includes(SERVER_COLUMNS_BATCH_PATH)).length).toBe(1)
+    expect(urls.length).toBe(1 + 3 + 3)
+  })
+
+  it('a JSON answer with no content-type header at all is still read (a host that sets none)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ results: ASKS.map(() => ok(4)) }) })))
+    __setServerBatchFetcherForTests('default')
+    expect(await fetchColumnsBatch(SYM, TF, ASKS)).toBe(3)
+    expect(batchAvailable()).toBe(true)
+  })
+
   it('any other failure falls back for THIS ask only: the route is not written off', async () => {
     armBatch(() => httpError(503))
     expect(await fetchColumnsBatch(SYM, TF, ASKS)).toBe(3)
