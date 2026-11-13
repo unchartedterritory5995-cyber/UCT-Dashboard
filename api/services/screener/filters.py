@@ -61,6 +61,17 @@ def _enum(key, label, category, column, presets, options_column=None,
     return key, spec
 
 
+def _agent_omit(entry):
+    """Mark a ``(key, spec)`` registry entry as a member-only field: still a
+    screener filter, column and saved-screen key, but `field_catalog` flags it
+    ``agent_omit`` and UCT Agent's field list (`agent/capabilities/screener.js`
+    `loadMeta`) leaves it out. The Agent sends that list with every screen
+    request under a fixed context budget (`CONTEXT_BUDGET_BYTES`), so a field
+    it does not need costs every request."""
+    key, spec = entry
+    return key, {**spec, "agent_omit": True}
+
+
 def _rs_names_enum(key, label, column, names_attr):
     """An enum over one of the Phase 3 RS text columns (unit 3-11), its options
     the WRITER's own names in the writer's code order: ``RRG_QUADRANT_NAMES``
@@ -796,16 +807,27 @@ FILTERS = dict([
     # whose options are the writer's own names (`rs_columns.EXIT_NAMES`); the four
     # ages ship BARE like every other RS age (0 = the newest session), and the
     # "in the last N sessions" windows live in the starter screens.
-    _rs_names_enum("rs_exit_last", "RS Exit Warning (latest)", "rs_exit_last",
+    # ⛔ SHORT LABELS ON PURPOSE: these two ride in UCT Agent's field list, which is sent
+    # with every screen request under `CONTEXT_BUDGET_BYTES` (20,000). Measured
+    # 2026-11-13 on the SAT-1 capture: 11 of its 30 screener requests sat at 19,923
+    # bytes on master, 77 under the line, and the longer labels pushed all 11 over,
+    # so the Agent's field definitions were dropped. The member reads the plain label
+    # (`plainWords.js`) and the column's own description.
+    _rs_names_enum("rs_exit_last", "RS Exit Warning", "rs_exit_last",
                    "EXIT_NAMES"),
-    _open_range("rs_exit_bars_ago", "RS Exit Warning Age (sessions)",
+    _open_range("rs_exit_bars_ago", "RS Exit Age",
                 "relative_strength", "rs_exit_bars_ago"),
-    _open_range("rs_quicksand_bars_ago", "Quicksand Age (sessions)",
-                "relative_strength", "rs_quicksand_bars_ago"),
-    _open_range("rs_quick_break_bars_ago", "Quick Break Age (sessions)",
-                "relative_strength", "rs_quick_break_bars_ago"),
-    _open_range("rs_dead_break_bars_ago", "Grateful Dead Break Age (sessions)",
-                "relative_strength", "rs_dead_break_bars_ago"),
+    # The three per-warning ages are member columns only: `agent_omit` keeps them out
+    # of UCT Agent's field list (`field_catalog` marks them; the Agent's catalog
+    # skips them), because the Agent sends that list with every screen request
+    # under a fixed context budget. The Agent screens exit warnings through
+    # `rs_exit_last` + `rs_exit_bars_ago`.
+    _agent_omit(_open_range("rs_quicksand_bars_ago", "Quicksand Age (sessions)",
+                            "relative_strength", "rs_quicksand_bars_ago")),
+    _agent_omit(_open_range("rs_quick_break_bars_ago", "Quick Break Age (sessions)",
+                            "relative_strength", "rs_quick_break_bars_ago")),
+    _agent_omit(_open_range("rs_dead_break_bars_ago", "Grateful Dead Break Age (sessions)",
+                            "relative_strength", "rs_dead_break_bars_ago")),
     # ── technical: expose the dark columns (registry/UI only) ──
     # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
     # name `atr` (the manifest's own indicator call), and the plain-language
@@ -1288,7 +1310,8 @@ def field_catalog() -> list[dict]:
     return [
         {"key": key, "label": f.get("label") or key, "type": f.get("type"),
          "unit": f.get("unit"), "category": f.get("category"),
-         **({"description": f["description"]} if f.get("description") else {})}
+         **({"description": f["description"]} if f.get("description") else {}),
+         **({"agent_omit": True} if f.get("agent_omit") else {})}
         for key, f in FILTERS.items() if key not in RETIRED
     ]
 

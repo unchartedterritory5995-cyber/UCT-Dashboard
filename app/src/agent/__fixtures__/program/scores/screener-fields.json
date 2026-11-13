@@ -1171,14 +1171,14 @@
   },
   {
    "key": "rs_exit_last",
-   "label": "RS Exit Warning (latest)",
+   "label": "RS Exit Warning",
    "type": "enum",
    "unit": null,
    "category": "relative_strength"
   },
   {
    "key": "rs_exit_bars_ago",
-   "label": "RS Exit Warning Age (sessions)",
+   "label": "RS Exit Age",
    "type": "range",
    "unit": null,
    "category": "relative_strength"
@@ -1188,21 +1188,24 @@
    "label": "Quicksand Age (sessions)",
    "type": "range",
    "unit": null,
-   "category": "relative_strength"
+   "category": "relative_strength",
+   "agent_omit": true
   },
   {
    "key": "rs_quick_break_bars_ago",
    "label": "Quick Break Age (sessions)",
    "type": "range",
    "unit": null,
-   "category": "relative_strength"
+   "category": "relative_strength",
+   "agent_omit": true
   },
   {
    "key": "rs_dead_break_bars_ago",
    "label": "Grateful Dead Break Age (sessions)",
    "type": "range",
    "unit": null,
-   "category": "relative_strength"
+   "category": "relative_strength",
+   "agent_omit": true
   },
   {
    "key": "atr_pct",
