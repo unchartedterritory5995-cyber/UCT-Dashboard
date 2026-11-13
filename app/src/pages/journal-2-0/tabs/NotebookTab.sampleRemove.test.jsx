@@ -110,6 +110,24 @@ describe('Remove the sample notebook, from the notes list', () => {
     expect(S.deletes).toBe(0)
   })
 
+  // Final fix (C1): the held note is named even when it is not in the list on screen (its title is read), and the
+  // sentence says what works instead of "try again in a moment".
+  it('a held note not in the list on screen is still named, with what to do', async () => {
+    precheck.fn = vi.fn(async () => ({ blocked: [], unsent: ['s1'], unchecked: [], send: ['s2'] }))
+    await renderTab()
+    const base = global.fetch
+    global.fetch = vi.fn((input, opts = {}) => {
+      const url = typeof input === 'string' ? input : input?.url || ''
+      if (url === '/api/j2/notes/s1') return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ note: { id: 's1', title: 'Trade plan: example -- AAPL pullback' } }) })
+      return base(input, opts)
+    })
+    await openMore()
+    fireEvent.click(await screen.findByRole('menuitem', { name: SAMPLE_COPY.removeRow }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The sample was not removed: "Trade plan: example -- AAPL pullback" has changes that have not finished saving. Open it so it can finish saving, then remove the sample again.')
+    expect(S.deletes).toBe(0)
+  })
+
   it('a device that could not be asked is offered a confirmed Remove anyway, which re-runs with acceptUnchecked', async () => {
     precheck.fn = vi.fn(async ({ acceptUnchecked }) => (acceptUnchecked
       ? { blocked: [], unsent: [], unchecked: [], send: ['s1', 's2'] }

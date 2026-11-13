@@ -2373,10 +2373,9 @@ export default function NotebookTab() {
         setBulkNotice(null)
         return
       }
-      const hold = m.describeSampleHold(
-        await precheckNoteBatch({ ids, op: 'trash', blockedNoteIds, acceptUnchecked }),
-        { titleOf },
-      )
+      const pre = await precheckNoteBatch({ ids, op: 'trash', blockedNoteIds, acceptUnchecked })
+      // Final fix (C1): a held note is always named, on screen or not (sampleNotebook.js `heldTitles`).
+      const hold = m.describeSampleHold(pre, { titleOf: await m.heldTitles(pre, titleOf) })
       if (hold) {
         setBulkNotice({ message: hold.message, tone: 'error', anyway: hold.anyway ? { ...hold.anyway, op: REMOVE_SAMPLE_OP } : undefined })
         return

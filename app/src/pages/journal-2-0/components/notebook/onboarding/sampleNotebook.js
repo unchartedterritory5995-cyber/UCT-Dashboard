@@ -14,7 +14,7 @@
 // a device that could not be asked is offered a confirmed "Remove anyway", as bulk trash
 // offers "Trash anyway" -- and the confirmed re-run still refuses a note it finds unsent.
 
-import { FAILURE_WORDS, UNCHECKED_SENTENCE } from '../../../lib/noteBatch'
+import { UNCHECKED_SENTENCE } from '../../../lib/noteBatch'
 import { SAMPLE_ADD_FAILED, SAMPLE_ROW_COPY, SAMPLE_URL, SAMPLE_PREF, readSamplePref } from './sampleNotebookKeys'
 
 // Fix round 1: the route, the key, its reader and the More menu row's words are sampleNotebookKeys.js (on the
@@ -39,6 +39,10 @@ export const SAMPLE_COPY = Object.freeze({
   removed: 'Sample notebook moved to Trash. You can restore it from there.',
   removeFailed: "We couldn't remove the sample notebook. Try again in a moment.",
   notRemoved: 'The sample was not removed:',
+  // Final fix (C1): what THIS door says about a held note (the bulk trash's shared "is still syncing -- try again in a
+  // moment" is not always true here: a save whose answer was lost is not re-sent by waiting). Says what works.
+  heldOne: 'has changes that have not finished saving. Open it so it can finish saving, then remove the sample again.',
+  heldMany: 'have changes that have not finished saving. Open them so they can finish saving, then remove the sample again.',
   uncheckedNotRemoved: `${UNCHECKED_SENTENCE} The sample was not removed:`,
   removeAnyway: 'Remove anyway',
   removeAnywayConfirm: 'Remove the sample notebook without checking this device? Words typed here that have not reached the server may not be kept.',
@@ -102,15 +106,33 @@ export function removedMessage(out) {
   return [SAMPLE_COPY.removed, ...kept, ...older].join(' ')
 }
 
-const named = (ids, words, titleOf) => ids.map((id) => {
-  const t = titleOf(id)
-  return `${t ? `"${t}"` : 'A note'} ${words}`
-})
+/**
+ * Final fix (C1): a held note is named even when it is not in the list on screen (the old fallback, Research home's
+ * `titleOfAnyNote`, went with it). `titleOf` answers for the notes on screen; every held id it cannot name is read
+ * from the server (`GET /api/j2/notes/<id>`, a read, at most three: the sentence names three), and a read that fails
+ * leaves "A note". Returns the combined `titleOf` for describeSampleHold.
+ */
+export async function heldTitles(hold, titleOf = () => null) {
+  const ids = [...(hold?.unsent || []), ...(hold?.blocked || []), ...(hold?.unchecked || [])].slice(0, 3)
+  const found = new Map()
+  await Promise.all(ids.filter((id) => !titleOf(id)).map(async (id) => {
+    try {
+      const res = await fetch(`/api/j2/notes/${encodeURIComponent(id)}`, { credentials: 'include' })
+      if (!res.ok) return
+      const title = (await res.json())?.note?.title
+      if (typeof title === 'string' && title.trim()) found.set(id, title.trim())
+    } catch {
+      // not named: "A note"
+    }
+  }))
+  return (id) => titleOf(id) || found.get(id) || null
+}
 
 /**
  * The sentence -- and, for a device that could not be asked, the offer -- when the pre-check
  * holds the sample back (fix I-3). Null when nothing is held. Every held note is NAMED (up to
- * three, then a count), in the bulk trash's own words (`FAILURE_WORDS`).
+ * three, then a count). A note with changes that have not finished saving (unsent, or blocked)
+ * gets THIS door's sentence (final fix C1): what to do, never "try again in a moment".
  * @param hold  precheckNoteBatch's answer: { blocked, unsent, unchecked }
  */
 export function describeSampleHold(hold, { titleOf = () => null } = {}) {
@@ -122,11 +144,14 @@ export function describeSampleHold(hold, { titleOf = () => null } = {}) {
     return parts.length > 3 ? `${shown} and ${parts.length - 3} more` : shown
   }
   if (blocked.length || unsent.length) {
-    const parts = [
-      ...named(unsent, FAILURE_WORDS.unsent, titleOf),
-      ...named(blocked, FAILURE_WORDS.blocked, titleOf),
-    ]
-    return { message: `${SAMPLE_COPY.notRemoved} ${list(parts)}.` }
+    const held = [...unsent, ...blocked]
+    const names = held.map((id) => {
+      const t = titleOf(id)
+      return t ? `"${t}"` : 'A note'
+    })
+    const shown = names.slice(0, 3).join(', ')
+    const who = names.length > 3 ? `${shown} and ${names.length - 3} more` : shown
+    return { message: `${SAMPLE_COPY.notRemoved} ${who} ${held.length === 1 ? SAMPLE_COPY.heldOne : SAMPLE_COPY.heldMany}` }
   }
   if (unchecked.length) {
     const parts = unchecked.map((id) => {
