@@ -888,7 +888,9 @@ def test_GATE_8_concurrent_cold_list_requests_each_finish_under_1s(store, monkey
         t.join()
     assert errors == []
     assert max(walls.values()) < 1.0, walls
-    assert 1 <= len(calls) <= len(members)
+    # ONE detector run in the whole burst: the gate refuses a second while it runs, and the cool-down
+    # after it (2x its cost) outlasts every request. Without the gate, runs overlap (measured 5).
+    assert len(calls) == 1, len(calls)
 
 
 def test_GATE_a_busy_gate_serves_pending_and_never_waits(store, monkeypatch):
@@ -936,6 +938,7 @@ def test_GATE_a_run_is_projected_before_it_starts(store, monkeypatch):
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
     monkeypatch.setattr(svc, "server_lanes_stamp", lambda row: {})
     monkeypatch.setattr(rt, "_SECONDS_PER_BYTE", [2.5e-6])            # a calibrated estimate
+    monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)               # the projection alone, no cool-down
     rt._reset_capability_cache(persisted=True)
     calls = _count_detector(monkeypatch)
     rows = sorted(svc.list_for_user(USER), key=lambda r: len(r["definition"]["compute"]["source"]))
