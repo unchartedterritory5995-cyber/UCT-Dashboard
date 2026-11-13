@@ -7,7 +7,8 @@ import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/note
 import { __resetMyNamesQueue } from '../../lib/myNames'
 import { FIRST_RUN_MARKS, FIRST_RUN_STATE, firstRunIsDue, setFirstRunShowing, useFirstRunShowing } from '../../lib/firstRun'
 import FirstRunGate, { FirstRunInlineSlot } from './FirstRunGate'
-import { FIRST_RUN_COPY, FIRST_RUN_PACKS, ROW_STAGGER_MS } from './FirstRunSheet'
+import { FIRST_RUN_COPY, FIRST_RUN_PACKS, NOTE_STARTED, PLAN_WRITTEN, ROW_STAGGER_MS } from './FirstRunSheet'
+import { DAILY_FOLDER_NOTICE } from '../../lib/dailyNote'
 
 const P = vi.hoisted(() => ({ prefs: {}, writes: [] }))
 vi.mock('../../../../hooks/usePreferences', async (importOriginal) => ({
@@ -32,6 +33,7 @@ beforeEach(() => {
   S.lists = []
   S.calls = []
   S.dailyOk = true
+  S.planSeeded = true
   latchNotebookFlags({ notebook_starter_packs_enabled: true })
   vi.stubGlobal('fetch', vi.fn((url, opts = {}) => {
     const u = String(url)
@@ -57,7 +59,7 @@ beforeEach(() => {
     if (u === '/api/j2/journal-styles/starter-packs/swing') {
       return json(200, { installed: [{ styleId: 's1', title: 'Daily prep' }, { styleId: 's2', title: 'Trade plan' }, { styleId: 's3', title: 'Weekly review' }], alreadyHad: [], skipped: [] })
     }
-    if (u === '/api/j2/notes/daily') return S.dailyOk ? json(200, { note: { id: 'd1', title: '2026-11-05 · Thursday' }, created: true }) : json(500, {})
+    if (u === '/api/j2/notes/daily') return S.dailyOk ? json(200, { note: { id: 'd1', title: '2026-11-05 · Thursday' }, created: true, planSeeded: S.planSeeded !== false }) : json(500, {})
     if (u.startsWith('/api/j2/journal-styles/') && method === 'DELETE') return json(200, { ok: true })
     if (u === '/api/j2/telemetry') return json(200, { ok: true })
     return json(404, { detail: 'Not found' })
@@ -216,10 +218,24 @@ describe('Build my Notebook', () => {
     const rows = within(list).getAllByRole('listitem').map((li) => li.textContent)
     expect(rows[0]).toBe('Watchlist "My names" created with NVDA, AMD')
     expect(rows[1]).toBe('Swing templates added: Daily prep · Trade plan · Weekly review (preview · undo)')
-    expect(rows[2]).toContain("Today's plan written")
+    expect(rows[2]).toContain("Today's plan written")   // the server said plan lines went in (`planSeeded`)
     expect(within(list).getByRole('link', { name: 'Try it: draw entry, stop and target on NVDA, and watch the setups board track it →' }))
       .toHaveAttribute('href', '/journal/notebook/research/NVDA')
     expect(d).toHaveTextContent('Step 2 of 2')
+  })
+
+  // Final fix M4: an empty seed made a note with no plan lines; the row says the note was started, never that a plan
+  // was written (the brief Done lands on would then show no plan).
+  it("M4: with no plan line seeded the row says Today's note started, never Today's plan written", async () => {
+    window.matchMedia = vi.fn((q) => ({ matches: q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {} }))
+    S.planSeeded = false
+    mount()
+    const d = await screen.findByRole('dialog', { name: FIRST_RUN_COPY.title })
+    await fillAndBuild(d)
+    const list = await within(d).findByRole('list', { name: 'What was built' })
+    const row = within(list).getAllByRole('listitem')[2].textContent
+    expect(row).toContain(`${NOTE_STARTED}. ${DAILY_FOLDER_NOTICE}`)
+    expect(row).not.toContain(PLAN_WRITTEN)
   })
 
   it('under prefers-reduced-motion every row is there at once', async () => {

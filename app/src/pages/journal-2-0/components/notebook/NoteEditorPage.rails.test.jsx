@@ -103,7 +103,8 @@ describe('NoteEditorPage editor toolbar row', () => {
     // Notebook simplify, Task 4: PNG and Print are the first two items of the Export menu, above the file formats,
     // so More shows ONE Export entry.
     fireEvent.click(more.getByRole('button', { name: /^Export/ }))
-    const exportMenu = within(more.getByRole('menu', { name: 'Export this note as' }))
+    // Simplify pass 2: the formats are the panel's second view, drawn from a chunk fetched on idle (or at the press).
+    const exportMenu = within(await more.findByRole('menu', { name: 'Export this note as' }))
     expect(exportMenu.getByRole('menuitem', { name: 'PNG' })).toBeInTheDocument()
     expect(exportMenu.getByRole('menuitem', { name: 'Print' })).toBeInTheDocument()
   })

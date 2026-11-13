@@ -71,15 +71,15 @@ describe('journal styles surfaces (P1, lane C)', () => {
     installFetch(ROUTES(OFFER))
     render(<Providers><StylesManager open onClose={() => {}} /></Providers>)
     await screen.findByText('You have 7 notes with a Research Type. Set their Note type to match?')
-    screen.getByRole('button', { name: 'Set kinds' })
+    screen.getByRole('button', { name: 'Set note types' })
   })
 
   axeSurface('styles-manager-kind-confirm', async () => {
     installFetch(ROUTES())
     render(<Providers><StylesManager open onClose={() => {}} /></Providers>)
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete kind Setups I trade' }))
-    await screen.findByText('Delete the kind Setups I trade? Templates you deleted that used it are removed permanently.')
-    screen.getByRole('button', { name: 'Yes, delete kind Setups I trade' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete note type Setups I trade' }))
+    await screen.findByText('Delete the note type Setups I trade? Templates you deleted that used it are removed permanently.')
+    screen.getByRole('button', { name: 'Yes, delete note type Setups I trade' })
   })
 
   axeSurface('styles-manager-discard', async () => {

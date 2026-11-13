@@ -479,14 +479,21 @@ export async function draftMonthlyReview({ accountId, month } = {}) {
  * With the note open and CLEAN in the editor, the write lands and `settleNoteWrite` records
  * it, so the editor's next save rebases onto it -- the same path as Send to Journal.
  */
-export async function draftDailyReview({ accountId, day } = {}) {
+export async function draftDailyReview({ accountId, day, templateId = '', seedToday = false } = {}) {
   const d = day || todayDayIso()
   // ⛔ THE NOTE IS THE NOTE OF THE DAY BEING DRAFTED (fin-data M1). `d` is handed to the daily
   // note door as its day, so the numbers and the note they are written into cannot be two
   // different days. ⚰️ This opened TODAY's note whatever `day` was: an older recap card on
   // the Compass tab wrote a past day's numbers into today's note under "Today's recap".
   // S2 (B12): `created` rides back to the caller, which says where a new note went.
-  const { note: daily, created = false } = await openDailyNote({ today: () => d })
+  // Final fix I1: a recap can be the first door of the day (after 16:05 ET, before anything else made the note), so
+  // the Notebook's doors pass the member's daily template and `seedToday`, as "Today's note" does: the note it makes
+  // is the same note any other door would have made. The seed is today's plan, so it is asked for only when the day
+  // drafted IS today (a past day's note is never given today's plan lines).
+  const seed = seedToday === true && d === todayDayIso()
+  const { note: daily, created = false } = await openDailyNote({
+    today: () => d, ...(templateId ? { templateId } : {}), ...(seed ? { seedToday: true } : {}),
+  })
   const verdict = await noteHasUnsentWork(daily.id, { connect: openNotebookDb })
   if (verdict.unsent) {
     const err = new Error(STILL_SYNCING_MESSAGE)

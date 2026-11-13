@@ -205,7 +205,7 @@ const AlertPhraseMenu = lazyChunk(() => import('./AlertPhraseMenu'))
 // Item 10: the "Tag NVDA · Daily" chip on a pasted chart screenshot. LAZY: it exists only after a paste, with both
 // switches on, once the screenshot read has found exactly one ticker.
 const ScreenshotTagOffer = lazyChunk(() => import('./ScreenshotTagOffer'))
-// Notebook P1 (spec P1.3): the "Update layout" offer, its previewed sheet, the /style chooser and the
+// Notebook P1 (spec P1.3): the "Update template" offer, its previewed sheet, the /style chooser and the
 // "updated" confirmation, behind ONE lazy import (a second import of the same module costs first-open bytes).
 // Mounted only while journalStylesEnabled() -- a switch that is off never fetches it.
 const StyleHost = lazyChunk(() => loadStyle('StyleHost'))
@@ -5081,7 +5081,8 @@ export default function NoteEditorPage({
   const showWritingHelp = Boolean(editor && !locked && writingHelpOn && editor.isEditable && !isCanvas)
   // Notebook simplify, Task 4: at desktop width Ask and Writing help are ONE "AI" menu -- when both are offered.
   // Ask is offered on every note (AskPanel has no gate here), so that is exactly when Writing help is; with Writing
-  // help absent, Ask stays the plain "Ask this note" button it was. The touch tier keeps both buttons as they were.
+  // help absent, Ask stays the plain "Ask about this note" button (AskPanel's own toggle; simplify pass 2 A6 gave it
+  // the menu item's words). The touch tier keeps both buttons as they were.
   const aiMenuOn = showWritingHelp
   // Writing help's door: the header button (`menu` null; folded at desktop, the touch tier's), or the desktop "AI"
   // menu's item (`menu` the AI menu). Both open the same panel, and focus comes back to the control that opened it.
@@ -5136,7 +5137,8 @@ export default function NoteEditorPage({
       data-journal-tools-door=""
     >
       <UIcon name="sliders" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-      Journal tools
+      {/* Simplify pass 2 (A9): "Trade journal tools", so it is not read as a sibling of "My tools". */}
+      Trade journal tools
     </button>
   )
   const phoneTools = () => (
@@ -6106,7 +6108,7 @@ export default function NoteEditorPage({
             once the body names a $TICKER twice it OFFERS the link, through the Ticker field's door. */}
         <TickerSuggestion editor={editor} noteId={noteId} ticker={note?.ticker || null}
           readOnly={locked || unreadable || isCanvas} onLink={(sym) => onTickerChange(sym)} />
-        {/* Notebook P1: the previewed "Update layout" offer, its sheet, /style and the confirmation (dark behind
+        {/* Notebook P1: the previewed "Update template" offer, its sheet, /style and the confirmation (dark behind
             the switch), fetched on demand: for a styled note, or once /style was pressed in this editor.
             What only this editor can do is handed over as `api`; the host does the rest. */}
         {journalStylesEnabled() && (note?.styleId || styleAsk) && (

@@ -7,20 +7,33 @@
 // renders nothing when there is nothing to tell), and "Needs review" and "Notes on your open positions" sit after the
 // cards, each drawn only when it has rows.
 //
-// ⛔⛔ ONE REQUEST FOR THE CARDS. The phase cards are `GET /api/j2/notes/today` (api/services/journal_two/notebook_today.py):
-// today's note (made from the member's daily template the first time today), the setups near entry, the member's names,
+// ⛔⛔ ONE REQUEST FOR THE CARDS. The phase cards are `GET /api/j2/notes/today?make=0` (notebook_today.py): today's note
+// (READ, never made: simplify pass 2, B1), the setups near entry, the member's names,
 // what is open from yesterday, on this day, the market line and the ET session. The cards never fetch on mount (the
 // auth gate serialises every lazy read behind it); a card's own ask (adding names, writing the recap) runs only when
 // the member presses it. The two review sections read `GET /api/j2/notebook/home` (useNotebookHome) only AFTER that
 // read has answered, so they never delay a card; the Notices box makes its own two reads (NoticesBox.jsx).
 //
-// The page is a lazy view (tabs/NotebookTab.jsx `lazyView`): its bytes are not on the Notebook's first open.
+// The page is a lazy view (tabs/NotebookTab.jsx `lazyView`), and one of the first-open byte budget's roots
+// (docs/notebook/perf-budgets.json): its bytes count.
 //
-// ⛔ NOTHING SHIFTS. While the read is in flight every card is drawn as a skeleton of the SAME card, in the same order
-// and at the same reserved height (TodayHome.module.css), so the answer fills boxes that are already there.
+// ⛔ NOTHING SHIFTS (simplify pass 2, fix round 1). How many cards the answer draws is not known until it lands (B2 hides
+// the empty ones), so while the read is in flight the page draws the header and ONE skeleton (the wide plan card's), and
+// NOTHING below the grid: the first-run slot and the folded boxes wait for the answer (or its failure), as the note
+// sections always did. Nothing that is on screen before the read sits under a grid that then changes height.
 //
-// ⛔ NEVER EMPTY. Each card has a teaching empty state: no names asks for them (S17's EmptyNamesAsk, M7's sentence),
-// no setups asks for the first plan (FirstPlanAsk), and the others say what would fill them.
+// ⛔ ONLY WHAT IT HAS (simplify pass 2, B2 to B5). A card with nothing to show is not drawn: "Open from yesterday" and
+// "On this day" when empty, "Today's plan" when it has no open lines, and a figure the member's plan does not include.
+// Two asks stay, compact (a heading, one line, the field): no names asks for them (EmptyNamesAsk), no setups asks for
+// the first plan (FirstPlanAsk). When nothing else is drawn, one quiet line says what will show here (NOTHING_YET). A
+// section that could not be read is still said, with a retry (M7). The teaching sentences the empty cards used to carry
+// are in Help (Support.jsx, the Notebook getting-started answer).
+//
+// ⛔ THE HEADER'S ONE BUTTON (B4) is today's note: "Open today's note" when it exists, "Start today's note" when it does
+// not (the press makes it through NotebookTab's one daily-note door, the door the list's "Today's note" and Ctrl+Alt+D
+// use, and STAYS here: final fix I4), and
+// Restore / "Start a fresh one" when it is in Trash. Quick capture (the palette), All notes (the panel) and + New (the
+// list) have their own doors.
 //
 // The cards' ORDER follows the ET session (`cardOrder`): the plan first before the open, the setups and names during
 // the session, and after the close the recap first (S18, from 16:05 ET on a session day).
@@ -36,8 +49,8 @@ import EmptyNamesAsk from './EmptyNamesAsk'
 import FirstPlanAsk from './FirstPlanAsk'
 import { FirstRunInlineSlot } from './FirstRunGate'
 import lazyChunk, { importWithOneRetry } from '../../lib/lazyChunk'
-import { DAILY_FOLDER_NOTICE, DAILY_TEMPLATE_MISSING, openDailyNote } from '../../lib/dailyNote'
-import { openCapture } from '../../lib/captureBus'
+import { DAILY_FOLDER_NOTICE, openDailyNote } from '../../lib/dailyNote'
+import { TODAY_READ_URL } from '../../lib/todayHome'
 import { firstRunInlineIsDue } from '../../lib/firstRun'
 import { starterPacksEnabled } from '../../lib/starterPacksFlag'
 import { TIPS_PREF } from '../../lib/notebookTips'
@@ -53,8 +66,6 @@ import {
   subscribeRegistryTourWanted,
 } from './onboarding/tourRegistryControl'
 import styles from './TodayHome.module.css'
-
-export const TODAY_URL = '/api/j2/notes/today'
 
 // Research home's two boxes, fetched only while their switch is on and the member opens them.
 const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
@@ -72,10 +83,24 @@ export const RECAP_WRITTEN = "Today's recap is in today's note."
 export const TRASHED_NOTE = "Today's note is in Trash."
 export const RESTORE_ACTION = 'Restore'
 export const FRESH_ACTION = 'Start a fresh one'
-/** I7: the order the cards are reserved in before the server has said which session it is. Every half-width card
- *  reserves the SAME height (TodayHome.module.css), so the answer's own order fills the same total space whatever it
- *  is (a holiday's "closed" order included) and nothing below the grid moves. */
-export const SKELETON_ORDER = Object.freeze(['plan', 'setups', 'names', 'yesterday', 'onThisDay'])
+/** B1 / B4: the header's one button, by what the read said about today's note. `NOTE_ACTION` (the list's own words)
+ *  while that is not known: the read failed, or its today's-note section did. */
+export const START_ACTION = "Start today's note"
+export const OPEN_ACTION = "Open today's note"
+export const NOTE_ACTION = "Today's note"
+/** B5: the one quiet line when no card has anything to show. Final fix M1: "Today's plan" (the card's own name), not
+ *  "Your plan", which read as the chart plan the setups ask right under it asks for. Single-quoted with the typographic
+ *  apostrophe, as the recap card's line is: the fin walk reads this constant with a single-quote pattern. */
+export const NOTHING_YET = 'Nothing for today yet. Today’s plan, the setups near your entry and your names will show here.'
+/** B3: the names ask's one line on the brief (EmptyNamesAsk's full sentence is the widgets'). */
+export const NAMES_ASK_LINE = 'Add the tickers you watch, and your earnings and plan will follow them.'
+/** What is drawn while the read is in flight: one skeleton, the wide plan card's (fix round 1). The answer replaces it,
+ *  and nothing below the grid is drawn until then, so a short answer moves nothing that was on screen. */
+export const SKELETON_ORDER = Object.freeze(['plan'])
+/** The Start button while its press runs (the recap button's "Writing…" pattern). */
+export const STARTING_ACTION = "Starting today's note…"
+/** Final fix I4: the brief's polite status once Start has made the note (the member stays on the brief). */
+export const STARTED_STATUS = "Today's note started."
 
 /** The cards, in each ET session's order (S15). `recap` is drawn only when the server offers it (S18). */
 export const CARD_ORDER = Object.freeze({
@@ -190,8 +215,8 @@ function Unavailable({ reason, empty, onRetry }) {
   )
 }
 
-/** I3: today's note is in the Trash. The read never replaces it; the member chooses. */
-function TrashedPlan({ note, templateId, onChanged }) {
+/** I3: today's note is in the Trash. The read never replaces it; the member chooses (the header's pair, B4). */
+function TrashedNoteActions({ note, templateId, onChanged }) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState('')
   const run = async (which, fn) => {
@@ -216,63 +241,88 @@ function TrashedPlan({ note, templateId, onChanged }) {
   })
   const fresh = () => run('fresh', () => openDailyNote({ templateId: templateId || undefined, seedToday: true }))
   return (
-    <>
-      <p className={styles.quiet}>{TRASHED_NOTE}</p>
-      <div className={styles.cardFoot}>
-        <button type="button" className={styles.action} disabled={Boolean(busy)} onClick={restore}>{RESTORE_ACTION}</button>
-        <button type="button" className={styles.action} disabled={Boolean(busy)} onClick={fresh}>{FRESH_ACTION}</button>
-      </div>
+    <div className={styles.trashed} data-today-trashed="">
+      <p className={styles.quietInline}>{TRASHED_NOTE}</p>
+      <button type="button" className="btn btn-ghost btn-sm" disabled={Boolean(busy)} onClick={restore}>{RESTORE_ACTION}</button>
+      <button type="button" className="btn btn-primary btn-sm" disabled={Boolean(busy)} onClick={fresh}>{FRESH_ACTION}</button>
       {error && <p className={styles.error} role="alert">{error}</p>}
-    </>
+    </div>
   )
 }
 
-function PlanCard({ note, reason, onOpenNote, onRetry, templateId, onChanged }) {
+/** B4: the header's one button for today's note. `state` is todayNoteState's answer. */
+function TodayNoteAction({ state, note, templateId, onOpenNote, onStart, onOpen, onChanged }) {
+  const [starting, setStarting] = useState(false)
+  // Final fix I4: Start makes the note and the member stays here, so focus moves to the button that now reads "Open
+  // today's note" (the pressed button was disabled while it ran). Only after a press that succeeded.
+  const buttonRef = useRef(null)
+  const focusOpen = useRef(false)
+  useEffect(() => {
+    if (state !== 'exists' || !focusOpen.current) return
+    focusOpen.current = false
+    buttonRef.current?.focus()
+  })
+  if (state === 'loading') {
+    // Holds the button's room until the read answers, so nothing in the header wraps or moves when it lands.
+    return <span className={`btn btn-primary btn-sm ${styles.actionHold}`} aria-hidden="true">{START_ACTION}</span>
+  }
+  if (state === 'trashed') return <TrashedNoteActions note={note} templateId={templateId} onChanged={onChanged} />
+  if (state === 'exists') {
+    return (
+      <button type="button" ref={buttonRef} className="btn btn-primary btn-sm"
+        onClick={() => onOpenNote?.({ id: note.id, title: note.title })}>
+        {OPEN_ACTION}
+      </button>
+    )
+  }
+  // "Start today's note" (none today) makes it and stays; "Today's note" (the read could not say) is the list's door and
+  // opens the note, since the brief could not show what the press made.
+  const run = state === 'missing' ? onStart : onOpen
+  const start = async () => {
+    if (starting) return
+    setStarting(true)
+    let started = false
+    try { started = (await run?.()) === true } finally {
+      focusOpen.current = started
+      setStarting(false)
+    }
+  }
+  return (
+    <button type="button" ref={buttonRef} className="btn btn-primary btn-sm" disabled={starting}
+      aria-busy={starting || undefined} onClick={start}>
+      {starting ? STARTING_ACTION : state === 'missing' ? START_ACTION : NOTE_ACTION}
+    </button>
+  )
+}
+
+/** What the read said about today's note: `loading` (no answer yet), `unknown` (the read or its section failed),
+ *  `trashed`, `missing` (none today: B1 never makes one) or `exists`. */
+export function todayNoteState(data, error) {
+  if (!data) return error ? 'unknown' : 'loading'
+  const n = data.todayNote
+  if (!n) return 'unknown'
+  if (n.trashed) return 'trashed'
+  if (n.missing || !n.id) return 'missing'
+  return 'exists'
+}
+
+/** B2: the plan card is drawn for an existing note with open lines only (the header's button opens the note). */
+function PlanCard({ note, reason, onRetry }) {
   if (!note) {
     return <Card id="plan" title="Today's plan" wide><Unavailable reason={reason} onRetry={onRetry} /></Card>
   }
-  if (note.trashed) {
-    return (
-      <Card id="plan" title="Today's plan" wide testId="today-plan">
-        <TrashedPlan note={note} templateId={templateId} onChanged={onChanged} />
-      </Card>
-    )
-  }
-  if (note.missing) {
-    // I9: the first run is pending or open; its Build writes today's plan.
-    return (
-      <Card id="plan" title="Today's plan" wide testId="today-plan">
-        <p className={styles.quiet}>Today’s plan is written when you set up your Notebook.</p>
-      </Card>
-    )
-  }
   const aside = note.templateName ? `Started from “${note.templateName}”` : null
-  const open = () => onOpenNote?.({ id: note.id, title: note.title })
   return (
     <Card id="plan" title="Today's plan" aside={aside} wide testId="today-plan">
-      {note.created && !note.templateMissing && <p className={styles.notice} role="status">{DAILY_FOLDER_NOTICE}</p>}
-      {note.templateMissing && <p className={styles.notice} role="status">{DAILY_TEMPLATE_MISSING}</p>}
-      {note.items?.length ? (
-        <ul className={styles.checks} aria-label="Today's plan">
-          {note.items.map((it) => (
-            <li key={it.index} className={styles.check}>
-              <span className={`${styles.box} ${it.checked ? styles.boxDone : ''}`} aria-hidden="true" />
-              <span className={it.checked ? styles.doneText : ''}>{it.text}</span>
-              <span className="sr-only">{it.checked ? ' (done)' : ' (open)'}</span>
-            </li>
-          ))}
-        </ul>
-      ) : note.snippet ? (
-        <p className={styles.snippet}>{note.snippet}</p>
-      ) : (
-        <p className={styles.quiet}>
-          Nothing on today’s plan yet. Add a checklist line to today’s note; Today shows what is still open, and
-          anything you don’t tick comes back tomorrow.
-        </p>
-      )}
-      <div className={styles.cardFoot}>
-        <button type="button" className={styles.action} onClick={open}>Open today’s note →</button>
-      </div>
+      <ul className={styles.checks} aria-label="Today's plan">
+        {note.items.map((it) => (
+          <li key={it.index} className={styles.check}>
+            <span className={`${styles.box} ${it.checked ? styles.boxDone : ''}`} aria-hidden="true" />
+            <span className={it.checked ? styles.doneText : ''}>{it.text}</span>
+            <span className="sr-only">{it.checked ? ' (done)' : ' (open)'}</span>
+          </li>
+        ))}
+      </ul>
     </Card>
   )
 }
@@ -304,7 +354,7 @@ function SetupsCard({ setups, reason, onOpenNote, onRetry }) {
   const rows = setups.rows || []
   return (
     <Card id="setups" title="Setups near entry" aside={rows.length ? 'closest first' : null} testId="today-setups">
-      {rows.length === 0 ? <FirstPlanAsk /> : (
+      {rows.length === 0 ? <FirstPlanAsk compact /> : (
         <ul className={styles.list}>
           {rows.map((r) => (
             <li key={`${r.noteId}:${r.symbol}`}>
@@ -364,7 +414,11 @@ function NamesCard({ names, reason, onChanged }) {
           {adding ? 'Done' : 'Add'}
         </button>
       )}>
-      {empty || adding ? (
+      {empty ? (
+        // B3: compact on the brief -- the one line and the field (no suggestions, no import row).
+        <EmptyNamesAsk testId="today-names-ask" sentence={NAMES_ASK_LINE} suggestions={[]} canImport={false}
+          onAdded={() => onChanged?.()} />
+      ) : adding ? (
         <EmptyNamesAsk testId="today-names-ask" onAdded={() => onChanged?.()} />
       ) : null}
       {!empty && (
@@ -391,26 +445,20 @@ function YesterdayCard({ open, reason, onOpenNote, onRetry }) {
   const items = open.items || []
   return (
     <Card id="yesterday" title="Open from yesterday" aside={open.count ? String(open.count) : null} testId="today-yesterday">
-      {items.length === 0 ? (
-        <p className={styles.quiet}>
-          Nothing left open. A checklist line you don’t tick today, or a task due today, shows here tomorrow.
-        </p>
-      ) : (
-        <ul className={styles.list}>
-          {items.map((it) => (
-            <li key={`${it.noteId}:${it.index}`}>
-              <button type="button" className={styles.row} onClick={() => onOpenNote?.({ id: it.noteId })}
-                title={`In ${it.noteTitle || 'a note'}`}>
-                <span className={styles.box} aria-hidden="true" />
-                <span className={styles.rowMain}>{it.text}</span>
-                <span className={`${styles.rowEnd} ${it.from === 'overdue' ? styles.dn : ''}`}>
-                  {it.from === 'yesterday' ? '' : it.from === 'overdue' ? `due ${fmtShortDay(it.due).replace(/, \d{4}$/, '')}` : 'due today'}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className={styles.list}>
+        {items.map((it) => (
+          <li key={`${it.noteId}:${it.index}`}>
+            <button type="button" className={styles.row} onClick={() => onOpenNote?.({ id: it.noteId })}
+              title={`In ${it.noteTitle || 'a note'}`}>
+              <span className={styles.box} aria-hidden="true" />
+              <span className={styles.rowMain}>{it.text}</span>
+              <span className={`${styles.rowEnd} ${it.from === 'overdue' ? styles.dn : ''}`}>
+                {it.from === 'yesterday' ? '' : it.from === 'overdue' ? `due ${fmtShortDay(it.due).replace(/, \d{4}$/, '')}` : 'due today'}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
       {open.more > 0 && <p className={styles.quiet}>{open.more} more in your tasks.</p>}
     </Card>
   )
@@ -423,26 +471,24 @@ function OnThisDayCard({ onThisDay, reason, onOpenNote, onRetry }) {
   const aside = first ? (first.yearsAgo === 1 ? '1 year ago' : `${first.yearsAgo} years ago`) : null
   return (
     <Card id="onThisDay" title="On this day" aside={aside} testId="today-on-this-day">
-      {items.length === 0 ? (
-        <p className={styles.quiet}>Nothing written on this date in earlier years yet. What you write today comes back here next year.</p>
-      ) : (
-        <ul className={styles.list}>
-          {items.map((n) => (
-            <li key={n.noteId}>
-              <button type="button" className={styles.memory} onClick={() => onOpenNote?.({ id: n.noteId })}>
-                {n.snippet && <span className={styles.quote}>“{n.snippet}”</span>}
-                <span className={styles.from}>From {n.title || 'Untitled'} · {fmtShortDay(n.day)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className={styles.list}>
+        {items.map((n) => (
+          <li key={n.noteId}>
+            <button type="button" className={styles.memory} onClick={() => onOpenNote?.({ id: n.noteId })}>
+              {n.snippet && <span className={styles.quote}>“{n.snippet}”</span>}
+              <span className={styles.from}>From {n.title || 'Untitled'} · {fmtShortDay(n.day)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
     </Card>
   )
 }
 
-/** S18: after 16:05 ET, the existing review drafts written into today's note (never a new folder or note). */
-function RecapCard({ note, onOpenNote, onNotice, onWritten }) {
+/** S18: after 16:05 ET, the existing review drafts written into today's note. Since simplify pass 2 (B1) the page
+ *  never makes that note, so when there is none yet this press makes it, in the daily folder (made too if the member
+ *  has none), and says where it went (DAILY_FOLDER_NOTICE). */
+function RecapCard({ note, templateId, onOpenNote, onNotice, onWritten }) {
   // M8: the selected account is read from this tab's own choice; the accounts list is not fetched for it.
   const { accountId } = useJ2SelectedAccount(false)
   const [busy, setBusy] = useState(false)
@@ -454,7 +500,11 @@ function RecapCard({ note, onOpenNote, onNotice, onWritten }) {
     setError('')
     try {
       const m = await importWithOneRetry(() => import('../../lib/reviewDrafts'))
-      const { note: landed, created } = await m.draftDailyReview({ accountId, day: m.todayDayIso() })
+      // Final fix I1: the press can make today's note, so it makes it as Start would: the member's daily template and
+      // today's plan lines.
+      const { note: landed, created } = await m.draftDailyReview({
+        accountId, day: m.todayDayIso(), templateId, seedToday: true,
+      })
       if (created) onNotice?.(DAILY_FOLDER_NOTICE)
       invalidateNoteViews({ tags: true })
       onWritten?.()
@@ -468,12 +518,8 @@ function RecapCard({ note, onOpenNote, onNotice, onWritten }) {
   return (
     <Card id="recap" title="Today's recap" wide testId="today-recap">
       {written ? (
-        <>
-          <p className={styles.quiet}>{RECAP_WRITTEN}</p>
-          <div className={styles.cardFoot}>
-            <button type="button" className={styles.action} onClick={() => onOpenNote?.({ id: note.id })}>Open today’s note →</button>
-          </div>
-        </>
+        // Final fix M3: the sentence only; the header's "Open today's note" is the one door to the note.
+        <p className={styles.quiet}>{RECAP_WRITTEN}</p>
       ) : (
         <>
           <p className={styles.quiet}>Your numbers, discipline and best and worst trade, drafted into today’s note.</p>
@@ -579,12 +625,30 @@ function useTodayRefresh(mutate, data) {
   }, [mutate, recapFrom])
 }
 
-/** The URL Today reads for each decision NotebookTab makes about the first run (I9, fix round 2 R1-B): `make` makes the
- *  day's note if it is missing; `hold` never does (the first run is due or on screen); `wait` reads nothing yet (it
- *  cannot be decided), so the skeletons stay up and an established member's one read is never a make=0 first. */
-export function todayKey(todayRead) {
-  if (todayRead === 'wait') return null
-  return todayRead === 'hold' ? `${TODAY_URL}?make=0` : TODAY_URL
+/** B2: what a card draws for this answer -- `content`, `ask` (the compact first-run ask: no setups, or no names) or
+ *  `retry` (its section could not be read: said, with a retry, M7) -- or null: nothing to show, so it is not drawn. A
+ *  figure the member's plan does not include (`reasons[key] === 'plan'`) is nothing to show. */
+export function cardKind(id, data) {
+  const reasons = data?.reasons || {}
+  const unread = (key) => (reasons[key] === 'plan' ? null : 'retry')
+  const listed = (section, key) => (!section ? unread(key) : (section.items || []).length ? 'content' : null)
+  switch (id) {
+    case 'recap': return 'content'
+    case 'plan': {
+      const n = data?.todayNote
+      if (!n) return unread('todayNote')
+      return !n.trashed && !n.missing && n.id && n.openCount > 0 && (n.items || []).length ? 'content' : null
+    }
+    case 'setups':
+      if (!data?.setups) return unread('setups')
+      return (data.setups.rows || []).length ? 'content' : 'ask'
+    case 'names':
+      if (!data?.names) return unread('names')
+      return data.names.count === 0 ? 'ask' : 'content'
+    case 'yesterday': return listed(data?.openFromYesterday, 'openFromYesterday')
+    case 'onThisDay': return listed(data?.onThisDay, 'onThisDay')
+    default: return null
+  }
 }
 
 /** I7: the inline first-run ask after a Skip sits BELOW the cards, in a slot that holds its height from the first
@@ -601,13 +665,12 @@ function FirstRunSlot({ onOpenNote, onOpenToday }) {
 }
 
 export default function TodayHome({
-  onOpenNote, onCreateNote, onSelectAllNotes, onNoteMade, onNotice, todayRead = 'make',
-  dailyTemplateId = '',
+  onOpenNote, onOpenToday, onStartToday, onNotice, dailyTemplateId = '', headingRef,
 }) {
   const auth = useContext(AuthContext)
-  // I9 / R1-B: `todayKey` -- null while it cannot be decided (skeletons stay up), make=0 only while the first run is
-  // due or on screen; when it closes the key changes and Today reads again, making the note if Build did not.
-  const { data, error, mutate } = useSWR(todayKey(todayRead), fetchToday,
+  // B1 (simplify pass 2): ONE read, `make=0`, in every state -- opening the brief never makes today's note or its
+  // folder. It used to make the note (`make` / `hold` / `wait`, decided by NotebookTab from the first run's state).
+  const { data, error, mutate } = useSWR(TODAY_READ_URL, fetchToday,
     { revalidateOnFocus: false, shouldRetryOnError: false })
   const recapOn = reviewDraftsEnabled()
   const order = data ? cardOrder(data.session, { recapOn }) : SKELETON_ORDER
@@ -634,17 +697,8 @@ export default function TodayHome({
   if (showNotices && !noticesDrawn) setNoticesDrawn(true)
   if (showNotes && !notesDrawn) setNotesDrawn(true)
 
-  // The day's note was MADE by this read: the tree and the counts are told (S6), once per note.
-  const madeRef = useRef(null)
-  useEffect(() => {
-    const n = data?.todayNote
-    if (n?.created && n.id && madeRef.current !== n.id) {
-      madeRef.current = n.id
-      onNoteMade?.({ id: n.id, title: n.title, updatedAt: n.updatedAt })
-    }
-  }, [data, onNoteMade])
-
-  // S20 "Morning open rate": the Today home opened, once per mount.
+  // S20 "Morning open rate": the Today home opened, once per mount. `created` stays in the event and is false on every
+  // open now (B1: the read never makes the note); a Start press is the list button's own door.
   const trackedRef = useRef(false)
   useEffect(() => {
     if (!data || trackedRef.current) return
@@ -656,19 +710,31 @@ export default function TodayHome({
 
   const name = String(auth?.user?.display_name || '').trim().split(/\s+/)[0]
   const refresh = () => mutate()
-  // M3: the Notebook's one quick capture (CaptureHost's dialog, which teaches and offers the alert phrasing).
-  const quickCapture = () => openCapture({})
+  // B1: "Start today's note" is NotebookTab's one daily-note door (the list's "Today's note" and Ctrl+Alt+D use it too),
+  // never a second create path. It makes the note with today's plan from the held figures and writes "it exists" into
+  // this read's cache, then reads it again. Final fix I4 (ruling): on the brief it does NOT open the note
+  // (`onStartToday`, NotebookTab's `startTodayHere`): the member stays, the plan card arrives with the re-read, the button
+  // becomes "Open today's note" and takes focus, and a polite status says so. `onOpenToday` (opens the note) is the
+  // header's "Today's note" when the read could not say whether one exists.
+  const [startedStatus, setStartedStatus] = useState('')
+  const startTodayNote = async () => {
+    const started = (await onStartToday?.()) === true
+    if (started) setStartedStatus(STARTED_STATUS)
+    return started
+  }
+  const noteState = todayNoteState(data, error)
+  // B2: only what has something to show is drawn, in the session's order. B5: nothing but the asks -> one quiet line.
+  const drawn = data ? order.filter((id) => cardKind(id, data)) : order
+  const nothingYet = Boolean(data) && !drawn.some((id) => cardKind(id, data) !== 'ask')
 
   const card = (id) => {
     const wide = id === 'plan' || id === 'recap'
     if (!data) return <SkeletonCard key={id} id={id} wide={wide} />
     switch (id) {
-      case 'plan': return (
-        <PlanCard key={id} note={data.todayNote} reason={reasons.todayNote} onOpenNote={onOpenNote} onRetry={refresh}
-          templateId={dailyTemplateId} onChanged={refresh} />
-      )
+      case 'plan': return <PlanCard key={id} note={data.todayNote} reason={reasons.todayNote} onRetry={refresh} />
       case 'recap': return (
-        <RecapCard key={id} note={data.todayNote} onOpenNote={onOpenNote} onNotice={onNotice} onWritten={refresh} />
+        <RecapCard key={id} note={data.todayNote} templateId={dailyTemplateId} onOpenNote={onOpenNote} onNotice={onNotice}
+          onWritten={refresh} />
       )
       case 'setups': return (
         <SetupsCard key={id} setups={data.setups} reason={reasons.setups} onOpenNote={onOpenNote} onRetry={refresh} />
@@ -690,28 +756,36 @@ export default function TodayHome({
     <div className={styles.today} data-today-home="" aria-busy={!data && !error ? true : undefined}>
       <header className={styles.head}>
         <div className={styles.headText}>
-          {/* M4: the page's h1 is the Journal's ("Trade Journal"); the greeting is the section's heading. */}
-          <h2 className={styles.hello}>{name ? `${greeting()}, ${name}` : greeting()}</h2>
-          <p className={styles.sub} data-today-line="">{headerLine(data)}</p>
+          {/* M4: the page's h1 is the Journal's ("Trade Journal"); this section's heading is the panel row's own name,
+              "Daily brief" (simplify pass 2, A1). The greeting leads the date line under it. */}
+          {/* Simplify pass 2: the page's ONE "Daily brief" heading, and the pane's focus landing (NotebookTab hands down
+              `paneHeadingRef` and draws no hidden heading of its own here). Programmatic focus only (tabIndex -1); the
+              app's own :focus-visible ring shows it to a keyboard member. */}
+          <h2 ref={headingRef} tabIndex={-1} className={styles.hello} data-focus-fallback="">Daily brief</h2>
+          <p className={styles.sub} data-today-line="">
+            {`${name ? `${greeting()}, ${name}` : greeting()} · ${headerLine(data)}`}
+          </p>
         </div>
-        <div className={styles.headActions}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={quickCapture}>Quick capture</button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSelectAllNotes?.()}>All notes</button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => onCreateNote?.()}>+ New</button>
+        <div className={styles.headActions} data-today-actions="">
+          <TodayNoteAction state={noteState} note={data?.todayNote} templateId={dailyTemplateId} onOpenNote={onOpenNote}
+            onStart={startTodayNote} onOpen={onOpenToday} onChanged={refresh} />
+          {/* Final fix I4: always in the page, so the sentence is announced when it is set. */}
+          <p className="sr-only" role="status">{startedStatus}</p>
         </div>
       </header>
-      {error && <LoadFailed compact what="Today" error={error} onRetry={refresh} />}
+      {error && <LoadFailed compact what="your Daily brief" error={error} onRetry={refresh} />}
       {/* Go-live wave 1: Research home's Notices, at the top of the cards (nothing at all when there is nothing).
           Fix round 1 (review 4e): held while a walkthrough is wanted, with the note sections below: both land late and
           would push the folded boxes a tour has just scrolled into view. They come in when the tour ends. Fix round 2:
           only what has not been drawn yet is held; once drawn, they stay. */}
       {showNotices && <Suspense fallback={null}><NoticesPanel /></Suspense>}
-      {!error && <div className={styles.grid}>{order.map(card)}</div>}
-      <FirstRunSlot onOpenNote={onOpenNote} onOpenToday={refresh} />
+      {nothingYet && <p className={styles.quiet} data-today-nothing="">{NOTHING_YET}</p>}
+      {!error && <div className={styles.grid}>{drawn.map(card)}</div>}
+      {(data || error) && <FirstRunSlot onOpenNote={onOpenNote} onOpenToday={refresh} />}
       {showNotes && (
         <Suspense fallback={null}><HomeNotes ready onOpenNote={onOpenNote} styles={styles} /></Suspense>
       )}
-      <MoreBoxes onOpenNote={onOpenNote} />
+      {(data || error) && <MoreBoxes onOpenNote={onOpenNote} />}
     </div>
   )
 }

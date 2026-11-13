@@ -356,7 +356,8 @@ export default function JournalLayout() {
               aria-controls="journal-header-tools"
               data-journal-tools-toggle=""
             >
-              Journal tools
+              {/* Simplify pass 2 (A9): named as the ⋯ rows that open it are, so the door and the room agree. */}
+              Trade journal tools
               <UIcon name={toolsOpen ? 'chevronUp' : 'chevronDown'} size={14} gold={false} aria-hidden="true" />
             </button>
           )}

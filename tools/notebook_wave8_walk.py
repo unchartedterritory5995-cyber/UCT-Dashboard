@@ -1737,9 +1737,14 @@ with sync_playwright() as p:
 
     def export_via_menu(pg, note_id, fmt, label, timeout=120000):
         """The member's own door: the editor's Export menu. Returns (response, download)."""
-        pg.locator('button[aria-haspopup="menu"]', has_text="Export").first.click()
+        # Notebook simplify (Task 4) moved Export into the note's More panel; simplify pass 2 (C3) made its formats the
+        # panel's second view, drawn from an on-demand chunk, so the menu can take a moment after the press.
+        more = pg.locator("[data-more-trigger]").filter(visible=True)
+        if more.count() and more.first.get_attribute("aria-expanded") != "true":
+            more.first.click()
+        pg.locator('button[aria-haspopup="menu"]', has_text="Export").filter(visible=True).first.click()
         menu = pg.get_by_role("menu", name="Export this note as")
-        menu.wait_for(state="visible", timeout=8000)
+        menu.wait_for(state="visible", timeout=20000)
         with pg.expect_response(lambda r: f"/api/j2/export/notes/{note_id}" in r.url and f"format={fmt}" in r.url,
                                 timeout=timeout) as ri:
             with pg.expect_download(timeout=timeout) as di:

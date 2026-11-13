@@ -1,22 +1,23 @@
 // S12 (audit 2026-11-05, M9): the phone Notebook's "+" sheet -- Quick note · Voice note · Photo / chart screenshot ·
-// Ask AI · Help & feedback. Fetched on its FIRST open (NotebookTab's `lazyDialog`), so the Notebook's first open
-// pays only for the button (NotebookPlusFab.jsx). ⛔ Each row runs a door that already exists; a door whose gate is
-// off is absent, never a row that opens nothing.
-import { useNavigate } from 'react-router-dom'
+// Ask your Notebook · Help & feedback. Fetched on its FIRST open (NotebookTab's `lazyDialog`), so the Notebook's first
+// open pays only for the button (NotebookPlusFab.jsx). ⛔ Each row runs a door that already exists; a door whose gate
+// is off is absent, never a row that opens nothing.
+// Simplify pass 2 (A8): the Ask row was "Ask AI" and went to Compass (the voice coach page). It is the Notebook's own
+// Ask now: `onAskNotebook` is the SAME handler as the list ⋯ row "Ask your Notebook" (NotebookTab passes it only for a
+// paid member, the row's old gate), so there is one way to open that section, not two.
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import { openFeedback } from '../../../../components/feedbackDoor'
 import styles from './NotebookPlusFab.module.css'
 
 export default function NotebookPlusSheet({ open, onClose, returnFocusTo, onQuickNote, onVoiceNote = null, onPhoto = null,
-  askAi = false, busy = false }) {
-  const navigate = useNavigate()
+  onAskNotebook = null, busy = false }) {
   const setOpen = (v) => { if (!v) onClose() }
   const rows = [
     { key: 'note', label: 'Quick note', icon: 'edit', run: onQuickNote, disabled: busy },
     onVoiceNote && { key: 'voice', label: 'Voice note', icon: 'mic', run: onVoiceNote },
     onPhoto && { key: 'photo', label: 'Photo / chart screenshot', icon: 'camera' },
-    askAi && { key: 'ask', label: 'Ask AI', icon: 'compass', run: () => navigate('/journal/compass') },
+    onAskNotebook && { key: 'ask', label: 'Ask your Notebook', icon: 'sparkle', run: onAskNotebook },
     // Review Minor 8: the Help "?" is not drawn on the phone Notebook, so this row opens ITS menu (Send Feedback,
     // Submit a ticket) through the widget's own door -- not a second form.
     { key: 'help', label: 'Help & feedback', icon: 'info', run: () => openFeedback('menu', returnFocusTo?.current || null) },

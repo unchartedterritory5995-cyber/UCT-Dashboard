@@ -88,6 +88,16 @@
   padding-top: 4px;
   border-top: 1px solid var(--border);
 }
+/* Simplify pass 2 (C1-C3): a row that opens a second view ends in a chevron; the second view's rows are one named
+   group under "Back". */
+.subLabel {
+  flex: 1;
+}
+.subGroup {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+}
 .groupLabel {
   padding: 4px 12px 2px;
   font-size: 11px;

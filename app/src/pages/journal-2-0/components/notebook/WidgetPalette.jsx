@@ -95,6 +95,12 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
   const [tfTok, setTfTok] = useState('D')
   const [day, setDay] = useState('')
   const [inserted, setInserted] = useState(null)
+  // Simplify pass 2 (C4): the "More" group (the market snapshots) waits behind "Show all" at the foot of the list;
+  // once shown it stays shown while this palette is open. The slash menu is unchanged.
+  const [showAll, setShowAll] = useState(false)
+  const moreRef = useRef(null)
+  // "Show all" leaves the screen when pressed: focus goes to the first row it revealed.
+  useEffect(() => { if (showAll) moreRef.current?.querySelector('button')?.focus() }, [showAll])
   const symRef = useRef(null)
   const panelRef = useRef(null)
   const firstTypeRef = useRef(null)
@@ -272,8 +278,9 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
           ))}
           {SLASH_GROUPS.map((g) => {
             const inGroup = snapshots.filter((it) => it.group === g.id)
-            return inGroup.length ? (
-              <div key={g.id} role="group" aria-label={g.label}>
+            const folded = g.id === 'more' && !showAll
+            return inGroup.length && !folded ? (
+              <div key={g.id} role="group" aria-label={g.label} ref={g.id === 'more' ? moreRef : undefined}>
                 <div className={styles.fieldLabel}>{g.label}</div>
                 {inGroup.map((it) => (
                   <button key={it.title} type="button" className={styles.typeBtn}
@@ -285,6 +292,12 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
               </div>
             ) : null
           })}
+          {!showAll && snapshots.some((it) => it.group === 'more') && (
+            <button type="button" className={`${styles.headBtn} ${styles.showAll}`} aria-label="Show all widgets"
+              onClick={() => setShowAll(true)}>
+              Show all
+            </button>
+          )}
           {inserted && <span className={styles.insertedMsg} role="status">{inserted}</span>}
           {/* R58 (UX I-12): with wave 4 on (its kinds are the "More" rows) news, breadth and the calendar are listed
               above, so the footnote names only what still comes in from its own page. */}

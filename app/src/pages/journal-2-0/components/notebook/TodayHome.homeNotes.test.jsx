@@ -8,7 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('./FirstRunGate', () => ({ FirstRunInlineSlot: () => null }))
 vi.mock('./NoticesBox', () => ({ default: () => <section data-testid="notices-box">Notices</section> }))
 
-import TodayHome, { TODAY_URL } from './TodayHome'
+import TodayHome from './TodayHome'
+import { TODAY_READ_URL as TODAY_URL } from '../../lib/todayHome'
 import { NEEDS_REVIEW_TITLE, OPEN_POSITIONS_TITLE, OPEN_POSITION_TAG, reviewReasonsLine } from './TodayHomeNotes'
 import {
   __resetRegistryTourControl, announceRegistryTourClosed, carryRegistryTourOpen, publishRegistryTourWanted,
@@ -18,7 +19,8 @@ const HOME_URL = '/api/j2/notebook/home'
 const TODAY = {
   day: '2026-11-05',
   session: { phase: 'premarket', recap: false },
-  todayNote: { id: 'n-today', title: 'Today', items: [] },
+  // Simplify pass 2 (B2): the plan card draws only with an open line, and these cases wait on it.
+  todayNote: { id: 'n-today', title: 'Today', items: [{ index: 0, text: 'Check the market', checked: false }], openCount: 1 },
   setups: { count: 0, rows: [] },
   names: { count: 1, rows: [{ symbol: 'AMD' }] },
   openFromYesterday: { count: 0, items: [] },
@@ -53,7 +55,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); __resetRegistryTourControl() })
 
 const renderToday = (props = {}) => render(
-  <MemoryRouter><TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} {...props} /></MemoryRouter>)
+  <MemoryRouter><TodayHome onOpenNote={vi.fn()} onOpenToday={vi.fn()} {...props} /></MemoryRouter>)
 
 describe('Needs review and Notes on your open positions, on the Daily brief', () => {
   it('draws both sections after the phase cards, with the reasons line and the Open position tag', async () => {
@@ -129,7 +131,7 @@ describe('Notices on the Daily brief', () => {
 describe('a walkthrough asked for on this visit, before the gate says it is wanted (C5)', () => {
   const renderAsked = (state) => render(
     <MemoryRouter initialEntries={[{ pathname: '/journal', search: '?view=today', state }]}>
-      <TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} />
+      <TodayHome onOpenNote={vi.fn()} onOpenToday={vi.fn()} />
     </MemoryRouter>)
   const settleLong = () => act(async () => { await new Promise((r) => setTimeout(r, 50)) })
 

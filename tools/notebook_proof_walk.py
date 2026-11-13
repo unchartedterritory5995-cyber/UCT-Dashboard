@@ -1342,14 +1342,30 @@ def press(pg, loc) -> None:
 
 # ── the surfaces: each opens itself from a fresh page and returns its root selector ──
 
+# S11 moved the view modes into the list's View menu ("View: List", a menu of radio rows named by the mode's short word);
+# simplify pass 2 (C1) put Graph and Timeline under that menu's "More views" row (its second view).
+MORE_VIEWS_MODES = ("Graph", "Timeline")
+
+
+def view_mode_doors(pg, view: str) -> list:
+    """The presses a member makes to switch the notes list to `view`, in order (each a locator)."""
+    menu = pg.get_by_role("menu", name="View")
+    doors = [pg.locator('[data-tour="view-switcher"]').filter(visible=True).first]
+    if view in MORE_VIEWS_MODES:
+        doors.append(menu.get_by_role("menuitem", name="More views", exact=True).first)
+    doors.append(menu.get_by_role("menuitemradio", name=view, exact=True).first)
+    return doors
+
+
 def s_list(W, pg, view: str | None = None) -> str:
     goto(W, pg, "/journal/notebook?view=all")
     root = mark_root(pg)
     pg.wait_for_timeout(1500)
     if view:
-        b = pg.get_by_role("button", name=f"{view} view", exact=True).filter(visible=True).first
-        press(pg, b)
-        pg.wait_for_timeout(1500)
+        for b in view_mode_doors(pg, view):
+            press(pg, b)
+            pg.wait_for_timeout(400)
+        pg.wait_for_timeout(1100)
     return root
 
 
@@ -1564,7 +1580,7 @@ def s_ed_export(W, pg) -> str:
 
 def s_ed_ask(W, pg) -> str:
     s_note(W, pg)
-    press(pg, pg.get_by_role("button", name="Ask this note").filter(visible=True).first)
+    press(pg, pg.get_by_role("button", name="Ask about this note").filter(visible=True).first)   # simplify pass 2 (A6)
     pg.get_by_test_id("ask-scope").first.wait_for(state="visible", timeout=8000)
     return mark_popup(pg.locator('[role="complementary"],[role="dialog"],[role="region"]').filter(
         has=pg.get_by_test_id("ask-scope")).last)
@@ -3748,7 +3764,7 @@ def f_nested_tags(W, door):
 def f_view(name: str, sel: str):
     def f(W, door):
         pg = _list(W, door)
-        how = use(pg, door, btn(pg, f"{name} view"))
+        how = "; ".join(use(pg, door, b) for b in view_mode_doors(pg, name))
         ok = wait_true(lambda: pg.locator(sel).count() > 0, 8)
         must(ok, f"{name} view rendered nothing matching {sel}")
         return how
@@ -3984,7 +4000,7 @@ def f_writing_help(W, door):
 
 def f_ask(W, door):
     pg, nid = c_note(W, door)
-    how = use(pg, door, btn(pg, "Ask this note"))
+    how = use(pg, door, btn(pg, "Ask about this note"))   # simplify pass 2 (A6)
     ok = wait_true(lambda: pg.get_by_test_id("ask-scope").count() > 0, 6)
     must(ok, "the Ask panel did not open")
     raise NotDriven(how + "; the Ask panel opens with its scope -- no model key, so no answer (or insert) is observed")
@@ -4019,8 +4035,9 @@ def f_export(W, door):
     open_more_note_actions(pg)   # "Export" (G-169) lives in NoteMoreMenu at EVERY width
     how = use(pg, door, pg.get_by_role("button", name=re.compile(r"^Export$")).filter(visible=True).first)
     menu = pg.get_by_role("menu", name="Export this note as")
-    menu.wait_for(state="visible", timeout=5000)
-    item = menu.get_by_role("menuitem").filter(visible=True).first
+    # Simplify pass 2 (C3): the formats are the More panel's second view, from an on-demand chunk; its first row is Back.
+    menu.wait_for(state="visible", timeout=20000)
+    item = menu.locator('[role="menuitem"]:not([data-back])').filter(visible=True).first
     if door == "keyboard":
         if not item.evaluate("e => e === document.activeElement"):
             pg.keyboard.press("ArrowDown")
@@ -4159,7 +4176,7 @@ def f_templates_picker(W, door):
 
 def f_graph_kb(W, door):
     pg = _list(W, door)
-    how = use(pg, door, btn(pg, "Graph view"))
+    how = "; ".join(use(pg, door, b) for b in view_mode_doors(pg, "Graph"))
     ok = wait_true(lambda: pg.locator('canvas[aria-label^="Note graph"]').count() > 0, 12)
     lst = pg.get_by_role("button", name=re.compile(r"show as list", re.I)).count()
     must(ok, "no graph canvas")

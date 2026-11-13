@@ -100,7 +100,7 @@ export const NAME_WORDS = Object.freeze({
   ...REF_WORDS,
   strategy: Object.freeze({ removed: 'A strategy no longer in your Journal', failed: "A strategy that couldn't be loaded" }),
   folder: Object.freeze({ removed: 'A removed folder', failed: "A folder that couldn't be loaded" }),
-  kind: Object.freeze({ removed: 'A removed note kind', failed: "A note kind that couldn't be loaded" }),
+  kind: Object.freeze({ removed: 'A removed note type', failed: "A note type that couldn't be loaded" }),
   property: Object.freeze({ removed: 'A removed property', failed: "A property that couldn't be loaded" }),
 })
 
@@ -199,7 +199,8 @@ export function indexCatalog(raw) {
     if (!isRecord(s) || typeof s.key !== 'string') continue
     const fields = new Map()
     for (const f of Array.isArray(s.fields) ? s.fields : []) {
-      if (isRecord(f) && typeof f.key === 'string') fields.set(f.key, f)
+      // Simplify pass 2 (A4): the catalog's "Note kind" reads "Note type" (the server's words otherwise, as served).
+      if (isRecord(f) && typeof f.key === 'string') fields.set(f.key, f.label === 'Note kind' ? { ...f, label: 'Note type' } : f)
     }
     sources.set(s.key, { ...s, fields, measureKeys: Array.isArray(s.measures) ? s.measures : [] })
   }
