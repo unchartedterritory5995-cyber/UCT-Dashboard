@@ -473,11 +473,9 @@
       "scope": "cross-device",
       "surface": "Notebook",
       "kind": "state",
-      "label": "Sample notebook strip dismissed",
+      "label": "Sample notebook",
       "serverAllowlisted": true,
-      "files": [
-        "app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx"
-      ]
+      "files": []
     },
     {
       "key": "notebook_starter_pack",
@@ -2442,6 +2440,39 @@
       "label": "Graph view settings",
       "files": [
         "app/src/pages/journal-2-0/lib/graphNavigation.js"
+      ]
+    },
+    {
+      "key": "uct.notebook.list.layout",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "setting",
+      "label": "Notes list layout (rows or cards)",
+      "files": [
+        "app/src/pages/journal-2-0/tabs/NotebookTab.jsx"
+      ]
+    },
+    {
+      "key": "uct.notebook.sidebar.moreOpen",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Folders panel More fold open",
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx"
+      ]
+    },
+    {
+      "key": "uct.notebook.sidebar.tagsOpen",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Folders panel Tags fold open",
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx"
       ]
     },
     {

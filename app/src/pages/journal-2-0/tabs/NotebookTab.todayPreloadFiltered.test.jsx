@@ -5,12 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 /**
  * Tier 3b fix round 2 (N6), its own file so the module registry is fresh: on a folder or ticker address the Today
  * chunk is never asked for (the list is drawn there, not a home).
- *
- * Audit 2026-11-05, S15: where the Notebook opens. A bare Notebook lands on the Today home unless the member CHOSE
- * another landing (the `notebook_landing` preference); `?view=today` and `?view=home` open each home whatever the
- * landing; and until the preferences answer, a bare Notebook shows NEITHER home (opening Today makes the day's note,
- * which a member who chose Research Home must never get from a flash of the page they opted out of).
- * Through the real NotebookTab; the homes themselves are stand-ins (each has its own suite).
+ * (Notebook simplify, Task 5: no bare address asks for it any more either; NotebookTab.todayPreload.test.jsx.)
  */
 const H = vi.hoisted(() => ({ total: 3, todayChunk: [] }))
 vi.mock('../hooks/useJ2Notes', () => ({
@@ -29,12 +24,10 @@ vi.mock('../components/notebook/FolderSidebar', () => ({
 vi.mock('../components/notebook/NoteEditorPage', () => ({ default: () => <div data-testid="note-editor" /> }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../components/notebook/TodayHome', () => {
   H.todayChunk.push(Date.now())          // the chunk was asked for
   return { default: (p) => (
     <div data-testid="today-home" data-hold={p.holdMake ? 'make-0' : 'make'}>
-      <button type="button" onClick={p.onOpenResearchHome}>Research home →</button>
       <button type="button" onClick={p.onSelectAllNotes}>All notes</button>
     </div>
   ) }

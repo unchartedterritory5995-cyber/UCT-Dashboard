@@ -86,7 +86,7 @@ function KindSectionLoading({ headingId }) {
   )
 }
 
-export default function KindSection({ onCreate, busy = false, autoFocusFirst = false }) {
+export default function KindSection({ onCreate, busy = false, autoFocusFirst = false, noNotes = true }) {
   const headingId = useId()
   const focusedRef = useRef(false)
   const { data, error, isLoading } = useJournalStyles()
@@ -118,7 +118,8 @@ export default function KindSection({ onCreate, busy = false, autoFocusFirst = f
 
   return (
     <section className={styles.wrap} aria-labelledby={headingId} data-starter-offer={offer.settled ? 'settled' : 'deciding'}>
-      {offer.show && <StarterPackOffer onClose={offer.close} offline={offline} />}
+      {/* Notebook simplify: asked only of an account with truly zero notes, never above a filtered-empty list. */}
+      {offer.show && noNotes && <StarterPackOffer onClose={offer.close} offline={offline} />}
       <h3 id={headingId} className={styles.h}>Start from a template</h3>
       {styleLibraryEnabled() && <LibraryDoor label="Browse the Template library" className={styles.libraryDoor} />}
       {offline && <p className={styles.status} role="status">You're offline. These are your saved templates; a new note needs a connection.</p>}

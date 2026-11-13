@@ -203,7 +203,8 @@
 }
 
 @media (max-width: 1024px) {
-  .textBtn { min-height: var(--tap-min); }
+  /* go-live wave 2 (c2 walk, Daily brief at 820 and 390): "Skip" measured 25 x 44; a finger target is 44 both ways */
+  .textBtn { min-height: var(--tap-min); min-width: var(--tap-min); }
   .pack { min-height: var(--tap-min); }
   .remove { min-height: var(--tap-min); min-width: var(--tap-min); }
   .input { min-height: var(--tap-min); }

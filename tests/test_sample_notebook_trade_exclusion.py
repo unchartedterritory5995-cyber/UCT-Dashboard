@@ -304,4 +304,5 @@ def test_the_promotion_copy_says_no_trade_is_added():
     assert m, "sampleTail not found"
     tail = m.group(1)
     assert "no trades" in tail
-    assert "example notes" in tail and "one click" in tail
+    # Go-live wave 1: the removal door is named (the notes list's More menu row), not "one click".
+    assert "example notes" in tail and "Remove the sample notebook" in tail

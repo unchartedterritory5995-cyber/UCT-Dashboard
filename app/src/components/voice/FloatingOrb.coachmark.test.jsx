@@ -267,7 +267,7 @@ describe('"Meet Compass" is a toast: out of flow, so its arrival moves nothing',
 
   it('it still lands in the first-run slot, which is out of the page flow only through the card itself', () => {
     act(() => { registerFirstRunSlot(slot) })
-    renderWithProviders(<FloatingOrb />, { route: '/journal/notebook' })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/trades' })
     const c = card()?.closest('[data-orb-coachmark]')
     expect(c, 'the card is on screen').toBeTruthy()
     expect(slot.contains(c)).toBe(true)
@@ -301,11 +301,11 @@ describe('"Meet Compass" waits on the phone Notebook', () => {
     expect(card()).not.toBeNull()
   })
 
-  it('control: the Notebook on a wider screen shows it (the orb is there)', () => {
+  it('Notebook simplify: the Notebook on a wider screen waits too (the card is off the Notebook at every width)', () => {
     phone(false)
     act(() => { registerFirstRunSlot(slot) })
     renderWithProviders(<FloatingOrb />, { route: '/journal/notebook' })
-    expect(card()).not.toBeNull()
+    expect(card()).toBeNull()
   })
 })
 
@@ -353,5 +353,22 @@ describe('"Meet Compass" on a phone clears the Journal "+ Log" button', () => {
     expect(card, 'the phone .coachmark bottom').not.toBeNull()
     expect(fab, 'the phone .logFab bottom').not.toBeNull()
     expect(Number(card[1])).toBeGreaterThan(Number(fab[1]) + 44)
+  })
+})
+
+// Notebook simplify (task 1): the card never shows on the Notebook, at any width. It waits (not dismissed).
+describe('"Meet Compass" on the Notebook', () => {
+  it.each(['/journal/notebook', '/journal/notebook/research/NVDA'])('on %s: no card, the orb is there, the key is not written', (route) => {
+    act(() => { registerFirstRunSlot(slot) })
+    const { container } = renderWithProviders(<FloatingOrb />, { route })
+    expect(card()).toBeNull()
+    expect(cluster(container)).not.toBeNull()
+    expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  it('CONTROL: on another Journal page the card still shows once', () => {
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/journal/trades' })
+    expect(card()).not.toBeNull()
   })
 })

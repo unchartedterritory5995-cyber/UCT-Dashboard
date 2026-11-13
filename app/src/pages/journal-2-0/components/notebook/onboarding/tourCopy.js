@@ -7,13 +7,9 @@
 // every shortcut, so a chord changed tomorrow cannot leave a stale one in the tour.
 
 export const TOUR_STEP_COPY = Object.freeze({
-  'first-run': Object.freeze({
-    title: 'Welcome to your Notebook',
-    body: 'Start here: write a note, create a thesis or bring in the notes you already have.',
-  }),
   sidebar: Object.freeze({
     title: 'Folders and tags',
-    body: 'Your folders, tags and saved views live here. Choose one to see just those notes.',
+    body: 'Your folders and tags live here. Choose one to see just those notes.',
   }),
   search: Object.freeze({
     title: 'Search',
@@ -25,7 +21,7 @@ export const TOUR_STEP_COPY = Object.freeze({
   }),
   'view-switcher': Object.freeze({
     title: 'Views',
-    body: 'Open View to see your notes as a list, a table, a board, a calendar, a graph of their links, a timeline or a list of tasks.',
+    body: 'Open View to see your notes as a list, a table, a board, a calendar, a graph of their links, a timeline or a list of tasks. Your saved views are in View too.',
   }),
   import: Object.freeze({
     title: 'Import',

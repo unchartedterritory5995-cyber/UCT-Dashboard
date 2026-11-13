@@ -1295,7 +1295,7 @@ def q5_today(cx: Ctx, pg, m: Meter, width: str) -> dict:
     if m.mode == "keys":
         m.key("Control+Alt+d", "Today's note (Ctrl+Alt+D)")
     else:
-        m.press(pg.get_by_role("button", name="Today", exact=True).filter(visible=True), "Today")
+        m.press(pg.get_by_role("button", name="Today's note", exact=True).filter(visible=True), "Today's note")
     nid = wait_note_open(pg)
     n = read_note(cx.req, cx.base, nid) or {}
     return {"note": nid, "title": n.get("title")}

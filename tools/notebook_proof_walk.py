@@ -1353,16 +1353,21 @@ def s_list(W, pg, view: str | None = None) -> str:
     return root
 
 
+# Go-live wave 2: Research home's "Welcome to your Notebook" screen is gone; a member with no notes lands on the empty
+# notes list, whose own line is this one (NotebookTab.jsx empty state).
+EMPTY_LIST_LINE = "Your notebook is empty."
+
+
 def s_first_run(W, pg) -> str:
     goto(W, pg, "/journal/notebook")
     root = mark_root(pg)
-    pg.get_by_text("Welcome to your Notebook").filter(visible=True).first.wait_for(state="visible", timeout=15000)
+    pg.get_by_text(EMPTY_LIST_LINE, exact=True).filter(visible=True).first.wait_for(state="visible", timeout=15000)
     pg.wait_for_timeout(1500)
     return root
 
 
 def s_home(W, pg) -> str:
-    goto(W, pg, "/journal/notebook")
+    goto(W, pg, "/journal/notebook?view=today")
     root = mark_root(pg)
     pg.wait_for_timeout(2000)
     return root
@@ -1691,7 +1696,8 @@ SURFACES = [
             sweeps=("geometry", "axe"), note="a new member's first visit: the tour auto-starts"),
     Surface("nb-first-run-clicks", s_first_run, account="fresh-new", sweeps=("deadclick",),
             note="the first-run screen's controls, a new member per reset (a click adds notes)"),
-    Surface("nb-home", s_home, manifest=("ResearchHome",)),
+    # go-live wave 2: Research home is gone; the "home" surface is the Daily brief (`?view=today`, TodayHome.jsx)
+    Surface("nb-home", s_home, manifest=("TodayHome",)),
     Surface("nb-list", s_list, manifest=("tab-list", "note-card-states", "folder-sidebar-edit"),
             modes=("desk", "phone")),
     Surface("nb-table", lambda W, pg: s_list(W, pg, "Table"), manifest=("tab-table",)),
@@ -3031,8 +3037,8 @@ WRITE_ACTIONS = (
     ("share-link", "ed-share", _act_create_link),
     ("trash-note", "ed-delete", _act_confirm_delete),
     ("new-folder", "nb-list", _act_new_folder),
-    ("new-note", "nb-list", _act_click("+ New note")),
-    ("daily-note", "nb-list", _act_click("Today")),
+    ("new-note", "nb-list", _act_click("+ New")),            # the list's button reads "+ New" (simplify Task 3)
+    ("daily-note", "nb-list", _act_click("Today's note")),    # the list's button (final fix C5: one word for it)
 )
 
 
@@ -3817,9 +3823,9 @@ def f_split(W, door):
 
 def f_today(W, door):
     pg = _list(W, door)
-    how = use(pg, door, btn(pg, "Today"))
+    how = use(pg, door, btn(pg, "Today's note"))
     ok = wait_true(lambda: "note=" in pg.evaluate("() => location.search"), 10)
-    must(ok, "Today did not open a note")
+    must(ok, "Today's note did not open a note")
     return how
 
 
@@ -4052,8 +4058,10 @@ def f_first_run(W, door):
     pg, tap = W.page(acct, DOOR_MODE[door])
     goto(W, pg, "/journal/notebook")
     mark_root(pg)
-    pg.get_by_text("Welcome to your Notebook").filter(visible=True).first.wait_for(state="visible", timeout=15000)
-    tour = pg.get_by_role("dialog", name=re.compile("Welcome to your Notebook")).filter(visible=True).first
+    pg.get_by_text(EMPTY_LIST_LINE, exact=True).filter(visible=True).first.wait_for(state="visible", timeout=15000)
+    # the base tour's card, a modal dialog with "Skip tour" (its first step is "Folders and tags" since go-live wave 1
+    # removed the welcome step)
+    tour = pg.locator("[role=dialog][aria-modal=true]").filter(has=pg.get_by_role("button", name="Skip tour")).filter(visible=True).first
     tour_seen = _first_run_tour_seen(tour)
     skip = pg.get_by_role("button", name="Skip tour").filter(visible=True).first
     if tour_seen:
@@ -4064,7 +4072,15 @@ def f_first_run(W, door):
     if tour_seen and skip.count():
         use(pg, door, skip)
         pg.wait_for_timeout(600)
-    how = use(pg, door, btn(pg, "Add a sample notebook"))
+    # Final fix (C4): with the Get started card up its "Open the sample notebook" row is the one sample door; the
+    # standalone "Add a sample notebook" is drawn only without the card.
+    row = btn(pg, "Open the sample notebook")
+    try:
+        row.wait_for(state="visible", timeout=8000)
+        sample_btn = row
+    except Exception:  # noqa: BLE001 -- no card (switch off, hidden): the standalone button is the door
+        sample_btn = btn(pg, "Add a sample notebook")
+    how = use(pg, door, sample_btn)
     ok = wait_true(lambda: len(W.api(acct).get(W.base + "/api/j2/notes?limit=50").json().get("notes") or []) >= 5, 12)
     must(ok, "the sample notebook's notes did not arrive")
     return f"tour shown: {tour_seen}; Skip tour; " + how

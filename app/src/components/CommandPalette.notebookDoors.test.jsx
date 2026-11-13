@@ -235,13 +235,14 @@ describe('palette: All notes (Q11)', () => {
 })
 
 describe('palette: Earnings prep (Q15)', () => {
-  it('with the switch on, choosing it lands on Research Home with the prep door', async () => {
+  // Notebook simplify, Task 5: Reporting soon is on the Daily brief now (Research Home is no longer routed).
+  it('with the switch on, choosing it lands on the Daily brief with the prep door', async () => {
     latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     renderPalette('/dashboard')
     await openAndType('earnings prep')
     fireEvent.click(await screen.findByRole('option', { name: 'Earnings prep: reporting soon' }))
     await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe(NOTEBOOK_PREP_TO))
-    expect(NOTEBOOK_PREP_TO).toBe('/journal/notebook#prep')
+    expect(NOTEBOOK_PREP_TO).toBe('/journal/notebook?view=today#prep')
   })
 
   it('DARK: with the switch off, or never answered, it is not offered', async () => {

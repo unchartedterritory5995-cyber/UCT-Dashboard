@@ -17,14 +17,16 @@ import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/note
 afterEach(() => __resetNotebookFlags())
 
 describe('Save this note\'s setup as a style: loaded on demand', () => {
-  it('the button is there, nothing is fetched until it is pressed', async () => {
+  // Notebook simplify, Task 4: the door is the "Keep live blocks" choice inside the one "Save as template" entry.
+  it('opening "Save as template" fetches nothing; choosing "Keep live blocks" fetches the door', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     render(
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
         <NoteMenuActions note={{ id: 'n1', title: 'T' }} onBeforeTemplate={async () => true} />
       </SWRConfig>,
     )
-    const btn = screen.getByRole('button', { name: "Save as template with blocks" })
+    fireEvent.click(screen.getByRole('button', { name: 'Save as template' }))
+    const btn = screen.getByRole('button', { name: 'Keep live blocks' })
     await vi.dynamicImportSettled()
     expect(loaded.surfaces).toBe(0)
     fireEvent.click(btn)

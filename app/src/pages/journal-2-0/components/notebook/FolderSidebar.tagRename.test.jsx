@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import FolderSidebar from './FolderSidebar'
+import FolderSidebar, { MORE_FOLD_KEY, TAGS_FOLD_KEY } from './FolderSidebar'
 
 /**
  * Wave 6 lane E fix round 1, I4 — item 8's rename was server-only (the
@@ -84,6 +84,18 @@ beforeEach(() => {
       total: 3,
     }),
   }))
+})
+
+// Notebook simplify, Task 2: Unfiled/Archived/Trash/My Playbook sit under the panel's "More" fold and the tags
+// under its "Tags" fold, both closed by default. This file is about what those rows DO, so it opens both folds
+// the way a member's browser remembers them (FolderSidebar.folds.test.jsx owns the folds themselves).
+beforeEach(() => {
+  window.localStorage.setItem(MORE_FOLD_KEY, '1')
+  window.localStorage.setItem(TAGS_FOLD_KEY, '1')
+})
+afterEach(() => {
+  window.localStorage.removeItem(MORE_FOLD_KEY)
+  window.localStorage.removeItem(TAGS_FOLD_KEY)
 })
 
 describe('FolderSidebar — tag rename (wave 6 fix round 1, I4)', () => {

@@ -25,7 +25,6 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 
 import NotebookTab from './NotebookTab'
@@ -64,7 +63,6 @@ describe('the Tasks view is mounted (review I-2)', () => {
     expect(await screen.findByText('Trim NVDA into earnings')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /tasks/i })).toBeInTheDocument()
     expect(screen.getByText('To tick a task off, open its note.')).toBeInTheDocument()
-    expect(screen.queryByTestId('research-home')).toBeNull()
     expect(global.fetch.mock.calls.some(([u]) => String(u) === '/api/j2/notes/tasks?status=open')).toBe(true)
     // S11 (audit 2026-11-05): the view LIVES in the address now -- it stays `?view=tasks`, so a reload
     // reopens it. (It was a one-shot instruction rewritten to `?view=all`.)

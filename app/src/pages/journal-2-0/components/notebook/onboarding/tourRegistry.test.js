@@ -14,6 +14,8 @@ import {
   START_ROUTES, OTHER_TOURS, startKind, tourLive, startPath, startProblem, startState,
 } from './tourRegistry'
 import { TRACK_TOURS } from './tours'
+import { STEP_TIERS, stepsForScreen } from './tourTiers'
+import { MQ } from '../../../../../styles/breakpoints'
 
 describe('the registry itself', () => {
   it('is frozen, non-empty, and every entry has exactly these fields (plus the optional `start`)', () => {
@@ -361,7 +363,7 @@ describe('`waitFor` and `sample:<key>` are declarative and railed', () => {
     for (const t of TOUR_REGISTRY) {
       const { steps } = await t.load()
       steps.forEach((s, i) => {
-        expect(Object.keys(s).filter((k) => !['id', 'anchor', 'file', 'waitFor'].includes(k)), `${t.id}.${s.id} fields`).toEqual([])
+        expect(Object.keys(s).filter((k) => !['id', 'anchor', 'file', 'waitFor', 'tier'].includes(k)), `${t.id}.${s.id} fields`).toEqual([])
         if (!('waitFor' in s)) return
         seen += 1
         const later = steps.slice(i + 1).map((x) => x.anchor)
@@ -419,5 +421,52 @@ describe('every replayable registry tour declares where it starts', () => {
     const missing = OTHER_TOURS.filter((t) => t.replayable && !startKind(t)).map((t) => t.id)
     expect(missing).toEqual([])
     expect(OTHER_TOURS.filter((t) => t.replayable).length, 'non-vacuity').toBeGreaterThan(10)
+  })
+})
+
+// ── Go-live wave 1: steps that belong to one screen tier ─────────────────────────
+// A step may declare `tier` (tourTiers.js): the engine drops it on a screen of another tier. Railed here: the tier is
+// a known one, a `waitFor` names a later step this SAME screen keeps, and every tour still has steps at each width.
+describe('`tier` is declarative and railed', () => {
+  const SCREENS = {
+    phone: (q) => q === MQ.phone || q === MQ.tabletDown,
+    tablet: (q) => q === MQ.tabletDown,
+    desktop: () => false,
+  }
+
+  it('every `tier` is one of STEP_TIERS', async () => {
+    let seen = 0
+    for (const t of TOUR_REGISTRY) {
+      const { steps } = await t.load()
+      for (const s of steps) {
+        if (!('tier' in s)) continue
+        seen += 1
+        expect(Object.keys(STEP_TIERS), `${t.id}.${s.id} tier ${s.tier}`).toContain(s.tier)
+      }
+    }
+    expect(seen, 'non-vacuity: some tour declares a tier').toBeGreaterThan(0)
+  })
+
+  it.each(Object.keys(SCREENS))('on a %s screen, every tour keeps at least one step, and each kept waitFor names a later KEPT step', async (screen) => {
+    for (const t of TOUR_REGISTRY) {
+      const { steps } = await t.load()
+      const kept = stepsForScreen(steps, SCREENS[screen])
+      expect(kept.length, `${t.id} has no step on a ${screen} screen`).toBeGreaterThan(0)
+      kept.forEach((s, i) => {
+        if (!s.waitFor) return
+        expect(kept.slice(i + 1).map((x) => x.anchor), `${t.id}.${s.id} waits for ${s.waitFor}, which a ${screen} screen drops`)
+          .toContain(s.waitFor)
+      })
+    }
+  })
+
+  it('CONTROL: a waitFor whose step another tier owns is caught', () => {
+    const steps = [
+      { id: 'a', anchor: 'x', file: 'f', waitFor: 'y', tier: 'phone' },
+      { id: 'b', anchor: 'y', file: 'f', tier: 'desktop' },
+    ]
+    const kept = stepsForScreen(steps, SCREENS.phone)
+    expect(kept.map((s) => s.id)).toEqual(['a'])
+    expect(kept.slice(1).map((x) => x.anchor)).not.toContain('y')
   })
 })

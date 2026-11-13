@@ -18,6 +18,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { lazyLeaf, RETRY_WAIT_MS } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
+import { useFirstRunPending, useFirstRunShowing } from '../../../lib/firstRun'
 import { getTourEntry, tourLive } from './tourRegistry'
 import {
   REGISTRY_TOUR_OPEN_EVENT, announceRegistryTourClosed, hasPendingRegistryTourOpen,
@@ -25,7 +26,7 @@ import {
 } from './tourRegistryControl'
 
 /** The one sentence a member reads when a walkthrough they asked for could not be shown. */
-export const TOUR_FAILED_NOTICE = 'That walkthrough could not be shown here, so it was closed; you can start it again from Learn.'
+export const TOUR_FAILED_NOTICE = 'That walkthrough could not be shown here, so it was closed; you can start it again from Walkthroughs on the Support page.'
 /** How long that sentence stays up. */
 export const TOUR_NOTICE_MS = 8000
 const NOTICE_STYLE = Object.freeze({
@@ -160,8 +161,13 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
     // tour wide, so a held request would block every later one (W14-C1).
     useEffect(() => { if (wantedId && !allowed) close({ opened: false }) }, [wantedId, allowed, close])
 
+    // Final fix (C5): never over the 60-second first run (S16: one first-run moment at a time), the same hold the base
+    // tour's gate has. A walkthrough asked for from Help by a brand-new member waits, still wanted, while the first
+    // run is on screen, due on the Notebook list, or not yet decided there (lib/firstRun.js), and opens after it.
+    const firstRunShowing = useFirstRunShowing()
+    const firstRunPending = useFirstRunPending()
     const said = notice ? <p role="status" data-tour-notice="" style={NOTICE_STYLE}>{notice}</p> : null
-    if (!allowed) return said
+    if (!allowed || firstRunShowing || firstRunPending) return said
     return (
       <>
         <RegistryTourCatch key={`${wantedId}:${run}`} onFail={failed}>
