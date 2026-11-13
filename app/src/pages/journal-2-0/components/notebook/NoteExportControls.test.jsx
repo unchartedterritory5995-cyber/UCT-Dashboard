@@ -455,11 +455,14 @@ describe('NoteExportControls: the palette door opens the Export menu (lane KEYS3
     await waitFor(() => expect(document.activeElement).toBe(within(menu).getByRole('menuitem', { name: 'PNG' })))
   })
 
+  // Follow-up B, item 3a: Tab in the Export view does what Tab does in the panel's first view: the panel is a
+  // disclosure (lib/useDisclosureFocus.js, wave 10 K2), so Tab stays inside and wraps, and the panel stays open;
+  // Escape is still layered (the first goes back to the panel, the second closes it). `tab: 'stays'` asserts that.
   it('C3: Export meets the shared second-view contract (Back, Left, Escape; a second Escape closes the panel)', async () => {
     render(<InMore />)
     await expectSecondView({
       openMenu: openPanel, parentRowName: 'Export', childRowNames: FORMAT_NAMES,
-      trigger: () => screen.getByRole('button', { name: 'More note actions' }),
+      trigger: () => screen.getByRole('button', { name: 'More note actions' }), tab: 'stays',
     })
   })
 
