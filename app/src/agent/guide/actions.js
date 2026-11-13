@@ -32,6 +32,7 @@ const WHERE = {
   axis: 'Right-click on the price numbers at the right edge of the chart.',
   volume: 'Right-click on the volume bars at the bottom of the chart.',
   average: 'Right-click on a moving average line.',
+  plot: 'Right-click inside the chart, among the candles.',
 }
 const rightClick = (id, where, name, say, opts = {}) => [
   { target: 'chart.plot', name: 'the chart', text: WHERE[where], waitFor: menuRow(id) },
@@ -50,6 +51,9 @@ export const CHART_MENU = [
   { id: 'axisSettings', label: 'Axis settings', re: /\baxis\b.*\bsettings?\b|\bsettings?\b.*\baxis\b/, steps: rightClick('settings-axis', 'axis', 'Axis settings', 'Click Axis settings to open the axis labels.') },
   { id: 'maSettings', label: 'A moving average’s settings', re: /\bmoving average\b.*\bright[- ]?click\w*\b|\bright[- ]?click\w*\b.*\bmoving average\b/, steps: rightClick('settings-ma', 'average', 'MA settings', 'Click MA settings to open the moving averages.') },
   { id: 'template', label: 'A template from the right-click menu', re: /\btemplates?\b.*\bright[- ]?click\w*\b|\bright[- ]?click\w*\b.*\btemplates?\b/, steps: rightClick('template', 'chart', 'Chart template', 'Click Chart template, then pick a saved look.') },
+  // C1-123 (owner-approved 2026-11-10): the menu's own "Add indicator…" row, StockChart's ind-add item (ChartWidget draws it
+  // only where StockChart offers it: the price area, on a chart with drawing tools). Alt+Shift+A stays the other way in
+  { id: 'addIndicator', label: 'Adding an indicator by right-click', re: /\b(add|put|insert)\w*\b.*\b(indicators?|study|studies)\b.*(\bright[- ]?click\w*\b|\bmenu\b)|(\bright[- ]?click\w*\b|\bmenu\b).*\b(add|put|insert)\w*\b.*\b(indicators?|study|studies)\b/, steps: rightClick('ind-add', 'plot', 'Add indicator', 'Click Add indicator… to open the indicator library. Alt+Shift+A on the chart opens it too.') },
   { id: 'addWidget', label: 'Adding a widget by right-click', re: /\bwidgets?\b.*\bright[- ]?click\w*\b|\bright[- ]?click\w*\b.*\bwidgets?\b/, steps: rightClick('add-widget', 'chart', 'Add widget', 'Click Add widget and pick one: it floats on top of the board.') },
   { id: 'clearDrawings', label: 'Clearing all drawings', re: /\b(clear|delete|remove|erase|wipe)\b.*\b(all|every|my)\b.*\bdrawings?\b/, steps: rightClick('clear-draw', 'chart', 'Clear all drawings', 'Click Clear all drawings. This row only shows while the chart has drawings.') },
   { id: 'menu', label: 'The chart’s right-click menu', re: /\bright[- ]?click\w*\b.*\b(menu|chart)\b|\bmenu\b.*\bright[- ]?click\w*\b/, steps: rightClick('settings', 'chart', 'the menu', 'This is the chart’s menu: set an alert, reset the view, open its settings, apply a template, add a widget. The settings row changes with where you clicked.') },
