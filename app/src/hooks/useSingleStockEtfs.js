@@ -11,19 +11,20 @@
 // on 2026-07-22 (a teammate's redeploy made the pill "disappear"). By throwing,
 // SWR instead RETAINS the last-good data through the blip and retries with
 // backoff (+ revalidateOnReconnect), so the pill rides out a deploy untouched.
-import { useRestedSWR } from '../lib/symbolPace'
+import useSWR from 'swr'
 import { singleStockEtfsKey, singleStockEtfsFetcher as fetcher } from './singleStockEtfsKey'
 
-export default function useSingleStockEtfs(sym) {
+export default function useSingleStockEtfs(sym, isPaused) {
   // keepPreviousData is deliberately OFF: the pill is symbol-specific, so on a
   // symbol change we must NOT show the prior symbol's family; undefined-until-
   // resolved (control hidden) is correct. Retention-through-failure above is a
   // different mechanism (SWR keeps data for the SAME key on error).
-  // (through the rest gate: a symbol the member is racing past is not asked for, lib/symbolPace.js)
-  const { data } = useRestedSWR(
+  // `isPaused` (optional): a chart passes its rest gate, so a symbol the member is racing past is not
+  // asked for (components/chart/restedReaders.js). Without it this is an ordinary read.
+  const { data } = useSWR(
     singleStockEtfsKey(sym),
     fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 },
+    { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000, ...(isPaused && { isPaused }) },
   )
   const family = data || null
   const hasFamily = !!(family && ((family.long && family.long.length) ||

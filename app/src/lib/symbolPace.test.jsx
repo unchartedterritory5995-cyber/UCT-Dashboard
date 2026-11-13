@@ -17,7 +17,7 @@ import { render, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import {
   createPace, useRestedSWR, restGateDisabled,
-  RACE_MS, REST_FACTOR, REST_MIN_MS, REST_MAX_MS, REST_GATE_OFF_KEY, __resetRestGate,
+  RACE_MS, REST_FACTOR, REST_MIN_MS, REST_MAX_MS, ASK_AFTER_MS, REST_GATE_OFF_KEY, __resetRestGate,
 } from './symbolPace'
 
 beforeEach(() => {
@@ -119,6 +119,9 @@ function mount(first, { cache = new Map(), opts } = {}) {
   return { seen, cache, show: (sym) => act(() => { r.rerender(ui(sym)) }), unmount: () => r.unmount() }
 }
 const wait = (ms) => act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+/** long enough for a raced key to be seen as stayed on, and for its ask to leave. (Two steps: React arms the ask's own
+ *  short timer in the commit that follows the hold, and under `act` that commit happens when the first wait returns.) */
+const stop = async (ms = 3000) => { await wait(REST_MAX_MS + 50); await wait(Math.max(ASK_AFTER_MS + 10, ms - REST_MAX_MS - 50)) }
 
 describe('⭐ a read keyed by the symbol waits while the member races, and asks for the one they stop on', () => {
   it('a symbol the member arrives on and reads is asked for at once', async () => {
@@ -138,6 +141,10 @@ describe('⭐ a read keyed by the symbol waits while the member races, and asks 
     expect(asked, 'BBB arrived as a reader would; the rest were raced past').toEqual(['/api/thing/AAA', '/api/thing/BBB'])
     await wait(Math.round(200 * REST_FACTOR) - 200 - 2)
     expect(asked.length, 'not before 1.3 x the step has passed with no further one').toBe(2)
+    await wait(4)                                         // the hold ends: the key was stayed on
+    expect(asked.length, 'nor in that instant: every reader of the key is given a moment to stop').toBe(2)
+    await wait(ASK_AFTER_MS - 2)
+    expect(asked.length).toBe(2)
     await wait(4)
     expect(asked).toEqual(['/api/thing/AAA', '/api/thing/BBB', '/api/thing/EEE'])
     await wait(5000)
@@ -152,7 +159,7 @@ describe('⭐ a read keyed by the symbol waits while the member races, and asks 
     cache.set('/api/thing/DDD', { data: 'held' })
     for (const s of ['BBB', 'CCC', 'DDD']) { m.show(s); await wait(150) }
     expect(m.seen[m.seen.length - 1]).toBe('DDD:held')
-    await wait(2000)
+    await stop()
     expect(asked.filter((k) => k.endsWith('DDD')), 'and nothing is asked for it: it is there').toEqual([])
   })
 
@@ -167,8 +174,9 @@ describe('⭐ a read keyed by the symbol waits while the member races, and asks 
     const m = mount('AAA')
     await wait(900)
     for (const s of ['BBB', 'CCC', 'DDD']) { m.show(s); await wait(150) }
-    await wait(3000)
+    await stop()
     const n = asked.length
+    expect(asked[n - 1], 'the one stopped on was asked for').toBe('/api/thing/DDD')
     m.show('EEE')
     await wait(0)
     expect(asked.slice(n), 'asked at once').toEqual(['/api/thing/EEE'])
@@ -197,7 +205,7 @@ describe('⭐ a read keyed by the symbol waits while the member races, and asks 
     const r = render(ui('AAA'))
     await wait(900)
     for (const s of ['BBB', 'CCC', 'DDD']) { act(() => { r.rerender(ui(s)) }); await wait(150) }
-    await wait(3000)
+    await stop()
     expect(asked.filter((k) => k.endsWith('DDD'))).toEqual(['/api/thing/DDD'])
   })
 
