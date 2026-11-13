@@ -19,7 +19,7 @@ import {
   REGISTRY_TOUR_CLOSED_EVENT, getRegistryTourWanted, hasPendingRegistryTourOpen, openRegistryTour, __resetRegistryTourControl,
 } from './tourRegistryControl'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
-import { setFirstRunPending, setFirstRunShowing } from '../../../lib/firstRun'
+import { FIRST_RUN_PENDING, setFirstRunPending, setFirstRunShowing } from '../../../lib/firstRun'
 
 const BORROWED_FLAG = 'notebook_template_gallery_enabled'
 const TOUR_A = { id: 'w14-0-tour-a', flag: BORROWED_FLAG, title: 'Tour A', replayable: true }
@@ -114,6 +114,47 @@ describe('never over the 60-second first run (the base tour hold, C5)', () => {
       act(() => { set(false) })
       await act(async () => { await vi.advanceTimersByTimeAsync(50) })
       expect(screen.queryByText('Tour A is open')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // Follow-up B, item 2c: the 10 s limit is for a first run that is actually due or showing. A member who is NOT new
+  // but whose preferences read is slow ('undecided') keeps the walkthrough they asked for, however long it takes.
+  it('first run undecided (a slow preferences read): held with no limit, then opens once it is decided not due', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const Gate = makeRegistryToursGate(engineLoader(), 0)
+      render(<Page Gate={Gate} tours={[TOUR_A]} />)
+      act(() => { setFirstRunPending(FIRST_RUN_PENDING.undecided) })
+      act(() => { openRegistryTour('w14-0-tour-a') })
+      await act(async () => { await vi.advanceTimersByTimeAsync(FIRST_RUN_HOLD_MS * 3) })
+      expect(screen.queryByText('Tour A is open')).toBeNull()
+      expect(screen.queryByRole('status')).toBeNull()
+      expect(getRegistryTourWanted()).toBe('w14-0-tour-a')
+      act(() => { setFirstRunPending(null) })                    // the read answered: an established member
+      expect(await screen.findByText('Tour A is open')).toBeInTheDocument()
+      expect(screen.queryByText(TOUR_FAILED_NOTICE)).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('undecided, then due: the 10 s start when it becomes due, not before', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const Gate = makeRegistryToursGate(engineLoader(), 0)
+      render(<Page Gate={Gate} tours={[TOUR_A]} />)
+      act(() => { setFirstRunPending(FIRST_RUN_PENDING.undecided) })
+      act(() => { openRegistryTour('w14-0-tour-a') })
+      await act(async () => { await vi.advanceTimersByTimeAsync(FIRST_RUN_HOLD_MS * 2) })
+      act(() => { setFirstRunPending(FIRST_RUN_PENDING.due) })
+      await act(async () => { await vi.advanceTimersByTimeAsync(FIRST_RUN_HOLD_MS - 100) })
+      expect(screen.queryByRole('status')).toBeNull()
+      expect(getRegistryTourWanted()).toBe('w14-0-tour-a')
+      await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+      expect(screen.getByRole('status')).toHaveTextContent(TOUR_FAILED_NOTICE)
+      expect(getRegistryTourWanted()).toBeNull()
     } finally {
       vi.useRealTimers()
     }
