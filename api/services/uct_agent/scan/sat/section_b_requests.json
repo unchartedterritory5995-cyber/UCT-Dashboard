@@ -11180,6 +11180,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -11532,6 +11536,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -11880,6 +11888,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -12238,6 +12250,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -12585,6 +12601,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -12937,6 +12957,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -13285,6 +13309,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -13904,6 +13932,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -14255,6 +14287,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -14602,6 +14638,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -15214,6 +15254,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -15562,6 +15606,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -16181,6 +16229,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -16790,6 +16842,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -17403,6 +17459,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -17751,6 +17811,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -18370,6 +18434,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -18718,6 +18786,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -19076,6 +19148,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -19430,6 +19506,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -19788,6 +19868,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -20136,6 +20220,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -20488,6 +20576,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -20835,6 +20927,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -21185,6 +21281,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -21795,6 +21895,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -22409,6 +22513,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -23018,6 +23126,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -23631,6 +23743,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -23978,6 +24094,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",

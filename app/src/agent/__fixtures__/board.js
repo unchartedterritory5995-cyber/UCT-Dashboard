@@ -6,6 +6,7 @@
 import { planPlacement } from '../../pages/charts/placement/place'
 import { buildWidgetSource, buildLayoutSource, buildWatchlistSource, buildWidgetSync, positionWord } from '../host'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
+import { chartTabList } from '../../pages/charts/chartTabs'
 
 export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null, minOf = null, repack = null, resize = null, catalog = null } = {}) {
   const state = { widgets: widgets.map(w => ({ color: 'A', opts: {}, ...w })), groupSyms: { ...groupSyms } }
@@ -58,6 +59,8 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       symbol: state.groupSyms[keyOf(w)] || 'SPY', tf: w.opts.tf || 'D',
       stored: w.opts.settings ?? null, cs: mergeChartSettings(w.opts.settings || null),
       watermarkPos: w.opts.watermarkPos ?? null,
+      // a board chart widget's dock (ChartWidget adapter: canDock, the RAW opts.dock, the chart tabs sharing it)
+      canDock: true, dock: w.opts.dock ?? null, dockTabs: chartTabList(w.opts).length,
       linkedCount: 0,
     }
   }
@@ -73,6 +76,7 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
         if ('settings' in patch) opts.settings = patch.settings
         if ('tf' in patch) opts.tf = patch.tf
         if ('watermarkPos' in patch) opts.watermarkPos = patch.watermarkPos
+        if ('dock' in patch) { if (patch.dock == null) delete opts.dock; else opts.dock = patch.dock }
         state.widgets = state.widgets.map(x => (x.id === ref ? { ...x, opts } : x))
         if (patch.symbol) state.groupSyms = { ...state.groupSyms, [keyOf(w)]: patch.symbol }
         return true
