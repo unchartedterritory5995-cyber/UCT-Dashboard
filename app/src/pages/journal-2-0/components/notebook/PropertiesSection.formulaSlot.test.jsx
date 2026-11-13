@@ -1,7 +1,8 @@
 // Follow-up B, item 3c: the formula editor is held the way the rollup editor is (PropertiesSection.jsx's
 // FormulaEditorSlot): with the chunk in hand it is drawn in the same act as the press (a `lazyChunk` in a Suspense held
-// the reveal back about 300 ms, so a letter typed straight away could land elsewhere); it is warmed when the add form
-// opens; a fetch that fails is said, never thrown, and asked for again on the next open.
+// the reveal back about 300 ms, so a letter typed straight away could land elsewhere); it is warmed once the panel is
+// idle (formulas on), beside the rollup editor; a fetch that fails is said, never thrown, and asked for again on the
+// next open.
 import { Component, useState } from 'react'
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -61,27 +62,27 @@ describe('the formula editor slot', () => {
     await waitFor(() => expect(formulaBox()).not.toBeNull())
   })
 
-  it('opening Add property warms it (formulas on), so "Add a formula" draws the editor at once', async () => {
+  it('the panel warms it once idle (formulas on), so "Add a formula" draws the editor at once', async () => {
     latchNotebookFlags({ notebook_formulas_enabled: true })
     const load = vi.fn(REAL.editor)
     formulaEditorLoaders.editor = load
     render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><PropertiesSection noteId="n1" updateNote={vi.fn()} /></SWRConfig>)
-    expect(load).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: /Add property/ }))
+    expect(load).not.toHaveBeenCalled()                          // not with the note: once the panel is idle
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole('button', { name: /Add property/ }))
     await act(async () => { await formulaEditorModule.warm() })   // the same fetch, already in flight
     expect(load).toHaveBeenCalledTimes(1)
     act(() => { fireEvent.click(screen.getByRole('button', { name: 'Add a formula' })) })
     expect(formulaBox()).not.toBeNull()
   })
 
-  it('CONTROL: formulas off, opening Add property fetches nothing', async () => {
+  it('CONTROL: formulas off, an idle panel and Add property fetch nothing', async () => {
     latchNotebookFlags({ notebook_formulas_enabled: false })
     const load = vi.fn(REAL.editor)
     formulaEditorLoaders.editor = load
     render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><PropertiesSection noteId="n1" updateNote={vi.fn()} /></SWRConfig>)
     fireEvent.click(screen.getByRole('button', { name: /Add property/ }))
-    await new Promise((r) => setTimeout(r, 30))
+    await new Promise((r) => setTimeout(r, 400))                 // past whenIdle's fallback (200 ms)
     expect(load).not.toHaveBeenCalled()
   })
 })

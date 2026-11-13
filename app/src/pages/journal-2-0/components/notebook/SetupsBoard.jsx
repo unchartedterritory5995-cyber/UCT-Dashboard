@@ -6,8 +6,8 @@ import UIcon from '../../../../components/ui/UIcon'
 import LoadFailed from '../LoadFailed'
 import Sheet from '../../../../components/mobile/Sheet'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
-import { BOARD_URL, fromDailyBrief } from '../../lib/setupsBoardLink'
-import { NOTEBOOK_TODAY_TO } from '../../lib/notebookDoors'
+import { BOARD_URL, FROM_DAILY_BRIEF } from '../../lib/setupsBoardLink'
+import { NOTEBOOK_TODAY_TO } from '../../lib/dailyBriefLink'
 import { chartPlanEnabled } from '../../lib/widgetEmbedCore'
 import useStaggeredMount from '../../../charts/grid/useStaggeredMount'
 import { makeGridWarmer } from '../../../charts/grid/gridWarm'
@@ -225,7 +225,7 @@ export default function SetupsBoard() {
   // "Find more like this" sheet rewrites the address in place, so it carries the state along or the way back would
   // flip to "Back to Notebook" after the sheet closed.
   const routeState = useLocation().state
-  const fromBrief = fromDailyBrief(routeState)
+  const fromBrief = routeState?.from === FROM_DAILY_BRIEF
   const [picked, setPicked] = useState(() => {
     const raw = params.get('similar')
     if (!raw || !raw.includes(':')) return null

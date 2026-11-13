@@ -14,7 +14,7 @@
  */
 import { useNavigate } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
-import { NOTEBOOK_TODAY_TO } from '../../lib/notebookDoors'
+import { NOTEBOOK_TODAY_TO } from '../../lib/dailyBriefLink'
 import styles from './TodayQuickActions.module.css'
 
 export default function TodayQuickActions({ onLogTrade }) {

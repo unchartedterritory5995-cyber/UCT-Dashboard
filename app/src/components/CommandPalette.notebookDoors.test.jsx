@@ -16,9 +16,9 @@ import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import CommandPalette from './CommandPalette'
 import {
-  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO, NOTEBOOK_TODAY_TO,
-  onNotebookDoor,
+  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO, onNotebookDoor,
 } from '../pages/journal-2-0/lib/notebookDoors'
+import { NOTEBOOK_TODAY_TO } from '../pages/journal-2-0/lib/dailyBriefLink'
 import { EARNINGS_PREP_FLAG } from '../pages/journal-2-0/lib/earningsPrepShared'
 import { latchNotebookFlags, __resetNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import RouteFocusTarget from '../pages/journal-2-0/lib/routeFocus'

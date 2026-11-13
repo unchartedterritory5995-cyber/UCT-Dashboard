@@ -15,7 +15,6 @@ export const BOARD_URL = '/api/j2/setups-board'
  *  back returns to the brief ("Back to Daily brief"). Router state, not a URL parameter: a shared or reloaded board
  *  address keeps its plain "Back to Notebook". */
 export const FROM_DAILY_BRIEF = 'daily-brief'
-export const fromDailyBrief = (state) => state?.from === FROM_DAILY_BRIEF
 
 /** The gate, as the auth payload latched it for this tab (absent = OFF). */
 export function setupsBoardEnabled() {

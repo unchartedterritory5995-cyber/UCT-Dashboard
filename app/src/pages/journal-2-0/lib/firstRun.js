@@ -68,8 +68,7 @@ export const FIRST_RUN_PENDING = Object.freeze({ due: 'due', undecided: 'undecid
 let pending = null
 const pendingSubs = new Set()
 export function setFirstRunPending(state) {
-  const next = state === true ? FIRST_RUN_PENDING.due
-    : (state === FIRST_RUN_PENDING.due || state === FIRST_RUN_PENDING.undecided ? state : null)
+  const next = state === true ? FIRST_RUN_PENDING.due : state || null
   if (next === pending) return
   pending = next
   for (const f of Array.from(pendingSubs)) f()

@@ -25,17 +25,23 @@ import Input from '../../../../components/ui/Input'
 // member writes or edits a formula, so it loads then, never with the note. Rail: PropertiesSection.formulaLazy.test.js.
 // Follow-up B, item 3c: it was a `lazyChunk` in a `null` Suspense, which holds the reveal back about 300 ms even when
 // the chunk is in hand (measured on the find bar: a typed letter landed in the note). It is held the way the rollup
-// editor below is: a module-level slot, warmed when the add or edit form opens, drawn straight from it; a failed fetch
-// is said, and asked for again the next time the editor opens.
+// editor below is: a module-level slot, warmed once the panel is idle (formulas on) and by the slot itself, drawn
+// straight from it; a failed fetch is said, and asked for again the next time the editor opens.
 export const formulaEditorLoaders = { editor: () => import('./FormulaEditor') }
 export const formulaEditorModule = heldModule(() => formulaEditorLoaders.editor())
-export const FORMULA_EDITOR_UNAVAILABLE = "Couldn't load the formula editor. Close this and open it again to retry."
-export function FormulaEditorSlot(props) {
-  const { status, Component } = useHeldModule(formulaEditorModule)
-  useEffect(() => { formulaEditorModule.warm() }, [])
-  if (Component) return <Component {...props} />
-  return status === 'failed' ? <div className={styles.error} role="alert">{FORMULA_EDITOR_UNAVAILABLE}</div> : null
+const unavailable = (what) => `Couldn't load the ${what}. Close this and open it again to retry.`
+export const FORMULA_EDITOR_UNAVAILABLE = unavailable('formula editor')
+/** One held editor's slot: drawn straight from its module once loaded (warmed on mount), nothing before, and the
+ *  sentence when the fetch failed. The formula and rollup editors share it (first-open bytes, follow-up B 3c). */
+function heldEditorSlot(held, unavailable) {
+  return function HeldEditorSlot(props) {
+    const { status, Component } = useHeldModule(held)
+    useEffect(() => { held.warm() }, [])
+    if (Component) return <Component {...props} />
+    return status === 'failed' ? <div className={styles.error} role="alert">{unavailable}</div> : null
+  }
 }
+export const FormulaEditorSlot = heldEditorSlot(formulaEditorModule, FORMULA_EDITOR_UNAVAILABLE)
 // Go-live wave 1, fix round 2 (first-open bytes, paying for the find bar's stand-in): the rollup editor (native selects)
 // shows only while a member sets up or edits a rollup, so it is a chunk of its own, fetched once the panel is idle into
 // a module-level slot and drawn straight from it (lib/heldModule.js: never React.lazy, which holds a first render back
@@ -43,13 +49,8 @@ export function FormulaEditorSlot(props) {
 // failed is said, and asked for again the next time the editor opens.
 export const rollupEditorLoaders = { editor: () => import('./RollupEditor') }
 export const rollupEditorModule = heldModule(() => rollupEditorLoaders.editor())
-export const ROLLUP_EDITOR_UNAVAILABLE = "Couldn't load the rollup settings. Close this and open it again to retry."
-export function RollupEditorSlot(props) {
-  const { status, Component } = useHeldModule(rollupEditorModule)
-  useEffect(() => { rollupEditorModule.warm() }, [])
-  if (Component) return <Component {...props} />
-  return status === 'failed' ? <div className={styles.error} role="alert">{ROLLUP_EDITOR_UNAVAILABLE}</div> : null
-}
+export const ROLLUP_EDITOR_UNAVAILABLE = unavailable('rollup settings')
+export const RollupEditorSlot = heldEditorSlot(rollupEditorModule, ROLLUP_EDITOR_UNAVAILABLE)
 
 const savedViewsFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -100,7 +101,11 @@ const NO_OMIT = Object.freeze([])
 export default function PropertiesSection({ noteId, updateNote, ticker, autofillOn = false, omit = NO_OMIT }) {
   const { properties: resolved, isLoading, error: loadError, refresh } = useNoteProperties(noteId)
   // Fix round 2: the rollup editor's chunk, once the panel is idle (in hand before a member opens a rollup).
-  useEffect(() => whenIdle(() => { rollupEditorModule.warm() }), [])
+  // Follow-up B, item 3c: the formula editor's too, while formulas are on (so "Add a formula" draws it at once).
+  useEffect(() => whenIdle(() => {
+    rollupEditorModule.warm()
+    if (notebookFlag('notebook_formulas_enabled') === true) formulaEditorModule.warm()
+  }), [])
   // Notebook UX pass (2026-10-10): the editor's ONE ticker control is its own row in the note's
   // details, so the read-only `builtin:ticker` mirror of that same value is left out here
   // (`omit`). The server still derives it; the AUTHORITY is the note's `ticker` column, written
@@ -144,10 +149,6 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   // The computed property being edited in place: { id, type, text | config, error }.
   const [editing, setEditing] = useState(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  // Follow-up B, item 3c: the formula editor's chunk is fetched when the add form or an edit opens (formulas on), so
-  // it is in hand before "Add a formula" or a formula's Edit draws it.
-  const formOpen = pickerOpen || Boolean(editing)
-  useEffect(() => { if (formulasOn && formOpen) formulaEditorModule.warm() }, [formulasOn, formOpen])
   // Wave 12 (12B-2): a note just made from a template that declares property
   // definitions (the Position Tracker) shows them while still empty -- this tab only.
   const [manuallyShown, setManuallyShown] = useState(() => new Set(templateRevealFor(noteId)))

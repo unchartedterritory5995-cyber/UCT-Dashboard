@@ -44,13 +44,6 @@ export const NOTEBOOK_LIST_TO = `/journal/notebook?view=all${NOTEBOOK_LIST_HASH}
  */
 export const NOTEBOOK_PREP_HASH = '#prep'
 export const NOTEBOOK_PREP_TO = `/journal/notebook?view=today${NOTEBOOK_PREP_HASH}`
-
-/**
- * Follow-up B, item 1: the Daily brief itself (the Notebook's notes day, `?view=today`). The Journal's Today tab
- * (Quick actions) and the command palette both link here, so the two day pages are one press apart. Restated as a
- * literal (not lib/todayHome.js's TODAY_VIEW) for the same reason as the prep door: this file stays import-free.
- */
-export const NOTEBOOK_TODAY_TO = '/journal/notebook?view=today'
 export const NOTEBOOK_PREP_FLAG = 'notebook_earnings_prep_enabled'
 
 /** Ask for a door. Returns true when a mounted surface took it. */

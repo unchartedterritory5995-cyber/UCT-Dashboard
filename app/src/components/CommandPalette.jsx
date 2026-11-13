@@ -22,9 +22,10 @@ import { notebookFlag } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { checklistEnabled } from '../pages/journal-2-0/components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_SEARCH_HASH } from '../pages/journal-2-0/lib/notebookSearchDoor'
 import {
-  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO, NOTEBOOK_TODAY_TO,
+  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO,
   noteOpenAt, openNotebookDoor,
 } from '../pages/journal-2-0/lib/notebookDoors'
+import { NOTEBOOK_TODAY_TO } from '../pages/journal-2-0/lib/dailyBriefLink'
 import { SETUPS_BOARD_PATH, setupsBoardEnabled } from '../pages/journal-2-0/lib/setupsBoardLink'
 import styles from './CommandPalette.module.css'
 

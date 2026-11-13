@@ -904,12 +904,14 @@ export default function NotebookTab() {
   // Follow-up B, item 1d: the Daily brief (`isToday`) is a view too. Choosing it from the drawer changes none of the
   // other four (All notes has no folder either), so the drawer stayed open over the brief. (`isToday` itself is
   // computed further down; the address's own word is enough here.)
-  const viewIsToday = searchParams.get('view') === TODAY_VIEW
+  // ⛔ A2R-03 (a11y second review, 2026-10-01): every VIEW_MODES id is a list address -- `?view=graph` once rendered
+  // Research Home, so a keyboard walk never found the graph canvas. With no home behind the list that cannot recur.
+  const viewParam = searchParams.get('view')
   useEffect(() => {
     if (!phoneArrivalFolds(noteId, location.hash)) return
     setSidebarOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, folderId, tag, noteId, viewIsToday])
+  }, [viewMode, folderId, tag, noteId, viewParam === TODAY_VIEW])
 
   // `total` is the TRUE count from SQL for this filter set (folder/tag), never
   // the length of `notes` — a migrated library of thousands of notes must see
@@ -985,10 +987,7 @@ export default function NotebookTab() {
   // wave 1) or one this build does not know. ⚰️ It used to open the member's LANDING ("Open the Notebook on": Today, Research home or All notes,
   // default Today), and opening Today MADE the day's note as a side effect of opening the Notebook. Now nothing is made
   // until the member presses "Today's note" (or the Daily brief's "Start today's note": simplify pass 2, B1 -- the
-  // brief itself only reads).
-  // ⛔ A2R-03 (a11y second review, 2026-10-01): every VIEW_MODES id is a list address -- `?view=graph` once rendered
-  // Research Home, so a keyboard walk never found the graph canvas. With no home behind the list that cannot recur.
-  const viewParam = searchParams.get('view')
+  // brief itself only reads). (`viewParam` is read above, by the phone drawer's fold, follow-up B 1d.)
   // The preferences: the first run's tips (below). The stored `notebook_landing` is no longer read.
   const { prefs: notebookPrefs, loading: prefsLoading, readFailed: prefsReadFailed } = usePreferences()
   // I1: on its own address the Daily brief's chunk is asked for in this first render, in parallel with the preferences
