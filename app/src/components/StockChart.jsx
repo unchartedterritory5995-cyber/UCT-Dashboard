@@ -163,6 +163,7 @@ import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipV
 // header, a row's `card` opens a three-line About page in the same popover,
 // and Learn links resolve through the app's one Desk-video builder.
 import { scalarsFor } from './chart/engine/serverCompute'
+import { chartShows, chartGone } from './chart/engine/serverCompute'
 // ⭐ UCT RS 3-09 — the server gate the chip menu reads (its Preset page, its readout actions).
 import { serverDeclares, subscribeServerDefinitions } from './chart/engine/serverCompute'
 // ⭐ UCT RS 3-09 — the readout row's "Open the rotation map" asks the workspace's
@@ -8358,6 +8359,14 @@ export default function StockChart({
   // the chart to ask again. Same role `secondarySources` plays one line up,
   // and it joins the SAME dependency array below for the same reason.
   const serverColumnsGeneration = useServerColumns()
+  // ⚡ THE LANE IS TOLD WHAT THIS CHART IS ON (serverCompute `chartShows`), so the ask of a chart
+  // being raced through a list is held and, if the chart has moved on, never sent: the chart the
+  // member lands on is not queued behind requests for the ones they passed (measured: 7.0 s).
+  // A layout effect, so the lane knows before this render's own ask leaves in a microtask.
+  const laneSlotRef = useRef(null)
+  if (laneSlotRef.current === null) laneSlotRef.current = {}
+  useLayoutEffect(() => { chartShows(laneSlotRef.current, sym, resolvedTf) }, [sym, resolvedTf])
+  useEffect(() => () => chartGone(laneSlotRef.current), [])
 
   // ⛔⛔ THE CAPABILITY ORACLE NEEDS ITS REGISTRY, AND THIS CHART MUST NOT ASSUME
   // A SIBLING LOADED IT. The family oracle answers `'unknown'` until the breadth

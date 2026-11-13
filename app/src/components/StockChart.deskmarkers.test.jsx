@@ -76,6 +76,18 @@ vi.mock('../utils/barsIDB', () => ({
   idbGet: async () => null, idbPut: async () => {}, mergeDelta: (_a, b) => b,
 }))
 
+// The server lane's two "what is this chart on" calls, recorded and passed through (the rest of
+// the lane is the real module).
+const lane = vi.hoisted(() => ({ shows: [], gone: [] }))
+vi.mock('./chart/engine/serverCompute', async (orig) => {
+  const real = await orig()
+  return {
+    ...real,
+    chartShows: (slot, sym, tf) => { lane.shows.push([slot, sym, tf]); return real.chartShows(slot, sym, tf) },
+    chartGone: (slot) => { lane.gone.push(slot); return real.chartGone(slot) },
+  }
+})
+
 // 200 consecutive daily bars ending 2026-02-20 (the anchor suite's fixture).
 const BAR_DATES = Array.from({ length: 200 }, (_, i) =>
   new Date(Date.UTC(2026, 1, 20) - (199 - i) * 86400000).toISOString().slice(0, 10))
@@ -324,6 +336,46 @@ describe('the rows ahead get this chart\'s marker reads asked for', () => {
     await waitFor(() => expect(lw.markerSets.length).toBeGreaterThan(0), { timeout: 3000 })
     expect(warmSymbolResources(['NEXTROW'], 'D', NEAR)).toBe(0)
     expect(allUrls().filter(u => u.includes('NEXTROW'))).toEqual([])
+  })
+})
+
+/* ── 2c. What the chart is on ─────────────────────────────────────────────── */
+
+// The server lane holds the ask of a chart that is being raced through a list and drops it if the
+// chart moved on (engine/__tests__/serverLaneBatch.test.js). It can only do that for a chart that
+// SAYS what it is on: one token per mounted chart, the symbol and the resolved timeframe on every
+// change, and a goodbye on unmount.
+describe('the chart tells the server lane what it is on', () => {
+  it('its symbol and timeframe on mount and on every change, under one token; gone on unmount', async () => {
+    lane.shows.length = 0; lane.gone.length = 0
+    const view = render(<StockChart sym="LANE1" tf="D" barsOverride={FIXTURE_BARS} />)
+    await waitFor(() => expect(lane.shows.length).toBeGreaterThan(0))
+    const slot = lane.shows[0][0]
+    expect(slot && typeof slot).toBe('object')
+    expect(lane.shows.at(-1).slice(1)).toEqual(['LANE1', 'D'])
+    view.rerender(<StockChart sym="LANE2" tf="D" barsOverride={FIXTURE_BARS} />)
+    expect(lane.shows.at(-1).slice(1)).toEqual(['LANE2', 'D'])
+    expect(lane.shows.at(-1)[0], 'the SAME token (identity, not a look-alike object)').toBe(slot)
+    view.rerender(<StockChart sym="LANE2" tf="W" barsOverride={FIXTURE_BARS} />)
+    expect(lane.shows.at(-1).slice(1)).toEqual(['LANE2', 'W'])
+    expect(lane.shows.at(-1)[0]).toBe(slot)
+    const before = lane.shows.length
+    view.rerender(<StockChart sym="LANE2" tf="W" barsOverride={FIXTURE_BARS} />)
+    expect(lane.shows.length, 'a render that changes neither says nothing').toBe(before)
+    expect(lane.gone).toEqual([])
+    view.unmount()
+    expect(lane.gone.length).toBe(1)
+    expect(lane.gone[0]).toBe(slot)
+  })
+
+  it('two charts are two tokens', async () => {
+    lane.shows.length = 0
+    render(<StockChart sym="LANEA" tf="D" barsOverride={FIXTURE_BARS} />)
+    render(<StockChart sym="LANEB" tf="D" barsOverride={FIXTURE_BARS} />)
+    await waitFor(() => expect(new Set(lane.shows.map((s) => s[1]))).toEqual(new Set(['LANEA', 'LANEB'])))
+    const a = lane.shows.find((s) => s[1] === 'LANEA')[0]
+    const b = lane.shows.find((s) => s[1] === 'LANEB')[0]
+    expect(a).not.toBe(b)
   })
 })
 
