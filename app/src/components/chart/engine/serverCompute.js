@@ -617,6 +617,8 @@ export function clearServerColumns() {
   _shown.clear()
   _ownOut = 0
   _ownSentAt = 0
+  _laneMs = 0
+  _laneMsAt = 0
   _batchDownUntil = 0
   for (const t of _degradedTimers.values()) clearTimeout(t)
   _degradedTimers.clear()
@@ -690,9 +692,11 @@ export function fetchColumns(defId, sym, tf, inputs, fetcher) {
   if (existing) return existing
   const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
   let unchanged = false                                 // a provisional entry confirmed or kept: nothing to repaint
+  const sentAt = Date.now()
   const p = Promise.resolve()
     .then(() => get(key))
     .then((wire) => {
+      _noteLaneMs(Date.now() - sentAt, Date.now())
       const parsed = columnsFromWire(wire)
       unchanged = !_land(key, sym, tf, parsed, wire)
       return _cache.get(key) || parsed
@@ -850,9 +854,11 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
   }
   const url = serverColumnsBatchUrl(sym, tf, todo)
   let failed = false
+  const sentAt = Date.now()
   const p = Promise.resolve()
     .then(() => get(url))
     .then((body) => {
+      _noteLaneMs(Date.now() - sentAt, Date.now())
       const results = body && Array.isArray(body.results) ? body.results : null
       // Positional: one slot per ask. A body of any other shape answers nothing.
       if (!results || results.length !== todo.length) throw new Error('malformed batch body')
@@ -931,13 +937,30 @@ let _ownFlushing = false
 // The pre-load of the rows ahead (`serverWarm.js`) is not touched by any of this.
 /** A symbol change this soon after the chart's previous one is "racing through". */
 export const RAPID_MS = 250
-/** A held ask waits this many times the chart's last gap ... */
+/** A held ask waits this many times the SLOWER of the chart's last two steps ... */
 export const SETTLE_FACTOR = 1.3
 /** ... but never less than this, nor more than `SETTLE_MAX_MS`. */
 export const SETTLE_MIN_MS = 40
-export const SETTLE_MAX_MS = 250
-const _shown = new Map()      // slot (the chart's own token) -> { sym, tf, at, gap }
+export const SETTLE_MAX_MS = 500
+const _shown = new Map()      // slot (the chart's own token) -> { sym, tf, at, gap, prev }
 const _held = new Map()       // `${sym}|${tf}` -> { g, timer }
+
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13 (the key held through 40 deep charts of a list never
+// opened): the steps came 201 ms apart at the median, but unevenly (a deep chart takes
+// 100 to 290 ms to draw), so every step slower than `RAPID_MS` read as "resting" and its
+// chart sent its ask at once. Eight requests for charts already passed were in flight
+// when the key was released, and the landing chart drew its RS lines 5.2 s after its
+// candles. One slow step in a run of fast ones is still a run: a chart's PACE is the
+// faster of its last two steps. And "has the member stopped?" is asked of the SLOWER of
+// the two (`_stride`): a hold of 1.3 x a 180 ms step ends before a 290 ms step does, and
+// that chart's ask went out for nobody. (The old 250 ms ceiling on the hold was under the
+// 260 to 300 ms a deep chart takes to draw, for the same result; it is 500 now.)
+function _pace(s) {
+  return Math.min(s.gap, s.prev)
+}
+function _stride(s) {
+  return s.prev === Infinity ? s.gap : Math.max(s.gap, s.prev)
+}
 
 /**
  * A chart says which (symbol, timeframe) it is on. Call it when either changes.
@@ -948,7 +971,7 @@ export function chartShows(slot, sym, tf) {
   const t = String(tf)
   if (prev && prev.sym === sym && prev.tf === t) return
   const now = Date.now()
-  _shown.set(slot, { sym, tf: t, at: now, gap: prev ? now - prev.at : Infinity })
+  _shown.set(slot, { sym, tf: t, at: now, gap: prev ? now - prev.at : Infinity, prev: prev ? prev.gap : Infinity })
   // What this browser last had for the symbol, read before the first paint asks for
   // anything. A page that draws no server-lane definition stops looking after a moment.
   if (_everAsked || now - _bootAt < DISK_IDLE_READ_MS) _hydrateWhenSettled(sym, t)
@@ -966,7 +989,10 @@ function _settleMs(sym, tf) {
   let any = false
   for (const s of _shown.values()) {
     if (s.sym !== sym || s.tf !== t) continue
-    const settle = s.gap < RAPID_MS ? Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MIN_MS, s.gap * SETTLE_FACTOR)) : 0
+    // Racing by its own pace, or flying by the lane's present speed (`flyingMs`: a request
+    // sent now would land after the chart has moved on): either way the ask waits.
+    const settle = _pace(s) < Math.max(RAPID_MS, flyingMs())
+      ? Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MIN_MS, _stride(s) * SETTLE_FACTOR)) : 0
     hold = any ? Math.min(hold, settle) : settle
     any = true
   }
@@ -992,13 +1018,43 @@ function _stillShown(sym, tf) {
 // does (`serverWarm.js` asks before every request; what is already in flight finishes):
 //   * a chart's own ask is out (for at most `OWN_PRIORITY_MS`: a request that never
 //     settles must not stop the pre-load for good);
-//   * a chart is FLYING: changing symbol faster than every `FLYING_MS`. Six rows ahead at
-//     that pace is well under a second of lead, less than a compute takes, so a request
-//     started now lands on a row already passed and only delays the one the member stops
-//     on. (A chart stepping slower than that, even if "raced" by the hold's measure,
-//     keeps its pre-load: the rows ahead do land in time.)
-/** A chart changing symbol faster than this is flying through a list. */
+//   * a chart is FLYING: changing symbol faster than anything asked ahead could land
+//     (`flyingMs`). A request started now lands on a row already passed and only delays
+//     the one the member stops on. (A chart stepping slower than that keeps its
+//     pre-load: the rows ahead do land in time.)
+//
+// ⭐ HOW FAST IS "FASTER THAN IT COULD LAND" DEPENDS ON THE SERVER RIGHT NOW (2026-11-13).
+// A fixed 120 ms was right for a warm server (an answer in under 100 ms lands a row
+// ahead even at eight charts a second) and wrong for a cold one: in the run above each
+// cold request took 1.0 to 1.9 s, at 201 ms a step nothing asked ahead could land within
+// five rows, and the fixed threshold let them all start. So the lane times its own
+// requests (`_noteLaneMs`, the average of the last two, forgotten after `LANE_MS_TTL`)
+// and a chart is flying when it would be more than `FLY_LEAD_ROWS` rows further on by the
+// time a request started now came back: threshold = latency / FLY_LEAD_ROWS, never under
+// `FLYING_MS` (the floor, and the answer while nothing has been timed) nor over
+// `FLYING_MAX_MS` (a member reading a chart for over half a second is not flying,
+// whatever the server is doing).
+/** The floor: a chart changing symbol faster than this is always flying. */
 export const FLYING_MS = 120
+/** The ceiling of the flying threshold. */
+export const FLYING_MAX_MS = 600
+/** A request is worth starting if it lands within this many of the chart's steps. */
+export const FLY_LEAD_ROWS = 4
+/** A latency measured longer ago than this says nothing about the server now. */
+export const LANE_MS_TTL = 60_000
+let _laneMs = 0               // how long the lane's recent requests took (average of the last two)
+let _laneMsAt = 0
+
+function _noteLaneMs(ms, now) {
+  _laneMs = _laneMs > 0 && now - _laneMsAt < LANE_MS_TTL ? (_laneMs + ms) / 2 : ms
+  _laneMsAt = now
+}
+
+/** A chart whose pace is under this is flying, as the server answers right now. */
+export function flyingMs(now = Date.now()) {
+  if (!(_laneMs > 0) || now - _laneMsAt >= LANE_MS_TTL) return FLYING_MS
+  return Math.min(FLYING_MAX_MS, Math.max(FLYING_MS, _laneMs / FLY_LEAD_ROWS))
+}
 /** The longest one own ask keeps the pre-load waiting. */
 export const OWN_PRIORITY_MS = 8_000
 let _ownOut = 0
@@ -1012,7 +1068,10 @@ function _ownSettled() {
 export function chartsNeedTheLane() {
   const now = Date.now()
   if (_ownOut > 0 && now - _ownSentAt < OWN_PRIORITY_MS) return true
-  for (const s of _shown.values()) if (s.gap < FLYING_MS && now - s.at < RAPID_MS) return true
+  // (flying lasts until the chart has rested for a whole step at that threshold)
+  const fly = flyingMs(now)
+  const rest = Math.max(RAPID_MS, fly)
+  for (const s of _shown.values()) if (_pace(s) < fly && now - s.at < rest) return true
   return false
 }
 
