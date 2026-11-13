@@ -128,6 +128,58 @@ describe('the Replay / Time Machine bar through ChartPane.viewDo("replay") on th
     expect(meta(pane).mode).toBe(true)
   }, 30000)
 
+  // AUDIT #1174 ruling 2: after the refactor (the inline arrows became replayToggle / replayPlayPause / replayStep /
+  // replayIndexChange), EVERY real button of the replay bar still makes the same change, read back the same way.
+  it('the REAL replay bar buttons after the refactor: Replay, ▶ / ⏸, ‹ › « », ⏮ ⏭, the scrubber, 1× / 5× / 20×, Exit', async () => {
+    const pane = await mount()
+    const click = (el) => act(async () => { fireEvent.click(el) })
+    await click(screen.getByRole('button', { name: 'Replay / Time Machine' }))
+    const start = Math.floor(N * 0.7)
+    await vi.waitFor(() => expect(meta(pane)).toMatchObject({ mode: true, playing: false, index: start }))
+    const playBtn = () => screen.getByTitle('Back 1').nextElementSibling          // the ▶ / ⏸ button (it has no title)
+    await click(playBtn())
+    await vi.waitFor(() => expect(meta(pane).playing).toBe(true))
+    await click(playBtn())
+    await vi.waitFor(() => expect(meta(pane).playing).toBe(false))
+    const at = meta(pane).index
+    await click(screen.getByTitle('Fwd 1'))
+    await vi.waitFor(() => expect(meta(pane).index).toBe(at + 1))
+    await click(screen.getByTitle('Back 1'))
+    await vi.waitFor(() => expect(meta(pane).index).toBe(at))
+    await click(screen.getByTitle('Back 10'))
+    await vi.waitFor(() => expect(meta(pane).index).toBe(at - 10))
+    await click(screen.getByTitle('Fwd 10'))
+    await vi.waitFor(() => expect(meta(pane).index).toBe(at))
+    await click(screen.getByTitle('Restart from beginning'))
+    await vi.waitFor(() => expect(meta(pane).index).toBe(0))
+    await click(screen.getByTitle('Skip to end'))
+    await vi.waitFor(() => expect(meta(pane).index).toBe(N - 1))
+    await act(async () => { fireEvent.change(screen.getByTitle('Scrub timeline'), { target: { value: '12' } }) })
+    await vi.waitFor(() => expect(meta(pane)).toMatchObject({ index: 12, dateMs: Date.UTC(2026, 0, 13) }))
+    // a step pauses a playing replay (the handler's own setReplayPlaying(false))
+    await click(playBtn())
+    await vi.waitFor(() => expect(meta(pane).playing).toBe(true))
+    await click(screen.getByTitle('Fwd 1'))
+    await vi.waitFor(() => expect(meta(pane).playing).toBe(false))
+    for (const s of [5, 20, 1]) {
+      await click(screen.getByRole('button', { name: `${s}×` }))
+      await vi.waitFor(() => expect(meta(pane).speed).toBe(s))
+    }
+    await click(screen.getByText('Exit'))
+    await vi.waitFor(() => expect(meta(pane)).toMatchObject({ mode: false, playing: false, index: null }))
+    expect(screen.queryByTitle('Back 1')).toBeNull()                               // the replay bar is gone
+  }, 30000)
+
+  // AUDIT #1174 ruling 5 — WHERE the Time Machine does not exist (so chartReplay.playback says "not available here"):
+  //  · Multi Chart cell: pages/charts/grid/GridChartCell.jsx:547 `showDrawingTools={false}` and :549 `hideReplay`; StockChart
+  //    mounts its primary ChartToolbar only inside `{showDrawingTools && (` (components/StockChart.jsx:20998), and the
+  //    toolbar draws the Replay button only when `{!hideReplay && onReplayToggle && (` (components/chart/ChartToolbar.jsx:1821).
+  //    The cell's Agent adapter (GridChartCell.jsx:266-291) has no `viewDo`, so host.charts.viewDo is false there too.
+  //  · Phone chart: pages/charts/mobile/MobileChartsApp.jsx:462 `mobileDrawBar: true` → StockChart passes
+  //    `hiddenHost={mobileDrawBar}` (StockChart.jsx:21064) → the toolbar renders `style={{ display: 'none' }}`
+  //    (ChartToolbar.jsx:1607): no visible Replay button. The phone ticker sheet passes `hideReplay: true`
+  //    (components/mobile/TickerHubSheet.jsx:154).
+  //  StockChart's replayCtlRef `can: !!showDrawingTools && !hideReplay && !mobileDrawBar` (StockChart.jsx:18507) encodes these.
   it('no Replay button on this chart (a grid cell\'s profile, the phone shell): can is false and the door changes nothing', async () => {
     for (const props of [{ showDrawingTools: false }, { showDrawingTools: true, hideReplay: true }, { showDrawingTools: true, mobileDrawBar: true }]) {
       const pane = await mount(props)

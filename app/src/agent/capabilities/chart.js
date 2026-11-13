@@ -51,7 +51,7 @@ import { whenVisible } from '../frames'
 const ASK_AI_DELAY_MS = 900
 import { readFavoriteTools, writeFavoriteTools } from '../../components/chart/drawToolFavorites'
 import { normalizeDock } from '../../pages/charts/widgets/chartDock'
-import { replayDone, replaySig, replayContext } from './chartReplay'
+import { replayDone, replaySig, replayContext, bareExitFast, exitGuard, isCutoffExit } from './chartReplay'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -1023,6 +1023,11 @@ const CAPABILITIES = [
     argAliases: { date: ['cutoff', 'to', 'until', 'day', 'at', 'as_of', 'asOf', 'replay_date', 'replayDate'] },
     // (W1.1 review NB-1: "none"/"nothing" are no longer null words for a string arg — replay declares them itself)
     coerce: { date: { exit: null, off: null, stop: null, end: null, false: null, clear: null, 'exit replay': null, none: null, nothing: null, nil: null } },
+    // AUDIT #1174 ruling 1: an EXIT here writes every chart, so "exit / stop the replay" is decided from state with the bar
+    // replay's (chartReplay.exitVerdict): only Replay Mode on → this; the bar replay on, or both → never this without its name
+    fastWhole: true,
+    fast: bareExitFast('cutoff'),
+    resolveArgs: exitGuard(isCutoffExit, 'cutoff'),
     shape: '{"date":"YYYY-MM-DD"} to replay from a date; {"date":null} to EXIT replay ("exit replay", "leave replay", "replay off", '
       + '"show every bar again") — the JSON null, never the word "null" and never an "exit" or "enabled" key.',
     check(st, { date }) {

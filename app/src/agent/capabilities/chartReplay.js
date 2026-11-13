@@ -32,6 +32,69 @@ const NOT_IN_REPLAY = 'This chart isn’t in bar replay. Say “start the bar re
 const NOT_READY = 'That chart hasn’t finished loading, so I can’t read its replay yet. Try again in a moment.'
 export const REPLAY_NO_UNDO = 'Replay playback has no Undo for that: play, pause, or anything done while it was playing moves on by itself. Use the replay bar (or ask me) to move it.'
 
+// ── "exit / stop the replay": WHICH replay is decided from state, never left to the model (AUDIT #1174 ruling 1) ──
+// Replay Mode's exit writes EVERY chart (the workspace cutoff); the bar replay's is ONE chart. So:
+//   only a bar replay on → chartReplay.playback exit · only Replay Mode on → chart.replay exit ·
+//   BOTH on and the words name neither → ask, nothing written · NEITHER on → "no replay is running", nothing written.
+// The words name one by "replay mode" / "as of" / "cutoff" / "every chart" (Replay Mode) or "time machine" / "bar replay" /
+// "replay bar" / "playback" (the bar replay). Applied twice: the fast path answers the bare sentence before any model call,
+// and resolveArgs on BOTH actions checks every plan (a model that picked the other replay is refused or asked, nothing runs).
+const NAMES_CUTOFF = /\breplay mode\b|\bas of\b|\bcutoff\b|\bevery chart\b|\ball (?:the )?charts\b/
+const NAMES_BAR = /\btime machine\b|\bbar replay\b|\breplay bar\b|\bplayback\b|\bbar[- ]by[- ]bar\b/
+export const BARE_EXIT = /^(?:please )?(?:exit|stop|leave|end|quit|close|cancel|kill|turn off|switch off|get out of)(?: out of)? (?:the |my |this |that )?replay(?: now)?$|^(?:turn|switch) (?:the |my )?replay off$|^(?:the )?replay off$|^(?:i'?m |we'?re )?done with (?:the )?replay$/
+export const NONE_RUNNING = 'No replay is running: no chart’s bar replay (Replay / Time Machine) is on, and Replay Mode is off. Nothing was changed.'
+export const bothAsk = (cut) => `Two replays are on: a chart’s bar replay (its Replay / Time Machine button) and Replay Mode as of ${dayWord(cut)} on every chart. Which should I exit — the bar replay, or Replay Mode? Say “exit the bar replay” or “exit Replay Mode”. Nothing was changed.`
+const noBarOn = (cut) => `No chart’s bar replay is on${cut ? ` — Replay Mode (as of ${dayWord(cut)}, on every chart) is: say “exit Replay Mode” for that` : ''}. Nothing was changed.`
+const NO_CUTOFF_ON = 'Replay Mode is off — a chart’s bar replay (Replay / Time Machine) is on: say “exit the bar replay” for that. Nothing was changed.'
+const NOT_THE_CUTOFF = 'That is a chart’s bar replay (Replay / Time Machine), not Replay Mode: say “exit the bar replay” for it. Nothing was changed.'
+const notTheBar = (cut) => `That is Replay Mode (as of ${dayWord(cut)}, on every chart), not a chart’s bar replay: say “exit Replay Mode” for it. Nothing was changed.`
+/** Which replays are on now: the charts in bar replay, and the workspace cutoff ('YYYY-MM-DD' | null). */
+export function replaysOn(host) {
+  let list = []
+  try { list = host?.charts?.list?.() || [] } catch { list = [] }
+  return { bar: list.filter(s => s?.view?.replay?.mode === true), cutoff: list.map(s => s?.replay).find(Boolean) ?? null }
+}
+/** The replay an exit means: { use: 'bar' | 'cutoff', bar } or { say } (an ask, nothing running, or the one named is off). */
+export function exitVerdict(words, host) {
+  const t = String(words || '').toLowerCase()
+  const nb = NAMES_BAR.test(t), nc = NAMES_CUTOFF.test(t)
+  const { bar, cutoff } = replaysOn(host)
+  if (!bar.length && !cutoff) return { say: NONE_RUNNING }
+  let use = nb && !nc ? 'bar' : nc && !nb ? 'cutoff' : null
+  if (!use) {
+    if (bar.length && cutoff) return { say: bothAsk(cutoff), ask: true }
+    use = bar.length ? 'bar' : 'cutoff'
+  }
+  if (use === 'bar' && !bar.length) return { say: noBarOn(cutoff) }
+  if (use === 'cutoff' && !cutoff) return { say: NO_CUTOFF_ON }
+  return { use, bar, cutoff }
+}
+/** resolveArgs for an EXIT of either replay: refused (the ask included: nothing runs) unless the state and words mean `mine`. */
+export function exitGuard(isExit, mine) {
+  return (args, host, words) => {
+    if (!isExit(args || {})) return null
+    const v = exitVerdict(words, host)
+    if (v.say) return { refuse: v.say }
+    if (v.use === mine) return null
+    return { refuse: mine === 'bar' ? notTheBar(v.cutoff) : NOT_THE_CUTOFF }
+  }
+}
+const bareTyped = (typed) => BARE_EXIT.test(String(typed || '').toLowerCase().replace(/[.!?]+$/g, '').replace(/\s+/g, ' ').trim())
+/** The bare "exit / stop the replay" sentence, resolved from state before any model call (fastWhole). */
+export function bareExitFast(mine) {
+  return ({ lower, host, typed }) => {
+    if (!BARE_EXIT.test(String(lower || ''))) return null
+    const v = exitVerdict(lower, host)
+    // said ONCE (by the bar replay's fast) and only for the whole sentence: no op, no model, nothing written
+    if (v.say) return mine === 'bar' && bareTyped(typed ?? lower) ? { __say: v.say } : null
+    if (v.use !== mine) return null
+    if (mine === 'cutoff') return { date: null, __explicit: true }
+    return { op: 'exit', bars: null, date: null, speed: null, __explicit: true, ...(v.bar.length === 1 ? { __target: v.bar[0].ref } : {}) }
+  }
+}
+export const isBarExit = (a) => a.op === 'exit'
+export const isCutoffExit = (a) => a.date == null
+
 const barWord = (n) => `${n} bar${n === 1 ? '' : 's'}`
 const at = (i, n) => `bar ${i + 1} of ${n}`
 
@@ -87,7 +150,6 @@ function plan(r, { op, bars, date, speed }) {
     case 'last': return paused({ op: 'seek', index: n - 1 }, { index: n - 1 }, seekBack)
     case 'date': {
       const ms = isoDayMs(resolveDateWord(date).to)
-      if (Number.isFinite(r.lastMs) && ms >= r.lastMs) return paused({ op: 'seek', index: n - 1 }, { index: n - 1 }, seekBack)
       return paused({ op: 'seekDate', ms }, { dayMs: ms }, seekBack)
     }
     case 'speed': return { arg: { op: 'speed', speed }, want: { mode: true, speed }, back: { arg: { op: 'speed', speed: r.speed }, want: { mode: true, speed: r.speed } } }
@@ -149,6 +211,10 @@ export function registerChartReplayCapabilities() {
     hints: 'op: enter (start / open the bar replay) | play (resume) | pause | forward | back (bars = how many, 1 when unsaid; "next bar" = forward 1) | first | last | date (date = YYYY-MM-DD or a day word: scrub there) | speed (speed = 1, 5 or 20) | exit. bars / date / speed null unless their op. "Replay as of <date>" / "go back to <date>" / Replay Mode = chart.replay (the cutoff). "Next bar" / step with NO bar replay on = chartSetup.stepBars. Replaying a tutorial, video or alert is not this.',
     args: { type: 'object', properties: { op: { type: 'string', enum: OPS }, bars: { type: ['integer', 'null'] }, date: { type: ['string', 'null'] }, speed: { type: ['integer', 'null'], enum: [...REPLAY_SPEEDS, null] } }, required: ['op', 'bars', 'date', 'speed'], additionalProperties: false },
     undoNote: REPLAY_NO_UNDO,
+    // "exit / stop the replay": which replay is decided from state (exitVerdict), on the fast path and for every plan
+    fastWhole: true,
+    fast: bareExitFast('bar'),
+    resolveArgs: exitGuard(isBarExit, 'bar'),
     check(st, args = {}) {
       const { op } = args
       if (!OPS.includes(op)) return 'Start, play, pause, step, jump, change the speed of, or exit the bar replay?'
@@ -168,7 +234,9 @@ export function registerChartReplayCapabilities() {
         if (!d) return `I couldn’t read “${args.date ?? ''}” as a date — use YYYY-MM-DD or a day like “last Friday”.`
         if (d.future) return `${dayWord(d.to)} hasn’t happened yet.`
         const ms = isoDayMs(d.to)
-        if (Number.isFinite(r.firstMs) && ms + DAY_MS - 1 < r.firstMs) return `This chart’s replay starts on ${dayWord(dayOf(r.firstMs))}, so it can’t go back to ${dayWord(d.to)}.`
+        // AUDIT #1174 ruling 6: a date outside the replay's loaded bars is refused with the reason — never the nearest bar
+        if (Number.isFinite(r.firstMs) && ms + DAY_MS - 1 < r.firstMs) return `This chart’s replay starts on ${dayWord(dayOf(r.firstMs))}, so it can’t go back to ${dayWord(d.to)}. Say “jump the replay to its first bar” for its first bar. Nothing was moved.`
+        if (Number.isFinite(r.lastMs) && ms > r.lastMs) return `This chart’s replay ends on ${dayWord(dayOf(r.lastMs))}, so it can’t go to ${dayWord(d.to)}. Say “jump the replay to its last bar” for its last bar. Nothing was moved.`
       }
       return null
     },

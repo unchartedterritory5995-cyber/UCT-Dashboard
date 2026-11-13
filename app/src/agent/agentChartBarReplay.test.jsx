@@ -26,12 +26,17 @@ const N = 100
 const R = (args, target = 'c') => p.env('apply', [{ action: REPLAY_ACTION, target, args: { bars: null, date: null, speed: null, ...args } }])
 
 /** Each chart's replay bar, by ref, as getDateMeta().replay reports it. `land: false` = the chart did nothing. */
-function withReplay(h, start = {}) {
+// `ws.cutoff`: the workspace's Replay Mode as ChartsWorkspace shares it (host.buildChartSource `replay` source: every chart's
+// snapshot reads ONE cutoff, setReplay writes it) — given (null or a date) only for the tests that have Replay Mode too
+function withReplay(h, start = {}, ws = null) {
   const views = {}
-  const viewOf = (ref) => (views[ref] ||= { land: true, calls: [], can: true, mode: false, playing: false, speed: 1, index: null, total: N, ...start })
+  const viewOf = (ref) => (views[ref] ||= { land: true, calls: [], can: true, mode: false, playing: false, speed: 1, index: null, total: N,
+    frame: { fromRight: 50, toRight: 0, activeRange: null, locked: false, lock: null }, ...start })
+  const cut = ws ? { value: ws.cutoff ?? null, calls: [] } : null
+  const withCut = (s) => (cut ? { ...s, replay: cut.value } : s)
   const meta = (ref) => {
     const v = viewOf(ref)
-    return { firstMs: D0, lastMs: D0 + (N - 1) * DAY, rightMs: D0 + (N - 1) * DAY, frame: { fromRight: 50, toRight: 0, activeRange: null, locked: false, lock: null },
+    return { firstMs: D0, lastMs: D0 + (N - 1) * DAY, rightMs: D0 + (N - 1) * DAY, frame: { ...v.frame },
       replay: { can: v.can, mode: v.mode, playing: v.playing, speed: v.speed, index: v.mode ? v.index : null, total: v.total,
         dateMs: v.mode && v.index != null ? D0 + v.index * DAY : null, firstMs: D0, lastMs: D0 + (v.total - 1) * DAY } }
   }
@@ -39,11 +44,14 @@ function withReplay(h, start = {}) {
   const read = base.read, list = base.list
   h.charts = {
     ...base,
-    read: (ref) => { const s = read(ref); return s && { ...s, view: meta(ref) } },
-    list: () => list().map(s => ({ ...s, view: meta(s.ref) })),
+    read: (ref) => { const s = read(ref); return s && withCut({ ...s, view: meta(ref) }) },
+    list: () => list().map(s => withCut({ ...s, view: meta(s.ref) })),
+    ...(cut ? { setReplay: (iso) => { cut.calls.push(iso ?? null); cut.value = iso ?? null; return true } } : {}),
     viewDo: (ref, o, a) => {
       const v = viewOf(ref)
       v.calls.push([o, a])
+      // the Time Navigator's ◀ / ▶ (StockChart.stepBar(n): the logical window + n, so right-relative − n)
+      if (v.land && o === 'stepBar') { v.frame = { ...v.frame, fromRight: v.frame.fromRight - a, toRight: v.frame.toRight - a, activeRange: null }; return true }
       if (!v.land || o !== 'replay' || !v.can) return true
       const clamp = (i) => Math.max(0, Math.min(v.total - 1, i))
       if (a.op === 'enter') { if (!v.mode) Object.assign(v, { mode: true, playing: false, index: Math.floor(v.total * 0.7) }) }
@@ -59,6 +67,7 @@ function withReplay(h, start = {}) {
       return true
     },
   }
+  viewOf.cut = cut
   return viewOf
 }
 const fastClock = () => {
@@ -173,7 +182,7 @@ describe('honest no-ops and refusals: nothing is pressed, no Undo', () => {
     [{ op: 'play' }, { ...ON, playing: true }, /already playing/],
     [{ op: 'speed', speed: 5 }, { ...ON, speed: 5 }, /already at 5×/],
     [{ op: 'enter' }, ON, /already in bar replay/],
-    [{ op: 'exit' }, {}, /bar replay is already off/],
+    [{ op: 'exit' }, {}, /No replay is running/],
     [{ op: 'forward', bars: 1 }, { mode: true, index: 99 }, /already at its last bar/],
     [{ op: 'first' }, { mode: true, index: 0 }, /already at its first bar/],
   ])('%j on %j', async (args, start, re) => {
@@ -333,4 +342,137 @@ describe('routing: the bar replay\'s own words, and every other "replay" left al
     // and never the non-replay meanings, even then
     for (const msg of ['replay the tutorial', 'open my swing layout']) expect(selectGroups(msg, { names: { replayOn: true } }).selected).not.toContain('chartReplay')
   })
+})
+
+// ── AUDIT #1174 ruling 1: "exit / stop the replay" is decided from STATE, never left to the model ──────────────────────────
+// Replay Mode's exit writes every chart (the workspace cutoff); the bar replay's is one chart. Bare sentences are answered
+// by the fast path (no envelope is scripted: no model call is needed); every plan is checked by resolveArgs on both actions.
+const CUT = '2026-03-02'
+const CR = (date = null, target = 'c') => p.env('apply', [{ action: 'chart.replay', target, args: { date } }])
+describe('which replay an exit means: from state (fast path, no model)', () => {
+  it('only the bar replay on → "stop the replay" exits the bar replay; Replay Mode is not touched', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const view = withReplay(h, ON, { cutoff: null })
+    const v = view('c')
+    expect(await say('stop the replay')).toMatch(/Exited the bar replay on this chart/)
+    expect(v.mode).toBe(false)
+    expect(view.cut.calls).toEqual([])
+  }, 40000)
+  it('only Replay Mode on → "exit the replay" exits Replay Mode (chart.replay); no chart\'s bar replay is pressed', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const view = withReplay(h, {}, { cutoff: CUT })
+    const v = view('c')
+    expect(await say('exit the replay')).toMatch(/Exited Replay Mode/)
+    expect(view.cut.calls).toEqual([null])
+    expect(v.calls).toEqual([])
+  }, 40000)
+  it('BOTH on and the words name neither → it ASKS which; nothing is written', async () => {
+    for (const msg of ['exit the replay', 'stop the replay', 'turn the replay off']) {
+      const { say, h } = p.mount(...ONE('NVDA'))
+      const view = withReplay(h, ON, { cutoff: CUT })
+      const v = view('c')
+      expect(await say(msg)).toMatch(/Two replays are on: .*Which should I exit — the bar replay, or Replay Mode\?.*Nothing was changed/)
+      expect(v.calls).toEqual([])
+      expect(v.mode).toBe(true)
+      expect(view.cut.calls).toEqual([])
+      expect(view.cut.value).toBe(CUT)
+      cleanup()
+    }
+  }, 90000)
+  it('NEITHER on → an honest "no replay is running"; nothing is written', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const view = withReplay(h, {}, { cutoff: null })
+    const v = view('c')
+    expect(await say('stop the replay')).toMatch(/No replay is running/)
+    expect(v.calls).toEqual([])
+    expect(view.cut.calls).toEqual([])
+  }, 40000)
+  it('BOTH on and the words NAME one → that one only', async () => {
+    {
+      const { say, h } = p.mount(...ONE('NVDA'))
+      const view = withReplay(h, ON, { cutoff: CUT })
+      const v = view('c')
+      p.st.envelopes.push(R({ op: 'exit' }))
+      expect(await say('exit the bar replay')).toMatch(/Exited the bar replay/)
+      expect(v.mode).toBe(false)
+      expect(view.cut.value).toBe(CUT)
+      cleanup()
+    }
+    {
+      const { say, h } = p.mount(...ONE('NVDA'))
+      const view = withReplay(h, ON, { cutoff: CUT })
+      const v = view('c')
+      p.st.envelopes.push(CR(null))
+      expect(await say('exit replay mode')).toMatch(/Exited Replay Mode/)
+      expect(view.cut.value).toBe(null)
+      expect(v.mode).toBe(true)
+    }
+  }, 60000)
+})
+
+describe('⛔ a model plan that picks the OTHER replay is refused or asked about — nothing written', () => {
+  const wrong = [
+    // [what is on, bar replay state, cutoff, the member's words, the model's (wrong) plan, the answer]
+    ['only the bar replay on, Replay Mode picked', ON, null, 'could you exit the replay for me', () => CR(null), /That is a chart’s bar replay .*, not Replay Mode/],
+    ['only Replay Mode on, the bar replay picked', {}, CUT, 'could you exit the replay for me', () => R({ op: 'exit' }), /That is Replay Mode .* not a chart’s bar replay/],
+    ['both on, words name neither, Replay Mode picked', ON, CUT, 'could you exit the replay for me', () => CR(null), /Two replays are on: .*Which should I exit/],
+    ['both on, words name neither, the bar replay picked', ON, CUT, 'could you exit the replay for me', () => R({ op: 'exit' }), /Two replays are on: .*Which should I exit/],
+    ['both on, words name the bar replay, Replay Mode picked', ON, CUT, 'exit the bar replay', () => CR(null), /That is a chart’s bar replay .*, not Replay Mode: say “exit the bar replay”/],
+    ['both on, words name Replay Mode, the bar replay picked', ON, CUT, 'exit replay mode', () => R({ op: 'exit' }), /That is Replay Mode .* not a chart’s bar replay/],
+  ]
+  it.each(wrong)('%s', async (_name, start, cutoff, words, plan, re) => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const view = withReplay(h, start, { cutoff })
+    const v = view('c')
+    p.st.envelopes.push(plan())
+    await say(words)
+    // (the panel renders a quoted request it can run — “exit the bar replay” — as its own element, so read the whole panel)
+    expect(document.body.textContent).toMatch(re)
+    expect(v.calls).toEqual([])
+    expect(view.cut.calls).toEqual([])
+    expect(v.mode).toBe(!!start.mode)
+    expect(view.cut.value).toBe(cutoff)
+  }, 40000)
+})
+
+// ── AUDIT #1174 ruling 6: a date OUTSIDE the replay's loaded bars is refused with the reason — never the nearest bar ──────
+describe('scrub to a date outside the replay\'s bars', () => {
+  it.each([
+    ['after its last bar (Apr 10)', '2026-05-01', /replay ends on .*Apr 10.*can’t go to .*May 1.*Nothing was moved/],
+    ['before its first bar (Jan 1)', '2025-12-01', /replay starts on .*Jan 1.*can’t go back to .*Dec 1.*Nothing was moved/],
+  ])('%s: refused, nothing pressed', async (_n, date, re) => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const v = withReplay(h, ON)('c')
+    p.st.envelopes.push(R({ op: 'date', date }))
+    expect(await say(`scrub the replay to ${date}`)).toMatch(re)
+    expect(v.calls).toEqual([])
+    expect(v.index).toBe(70)
+  }, 40000)
+  it('its last bar\'s own day still lands on the last bar', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const v = withReplay(h, ON)('c')
+    p.st.envelopes.push(R({ op: 'date', date: '2026-04-10' }))
+    expect(await say('scrub the replay to apr 10')).toMatch(/Moved the bar replay to/)
+    expect(v.index).toBe(99)
+  }, 40000)
+})
+
+// ── AUDIT #1174 ruling 7: chartSetup.stepBars is unchanged when no bar replay is on ─────────────────────────────────────────
+describe('chartSetup.stepBars with the bar replay OFF', () => {
+  it('"next bar": the Time Navigator\'s stepBar(+1), read back from the window, receipt as before; the replay is never pressed', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const v = withReplay(h)('c')
+    p.st.envelopes.push(p.env('apply', [{ action: 'chartSetup.stepBars', target: 'c', args: { direction: 'forward', bars: 1 } }]))
+    expect(await say('next bar')).toMatch(/Moved this chart 1 bar forward \(view only; nothing on the chart changed\)/)
+    expect(v.calls).toEqual([['stepBar', 1]])
+    expect(v.frame).toMatchObject({ fromRight: 49, toRight: -1 })
+    expect(v.mode).toBe(false)
+  }, 40000)
+  it('a chart with no Replay button steps as before too', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    const v = withReplay(h, { can: false })('c')
+    p.st.envelopes.push(p.env('apply', [{ action: 'chartSetup.stepBars', target: 'c', args: { direction: 'back', bars: 5 } }]))
+    expect(await say('step back 5 bars')).toMatch(/Moved this chart 5 bars back/)
+    expect(v.calls).toEqual([['stepBar', -5]])
+  }, 40000)
 })
