@@ -11,7 +11,7 @@
 // on 2026-07-22 (a teammate's redeploy made the pill "disappear"). By throwing,
 // SWR instead RETAINS the last-good data through the blip and retries with
 // backoff (+ revalidateOnReconnect), so the pill rides out a deploy untouched.
-import useSWR from 'swr'
+import { useRestedSWR } from '../lib/symbolPace'
 import { singleStockEtfsKey, singleStockEtfsFetcher as fetcher } from './singleStockEtfsKey'
 
 export default function useSingleStockEtfs(sym) {
@@ -19,7 +19,8 @@ export default function useSingleStockEtfs(sym) {
   // symbol change we must NOT show the prior symbol's family; undefined-until-
   // resolved (control hidden) is correct. Retention-through-failure above is a
   // different mechanism (SWR keeps data for the SAME key on error).
-  const { data } = useSWR(
+  // (through the rest gate: a symbol the member is racing past is not asked for, lib/symbolPace.js)
+  const { data } = useRestedSWR(
     singleStockEtfsKey(sym),
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 },

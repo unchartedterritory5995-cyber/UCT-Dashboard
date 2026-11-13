@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import useSWR, { preload, mutate } from 'swr'
+import { preload, mutate } from 'swr'
+import { useRestedSWR } from '../lib/symbolPace'
 
 // Frozen so the shared fallback can never be mutated by a consumer.
 const NULLS = Object.freeze({
@@ -198,7 +199,8 @@ export default function useTickerMeta(sym) {
   // (avoids a storage read on every chart tick re-render).
   const fallbackData = useMemo(() => (sym ? lsGet(sym) : undefined), [sym])
 
-  const { data } = useSWR(
+  // (through the rest gate: a symbol the member is racing past is not asked for, lib/symbolPace.js)
+  const { data } = useRestedSWR(
     sym ? `/api/ticker-meta/${encodeURIComponent(sym)}` : null,
     fetcher,
     {

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useSWR, { preload } from 'swr'
+import { useKeyRest, useAskWhenRested } from '../lib/symbolPace'
 
 // Per-symbol IPO / first-listing date for the chart's first-bar "IPO" badge.
 // The listing date is immutable, so we persist it to localStorage and seed SWR's
@@ -79,8 +80,14 @@ export function prefetchTickerIpo(sym) {
 
 export default function useTickerIpo(sym) {
   const fallbackData = useMemo(() => (sym ? lsGet(sym) : undefined), [sym])
-  const { data } = useSWR(
-    sym ? `/api/ticker-ipo/${encodeURIComponent(sym)}` : null,
+  // A symbol the member is racing past is not asked for (lib/symbolPace.js); what this browser
+  // already holds for it is still shown at once. The gate sits BESIDE this hook's own `useSWR`
+  // because this read polls: the polling rail (hooks/pollingSites.rail.test.js) counts `useSWR`
+  // call sites, and a poll moved behind a wrapper would leave its list.
+  const key = sym ? `/api/ticker-ipo/${encodeURIComponent(sym)}` : null
+  const rest = useKeyRest(key)
+  const { data, mutate } = useSWR(
+    key,
     fetcher,
     {
       fallbackData,
@@ -93,7 +100,9 @@ export default function useTickerIpo(sym) {
       // While the server is still resolving the first-trade date, ask again so the
       // chart picks up the final answer in-session; a final answer stops polling.
       refreshInterval: (d) => (d && d.first_trade_final === false ? NON_FINAL_POLL_MS : 0),
+      isPaused: rest.isPaused,
     },
   )
+  useAskWhenRested(rest, key, data, mutate)
   return data || NULL_IPO
 }

@@ -1610,6 +1610,7 @@ import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
 import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient'
 import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
+import { useRestedSWR } from '../lib/symbolPace'
 import { useLegacyChartBars } from './chart/useLegacyChartBars'
 import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
 import { BARSTORE } from './chart/barStoreSwitch'
@@ -4143,7 +4144,8 @@ export default function StockChart({
     } catch { /* ignore */ }
   }, [])
 
-  const { data: markersData } = useSWR(
+  // (through the rest gate: a symbol the member is racing past is not asked for, lib/symbolPace.js)
+  const { data: markersData } = useRestedSWR(
     // Request the full window so earnings markers load back to inception alongside
     // the deep price history (backend caps + post-filters; badges cull off-screen).
     markersEnabled && sym && !_econId && !_study ? markersKeyOf(sym) : null,

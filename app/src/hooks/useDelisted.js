@@ -1,4 +1,4 @@
-import useSWR from 'swr'
+import { useRestedSWR } from '../lib/symbolPace'
 import { delistedKey, delistedFetcher as fetcher } from './delistedKey'
 
 // Is this ticker DELISTED (a dead company — Yahoo, Twitter, Lehman…)? Returns the
@@ -9,7 +9,8 @@ import { delistedKey, delistedFetcher as fetcher } from './delistedKey'
 export default function useDelisted(sym) {
   // Skip synthetic pseudo-tickers ($IDX:…) and empty syms outright.
   const key = delistedKey(sym)
-  const { data } = useSWR(key, fetcher, {
+  // (through the rest gate: a symbol the member is racing past is not asked for, lib/symbolPace.js)
+  const { data } = useRestedSWR(key, fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     revalidateIfStale: false,
