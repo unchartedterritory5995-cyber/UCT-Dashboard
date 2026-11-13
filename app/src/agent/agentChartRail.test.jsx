@@ -227,3 +227,27 @@ describe('units · replyRelation / keptCharts / isAdditive / requestedPanels', (
     expect(requestedPanels('show NVDA and AMD side by side')).toBe(null)
   })
 })
+
+describe('CHART RAIL · layout.open (a switch replaces every chart on screen)', () => {
+  const LAYOUTS = () => ({ entries: [{ id: 11, name: 'Mine', scope: 'user' }, { id: 12, name: 'Swing', scope: 'user' }],
+    boards: { 11: SPY_NVDA()[0], 12: [{ id: 's1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'A', opts: settings() }] }, active: 11 })
+  it('"open my Swing layout" runs; Undo goes back to Mine — the board byte for byte, the same layout open', async () => {
+    const { board, h, say } = mount(...SPY_NVDA(), { layouts: LAYOUTS() })
+    const before = JSON.stringify(board.state.widgets)
+    await say('open my Swing layout')
+    await waitFor(() => expect(h.layouts.snapshot().active.name).toBe('Swing'))
+    await say('undo')
+    await waitFor(() => expect(h.layouts.snapshot().active.name).toBe('Mine'))
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+    expect(syms(board, h)).toEqual(['SPY', 'NVDA'])
+  }, 30000)
+  it('KEPT: "keep SPY on screen and open my Swing layout" — the switch would replace SPY: refused, nothing switched', async () => {
+    const { board, h, say } = mount(...SPY_NVDA(), { layouts: LAYOUTS() })
+    const before = JSON.stringify(board.state.widgets)
+    envelopes.push(env('apply', [{ action: 'layout.open', target: 'layouts', args: { layout: '12' } }]))
+    await say('keep SPY on screen and open my Swing layout')
+    expect(h.layouts.snapshot().active.name).toBe('Mine')
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+    expect(transcript()).toMatch(/you asked to keep SPY/)
+  }, 30000)
+})

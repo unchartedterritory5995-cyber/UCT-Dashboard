@@ -680,3 +680,35 @@ describe('Multi Chart execution family — the grid itself (pl-grid: multiChart.
 describe('Multi Chart execution family — rows not executed (BLOCKED-owner)', () => {
   it.todo('C3-054 save a grid as global (admin) — BLOCKED-owner: admin/global scope is an owner decision (same as C3-032); not attempted. The Agent saves only the member\'s own grids (multiChart.set saveGrid, scope user) and refuses to delete a prebuilt one (C3-054 BOUNDARY above)')
 })
+
+// ⛔ CHART RAIL × Multi Chart (hotfix 2026-11-13, agent/chartRail.js): a smaller grid drops filled cells and a group / saved grid
+// refills every filled cell — allowed when asked (a smaller grid is shown first), refused for a cell the member named as KEPT;
+// each allowed one has an exact Undo
+describe('CHART RAIL × Multi Chart — multiChart.set under the rail', () => {
+  it('a smaller grid ASKED for ("remove the bottom row, make it one by two"): shown first, applied, TSLA dropped; Undo is exact', async () => {
+    const { say, apply, undo } = mount()
+    const raw0 = raw()
+    await say('remove the bottom row, make it a one by two grid', gridOp('layout', { rows: 1, cols: 2 }))
+    await apply()
+    await waitFor(() => expect(H.mc.state.layout).toBe('1x2'))
+    expect(syms()).toEqual(['NVDA', 'AMD'])
+    await undoesExactly(undo, raw0)
+    expect(syms()).toEqual(['NVDA', 'AMD', 'TSLA', null])
+  }, 30000)
+  it('KEPT: "keep TSLA and make it a one by two grid" — the plan would drop TSLA: refused, nothing written', async () => {
+    const { say } = mount()
+    const raw0 = raw(); const p0 = persisted()
+    await say('keep TSLA and make it a one by two grid', gridOp('layout', { rows: 1, cols: 2 }))
+    expect(screen.getByTestId('agent-transcript').textContent).toMatch(/I can’t change a chart you asked to keep — you asked to keep TSLA/)
+    expect(raw()).toBe(raw0)
+    expect(persisted()).toBe(p0)
+  }, 30000)
+  it('KEPT: "keep NVDA in the grid and load the next group" — the group would refill NVDA\'s cell: refused, nothing written', async () => {
+    H.prefs = { multichart_state: JSON.stringify(GRID(groupState({ id: 'space', name: 'Space' }))) }
+    const { say } = mount()
+    const raw0 = raw()
+    await say('keep NVDA in the grid and load the next group', gridOp('stepGroup', { direction: 'next' }))
+    expect(screen.getByTestId('agent-transcript').textContent).toMatch(/you asked to keep NVDA/)
+    expect(raw()).toBe(raw0)
+  }, 30000)
+})
