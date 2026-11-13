@@ -85,6 +85,9 @@ export function bareExitFast(mine) {
   return ({ lower, host, typed }) => {
     if (!BARE_EXIT.test(String(lower || ''))) return null
     const v = exitVerdict(lower, host)
+    // NOTHING running: no claim here (a board read without its state, capreg level b, must not be answered for it); any plan
+    // the model makes for it is refused by resolveArgs on both actions with the same "no replay is running"
+    if (v.say === NONE_RUNNING) return null
     // said ONCE (by the bar replay's fast) and only for the whole sentence: no op, no model, nothing written
     if (v.say) return mine === 'bar' && bareTyped(typed ?? lower) ? { __say: v.say } : null
     if (v.use !== mine) return null

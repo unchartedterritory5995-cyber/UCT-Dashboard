@@ -379,14 +379,21 @@ describe('which replay an exit means: from state (fast path, no model)', () => {
       cleanup()
     }
   }, 90000)
-  it('NEITHER on → an honest "no replay is running"; nothing is written', async () => {
-    const { say, h } = p.mount(...ONE('NVDA'))
-    const view = withReplay(h, {}, { cutoff: null })
-    const v = view('c')
-    expect(await say('stop the replay')).toMatch(/No replay is running/)
-    expect(v.calls).toEqual([])
-    expect(view.cut.calls).toEqual([])
-  }, 40000)
+  // (nothing on: the fast path does not claim the sentence — capreg level b reads boards without their state — so this is the
+  // model's turn; whichever replay its plan names, resolveArgs answers "no replay is running" and nothing runs)
+  it('NEITHER on → an honest "no replay is running" whichever replay the plan names; nothing is written', async () => {
+    for (const plan of [() => R({ op: 'exit' }), () => CR(null)]) {
+      const { say, h } = p.mount(...ONE('NVDA'))
+      const view = withReplay(h, {}, { cutoff: null })
+      const v = view('c')
+      p.st.envelopes.push(plan())
+      await say('stop the replay')
+      expect(document.body.textContent).toMatch(/No replay is running/)
+      expect(v.calls).toEqual([])
+      expect(view.cut.calls).toEqual([])
+      cleanup()
+    }
+  }, 60000)
   it('BOTH on and the words NAME one → that one only', async () => {
     {
       const { say, h } = p.mount(...ONE('NVDA'))
