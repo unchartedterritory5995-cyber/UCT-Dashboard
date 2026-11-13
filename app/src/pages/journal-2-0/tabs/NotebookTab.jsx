@@ -70,7 +70,7 @@ import { checklistEnabled, withDone } from '../components/notebook/onboarding/ge
 import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk, { importWithOneRetry } from '../lib/lazyChunk'
-import { RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../lib/heldModule'
+import { ACTION_UNAVAILABLE, RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../lib/heldModule'
 import NotebookAiPanelSlot, { warmAiPanel } from '../components/notebook/NotebookAiPanelSlot'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
 import { widgetsWaveOn, doorLostSentence } from '../lib/notebookWidgetsFlags'
@@ -134,7 +134,7 @@ const REMOVE_SAMPLE_OP = 'remove-sample'
 // that fails twice says so in the notice line with a Reload the member presses: never an automatic reload, never a
 // throw out of the list. A later press asks again.
 export const noteBatchLoader = { load: () => import('../lib/noteBatch') }
-export const BULK_UNAVAILABLE = 'This action could not be loaded.'
+export const BULK_UNAVAILABLE = ACTION_UNAVAILABLE
 export const isNoteBatch = (m) => typeof m?.runNoteBatch === 'function'
 let noteBatchLib = null
 let noteBatchInflight = null

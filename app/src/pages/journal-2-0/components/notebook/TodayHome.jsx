@@ -49,6 +49,8 @@ import EmptyNamesAsk from './EmptyNamesAsk'
 import FirstPlanAsk from './FirstPlanAsk'
 import { FirstRunInlineSlot } from './FirstRunGate'
 import lazyChunk, { importWithOneRetry } from '../../lib/lazyChunk'
+import { isChunkLoadError } from '../../../../utils/lazyWithRetry'
+import { ACTION_UNAVAILABLE, RELOAD_TO_RECOVER, pageReload } from '../../lib/heldModule'
 import { DAILY_FOLDER_NOTICE, openDailyNote } from '../../lib/dailyNote'
 import { TODAY_READ_URL } from '../../lib/todayHome'
 import { firstRunInlineIsDue } from '../../lib/firstRun'
@@ -218,6 +220,21 @@ function Unavailable({ reason, empty, onRetry }) {
 /** The Restore button's on-demand library (lib/noteBatch.js, no default export). A property, so a rail can make the first
  *  fetch fail (follow-up B, item 6b; NotebookTab.jsx `noteBatchLoader` is the same shape). */
 export const restoreBatchLoader = { load: () => import('../../lib/noteBatch') }
+/** The Recap card's on-demand library (lib/reviewDrafts.js, named exports only), swappable the same way. */
+export const recapDraftsLoader = { load: () => import('../../lib/reviewDrafts') }
+/** Follow-up B fix round 1: an action whose code could not be fetched (twice) says so in plain words, with a Reload the
+ *  member presses; the browser's own error text ("Failed to fetch dynamically imported module: <url>") never shows. */
+export const ACTION_LOAD_FAILED = `${ACTION_UNAVAILABLE} ${RELOAD_TO_RECOVER}`
+function ActionError({ error }) {
+  if (!error) return null
+  const lost = error === ACTION_LOAD_FAILED
+  return (
+    <p className={styles.error} role="alert">
+      {error}
+      {lost && <> <button type="button" className="btn btn-ghost btn-sm" onClick={pageReload.run}>Reload</button></>}
+    </p>
+  )
+}
 
 /** I3: today's note is in the Trash. The read never replaces it; the member chooses (the header's pair, B4). */
 function TrashedNoteActions({ note, templateId, onChanged }) {
@@ -232,7 +249,9 @@ function TrashedNoteActions({ note, templateId, onChanged }) {
       invalidateNoteViews({ tags: true })
       onChanged?.()
     } catch (e) {
-      setError(e?.message && !/^\d+$/.test(e.message) ? e.message : 'That did not go through. Nothing was changed.')
+      // Only a server's own answer is shown as it is (`memberMessage`, set below); a chunk that could not be fetched
+      // says so; anything else (a status-only failure, a request that never arrived) is the plain sentence.
+      setError(isChunkLoadError(e) ? ACTION_LOAD_FAILED : e?.memberMessage || 'That did not go through. Nothing was changed.')
     } finally {
       setBusy(null)
     }
@@ -242,7 +261,11 @@ function TrashedNoteActions({ note, templateId, onChanged }) {
     // Follow-up A fix round 1 (I1): noteBatch has no default export; the retry is accepted by its own door.
     const { runNoteBatch } = await importWithOneRetry(() => restoreBatchLoader.load(), undefined,
       (m) => typeof m?.runNoteBatch === 'function')
-    const out = await runNoteBatch({ ids: [note.id], op: 'restore' })
+    const out = await runNoteBatch({ ids: [note.id], op: 'restore' }).catch((err) => {
+      // The batch door words a refused request from the server's answer (lib/noteBatch.js, `status` set).
+      if (typeof err?.status === 'number' && err.message) err.memberMessage = err.message
+      throw err
+    })
     if (!out?.results?.some((r) => r.status === 'changed' || r.status === 'unchanged')) throw new Error('')
   })
   const fresh = () => run('fresh', () => openDailyNote({ templateId: templateId || undefined, seedToday: true, door: 'brief_start' }))
@@ -251,7 +274,7 @@ function TrashedNoteActions({ note, templateId, onChanged }) {
       <p className={styles.quietInline}>{TRASHED_NOTE}</p>
       <button type="button" className="btn btn-ghost btn-sm" disabled={Boolean(busy)} onClick={restore}>{RESTORE_ACTION}</button>
       <button type="button" className="btn btn-primary btn-sm" disabled={Boolean(busy)} onClick={fresh}>{FRESH_ACTION}</button>
-      {error && <p className={styles.error} role="alert">{error}</p>}
+      <ActionError error={error} />
     </div>
   )
 }
@@ -505,7 +528,9 @@ function RecapCard({ note, templateId, onOpenNote, onNotice, onWritten }) {
     setBusy(true)
     setError('')
     try {
-      const m = await importWithOneRetry(() => import('../../lib/reviewDrafts'))
+      // Follow-up B fix round 1: reviewDrafts has named exports only, so the retry is accepted by its own door.
+      const m = await importWithOneRetry(() => recapDraftsLoader.load(), undefined,
+        (mod) => typeof mod?.draftDailyReview === 'function')
       // Final fix I1: the press can make today's note, so it makes it as Start would: the member's daily template and
       // today's plan lines.
       const { note: landed, created } = await m.draftDailyReview({
@@ -516,7 +541,7 @@ function RecapCard({ note, templateId, onOpenNote, onNotice, onWritten }) {
       onWritten?.()
       onOpenNote?.(landed, null, { to: 'collapsed' })
     } catch (e) {
-      setError(e?.memberMessage || "Couldn't write today's recap. Nothing was changed. Try again.")
+      setError(isChunkLoadError(e) ? ACTION_LOAD_FAILED : e?.memberMessage || "Couldn't write today's recap. Nothing was changed. Try again.")
     } finally {
       setBusy(false)
     }
@@ -536,7 +561,7 @@ function RecapCard({ note, templateId, onOpenNote, onNotice, onWritten }) {
           </div>
         </>
       )}
-      {error && <p className={styles.error} role="alert">{error}</p>}
+      <ActionError error={error} />
     </Card>
   )
 }
