@@ -126,6 +126,42 @@ _PREP_CAPTURE = (_J2 / "components" / "notebook" / "blocks" / "PrepCapture.jsx")
 PREP_FILLING_WORDS = dict(re.findall(r'^\s+(\w+): "([^"]+)",$', re.search(r"export const FILLING_WORDS = \{([^}]*)\}", _PREP_CAPTURE).group(1), re.M))
 PREP_NAMES_ASK = re.search(r'export const PREP_NAMES_ASK = "([^"]+)"', _PREP_CAPTURE).group(1)
 assert set(PREP_FILLING_WORDS) == {"no_earnings_yet", "no_quotes", "source_error"}, PREP_FILLING_WORDS
+# Pass 2 final fix, part 2: the fourth state of a retrying gap (PrepCapture.jsx FINAL_WORDS). Once nothing will fill
+# it (its reads ran out, it was captured on an earlier New York day, or the view is read-only) the block says these
+# past-tense words AND draws its Captured line. How long the reads run is RETRY_MS x RETRY_MAX, read from the same file.
+PREP_FINAL_WORDS = dict(re.findall(r'^\s+(\w+): "([^"]+)",$', re.search(r"export const FINAL_WORDS = \{([^}]*)\}", _PREP_CAPTURE).group(1), re.M))
+assert set(PREP_FINAL_WORDS) == set(PREP_FILLING_WORDS), PREP_FINAL_WORDS
+PREP_RETRY_MS = int(re.search(r"export const RETRY_MS = (\d+)", _PREP_CAPTURE).group(1))
+PREP_RETRY_MAX = int(re.search(r"export const RETRY_MAX = (\d+)", _PREP_CAPTURE).group(1))
+_NEW_YORK = ZoneInfo("America/New_York")
+
+
+def prep_gap_read(snap, *, today_et, editable=True, reads_ran_out=False) -> dict:
+    """What PrepCapture.jsx draws for a frozen prep snapshot, as the walk then expects to SEE it: the branch, the words
+    the block shows (None for a full snapshot) and whether the "Captured ... ET" line is drawn.
+
+    The gap branches, in the product's order: a switch it needs (blockStates' sentence); a gap that fills itself
+    (RETRYABLE, captured TODAY in New York, in an editable note, its reads not yet run out: FILLING_WORDS and NO
+    Captured line, master S9); the same gap once nothing will fill it (FINAL_WORDS and the Captured line: the fourth
+    state); no names in an editable note (S17's ask); any other gap (the server's frozen `detail`). `today_et` is the
+    New York calendar day the block is read on (a `date`)."""
+    snap = snap if isinstance(snap, dict) else {}
+    missing, needs = snap.get("missing"), snap.get("needs")
+    if needs:
+        return {"branch": "needs", "words": f"This block needs {needs}, which is not on for you.", "captured_line": True}
+    if missing in PREP_FILLING_WORDS:
+        try:
+            day = datetime.fromisoformat(str(snap.get("capturedAt")).replace("Z", "+00:00")).astimezone(_NEW_YORK).date()
+        except ValueError:
+            day = None
+        if editable and day == today_et and not reads_ran_out:
+            return {"branch": "filling", "words": PREP_FILLING_WORDS[missing], "captured_line": False}
+        return {"branch": "final", "words": PREP_FINAL_WORDS[missing], "captured_line": True}
+    if missing == "no_names" and editable:
+        return {"branch": "names", "words": PREP_NAMES_ASK, "captured_line": True}
+    if missing:
+        return {"branch": "detail", "words": snap.get("detail") or "", "captured_line": True}
+    return {"branch": "full", "words": None, "captured_line": True}
 # Simplify pass 2 (B1, B4, B5): the Daily brief's one header button and its quiet line (TodayHome.jsx), and the daily
 # folder a NEW member's first daily note goes into (api/services/journal_two/note_daily.py; read, never imported: this
 # driver never imports api.* in its own process).
@@ -133,6 +169,18 @@ _TODAY_HOME = (_J2 / "components" / "notebook" / "TodayHome.jsx").read_text(enco
 BRIEF_START = re.search(r'export const START_ACTION = "([^"]+)"', _TODAY_HOME).group(1)
 BRIEF_OPEN = re.search(r'export const OPEN_ACTION = "([^"]+)"', _TODAY_HOME).group(1)
 BRIEF_NOTHING_YET = re.search(r"export const NOTHING_YET = '([^']+)'", _TODAY_HOME).group(1)
+# Pass 2 final fix (I4): the brief's Start makes the note and STAYS; its polite status says this (TodayHome.jsx).
+BRIEF_STARTED = re.search(r'export const STARTED_STATUS = "([^"]+)"', _TODAY_HOME).group(1)
+# Pass 2 final fix (M8): the note's More > Export row on a cold press ("Export…", aria-busy) and after a failed load
+# (NoteExportControls.jsx EXPORT_WAITING, EXPORT_UNAVAILABLE; its second sentence is lib/heldModule.js RELOAD_TO_RECOVER).
+_EXPORT_CONTROLS = (_J2 / "components" / "notebook" / "NoteExportControls.jsx").read_text(encoding="utf-8")
+EXPORT_WAITING = re.search(r"export const EXPORT_WAITING = '([^']+)'", _EXPORT_CONTROLS).group(1)
+EXPORT_UNAVAILABLE = (re.search(r"export const EXPORT_UNAVAILABLE = `([^`]+)`", _EXPORT_CONTROLS).group(1)
+                      .replace("${RELOAD_TO_RECOVER}", re.search(r"export const RELOAD_TO_RECOVER = '([^']+)'",
+                                                                 (_J2 / "lib" / "heldModule.js").read_text(encoding="utf-8")).group(1)))
+# Pass 2 final fix (M9): the Insert palette's "Show all" button's accessible name (WidgetPalette.jsx).
+PALETTE_SHOW_ALL = re.search(r'className=\{`\$\{styles\.headBtn\} \$\{styles\.showAll\}`\} aria-label="([^"]+)"',
+                             (_J2 / "components" / "notebook" / "WidgetPalette.jsx").read_text(encoding="utf-8")).group(1)
 DAILY_FOLDER_NAME = re.search(r'^DAILY_FOLDER_NAME = "([^"]+)"', (REPO / "api" / "services" / "journal_two" / "note_daily.py")
                               .read_text(encoding="utf-8"), re.M).group(1)
 # Simplify pass 2 (C3, review check g): the note's More panel and the formats' menu (NoteMoreMenu.jsx, NoteExportMenu.jsx),
@@ -3271,6 +3319,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 p, i, c = at(vp)
                 try:
                     nid, create_status = new_from_kind(p, "Daily prep")
+                    opened_at = time.time()
                     held = note_json(nid) if nid else {}
                     parts = {}
                     for wid, (name, part) in PREP_GROUPS.items():
@@ -3279,25 +3328,19 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                         rec = {"group": C.vis_loc(group, 20000), "frozen": isinstance(snap, dict) and snap.get("part") == part}
                         if rec["frozen"]:
                             rec.update(missing=snap.get("missing"), needs=snap.get("needs"))
-                            if snap.get("needs"):
-                                rec["names_gap"] = C.vis_loc(group.get_by_text(
-                                    f"This block needs {snap['needs']}, which is not on for you.", exact=True), 10000)
-                            elif snap.get("missing") in PREP_FILLING_WORDS:
-                                # Master S9: a gap that fills itself (captured today, in an editable note) says its
-                                # "filling" words and draws no Captured line and no Capture again while it waits (the
-                                # block reads again by itself); the server's frozen `detail` is not shown.
-                                rec["filling"] = True
-                                rec["names_gap"] = C.vis_loc(group.get_by_text(PREP_FILLING_WORDS[snap["missing"]], exact=True), 10000)
-                            elif snap.get("missing") == "no_names":
-                                # Master S17: a block with no names to read asks for them.
-                                rec["names_gap"] = C.vis_loc(group.get_by_text(PREP_NAMES_ASK, exact=True), 10000)
-                            elif snap.get("missing"):
-                                rec["names_gap"] = C.vis_loc(group.get_by_text(snap.get("detail") or "", exact=True), 10000)
+                            # What the block draws for this snapshot (module-level `prep_gap_read`, four gap states
+                            # plus a switch it needs; railed by tests/test_notebook_fin_walk_prep_gap.py). The walk's
+                            # note is editable; a filling gap's reads run out only after RETRY_MS x RETRY_MAX.
+                            ran_out = (time.time() - opened_at) * 1000 >= PREP_RETRY_MS * PREP_RETRY_MAX
+                            want = prep_gap_read(snap, today_et=datetime.now(ET).date(), editable=True, reads_ran_out=ran_out)
+                            rec.update(branch=want["branch"], filling=want["branch"] == "filling")
+                            if want["words"] is not None:
+                                rec["names_gap"] = C.vis_loc(group.get_by_text(want["words"], exact=True), 10000)
                             line = group.get_by_text(spaced(f"Captured {et_minute(snap['capturedAt'])} ET"))
-                            if rec.get("filling"):
-                                rec["captured_line"] = not C.vis_loc(line, 2000)   # held back while it fills (S9)
-                            else:
+                            if want["captured_line"]:
                                 rec["captured_line"] = C.vis_loc(line, 10000)
+                            else:
+                                rec["captured_line"] = not C.vis_loc(line, 2000)   # held back while it fills (S9)
                         rec["ok"] = bool(rec["group"] and rec["frozen"] and rec.get("captured_line") and rec.get("names_gap", True))
                         parts[wid] = rec
                     old_at = (snapshot_of(held.get("bodyJson"), "prepWire") or {}).get("capturedAt")
@@ -4388,31 +4431,180 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             C.step(pB, iB, "discover.daily-brief", "while the read is held: header + one skeleton; when it lands the header, date line and button room do not move and the first content takes the skeleton's place",
                    "PASS" if steady else "FAIL", held_requests=len(held), first_paint=first, after_read=after,
                    screenshot_first_paint=shot_first, screenshot_after_read=shot_after, scope=["[data-today-home]"])
-            made, folder, err = None, None, None
+            # Pass 2 final fix (I4, ruling; final-fix row a): Start makes today's note and STAYS on the brief. The member
+            # now watches one name, so the plan seed has a line ("Check your names: ..."): the plan card must arrive with
+            # it. Start is pressed twice quickly (a double click): exactly one note is made. The header button becomes
+            # "Open today's note" and holds focus; the polite status says "Today's note started."; the URL keeps
+            # `?view=today`. The made note is read from the server (`GET /api/j2/notes/today?make=0`), never the URL.
+            wl_st, wl = C.api(cB, iB, "POST", base, "/api/watchlists", {"name": "My names"})
+            wl_id = ((wl or {}).get("watchlist") or wl or {}).get("id") if isinstance(wl, dict) else None
+            item_st, _ = C.api(cB, iB, "POST", base, f"/api/watchlists/{wl_id}/items", {"sym": "NVDA"}) if wl_id else (None, None)
+            C.goto(pB, base, "/journal/notebook?view=today")
             try:
-                pB.locator("[data-today-actions]").get_by_role("button", name=BRIEF_START, exact=True).first.click(timeout=10000)
-                pB.wait_for_url(lambda u: "note=" in u, timeout=30000)
-                made = pB.url.split("note=")[-1].split("&")[0]
+                pB.locator("[data-today-home]:not([aria-busy])").first.wait_for(state="visible", timeout=20000)
+            except Exception:  # noqa: BLE001 -- the step below records what the page then said
+                pass
+            pB.wait_for_timeout(800)
+            ready = pB.evaluate(BRIEF_GEOM_JS) or {}
+            n_before = len(C.notes_list(cB, base))
+            posts = []
+            on_req = lambda r: posts.append(r.url) if r.method == "POST" and "/api/j2/notes/daily" in r.url else None  # noqa: E731
+            pB.on("request", on_req)
+            facts, err = {}, None
+            try:
+                pB.locator("[data-today-actions]").get_by_role("button", name=BRIEF_START, exact=True).first.dblclick(timeout=10000)
+                pB.locator("[data-today-actions]").get_by_role("button", name=BRIEF_OPEN, exact=True).first.wait_for(state="visible", timeout=30000)
+                plan = pB.locator('[data-today-card="plan"]')
+                plan.first.wait_for(state="visible", timeout=30000)
+                pB.wait_for_timeout(1000)
+                facts = pB.evaluate("""() => { const a = document.activeElement; const acts = document.querySelector('[data-today-actions]');
+                  const st = acts && acts.querySelector('[role="status"]');
+                  const plan = document.querySelector('[data-today-card="plan"]');
+                  return { focus: a ? (a.innerText || '').trim() : null, focus_in_actions: !!(a && acts && acts.contains(a)),
+                           status: st ? st.textContent.trim() : null,
+                           plan_lines: plan ? [...plan.querySelectorAll('li')].map(li => li.innerText.replace(/\\s+/g, ' ').trim()) : [] } }""")
             except Exception as e:  # noqa: BLE001
                 err = str(e)[:300]
+            pB.wait_for_timeout(1500)        # a second create, if the double press made one, has landed by now
+            pB.remove_listener("request", on_req)
+            url_after = pB.url.split(base)[-1]
+            tr = cB.request.get(base + "/api/j2/notes/today?make=0")
+            today_after = tr.json() if tr.status == 200 else {}
+            made = ((today_after.get("todayNote") or {}).get("id")) if isinstance(today_after, dict) else None
+            n_after = len(C.notes_list(cB, base))
             n = (cB.request.get(base + f"/api/j2/notes/{made}").json() or {}).get("note") or {} if made else {}
             fid = n.get("folderId") or n.get("folder_id")
             fr = cB.request.get(base + "/api/j2/note-folders")
             fj = fr.json() if fr.status == 200 else {}
             folder = next((f.get("name") for f in ((fj.get("folders") if isinstance(fj, dict) else fj) or []) if f.get("id") == fid), None)
-            C.goto(pB, base, "/journal/notebook?view=today")
+            stays = "view=today" in url_after and "note=" not in url_after
+            ok_a = (ready.get("buttons") == [BRIEF_START] and stays and facts.get("focus") == BRIEF_OPEN and facts.get("focus_in_actions")
+                    and facts.get("status") == BRIEF_STARTED and len(facts.get("plan_lines") or []) >= 1
+                    and any("NVDA" in ln for ln in facts.get("plan_lines") or [])
+                    and bool(made) and n_after - n_before == 1 and folder == DAILY_FOLDER_NAME)
+            C.step(pB, iB, "discover.daily-brief", f"Start today's note (pressed twice quickly) makes ONE note in '{DAILY_FOLDER_NAME}' and stays on the brief: the plan card with its lines, the button Open today's note with focus, the status '{BRIEF_STARTED}'",
+                   "PASS" if ok_a else "FAIL", watchlist_status=wl_st, item_status=item_st, buttons_before=ready.get("buttons"),
+                   url_after=url_after, stays_on_brief=stays, focus=facts.get("focus"), focus_in_actions=facts.get("focus_in_actions"),
+                   status=facts.get("status"), expected_status=BRIEF_STARTED, plan_lines=facts.get("plan_lines"),
+                   notes_before=n_before, notes_after=n_after, daily_posts=len(posts), note=made, note_title=n.get("title"),
+                   folder=folder, expected_folder=DAILY_FOLDER_NAME, reach_error=err, scope=["[data-today-home]"])
+            # Then "Open today's note" opens it (final-fix row c, first half): the editor shows that note.
+            opened, ms_open, err2 = None, None, None
             try:
-                pB.locator("[data-today-home]:not([aria-busy])").first.wait_for(state="visible", timeout=20000)
-            except Exception:  # noqa: BLE001
-                pass
-            pB.wait_for_timeout(1200)
-            back = pB.evaluate(BRIEF_GEOM_JS) or {}
-            C.step(pB, iB, "discover.daily-brief", f"Start today's note makes today's note in '{DAILY_FOLDER_NAME}'; back on the brief the button says Open today's note",
-                   "PASS" if made and folder == DAILY_FOLDER_NAME and back.get("buttons") == [BRIEF_OPEN] else "FAIL",
-                   note=made, note_title=n.get("title"), folder=folder, expected_folder=DAILY_FOLDER_NAME,
-                   header_buttons_after=back.get("buttons"), expected_button=BRIEF_OPEN, reach_error=err, scope=["[data-today-home]"])
+                t0 = time.time()
+                pB.locator("[data-today-actions]").get_by_role("button", name=BRIEF_OPEN, exact=True).first.click(timeout=10000)
+                pB.wait_for_url(lambda u: "note=" in u, timeout=30000)
+                pB.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
+                ms_open = round((time.time() - t0) * 1000)
+                opened = pB.url.split("note=")[-1].split("&")[0]
+            except Exception as e:  # noqa: BLE001
+                err2 = str(e)[:300]
+            C.step(pB, iB, "discover.daily-brief", "then Open today's note opens that note in the editor",
+                   "PASS" if opened and opened == made else "FAIL", note=made, opened=opened, ms_press_to_editor=ms_open, reach_error=err2)
+            # The list's "Today's note" on a day whose note EXISTS opens it at once (final-fix row c; I3: the server no
+            # longer builds the plan seed for an existing note). Press to the editor visible is recorded; the bar is
+            # 5 s on this sandbox (the editor's code is already loaded by the press above).
+            C.goto(pB, base, "/journal/notebook")
+            pB.wait_for_timeout(1500)
+            btn = pB.get_by_role("button", name="Today's note", exact=True).filter(visible=True)
+            opened2, ms2, post_ms, err3, answer = None, None, None, None, {}
+            try:
+                C.vis_loc(btn, 20000)
+                t0 = time.time()
+                with pB.expect_response(lambda r: r.request.method == "POST" and "/api/j2/notes/daily" in r.url, timeout=30000) as resp:
+                    btn.first.click(timeout=10000)
+                post_ms = round((time.time() - t0) * 1000)
+                try:
+                    answer = resp.value.json()
+                except Exception:  # noqa: BLE001
+                    answer = {}
+                pB.wait_for_url(lambda u: "note=" in u, timeout=30000)
+                pB.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
+                ms2 = round((time.time() - t0) * 1000)
+                opened2 = pB.url.split("note=")[-1].split("&")[0]
+            except Exception as e:  # noqa: BLE001
+                err3 = str(e)[:300]
+            n_end = len(C.notes_list(cB, base))
+            C.step(pB, iB, "discover.daily-brief", "the list's Today's note on a day whose note exists opens it at once (press to editor under 5 s), makes nothing",
+                   "PASS" if opened2 == made and made and ms2 is not None and ms2 < 5000 and n_end == n_after and not answer.get("created") else "FAIL",
+                   note=made, opened=opened2, ms_press_to_editor=ms2, ms_press_to_post_answer=post_ms, created=answer.get("created"),
+                   notes_before=n_after, notes_after=n_end, reach_error=err3)
         finally:
             cB.close()
+
+    # ── discover.recap-template (1280) ─────────────────────────────────────────────────────────────
+    # Pass 2 final fix (I1; final-fix row b). A member who chose a daily template ("Daily notes start from" in the
+    # template sheet, the member's own control) and watches a name drafts Today's recap on a day with NO note (New >
+    # Draft a review > Today's recap: the brief's recap card waits for 16:05 ET). The door makes today's note FROM THAT
+    # TEMPLATE and with the plan lines, then appends the recap: one note, the template's words first, the plan's line,
+    # then the recap heading.
+    TPL_MARK = "Morning routine from my own template"
+
+    def d_recap_template():
+        cR, emailR, meR, iR, pR = new_member("c2rtp", "1280")
+        try:
+            doc = {"type": "doc", "content": [
+                {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Before the open"}]},
+                {"type": "paragraph", "content": [{"type": "text", "text": TPL_MARK}]}]}
+            st_n, src = C.api(cR, iR, "POST", base, "/api/j2/notes", {"title": "My day template source", "bodyJson": doc})
+            src_id = ((src or {}).get("note") or src or {}).get("id") if isinstance(src, dict) else None
+            tname = f"My daily start {int(time.time()) % 100000}"
+            st_t, tpl = C.api(cR, iR, "POST", base, "/api/j2/note-templates", {"noteId": src_id, "name": tname})
+            tpl_id = ((tpl or {}).get("template") or {}).get("id") if isinstance(tpl, dict) else None
+            wl_st, wl = C.api(cR, iR, "POST", base, "/api/watchlists", {"name": "My names"})
+            wl_id = ((wl or {}).get("watchlist") or wl or {}).get("id") if isinstance(wl, dict) else None
+            if wl_id:
+                C.api(cR, iR, "POST", base, f"/api/watchlists/{wl_id}/items", {"sym": "NVDA"})
+            at(pR, base, "/journal/notebook", first_run=True)
+            chose, err0 = False, None
+            try:
+                open_templates(pR)
+                pick = pR.get_by_label("Daily notes start from")
+                pick.first.wait_for(state="visible", timeout=20000)
+                with pR.expect_response(lambda r: r.request.method == "POST" and "/api/auth/preferences" in r.url, timeout=15000):
+                    pick.first.select_option(label=tname)
+                chose = True
+                pR.keyboard.press("Escape")
+            except Exception as e:  # noqa: BLE001
+                err0 = str(e)[:300]
+            pr = cR.request.get(base + "/api/auth/preferences")
+            stored = (pr.json() if pr.status == 200 else {}).get("notebook_daily_template")
+            stored_id = json.loads(stored) if isinstance(stored, str) and stored.startswith('"') else stored
+            t0 = cR.request.get(base + "/api/j2/notes/today?make=0")
+            before_id = ((t0.json() if t0.status == 200 else {}).get("todayNote") or {}).get("id")
+            n_before = len(C.notes_list(cR, base))
+            made, text, err = None, "", None
+            try:
+                C.goto(pR, base, "/journal/notebook")
+                pR.wait_for_timeout(1500)
+                caret = pR.get_by_role("button", name="More ways to start a note", exact=True)
+                C.vis_loc(caret, 30000)
+                caret.first.click()
+                pR.get_by_role("menuitem", name=DRAFT_REVIEW_ROW, exact=True).first.click(timeout=15000)
+                pR.get_by_role("menuitem", name=REVIEW_LABELS["daily"], exact=True).first.click(timeout=15000)
+                pR.wait_for_url(lambda u: "note=" in u, timeout=60000)
+                made = pR.url.split("note=")[-1].split("&")[0]
+                pR.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
+                pR.wait_for_timeout(1500)
+                text = pR.locator(".ProseMirror").first.inner_text()
+            except Exception as e:  # noqa: BLE001
+                err = str(e)[:300]
+            t1 = cR.request.get(base + "/api/j2/notes/today?make=0")
+            today_id = ((t1.json() if t1.status == 200 else {}).get("todayNote") or {}).get("id")
+            n_after = len(C.notes_list(cR, base))
+            n = note_json(made) if made else {}
+            flat = re.sub(r"\s+", " ", text or "")
+            m_recap = re.search(r"(Today.s recap|Recap) —", flat)     # reviewDrafts.js recapHeading
+            i_mark, i_plan, i_recap = flat.find(TPL_MARK), flat.find("NVDA"), (m_recap.start() if m_recap else -1)
+            ok = (chose and stored_id == tpl_id and bool(tpl_id) and not before_id and made and made == today_id
+                  and n_after - n_before == 1 and i_mark >= 0 and i_plan > i_mark and i_recap > i_plan)
+            C.step(pR, iR, "discover.recap-template", "with a daily template chosen, Draft a review > Today's recap on a day with no note makes today's note from that template with the plan lines, then the recap",
+                   "PASS" if ok else "FAIL", template_status=st_t, template=tpl_id, chose_in_sheet=chose, stored_pref=stored_id,
+                   today_before=before_id, note=made, today_after=today_id, notes_before=n_before, notes_after=n_after,
+                   daily_date=n.get("dailyDate") or n.get("daily_date"), template_words_at=i_mark, plan_name_at=i_plan, recap_at=i_recap,
+                   text_head=flat[:600], reach_error=err0 or err)
+        finally:
+            cR.close()
 
     def view_rows(menu):
         return [re.sub(r"\s+", " ", t).strip() for t in menu.locator('[role="menuitem"], [role="menuitemradio"]').all_inner_texts()]
@@ -4499,6 +4691,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     # Simplify pass 2 (C3; review checks d and g). The formats' menu is an on-demand chunk: a press on More > Export right
     # after a page load, while that chunk is held back, is not lost: the formats appear once it lands. At 390 the Aa
     # menu's Font view and the More panel's Export view sit inside the window, clear of the floating "+".
+    # The More panel's Export row as the page draws it: its words and aria-busy (NoteExportControls.jsx's trigger).
+    EXPORT_ROW_JS = r"""(g) => { const b = [...g.querySelectorAll('button[aria-haspopup="menu"]')]
+        .find(x => /^Export/.test((x.innerText || '').trim()));
+      return b ? { text: (b.innerText || '').trim(), busy: b.getAttribute('aria-busy') } : null }"""
+
     def d_note_second_views():
         cN, emailN, meN, iN, pN = new_member("c2nsv", "1280")
         c9 = None
@@ -4519,7 +4716,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             C.vis_loc(exp, 8000)
             exp.first.click()
             pressed_at = round(time.time() - t0, 2)
+            # Pass 2 final fix (M8; final-fix row d): the press is answered AT ONCE on the row itself ("Export…" with
+            # aria-busy) while the chunk is held, read right after the press.
+            busy_now = panel.first.evaluate(EXPORT_ROW_JS)
             pN.wait_for_timeout(2000)    # the chunk is held: the press must wait for it, not be dropped
+            busy_later = panel.first.evaluate(EXPORT_ROW_JS)
             held_n = len(held)
             pN.unroute(chunk_re)
             for r_ in held:
@@ -4533,7 +4734,63 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             C.step(pN, iN, "discover.note-second-views", "a cold press on the note's More > Export (its chunk held back) is not lost: the formats appear once the chunk lands",
                    "PASS" if appeared and held_n >= 1 and len(formats) >= 6 else "FAIL", pressed_s_after_load=pressed_at,
                    chunk_requests_held=held_n, formats=formats, scope=["[role=menu]"])
+            busy_ok = all((b or {}).get("text") == EXPORT_WAITING and (b or {}).get("busy") == "true" for b in (busy_now, busy_later))
+            C.step(pN, iN, "discover.note-second-views", f"that cold press shows a busy cue on the row at once ('{EXPORT_WAITING}', aria-busy) until the formats come",
+                   "PASS" if busy_ok and appeared else "FAIL", row_right_after_press=busy_now, row_after_2s=busy_later,
+                   expected_text=EXPORT_WAITING, formats_appeared=appeared, scope=["[role=group]"])
             pN.keyboard.press("Escape")
+            # ArrowRight on the Export row opens the formats (the row shows a chevron, as the menu engine's second-view
+            # rows do). Reached by the keyboard: a fresh load, More opened, ArrowDown until Export holds focus.
+            kb, kerr = {}, None
+            try:
+                C.goto(pN, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+                more.first.wait_for(state="visible", timeout=15000)
+                more.first.click()
+                exp.first.wait_for(state="visible", timeout=8000)
+                on_export = False
+                for _ in range(16):
+                    on_export = pN.evaluate("() => /^Export/.test(((document.activeElement || {}).innerText || '').trim())")
+                    if on_export:
+                        break
+                    pN.keyboard.press("ArrowDown")
+                    pN.wait_for_timeout(120)
+                kb["export_focused_by_arrows"] = on_export
+                if on_export:
+                    pN.keyboard.press("ArrowRight")
+                    kb["formats_opened"] = C.vis_loc(fm, 15000)
+                    kb["formats"] = view_rows(fm) if kb["formats_opened"] else []
+            except Exception as e:  # noqa: BLE001
+                kerr = str(e)[:300]
+            C.step(pN, iN, "discover.note-second-views", "ArrowRight on the More panel's Export row opens the formats",
+                   "PASS" if kb.get("formats_opened") and len(kb.get("formats") or []) >= 6 else "FAIL", **kb, reach_error=kerr,
+                   scope=["[role=menu]"])
+            pN.keyboard.press("Escape")
+            # A failed load says so beside Export, with a Reload the member presses (never "export failed", never an
+            # automatic reload): a fresh page whose formats' chunk cannot load.
+            pF, fail = None, {}
+            try:
+                pF = cN.new_page()
+                pF.route(chunk_re, lambda route: route.abort())
+                C.goto(pF, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+                mF = pF.locator("[data-more-trigger]").filter(visible=True)
+                C.vis_loc(mF, 15000)
+                mF.first.click()
+                eF = pF.get_by_role("group", name=MORE_NOTE_ACTIONS).get_by_role("button", name="Export", exact=True)
+                C.vis_loc(eF, 8000)
+                eF.first.click()
+                alert = pF.get_by_role("alert").filter(has_text=EXPORT_UNAVAILABLE)
+                fail["alert"] = C.vis_loc(alert, 20000)
+                fail["reload_button"] = C.vis_loc(alert.get_by_role("button", name="Reload", exact=True), 3000) if fail["alert"] else False
+                fail["still_on_note"] = "note=" in pF.url
+                fail["old_words"] = pF.get_by_text("export failed").count()
+            except Exception as e:  # noqa: BLE001
+                fail["reach_error"] = str(e)[:300]
+            finally:
+                if pF is not None:
+                    pF.close()
+            C.step(pN, iN, "discover.note-second-views", f"a formats chunk that cannot load says '{EXPORT_UNAVAILABLE}' beside Export with a Reload button",
+                   "PASS" if fail.get("alert") and fail.get("reload_button") and fail.get("still_on_note") and not fail.get("old_words") else "FAIL",
+                   expected=EXPORT_UNAVAILABLE, **fail, shot=False)
             # 390: the two note second views
             c9, i9, p9 = phone_of(cN)
             at(p9, base, f"/journal/notebook?note={nid}", ".ProseMirror")
@@ -4638,11 +4895,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     # ── discover.insert-palette (1280) ─────────────────────────────────────────────────────────────
     # Simplify pass 2 (C4). The Insert palette's last group (the market snapshots) is not drawn until "Show all" at the
     # foot of the list is pressed; the press draws it and puts focus on its first row.
-    PALETTE_JS = r"""() => { const d = document.querySelector('[role=dialog][aria-label="Insert widget"]'); if (!d) return null;
+    PALETTE_JS = r"""() => { const SHOW_ALL = %s; const d = document.querySelector('[role=dialog][aria-label="Insert widget"]'); if (!d) return null;
       const a = document.activeElement;
       return { groups: [...d.querySelectorAll('[role=group]')].map(g => g.getAttribute('aria-label')),
-               show_all: !!d.querySelector('[aria-label="Show all blocks"]'),
-               focus: a ? { text: (a.innerText || '').trim().slice(0, 40), group: a.closest('[role=group]')?.getAttribute('aria-label') || null } : null } }"""
+               show_all: !!d.querySelector('[aria-label="' + SHOW_ALL + '"]'),
+               focus: a ? { text: (a.innerText || '').trim().slice(0, 40), group: a.closest('[role=group]')?.getAttribute('aria-label') || null } : null } }""" % json.dumps(PALETTE_SHOW_ALL)
 
     def d_insert_palette():
         cI, emailI, meI, iI, pI = new_member("c2pal", "1280")
@@ -4656,9 +4913,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             try:
                 door.first.click(timeout=10000)
                 pI.get_by_role("dialog", name="Insert widget").first.wait_for(state="visible", timeout=15000)
-                pI.get_by_role("button", name="Show all blocks", exact=True).first.wait_for(state="visible", timeout=15000)
+                pI.get_by_role("button", name=PALETTE_SHOW_ALL, exact=True).first.wait_for(state="visible", timeout=15000)
                 before = pI.evaluate(PALETTE_JS)
-                pI.get_by_role("button", name="Show all blocks", exact=True).first.click()
+                pI.get_by_role("button", name=PALETTE_SHOW_ALL, exact=True).first.click()
                 pI.wait_for_timeout(500)
                 after = pI.evaluate(PALETTE_JS)
             except Exception as e:  # noqa: BLE001
@@ -4670,6 +4927,30 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                    "PASS" if ok else "FAIL", before=before, after=after, new_group=new_groups, reach_error=err,
                    scope=['[role=dialog][aria-label="Insert widget"]'])
             pI.keyboard.press("Escape")
+            # Pass 2 final fix (M9; final-fix row f): at 390 the palette's button is named "Show all widgets" too (the
+            # dialog is "Insert widget"; its visible words stay "Show all"). The touch row's "Insert widget" opens it.
+            c9, i9, p9 = phone_of(cI)
+            try:
+                at(p9, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+                d9 = p9.locator('[data-tour="note-toolbar"]').get_by_role("button", name=re.compile(r"^Insert( widget)?$")).filter(visible=True)
+                got9, err9 = {}, None
+                try:
+                    d9.first.scroll_into_view_if_needed(timeout=5000)
+                    d9.first.click(timeout=10000)
+                    p9.get_by_role("dialog", name="Insert widget").first.wait_for(state="visible", timeout=15000)
+                    b9 = p9.get_by_role("dialog", name="Insert widget").get_by_role("button", name=PALETTE_SHOW_ALL, exact=True)
+                    got9["named_button"] = C.vis_loc(b9, 10000)
+                    got9["words"] = b9.first.inner_text().strip() if got9["named_button"] else None
+                    got9["old_name"] = p9.get_by_role("button", name="Show all blocks", exact=True).count()
+                    got9.update(p9.evaluate(PALETTE_JS) or {})
+                except Exception as e:  # noqa: BLE001
+                    err9 = str(e)[:300]
+                C.step(p9, i9, "discover.insert-palette", f"390 px: the Insert palette's Show all button is named '{PALETTE_SHOW_ALL}' (its words stay Show all)",
+                       "PASS" if got9.get("named_button") and (got9.get("words") or "").startswith("Show all") and not got9.get("old_name") else "FAIL",
+                       expected_name=PALETTE_SHOW_ALL, **got9, reach_error=err9, scope=['[role=dialog][aria-label="Insert widget"]'])
+                p9.keyboard.press("Escape")
+            finally:
+                c9.close()
         finally:
             cI.close()
 
@@ -4688,6 +4969,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                  # Simplify pass 2 (Task 4): the Daily brief makes nothing until pressed (B1, B4, B5, check e); Graph and
                  # Timeline under More views (C1, check f); the cold Export press and the 390 second views (C3, check d, g).
                  ("daily-brief", d_daily_brief), ("more-views", d_more_views), ("note-second-views", d_note_second_views),
+                 # Pass 2 final fix, part 2: the recap door with a daily template on a day with no note (I1, row b).
+                 ("recap-template", d_recap_template),
                  ("plus-ask-390", d_plus_ask_390), ("insert-palette", d_insert_palette))
         for name, fn in doors:
             HOLD.clear()
