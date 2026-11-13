@@ -102,3 +102,19 @@ def test_autorestore_never_reads_the_live_file_with_plain_io():
     fn = next(n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.FunctionDef) and n.name == "reads_cleanly")
     calls = [c.func.id for c in ast.walk(fn) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)]
     assert "open" not in calls, calls
+
+
+def test_the_tripwire_has_its_own_30s_job():
+    src = _src("api/flow_worker_main.py")
+    assert 'id="flow_db_wal_tripwire"' in src and "_guard.check_and_heal" in src
+
+
+def test_the_anchor_is_opened_before_flowdb_init_in_main():
+    src = _src("api/flow_worker_main.py")
+    fn = next(n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.FunctionDef) and n.name == "main")
+    calls = sorted((c.lineno, getattr(c.func, "attr", getattr(c.func, "id", "")))
+                   for c in ast.walk(fn) if isinstance(c, ast.Call))
+    names = [n for _, n in calls]
+    assert "open_anchor" in names
+    first_anchor = names.index("open_anchor")
+    assert not [n for n in names[:first_anchor] if n in ("FlowDB", "_FlowDB")], names[:first_anchor]
