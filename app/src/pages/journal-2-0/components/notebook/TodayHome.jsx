@@ -215,6 +215,10 @@ function Unavailable({ reason, empty, onRetry }) {
   )
 }
 
+/** The Restore button's on-demand library (lib/noteBatch.js, no default export). A property, so a rail can make the first
+ *  fetch fail (follow-up B, item 6b; NotebookTab.jsx `noteBatchLoader` is the same shape). */
+export const restoreBatchLoader = { load: () => import('../../lib/noteBatch') }
+
 /** I3: today's note is in the Trash. The read never replaces it; the member chooses (the header's pair, B4). */
 function TrashedNoteActions({ note, templateId, onChanged }) {
   const [busy, setBusy] = useState(null)
@@ -236,7 +240,7 @@ function TrashedNoteActions({ note, templateId, onChanged }) {
   const restore = () => run('restore', async () => {
     // The batch door: it lands the restored revision (settleNoteWrites) before anything refreshes.
     // Follow-up A fix round 1 (I1): noteBatch has no default export; the retry is accepted by its own door.
-    const { runNoteBatch } = await importWithOneRetry(() => import('../../lib/noteBatch'), undefined,
+    const { runNoteBatch } = await importWithOneRetry(() => restoreBatchLoader.load(), undefined,
       (m) => typeof m?.runNoteBatch === 'function')
     const out = await runNoteBatch({ ids: [note.id], op: 'restore' })
     if (!out?.results?.some((r) => r.status === 'changed' || r.status === 'unchanged')) throw new Error('')
