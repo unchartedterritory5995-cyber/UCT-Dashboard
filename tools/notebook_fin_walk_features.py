@@ -96,6 +96,14 @@ SAMPLE_REMOVE_ROW = re.search(r"removeRow: '([^']+)'", (_SAMPLE_DIR / "sampleNot
 SAMPLE_REMOVED = re.search(r"removed: '([^']+)'", (_SAMPLE_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
 # Final fix (C1): the note's own save indicator when the server has the note (lib/offline/unsyncedCopy.js SAVED_WORDS).
 SAVED_WORDS = re.search(r"export const SAVED_WORDS = '([^']+)'", (REPO / "app" / "src" / "pages" / "journal-2-0" / "lib" / "offline" / "unsyncedCopy.js").read_text(encoding="utf-8")).group(1)
+# Final fix (A3): Price stamps' idle sentence with Journal styles off (blocks/blockStates.jsx BlockNeedsSwitch, with the
+# `what` PriceStampsBlock.jsx passes it).
+_BLOCKS_DIR = _SAMPLE_DIR.parent / "blocks"
+PRICE_STAMPS_NEEDS_SENTENCE = (re.search(r"`(This block needs \$\{what\}, which is not on for you\.)`", (_BLOCKS_DIR / "blockStates.jsx").read_text(encoding="utf-8")).group(1)
+                               .replace("${what}", re.search(r'<BlockNeedsSwitch what="([^"]+)"', (_BLOCKS_DIR / "PriceStampsBlock.jsx").read_text(encoding="utf-8")).group(1)))
+# Final fix (A2): the /style chooser's title (styles/StyleUpdateSheet.jsx StyleChooser; S7 renamed "Choose a journal style").
+STYLE_CHOOSER_TITLE = re.search(r'export function StyleChooser[\s\S]*?<Sheet [^>]*title="([^"]+)"',
+                                (_SAMPLE_DIR.parent / "styles" / "StyleUpdateSheet.jsx").read_text(encoding="utf-8")).group(1)
 # Final fix (C2): the Get started card's template step (onboarding/gettingStarted.js CHECKLIST_COPY.template).
 GS_TEMPLATE_ROW = re.search(r"\btemplate: '([^']+)'", (_SAMPLE_DIR / "gettingStarted.js").read_text(encoding="utf-8")).group(1)
 # Final fix (C1): this door's own hold words for a held note (one note / several), read from SAMPLE_COPY.
@@ -764,14 +772,18 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         # insert: preview a UCT pick, add it, make a note from it
         if picks:
             title = picks[0].get("title") or picks[0].get("name")
-            made, added, err = None, False, None
+            made, added, added_text, err = None, False, None, None
             try:
                 pg.get_by_role("button", name=re.compile("^Preview " + re.escape(title))).first.click(timeout=10000)   # S7 adds ", from the Template library"
                 dlg = pg.get_by_role("dialog", name=title)
                 dlg.first.wait_for(state="visible", timeout=15000)
                 use = dlg.get_by_role("button", name=re.compile(r"^Use( this template)?$"))   # S7: "Use"
                 use.first.click(timeout=10000)
-                added = C.vis_loc(pg.get_by_text(f"Added “{title}” to Your templates."), 15000)
+                # Final fix (A2): the gallery's own status line (TemplateGallery.jsx `use`, `[data-gallery-message]`)
+                # names the COPY it made (`out.template.name`), which is not always the pick's listed title.
+                added_msg = pg.locator("[data-gallery-message]").filter(has_text=re.compile(r"^Added “.+” to Your templates\."))
+                added = C.vis_loc(added_msg, 15000)
+                added_text = added_msg.first.inner_text().strip()[:200] if added else None
                 mk = pg.get_by_role("button", name="Make a note from it")
                 if C.vis_loc(mk, 8000):
                     mk.first.click()
@@ -782,7 +794,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 err = str(e)[:300]
             body_len = len(json.dumps(note_json(made).get("bodyJson") or {})) if made else 0
             C.step(pg, inst, "template gallery", "insert: use a UCT pick and make a note from it",
-                   "PASS" if added and made and body_len > 200 else "FAIL", pick=title, added_to_your_templates=added, note=made,
+                   "PASS" if added and made and body_len > 200 else "FAIL", pick=title, added_to_your_templates=added,
+                   added_line=added_text, note=made,
                    note_body_chars=body_len, reach_error=err)
         # publish for review: a member template made from the member's own note (the note's own route)
         src = S.get("first_note") or (C.notes_list(ctx, base)[0]["id"])
@@ -2546,8 +2559,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         pg.keyboard.press("Enter")
         pg.keyboard.type("/style", delay=40)
         pg.keyboard.press("Enter")
-        chooser = C.vis_loc(pg.get_by_role("dialog", name=re.compile("Choose a journal style")), 10000)
-        C.step(pg, inst, "styles.slash-style", "/style opens the style chooser", "PASS" if chooser else "FAIL", opened=chooser)
+        # Final fix (A2): S7 (master, one vocabulary) renamed the chooser's title; read from StyleChooser, never retyped.
+        chooser = C.vis_loc(pg.get_by_role("dialog", name=STYLE_CHOOSER_TITLE, exact=True), 10000)
+        C.step(pg, inst, "styles.slash-style", "/style opens the style chooser", "PASS" if chooser else "FAIL", opened=chooser,
+               chooser_title=STYLE_CHOOSER_TITLE)
         future = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x"}]},
                   {"type": "widgetEmbed", "attrs": {"v": 1, "widgetId": "walkFutureBlock", "params": {"a": 1},
                    "searchText": "[future block]"}}]}
@@ -2754,17 +2769,39 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             lines_ok = all(C.vis_loc(group.get_by_text(t, exact=True), 10000) for t in want.get("lines") or [])
             # No regime shown: houseSize sizes nothing (its own "regime" answer), so this half is INFO, never a PASS.
             sized = None if want.get("code") == "regime" else (lines_ok and bool(want.get("lines")))
+            # Final fix (A3): master 9449b525d9 (2026-10-23, after the 10/13 green record) made a SAVED account size the
+            # member's own whatever its value (the settings payload's `accountSizeIsDefault`; "typing exactly the
+            # 100,000 default now counts as theirs"). So putting this member's size back to 100,000 no longer means "not
+            # set": the block rightly sizes against it (recorded below as `put_back_is_default`). The "not set" half is
+            # what a member who never saved a size sees: a fresh member's untouched account.
             back_status = account_size(placeholder)
-            C.goto(pg, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")    # the block reads the size live
-            asks = C.vis_loc(group.get_by_text("Set your account size in Settings.", exact=True), 15000)
-            share_lists = group.get_by_role("list", name="Position size").count()
-            placeholder_ok = asks and share_lists == 0
+            put_back_is_default = M.get(base + f"/api/j2/accounts/{acct_id}/settings").json().get("accountSizeIsDefault")
+            cU, emailU, _meU = C.member(browser, admin.request, base, "c2unset", "1280")
+            asks, share_lists, unset_is_default = False, None, None
+            try:
+                lU = cU.request.get(base + "/api/j2/accounts").json()
+                aU = ((lU.get("accounts") if isinstance(lU, dict) else lU) or [{}])[0].get("id")
+                unset_is_default = cU.request.get(base + f"/api/j2/accounts/{aU}/settings").json().get("accountSizeIsDefault")
+                body = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Unset size"}]},
+                                                   block("positionSizing")]}
+                nU = cU.request.post(base + "/api/j2/notes", data={"title": "Position sizing, size never set", "bodyJson": body}).json()["note"]
+                pU = cU.new_page()
+                C.goto(pU, base, "/journal/notebook", wait="main")
+                pU.evaluate("([k, id]) => localStorage.setItem(k, id)", [SELECTED_ACCOUNT_KEY, aU])
+                C.goto(pU, base, f"/journal/notebook?note={nU['id']}", wait=".ProseMirror")
+                gU = pU.get_by_role("group", name="Position sizing", exact=True).first
+                asks = C.vis_loc(gU.get_by_text("Set your account size in Settings.", exact=True), 15000)
+                share_lists = gU.get_by_role("list", name="Position size").count()
+            finally:
+                cU.close()
+            placeholder_ok = asks and share_lists == 0 and unset_is_default is True
             verdict = ("FAIL" if not placeholder_ok or sized is False or not landed
                        else "INFO" if sized is None else "PASS")
             C.step(pg, inst, "blocks.sizing",
-                   "Position sizing at 50,000: the size line is houseSize's for the regime the block shows; at the placeholder it asks for a size",
+                   "Position sizing at 50,000: the size line is houseSize's for the regime the block shows; with the size never set it asks for one",
                    verdict, settings_put=set_status, saved=bool(landed), regime_shown=said, regime_word=word,
                    expected=want, size_lines_shown=lines_ok, placeholder=placeholder, placeholder_put=back_status,
+                   put_back_is_default=put_back_is_default, unset_member_is_default=unset_is_default,
                    asks_for_size=asks, share_lists=share_lists,
                    why=None if sized is not None else "no regime is held here, so houseSize sizes nothing; the placeholder half still ran")
 
@@ -2889,7 +2926,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 C.goto(p, base, f"/journal/notebook?note={n['id']}", wait=".ProseMirror")
                 groups = {g: C.vis_loc(p.get_by_role("group", name=g, exact=True), 15000) for g in seeded_groups}
                 stamp = C.vis_loc(p.locator('[data-widget-embed-view="marketcontext"]'), 15000)
-                needs = C.vis_loc(p.get_by_text("This block needs Journal styles, which is not on for you.", exact=True), 10000)
+                # Final fix (A3): master 97f373378c (2026-11-05, S7 one vocabulary) renamed the switch's word in this
+                # sentence ("Journal styles" -> "Templates"); built from the product's own files, never retyped.
+                needs = C.vis_loc(p.get_by_text(PRICE_STAMPS_NEEDS_SENTENCE, exact=True), 10000)
                 # A block that crashed still shows its group (BlockNodeView's boundary sits inside it), so the
                 # boundary's own sentence is counted too, once every group and the idle sentence are on screen.
                 crash_line = block_error_sentence()
@@ -2906,7 +2945,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 C.step(p, i, "blocks.switch-off-renders",
                        "Journal styles off: every seeded block (parts a and b) and the stamp still render, none crashed, Price stamps says why it is idle, no block is offered by slash",
                        "PASS" if ok else "FAIL", seeded=seeded_ids, groups=groups, crashed=crashed, unlabelled=unlabelled,
-                       unknown_nodes=unknown, stamp=stamp, needs_switch_sentence=needs, slash_menu=menu,
+                       unknown_nodes=unknown, stamp=stamp, needs_switch_sentence=needs, needs_sentence_read=PRICE_STAMPS_NEEDS_SENTENCE,
+                       slash_menu=menu,
                        block_items_offered=offered)
             finally:
                 c.close()
