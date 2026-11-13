@@ -389,5 +389,7 @@ Existing tests changed, and why (all follow the new words; none weakened):
 - `TodayHome.test.jsx`: A1 (the line now starts with the greeting).
 - `NotebookTab.landing.test.jsx`, `a11y/deleteFocusFallback.test.jsx`: on the Daily brief there are now two h2s named "Daily brief" (the pane's visually hidden focus-landing heading, and the Today home's visible one), so these find the one they mean.
 
+First-open bytes after the build: 2,256,957 B of 2,260,793 B (PASS). The same build of the base `64e5fc4516` measures 2,256,855 B, so these renames cost 102 B (longer words); the "2,256,355 B at the start" figure predates the #1169 merge in the base.
+
 New tests: `components/MobileNav.test.jsx` (A7); the "+" row through the real NotebookTab in `NotebookTab.goLiveMenus.test.jsx` (A8); an A1 case with a member's name in `TodayHome.test.jsx`; the Support FAQ sentence in `Support.notebook.test.jsx` (A5); the rename status in `StylesManager.test.jsx` (A4).
 
