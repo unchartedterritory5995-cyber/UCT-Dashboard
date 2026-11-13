@@ -94,6 +94,47 @@ describe('C1/C2: the walkthrough anchors on the New menu, and the phone rows in 
     expect(document.querySelectorAll('[data-tour="review-drafts-daily"]')).toHaveLength(1)
   })
 
+  // Final fix M11: `data-tour` uniqueness at RUNTIME (tourAnchors.test.js reads the source; the two review anchors are
+  // written once and drawn by whichever menu is open). At each width, open "Draft a review" in the menu that width
+  // has, and each anchor is on the page exactly once -- also after a real press moves from one menu to the other.
+  describe('M11: each review anchor is on the page once, at 1280 and at 390', () => {
+    const realMatch = window.matchMedia
+    const realWidth = window.innerWidth
+    const atWidth = (w) => {
+      window.innerWidth = w
+      window.matchMedia = (q) => {
+        const max = /max-width:\s*(\d+)px/.exec(q)
+        const min = /min-width:\s*(\d+)px/.exec(q)
+        const matches = (!max || w <= Number(max[1])) && (!min || w >= Number(min[1]))
+        return { matches, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }
+      }
+    }
+    afterEach(() => { window.matchMedia = realMatch; window.innerWidth = realWidth })
+    const anchors = () => ['review-drafts-daily', 'review-drafts-weekly']
+      .map((a) => document.querySelectorAll(`[data-tour="${a}"]`).length)
+    const press = (el) => { fireEvent.pointerDown(el); fireEvent.click(el) }
+
+    it('1280: the New menu draws them once; a press on ⋯ closes it, and ⋯ draws them once', async () => {
+      atWidth(1280)
+      await renderTab()
+      expect(anchors()).toEqual([0, 0])
+      openReviews(openNew())
+      expect(anchors()).toEqual([1, 1])
+      press(within(bar()).getByRole('button', { name: 'More notebook actions' }))
+      expect(screen.queryByRole('menu', { name: 'Start a note' })).toBeNull()
+      openReviews(screen.getByRole('menu', { name: 'More notebook actions' }))
+      expect(anchors()).toEqual([1, 1])
+    })
+
+    it('390: ⋯ (the phone’s menu) draws them once', async () => {
+      atWidth(390)
+      await renderTab()
+      expect(anchors()).toEqual([0, 0])
+      openReviews(openMore())
+      expect(anchors()).toEqual([1, 1])
+    })
+  })
+
   it('⋯\'s "Draft a review" meets the shared second-view contract (Review focus 5)', async () => {
     await renderTab()
     await expectSecondView({
