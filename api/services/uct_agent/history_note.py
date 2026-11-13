@@ -6,8 +6,8 @@ agent-qa L6). Lives outside `marketdata/` for that reason.
 """
 from __future__ import annotations
 
-INDICATORS = ("gap_pct", "pct_from_sma", "rsi", "bb_pct_b", "macd_hist", "pct_from_high")
-NO_PERIOD = ("gap_pct", "macd_hist")
+INDICATORS = ("gap_pct", "pct_from_sma", "rsi", "bb_pct_b", "macd_hist", "pct_from_high", "day_pct")
+NO_PERIOD = ("gap_pct", "macd_hist", "day_pct")
 ALLOWED_SERIES_KINDS = ("technical",)
 DEFAULT_HORIZONS = (1, 5, 21)
 
@@ -30,6 +30,8 @@ def study_request(params: dict) -> dict:
         "entry": params.get("entry") or "event_close",
         "non_overlapping": False, "baseline": True,
         "start": params.get("since"), "end": None,
+        # Phase 2 history: "the last N times" — the most recent N events, chosen by date alone (event_study.MAX_LAST)
+        **({"last": params["last"]} if params.get("last") is not None else {}),
     }
 
 

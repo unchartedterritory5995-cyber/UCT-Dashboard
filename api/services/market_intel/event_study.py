@@ -50,6 +50,9 @@ MAX_HORIZONS = 6
 MAX_SESSIONS_HORIZON = 504          # ~2 years of trading sessions
 MAX_MONTHS_HORIZON = 24
 MAX_EVENTS_LISTED = 60
+#: `last`: keep only the most recent N events ("the last 5 times it fell 3%"), chosen by event DATE alone — never by
+#: an outcome — so the selection knows nothing after each event's own session
+MAX_LAST = 60
 SMALL_SAMPLE = 10
 DEADLINE_S = 5.0
 
@@ -168,6 +171,9 @@ def validate(req: Any, *, allowed_kinds: Optional[Iterable[str]] = None) -> tupl
     entry = req.get("entry", "event_close")
     if episodes not in EPISODES or entry not in ENTRIES:
         return None, _refused("bad_request", "episodes is first|all; entry is event_close|next_close.")
+    last = req.get("last")
+    if last is not None and (not isinstance(last, int) or isinstance(last, bool) or not 1 <= last <= MAX_LAST):
+        return None, _refused("bad_request", f"last is a whole number of events from 1 to {MAX_LAST}.")
     start, end = req.get("start"), req.get("end")
     if (start is not None and not _parse_date(start)) or (end is not None and not _parse_date(end)):
         return None, _refused("bad_date", "Study dates must be real calendar dates (YYYY-MM-DD).")
@@ -175,7 +181,8 @@ def validate(req: Any, *, allowed_kinds: Optional[Iterable[str]] = None) -> tupl
         return None, _refused("bad_date", "The study window ends before it starts.")
     return {"condition": conditions[0], "conditions": conditions, "symbol": sym, "horizons": horizons, "episodes": episodes, "entry": entry,
             "non_overlapping": bool(req.get("non_overlapping", False)), "baseline": bool(req.get("baseline", True)),
-            "start": _parse_date(start) if start else None, "end": _parse_date(end) if end else None}, None
+            "start": _parse_date(start) if start else None, "end": _parse_date(end) if end else None,
+            **({"last": last} if last is not None else {})}, None
 
 
 # ── calendar ─────────────────────────────────────────────────────────────────
@@ -422,6 +429,10 @@ def _study(req: dict) -> dict:
         if open_until is None or window_end > open_until:
             open_until = window_end
 
+    trimmed_to_last = 0
+    if req.get("last") and len(events) > req["last"]:
+        trimmed_to_last = len(events) - req["last"]
+        events = events[-req["last"]:]
     per_h, listed = [], []
     rows_by_h: list[list] = [[] for _ in req["horizons"]]
     inc = [0] * len(req["horizons"])
@@ -462,6 +473,9 @@ def _study(req: dict) -> dict:
                              "median": s.get("median")})
 
     notes = []
+    if req.get("last"):
+        notes.append(f"Only the most recent {req['last']} event(s) are studied ({trimmed_to_last} earlier one(s) left out); "
+                     f"the baseline still covers every session in the span.")
     jumps = [j for j in (ps.get("suspect_jumps") or []) if ws <= j]
     spanning = 0
     if jumps:
@@ -508,6 +522,7 @@ def _study(req: dict) -> dict:
                      "price_first": p_first, "price_last": p_last, "study_start": ws, "study_end": we,
                      "price_basis": ps.get("basis")},
         "counts": {**counts, "events_detected": len(raw), "events_used": len(events), **excluded,
+                   **({"events_before_last": trimmed_to_last} if req.get("last") else {}),
                    "overlapping_events": overlapping, "windows_spanning_suspect_jumps": spanning},
         "diagnostics": {"events_by_year": dict(sorted(by_year.items())),
                         "conditions": [{"label": c["series"]["label"], "alignment": sr["alignment"],
@@ -545,6 +560,7 @@ def request_note(raw: Any) -> str:
                          + ("" if c["threshold"] is None else f" {c['threshold']:g}") for c in ok["conditions"])
     wins = ", ".join(_hlabel(h) for h in ok["horizons"])
     span = f"; {ok['start'] or 'all history'} to {ok['end'] or 'latest'}" if (ok["start"] or ok["end"]) else ""
+    span += f"; the most recent {ok['last']} event(s) only" if ok.get("last") else ""
     return (f"event study: every time {conds}, {ok['symbol']} over {wins} "
             f"({'every qualifying session' if ok['episodes'] == 'all' else 'first session of each run'}, "
             f"entry {ok['entry'].replace('_', ' ')}{', non-overlapping' if ok['non_overlapping'] else ''}{span})")

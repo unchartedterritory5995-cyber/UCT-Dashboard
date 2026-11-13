@@ -77,6 +77,9 @@ _TECH = {
     # PKG2 (UCT Agent "after N-day breakouts"): the close vs the highest close of the N sessions BEFORE it, in %.
     # Above 0 = a new N-day closing high; `cross_above 0` = the session it broke out. Stored closes only.
     "pct_from_high": ("{sym} close vs its prior {n}-day closing high (%)", "percent_change", "signed", (5, 252)),
+    # Phase 2 history (UCT Agent "after it fell 3% in a day"): the session's close vs the previous stored close, in %.
+    # Known at that session's close; uses that close and the one before it only.
+    "day_pct": ("{sym} one-day change, close vs the previous close (%)", "percent_change", "signed", None),
 }
 
 
@@ -120,6 +123,15 @@ def _tech_load(spec: dict) -> dict:
     ps = _pr.daily_closes(spec["symbol"])
     if ps.get("status") != "ok":
         return ps
+    if spec["indicator"] == "day_pct":
+        c = ps["closes"]
+        rows = [(c[k][0], (c[k][1] / c[k - 1][1] - 1.0) * 100.0) for k in range(1, len(c))]
+        if not rows:
+            return {"status": "unavailable", "reason": "not_enough_history",
+                    "detail": f"{spec['symbol']} has too little stored history for a one-day change series."}
+        return {"status": "ok", "alignment": "session", "rows": rows, "max_staleness_days": None,
+                "coverage": {"first": rows[0][0], "last": rows[-1][0], "basis": ps.get("basis")},
+                "source": {"interface": "price_reads.daily_closes (read-only store); change = close / previous close - 1"}}
     dates = [d for d, _ in ps["closes"]]
     closes = [c for _, c in ps["closes"]]
     n = spec["period"]
