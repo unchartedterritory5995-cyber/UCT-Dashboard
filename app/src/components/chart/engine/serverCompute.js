@@ -608,6 +608,7 @@ export function clearServerColumns() {
   for (const t of _diskHeld.values()) clearTimeout(t)
   _diskHeld.clear()
   _everAsked = false
+  _tfHabit = null
   _inflight.clear()
   _asks.clear()
   _own.clear()
@@ -1105,13 +1106,65 @@ export const ASK_TTL_MS = 30 * 60_000
 export const ASK_MAX = 24
 const _asks = new Map()       // `${defId}|${tf}|${inputs}` -> { defId, tf, inputs, at }
 
+// ─── A TIMEFRAME THE MEMBER USES, BEFORE ITS FIRST PAINT OF THE PAGE LOAD ────
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13 (a daily chart with the RS suite, switched to
+// weekly and back): the FIRST switch to weekly drew its RS lines 1,150 ms after its
+// candles; every later switch, in the candles' frame. `liveAsks('W')` is empty
+// until a weekly chart has painted once, so nothing could be asked ahead for it.
+//
+// The daily, weekly and monthly charts of one board draw the same definitions with
+// the same inputs. So the lane remembers, in this browser, WHICH of those three
+// timeframes a member draws server columns on (`TF_HABIT_KEY`: a timeframe and
+// when, nothing else). `habitAsks(tf)` answers, for one it has seen within
+// `TF_HABIT_MS` and that nothing has painted at yet, with the asks the other two
+// are drawing now. The bars prefetch already announces a rested symbol's other
+// timeframes to the warmers; `serverWarm.js` asks this for that ONE symbol, so the
+// weekly columns are there before the first switch.
+//
+// ⛔ ONLY A HABIT, ONLY D/W/M, ONLY WHILE NOTHING REAL IS KNOWN. A member who never
+// opens a weekly chart is never asked for one. An intraday timeframe never borrows
+// (the lane answers "daily charts only" there) and is never remembered. The moment
+// a real ask is noted at the timeframe, `liveAsks` is the answer and this is empty.
+// `liveAsks` itself is untouched: a whole list is only ever warmed at a timeframe a
+// chart is really drawing.
+export const TF_HABIT_KEY = 'uct.rslane.tfs'
+/** A timeframe drawn within this long is one the member uses. */
+export const TF_HABIT_MS = 14 * 24 * 60 * 60_000
+/** The habit is written at most this often per timeframe (a paint notes an ask every time). */
+export const TF_HABIT_WRITE_MS = 60 * 60_000
+const DAILY_FAMILY = new Set(['D', 'W', 'M'])
+let _tfHabit = null           // { [tf]: last seen (ms) }, read once per page load
+
+function _habit() {
+  if (_tfHabit) return _tfHabit
+  _tfHabit = {}
+  try {
+    const raw = JSON.parse(localStorage.getItem(TF_HABIT_KEY) || '{}')
+    if (raw && typeof raw === 'object') {
+      for (const tf of DAILY_FAMILY) if (Number.isFinite(raw[tf])) _tfHabit[tf] = raw[tf]
+    }
+  } catch { /* no storage, or not ours: no habit */ }
+  return _tfHabit
+}
+
+function _noteTf(tf, now) {
+  if (!DAILY_FAMILY.has(tf)) return
+  const h = _habit()
+  if (now - (h[tf] || 0) < TF_HABIT_WRITE_MS) return
+  h[tf] = now
+  try { localStorage.setItem(TF_HABIT_KEY, JSON.stringify(h)) } catch { /* the habit lasts this page load only */ }
+}
+
 function _noteAsk(defId, tf, sent) {
   _everAsked = true
   const t = String(tf == null ? 'D' : tf)
   const k = `${defId}|${t}|${serverInputsParam(sent)}`
+  const now = Date.now()
   _asks.delete(k)
-  _asks.set(k, { defId, tf: t, inputs: sent, at: Date.now() })
+  _asks.set(k, { defId, tf: t, inputs: sent, at: now })
   if (_asks.size > ASK_MAX) _asks.delete(_asks.keys().next().value)
+  _noteTf(t, now)
 }
 
 /**
@@ -1128,6 +1181,27 @@ export function liveAsks(tf, now = Date.now()) {
     if (a.tf === want) out.push({ defId: a.defId, inputs: a.inputs })
   }
   return out
+}
+
+/**
+ * For a timeframe nothing has painted at in this page load, but which this member
+ * uses: the asks its board's OTHER daily-family charts are drawing now (one per
+ * definition and inputs). Empty for any other timeframe, for a member without the
+ * habit, and as soon as a real ask is known (then `liveAsks` answers).
+ *
+ * @returns {Array<{defId: string, inputs: object|null|undefined}>}
+ */
+export function habitAsks(tf, now = Date.now()) {
+  const want = String(tf == null ? 'D' : tf)
+  const seen = _habit()[want]              // (only D, W and M are ever kept: `_habit`)
+  if (seen === undefined || now - seen > TF_HABIT_MS || seen > now) return []
+  const borrowed = new Map()
+  for (const a of _asks.values()) {
+    if (now - a.at > ASK_TTL_MS) continue
+    if (a.tf === want) return []                         // a real ask: nothing is borrowed
+    if (DAILY_FAMILY.has(a.tf)) borrowed.set(`${a.defId}|${serverInputsParam(a.inputs)}`, { defId: a.defId, inputs: a.inputs })
+  }
+  return [...borrowed.values()]
 }
 
 /**
