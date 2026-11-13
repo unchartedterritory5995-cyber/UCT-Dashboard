@@ -1,20 +1,13 @@
 import useSWR from 'swr'
-
-const postFetcher = ([url, tickers]) =>
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tickers }),
-  }).then(r => r.ok ? r.json() : {})
+import { watchlistPerformanceKey, watchlistPerformanceFetcher } from './watchlistPerformanceKey'
 
 export default function useWatchlistPerformance(tickers = []) {
-  const sorted = [...new Set(tickers)].sort()
-  const key = sorted.length ? ['/api/watchlist-performance', sorted] : null
+  const key = watchlistPerformanceKey(tickers)
 
-  const { data, error } = useSWR(key, postFetcher, {
+  const { data, error } = useSWR(key, watchlistPerformanceFetcher, {
     refreshInterval: 5 * 60 * 1000,
     dedupingInterval: 60 * 1000,
   })
 
-  return { perfData: data || {}, isLoading: !data && !error && !!sorted.length }
+  return { perfData: data || {}, isLoading: !data && !error && !!key }
 }

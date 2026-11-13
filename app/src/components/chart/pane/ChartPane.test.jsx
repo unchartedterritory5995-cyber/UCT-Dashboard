@@ -126,7 +126,8 @@ test('a pane showing the info row holds the snapshot for the rows ahead; compact
   const { symbolResourceWarmStats, __resetSymbolResourceWarm } = await import('../../../lib/symbolResourceWarm')
   __resetSymbolResourceWarm({ painted: true })
   const full = render(<ChartPane sym="NVDA" tf="D" onSymbolChange={() => {}} onTfChange={() => {}} />)
-  expect(symbolResourceWarmStats().resources).toBe(1)
+  // the snapshot, and the delisted check every real ticker's header makes
+  expect(symbolResourceWarmStats().resources).toBe(2)
   full.unmount()
   expect(symbolResourceWarmStats().resources, 'released with the pane').toBe(0)
   const compact = render(<ChartPane sym="NVDA" tf="D" density="compact" onTfChange={() => {}} />)
@@ -367,4 +368,52 @@ test('PANE_LOOK is exactly the reference look', () => {
     priceScaleBottomMargin: 0.10,
   })
   expect(Object.isFrozen(PANE_LOOK)).toBe(true)
+})
+
+// ⭐ 2026-11-13. An OPTIONAL info-row field is its own small request (measured on production:
+// 0.3 to 0.85 s each at the median, the field reading "—" until then). While a header shows the
+// field, the read behind it is held for the rows ahead; a field that is not shown holds nothing.
+test('each optional info-row field holds exactly the read behind it; a header without it holds none', async () => {
+  const { symbolResourceWarmStats, warmSymbolResources, __resetSymbolResourceWarm } = await import('../../../lib/symbolResourceWarm')
+  const asked = []
+  vi.stubGlobal('fetch', vi.fn(async (url, init) => {
+    asked.push([String(url), init && init.body ? JSON.parse(init.body) : null])
+    return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({}) }
+  }))
+  try {
+    const held = (fields, ahead = 'AAPL') => {
+      __resetSymbolResourceWarm({ painted: true })
+      const view = render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} stored={{ header: { fields } }} onStore={vi.fn()} />)
+      asked.length = 0
+      const queued = warmSymbolResources([ahead], 'D', { priority: true })
+      const n = symbolResourceWarmStats().resources
+      view.unmount()
+      return { n, queued }
+    }
+    const BASE = 2                                        // the snapshot and the delisted check
+    expect(held(['mcap', 'earn', 'rating']).n, 'the default header').toBe(BASE)
+    expect(held(['mcap', 'perf5d']).n, 'an N-day change: the performance read').toBe(BASE + 1)
+    expect(held(['mcap', 'perf5d', 'perf30d', 'perf90d']).n, 'three of them are still one read').toBe(BASE + 1)
+    expect(held(['theme']).n, 'theme').toBe(BASE + 1)
+    expect(held(['ipoDate']).n, 'IPO date: the per-symbol meta').toBe(BASE + 1)
+    expect(held(['rvol']).n, 'relative volume: the meta and the volume curve').toBe(BASE + 2)
+    const all = held(['mcap', 'perf5d', 'theme', 'rvol', 'ipoDate'], 'MSFT')   // a row nothing above asked for
+    expect(all.n).toBe(BASE + 4)
+    expect(all.queued, 'and every one of them is asked for, for the row ahead').toBe(all.n)
+    // ...under the keys the hooks themselves use for one symbol
+    await new Promise((r) => setTimeout(r, 30))
+    const urls = asked.map(([u]) => u)
+    expect(urls.some((u) => /MSFT/.test(u)), 'the row ahead was asked for').toBe(true)
+    for (const u of ['/api/watchlist-performance', '/api/watchlists/themes-batch', '/api/research/snapshot-batch']) {
+      const hit = asked.find(([url]) => url === u)
+      // (the queue lets three out at a time: the rest follow, which the library's own suite covers)
+      if (hit) expect(hit[1]).toEqual({ tickers: ['MSFT'] })
+    }
+    // a pane that cannot show the row holds none of them, whatever its settings say
+    __resetSymbolResourceWarm({ painted: true })
+    render(<ChartPane sym="NVDA" tf="D" density="compact" onTfChange={() => {}} stored={{ header: { fields: ['perf5d', 'theme', 'rvol'] } }} onStore={vi.fn()} />)
+    expect(symbolResourceWarmStats().resources).toBe(0)
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })
