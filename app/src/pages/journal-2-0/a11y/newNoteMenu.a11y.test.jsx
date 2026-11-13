@@ -1,21 +1,19 @@
 // @vitest-environment jsdom
 // app/src/pages/journal-2-0/a11y/newNoteMenu.a11y.test.jsx
 //
-// P0.1's "New note" split button on Research Home (components/notebook/NewNoteMenu.jsx)
-// through 8A's axe harness. It arrived with no entry in a11y/notebookSurfaces.js, so
-// `surfaceCoverage.test.js` failed by name. It gets a recipe of its own: Research Home's rail
-// renders it only closed, and the interesting surface is the OPEN menu (role="menu" with its
-// menuitem rows), so both states are read here, with every optional door present.
-import { describe, it, expect, vi } from 'vitest'
+// The Notebook's menu engine (components/notebook/NewNoteMenu.jsx: `useMenuButton` + `MenuRows`) through 8A's axe
+// harness. It began as P0.1's "New note" split button on Research Home; go-live wave 1 deleted that button with
+// Research home, so the recipe now reads the engine as the notes list renders it ("+ New" and its ▾ inside the
+// list toolbar), closed and open, with every optional door present.
+import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axeSurface } from './surface'
 import { expectNoAxeViolations } from './axeHarness'
-import NewNoteMenu, { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
+import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
 
-// S11 (audit 2026-11-05): the notes list's caret (NewNoteCaret) was retired into the list toolbar's own
-// "+ New ▾", which runs the SAME engine (`useMenuButton` + `MenuRows`). This is that toolbar form, built
-// the way NotebookTab builds it, so axe and the keyboard read the engine the list actually renders.
+// S11 (audit 2026-11-05): the list toolbar's "+ New ▾", built the way NotebookTab builds it, so axe and the keyboard
+// read the engine the list actually renders (a named group included: the New menu's "Reviews").
 function ListNewMenu({ items }) {
   const menu = useMenuButton()
   return (
@@ -30,49 +28,41 @@ const LIST_ITEMS = [
   { key: 'template', label: 'From a template', run: () => {} },
   { key: 'voice', label: 'Voice note', run: () => {} },
   { key: 'import', label: 'Import', run: () => {} },
+  {
+    key: 'reviews', group: 'Reviews', heading: true,
+    items: [{ key: 'daily', label: "Today's recap", run: () => {} }, { key: 'weekly', label: "This week's review", run: () => {} }],
+  },
 ]
 
 function mount() {
   return render(
     <main>
-      <NewNoteMenu onBlank={vi.fn()} onFromOutline={vi.fn()} onVoice={vi.fn()} onToday={vi.fn()} />
+      <div role="toolbar" aria-label="Notes list tools">
+        <button type="button" className="btn btn-primary btn-sm">+ New</button>
+        <ListNewMenu items={LIST_ITEMS} />
+      </div>
     </main>,
   )
 }
 
-describe('Research Home\'s New note split button', () => {
+describe('the list\'s New menu (the menu engine)', () => {
   axeSurface('new-note-menu', async () => {
     const { container } = mount()
-    // Non-vacuity: both buttons are there, and the menu is closed.
-    if (!screen.getByRole('button', { name: /New note/ })) throw new Error('no New note button')
+    // Non-vacuity: the trigger is there, and the menu is closed.
     const caret = screen.getByRole('button', { name: 'More ways to start a note' })
     if (caret.getAttribute('aria-expanded') !== 'false') throw new Error('the menu started open')
     return { root: container }
   })
 
+  // Fix round 1 (review M5): the menu OPEN, inside a role="toolbar" as NotebookTab renders it.
   it('the open menu: axe finds 0 violations', async () => {
     const { container } = mount()
     fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
-    const items = within(screen.getByRole('menu', { name: 'Start a note' })).getAllByRole('menuitem')
-    expect(items.map((b) => b.textContent.trim())).toEqual(['From an outline', 'Voice note', "Today's note"])
-    await expectNoAxeViolations(container, { level: 'component' })
-  }, 30000)
-
-  // Fix round 1 (review M5): the notes list's form, with the menu OPEN, inside a role="toolbar" as
-  // NotebookTab renders it (S11: "+ New" and its ▾).
-  it('the list form ("+ New" ▾) with the menu open: axe finds 0 violations', async () => {
-    const { container } = render(
-      <main>
-        <div role="toolbar" aria-label="Notes list tools">
-          <button type="button" className="btn btn-primary btn-sm">+ New</button>
-          <ListNewMenu items={LIST_ITEMS} />
-        </div>
-      </main>,
-    )
-    expect(screen.queryByRole('button', { name: /^New note$/ })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
-    const items = within(screen.getByRole('menu', { name: 'Start a note' })).getAllByRole('menuitem')
-    expect(items.map((b) => b.textContent.trim())).toEqual(['Blank', 'From a template', 'Voice note', 'Import'])
+    const menu = screen.getByRole('menu', { name: 'Start a note' })
+    const items = within(menu).getAllByRole('menuitem')
+    expect(items.map((b) => b.textContent.trim()))
+      .toEqual(['Blank', 'From a template', 'Voice note', 'Import', "Today's recap", "This week's review"])
+    expect(within(menu).getByRole('group', { name: 'Reviews' })).toBeTruthy()
     await expectNoAxeViolations(container, { level: 'component' })
   }, 30000)
 
@@ -96,7 +86,7 @@ describe('Research Home\'s New note split button', () => {
     expect(document.activeElement).toBe(again[again.length - 1])
   }, 30000)
 
-  it('keyboard: Tab out of the open menu closes it (the list form)', async () => {
+  it('keyboard: Tab out of the open menu closes it', async () => {
     const user = userEvent.setup()
     render(
       <main>

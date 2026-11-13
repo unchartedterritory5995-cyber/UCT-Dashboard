@@ -40,8 +40,6 @@ vi.mock('../reviewDrafts', () => ({
   draftWeeklyReview: vi.fn(), draftMonthlyReview: vi.fn(),
   mondayOfIso: () => '2026-11-02', todayDayIso: () => '2026-11-05', thisMonthIso: () => '2026-11',
 }))
-// The account picker the reviews box reads.
-vi.mock('../../hooks/useJ2SelectedAccount', () => ({ default: () => ({ accountId: null }) }))
 
 function Views() {
   const { total } = useJ2Notes({})
@@ -101,9 +99,11 @@ describe('isNoteViewKey', () => {
 })
 
 describe('the counts and the lists agree after every door (S6)', () => {
-  it("a recap made from Home's reviews box shows in the list total and the Daily count at once", async () => {
-    const { ReviewDraftsHomeBox } = await import('../../components/notebook/ResearchHome')
-    mount(<ReviewDraftsHomeBox onOpenNote={() => {}} />)
+  // Go-live wave 1: Research home's reviews box is gone; the New menu's "Today's recap" runs the same one door,
+  // lib/reviewDraftRun.js `draftReview`, which is what invalidates the views. Driven here through that door.
+  it("a recap made from the New menu's Reviews shows in the list total and the Daily count at once", async () => {
+    const { draftReview } = await import('../reviewDraftRun')
+    mount(<button type="button" onClick={() => draftReview('daily', { onOpenNote: () => {} })}>Today&apos;s recap</button>)
     await waitFor(() => expect(read('list-total')).toBe('2'))
     expect(read('daily')).toBe('1')
     fireEvent.click(screen.getByRole('button', { name: "Today's recap" }))

@@ -647,13 +647,13 @@ export const GUIDE_FEATURES = [
     doIt: { say: 'Tell me the ticker — for example “when does NVDA report?” — and I’ll look it up.' },
   },
   {
-    id: 'journalNewNote', surface: 'journal', terms: ['new note', 'notes', 'notebook note'], control: 'the + New note button', title: 'Writing a new note', topic: 'journal',
+    id: 'journalNewNote', surface: 'journal', terms: ['new note', 'notes', 'notebook note'], control: 'the + New button', title: 'Writing a new note', topic: 'journal',
     words: [/\b(new|add|create|write|make|start)\b.*\bnotes?\b/, /\bnotes?\b/],
     caps: ['journal.createNote'],
-    // pages/journal-2-0/tabs/NotebookTab.jsx (+ New note) · components/notebook/NewNoteMenu.jsx (Home's New note)
-    explain: '+ New note starts a blank note in your Notebook; the arrow beside it starts one from an outline or a template. Notes save as you type.',
+    // pages/journal-2-0/tabs/NotebookTab.jsx (the notes list's + New, data-guide="journal.newNote")
+    explain: '+ New starts a blank note in your Notebook; the arrow beside it has the other ways to start one: from a template, a voice note or an import. Notes save as you type.',
     steps: [
-      { target: 'journal.newNote', text: 'Click + New note to start a blank note — it saves as you type.' },
+      { target: 'journal.newNote', text: 'Click + New to start a blank note. It saves as you type.' },
     ],
     doIt: { say: 'Tell me what it should say — for example “add a note: NVDA held its 21-day on earnings” — and I’ll add it (Undo moves it to Trash).' },
   },

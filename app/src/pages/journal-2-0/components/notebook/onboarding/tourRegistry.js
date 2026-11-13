@@ -184,16 +184,16 @@ export function startPath(entryOrId, registry = TOUR_REGISTRY) {
 
 
 
-/** Tours whose FIRST anchor exists only once the member has a note. The voice tour opens on the
- *  "New note" control Research Home draws only when the member has notes (ResearchHome.jsx,
- *  homeTop), so for a member with none it can never open. Two things read this, from here:
- *    * Learn hides these tours while the member is known to have no notes (learnTours.js);
- *    * every OTHER door (Help > Walkthroughs, What's new, the offer) still starts them, so the
- *      engine checks before it waits (tourStart.js `resolveStart`): with no note it shows one
- *      card that says to make a note first and goes to the Notebook, instead of waiting for an
- *      anchor that cannot appear and failing with "start it again" (D, polish round).
+/** Tours whose FIRST anchor exists only once the member has a note. Every door (Help > Walkthroughs, What's new,
+ *  the offer) still starts them, so the engine checks before it waits (tourStart.js `resolveStart`): with no note it
+ *  shows one card that says to make a note first and goes to the Notebook, instead of waiting for an anchor that
+ *  cannot appear and failing with "start it again" (D, polish round).
+ *  EMPTY since go-live wave 1, fix round 1: the voice tour, its one entry, was written for Research Home's "New note"
+ *  control (drawn only with notes); it now starts on the notes list, whose New menu arrow and "Voice note" row (and,
+ *  on a phone, the More menu and its "Voice note" row) are drawn with zero notes too, so every step is reachable
+ *  without a note. The mechanism stays for the next tour that needs one (its rails use a probe id).
  *  (The registry's `requires` is a list of FLAG keys, which cannot say "has a note".) */
-export const NEEDS_NOTES = Object.freeze(['voice-notes'])
+export const NEEDS_NOTES = Object.freeze([])
 
 /** Every tour Help should offer a Replay button for, in registry order. */
 export function replayableTours(registry = TOUR_REGISTRY) {
@@ -217,8 +217,8 @@ export const OTHER_TOURS = Object.freeze(TOUR_REGISTRY.filter((t) => t.id !== BA
 
 /** THE one answer to "may this tour reach the member right now?" (W14-C1, controller ruling).
  *  Every door asks it: the offer and What's new (tourEligibility.js), Help > Walkthroughs
- *  (Support.jsx), Research Home's Learn menu (learnTours.js), the checklist's one tour step
- *  (gettingStarted.js) and every open, Help's, the offer's, the Learn menu's, the checklist's
+ *  (Support.jsx), the checklist's one tour step
+ *  (gettingStarted.js) and every open, Help's, the offer's, the checklist's
  *  and the resurfacing explainer's alike (RegistryToursGate.jsx).
  *    * the base tour (wave 8) answers exactly as before: its own flag, nothing else;
  *    * every other tour needs its own capability flag, every flag in its optional

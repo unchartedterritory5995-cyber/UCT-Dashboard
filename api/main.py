@@ -4687,6 +4687,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] anyio thread-pool tuning failed (non-fatal): {e}")
 
+    # ⚡ The GIL switch interval (2026-11-12). A row-by-row sqlite read is one GIL
+    # hand-off per row, and each waited up to 5 ms behind any busy background thread:
+    # 852 rows took 1.7 ms alone and ~1,600 ms beside one busy thread (measured), which
+    # is what `Server-Timing: rs-bars` showed on every cold RS ask. See the module.
+    try:
+        from api.services import gil_tuning
+        _gil = gil_tuning.apply()
+        print(f"[startup] thread switch interval {_gil['ms']:.2f} ms "
+              f"(was {_gil['was_ms']:.2f} ms; {gil_tuning.ENV}={_gil['raw']!r}; "
+              f"{'applied' if _gil['applied'] else 'REFUSED, left as it was'})")
+    except Exception as e:
+        print(f"[startup] thread switch interval tuning failed (non-fatal): {e}")
+
     # Self-logging burst capture (2026-06-09/10 thread-exhaustion incident).
     try:
         _start_thread_burst_watch()

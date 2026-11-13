@@ -18,6 +18,7 @@ wrong once in this repo:
   TTL cache in front, N requests = N provider builds.
 """
 import inspect
+import json
 import logging
 import time
 from datetime import date, timedelta
@@ -142,8 +143,8 @@ def test_a_free_user_is_refused_on_EVERY_route_DERIVED_FROM_THE_ROUTER(client, m
         assert r.status_code == 402, f"{route.path} -> {r.status_code}"
         assert r.json()["detail"] == "UCT Signature indicators require a paid plan"
         seen += 1
-    # 8 since 2026-11-12: `/rs-themes`, the RS "Pick a theme" list.
-    assert seen == 8, f"the router mounts {seen} routes — re-read this rail"
+    # 9 since 2026-11-12: `/rs-themes`, the RS "Pick a theme" list (8 before it).
+    assert seen == 9, f"the router mounts {seen} routes — re-read this rail"
 
 
 def test_every_route_declares_its_OWN_require_paid_dependency(client):
@@ -1428,6 +1429,131 @@ def test_an_unknown_definition_is_a_404_and_a_bad_enum_is_a_422(client):
     assert r.status_code == 422, r.text
     assert "enum" in r.json()["detail"]
     assert c.get("/api/signature/columns?defId=rsLine&sym=NVDA&inputs=notjson").status_code == 422
+
+
+# ── /columns-batch: every definition a chart draws for one symbol, one request ──
+
+def _batch(c, sym, asks, tf="D"):
+    return c.get("/api/signature/columns-batch",
+                 params={"sym": sym, "tf": tf, "asks": json.dumps(asks)})
+
+
+def _rs_bars(monkeypatch, calls=None):
+    bars_by_sym = {
+        "NVDA": [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 100.0, "v": 1},
+                 {"t": 2, "o": 1, "h": 1, "l": 1, "c": 110.0, "v": 1}],
+        "SPY": [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 400.0, "v": 1},
+                {"t": 2, "o": 1, "h": 1, "l": 1, "c": 440.0, "v": 1}],
+        "QQQ": [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 200.0, "v": 1},
+                {"t": 2, "o": 1, "h": 1, "l": 1, "c": 220.0, "v": 1}],
+    }
+
+    def fetch(sym, tf, count=400):
+        if calls is not None:
+            calls.append(sym.upper())
+        return bars_by_sym.get(sym.upper(), [])
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", fetch)
+
+
+def test_the_batch_answers_each_ask_with_the_envelope_the_single_route_returns(client, monkeypatch):
+    """⛔ ONE ANSWER PER ASK, WHICHEVER ROUTE CARRIES IT. The chart draws what
+    arrives; a batch whose envelope differed from `/columns` in one field would
+    draw a different chart depending on whether the symbol was prefetched."""
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    _rs_bars(monkeypatch)
+    monkeypatch.setattr(sig, "_serve_dpl",
+                        lambda s: {"sym": s, "levels": [{"price": 1.0}], "version": "dpl-v1"})
+    c = TestClient(client)
+    asks = [{"defId": "rsLine", "inputs": {}},
+            {"defId": "rsLine", "inputs": {"benchmark": "QQQ"}},
+            {"defId": "uct-darkpool-levels"}]
+    r = _batch(c, "nvda", asks)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["sym"] == "NVDA" and body["tf"] == "D"
+    assert [x["status"] for x in body["results"]] == [200, 200, 200]
+
+    def bare(envelope):
+        return {k: v for k, v in envelope.items() if k != "asOf"}
+
+    singles = [
+        c.get("/api/signature/columns?defId=rsLine&sym=NVDA&tf=D").json(),
+        c.get('/api/signature/columns?defId=rsLine&sym=NVDA&tf=D&inputs={"benchmark":"QQQ"}').json(),
+        c.get("/api/signature/columns?defId=uct-darkpool-levels&sym=NVDA&tf=D").json(),
+    ]
+    for got, single in zip(body["results"], singles):
+        assert bare(got["envelope"]) == bare(single)
+    # …and the two rsLine asks really are two different answers (non-vacuity:
+    # equal envelopes for SPY and QQQ would pass the loop above with one ask copied).
+    spy, qqq = (x["envelope"]["columns"]["rsLine"] for x in body["results"][:2])
+    assert spy == [0.25, 0.25] and qqq == [0.5, 0.5]
+
+
+def test_a_refused_ask_keeps_its_own_status_and_does_not_fail_its_neighbours(client, monkeypatch):
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    _rs_bars(monkeypatch)
+    c = TestClient(client)
+    r = _batch(c, "NVDA", [
+        {"defId": "nope"},                                    # 404 on /columns
+        {"defId": "rsLine", "inputs": {"benchmark": "TSLA"}},  # 422 on /columns
+        {"defId": "rsLine", "inputs": "notanobject"},          # 422 on /columns
+        {"inputs": {}},                                       # no definition named
+        {"defId": "rsLine"},
+    ])
+    assert r.status_code == 200, r.text
+    res = r.json()["results"]
+    assert [x["status"] for x in res] == [404, 422, 422, 422, 200]
+    assert "enum" in res[1]["detail"]
+    assert res[4]["envelope"]["columns"]["rsLine"] == [0.25, 0.25]
+    # the refusals are the single route's own sentences, not a paraphrase
+    assert res[0]["detail"] == c.get("/api/signature/columns?defId=nope&sym=NVDA").json()["detail"]
+    assert res[1]["detail"] == c.get(
+        '/api/signature/columns?defId=rsLine&sym=NVDA&inputs={"benchmark":"TSLA"}').json()["detail"]
+
+
+def test_the_batch_is_bounded_and_refuses_what_is_not_a_list_of_asks(client, monkeypatch):
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    _rs_bars(monkeypatch)
+    c = TestClient(client)
+    one = {"defId": "rsLine"}
+    assert _batch(c, "NVDA", [one] * sig.COLUMNS_BATCH_MAX_ASKS).status_code == 200
+    over = _batch(c, "NVDA", [one] * (sig.COLUMNS_BATCH_MAX_ASKS + 1))
+    assert over.status_code == 422 and str(sig.COLUMNS_BATCH_MAX_ASKS) in over.json()["detail"]
+    assert _batch(c, "NVDA", []).status_code == 422
+    assert _batch(c, "NVDA", {"defId": "rsLine"}).status_code == 422
+    assert c.get("/api/signature/columns-batch?sym=NVDA&asks=notjson").status_code == 422
+    assert c.get("/api/signature/columns-batch?sym=NVDA").status_code == 422
+    assert c.get("/api/signature/columns-batch?sym=..%2Fetc&asks=%5B%5D").status_code == 422
+
+
+def test_one_batch_reads_a_symbols_bars_once_however_many_asks_share_them(client, monkeypatch):
+    """The point of the route: N definitions over one symbol cost ONE read of it.
+    The same ask repeated is a cache hit after the first, so the stock is read
+    once and the benchmark once, where N single requests on a cold cache each
+    read both (the control below)."""
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    calls = []
+    _rs_bars(monkeypatch, calls)
+    c = TestClient(client)
+    assert _batch(c, "NVDA", [{"defId": "rsLine"}] * 4).status_code == 200
+    assert sorted(calls) == ["NVDA", "SPY"], calls
+    # control: with the envelope cache emptied between asks, every ask reads both
+    del calls[:]
+    for _ in range(2):
+        sig.cache.delete_prefix("sig:")
+        assert c.get("/api/signature/columns?defId=rsLine&sym=NVDA&tf=D").status_code == 200
+    assert sorted(calls) == ["NVDA", "NVDA", "SPY", "SPY"], calls
+
+
+def test_the_batch_carries_the_rs_providers_timing_summed_over_its_asks(client, monkeypatch):
+    client.dependency_overrides[get_current_user_with_plan] = _paid_user
+    _rs_bars(monkeypatch)
+    c = TestClient(client)
+    r = _batch(c, "NVDA", [{"defId": "rsLine"}, {"defId": "rsLine", "inputs": {"benchmark": "QQQ"}}])
+    st = r.headers.get("server-timing", "")
+    assert 'rs;desc="cold"' in st and "rs-bars;dur=" in st and "rs-asks;dur=2" in st, st
+    again = _batch(c, "NVDA", [{"defId": "rsLine"}])
+    assert 'rs;desc="cache"' in again.headers.get("server-timing", "")
 
 
 def test_the_definitions_route_publishes_the_lane(client):

@@ -27,9 +27,9 @@ import { BASE_TOUR_ID, getTourEntry, startState } from './tourRegistry'
 import { TOURS_PREF } from './tourSeenState'
 
 // As shipped in wave 8 and still on the clean base b06ec4fd85 (plan 3.2: "It is
-// 8 steps, not 3").
+// 8 steps, not 3"), less ONE: go-live wave 1 removed the `first-run` step (its anchor was on Research Home's first-run
+// screen, deleted with Research Home). The other seven are unchanged, in order.
 const SHIPPED = [
-  ['first-run', 'first-run', 'components/notebook/ResearchHome.jsx'],
   ['sidebar', 'sidebar', 'components/notebook/FolderSidebar.jsx'],
   ['search', 'search', 'components/notebook/FolderSidebar.jsx'],
   ['new-note', 'new-note', 'tabs/NotebookTab.jsx'],
@@ -39,7 +39,7 @@ const SHIPPED = [
   ['export', 'note-export', 'components/notebook/NoteEditorPage.jsx'],
 ]
 
-describe('the base tour is the eight steps wave 8 shipped', () => {
+describe('the base tour is the steps wave 8 shipped, less the retired first-run step', () => {
   it('same steps, same order, same anchors, same files', () => {
     expect(TOUR_STEPS.map((s) => [s.id, s.anchor, s.file])).toEqual(SHIPPED)
   })

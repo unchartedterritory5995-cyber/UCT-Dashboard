@@ -12,6 +12,11 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
   padding: 10px;
+  /* Preview fix round 1: its own width. An absolute box with `left` set and `width: auto` shrinks to fit the width
+     of its containing block -- its anchor, a ~30 px button -- so the wrapping swatch rows collapsed to one swatch per
+     row and "Text color" broke onto two lines when the picker hung from "Aa". `max-content` is its widest row (the
+     seven swatches of a group) whatever it hangs from. */
+  width: max-content;
 }
 .menu {
   display: flex;

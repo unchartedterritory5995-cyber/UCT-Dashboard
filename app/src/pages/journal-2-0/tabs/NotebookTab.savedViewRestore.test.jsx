@@ -23,6 +23,11 @@ import { SWRConfig } from 'swr'
  * object, so it proves the restore branch and nothing about the row a member
  * clicks or the list the server serves.
  *
+ * ⭐ Notebook simplify, Task 2 (2026-11-11): the saved views left the folders panel for the
+ * notes list's View menu ("Saved views" group), so the door a member uses is now that menu's
+ * row, named by the view alone (a menuitemradio; Rename and Delete are sibling items). The rail
+ * presses that real row; everything else below is unchanged.
+ *
  * This rail keeps `FolderSidebar` REAL. Saved views live in a small fake of
  * `/api/j2/saved-views` (POST stores, GET lists), every mount gets a FRESH SWR
  * cache (a reload), and the row is found by its visible title. The modes come
@@ -48,12 +53,11 @@ vi.mock('../components/notebook/NotesTableView', () => ({ default: () => <p>Stan
 vi.mock('../components/notebook/NoteEditorPage', () => ({ default: () => <div data-testid="note-editor" /> }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 
 import NotebookTab from './NotebookTab'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
-import { chooseView, currentView, offersSaveView, pressSaveView } from './__tests__/toolbarDoors'
+import { chooseSavedView, chooseView, currentView, offersSaveView, pressSaveView } from './__tests__/toolbarDoors'
 
 let store // the fake server's saved views
 beforeEach(() => {
@@ -85,14 +89,12 @@ const pressed = (mode) => String(currentView() === VIEW_MODES.find((m) => m.id =
 const STAND_IN = { timeline: 'timeline', calendar: 'calendar', board: 'board', graph: 'graph', table: 'table' }
 
 async function reopenSavedView(name) {
-  // By its visible title: the row's accessible name also carries its
-  // Rename/Delete labels, so an exact-name locator finds nothing (the walk's miss).
-  const row = await screen.findByTitle(name)
-  fireEvent.click(row)
+  // Task 2: the View menu's "Saved views" row, by the view's name (the row's name is the view alone).
+  await chooseSavedView(name)
 }
 
-describe('R5-2 — a saved view reopens in the mode it was saved in, through the real sidebar row', () => {
-  it('save a TIMELINE view, reload, reopen it from the sidebar: the timeline is pressed and drawn', async () => {
+describe('R5-2 — a saved view reopens in the mode it was saved in, through the real View menu row', () => {
+  it('save a TIMELINE view, reload, reopen it from the View menu: the timeline is pressed and drawn', async () => {
     openNotebook()
     chooseView('Timeline')
     expect(pressed('timeline')).toBe('true')

@@ -1,22 +1,7 @@
-/* Research Home's New note control (P0.1): a split button, the main half makes a blank note and
-   the caret lists the other doors. Tokens are the ones the sibling Learn menu uses (an undefined
-   var() is a silent no-op, styles/tokens.reachable.test.js). The touch tier is <=1024px (phone
-   AND tablet): every control gets the 44px floor there. */
-.split {
-  position: relative;
-  display: inline-flex;
-  flex-shrink: 0;
-}
-.main {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-.caret {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  padding-inline: 8px;
-  border-left: 1px solid var(--bg);
-}
+/* The Notebook's one menu engine (useMenuButton + MenuRows, NewNoteMenu.jsx): the menu box and its rows. It began as
+   Research Home's New note split button (P0.1); go-live wave 1 deleted the split button and kept the engine. An
+   undefined var() is a silent no-op (styles/tokens.reachable.test.js). The touch tier is <=1024px (phone AND tablet):
+   every row gets the 44px floor there. */
 .menu {
   position: absolute;
   top: calc(100% + 4px);
@@ -58,24 +43,28 @@
 }
 
 @media (max-width: 1024px) {
-  .main,
-  .caret,
   .item {
     min-height: var(--tap-min);
   }
-  .caret {
-    min-width: var(--tap-min);
-  }
 }
 
-/* On a phone Home's header row wraps (ResearchHome.module.css, P0.17) and this control lands on
-   the second row at the LEFT, so the menu hangs from the button's left edge: right-anchored it
-   would run off the left side of a 390px screen. */
+/* On a phone a menu hangs from its trigger's LEFT edge, so a trigger at the left of a row (the list's View) never runs
+   its menu off the left side of a 390px screen; a row-end trigger re-anchors it right (NotebookTab.module.css,
+   `.newWrap [role="menu"]`). */
 @media (max-width: 640px) {
   .menu {
     left: 0;
     right: auto;
     max-width: calc(100vw - 32px);
+    /* Final fix (C3): no taller than the room below its top (`--menu-room`, set by useMenuButton when it opens) less
+       the floating "+" (56 px at 16 px from the foot, NotebookPlusFab.module.css) and a gap: 48 + 32 = 80 px of
+       clearance. Never under three rows. The rows scroll inside the menu. */
+    max-height: max(calc(var(--menu-room, 100dvh) - var(--space-3xl) - var(--space-2xl) - env(safe-area-inset-bottom, 0px)), calc(var(--tap-min) * 3));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .menu > * {
+    flex-shrink: 0;
   }
 }
 
@@ -88,4 +77,21 @@
   height: 1px;
   margin: 4px 2px;
   background: var(--border);
+}
+/* Notebook simplify, Task 3: a named group of rows with its name drawn (the New menu's "Reviews"), set apart from the
+   rows above by a rule -- the same look as the View menu's "Saved views" group (SavedViewsMenuGroup.module.css). */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.groupLabel {
+  padding: 4px 12px 2px;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }

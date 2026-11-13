@@ -68,7 +68,8 @@ describe.each(IDS)('tour %s', (id) => {
     expect(Object.keys(copy).sort()).toEqual(steps.map((s) => s.id).sort())
     for (const s of steps) {
       // W14-C1: a step may also declare `waitFor` (a later step's anchor, railed in tourRegistry.test.js)
-      expect(Object.keys(s).filter((k) => k !== 'waitFor').sort()).toEqual(['anchor', 'file', 'id'])
+      // Go-live wave 1: a step may also declare `tier` (the screen tier it belongs to, tourTiers.js, railed in tourRegistry.test.js)
+      expect(Object.keys(s).filter((k) => k !== 'waitFor' && k !== 'tier').sort()).toEqual(['anchor', 'file', 'id'])
       const c = copy[s.id]
       expect(c.title.trim().length, `${id}/${s.id} title`).toBeGreaterThan(0)
       expect(c.body.trim().length, `${id}/${s.id} body`).toBeGreaterThan(0)
