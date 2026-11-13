@@ -1,0 +1,560 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+...............................................................sss...sss [ 12%]
+...ss....ss....s.....s.....s.....s.....ss....ss....s.....s.............. [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+...............s.....s.........................................sss...sss [ 19%]
+...s.....s.............................................................. [ 21%]
+.....................................F.................................. [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+..F..................................................................... [ 37%]
+.................................................F...................... [ 38%]
+.........................................F.............................. [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+...........x..
+[TERM-030] week-contract readers outside api.routers.calendar: 7
+    FROZEN    api.services.calendar_alerts._get_reporters_for_date_with_status
+    asserted  api.services.calendar_week_poster.build_payloads
+    asserted  api.services.earnings_calendar_audit._get_week
+    asserted  api.services.earnings_preview_warm._rank
+    asserted  api.services.journal_two.earnings_followup._board_names
+    asserted  api.services.research.earnings_ai_adapter._cross_check_live_window
+    asserted  api.services.wire.detector.todays_reporters
+[TERM-030] owner-internal readers (denominator, not in scope): 8 — asserted 1
+    asserted  api.routers.calendar._collect_reporters_for_ics
+    bare      api.routers.calendar._days_for_date
+    bare      api.routers.calendar.cached_report_session
+    bare      api.routers.calendar.get_month_calendar
+    bare      api.routers.calendar.most_anticipated_png
+    bare      api.routers.calendar.refresh_calendar
+    bare      api.routers.calendar.rewarm_current_week_once
+    bare      api.routers.calendar.sector_read
+.......................F.................................. [ 49%]
+......F................................................................. [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 54%]
+.......F................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 74%]
+......................................................F................. [ 76%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+.............................F.............F.F.....F.F.........F........ [ 97%]
+........................................................................ [ 99%]
+.......................................                                  [100%]
+==================================== ERRORS ====================================
+____________ ERROR collecting tests/test_canonical_address_book.py _____________
+tests/test_canonical_address_book.py:659: in <module>
+    @pytest.mark.parametrize("column,sqltype", _ohlcv_columns())
+tests/test_canonical_address_book.py:614: in _ohlcv_columns
+    body = _re.search(r"\((.*)\)", _ohlcv_ddl(), _re.S).group(1)
+tests/test_canonical_address_book.py:607: in _ohlcv_ddl
+    assert len(hits) == 1, f"expected one ohlcv DDL in CODE, found {len(hits)}"
+E   AssertionError: expected one ohlcv DDL in CODE, found 0
+E   assert 0 == 1
+E    +  where 0 = len([])
+=================================== FAILURES ===================================
+_____________ test_G2_every_ledger_writer_is_classified_as_audited _____________
+
+    def test_G2_every_ledger_writer_is_classified_as_audited():
+        """⛔ THE AUDIT AS A RAIL: every module that writes this ledger, and the lane
+        its rows land in. A new writer must be added here, deliberately."""
+        interactive = {
+            "api/services/definition_concierge.py": 'f"concierge:{user_id}"',
+            "api/services/definition_conversation.py": 'f"concierge:{user_id}"',
+        }
+        # vision writes its row as a RESERVATION before the model runs (cost_guard.reserve_member_call)
+        vision = (ROOT / "api/services/indicator_from_image.py").read_text("utf-8")
+        assert 'ticker = f"indicator-vision:{user_id}"' in vision
+>       assert "reserve_member_call(market_date, ticker" in vision
+E       assert 'reserve_member_call(market_date, ticker' in '"""A SCREENSHOT IN, RANKED *CANDIDATE* INDICATORS OUT. The fourth door.\n\n⭐ WHY THIS EXISTS. A member has an indicat...f it.\n        return _refusal("vision:no-candidate", **body)\n    return {"ok": True, CANDIDATES: accepted, **body}\n'
+
+tests/test_budget_isolation.py:411: AssertionError
+_________ test_the_whole_series_question_per_lane[tree3-alert3-sweep3] _________
+
+tree = {'args': [{'args': [{'args': [{...}, {...}], 'name': '||', 'type': 'op'}, {'args': [{...}, {...}], 'name': '==', 'type...': [{'type': 'num', 'value': 0}, {'type': 'num', 'value': 0}], 'name': '/', 'type': 'op'}], 'name': '?:', 'type': 'op'}
+alert = ('time-own:chart-unwitnessed',), sweep = ()
+
+    @pytest.mark.parametrize("tree,alert,sweep", [
+        (WEEK, ("time-anchor:not-daily",), ("time-clock:unreadable",)),
+        (WEEK_CHANGED, ("time-anchor:not-daily",), ("time-clock:unreadable",)),
+        (WEEK_CLOSE, ("time-close:not-daily",), ("time-clock:unreadable",)),
+        (OWN_TIME, ("time-own:chart-unwitnessed",), ()),
+        (ABOVE_AVERAGE, (), ()),
+        (CLOSE, (), ()),
+    ])
+    def test_the_whole_series_question_per_lane(tree, alert, sweep):
+        # a user-series alert: no `tf`, and no bars are read to decide it
+        assert ai.whole_series_withheld(tree, []) == alert
+        # the sweep: daily bars keyed by date
+>       assert ai.whole_series_withheld(tree, ai.DATE_KEYED_PROBE_BARS, opts={"tf": "D"}) == sweep
+E       AssertionError: assert ('time-clock:unreadable',) == ()
+E         
+E         Left contains one more item: 'time-clock:unreadable'
+E         
+E         Full diff:
+E         - ()
+E         + (
+E         +     'time-clock:unreadable',
+E         + )
+
+tests/test_c45_withheld_doors.py:131: AssertionError
+______________ test_the_question_is_not_vacuous_and_can_answer_no ______________
+
+    def test_the_question_is_not_vacuous_and_can_answer_no():
+        cases = [ANCHOR[n]["ast"] for n in ANCHOR]
+        sweep = [ai.whole_series_withheld(t, ai.DATE_KEYED_PROBE_BARS, opts={"tf": "D"}) for t in cases]
+        alert = [ai.whole_series_withheld(t, []) for t in cases]
+        assert sum(1 for c in sweep if c) >= 40 and sum(1 for c in sweep if not c) >= 5
+>       assert all(alert), "with no tf every chart-clock tree is withheld whole"
+E       AssertionError: with no tf every chart-clock tree is withheld whole
+E       assert False
+E        +  where False = all([('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ...])
+
+tests/test_c45_withheld_doors.py:171: AssertionError
+_______________ test_the_flag_is_declared_in_the_ledger_as_dark ________________
+
+    def test_the_flag_is_declared_in_the_ledger_as_dark():
+        ledger = json.loads((_REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
+        mon = _load(_MON, "tnmon_ledger")
+        entry = ledger["flags"][mon.ROLLUP_FLAG]
+>       assert entry["status"] == "dark" and entry["note"]
+E       AssertionError: assert ('armed' == 'dark'
+E         
+E         - dark
+E         + armed)
+
+tests/test_cadence_heartbeat.py:502: AssertionError
+_________________ test_most_anticipated_card_render_is_pinned __________________
+
+    def test_most_anticipated_card_render_is_pinned():
+        """calendar_png_common is shared by all three cards, so a change there
+        reaches this already-shipped one too. The hash is a TRIPWIRE, not a
+        freeze: when a deliberate chrome change trips it, look at the render and
+        re-pin. Last re-pinned 2026-07-30 for the full-bleed logo tile (which
+        also nudged the monogram corner radius 0.22 -> 0.24)."""
+        import hashlib
+        from api.services.calendar_anticipated_png import render_anticipated_png
+        entries = [
+            {"sym": "AAPL", "name": "Apple Inc.", "timing": "amc", "weekday": "MON",
+             "mc_b": 3400.0, "logo_path": None},
+            {"sym": "MSFT", "name": "Microsoft Corporation", "timing": "bmo",
+             "weekday": "WED", "mc_b": 3100.0, "logo_path": None},
+            {"sym": "NVDA", "name": "NVIDIA Corporation", "timing": "amc",
+             "weekday": "THU", "mc_b": 4200.0, "logo_path": None},
+            {"sym": "XOM", "name": "Exxon Mobil Corporation", "timing": "bmo",
+             "weekday": "FRI", "mc_b": 480.0, "logo_path": None},
+            {"sym": "KO", "name": "The Coca-Cola Company", "timing": "bmo",
+             "weekday": "TUE", "mc_b": 290.5, "logo_path": None},
+            {"sym": "F", "name": "Ford Motor Company", "timing": "amc",
+             "weekday": "TUE", "mc_b": 0.42, "logo_path": None},
+        ]
+        got = hashlib.sha256(
+            render_anticipated_png("Week of Aug 3-7, 2026", entries)).hexdigest()
+>       assert got == "f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c"
+E       AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+E         
+E         - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+E         + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+
+tests/test_calendar_week_post.py:283: AssertionError
+_________ test_unmarked_rows_render_byte_identical_to_before_the_marks _________
+
+    def test_unmarked_rows_render_byte_identical_to_before_the_marks():
+        """A row with no honesty fields must not change at all: pinned against the
+        pre-change renderer's bytes (sha256 of the same input on master bda17ea4ce)."""
+        import hashlib
+        week = [_day(f"D{i}", n_bmo=5, n_amc=3, n_tbd=2) for i in range(5)]
+        got = hashlib.sha256(render_earnings_week_png("Week of Aug 3-7, 2026", week)).hexdigest()
+>       assert got == "b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d"
+E       AssertionError: assert 'bae70540fcc6...f8a2aaf88f38c' == 'b34d84a1187e...2eef649f6e58d'
+E         
+E         - b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d
+E         + bae70540fcc6f41a2bd54a4cf2ab509383688b76f91a1d11314f8a2aaf88f38c
+
+tests/test_calendar_week_post.py:814: AssertionError
+________ test_the_axis_declares_exactly_what_the_legacy_lane_enumerates ________
+
+    def test_the_axis_declares_exactly_what_the_legacy_lane_enumerates():
+        declared = set(ax.declarations())
+        legacy = set(indicator_alert_evaluator.all_addresses())
+        assert declared == legacy, (
+            "the axis and the legacy lane disagree about what exists — "
+            f"only-axis={declared - legacy} only-legacy={legacy - declared}")
+>       assert len(declared) == 44, f"expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got {len(declared)}"
+E       AssertionError: expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got 51
+E       assert 51 == 44
+E        +  where 51 = len({'adx.adx', 'adx.minusDI', 'adx.plusDI', 'atr', 'bb', 'bb.lower', ...})
+
+tests/test_canonical_indicator_axis.py:27: AssertionError
+_______________ test_the_swept_population_is_PINNED_not_floored ________________
+
+    def test_the_swept_population_is_PINNED_not_floored():
+        """⛔⛔ THE CLAUSE THAT CAN NOTICE A 4-SITE DROP.
+    
+        The floor this replaces was `seen >= 10` against a population of 21: it
+        could not distinguish 17 from 21, so it sat green beside a matcher missing
+        a fifth of the tree. See `EXPECTED_LITERAL_SEVERITY_SITES` for why this is
+        an exact pin rather than a tighter floor.
+        """
+        sites = _SWEEP["resolved"]
+        lits = _literal_severity(sites)
+        fewer = (
+            "FEWER than pinned — sites have VANISHED, which is the regression this "
+            "pin exists to catch. Look for a deleted guard, or for a matcher that "
+            "stopped resolving an alias, BEFORE you touch the number."
+        )
+        more = (
+            "MORE than pinned — a new emit site was added. That is fine and expected: "
+            "update EXPECTED_LITERAL_SEVERITY_SITES (and EXPECTED_EMIT_SITES) in the "
+            "SAME commit that adds the site, so the number stays a measurement rather "
+            "than becoming a floor nobody trusts."
+        )
+>       assert len(lits) == EXPECTED_LITERAL_SEVERITY_SITES, (
+            f"{len(lits)} literal-severity chart_health_alerts.emit() sites under "
+            f"api/, pinned at {EXPECTED_LITERAL_SEVERITY_SITES}.\n"
+            f"{fewer if len(lits) < EXPECTED_LITERAL_SEVERITY_SITES else more}\n"
+            f"derived inventory:\n  {_inventory(lits)}"
+        )
+E       AssertionError: 28 literal-severity chart_health_alerts.emit() sites under api/, pinned at 27.
+E         MORE than pinned — a new emit site was added. That is fine and expected: update EXPECTED_LITERAL_SEVERITY_SITES (and EXPECTED_EMIT_SITES) in the SAME commit that adds the site, so the number stays a measurement rather than becoming a floor nobody trusts.
+E         derived inventory:
+E           api/cream_card.py:181::<computed>::critical
+E           api/main.py:2174::<computed>::warning
+E           api/main.py:2227::<computed>::warning
+E           api/main.py:2413::<computed>::warning
+E           api/main.py:2604::<computed>::warning
+E           api/oi_morning.py:661::<computed>::critical
+E           api/routers/push.py:101::taxonomy_version_mismatch::warning
+E           api/services/bars_continuous_audit.py:126::bars_store_unhealthy::critical
+E           api/services/bars_continuous_audit.py:151::bars_daily_store_stale::critical
+E           api/services/bars_continuous_audit.py:192::intraday_hotset_stale::critical
+E           api/services/bars_continuous_audit.py:202::intraday_hotset_stale::warning
+E           api/services/bars_rail_monitor.py:337::bars_stream_rail_silent::critical
+E           api/services/bars_reconciliation.py:387::daily_drift_detected::warning
+E           api/services/calendar_week_contract.py:98::<computed>::warning
+E           api/services/desk_session_insights.py:1127::<computed>::critical
+E           api/services/discord_buzz_digest.py:211::<computed>::critical
+E           api/services/discord_render/stall_record.py:196::<computed>::critical
+E           api/services/fundamentals_monitor.py:527::fundamentals_regression::critical
+E           api/services/journal_two/tweet_capture_sync.py:128::<computed>::critical
+E           api/services/perplexity_search.py:184::perplexity_auth_failure::critical
+E           api/services/provider_coverage_monitor.py:734::provider_coverage_regression::critical
+E           api/services/single_stock_etfs.py:349::ssetf_rebuild_refused::warning
+E           api/services/source_circuit_breaker.py:78::<computed>::warning
+E           api/services/wire/coverage_monitor.py:109::wire_coverage_unmeasured::warning
+E           api/services/wire/coverage_monitor.py:88::wire_coverage_incomplete::critical
+E           api/services/wisdom/capture/health.py:86::<computed>::critical
+E           api/services/wisdom/extract/batch.py:150::<computed>::critical
+E           api/services/wisdom/registry.py:465::<computed>::critical
+E       assert 28 == 27
+E        +  where 28 = len({'api/cream_card.py:181::<computed>::critical': {'key': None, 'lineno': 181, 'name': 'chart_health_alerts', 'rel': 'ap...13::<computed>::warning': {'key': None, 'lineno': 2413, 'name': 'chart_health_alerts', 'rel': 'api/main.py', ...}, ...})
+
+tests/test_chart_health_severity_vocabulary.py:836: AssertionError
+____ test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed ____
+
+    def test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed():
+        """🔴 AMENDMENT 1 §A1.3, made mechanical. The moat is that UCT's answer comes
+        from the firm's own assets; a "grounding" nobody verifies is a comment.
+    
+        Every citation is resolved against the artifact it names — a preset in the
+        screener's filter registry, a screen the screener ships, a column the closed
+        table declares, or a labelled branch of firm code located by AST.
+        """
+        report = cv.grounding_report()
+        assert report["concepts"], "the vocabulary is empty; every rail here is vacuous"
+>       assert report["unresolved"] == [], report
+E       AssertionError: {'concepts': [{'attribution': None, 'cites': ['new_52w_high: whether the bar made a new 52-week high'], 'has_sentence'...ry can ground it.', 'word': 'strong'}, ...], 'resolved': 20, 'unresolved': ['leaders pulling back', 'tight base'], ...}
+E       assert ['leaders pul... 'tight base'] == []
+E         
+E         Left contains 2 more items, first extra item: 'leaders pulling back'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     'leaders pulling back',
+E         +     'tight base',
+E         + ]
+
+tests/test_concept_vocabulary.py:196: AssertionError
+_______________ test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS _______________
+
+    def test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS():
+        """⭐⭐ THE RAIL THAT MAKES THIS A VOCABULARY RATHER THAN AN OPINION.
+    
+        Every numeric literal in every concept's tree must be published by one of
+        that concept's own citations — the firm's preset, the firm's screen, the
+        firm's classifier windows, or the 0/1 of a boolean column. `rs_rank >= 80`
+        is here because `FILTERS['rs_rank']` ships a preset labelled `Over 80`.
+    
+        ⛔ AND THE SCALARS TOO. A concept that quietly added a fourth column to a
+        three-filter screen would keep every threshold honest and still screen on
+        something nobody cited.
+        """
+        for word in cv.concepts():
+            got = cv.resolve(word)
+>           assert got["ok"] is True, (word, got.get("reason"))
+E           AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...ght_base\', \'starter_trend_template\', \'starter_uct_50\', \'starter_value_quality\', \'starter_volume_surge_now\'])')
+E           assert False is True
+
+tests/test_concept_vocabulary.py:525: AssertionError
+_________ test_a_concept_that_screens_on_an_UNCITED_column_is_refused __________
+
+    def test_a_concept_that_screens_on_an_UNCITED_column_is_refused():
+        """⛔ THE OTHER HALF OF THE SAME RAIL, and the one a threshold check misses.
+    
+        A fourth column quietly added to a three-filter screen keeps every number
+        honest and still screens on something nobody at the firm agreed to. The
+        plant uses a BARE boolean column so it carries no literal at all — the
+        threshold rail cannot see it, and only the citation-keys rail can.
+        """
+        planted = _raw()
+        leader = planted["concepts"]["leader"]
+        leader["ast"] = {"type": "op", "name": "&&", "args": [
+            leader["ast"], {"type": "series", "name": "above_50sma"}]}
+        out = cv.resolve("leader", vocab=planted)
+        assert out["ok"] is False and out["gate"] == cv.GATE_UNGROUNDED
+        assert "above_50sma" in out["reason"], out["reason"]
+        # The control: the same column IS cited by the screen-grounded concept, and
+        # that one resolves — so the rail is about the citation, not the column.
+>       assert cv.resolve("leaders pulling back")["ok"] is True
+E       assert False is True
+
+tests/test_concept_vocabulary.py:571: AssertionError
+__ test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift __
+
+    def test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift():
+        for word in cv.concepts():
+            assert word == cv.normalise(word), word
+        for word in cv.refused():
+            assert word == cv.normalise(word), word
+>       assert cv.resolve("  Leaders   Pulling BACK ")["ok"] is True
+E       assert False is True
+
+tests/test_concept_vocabulary.py:641: AssertionError
+_________ test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES __________
+
+    def test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES():
+        """⛔ THIS LANE HAS NO READ-BACK AND MUST NEVER GROW ONE.
+    
+        `sentence.js` is the ONE producer of the text a member confirms, and the JS
+        lane re-derives every frozen sentence from the shipped module on every run.
+        What Python can guarantee is the other half: that `resolve` is a
+        PASS-THROUGH — no prettifying, no title-casing, no fallback to the word, no
+        synthesised text for a concept that carries none. Any of those would be the
+        second vocabulary this whole design exists to prevent, arriving through the
+        lane that cannot check itself.
+    
+        ⛔ AND IT SAYS NOTHING ABOUT WHICH CONCEPTS HAVE ONE. Whether a tree is
+        sayable is `sentence.js`'s answer; a rule here that "every concept carries a
+        sentence" would be a SECOND AUTHORITY over a value another module owns, and
+        would go red for the wrong reason the day the read-back legitimately refuses
+        something.
+        """
+        raw = _raw()["concepts"]
+        for word in cv.concepts():
+            got = cv.resolve(word)
+>           assert got["ok"] is True, (word, got.get("reason"))
+E           AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...ght_base\', \'starter_trend_template\', \'starter_uct_50\', \'starter_value_quality\', \'starter_volume_surge_now\'])')
+E           assert False is True
+
+tests/test_concept_vocabulary.py:699: AssertionError
+_ test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved __
+
+    def test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved():
+        """⭐ THE ARTIFACT A REVIEW READS: every word, what it means, and what makes
+        that the firm's answer. Total over the file, so a concept cannot be reviewed
+        by being left out of the report."""
+        report = cv.grounding_report()
+        assert {r["word"] for r in report["concepts"]} == set(cv.concepts())
+        assert {r["word"] for r in report["refused"]} == set(cv.refused())
+>       assert report["resolved"] == len(cv.concepts())
+E       assert 20 == 22
+E        +  where 22 = len(mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...ery term is one of its filters, at its thresholds; the stocks-only clause is the starter's universe, not a column."})}))
+E        +    where mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...ery term is one of its filters, at its thresholds; the stocks-only clause is the starter's universe, not a column."})}) = <function concepts at 0x739a31cd2c00>()
+E        +      where <function concepts at 0x739a31cd2c00> = cv.concepts
+
+tests/test_concept_vocabulary.py:876: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964
+tests/test_cadence_heartbeat.py::test_every_contract_has_an_emit_site_and_every_emit_site_has_a_contract
+tests/test_calendar_week_contract.py::test_every_reader_outside_the_owner_calls_the_shared_assertion
+tests/test_calendar_week_contract.py::test_every_week_days_label_is_its_own_reader_id
+tests/test_calendar_week_contract.py::test_the_behaviour_table_covers_every_asserted_reader
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_calendar_ics_token_v2.py::test_an_anonymous_scope_all_is_capped_and_says_so
+tests/test_calendar_ics_token_v2.py::test_under_the_cap_nothing_is_cut_and_no_notice_is_added
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_shape_when_authenticated
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:720: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_chart_renderer_admin_recycle.py: 64 warnings
+tests/test_chart_renderer_pool.py: 34 warnings
+tests/test_chart_renderer_service.py: 12 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:827: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_chart_parity_harness.py:46: chart_parity imports playwright at module scope
+SKIPPED [30] tests/test_bs_iv.py:49: price pinned to intrinsic floor; no recoverable vol
+XFAIL tests/test_calendar_week_contract.py::test_a_malformed_week_fails_calendar_alerts_by_name - calendar_alerts is frozen by S7 (see FROZEN)
+ERROR tests/test_canonical_address_book.py - AssertionError: expected one ohlcv DDL in CODE, found 0
+assert 0 == 1
+ +  where 0 = len([])
+FAILED tests/test_budget_isolation.py::test_G2_every_ledger_writer_is_classified_as_audited - assert 'reserve_member_call(market_date, ticker' in '"""A SCREENSHOT IN, RANKED *CANDIDATE* INDICATORS OUT. The fourth door.\n\n⭐ WHY THIS EXISTS. A member has an indicat...f it.\n        return _refusal("vision:no-candidate", **body)\n    return {"ok": True, CANDIDATES: accepted, **body}\n'
+FAILED tests/test_c45_withheld_doors.py::test_the_whole_series_question_per_lane[tree3-alert3-sweep3] - AssertionError: assert ('time-clock:unreadable',) == ()
+  
+  Left contains one more item: 'time-clock:unreadable'
+  
+  Full diff:
+  - ()
+  + (
+  +     'time-clock:unreadable',
+  + )
+FAILED tests/test_c45_withheld_doors.py::test_the_question_is_not_vacuous_and_can_answer_no - AssertionError: with no tf every chart-clock tree is withheld whole
+assert False
+ +  where False = all([('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ...])
+FAILED tests/test_cadence_heartbeat.py::test_the_flag_is_declared_in_the_ledger_as_dark - AssertionError: assert ('armed' == 'dark'
+  
+  - dark
+  + armed)
+FAILED tests/test_calendar_week_post.py::test_most_anticipated_card_render_is_pinned - AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+  
+  - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+  + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+FAILED tests/test_calendar_week_post.py::test_unmarked_rows_render_byte_identical_to_before_the_marks - AssertionError: assert 'bae70540fcc6...f8a2aaf88f38c' == 'b34d84a1187e...2eef649f6e58d'
+  
+  - b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d
+  + bae70540fcc6f41a2bd54a4cf2ab509383688b76f91a1d11314f8a2aaf88f38c
+FAILED tests/test_canonical_indicator_axis.py::test_the_axis_declares_exactly_what_the_legacy_lane_enumerates - AssertionError: expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got 51
+assert 51 == 44
+ +  where 51 = len({'adx.adx', 'adx.minusDI', 'adx.plusDI', 'atr', 'bb', 'bb.lower', ...})
+FAILED tests/test_chart_health_severity_vocabulary.py::test_the_swept_population_is_PINNED_not_floored - AssertionError: 28 literal-severity chart_health_alerts.emit() sites under api/, pinned at 27.
+  MORE than pinned — a new emit site was added. That is fine and expected: update EXPECTED_LITERAL_SEVERITY_SITES (and EXPECTED_EMIT_SITES) in the SAME commit that adds the site, so the number stays a measurement rather than becoming a floor nobody trusts.
+  derived inventory:
+    api/cream_card.py:181::<computed>::critical
+    api/main.py:2174::<computed>::warning
+    api/main.py:2227::<computed>::warning
+    api/main.py:2413::<computed>::warning
+    api/main.py:2604::<computed>::warning
+    api/oi_morning.py:661::<computed>::critical
+    api/routers/push.py:101::taxonomy_version_mismatch::warning
+    api/services/bars_continuous_audit.py:126::bars_store_unhealthy::critical
+    api/services/bars_continuous_audit.py:151::bars_daily_store_stale::critical
+    api/services/bars_continuous_audit.py:192::intraday_hotset_stale::critical
+    api/services/bars_continuous_audit.py:202::intraday_hotset_stale::warning
+    api/services/bars_rail_monitor.py:337::bars_stream_rail_silent::critical
+    api/services/bars_reconciliation.py:387::daily_drift_detected::warning
+    api/services/calendar_week_contract.py:98::<computed>::warning
+    api/services/desk_session_insights.py:1127::<computed>::critical
+    api/services/discord_buzz_digest.py:211::<computed>::critical
+    api/services/discord_render/stall_record.py:196::<computed>::critical
+    api/services/fundamentals_monitor.py:527::fundamentals_regression::critical
+    api/services/journal_two/tweet_capture_sync.py:128::<computed>::critical
+    api/services/perplexity_search.py:184::perplexity_auth_failure::critical
+    api/services/provider_coverage_monitor.py:734::provider_coverage_regression::critical
+    api/services/single_stock_etfs.py:349::ssetf_rebuild_refused::warning
+    api/services/source_circuit_breaker.py:78::<computed>::warning
+    api/services/wire/coverage_monitor.py:109::wire_coverage_unmeasured::warning
+    api/services/wire/coverage_monitor.py:88::wire_coverage_incomplete::critical
+    api/services/wisdom/capture/health.py:86::<computed>::critical
+    api/services/wisdom/extract/batch.py:150::<computed>::critical
+    api/services/wisdom/registry.py:465::<computed>::critical
+assert 28 == 27
+ +  where 28 = len({'api/cream_card.py:181::<computed>::critical': {'key': None, 'lineno': 181, 'name': 'chart_health_alerts', 'rel': 'ap...13::<computed>::warning': {'key': None, 'lineno': 2413, 'name': 'chart_health_alerts', 'rel': 'api/main.py', ...}, ...})
+FAILED tests/test_concept_vocabulary.py::test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed - AssertionError: {'concepts': [{'attribution': None, 'cites': ['new_52w_high: whether the bar made a new 52-week high'], 'has_sentence'...ry can ground it.', 'word': 'strong'}, ...], 'resolved': 20, 'unresolved': ['leaders pulling back', 'tight base'], ...}
+assert ['leaders pul... 'tight base'] == []
+  
+  Left contains 2 more items, first extra item: 'leaders pulling back'
+  
+  Full diff:
+  - []
+  + [
+  +     'leaders pulling back',
+  +     'tight base',
+  + ]
+FAILED tests/test_concept_vocabulary.py::test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS - AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...ght_base\', \'starter_trend_template\', \'starter_uct_50\', \'starter_value_quality\', \'starter_volume_surge_now\'])')
+assert False is True
+FAILED tests/test_concept_vocabulary.py::test_a_concept_that_screens_on_an_UNCITED_column_is_refused - assert False is True
+FAILED tests/test_concept_vocabulary.py::test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift - assert False is True
+FAILED tests/test_concept_vocabulary.py::test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES - AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...ght_base\', \'starter_trend_template\', \'starter_uct_50\', \'starter_value_quality\', \'starter_volume_surge_now\'])')
+assert False is True
+FAILED tests/test_concept_vocabulary.py::test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved - assert 20 == 22
+ +  where 22 = len(mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...ery term is one of its filters, at its thresholds; the stocks-only clause is the starter's universe, not a column."})}))
+ +    where mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...ery term is one of its filters, at its thresholds; the stocks-only clause is the starter's universe, not a column."})}) = <function concepts at 0x739a31cd2c00>()
+ +      where <function concepts at 0x739a31cd2c00> = cv.concepts
+14 failed, 4026 passed, 31 skipped, 1 xfailed, 231 warnings, 1 error in 633.91s (0:10:33)

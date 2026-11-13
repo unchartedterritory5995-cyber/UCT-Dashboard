@@ -1,0 +1,31 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 21%]
+........................................................................ [ 26%]
+.............xx..x...................................................... [ 31%]
+........................................................................ [ 36%]
+........................................................................ [ 42%]
+........................................................................ [ 47%]
+........................................................................ [ 52%]
+........................................................................ [ 58%]
+........................................................................ [ 63%]
+........................................................................ [ 68%]
+........................................................................ [ 73%]
+................................................................x....... [ 79%]
+.x...................................................................... [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 95%]
+....................................................................     [100%]
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+XFAIL tests/golden_judged/test_judged_gate.py::test_a_judged_drawing_is_still_drawn_as_the_judges_saw_it[double-bottom-a-001] - judged double bottom never served: withheld on the member chart (the release's stale-breakout condition, auto_structures._db_breakout_stale); already so at the release commit
+XFAIL tests/golden_judged/test_judged_gate.py::test_a_judged_drawing_is_still_drawn_as_the_judges_saw_it[double-bottom-a-010] - a second member drawing (bull_flag / uct_pullback_ma_v5) is drawn on the judged base, within 1 ATR of the judged line; the judges saw the drawing alone
+XFAIL tests/golden_judged/test_judged_gate.py::test_a_judged_drawing_is_still_drawn_as_the_judges_saw_it[double-bottom-b-018] - judged double bottom never served: withheld on the member chart (the release's stale-breakout condition, auto_structures._db_breakout_stale); already so at the release commit
+XFAIL tests/golden_judged/test_judged_gate.py::test_a_withdrawn_drawing_still_draws_as_judged_when_its_round_is_set[textbook-g1-01] - judged drawing never served on this chart: a member drawing that outranks it on the same base (member_base_precedence / member_inside_day_precedence / one-line-per-base) takes its place; already so at the drawing's release commit
+XFAIL tests/golden_judged/test_judged_gate.py::test_a_withdrawn_drawing_still_draws_as_judged_when_its_round_is_set[textbook-g1-12] - judged drawing never served on this chart: a member drawing that outranks it on the same base (member_base_precedence / member_inside_day_precedence / one-line-per-base) takes its place; already so at the drawing's release commit
+1359 passed, 5 xfailed in 72.43s (0:01:12)

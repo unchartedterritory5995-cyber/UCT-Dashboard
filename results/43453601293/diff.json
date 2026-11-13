@@ -1,0 +1,435 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 36,
+    "fixed": 3,
+    "unchanged": 362,
+    "missing": 0,
+    "baseline": 365,
+    "current": 398,
+    "current_ran": 149497,
+    "new_flaky": 0,
+    "flaky_size": 11,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 9,
+    "new_unattributed": 27
+  },
+  "arithmetic": "baseline 365 = unchanged 362 + fixed 3 + missing 0  |  current 398 = unchanged 362 + new 36 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "43254843219",
+  "current_run_id": "43453601293",
+  "baseline_sha": "150283034b1a6a74ab7c63e3bde6b55ee439af5b",
+  "current_sha": "3d6045258e3b546a10a07ae60e8f5d6f10a81fe0",
+  "commit_range": "150283034b1a6a74ab7c63e3bde6b55ee439af5b..3d6045258e3b546a10a07ae60e8f5d6f10a81fe0",
+  "first_run": false,
+  "new": [
+    "pytest|tests.econ.test_adapter_dol|test_press_cross_checks_fail_closed[UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \\n \\nWEEK ENDING September 19  September 12-UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \\n \\nWEEK ENDING September 26  September 19-]",
+    "pytest|tests.econ.test_adapter_dol|test_press_cross_checks_fail_closed[claims  was 197,000-claims  was 199,000-prose advance SA]",
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[A]",
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[B]",
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[D]",
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[E]",
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[F]",
+    "pytest|tests.test_account_size_readers|test_scenario_simulator_runs_and_sizes_on_the_authority",
+    "pytest|tests.test_bar_contract|test_every_ohlcv_writer_bumps_series_rev_or_the_store_floor",
+    "pytest|tests.test_boot_probe|test_generic_pool_work_names_the_job_a_nameless_pool_is_running",
+    "pytest|tests.test_chart_health_severity_vocabulary|test_the_swept_population_is_PINNED_not_floored",
+    "pytest|tests.test_converse_eval_runner|test_a_deliberately_wrong_scripted_envelope_fails_grading",
+    "pytest|tests.test_converse_eval_runner|test_an_unrequested_rename_on_an_edit_fails_grading",
+    "pytest|tests.test_converse_eval_runner|test_offline_run_passes_end_to_end_for_the_three_examples",
+    "pytest|tests.test_converse_eval_runner|test_records_are_written_BEFORE_the_summary",
+    "pytest|tests.test_converse_eval_runner|test_the_corpus_refused_pins_run_offline_and_model_phrases_are_live_only",
+    "pytest|tests.test_converse_eval_runner|test_the_negative_controls_pass_for_the_RIGHT_reason",
+    "pytest|tests.test_converse_eval_runner|test_the_spend_cap_STOPS_the_run_and_reports_it_incomplete",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_parity_scorecard|test_every_backticked_repo_path_in_an_evidence_cell_exists_at_head",
+    "pytest|tests.test_rs_evidence_job|test_package_imports_its_maths_from_relative_strength_only",
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|headlineRating > a missing fast rating leaves the label on the IBD-style number, never a dangling \"fast\"",
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|headlineRating > both: IBD-style then fast",
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|headlineRating > fast: the fast number, labelled so it never reads as the IBD-style one",
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|headlineRating > ibd (default): the IBD-style number alone, exactly the Phase 2a label",
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|showComponents > never rides the pane label and is never banded",
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|showRating > off never promotes another row into the pane label",
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|showRating > off: every rating row is omitted, and the pane label keeps the benchmark alone",
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|showRating > on (default): the Rating glance row, its numbers and the pane-label numbers",
+    "vitest|src/components/chart/engine/readout.va3.test.js|A9 \u00b7 readoutChipName \u2014 `UCT RS \u00b7 SPY`, never `RS(SPY)` > the resolved benchmark and the rating follow the chip suffix grammar once the envelope lands",
+    "vitest|src/components/chart/pane/attachedPineDisclosures.test.jsx|\u2b50\u2b50 the member route \u2014 indicatorInstances on ChartPane > \u2b50\u2b50 renders all four disclosures, verbatim, with the live bar count",
+    "vitest|src/content/rs/teaching.export.test.js|rs teaching export > the committed api/data/rs_teaching.json equals a fresh in-memory export",
+    "vitest|src/pages/journal-2-0/components/notebook/NoteEditorPage.rails.test.jsx|NoteEditorPage editor toolbar row > a visible Find button opens NoteFindBar, the same as Ctrl+F",
+    "vitest|src/pages/journal-2-0/components/notebook/routines/TrackerEditorSheet.test.jsx|editing a tracker > tracker_kind_fixed_after_create",
+    "vitest|src/pages/journal-2-0/lib/offline/doorEnumeration.test.js|\u26d4\u26d4 \u2463b \u2014 helper-forwarded and dynamic-method writes are SEEN, resolved, and checked > every request in a note-touching file has a readable method, and every door write lands its revision",
+    "vitest|src/pages/journal-2-0/lib/offline/doorEnumeration.test.js|\u26d4\u26d4 \u2463b \u2014 helper-forwarded and dynamic-method writes are SEEN, resolved, and checked > \u2b50 the GENERAL check (not only the control above) goes RED when journalStyles.js loses a settle"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_gallery_w11_fnote1|test_the_one_mb_worst_case_reduces_in_under_half_a_second[tiny links, each its own host]",
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_FLAG_ON_a_second_checker_that_saw_the_row_armed_delivers_NOTHING",
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_the_bell_carries_ONE_entry_and_no_S7_reconstruction"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/research/sections/CatalystsSection.test.jsx|CatalystsSection > shows the finding state while catalysts generate and lands on its own (polls)",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing",
+    "vitest|src/pages/journal-2-0/components/notebook/CaptureHost.test.jsx|capture preserves the member context (\u00a75/\u00a720) > closing returns the dialog to nothing",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.econ.test_adapter_dol|test_press_cross_checks_fail_closed[UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \\n \\nWEEK ENDING September 19  September 12-UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \\n \\nWEEK ENDING September 26  September 19-]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/econ/test_adapter_dol.py or anything it imports"
+    },
+    "pytest|tests.econ.test_adapter_dol|test_press_cross_checks_fail_closed[claims  was 197,000-claims  was 199,000-prose advance SA]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/econ/test_adapter_dol.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[A]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_account_size_enforcement_parity.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[B]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_account_size_enforcement_parity.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[D]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_account_size_enforcement_parity.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[E]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_account_size_enforcement_parity.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_enforcement_parity|test_scenario_simulator_size[F]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_account_size_enforcement_parity.py or anything it imports"
+    },
+    "pytest|tests.test_account_size_readers|test_scenario_simulator_runs_and_sizes_on_the_authority": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_account_size_readers.py or anything it imports"
+    },
+    "pytest|tests.test_bar_contract|test_every_ohlcv_writer_bumps_series_rev_or_the_store_floor": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_bar_contract.py or anything it imports"
+    },
+    "pytest|tests.test_boot_probe|test_generic_pool_work_names_the_job_a_nameless_pool_is_running": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_boot_probe.py or anything it imports"
+    },
+    "pytest|tests.test_chart_health_severity_vocabulary|test_the_swept_population_is_PINNED_not_floored": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_chart_health_severity_vocabulary.py or anything it imports"
+    },
+    "pytest|tests.test_converse_eval_runner|test_a_deliberately_wrong_scripted_envelope_fails_grading": {
+      "class": "imported-file-change",
+      "commits": [
+        "7cf9b3571"
+      ],
+      "workstreams": [
+        {
+          "commit": "7cf9b3571",
+          "workstream": "Pine engine 53",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_converse_eval_runner|test_an_unrequested_rename_on_an_edit_fails_grading": {
+      "class": "imported-file-change",
+      "commits": [
+        "7cf9b3571"
+      ],
+      "workstreams": [
+        {
+          "commit": "7cf9b3571",
+          "workstream": "Pine engine 53",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_converse_eval_runner|test_offline_run_passes_end_to_end_for_the_three_examples": {
+      "class": "imported-file-change",
+      "commits": [
+        "7cf9b3571"
+      ],
+      "workstreams": [
+        {
+          "commit": "7cf9b3571",
+          "workstream": "Pine engine 53",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_converse_eval_runner|test_records_are_written_BEFORE_the_summary": {
+      "class": "imported-file-change",
+      "commits": [
+        "7cf9b3571"
+      ],
+      "workstreams": [
+        {
+          "commit": "7cf9b3571",
+          "workstream": "Pine engine 53",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_converse_eval_runner|test_the_corpus_refused_pins_run_offline_and_model_phrases_are_live_only": {
+      "class": "imported-file-change",
+      "commits": [
+        "7cf9b3571"
+      ],
+      "workstreams": [
+        {
+          "commit": "7cf9b3571",
+          "workstream": "Pine engine 53",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_converse_eval_runner|test_the_negative_controls_pass_for_the_RIGHT_reason": {
+      "class": "imported-file-change",
+      "commits": [
+        "7cf9b3571"
+      ],
+      "workstreams": [
+        {
+          "commit": "7cf9b3571",
+          "workstream": "Pine engine 53",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_converse_eval_runner|test_the_spend_cap_STOPS_the_run_and_reports_it_incomplete": {
+      "class": "imported-file-change",
+      "commits": [
+        "7cf9b3571"
+      ],
+      "workstreams": [
+        {
+          "commit": "7cf9b3571",
+          "workstream": "Pine engine 53",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped": {
+      "class": "imported-file-change",
+      "commits": [
+        "1b9025851",
+        "78c6de271",
+        "64fcecf5e",
+        "402249e93",
+        "21251ef93",
+        "6e1af661f"
+      ],
+      "workstreams": [
+        {
+          "commit": "1b9025851",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "78c6de271",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "64fcecf5e",
+          "workstream": "agent/pl/period-sort-exec",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "402249e93",
+          "workstream": "agent/pl/period-sort-exec",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "21251ef93",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "6e1af661f",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_parity_scorecard|test_every_backticked_repo_path_in_an_evidence_cell_exists_at_head": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_parity_scorecard.py or anything it imports"
+    },
+    "pytest|tests.test_rs_evidence_job|test_package_imports_its_maths_from_relative_strength_only": {
+      "class": "imported-file-change",
+      "commits": [
+        "1b9025851"
+      ],
+      "workstreams": [
+        {
+          "commit": "1b9025851",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|headlineRating > a missing fast rating leaves the label on the IBD-style number, never a dangling \"fast\"": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/components/chart/engine/__tests__/readoutSchema.va2.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|headlineRating > both: IBD-style then fast": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/components/chart/engine/__tests__/readoutSchema.va2.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|headlineRating > fast: the fast number, labelled so it never reads as the IBD-style one": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/components/chart/engine/__tests__/readoutSchema.va2.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|headlineRating > ibd (default): the IBD-style number alone, exactly the Phase 2a label": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/components/chart/engine/__tests__/readoutSchema.va2.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|showComponents > never rides the pane label and is never banded": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/components/chart/engine/__tests__/readoutSchema.va2.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|showRating > off never promotes another row into the pane label": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/components/chart/engine/__tests__/readoutSchema.va2.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|showRating > off: every rating row is omitted, and the pane label keeps the benchmark alone": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/components/chart/engine/__tests__/readoutSchema.va2.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/readoutSchema.va2.test.js|showRating > on (default): the Rating glance row, its numbers and the pane-label numbers": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/components/chart/engine/__tests__/readoutSchema.va2.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/readout.va3.test.js|A9 \u00b7 readoutChipName \u2014 `UCT RS \u00b7 SPY`, never `RS(SPY)` > the resolved benchmark and the rating follow the chip suffix grammar once the envelope lands": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/components/chart/engine/readout.va3.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/pane/attachedPineDisclosures.test.jsx|\u2b50\u2b50 the member route \u2014 indicatorInstances on ChartPane > \u2b50\u2b50 renders all four disclosures, verbatim, with the live bar count": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/components/chart/pane/attachedPineDisclosures.test.jsx or anything it imports"
+    },
+    "vitest|src/content/rs/teaching.export.test.js|rs teaching export > the committed api/data/rs_teaching.json equals a fresh in-memory export": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/content/rs/teaching.export.test.js or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/notebook/NoteEditorPage.rails.test.jsx|NoteEditorPage editor toolbar row > a visible Find button opens NoteFindBar, the same as Ctrl+F": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/pages/journal-2-0/components/notebook/NoteEditorPage.rails.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/notebook/routines/TrackerEditorSheet.test.jsx|editing a tracker > tracker_kind_fixed_after_create": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/pages/journal-2-0/components/notebook/routines/TrackerEditorSheet.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/lib/offline/doorEnumeration.test.js|\u26d4\u26d4 \u2463b \u2014 helper-forwarded and dynamic-method writes are SEEN, resolved, and checked > every request in a note-touching file has a readable method, and every door write lands its revision": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/pages/journal-2-0/lib/offline/doorEnumeration.test.js or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/lib/offline/doorEnumeration.test.js|\u26d4\u26d4 \u2463b \u2014 helper-forwarded and dynamic-method writes are SEEN, resolved, and checked > \u2b50 the GENERAL check (not only the control above) goes RED when journalStyles.js loses a settle": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched src/pages/journal-2-0/lib/offline/doorEnumeration.test.js or anything it imports"
+    },
+    "pytest|tests.test_gallery_w11_fnote1|test_the_one_mb_worst_case_reduces_in_under_half_a_second[tiny links, each its own host]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_gallery_w11_fnote1.py or anything it imports"
+    },
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_FLAG_ON_a_second_checker_that_saw_the_row_armed_delivers_NOTHING": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_term048_watchlist_alerts_s7.py or anything it imports"
+    },
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_the_bell_carries_ONE_entry_and_no_S7_reconstruction": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 150283034..3d6045258 touched tests/test_term048_watchlist_alerts_s7.py or anything it imports"
+    }
+  },
+  "run_attempt": "1",
+  "rerun_flaky": []
+}

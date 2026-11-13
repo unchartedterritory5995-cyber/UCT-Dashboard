@@ -1,0 +1,22 @@
+{
+  "suite": "pytest",
+  "collected": 1844,
+  "passed": 1809,
+  "failed": 13,
+  "errored": 21,
+  "skipped": 1,
+  "wall_s": 780.39,
+  "failed_files": [
+    "tests/test_single_authority_rails.py",
+    "tests/test_skill_whitelist.py",
+    "tests/test_spa_head_reachability.py",
+    "tests/test_split_killswitch_reaches_serve.py",
+    "tests/test_starter_library.py",
+    "tests/test_study_generators.py",
+    "tests/test_support_loop_tools.py",
+    "tests/test_term013_bars_rail_reader.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "13 failed, 1809 passed, 1 skipped, 7447 warnings, 21 errors in 780.39s (0:13:00)",
+  "ok": true
+}

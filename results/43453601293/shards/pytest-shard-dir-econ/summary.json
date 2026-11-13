@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 854,
+  "passed": 851,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 41.74,
+  "failed_files": [
+    "tests/econ/test_adapter_dol.py",
+    "tests/econ/test_serving.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 851 passed, 16 warnings in 41.74s",
+  "ok": true
+}

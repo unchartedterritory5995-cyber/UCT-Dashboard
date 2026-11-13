@@ -1,0 +1,25 @@
+{
+  "suite": "pytest",
+  "collected": 4283,
+  "passed": 4261,
+  "failed": 16,
+  "errored": 0,
+  "skipped": 6,
+  "wall_s": 498.84,
+  "failed_files": [
+    "tests/test_pattern_scan_depth_and_sym.py",
+    "tests/test_paywall_gate_free_tier.py",
+    "tests/test_perf_batch_a.py",
+    "tests/test_persistence_manifest_server_keys.py",
+    "tests/test_pine_strategy_backtest.py",
+    "tests/test_program_doc_shas_resolve.py",
+    "tests/test_rate_limit_policy.py",
+    "tests/test_reencrypt_at_rest.py",
+    "tests/test_registry_string_inputs.py",
+    "tests/test_render_token_never_logged.py",
+    "tests/test_rig_sandbox_never_inside_a_worktree.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "16 failed, 4261 passed, 6 skipped, 19 warnings in 498.84s (0:08:18)",
+  "ok": true
+}

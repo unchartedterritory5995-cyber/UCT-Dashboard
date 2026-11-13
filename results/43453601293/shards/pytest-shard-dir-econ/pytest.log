@@ -1,0 +1,103 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  8%]
+.......................................................................F [ 16%]
+....F................................................................... [ 25%]
+........................................................................ [ 33%]
+........................................................................ [ 42%]
+........................................................................ [ 50%]
+........................................................................ [ 59%]
+........................................................................ [ 67%]
+........................................................................ [ 75%]
+........................................................................ [ 84%]
+......................................................................F. [ 92%]
+..............................................................           [100%]
+=================================== FAILURES ===================================
+_ test_press_cross_checks_fail_closed[claims  was 197,000-claims  was 199,000-prose advance SA] _
+
+old = 'claims  was 197,000', new = 'claims  was 199,000'
+match = 'prose advance SA'
+
+    @pytest.mark.parametrize("old,new,match", [
+        ("claims  was 197,000", "claims  was 199,000", "prose advance SA"),
+        ("to \n198,000", "to \n199,000", "prior-week"),
+        ("EMBARGOED UNTIL", "RELEASED AT", "embargo"),
+        ("In the week ending September 19, the advance", "In the week ending September 12, the advance", "advance week"),
+        ("Initial Claims (SA) 197,000", "Initial Claims (SA) 196,000", "prose advance SA"),
+        ("UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 19  September 12",
+         "UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 26  September 19", ""),
+    ])
+    def test_press_cross_checks_fail_closed(old, new, match):
+        pytest.importorskip("pypdf")
+        text = dol.pdf_text(PDF)
+>       assert old in text, old
+E       AssertionError: claims  was 197,000
+E       assert 'claims  was 197,000' in '1 \n \nNews Release \nConnect with DOL at \nhttps://blog.dol.gov \n \n \n \nTRANSMISSION OF MATERIALS IN THIS RELEASE...on on STC/Worksharing can be found starting on page 4-11 of the following link: Extensions and Special \nPrograms PDF '
+
+tests/econ/test_adapter_dol.py:139: AssertionError
+_ test_press_cross_checks_fail_closed[UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 19  September 12-UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 26  September 19-] _
+
+old = 'UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 19  September 12'
+new = 'UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 26  September 19'
+match = ''
+
+    @pytest.mark.parametrize("old,new,match", [
+        ("claims  was 197,000", "claims  was 199,000", "prose advance SA"),
+        ("to \n198,000", "to \n199,000", "prior-week"),
+        ("EMBARGOED UNTIL", "RELEASED AT", "embargo"),
+        ("In the week ending September 19, the advance", "In the week ending September 12, the advance", "advance week"),
+        ("Initial Claims (SA) 197,000", "Initial Claims (SA) 196,000", "prose advance SA"),
+        ("UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 19  September 12",
+         "UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 26  September 19", ""),
+    ])
+    def test_press_cross_checks_fail_closed(old, new, match):
+        pytest.importorskip("pypdf")
+        text = dol.pdf_text(PDF)
+>       assert old in text, old
+E       AssertionError: UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  
+E          
+E         WEEK ENDING September 19  September 12
+E       assert 'UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 19  September 12' in '1 \n \nNews Release \nConnect with DOL at \nhttps://blog.dol.gov \n \n \n \nTRANSMISSION OF MATERIALS IN THIS RELEASE...on on STC/Worksharing can be found starting on page 4-11 of the following link: Extensions and Special \nPrograms PDF '
+
+tests/econ/test_adapter_dol.py:139: AssertionError
+________________________ test_status_is_values_free[db] ________________________
+
+mode = 'db'
+
+    def test_status_is_values_free(mode):
+        st, body, _ = serving.status()
+        assert st == 200
+        text = json.dumps(body)
+        for v in ("320.5", "321.0", "320.0", "159000"):
+            assert v not in text
+        row = next(r for r in body["series"] if r["symbol"] == "USCPI")
+>       assert row["state"] == "CURRENT" and row["next_release"]["date"] == "2026-10-15"
+E       TypeError: 'NoneType' object is not subscriptable
+
+tests/econ/test_serving.py:115: TypeError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/econ/test_backup_and_ownership.py::test_only_econ_main_can_start_the_econ_scheduler
+tests/econ/test_fred_retired.py::test_no_module_imports_the_fred_stub_except_the_voice_tools
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/econ/test_isolation.py: 13 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/econ/test_adapter_dol.py::test_press_cross_checks_fail_closed[claims  was 197,000-claims  was 199,000-prose advance SA] - AssertionError: claims  was 197,000
+assert 'claims  was 197,000' in '1 \n \nNews Release \nConnect with DOL at \nhttps://blog.dol.gov \n \n \n \nTRANSMISSION OF MATERIALS IN THIS RELEASE...on on STC/Worksharing can be found starting on page 4-11 of the following link: Extensions and Special \nPrograms PDF '
+FAILED tests/econ/test_adapter_dol.py::test_press_cross_checks_fail_closed[UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 19  September 12-UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 26  September 19-] - AssertionError: UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  
+   
+  WEEK ENDING September 19  September 12
+assert 'UNEMPLOYMENT INSURANCE DATA FOR REGULAR STATE PROGRAMS  \n \nWEEK ENDING September 19  September 12' in '1 \n \nNews Release \nConnect with DOL at \nhttps://blog.dol.gov \n \n \n \nTRANSMISSION OF MATERIALS IN THIS RELEASE...on on STC/Worksharing can be found starting on page 4-11 of the following link: Extensions and Special \nPrograms PDF '
+FAILED tests/econ/test_serving.py::test_status_is_values_free[db] - TypeError: 'NoneType' object is not subscriptable
+3 failed, 851 passed, 16 warnings in 41.74s

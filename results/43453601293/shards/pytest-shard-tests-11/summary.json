@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 4222,
+  "passed": 4212,
+  "failed": 6,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 349.87,
+  "failed_files": [
+    "tests/test_rs_discord_post.py",
+    "tests/test_rs_evidence_job.py",
+    "tests/test_rs_split_rows.py",
+    "tests/test_s6_cp2_migration.py",
+    "tests/test_sample_never_feeds_real_numbers.py",
+    "tests/test_scan_evaluator_off_request_path.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "6 failed, 4212 passed, 4 skipped, 3 xfailed, 18 warnings in 349.87s (0:05:49)",
+  "ok": true
+}

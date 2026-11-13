@@ -1,0 +1,120 @@
+======================================================================
+ERROR collecting tests/test_canonical_address_book.py
+BUCKET: AssertionError: expected one ohlcv DDL in CODE, found 0
+----------------------------------------------------------------------
+tests/test_canonical_address_book.py:659: in <module>
+    @pytest.mark.parametrize("column,sqltype", _ohlcv_columns())
+tests/test_canonical_address_book.py:614: in _ohlcv_columns
+    body = _re.search(r"\((.*)\)", _ohlcv_ddl(), _re.S).group(1)
+tests/test_canonical_address_book.py:607: in _ohlcv_ddl
+    assert len(hits) == 1, f"expected one ohlcv DDL in CODE, found {len(hits)}"
+E   AssertionError: expected one ohlcv DDL in CODE, found 0
+E   assert 0 == 1
+E    +  where 0 = len([])
+=================================== FAILURES ===================================
+_____________ test_G2_every_ledger_writer_is_classified_as_audited _____________
+
+    def test_G2_every_ledger_writer_is_classified_as_audited():
+        """⛔ THE AUDIT AS A RAIL: every module that writes this ledger, and the lane
+        its rows land in. A new writer must be added here, deliberately."""
+        interactive = {
+            "api/services/definition_concierge.py": 'f"concierge:{user_id}"',
+            "api/services/definition_conversation.py": 'f"concierge:{user_id}"',
+        }
+        # vision writes its row as a RESERVATION before the model runs (cost_guard.reserve_member_call)
+        vision = (ROOT / "api/services/indicator_from_image.py").read_text("utf-8")
+        assert 'ticker = f"indicator-vision:{user_id}"' in vision
+>       assert "reserve_member_call(market_date, ticker" in vision
+E       assert 'reserve_member_call(market_date, ticker' in '"""A SCREENSHOT IN, RANKED *CANDIDATE* INDICATORS OUT. The fourth door.\n\n⭐ WHY THIS EXISTS. A member has an indicat...f it.\n        return _refusal("vision:no-candidate", **body)\n    return {"ok": True, CANDIDATES: accepted, **body}\n'
+
+tests/test_budget_isolation.py:411: AssertionError
+_________ test_the_whole_series_question_per_lane[tree3-alert3-sweep3] _________
+
+tree = {'args': [{'args': [{'args': [{...}, {...}], 'name': '||', 'type': 'op'}, {'args': [{...}, {...}], 'name': '==', 'type...': [{'type': 'num', 'value': 0}, {'type': 'num', 'value': 0}], 'name': '/', 'type': 'op'}], 'name': '?:', 'type': 'op'}
+alert = ('time-own:chart-unwitnessed',), sweep = ()
+
+    @pytest.mark.parametrize("tree,alert,sweep", [
+        (WEEK, ("time-anchor:not-daily",), ("time-clock:unreadable",)),
+        (WEEK_CHANGED, ("time-anchor:not-daily",), ("time-clock:unreadable",)),
+        (WEEK_CLOSE, ("time-close:not-daily",), ("time-clock:unreadable",)),
+        (OWN_TIME, ("time-own:chart-unwitnessed",), ()),
+        (ABOVE_AVERAGE, (), ()),
+        (CLOSE, (), ()),
+    ])
+    def test_the_whole_series_question_per_lane(tree, alert, sweep):
+
+======================================================================
+ERROR collecting tests/test_notebook_fin_walk_followup_group.py
+BUCKET: ModuleNotFoundError: No module named 'playwright'
+----------------------------------------------------------------------
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_followup_group.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_followup_group.py:18: in <module>
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in <module>
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+
+======================================================================
+ERROR collecting tests/test_notebook_fin_walk_page_layouts_group.py
+BUCKET: ModuleNotFoundError: No module named 'playwright'
+----------------------------------------------------------------------
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_page_layouts_group.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_page_layouts_group.py:20: in <module>
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in <module>
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+
+======================================================================
+ERROR collecting tests/test_notebook_p5_walk.py
+BUCKET: ModuleNotFoundError: No module named 'playwright'
+----------------------------------------------------------------------
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_p5_walk.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_p5_walk.py:22: in <module>
+    import notebook_p5_walk as w  # noqa: E402
+tools/notebook_p5_walk.py:80: in <module>
+    import mobile_audit as ma  # noqa: E402  -- _dismiss_intro
+tools/mobile_audit.py:28: in <module>
+    from playwright.sync_api import sync_playwright
+E   ModuleNotFoundError: No module named 'playwright'
+_ ERROR at setup of test_a_cross_origin_fetch_carries_no_proof_headers_and_a_same_origin_one_still_does _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_mutation_removing_the_origin_check_reds_the_cross_origin_rail _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+        is the expensive part; each rail opens its own fresh page/context."""
+>       from playwright.sync_api import sync_playwright
+E       ModuleNotFoundError: No module named 'playwright'
+
+tests/test_notebook_proof_walk.py:649: ModuleNotFoundError
+_ ERROR at setup of test_a_never_resolving_evaluate_is_bounded_by_a_js_side_race_not_a_hang _
+
+    @pytest.fixture(scope="module")
+    def real_browser():
+        """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+        navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+

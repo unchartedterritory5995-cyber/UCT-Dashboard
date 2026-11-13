@@ -1,0 +1,4 @@
+bucket | count | example node id
+----------------------------------------------------------------------
+3   | ModuleNotFoundError: No module named 'playwright' | tests/test_notebook_fin_walk_followup_group.py
+1   | AssertionError: expected one ohlcv DDL in CODE, found 0 | tests/test_canonical_address_book.py

@@ -1,0 +1,254 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+...............F........................................................ [  8%]
+.................F...................................................... [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+...........................x..x.x....................................... [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+.................................................................F...... [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+...................................F.................................... [ 52%]
+........................................................................ [ 54%]
+.....................F.................................................. [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+............................................................ss.......... [ 61%]
+........................................................................ [ 63%]
+..........................................................F............. [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+......................................................[dormant] self-heal rebuilt active set (0 active)
+.................. [ 76%]
+........................................................................ [ 78%]
+...........................................................s............ [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+.....................................................................s.. [ 98%]
+.................................................                        [100%]
+=================================== FAILURES ===================================
+___ test_the_ledger_carries_the_flag_dark_with_a_reason_and_stays_pure_crlf ____
+
+    def test_the_ledger_carries_the_flag_dark_with_a_reason_and_stays_pure_crlf():
+        raw = LEDGER.read_bytes()
+>       assert raw.count(b"\n") == raw.count(b"\r\n"), \
+            "docs/feature_flags.json is a CRLF file; a bare LF means it was re-dumped"
+E       AssertionError: docs/feature_flags.json is a CRLF file; a bare LF means it was re-dumped
+E       assert 3789 == 0
+E        +  where 3789 = <built-in method count of bytes object at 0x5ccb869c8720>(b'\n')
+E        +    where <built-in method count of bytes object at 0x5ccb869c8720> = b'{\n  "_readme": [\n    "Every feature GATE that is OFF unless something turns it on must appear here.",\n    "The li...k it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."\n    }\n  }\n}\n'.count
+E        +  and   0 = <built-in method count of bytes object at 0x5ccb869c8720>(b'\r\n')
+E        +    where <built-in method count of bytes object at 0x5ccb869c8720> = b'{\n  "_readme": [\n    "Every feature GATE that is OFF unless something turns it on must appear here.",\n    "The li...k it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."\n    }\n  }\n}\n'.count
+
+tests/test_rs_discord_post.py:634: AssertionError
+__________ test_package_imports_its_maths_from_relative_strength_only __________
+
+    def test_package_imports_its_maths_from_relative_strength_only():
+        files = sorted(PKG.glob("*.py"))
+        assert {f.name for f in files} >= {"__init__.py", "__main__.py", "job.py", "measure.py", "signals.py", "store.py"}
+        rs_public = {n for n in dir(rs) if not n.startswith("_") and callable(getattr(rs, n))}
+        for path in files:
+            src = path.read_text(encoding="utf-8")
+            tree = ast.parse(src)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for a in node.names:
+                        assert not a.name.startswith("api."), f"{path.name}: `import {a.name}` - use from-imports"
+                        assert a.name.split(".")[0] not in ("numpy", "pandas"), f"{path.name} imports {a.name}"
+                elif isinstance(node, ast.ImportFrom):
+                    mod = node.module or ""
+                    if node.level:
+                        continue                                  # inside the package
+                    if mod.startswith("api."):
+                        names = {f"{mod}.{a.name}" for a in node.names}
+>                       assert mod in ALLOWED_API_IMPORTS or names <= ALLOWED_API_IMPORTS, \
+                            f"{path.name} imports {mod} ({sorted(names)}); maths comes from relative_strength only"
+E                       AssertionError: __main__.py imports api.services.log_redaction (['api.services.log_redaction.install']); maths comes from relative_strength only
+E                       assert ('api.services.log_redaction' in {'api.services.bars_sanitize.unadjusted_splits', 'api.services.bars_sqlite', 'api.services.data_sync', 'api.services.d...red_splits.DEFAULT_FETCH_BUDGET', 'api.services.declared_splits.DeclaredSplits', 'api.services.delisted_registry', ...} or {'api.service...tion.install'} <= {'api.service...egistry', ...}
+E                         
+E                         Extra items in the left set:
+E                         'api.services.log_redaction.install')
+
+tests/test_rs_evidence_job.py:793: AssertionError
+______ test_the_ledger_carries_rs_split_dark_on_web_with_its_arming_note _______
+
+    def test_the_ledger_carries_rs_split_dark_on_web_with_its_arming_note():
+        raw = LEDGER.read_bytes()
+>       assert raw.count(b"\n") == raw.count(b"\r\n"), "docs/feature_flags.json is a CRLF file"
+E       AssertionError: docs/feature_flags.json is a CRLF file
+E       assert 3789 == 0
+E        +  where 3789 = <built-in method count of bytes object at 0x5ccb869c8720>(b'\n')
+E        +    where <built-in method count of bytes object at 0x5ccb869c8720> = b'{\n  "_readme": [\n    "Every feature GATE that is OFF unless something turns it on must appear here.",\n    "The li...k it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."\n    }\n  }\n}\n'.count
+E        +  and   0 = <built-in method count of bytes object at 0x5ccb869c8720>(b'\r\n')
+E        +    where <built-in method count of bytes object at 0x5ccb869c8720> = b'{\n  "_readme": [\n    "Every feature GATE that is OFF unless something turns it on must appear here.",\n    "The li...k it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."\n    }\n  }\n}\n'.count
+
+tests/test_rs_split_rows.py:532: AssertionError
+______ test_every_call_site_is_in_a_module_this_migration_reasoned_about _______
+
+    def test_every_call_site_is_in_a_module_this_migration_reasoned_about():
+        """⛔⛔ THE RAIL, failing BY NAME on a site nobody has looked at. A new
+        caller of `get_user_ticker_sets` in a module outside the three F-S6-1
+        named is not wrong by construction -- `get_user_ticker_sets`'s shape is
+        unchanged, so it would likely still be a no-op -- but it is UNREASONED
+        ABOUT, and this rail's whole purpose is to stop that from being silent
+        the way F-S6-1's original "Calendar the only caller" claim was."""
+        sites = _call_sites_of("get_user_ticker_sets")
+        unreasoned = sorted({f for f, _ln in sites} - _KNOWN_2026_09_15 - _REASONED_AFTER_2026_09_15)
+>       assert not unreasoned, (
+            f"get_user_ticker_sets is now called from {unreasoned}, which this "
+            "migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. "
+            "Read what it does with the returned dict before trusting the "
+            "no-op claim for this site, then add it to _KNOWN_2026_09_15 here.")
+E       AssertionError: get_user_ticker_sets is now called from ['api/services/journal_two/notebook_widgets.py'], which this migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. Read what it does with the returned dict before trusting the no-op claim for this site, then add it to _KNOWN_2026_09_15 here.
+E       assert not ['api/services/journal_two/notebook_widgets.py']
+
+tests/test_s6_cp2_migration.py:118: AssertionError
+_____ test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason _____
+
+    def test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason():
+        readers = _readers()
+        unknown = sorted(set(readers) - set(GUARDED) - set(EXEMPT))
+>       assert not unknown, (
+            "These modules read a note table and are in neither list. If a note's content becomes a "
+            "fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED "
+            "and filter with sample_marker; otherwise add it to EXEMPT with the reason: " + ", ".join(unknown))
+E       AssertionError: These modules read a note table and are in neither list. If a note's content becomes a fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED and filter with sample_marker; otherwise add it to EXEMPT with the reason: api/services/journal_two/notebook_today.py, api/services/journal_two/tweet_capture.py, api/services/journal_two/tweet_capture_sync.py
+E       assert not ['api/services/journal_two/notebook_today.py', 'api/services/journal_two/tweet_capture.py', 'api/services/journal_two/tweet_capture_sync.py']
+
+tests/test_sample_never_feeds_real_numbers.py:549: AssertionError
+__ test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes ___
+
+    def test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes():
+        """🔴 M8. A member request never triggers an evaluation — not bounded on the
+        request path, ABSENT from it."""
+        handlers = _endpoints_from_router_routes()
+        assert len(handlers) > 100, f"the census walked {len(handlers)} handlers"
+    
+        offenders = [f"{h[2]} -> {h[0]}::{h[1]}" for h in handlers
+                     if _transitive_imports_and_calls(h)]
+>       assert not offenders, (
+            "these route handlers can reach the universe sweep:\n  "
+            + "\n  ".join(offenders)
+            + "\nA universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod "
+              "with 64 shared anyio threads. That is the 2026-07-01 outage.")
+E       AssertionError: these route handlers can reach the universe sweep:
+E           /api/indicator-alerts -> api.routers.indicator_alerts::create_alert
+E           /api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value
+E         A universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod with 64 shared anyio threads. That is the 2026-07-01 outage.
+E       assert not ['/api/indicator-alerts -> api.routers.indicator_alerts::create_alert', '/api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value']
+
+tests/test_scan_evaluator_off_request_path.py:459: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_scan_run.py:1347
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+tests/test_s6_cp2_migration.py::test_NON_VACUITY_the_sweep_finds_call_sites_at_all
+tests/test_s6_cp2_migration.py::test_CONTROL_the_sweep_survives_an_import_alias
+tests/test_s6_cp2_migration.py::test_every_call_site_is_in_a_module_this_migration_reasoned_about
+tests/test_sample_never_feeds_real_numbers.py::test_the_scan_sees_readers_at_all
+tests/test_sample_never_feeds_real_numbers.py::test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason
+tests/test_sample_never_feeds_real_numbers.py::test_no_ledger_entry_is_stale
+tests/test_sample_never_feeds_real_numbers.py::test_no_reader_restates_the_marker_as_its_own_literal
+tests/test_sample_never_feeds_real_numbers.py::test_no_reader_restates_the_marker_as_its_own_literal
+tests/test_scan_evaluator_off_request_path.py::test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3149: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3152: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_schwab_partner_fixes.py::test_snapshot_now_is_admin_only_not_merely_logged_in
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_screener_backtest_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'from' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [2] tests/test_scalar_population_rail.py:428: set SCALAR_POPULATION_ARTIFACT=<path to a screener.db> to measure a real snapshot (the suite's own DB is a sandbox)
+SKIPPED [1] tests/test_screener_auth_surface.py:71: SCREEN_BACKTEST_ENABLED is off — the router is not mounted, so there is no served route to check (this is the flag working, not a gap)
+SKIPPED [1] tests/test_screener_integration.py:15: local bars reader unavailable: no such table: ohlcv
+XFAIL tests/test_rs_phase3_parity.py::test_clenow_shipped_figure_is_not_the_page_figure_raw - convention, measured: the page annualises over 260 bars and the product over 252, so the shipped clenowAnnual on the page's inputs is 13.42 %, 3.3 % below its 13.88 %. Strict, so changing the exponent turns this red for a review
+XFAIL tests/test_rs_phase3_parity.py::test_vars_matches_the_published_sign_changes - OANDA publishes its VARS only as chart images: no dated zero-line crossings and no price series as text (rs_parity_vars.json `not_published`), so its sign changes cannot be reproduced
+XFAIL tests/test_rs_phase3_parity.py::test_rrg_quadrant_agreement_with_stockcharts - awaiting owner StockCharts readings
+FAILED tests/test_rs_discord_post.py::test_the_ledger_carries_the_flag_dark_with_a_reason_and_stays_pure_crlf - AssertionError: docs/feature_flags.json is a CRLF file; a bare LF means it was re-dumped
+assert 3789 == 0
+ +  where 3789 = <built-in method count of bytes object at 0x5ccb869c8720>(b'\n')
+ +    where <built-in method count of bytes object at 0x5ccb869c8720> = b'{\n  "_readme": [\n    "Every feature GATE that is OFF unless something turns it on must appear here.",\n    "The li...k it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."\n    }\n  }\n}\n'.count
+ +  and   0 = <built-in method count of bytes object at 0x5ccb869c8720>(b'\r\n')
+ +    where <built-in method count of bytes object at 0x5ccb869c8720> = b'{\n  "_readme": [\n    "Every feature GATE that is OFF unless something turns it on must appear here.",\n    "The li...k it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."\n    }\n  }\n}\n'.count
+FAILED tests/test_rs_evidence_job.py::test_package_imports_its_maths_from_relative_strength_only - AssertionError: __main__.py imports api.services.log_redaction (['api.services.log_redaction.install']); maths comes from relative_strength only
+assert ('api.services.log_redaction' in {'api.services.bars_sanitize.unadjusted_splits', 'api.services.bars_sqlite', 'api.services.data_sync', 'api.services.d...red_splits.DEFAULT_FETCH_BUDGET', 'api.services.declared_splits.DeclaredSplits', 'api.services.delisted_registry', ...} or {'api.service...tion.install'} <= {'api.service...egistry', ...}
+  
+  Extra items in the left set:
+  'api.services.log_redaction.install')
+FAILED tests/test_rs_split_rows.py::test_the_ledger_carries_rs_split_dark_on_web_with_its_arming_note - AssertionError: docs/feature_flags.json is a CRLF file
+assert 3789 == 0
+ +  where 3789 = <built-in method count of bytes object at 0x5ccb869c8720>(b'\n')
+ +    where <built-in method count of bytes object at 0x5ccb869c8720> = b'{\n  "_readme": [\n    "Every feature GATE that is OFF unless something turns it on must appear here.",\n    "The li...k it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."\n    }\n  }\n}\n'.count
+ +  and   0 = <built-in method count of bytes object at 0x5ccb869c8720>(b'\r\n')
+ +    where <built-in method count of bytes object at 0x5ccb869c8720> = b'{\n  "_readme": [\n    "Every feature GATE that is OFF unless something turns it on must appear here.",\n    "The li...k it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."\n    }\n  }\n}\n'.count
+FAILED tests/test_s6_cp2_migration.py::test_every_call_site_is_in_a_module_this_migration_reasoned_about - AssertionError: get_user_ticker_sets is now called from ['api/services/journal_two/notebook_widgets.py'], which this migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. Read what it does with the returned dict before trusting the no-op claim for this site, then add it to _KNOWN_2026_09_15 here.
+assert not ['api/services/journal_two/notebook_widgets.py']
+FAILED tests/test_sample_never_feeds_real_numbers.py::test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason - AssertionError: These modules read a note table and are in neither list. If a note's content becomes a fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED and filter with sample_marker; otherwise add it to EXEMPT with the reason: api/services/journal_two/notebook_today.py, api/services/journal_two/tweet_capture.py, api/services/journal_two/tweet_capture_sync.py
+assert not ['api/services/journal_two/notebook_today.py', 'api/services/journal_two/tweet_capture.py', 'api/services/journal_two/tweet_capture_sync.py']
+FAILED tests/test_scan_evaluator_off_request_path.py::test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes - AssertionError: these route handlers can reach the universe sweep:
+    /api/indicator-alerts -> api.routers.indicator_alerts::create_alert
+    /api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value
+  A universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod with 64 shared anyio threads. That is the 2026-07-01 outage.
+assert not ['/api/indicator-alerts -> api.routers.indicator_alerts::create_alert', '/api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value']
+6 failed, 4212 passed, 4 skipped, 3 xfailed, 18 warnings in 349.87s (0:05:49)
