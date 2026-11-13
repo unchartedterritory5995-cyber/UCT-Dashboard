@@ -36,6 +36,7 @@ FLOW_GAP_AUTOFILL_SKIP_BACKUP (default 0).
 import json
 import logging
 import os
+import shutil
 import sqlite3
 import threading
 import time
@@ -62,7 +63,15 @@ DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 BACKUP_DIR = os.environ.get(
     "FLOW_FILL_BACKUP_DIR",
     os.path.join(os.path.dirname(DB_PATH) or "/data", "flow_backups"))
-BACKUP_KEEP = int(os.environ.get("FLOW_FILL_BACKUP_KEEP", "3"))
+# ⛔ 1, not 3 (2026-11-12). Each snapshot is a FULL copy of flow.db, 11 GB by November, and
+# the newest KEEP are exempt from the size ceiling below, so 3 meant 33 GB pinned plus the
+# 11 GB being written: the volume filled, SQLite hit `disk I/O error`, and flow.db
+# corrupted at the write head (11/11 21:38 snapshot -> I/O errors 21:52; 11/12 13:18 ->
+# 13:26; four corruptions in four days). One rollback snapshot is the job.
+BACKUP_KEEP = int(os.environ.get("FLOW_FILL_BACKUP_KEEP", "1"))
+# Free space a snapshot must leave behind: never write a copy that would take the volume
+# under this (the live writer, the WAL and the tape spool need it more than a rollback does).
+BACKUP_FREE_FLOOR_BYTES = int(float(os.environ.get("FLOW_FILL_BACKUP_FREE_FLOOR_GB", "10")) * (1 << 30))
 BACKUP_MAX_AGE_DAYS = int(os.environ.get("FLOW_FILL_BACKUP_MAX_AGE_DAYS", "14"))
 # Size ceiling, not just age: each snapshot is a full copy of flow.db (~2.3GB and
 # growing), so an age-only rule let them pile up faster than they expired.
@@ -314,7 +323,7 @@ def _build_fill_rows(target: date):
 
 # --- Backup -------------------------------------------------------------------
 
-def _prune_backups() -> int:
+def _prune_backups(keep: int = None) -> int:
     """Keep BACKUP_KEEP newest snapshots; drop older ones past BACKUP_MAX_AGE_DAYS
     OR whenever the directory exceeds BACKUP_MAX_BYTES (oldest first).
 
@@ -337,13 +346,17 @@ def _prune_backups() -> int:
         entries.append((p, st.st_mtime, st.st_size))
     entries.sort(key=lambda e: e[1], reverse=True)     # newest first
 
-    protected = entries[:BACKUP_KEEP]
-    candidates = entries[BACKUP_KEEP:]
+    # `keep` given: make room BEFORE a new snapshot, so everything past `keep` goes
+    # whatever its age or size (the new copy is about to become the newest).
+    forced = keep is not None
+    keep = BACKUP_KEEP if keep is None else max(0, int(keep))
+    protected = entries[:keep]
+    candidates = entries[keep:]
     total = sum(e[2] for e in entries)
     cutoff = time.time() - BACKUP_MAX_AGE_DAYS * 86400
     removed = 0
     for p, mtime, size in reversed(candidates):        # oldest first
-        if mtime >= cutoff and total <= BACKUP_MAX_BYTES:
+        if not forced and mtime >= cutoff and total <= BACKUP_MAX_BYTES:
             continue
         try:
             os.remove(p)
@@ -358,8 +371,32 @@ def _prune_backups() -> int:
     return removed
 
 
+def _backup_room():
+    """(ok, need_bytes, free_bytes) for one more snapshot: the copy is about the size
+    of flow.db plus its WAL, and must leave BACKUP_FREE_FLOOR_BYTES free after it."""
+    size = 0
+    for f in (DB_PATH, DB_PATH + "-wal"):
+        try:
+            size += os.path.getsize(f)
+        except OSError:
+            pass
+    free = shutil.disk_usage(os.path.dirname(BACKUP_DIR) or "/").free
+    need = size + BACKUP_FREE_FLOOR_BYTES
+    return free >= need, need, free
+
+
 def _backup_db(run_id: int, target: date):
     os.makedirs(BACKUP_DIR, exist_ok=True)
+    # Old snapshots go FIRST (they used to be pruned only after the new copy was
+    # written, so the peak was KEEP + 1 full copies), then the room is checked. No room
+    # => raise: the caller aborts the run with nothing written, which is the safe side
+    # (a fill without a rollback copy, or a copy that fills the disk under the live
+    # writer, are both worse than a gap that heals on the next run).
+    _prune_backups(keep=max(0, BACKUP_KEEP - 1))
+    ok, need, free = _backup_room()
+    if not ok:
+        raise RuntimeError(f"not enough disk for a rollback snapshot: need {need / (1 << 30):.1f} GB "
+                           f"free, have {free / (1 << 30):.1f} GB")
     path = os.path.join(BACKUP_DIR, f"flow-pre-{run_id}-{target.isoformat()}.db")
     src = sqlite3.connect(DB_PATH, timeout=30)
     try:
@@ -374,7 +411,6 @@ def _backup_db(run_id: int, target: date):
     # Was missing: callers do `backup_path = _backup_db(...)`, so the run ledger
     # stored NULL and the Discord summary read "backup SKIPPED" on runs that had
     # in fact written one — i.e. the rollback file existed but was unfindable.
-    return path
     return path
 
 
@@ -604,6 +640,18 @@ def run_fill(target: date = None, *, force: bool = False, dry_run: bool = None) 
                     f"detected {windows} — no writes (FLOW_GAP_AUTOFILL_DRY_RUN=1)")
                 return result
 
+            # The flat file first, THEN the snapshot (2026-11-12): most morning runs end
+            # `no_file` (published ~11 AM ET), and each used to cost a full 11 GB copy
+            # of flow.db first. Nothing is written before the snapshot either way.
+            fill_rows, ff_stats = _build_fill_rows(target)
+            tape_to_cleanup = (ff_stats or {}).get("tape_path")
+            if fill_rows is None:
+                _finish(run_id, "no_file")
+                result["status"] = "no_file"
+                _post_discord(f"\U0001F7E1 FLOW GAP-FILL {mdy}: {len(windows)} gap "
+                              f"window(s) but flat file not published yet — will retry")
+                return result
+
             version_before = _current_version()
             backup_path = None
             if not SKIP_BACKUP:
@@ -615,15 +663,6 @@ def run_fill(target: date = None, *, force: bool = False, dry_run: bool = None) 
                                   f"({e}) — run aborted, nothing written")
                     result["status"] = "failed"
                     return result
-
-            fill_rows, ff_stats = _build_fill_rows(target)
-            tape_to_cleanup = (ff_stats or {}).get("tape_path")
-            if fill_rows is None:
-                _finish(run_id, "no_file")
-                result["status"] = "no_file"
-                _post_discord(f"\U0001F7E1 FLOW GAP-FILL {mdy}: {len(windows)} gap "
-                              f"window(s) but flat file not published yet — will retry")
-                return result
 
             totals = {"deleted": 0, "inserted": 0, "skipped": 0}
             c = _conn()

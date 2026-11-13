@@ -4,6 +4,13 @@ Owner-approved 2026-09-11. Replaces the blanket RTH freeze and the "push anytime
 This is the single authority on push timing. `CLAUDE.md` points here and states no
 rule of its own.
 
+
+## ⛔⛔ flow-worker no longer auto-deploys (2026-11-12)
+
+Railway auto deploy is DISABLED for `flow-worker`. The watch-pattern tables below now describe what
+WOULD trigger it; nothing does on push. Deploy it by hand outside market hours, per
+`docs/runbooks/flow-worker-deploys-and-flow-db.md` (why: deploys corrupted flow.db on 2026-11-11/12).
+
 ## ⛔⛔ THE CUTOVER HAPPENED — `web` DEPLOYS FROM `production`, NOT `master` (2026-09-16)
 
 Railway's `web` service watches **`production`**, which only the promotion workflow

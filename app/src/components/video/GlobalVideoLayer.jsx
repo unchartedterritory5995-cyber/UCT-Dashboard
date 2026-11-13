@@ -20,7 +20,7 @@ import { pipSupported, openPip } from './documentPip'
 import { setVideoOwnsMediaSession } from './mediaSessionOwner'
 import Scrubber from './Scrubber'
 import { registerShortcuts } from '../../pages/command/shortcutRegistry'
-import brandMark from '../intro/assets/compass-mark.png'
+import brandMark from '../intro/assets/compass-mark.webp'
 import { PlayIcon } from '../../pages/education/icons'
 import {
   PauseIcon, CloseIcon, MinimizeIcon, ExpandIcon, NextIcon, DragIcon,

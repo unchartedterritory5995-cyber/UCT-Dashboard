@@ -26,6 +26,7 @@ import httpx
 from api.services import single_flight
 from api.services.cache import TTLCache
 from api.services.massive import to_polygon_symbol
+from api.services.log_redaction import safe_exc as _safe_exc
 
 _log = logging.getLogger(__name__)
 
@@ -174,11 +175,11 @@ def _walk_expirations(sym: str, api_sym: str, cache_key: str) -> dict[str, Any]:
         return {"error": str(e)}
     except httpx.HTTPError as e:
         if not seen:
-            _log.warning("polygon expirations fetch failed: %s", e)
-            err = {"error": f"polygon request failed: {e}", "ticker": sym}
+            _log.warning("polygon expirations fetch failed: %s", _safe_exc(e))
+            err = {"error": f"polygon request failed: {_safe_exc(e)}", "ticker": sym}
             _CACHE.set(cache_key, dict(err), _ERROR_TTL)  # S3: one failure per stampede
             return err
-        _log.warning("polygon expirations walk stopped early for %s: %s", sym, e)
+        _log.warning("polygon expirations walk stopped early for %s: %s", sym, _safe_exc(e))
         complete = False
     seen = seen[:_EXP_MAX]
     result = {"ticker": sym, "count": len(seen), "expirations": seen}
@@ -352,8 +353,8 @@ def _fetch_chain(sym: str, api_sym: str, expiration: str, cache_key: str) -> dic
     except RuntimeError as e:
         return {"error": str(e)}  # no key: not a vendor answer, never cached
     except httpx.HTTPError as e:
-        _log.warning("polygon chain fetch failed for %s: %s", sym, e)
-        return _fail({"error": f"polygon request failed: {e}", "ticker": sym})
+        _log.warning("polygon chain fetch failed for %s: %s", sym, _safe_exc(e))
+        return _fail({"error": f"polygon request failed: {_safe_exc(e)}", "ticker": sym})
 
     if not results:
         return _fail({"error": "no chain data", "ticker": sym})

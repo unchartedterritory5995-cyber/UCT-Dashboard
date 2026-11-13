@@ -9,7 +9,7 @@
 // Not a word of a lesson is rewritten. A near-miss chart's lesson is a template with no rule in it, so the rule comes
 // from the reveal's `setup_rule`: the same setup's definition as the approved lessons write it (study_hard.setup_rule).
 import { approvedPlainRule } from '../studyPlainRules'
-import brandMark from '../../../components/intro/assets/compass-mark.png'
+import brandMark from '../../../components/intro/assets/compass-mark.webp'
 import { readCandle, readText, readTone } from './candleRead'
 import { sentencesOf, splitLesson, stepsOf } from './lesson'
 import Emph from './emphasize'

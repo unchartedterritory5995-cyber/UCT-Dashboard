@@ -43,7 +43,7 @@
  *  ⛔ A STYLE WE DO NOT KNOW DRAWS A PLAIN BOX AT THE ANCHOR rather than
  *  guessing a direction: an arrow pointing the wrong way is a worse error than
  *  no arrow. */
-const LABEL_ANCHOR = Object.freeze({
+export const LABEL_ANCHOR = Object.freeze({
   label_down: { dx: 0, dy: -1 },
   label_up: { dx: 0, dy: 1 },
   label_left: { dx: 1, dy: 0 },

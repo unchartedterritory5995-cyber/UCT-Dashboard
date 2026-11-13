@@ -12,7 +12,7 @@ import { vi } from 'vitest'
 import { screen } from '@testing-library/react'
 import { setupPanel, bareSettings } from '../../../testing/panelHarness'
 import { makeBoard } from '../../../__fixtures__/board'
-import { buildDrawingSource, buildFlaggedSource, buildIndicatorAlertSource, buildListViewSource, buildLayoutDockSource } from '../../../host'
+import { buildDrawingSource, buildFlaggedSource, buildIndicatorAlertSource, buildListViewSource, buildDrawingBoardSource, buildLayoutDockSource } from '../../../host'
 import { DOCK_PREF, addPin, removePin, shiftPin } from '../../../../pages/charts/layoutDockPins'
 import { publishListView } from '../../../../pages/watchlist/watchlistViews'
 import { DEFAULT_COL_ORDER } from '../../../../pages/watchlist/watchlistColumns'
@@ -66,6 +66,8 @@ export const BOARDS = {
     { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }] } } }], { 'N:c1': 'NVDA' }, { indicatorAlerts: true }],
   // + the TIME NAVIGATOR over the synthetic history (view, go-to-date, Replay Mode) and the chart's drawings
   TIMED: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { timeNav: true, drawings: true }],
+  // family C (C1-061): a chart whose watermark was dragged by hand (ChartWidget endWatermarkAdjust's opts.watermarkPos)
+  WATERMARK: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), watermarkPos: { x: 0.2, y: 0.8, anchor: null } } }], { 'N:c1': 'NVDA' }],
   // a chart drawn with a GRADIENT background (live LT-3: "turn the gradient off on this chart")
   GRADIENT: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), bgMode: 'gradient' } } }], { 'N:c1': 'NVDA' }],
   // one chart on its DEFAULT settings (EMA 9/20, SMA 50/200) with the indicator-alert library
@@ -235,7 +237,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/auth/preferences' && method === 'GET') {
       const id = drawingsStore.getActiveTracingId?.() ?? 'default'
       const syms = [...new Set((mounted?.h?.charts?.list?.() || []).map(c => c.symbol))]
-      return json({ tracings_doc: { updatedAt: 1, doc: { activeId: id, byTracing: { [id]: Object.fromEntries(syms.map(sy => [sy, drawingsStore.peekDrawings(sy)])) } } } })
+      // (+ the boards list itself, as exportTracings() pushes it: host.drawingBoards.confirm reads the boards back by id and name)
+      return json({ tracings_doc: { updatedAt: 1, doc: { activeId: id, tracings: drawingsStore.exportTracings().tracings, byTracing: { [id]: Object.fromEntries(syms.map(sy => [sy, drawingsStore.peekDrawings(sy)])) } } } })
     }
     if (u.startsWith('/api/indicator-alerts')) {
       // the router's own shapes (indicator_alerts.py), as agentIndicatorAlerts.test.jsx's fixture
@@ -323,6 +326,23 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   mounted = p.mount(...spec)
   const extra = spec[2] || {}
   if (extra.indicatorAlerts) mounted.h.indicatorAlerts = buildIndicatorAlertSource()
+  if (seed.boards) {
+    // C1-167..170: the member's Drawing Boards in the REAL drawings store (seed.boards: { names, active, drawings }: names by
+    // position, '' = unnamed ("Board N"); `drawings`: { boardIndex: count } horizontal lines on NVDA), written only through
+    // the panel's writers by host.drawingBoards; the server copy is the GET above
+    localStorage.removeItem('uct-chart-tracings')
+    for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)
+    drawingsStore._reset()
+    const ids = [drawingsStore.getActiveTracingId()]
+    drawingsStore.renameTracing(ids[0], seed.boards.names[0] || '')
+    for (const n of seed.boards.names.slice(1)) ids.push(drawingsStore.createTracing({ name: n }))
+    for (const [i, count] of Object.entries(seed.boards.drawings || {})) {
+      drawingsStore.setActiveTracing(ids[i])
+      for (let k = 0; k < count; k++) drawingsStore.addDrawing('NVDA', { type: 'horizontal', points: [{ price: 20 + k }], color: '#fff', lineWidth: 1 })
+    }
+    drawingsStore.setActiveTracing(ids[seed.boards.active || 0])
+    mounted.h.drawingBoards = buildDrawingBoardSource(drawingsStore, { timeoutMs: 3000, everyMs: 20 })
+  }
   if (extra.grid) mounted.h.gridControl = makeGridControl(['NVDA'])
   if (extra.layoutDock) {
     // the Layout Dock's door (pages/charts/LayoutDock.jsx agentRef): the same positional helpers over the
@@ -413,12 +433,16 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     // viewDo(ref, op, arg) is the chart's own view control (range bar, Reset view, Alt+Shift+I), read back from the view
     const views = {}
     const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true,
-      activeRange: null, atDefaultView: false, indicatorsHidden: false, priceAuto: false, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null } })
+      activeRange: null, atDefaultView: false, indicatorsHidden: false, priceAuto: false, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null },
+      // the Position Calculator (StockChart getDateMeta.positionCalc): closed, its panel empty
+      positionCalc: { can: true, open: false, entry: '', stop: '', target: '', direction: 'long' } })
     st.replay = null
     const charts = mounted.h.charts
     // C1-127: the chart's own Chart Settings door (ChartWidget adapter → ChartPane.openSettings), read back as open
     st.settingsOpen = {}
-    const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay, canOpenSettings: true, settingsOpen: !!st.settingsOpen[x.ref] } : x)
+    // family C (C1-178): the chart's right-click "Ask AI about {sym}" door (ChartWidget openAskAi), recorded as the route it opens
+    st.askAi = []
+    const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay, canOpenSettings: true, settingsOpen: !!st.settingsOpen[x.ref], canAskAi: true } : x)
     mounted.h.charts = { ...charts, list: () => charts.list().map(withTime), read: (r) => withTime(charts.read(r)),
       goTo: (ref, ms) => { viewOf(ref).rightMs = ms >= BAR_DAYS.at(-1) ? BAR_DAYS.at(-1) : lastOnOrBefore(ms); return true },
       // the chart's own view controls (StockChart.applyRange / restoreView / resetView / setIndicatorsHidden), as getDateMeta reads them back
@@ -431,11 +455,45 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
         // the ◀ / ▶ step (stepBar(n): the logical window + n, so right-relative − n) and the price axis menu's Auto-scale
         if (op === 'stepBar') v.frame = { ...v.frame, fromRight: v.frame.fromRight - arg, toRight: v.frame.toRight - arg, activeRange: null }
         if (op === 'autoScale') v.priceAuto = true
+        // the + / - zoom (zoomTimeAxis: the width × 0.8 or × 1.25 per press, around the window's centre)
+        if (op === 'zoom') { const c = (v.frame.fromRight + v.frame.toRight) / 2, half = ((v.frame.fromRight - v.frame.toRight) * Math.pow(arg.out ? 1.25 : 0.8, arg.steps)) / 2; v.frame = { ...v.frame, fromRight: c + half, toRight: c - half, activeRange: null } }
+        // the Position Calculator (StockChart.positionCalc): the tool armed or disarmed, the panel's three prices as strings
+        if (op === 'positionCalc') v.positionCalc = { ...v.positionCalc, open: !!arg.open, entry: String(arg.entry ?? ''), stop: String(arg.stop ?? ''), target: String(arg.target ?? ''), direction: arg.direction || v.positionCalc.direction }
         return true
       },
       setReplay: (iso) => { st.replay = iso ?? null; return true },
-      openSettings: (ref) => { st.settingsOpen[ref] = true; return true } }
+      openSettings: (ref) => { st.settingsOpen[ref] = true; return true },
+      askAi: (ref) => { st.askAi.push(`/research/${charts.read(ref)?.symbol}?section=ai`); return true } }
     st.views = views
+    // Tools → Custom-Period Sort (ChartsWorkspace runPeriodSort / handleDockPeriodSort), sharing the ONE Replay cutoff above
+    const iso = (ymd) => { const s = String(ymd); return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` }
+    st.periodSort = { panel: null, marker: null, markerStyle: 'line' }
+    const ps = st.periodSort
+    let psN = 0
+    mounted.h.periodSort = {
+      read: () => ({ panel: ps.panel, cutoff: st.replay, marker: ps.marker, markerStyle: ps.markerStyle }),
+      run: (a) => {
+        ps.panel = { start: a.start, end: a.end, group: a.group || null }
+        st.replay = a.replay ? iso(a.end) : null
+        ps.marker = a.markStart && a.markStart !== 'off' ? iso(a.start) : null
+        if (a.markStart === 'line' || a.markStart === 'candle') ps.markerStyle = a.markStart
+        return true
+      },
+      restore: (was) => { ps.panel = was.panel ? { ...was.panel } : null; st.replay = was.cutoff ?? null; ps.marker = was.marker ?? null; if (was.markerStyle) ps.markerStyle = was.markerStyle; return true },
+      dock: () => {
+        if (!ps.panel) return null
+        const id = `w-periodsort-${++psN}`
+        mounted.board.state.widgets = [...mounted.board.state.widgets, { id, type: 'periodsort', color: 'A', x: 0, y: 20, w: 8, h: 10, opts: { ...ps.panel } }]
+        ps.panel = null
+        return id
+      },
+      undock: ({ remove, set, panel }) => {
+        mounted.board.state.widgets = mounted.board.state.widgets.filter(w => w.id !== remove).map(w => (set?.[w.id] ? { ...w, ...set[w.id] } : w))
+        ps.panel = panel ? { ...panel } : null
+        return true
+      },
+      widgets: () => mounted.board.state.widgets,
+    }
   }
   if (extra.drawings) {
     for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)      // the store is module-level: start empty

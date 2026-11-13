@@ -96,3 +96,9 @@ def test_the_guard_still_passes_ordinary_multi_chart_prose():
     for text in ("I keep a 2x3 multi chart grid of the leaders.", "Maximize the cell when you study a base.",
                  "Set the chart to weekly before the open."):
         assert guard.suspicious(text) is False, text
+
+
+def test_the_chart_menu_family_is_a_CHART_action_not_history():
+    # #1106: the chart's right-click Ask AI and watermark Reset act on ONE chart (the chart domain), never history
+    assert v2.domain_for("chartMenu.askAi") == "chart"
+    assert v2.domain_for("chartMenu.resetWatermark") == "chart"

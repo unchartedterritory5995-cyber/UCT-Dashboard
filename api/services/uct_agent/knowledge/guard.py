@@ -29,12 +29,18 @@ _INJECTION = re.compile(
     r"|\b(call|use|run|invoke|execute|trigger)\b[^.\n]{0,30}?\b[a-z][a-zA-Z]{2,}"
     r"\.(?!(?:com|net|org|io|co|ai|gov|edu|us|uk|ca|app|dev|me|tv|ly)\b)[a-z][a-zA-Z]{2,}\b(?![/.])"
     r"|\b(watchlist|layout|alert|chart|chartSetup|chartGrid|screener|indicator|indicatorAlert|indicatorStyle|indicatorCopy"
-    r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research|multiChart)"
+    # #1082 Custom-Period Sort: the periodSort domain (periodSort.run / periodSort.dock as bare names); stricter only
+    # #1106 right-click parity: the chartMenu domain (chartMenu.askAi / chartMenu.resetWatermark as bare names); stricter only
+    r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research|multiChart|periodSort|chartMenu)"
     r"\.(add|remove|delete|create|clear|rename|open|set|run|save|apply|show|hide|update|move|resize|toggle|swap|duplicate"
     # #1030 ratchet: master actions added by #1077/#1073/#1027 (chartSetup.stepBars/autoScale/compareGroup,
     # watchlist.arrangeColumns/exportList): their verbs join the withheld set (stricter only)
     # #1074 Layout Dock: layout.pinToBar / layout.unpinFromBar as bare names (layout.moveOnBar is "move"); stricter only
-    r"|reorder|list|explain|setup|record|web|quote|cell|step|auto|compare|arrange|export|pin|unpin)[A-Za-z]*\b"
+    # #1110 drawing extras: drawing.favoriteTool / drawing.positionCalculator as bare names (saveDefaults is "save"); stricter only
+    # #1104 chart zoom: chartSetup.zoom as a bare name; stricter only
+    # #1106 right-click parity: verbs ask (askAi) and reset (resetWatermark; also withholds the older chart.resetDefaults /
+    # chartSetup.resetView bare names — stricter, and GUARD_KNOWN_UNWITHHELD may only shrink)
+    r"|reorder|list|explain|setup|record|web|quote|cell|step|auto|compare|arrange|export|pin|unpin|dock|favorite|position|zoom|ask|reset)[A-Za-z]*\b"
     r"|\bnew\s+instructions?\b|\bsystem\s*prompt\b|\bjailbreak\b"
     r"|<\s*/?\s*(system|assistant|user|tool|instructions?)\b|\[\s*(system|inst)\s*\]|<\|[a-z_]+\|>"
     r"|\b(call|use|invoke)\s+the\s+\w+\s+tool\b|\btool_use\b|\bfunction_call\b",

@@ -60,6 +60,7 @@ _BOOT_QUIET_S = {
     "flow_integrity_probe": 600,
     "bars_continuous_audit": 300,
     "breadth_self_heal": 240,
+    "theme_index_prewarm": 150,
 }
 
 
@@ -96,6 +97,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     force=True,
 )
+_install_log_redaction()   # basicConfig(force=True) replaced the handlers: re-attach the filter
 # Quiet down third-party libs that flood INFO with request-level noise.
 for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
                "websockets.protocol", "asyncio", "uvicorn.access"):
@@ -1846,7 +1848,16 @@ def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
                 readiness.mark_done("rs_rankings")
             # A success re-warms just under the 1h TTL; a failure retries soon
             # (see _rs_warm_sleep_seconds) instead of leaving the table empty.
-            time.sleep(_rs_warm_sleep_seconds(ok, failures))
+            nap = _rs_warm_sleep_seconds(ok, failures)
+            try:
+                from api.services import rs_ranking as _rsr
+                left = getattr(_rsr, "last_seed_remaining_s", None)
+                if ok and left is not None:
+                    # boot seeded a snapshot instead of computing: re-warm before IT expires
+                    nap = max(30, min(nap, int(left) - 120))
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(nap)
     threading.Thread(target=_delayed, daemon=True, name="rs-rankings-warmer").start()
 
 
@@ -2412,13 +2423,53 @@ def _alert_if_rs_history_short(receipt: dict) -> None:
         print(f"[scheduler] could not raise the rs history alert: {e}")
 
 
+#: ONE rating run per process at a time, whichever door it came through (the 04:15
+#: cron, the boot catch-up, the retry crons). Non-blocking: a second caller skips.
+#: The cross-PROCESS half is `rs_history.begin_attempt` (a row in screener.db).
+_RS_HISTORY_RUN_LOCK = threading.Lock()
+
+
+def _rs_history_guarded(source: str, session=None) -> dict | None:
+    """Run `rs_history.nightly_job` once under both guards and return its receipt,
+    or None when another run holds either guard. Raises what the job raises (the
+    callers own the never-raise rule and the crash alert).
+
+    `session` None calls `nightly_job()` with the module's own defaults (the 04:15
+    path, unchanged); a catch-up passes the session it is catching up to."""
+    if not _RS_HISTORY_RUN_LOCK.acquire(blocking=False):
+        print(f"[scheduler] rs history ({source}): skipped, a run is already going in this process")
+        return None
+    try:
+        from api.services.screener import rs_history
+        claim = rs_history.begin_attempt(source, session)
+        if not claim.get("claimed"):
+            held = claim.get("running") or {}
+            print(f"[scheduler] rs history ({source}): skipped, attempt {held.get('id')} "
+                  f"({held.get('source')}, pid {held.get('pid')}) started at "
+                  f"{held.get('started_at')} and has not finished")
+            return None
+        print(f"[scheduler] rs history ({source}): started attempt={claim.get('id')} "
+              f"session={session or 'settled'}")
+        outcome = "crashed"
+        receipt: dict = {}
+        try:
+            receipt = rs_history.nightly_job() if session is None else rs_history.nightly_job(session)
+            outcome = "ok" if receipt.get("ok") else "not_stored"
+        finally:
+            rs_history.finish_attempt(claim.get("id"), outcome, receipt.get("session"))
+        return receipt
+    finally:
+        _RS_HISTORY_RUN_LOCK.release()
+
+
 def _run_rs_history() -> None:
     """The `rs_history_nightly` job. Never raises.
 
     Off (`RS_HISTORY_ENABLED` unset or not "1"): returns before touching the DB --
     the side tables are created on first WRITE, so a dark pod carries no table.
     On: one `rs_history.nightly_job()` with the module's own defaults (it resolves
-    the settled session, the cap universe, the ETF set and the bars reader itself);
+    the settled session, the cap universe, the ETF set and the bars reader itself),
+    under `_rs_history_guarded` (one run at a time, a 'started' attempt row first);
     the receipt it recorded is then read for the shortfall rule above.
     """
     try:
@@ -2426,17 +2477,145 @@ def _run_rs_history() -> None:
             logging.getLogger(__name__).debug(
                 "[scheduler] rs history: RS_HISTORY_ENABLED is off; nothing touched")
             return
-        from api.services.screener import rs_history
-        receipt = rs_history.nightly_job()
-        print(f"[scheduler] rs history: session={receipt.get('session')} "
-              f"rated={receipt.get('rated')} targets={receipt.get('targets')} "
-              f"rows={receipt.get('rows')} short={receipt.get('short_history')} "
-              f"stale={receipt.get('stale')} no_bars={receipt.get('no_bars')} "
-              f"ms={receipt.get('duration_ms')}")
+        receipt = _rs_history_guarded("nightly")
+        if receipt is None:
+            return
+        _print_rs_history_receipt("rs history", receipt)
         _alert_if_rs_history_short(receipt)
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] rs history error: {e}")
         _alert_if_rs_history_short({"crashed": f"{type(e).__name__}: {e}"})
+
+
+def _print_rs_history_receipt(label: str, receipt: dict) -> None:
+    print(f"[scheduler] {label}: session={receipt.get('session')} "
+          f"rated={receipt.get('rated')} targets={receipt.get('targets')} "
+          f"rows={receipt.get('rows')} short={receipt.get('short_history')} "
+          f"stale={receipt.get('stale')} no_bars={receipt.get('no_bars')} "
+          f"ms={receipt.get('duration_ms')}")
+
+
+# -- the catch-up: a killed or missed nightly heals itself -------------------------
+#
+# ⚰️ 2026-11-12 (Railway logs): `rs_history_nightly` started 09:15:00 UTC in one web
+# deployment and was killed ~10 minutes later when another deploy swapped the
+# container. No receipt; the new container never re-ran it (`misfire_grace_time` only
+# covers a scheduler that was ALIVE at the fire time), so `rs_rating_history` stayed
+# on 2026-11-10 all day. Since PR #1135 the run reads ~13,600 tickers and overnight
+# master merges land every 20-30 minutes, so this will recur.
+#
+# The catch-up runs the SAME guarded job, only when the store is behind the session
+# the 04:15 run should already have written: a few minutes after boot (a DATE job,
+# never inline, so the boot is not slowed) and hourly 05:15-08:15 ET (pre-market).
+# Current store: one MAX(session) read and nothing else.
+#
+# What does NOT need re-running after a late catch-up (read 2026-11-12):
+#   - the screener's seven rs_rating_* columns are read ONCE per build
+#     (`snapshot_builder._read_rs_history_fields`, the newest stored session); the
+#     03:00 build runs before 04:15 by design, so the caught-up session reaches the
+#     screener at the next build exactly as an on-time run's would.
+#   - `rs_discord_post` reads `screener_rows` only; `rs_evidence_pull` reads R2 only.
+#   - `rs_ranking`'s badge overlay memoises the newest session for 5 minutes.
+# What DOES: `rs_lists_nightly` (04:40) refuses while the history is behind the
+# screener session, so a catch-up that stored re-runs it (idempotent, own flag).
+
+#: The 04:15 ET fire time of `rs_history_nightly`. Before it, the store is expected
+#: to hold the session BEFORE the settled one.
+RS_HISTORY_NIGHTLY_ET = (4, 15)
+#: The retry crons: 05:15, 06:15, 07:15 and 08:15 ET, all before the open.
+RS_HISTORY_CATCHUP_HOURS_ET = "5-8"
+RS_HISTORY_CATCHUP_MINUTE_ET = 15
+#: Seconds after registration the boot catch-up fires (after the boot settles).
+RS_HISTORY_BOOT_CATCHUP_DELAY_S = 300
+#: From this hour ET a store still behind is alerted (`_check_rs_history_current`).
+RS_HISTORY_STALE_ALERT_ET = (9, 5)
+
+
+def _rs_history_target_session(now=None) -> str | None:
+    """The session the store should hold at `now`: the settled session as the last
+    04:15 ET fire saw it (`settled_session` of `now` moved back by 04:15). Before
+    04:15 that is the session before the settled one, so a pod booting at 02:00 does
+    not rate a session whose bars the 03:00 build has not caught up yet. None when
+    the calendar does not cover the date."""
+    from datetime import timedelta as _td
+    from api.services.screener import rs_history
+    now = now or datetime.now(_ET)
+    h, mi = RS_HISTORY_NIGHTLY_ET
+    d = rs_history.settled_session(now - _td(hours=h, minutes=mi))
+    return rs_history.session_key(d) if d else None
+
+
+def _rs_history_behind(now=None):
+    """`(target, latest)` when the store is behind the target session, else None."""
+    from api.services.screener import rs_history
+    target = _rs_history_target_session(now)
+    if not target:
+        return None
+    latest = rs_history.latest_session()
+    if latest is not None and str(latest) >= target:
+        return None
+    return target, latest
+
+
+def _run_rs_history_catchup(source: str = "catchup") -> None:
+    """The `rs_history_catchup_boot` and `rs_history_catchup` jobs. Never raises.
+
+    Off: nothing touched. Current store: nothing but one read. Behind: one guarded
+    run for the target session (skipped while another run holds a guard), its
+    shortfall alert, and, when it stored, `rs_lists` re-run (see the block above)."""
+    try:
+        if not rs_history_enabled():
+            return
+        behind = _rs_history_behind()
+        if behind is None:
+            return
+        target, latest = behind
+        print(f"[scheduler] rs history catch-up ({source}): store at {latest}, "
+              f"expected {target}; running")
+        receipt = _rs_history_guarded(source, session=target)
+        if receipt is None:
+            return
+        _print_rs_history_receipt(f"rs history catch-up ({source})", receipt)
+        _alert_if_rs_history_short(receipt)
+        if receipt.get("ok"):
+            _run_rs_lists()
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs history catch-up ({source}) error: {e}")
+        _alert_if_rs_history_short({"crashed": f"{type(e).__name__}: {e}"})
+
+
+def _check_rs_history_current() -> None:
+    """The `rs_history_stale_watchdog` job (09:05 ET). Never raises. Armed only:
+    a store still behind its target session after every catch-up had its chance is
+    ONE warning per session, keyed `rs_history_stale:{target}`, through the same
+    emitter as `rs_history_short`, naming the last attempt (a killed run reads as
+    started with no finish)."""
+    try:
+        if not rs_history_enabled():
+            return
+        behind = _rs_history_behind()
+        if behind is None:
+            return
+        target, latest = behind
+        from api.services import chart_health_alerts
+        from api.services.screener import rs_history
+        attempt = rs_history.last_attempt() or {}
+        going = attempt and attempt.get("finished_at") is None and not attempt.get("stale")
+        chart_health_alerts.emit(
+            f"rs_history_stale:{target}", "warning",
+            f"The UCT RS rating history is still on {latest or 'no session'} at "
+            f"{RS_HISTORY_STALE_ALERT_ET[0]:02d}:{RS_HISTORY_STALE_ALERT_ET[1]:02d} ET; it should "
+            f"hold {target}. "
+            + (f"A run ({attempt.get('source')}) is still going. " if going else
+               "The 04:15 run and the catch-ups did not store it. ")
+            + "The site's RS ratings are a session behind until a run succeeds.",
+            {"target": target, "latest_session": latest,
+             "last_attempt": {k: attempt.get(k) for k in
+                              ("id", "source", "session", "started_at", "finished_at",
+                               "outcome", "stale")}},
+        )
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] could not run the rs history stale check: {e}")
 
 
 def _run_rs_evidence_pull() -> None:
@@ -2792,6 +2971,32 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run_rs_history,
                       trigger=CronTrigger(hour=4, minute=15, timezone=_ET),
                       id="rs_history_nightly", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+
+    # -- ... and its CATCH-UP (2026-11-12 incident; `_run_rs_history_catchup`) ----
+    #
+    # A DATE job a few minutes after boot (never inline: the boot is not slowed) and
+    # an hourly retry 05:15-08:15 ET, both running the SAME guarded job only when the
+    # store is behind the session the 04:15 run should have written. A killed run is
+    # thereby redone by the next container's boot or the next :15, whichever is
+    # first; the guards (`_rs_history_guarded`) stop two runs at once, and a killed
+    # run's marker stops counting after `rs_history.RUNNING_STALE_S`. 09:05 ET: the
+    # watchdog alerts a store still behind. All three UNCONDITIONAL (depth 0 under
+    # `_add_job_gate_depth`): `RS_HISTORY_ENABLED` is read per call, like the job's.
+    from datetime import timedelta as _td
+    scheduler.add_job(_run_rs_history_catchup, kwargs={"source": "boot"}, trigger="date",
+                      run_date=datetime.now(_ET) + _td(seconds=RS_HISTORY_BOOT_CATCHUP_DELAY_S),
+                      id="rs_history_catchup_boot", max_instances=1,
+                      replace_existing=True, misfire_grace_time=3600)
+    scheduler.add_job(_run_rs_history_catchup, kwargs={"source": "retry"},
+                      trigger=CronTrigger(hour=RS_HISTORY_CATCHUP_HOURS_ET,
+                                          minute=RS_HISTORY_CATCHUP_MINUTE_ET, timezone=_ET),
+                      id="rs_history_catchup", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=1800)
+    scheduler.add_job(_check_rs_history_current,
+                      trigger=CronTrigger(hour=RS_HISTORY_STALE_ALERT_ET[0],
+                                          minute=RS_HISTORY_STALE_ALERT_ET[1], timezone=_ET),
+                      id="rs_history_stale_watchdog", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
     # -- UCT Relative Strength evidence: the web pull of the worker's artifact --
@@ -5253,7 +5458,11 @@ async def lifespan(app: FastAPI):
             # The 15-min re-warm registers in the scheduler block below —
             # `_scheduler` does not exist yet at this line (see the
             # discord-chart hot-warm note above). Only the boot Timer runs here.
-            _t = threading.Timer(35, _theme_index_prewarm)
+            # ⚡ 35 -> _BOOT_QUIET_S (2026-11-12): six bars reads at a time for ~5 minutes
+            # (boot-probe pool-work: theme_index._holding_daily_bars x6) starting inside the
+            # reconnect burst (boot+46 s: 45/64 anyio tokens, 362 ms loop lag). A cold $IDX
+            # chart in the first 150 s computes its own theme on request, as before.
+            _t = threading.Timer(_BOOT_QUIET_S["theme_index_prewarm"], _theme_index_prewarm)
             _t.daemon = True
             _t.start()
         except Exception:

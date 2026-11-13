@@ -1,0 +1,17 @@
+const a = require('./dump-master.json'), b = require('./dump-branch.json')
+const out = { n: a.rows.length, nb: b.rows.length }
+for (const v of ['v1', 'v2']) {
+  const c = { inin: 0, outin: 0, outout: 0, inout: 0, noexp: 0, diff: 0, diffRows: [], withExp: 0, inM: 0, inB: 0 }
+  a.rows.forEach((r, i) => {
+    const s = b.rows[i]; if (s.id !== r.id) throw new Error('row order')
+    const d = JSON.stringify(r[v].g) !== JSON.stringify(s[v].g)
+    if (d) { c.diff++; c.diffRows.push({ id: r.id, held: r.held, m: r[v].g.join(','), b: s[v].g.join(','), res: r.plans ? `${r[v].in ? 'in' : 'out'}→${s[v].in ? 'in' : 'out'}` : 'no expectation' }) }
+    if (r.plans) { c.withExp++; if (r[v].in) c.inM++; if (s[v].in) c.inB++ }
+    if (!r.plans) { if (d) c.noexp++; return }
+    if (!d && r[v].in === s[v].in) return
+    const k = (r[v].in ? 'in' : 'out') + (s[v].in ? 'in' : 'out'); c[k]++
+  })
+  out[v] = c
+}
+console.log(JSON.stringify({ n: out.n, v1: { ...out.v1, diffRows: out.v1.diffRows.length }, v2: { ...out.v2, diffRows: out.v2.diffRows.length } }, null, 1))
+require('fs').writeFileSync('cmp.json', JSON.stringify(out, null, 1))

@@ -38,6 +38,19 @@ Owner decision of 2026-11-10: "Re-measure #1016's execution coverage using a cor
 
 OLD = the voided run on the stale install; NEW = this run. Per-area table and per-row ledger: `attempt-2/compare.md`, `attempt-2/ledger.md`. 0 rows differ between OLD and NEW. A weakness the method keeps: 37 VERIFIED rows (34 in C3) are proved only at file level, because their citation names no test the recount can match.
 
+## Update 2026-11-11: chart zoom (C1-028) and C1-022 log / arithmetic (agent/pl/chart-zoom)
+
+New capability `chartSetup.zoom` {direction in | out, steps 1-10}: the + / - keys' own writer (`StockChart.zoomTimeAxis`, which the key handler now calls), reached through `ChartPane.viewDo('zoom')`, read back from `getDateMeta().frame` (the window width moved the asked way, to the width asked), refused at the time scale's bar-spacing limit (`getDateMeta().zoomLimits`), exact Undo through `restoreView`. C1-022's log and arithmetic were not driven by an outcome test; two cases now are. Evidence: vitest, scripted model, jsdom; the zoom row is † (the chart's view is a stand-in inside the test; StockChart's half is a source check). PR doc: `docs/agent/program/PR-chart-zoom.md`.
+
+- VERIFIED (2): C1-022, C1-028; was PARTIAL (SIMULATED) (1): C1-022; was BLOCKED (1): C1-028.
+- Still BLOCKED: C1-026 (drag the price axis to compress): no read-back the Agent can verify; not built here.
+- Counts updated by hand from the two rows (C1 Scale, C1 View, C1 all, Total, Combined counts); "The number" headline is left for the merge recount.
+## Update 2026-11-11: Drawing Boards execution (agent/pl/drawing-boards-exec)
+
+The Agent switches, creates, renames and deletes Drawing Boards through the Boards panel's own store writers (drawingsStore setActiveTracing / createTracing / renameTracing / deleteTracing, via host.drawingBoards), reads the result back and waits for the server's tracings_doc. Delete is always a confirmation card that names the board and its drawing count, with no Undo. An unnamed or ambiguous board is asked about. A board request aimed at one chart is answered and not run. Test: `app/src/agent/qa/chartsOutcome/drawingBoards.outcome.test.jsx` (real panel, scripted model, jsdom, SIMULATED), plus `app/src/agent/agentDrawingBoards.test.jsx` (runtime). PR doc: `docs/agent/program/PR-exec-drawing-boards.md`.
+
+- VERIFIED (4): C1-167, C1-168, C1-169, C1-170; was MISSING (4): C1-167, C1-168, C1-169, C1-170.
+- Counts are not changed here: the summary numbers and tables are recounted at merge (rows C1-167..170 above are the only change).
 ## Update 2026-11-10: Multi Chart grid execution (pl-grid)
 
 Branch `agent/pl/exec-multichart-grid`. PRODUCT change: the grid's own writers reach the Agent through `multiChart.set` (the grid) and `multiChart.cell` (one cell, chart-backed so the deixis / P2-B / hidden-behind-maximized rules apply), over `pages/charts/grid/useGridAgentControl.js`. The menu, the Groups picker and the cells call the same functions (`gridGroupActions.js`, lifted `maxId`, `gridTemplateLayout`). Evidence: vitest, jsdom, scripted model, fixture server; not a real browser and not the real model. PR doc: `docs/agent/program/PR-exec-multichart-grid.md`.
@@ -104,6 +117,7 @@ The 10 non-held-out test files named by 40 NOT VERIFIED rows (ledger `docs/agent
 | after chart settings + multichart + cited re-run | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
 | after the Options Flow chips (agent/pl/exec-flow-filters) | 226 | 9 | 69 | 125 | 43 | 12 | 484 | 19 |
 | after the data-widget actions + watchlist A–D (agent/pl/exec-widget-actions) | 243 | 11 | 68 | 107 | 43 | 12 | 484 | 19 |
+| after chart zoom + C1-022 log / arithmetic (agent/pl/chart-zoom) | 245 | 10 | 68 | 107 | 42 | 12 | 484 | 19 |
 | after Multi Chart grid execution (pl-grid, #1030, re-merged onto 64421f770d) | 259 | 11 | 68 | 105 | 29 | 12 | 484 | 19 |
 
 - VERIFIED 225 of 484, 46.5%. PARTIAL is in scope but never VERIFIED (the PARTIAL column PR #1016 introduced).
@@ -189,8 +203,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1 | Timeframe | 3 | 0 | 3 | 0 | 0 | 0 | 6 | 1 |
 | C1 | Chart type | 5 | 0 | 0 | 0 | 0 | 0 | 5 | 1 |
 | C1 | Session | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 1 |
-| C1 | Scale | 2 | 1 | 0 | 1 | 1 | 0 | 5 | 0 |
-| C1 | View | 2 | 0 | 0 | 0 | 1 | 0 | 3 | 0 |
+| C1 | Scale | 3 | 0 | 0 | 1 | 1 | 0 | 5 | 0 |
+| C1 | View | 3 | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
 | C1 | Go to date | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
 | C1 | Compare | 1 | 0 | 4 | 3 | 0 | 0 | 8 | 0 |
 | C1 | Replay | 2 | 0 | 0 | 1 | 1 | 1 | 5 | 0 |
@@ -261,8 +275,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
 | C3 | Company dock | 3 | 0 | 2 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
-| C1 | **all** | 103 | 4 | 17 | 28 | 11 | 5 | 168 | 11 |
+| C1 | **all** | 105 | 3 | 17 | 28 | 10 | 5 | 168 | 11 |
 | C2 | **all** | 39 | 0 | 32 | 20 | 5 | 4 | 100 | 1 |
+| C3 | **all** | 101 | 7 | 19 | 59 | 27 | 3 | 216 | 7 |
+| | **Total** | 245 | 10 | 68 | 107 | 42 | 12 | 484 | 19 |
 | C3 | **all** | 117 | 7 | 19 | 57 | 13 | 3 | 216 | 7 |
 | | **Total** | 259 | 11 | 68 | 105 | 29 | 12 | 484 | 19 |
 
@@ -415,13 +431,13 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-019 | Session | Regular/extended on intraday | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C1-019 (held-out phrasing) "a 5-minute chart shows the extended session; Undo turns it off"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C1-020 | Session | Regular/extended on D/W/M | VERIFIED | c:session.extended | pass 5/5 | panel, scripted model |
 | C1-021 | Session | Extended hours from price-axis menu | NOT ON /CHARTS | c:session.extended | pass 5/5 | n/a |
-| C1-022 | Scale | Arithmetic/log/percent from menu | PARTIAL (SIMULATED) — covered: percent scale (chart.setScale, settings.percentScale read back, Undo back to arithmetic); not covered: log scale, and asking for arithmetic by name, are not driven by this test | boardArrangement.outcome.test.jsx: C1-022 (held-out phrasing) "the chart goes to the percent scale; Undo goes back"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
+| C1-022 | Scale | Arithmetic/log/percent from menu | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — percent, log and arithmetic each by name (chart.setScale; settings.percentScale / logScale read back; the other chart untouched; Undo) | boardArrangement.outcome.test.jsx: C1-022 (held-out phrasing) "the chart goes to the percent scale; Undo goes back"; C1-022 "put this chart on a log scale" (two charts, the other untouched); C1-022 "switch this chart back to the arithmetic scale" (from log; Undo puts log back) | pass 3/3 (-t C1-022) | panel, scripted model |
 | C1-023 | Scale | Toggle log (Shift+L) | VERIFIED | c:scale.log; g:GW-01 | pass 7/7 | production (E-01) and panel |
 | C1-024 | Scale | Invert scale (Alt+I) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-024 "flip the price scale upside down" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-025 | Scale | Auto-scale | MISSING | none | n/a | none |
 | C1-026 | Scale | Drag price axis to compress | BLOCKED | none | n/a | none |
 | C1-027 | View | Reset view | VERIFIED † | c:chartSetup.resetView; agentChartViewControls: reaches the chart's reset and is read back | pass 5/5 | panel, scripted model |
-| C1-028 | View | Zoom in/out (+/-) | BLOCKED | none | n/a | none |
+| C1-028 | View | Zoom in/out (+/-) | VERIFIED † | agentChartZoom.test.jsx: chartSetup.zoom in / out / n steps through the + / - keys' writer (zoomTimeAxis), read back as the window width; refused at the limit; exact Undo (window + view lock), stale after a pan or zoom; two-chart wrong-target control; c:chartSetup.zoom | pass 13/13 | panel, scripted model |
 | C1-029 | View | Range buttons (3M/6M/YTD/1Y/5Y) | VERIFIED † | c:chartSetup.setRange; agentChartViewControls: offers exactly the buttons the bar has | pass 6/6 | panel, scripted model |
 | C1-030 | Go to date | Type a date in Time Navigator | VERIFIED † | c:chart.goToDate | pass 4/4 | panel, scripted model |
 | C1-031 | Go to date | Pick date or year in calendar | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
@@ -454,7 +470,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-058 | Settings | Watermark alignment | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
 | C1-059 | Settings | Watermark size/weight/colour/opacity | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-059 "make the watermark bigger, bold, blue and 30% opacity" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-060 | Settings | Move watermark | VERIFIED | agentChartSettingsTruth: writes opts.watermarkPos | pass 1/1 | panel, scripted model |
-| C1-061 | Settings | Reset watermark to centre | PARTIAL (SIMULATED) — covered: the watermark ends centred (watermark.x/y = 0.5 in opts.watermarkPos, Undo); not covered: the product's own Reset write (watermarkPos: null, ChartWidget.jsx:499), which no capability makes | chartSettings.outcome.test.jsx: C1-061 "put the watermark back in the middle" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-061 | Settings | Reset watermark to centre | VERIFIED (SIMULATED) — chartMenu.resetWatermark writes the product's own Reset (opts.watermarkPos = null: Chart Settings → Watermark → "Reset to center", ChartWidget resetWatermark), read back from the widget, exact Undo; the x/y = 0.5 path (chart.setSetting) is still covered | ChartWidget.rclickParity.test.jsx: C1-061 (the same opts as the real Reset; exact Undo); agentChartMenu.test.jsx (one chart, #988 anchor, wrong-target control); c:chartMenu.resetWatermark; chartSettings.outcome.test.jsx: C1-061 | pass 4/4, 24/24, 3/3 + undo | widget + panel, scripted model |
 | C1-062 | Settings | Title shows ticker/company/both | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-062 "show the ticker and the company name in the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-063 | Settings | Day change beside title | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-063 "hide the day change next to the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-064 | Settings | Legend mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-064 "only show the legend when I hold the crosshair" | pass 33/33 (7 todo) | panel, scripted model |
@@ -493,7 +509,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-097 | Legend | Hide/show an indicator from chip | VERIFIED | c:indicator.hide; c:indicator.show | pass 9/9 | panel, scripted model |
 | C1-098 | Legend | Display in another pane from chip | VERIFIED | c:indicatorStyle.place-own-pane | pass 4/4 | panel, scripted model |
 | C1-099 | Legend | Duplicate on chart | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
-| C1-100 | Legend | Show latest value in header | MISSING | none | n/a | none |
+| C1-100 | Legend | Show latest value in header | MISSING — STOP (ownership): the writer is the Indicators chip menu (handleChipInfoValue → engine/infoValues addInfoValue), and the Indicators agent contract (agentMutations) has no info-value op; it needs an Indicators-owned op, not a second writer | none | n/a | none |
 | C1-101 | Legend | Add alert from chip | VERIFIED | c:indicatorAlert.threshold | pass 5/5 | panel, scripted model |
 | C1-102 | Legend | Delete indicator from chip | VERIFIED | c:indicator.remove-sma200 | pass 5/5 | panel, scripted model |
 | C1-103 | Legend | Hide all indicators (Alt+Shift+I) | VERIFIED † | c:chartSetup.setIndicatorsHidden; agentChartViewControls: hides, reads back | pass 6/6 | panel, scripted model |
@@ -537,7 +553,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-141 | Drawing | Cup curve | VERIFIED | drawingFamily: cup: the right symbol | pass 1/1 | panel, scripted model |
 | C1-142 | Drawing | Anchored VWAP | VERIFIED | c:drawing.avwap | pass 5/5 | panel, scripted model |
 | C1-143 | Drawing | Text note | VERIFIED | c:drawing.text | pass 5/5 | panel, scripted model |
-| C1-144 | Drawing | Position calculator | PARTIAL (SIMULATED) — covered: the calculator inputs (positionCalc.accountSize / riskPct, read back, Undo); not covered: placing the position-calculator drawing (drawing family) | chartSettings.outcome.test.jsx: C1-144 "set my position calculator to a 25k account risking half a percent" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-144 | Drawing | Position calculator | VERIFIED (drawing extras) — calculator inputs: chartSettings.outcome.test.jsx C1-144; placing it: drawing.positionCalculator opens the toolbar's Position tool with entry / stop / target on ONE chart (the 3-point position DRAWING is retired), side from entry vs stop, missing / unreadable price refused, exact Undo, wrong-target control | chartSettings.outcome.test.jsx: C1-144; drawingExtras.outcome.test.jsx: C1-144 (4 cases); capreg corpus drawing.positionCalculator | pass 4/4 + 33/33 | panel, scripted model |
 | C1-145 | Drawing | Eraser | VERIFIED | c:drawing.remove | pass 5/5 | panel, scripted model |
 | C1-146 | Drawing | Delete selected (Del, button) | VERIFIED | c:drawing.remove; drawings.outcome: one visible drawing goes at once | pass 6/6 | panel, scripted model |
 | C1-147 | Drawing | Recolour | VERIFIED | c:drawing.style | pass 4/4 | panel, scripted model |
@@ -553,17 +569,17 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-157 | Drawing | Duplicate | MISSING | none | n/a | none |
 | C1-158 | Drawing | Lock/unlock | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
 | C1-159 | Drawing | Hide/show one | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
-| C1-160 | Drawing | Save as default | MISSING | none | n/a | none |
+| C1-160 | Drawing | Save as default | VERIFIED (drawing extras) — drawing.saveDefaults: the menu row's own payload (drawingSaveDefaults.js, shared with the row) merged into ONE chart's drawingDefaults; exact Undo; wrong-target and retired-type refusals | drawingExtras.outcome.test.jsx: C1-160 (3 cases); capreg corpus drawing.saveDefaults | pass 3/3 | panel, scripted model |
 | C1-161 | Drawing | Reorder (front/back) | UNMAPPED | none | n/a | none |
 | C1-162 | Drawing | Undo/redo a drawing | BLOCKED | none | n/a | none |
 | C1-163 | Drawing | Magnet for drawing | UNMAPPED | none | n/a | none |
 | C1-164 | Drawing | Repeat drawing mode | BLOCKED | none | n/a | none |
-| C1-165 | Drawing | Customise tool favourites | MISSING | none | n/a | none |
+| C1-165 | Drawing | Customise tool favourites | VERIFIED (drawing extras) — favourites only (drawing.favoriteTool: the menu's star through drawToolFavorites, read back from storage, exact Undo); hiding a tool from the toolbar not built | drawingExtras.outcome.test.jsx: C1-165 (3 cases); capreg corpus drawing.favoriteTool | pass 3/3 | panel, scripted model |
 | C1-166 | Drawing | Nudge selected with arrows | BLOCKED | none | n/a | none |
-| C1-167 | Boards | Switch drawing board | MISSING | agentDrawings.test.jsx | pass 13/13 | none |
-| C1-168 | Boards | Create a board | MISSING | none | n/a | none |
-| C1-169 | Boards | Rename a board | MISSING | none | n/a | none |
-| C1-170 | Boards | Delete a board | MISSING | none | n/a | none |
+| C1-167 | Boards | Switch drawing board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: "switch to my Earnings board" | pass 6/6 | panel, scripted model |
+| C1-168 | Boards | Create a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: a planned new board called Breakouts | pass 6/6 | panel, scripted model |
+| C1-169 | Boards | Rename a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: "rename my Earnings board to Gaps" | pass 6/6 | panel, scripted model |
+| C1-170 | Boards | Delete a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: the card, Dismiss, Apply; "delete my board" asks | pass 6/6 | panel, scripted model |
 | C1-171 | Keyboard | Add ticker to watchlist (Alt+Q) | VERIFIED | c:watchlist.add | pass 5/5 | panel, scripted model |
 | C1-172 | Keyboard | Add indicator dialog (Alt+Shift+A) | VERIFIED | c:indicator.rsi | pass 5/5 | panel, scripted model |
 | C1-173 | Keyboard | Cycle grid layout (Alt+\\) | UNMAPPED | none | n/a | none |
@@ -609,7 +625,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C2-038 | Panes | Reorder pane | VERIFIED | agentIndicatorsP2: E4 | pass 1/1 | panel, scripted model |
 | C2-039 | Panes | Resize pane by divider | IMPLEMENTED / UNVERIFIED | agentIndicatorsP2.test.jsx:106 | pass 1/1 | runtime, no panel |
 | C2-040 | Panes | Reorder series within a pane | UNMAPPED | none | n/a | none |
-| C2-041 | Legend | Show latest value in header | MISSING | none | n/a | none |
+| C2-041 | Legend | Show latest value in header | MISSING — STOP (ownership): as C1-100 (the Indicators chip-menu writer; no agentMutations op) | none | n/a | none |
 | C2-042 | Legend | Duplicate on chart | IMPLEMENTED / UNVERIFIED | c:indicatorCopy.duplicate | pass 4/4 | panel, partial |
 | C2-043 | Legend | Create custom copy | IMPLEMENTED / UNVERIFIED | agentDefinitions.test.js:96; agentDefinitions.test.js:110 | pass 2/2 | runtime, no panel |
 | C2-044 | Legend | Open Modify with UCT Intelligence | IMPLEMENTED / UNVERIFIED | agentIndicatorsM1.test.jsx:162 | pass 1/1 | runtime, no panel |
@@ -893,7 +909,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-221 | Workspace | Open the Agent | BLOCKED | none | n/a | none |
 | C3-222 | Workspace | Change a widget's UCT theme section | MISSING | none | n/a | none |
 | C3-223 | Workspace | Toggle the journal shortcut (Ctrl+Alt+J) | UNMAPPED | none | n/a | none |
-| C1-176 | Right-click | Send chart to Journal | MISSING | none | n/a | none |
-| C1-177 | Right-click | Send chart to Journal, choose where | MISSING | none | n/a | none |
-| C1-178 | Right-click | Ask AI about the symbol on a bar | MISSING | none | n/a | none |
+| C1-176 | Right-click | Send chart to Journal | VERIFIED (SIMULATED) — widget.sendToJournal over ChartWidget's own capture door sends the same capture, to the same default place (note), as the right-click "Send to Journal"; nothing is sent before Apply; no Undo (as at the door) | ChartWidget.rclickParity.test.jsx: C1-176 | pass 1/1 | widget (real ChartWidget), sendCaptureToJournal stubbed |
+| C1-177 | Right-click | Send chart to Journal, choose where | PARTIAL (SIMULATED) — covered: the destination (where = note / newNote / inbox, CaptureMenu's three Notebook targets) through widget.sendToJournal; not covered: the picker's comment and Copy chart link | agentWidgetControls.test.jsx: widget.sendToJournal "a named place goes through" (a chart, inbox); ChartWidget.rclickParity.test.jsx: C1-176 | pass | panel, stubbed send |
+| C1-178 | Right-click | Ask AI about the symbol on a bar | VERIFIED (SIMULATED) — chartMenu.askAi → host.charts.askAi → ChartWidget openAskAi, the opener the menu item calls (/research/:sym?section=ai); it opens after the receipt (as app.open); no Undo (Back), said on the receipt | ChartWidget.rclickParity.test.jsx: C1-178 (the same location as the menu click); agentChartMenu.test.jsx (the clicked chart only, #988 anchor, no-door refusal); c:chartMenu.askAi | pass 1/1, 24/24, 3/3 | widget + panel, scripted model |
 | C1-179 | Right-click | Add widget, floating at the click | MISSING | none | n/a | none |

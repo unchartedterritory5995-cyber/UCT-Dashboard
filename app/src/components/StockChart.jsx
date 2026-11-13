@@ -188,7 +188,7 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 // ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
 import PaneRanksTable from './chart/pane/PaneRanksTable'
-import { paneTableShownOn, paneTableFits } from './chart/engine/paneTable'
+import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
 // ⭐ UCT RS split, U2 — the line-end tag (`plots[].endLabel`) and the ranks strip's
 // price-pane host (`engine/endLabel.js`, `chart/pane/PlotEndLabel.jsx`).
 import PlotEndLabel from './chart/pane/PlotEndLabel'
@@ -328,13 +328,14 @@ function sameEndTagChips(a, b) {
   return true
 }
 
-function priceHostChips(chips, hostOf, tf) {
+function priceHostChips(chips, hostOf, tf, owners = paneTableOwners(chips, tf, hostOf)) {
   const out = { table: null, ends: [] }
   if (!Array.isArray(chips) || !chips.length) return out
   for (const c of chips) {
     if (!c || c.hidden === true) continue
     if (c.endLabel) out.ends.push(c)
-    if (!out.table && c.paneTable && paneTableShownOn(c.paneTable, tf)) {
+    // ⭐ ONE STRIP PER CHART (2026-11-12): only a chip `paneTableOwners` picked.
+    if (!out.table && owners.has(c)) {
       let host = null
       try { host = hostOf ? hostOf(c) : null } catch { host = null }
       if (host === null) out.table = c
@@ -1285,6 +1286,31 @@ function plotWidthOf(chart, containerEl = null) {
   return Number.isFinite(cw) && cw > 70 ? cw - 62 : null
 }
 
+// The + / - keys' time-axis zoom around the window's centre: ONE writer, for the keyboard and for UCT Agent's
+// chartSetup.zoom (onDateNavApi.zoom). `steps` = key presses (each × 0.8 in, × 1.25 out); the time scale clamps the
+// bar spacing itself. False when the window cannot be read (mid-load): nothing was zoomed.
+function zoomTimeAxis(chart, out, steps = 1) {
+  if (!chart) return false
+  let r = null; try { r = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+  if (!r || !(r.to > r.from)) return false
+  const center = (r.to + r.from) / 2
+  const half = ((r.to - r.from) * Math.pow(out ? 1.25 : 0.8, Math.max(1, steps | 0))) / 2
+  try { chart.timeScale().setVisibleLogicalRange({ from: center - half, to: center + half }) } catch { /* transient */ }
+  return true
+}
+// How far that zoom can go, in the window's own units (logical to − from): the time scale's bar-spacing clamp
+// (lightweight-charts: minBarSpacing; maxBarSpacing, or half the plot width when it is 0). Null when unreadable.
+function zoomLimitsOf(chart) {
+  try {
+    const ts = chart?.timeScale?.()
+    const w = ts?.width?.(), o = ts?.options?.() || {}
+    if (!(Number.isFinite(w) && w > 0)) return null
+    const maxSp = o.maxBarSpacing > 0 ? o.maxBarSpacing : w * 0.5
+    const minSp = o.minBarSpacing > 0 ? o.minBarSpacing : 0.5
+    return { minWidth: w / maxSp - 1, maxWidth: w / minSp - 1 }
+  } catch { return null }
+}
+
 // ⭐ THE ONE "NEWEST CANDLE PINNED RIGHT" FRAME (TC2000 rule, W-R 2026-11-11): every arm that
 // pins the newest candle — symbol switch (typed / watchlist / scan / Agent all change `sym`),
 // timeframe switch, the settling re-assert on each load phase, the drift net and the
@@ -1506,7 +1532,7 @@ import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
 import { streamStatus } from '../utils/streamStatus'
-import brandMark from './intro/assets/compass-mark.png'
+import brandMark from './intro/assets/compass-mark.webp'
 import { idbDelete, _closeMismatch, _findRecentBarByT, idbPutHistory } from '../utils/barsIDB'
 import { createHistoryLoader, wantsOlder, PREFETCH_WINDOWS, HISTORY_PREFETCH_TARGET_BARS } from '../utils/historyPrepend'
 import { memPeek } from '../utils/barsMemCache'
@@ -1528,6 +1554,7 @@ import { anyAverageOn, withAveragesShown } from './chart/averageVisibility'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 import { UCT_DRAW_GOLD } from './chart/drawingColors'
+import { mergeDrawingDefaults } from './chart/drawingSaveDefaults'
 import UIcon from './ui/UIcon'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
 // ⭐⭐ THE PANE-KEY HALF OF `displayTarget`. `computePaneLayout` is handed
@@ -6128,6 +6155,9 @@ export default function StockChart({
   const activeToolRef = useRef(activeTool)
   activeToolRef.current = activeTool
   const [positionTool, setPositionTool] = useState({ entry: '', stop: '', target: '', risk: 200, direction: 'long' })
+  // ⭐ UCT Agent (drawing extras): the Position Calculator's read-back (getDateMeta.positionCalc) reads the live values
+  const positionToolRef = useRef(positionTool)
+  positionToolRef.current = positionTool
   const positionPriceLines = useRef([])
   const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color || UCT_DRAW_GOLD)
   // THE COLOUR FOLLOWS THE USER'S SAVED DEFAULT AND NOTHING ELSE.
@@ -9298,17 +9328,9 @@ export default function StockChart({
       }
 
       // Zoom the time axis around its center: + / = zoom in, - zoom out.
+      // (zoomTimeAxis: the one writer — UCT Agent's chartSetup.zoom reaches it through onDateNavApi.zoom)
       if ((e.key === '+' || e.key === '=' || e.key === '-') && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        const chart = chartRef.current
-        if (chart) {
-          let r = null; try { r = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
-          if (r && r.to > r.from) {
-            e.preventDefault()
-            const center = (r.to + r.from) / 2
-            const half = ((r.to - r.from) * (e.key === '-' ? 1.25 : 0.8)) / 2
-            try { chart.timeScale().setVisibleLogicalRange({ from: center - half, to: center + half }) } catch { /* transient */ }
-          }
-        }
+        if (zoomTimeAxis(chartRef.current, e.key === '-', 1)) e.preventDefault()
         return
       }
 
@@ -18510,12 +18532,27 @@ export default function StockChart({
     } catch { /* disposed */ }
     return {
       firstMs, lastMs, rightMs, activeRange, atDefaultView, frame, priceAuto,
+      // UCT Agent's zoom refusal: how far the + / - zoom can still go (the time scale's bar-spacing clamp); null = unreadable
+      zoomLimits: zoomLimitsOf(chartRef.current),
       indicatorsHidden: !!indicatorsHiddenRef.current,
       firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
       lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
       fullyLoaded: barCount === _fullTarget,
       loading: originLoading,
+      // ⭐ UCT Agent (drawing extras): the Position Calculator as the toolbar's 'position' tool shows it — open, and the
+      // panel's own entry / stop / target strings (PositionPanel onChange writes the same state)
+      positionCalc: { can: !!showDrawingToolsRef.current, open: !!showDrawingToolsRef.current && activeToolRef.current === 'position', entry: positionToolRef.current.entry, stop: positionToolRef.current.stop,
+        target: positionToolRef.current.target, direction: positionToolRef.current.direction },
     }
+  }
+  // ⭐ UCT Agent (drawing extras): the Position Calculator through the tool's OWN state — the toolbar button's
+  // setActiveTool('position') and PositionPanel's onChange (setPositionTool). Its Undo writes back what it read before
+  // (closed = the tool disarmed only while it is still the calculator). A view; nothing is saved.
+  const positionCalc = (arg) => {
+    if (!arg || typeof arg !== 'object' || !showDrawingToolsRef.current) return
+    setPositionTool(p => ({ ...p, entry: String(arg.entry ?? ''), stop: String(arg.stop ?? ''), target: String(arg.target ?? ''), direction: arg.direction || p.direction }))
+    if (arg.open) setActiveTool('position')
+    else if (activeToolRef.current === 'position') setActiveTool(null)
   }
   // UCT Agent's Undo of a range button: the `frame` getDateMeta read before it, and the view lock as it was (storage too).
   const restoreView = (f) => {
@@ -18532,7 +18569,7 @@ export default function StockChart({
   }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.() })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), zoom: (z) => zoomTimeAxis(chartRef.current, !!z?.out, z?.steps), positionCalc })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
@@ -20585,7 +20622,13 @@ export default function StockChart({
           is one selector in that file — a decision about the newsletter, taken
           there, not smuggled in from here. */}
       {chartReady && !indicatorsHidden && paneLegendKeys.length > 0 && crosshairData
-        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost, cs).map((row) => {
+        && (() => {
+        // ⭐ ONE STRIP PER CHART (2026-11-12, observed live on QQQ): with the RS
+        // line and RS Rating both on, the same ranks strip drew on the price pane
+        // AND in the rating pane. `paneTableOwners` picks one per table label; the
+        // rating pane yields while a visible RS line shows its strip.
+        const tableOwners = paneTableOwners(crosshairData.chips, resolvedTf, chipPaneHost)
+        return paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost, cs).map((row) => {
         // ⭐ ONE LOGICAL INDICATOR (a COT dataset) READS ON ONE LINE (owner,
         // 2026-09-30): title, then each participant's name and value to its right,
         // so the readout sits above the bars instead of stacking down over them.
@@ -20594,7 +20637,7 @@ export default function StockChart({
         // ⭐ UCT RS design round (2026-11-08) — the pane's corner table: the first
         // chip in the pane whose definition declares one and resolves it, on a
         // timeframe it is shown on (the RS ranks are daily). One table per pane.
-        const tableChip = row.chips.find((c) => c && c.paneTable && paneTableShownOn(c.paneTable, resolvedTf)) || null
+        const tableChip = row.chips.find((c) => c && tableOwners.has(c)) || null
         return (
         <Fragment key={row.key}>
         {tableChip ? (
@@ -20711,7 +20754,8 @@ export default function StockChart({
         </div>
         </Fragment>
         )
-      })}
+      })
+      })()}
       {/* ⭐ UCT RS split, U2 — WHAT THE PRICE PANE HOSTS BESIDES ITS LEGEND.
           (a) The ranks strip (`meta.paneTable`) for an instance drawn with the
               candles — the same `PaneRanksTable`, same markup, same classes as the
@@ -20901,18 +20945,8 @@ export default function StockChart({
                last week. The flat half (color/width/style/fontSize) keeps its
                shipped shared behaviour; only the per-tool half is nested. */
             onSaveDefaults={(d) => {
-              const { byTool, ...flat } = d || {}
-              const prev = cs.drawingDefaults || {}
-              const nextByTool = byTool
-                ? Object.entries(byTool).reduce(
-                  (acc, [tool, props]) => ({ ...acc, [tool]: { ...(acc[tool] || {}), ...props } }),
-                  { ...(prev.byTool || {}) },
-                )
-                : prev.byTool
-              handleUpdateChartSettings({
-                ...cs,
-                drawingDefaults: { ...prev, ...flat, ...(nextByTool ? { byTool: nextByTool } : {}) },
-              })
+              // the merge is drawingSaveDefaults.mergeDrawingDefaults — the same one UCT Agent's "make this my default" writes
+              handleUpdateChartSettings({ ...cs, drawingDefaults: mergeDrawingDefaults(cs.drawingDefaults, d) })
             }}
             onSetAlert={handleSetDrawingAlert}
             boundAlerts={boundAlerts}

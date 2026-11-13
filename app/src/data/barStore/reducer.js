@@ -115,8 +115,9 @@ export function normT(t, tf) {
   return s
 }
 
-/** The bucket (store `t`) a trade at unix second `sec` belongs to. */
-function bucketOf(sec, state) {
+/** The bucket (store `t`) a trade at unix second `sec` belongs to — THE tick bucket rule: the
+ *  tick merge below and liveFeed's tick-source arbitration both read it. */
+export function bucketOf(sec, state) {
   const tf = state.tf
   if (isDateTf(tf)) return dateLabelToUnix(computeBarTime(tf, sec))
   return bucketStartUnix(sec, Number(tf), { grid: _gridFor(state) })
@@ -950,29 +951,45 @@ function applyPush(state, action, ctx, isFinal) {
 
 // ── tick fallback ────────────────────────────────────────────────────────────
 
-function applyTick(state, action, ctx) {
-  // S6: the fallback runs only while the push stream is NOT delivering.
-  if (ctx.streamLive) return state
-  const ev = action.event ?? action.payload ?? {}
-  if (isForeign(state, ev)) return state
+/**
+ * ⭐ WOULD THIS TICK APPLY? — the one admission rule of the tick fallback (applyTick below and
+ * liveFeed's source arbitration both read it, so a print the reducer refuses can never hold a
+ * bucket or keep a source "live"). Sanity against THIS key's own closes, a finite bucket, never a
+ * closed / sealed bucket, never earlier than the developing one. Pure. Returns
+ * {price, ts (unix s), t (bucket)} or null.
+ */
+export function tickAdmission(state, ev) {
+  if (!state || !ev) return null
   const price = Number(ev.price ?? ev.p ?? ev.c)
   let ts = numOrNull(ev.ts ?? ev.t ?? ev.time)
-  if (!finite(price) || ts == null) return state
+  if (!finite(price) || ts == null) return null
   if (ts > 1e11) ts = Math.floor(ts / 1000)
-  const bars = state.bars
+  const bars = state.bars || []
   const last = bars.length ? bars[bars.length - 1] : null
-  let dev = state.developing
+  const dev = state.developing
   // Baselines of THIS key's symbol only (a store never holds another symbol's closes).
   const ref = dev || last
   const sane = isSaneLivePriceFor(state.sym, price, {
     lastBar: ref ? { close: ref.c } : null, lastBarSym: state.sym,
     serverClose: last ? last.c : null, serverCloseSym: state.sym,
   })
-  if (!sane) return state
+  if (!sane) return null
   const t = bucketOf(ts, state)
-  if (!finite(t)) return state
-  // Never a closed / sealed bucket, never an earlier bucket than the developing one.
-  if ((last && t <= last.t) || (dev && t < dev.t)) return state
+  if (!finite(t)) return null
+  if ((last && t <= last.t) || (dev && t < dev.t)) return null
+  return { price, ts, t }
+}
+
+function applyTick(state, action, ctx) {
+  // S6: the fallback runs only while the push stream is NOT delivering.
+  if (ctx.streamLive) return state
+  const ev = action.event ?? action.payload ?? {}
+  if (isForeign(state, ev)) return state
+  const adm = tickAdmission(state, ev)
+  if (!adm) return state
+  const { price, t } = adm
+  const bars = state.bars
+  let dev = state.developing
   // D/W/M (P3-S2b): the live DAY-volume source rides on the tick (liveFeed.periodTickVolume —
   // the one owner); the period bar's volume only ever rises from it.
   const tickV = isDateTf(state.tf) ? numOrNull(ev.v) : null

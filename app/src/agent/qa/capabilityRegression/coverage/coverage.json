@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 190,
-  "withProductionKinds": 181,
+  "all": 202,
+  "withProductionKinds": 193,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 190,
-  "withAnyRegressionCase": 138,
+  "capabilities": 202,
+  "withAnyRegressionCase": 150,
   "perProtection": {
    "nl": {
-    "covered": 135,
-    "applicable": 190
+    "covered": 147,
+    "applicable": 202
    },
    "routing": {
-    "covered": 132,
-    "applicable": 190
+    "covered": 144,
+    "applicable": 202
    },
    "args": {
-    "covered": 138,
-    "applicable": 190
+    "covered": 150,
+    "applicable": 202
    },
    "execution": {
-    "covered": 135,
-    "applicable": 190
+    "covered": 147,
+    "applicable": 202
    },
    "receipt": {
-    "covered": 107,
-    "applicable": 190
+    "covered": 119,
+    "applicable": 202
    },
    "refusal": {
     "covered": 34,
-    "applicable": 190
+    "applicable": 202
    },
    "permission": {
-    "covered": 183,
-    "applicable": 190
+    "covered": 195,
+    "applicable": 202
    },
    "undo": {
-    "covered": 63,
-    "applicable": 122
+    "covered": 73,
+    "applicable": 132
    },
    "multiStep": {
-    "covered": 37,
-    "applicable": 190
+    "covered": 39,
+    "applicable": 202
    },
    "phrasings": {
-    "covered": 131,
-    "applicable": 190
+    "covered": 143,
+    "applicable": 202
    }
   }
  },
@@ -2109,6 +2109,112 @@
     "phrasings": []
    }
   },
+  "chartMenu.askAi": {
+   "domain": "chartMenu",
+   "group": "chartMenu",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "chartMenu.askAi: \"ask ai about this chart\"",
+     "chartMenu.askAi: \"ask the ai about the stock on this chart\"",
+     "chartMenu.askAi: \"open the ai on this chart\""
+    ],
+    "routing": [
+     "chartMenu.askAi: \"ask ai about this chart\"",
+     "chartMenu.askAi: \"ask the ai about the stock on this chart\"",
+     "chartMenu.askAi: \"open the ai on this chart\""
+    ],
+    "args": [
+     "corpus chartMenu.askAi"
+    ],
+    "execution": [
+     "chartMenu.askAi (c)"
+    ],
+    "receipt": [
+     "chartMenu.askAi (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartMenu.resetWatermark": {
+   "domain": "chartMenu",
+   "group": "chartMenu",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "chartMenu.resetWatermark: \"reset the watermark on this chart\"",
+     "chartMenu.resetWatermark: \"put the watermark back in the center\"",
+     "chartMenu.resetWatermark: \"recenter the watermark\""
+    ],
+    "routing": [
+     "chartMenu.resetWatermark: \"reset the watermark on this chart\"",
+     "chartMenu.resetWatermark: \"put the watermark back in the center\"",
+     "chartMenu.resetWatermark: \"recenter the watermark\""
+    ],
+    "args": [
+     "corpus chartMenu.resetWatermark"
+    ],
+    "execution": [
+     "chartMenu.resetWatermark (c)"
+    ],
+    "receipt": [
+     "chartMenu.resetWatermark (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartMenu.resetWatermark: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "chartSetup.autoScale": {
    "domain": "chartSetup",
    "group": "boardEdit",
@@ -2811,6 +2917,62 @@
     "permission": [],
     "undo": [
      "chartSetup.stepBars: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.zoom": {
+   "domain": "chartSetup",
+   "group": "chartView",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.zoom: \"zoom this chart out\"",
+     "chartSetup.zoom: \"zoom out on the chart\"",
+     "chartSetup.zoom: \"zoom the chart out one step\"",
+     "chartSetup.zoom: \"give me a wider view of the chart\""
+    ],
+    "routing": [
+     "chartSetup.zoom: \"zoom this chart out\"",
+     "chartSetup.zoom: \"zoom out on the chart\"",
+     "chartSetup.zoom: \"zoom the chart out one step\"",
+     "chartSetup.zoom: \"give me a wider view of the chart\""
+    ],
+    "args": [
+     "corpus chartSetup.zoom"
+    ],
+    "execution": [
+     "chartSetup.zoom (c)"
+    ],
+    "receipt": [
+     "chartSetup.zoom (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.zoom: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
@@ -3628,6 +3790,114 @@
     "phrasings": []
    }
   },
+  "drawing.createBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.createBoard: \"create a new drawing board called Earnings\"",
+     "drawing.createBoard: \"make a new drawing board named Earnings\"",
+     "drawing.createBoard: \"add a drawing board called Earnings\""
+    ],
+    "routing": [
+     "drawing.createBoard: \"create a new drawing board called Earnings\"",
+     "drawing.createBoard: \"make a new drawing board named Earnings\"",
+     "drawing.createBoard: \"add a drawing board called Earnings\""
+    ],
+    "args": [
+     "corpus drawing.createBoard"
+    ],
+    "execution": [
+     "drawing.createBoard (c)"
+    ],
+    "receipt": [
+     "drawing.createBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.createBoard: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.deleteBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.deleteBoard: \"delete the Breakouts board\"",
+     "drawing.deleteBoard: \"delete my Breakouts drawing board\"",
+     "drawing.deleteBoard: \"remove the Breakouts drawing board\""
+    ],
+    "routing": [
+     "drawing.deleteBoard: \"delete the Breakouts board\"",
+     "drawing.deleteBoard: \"delete my Breakouts drawing board\"",
+     "drawing.deleteBoard: \"remove the Breakouts drawing board\""
+    ],
+    "args": [
+     "corpus drawing.deleteBoard"
+    ],
+    "execution": [
+     "drawing.deleteBoard (c)"
+    ],
+    "receipt": [
+     "drawing.deleteBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "drawing.deleteBoard: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "drawing.duplicate": {
    "domain": "drawing",
    "group": "drawingOps",
@@ -3681,6 +3951,60 @@
     "multiStep": [
      "drawing.duplicate: after an earlier turn"
     ],
+    "phrasings": []
+   }
+  },
+  "drawing.favoriteTool": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.favoriteTool: \"add the fib tool to my favourites\"",
+     "drawing.favoriteTool: \"star the fibonacci retracement tool\"",
+     "drawing.favoriteTool: \"put the fib tool on my favorites toolbar\""
+    ],
+    "routing": [
+     "drawing.favoriteTool: \"add the fib tool to my favourites\"",
+     "drawing.favoriteTool: \"star the fibonacci retracement tool\"",
+     "drawing.favoriteTool: \"put the fib tool on my favorites toolbar\""
+    ],
+    "args": [
+     "corpus drawing.favoriteTool"
+    ],
+    "execution": [
+     "drawing.favoriteTool (c)"
+    ],
+    "receipt": [
+     "drawing.favoriteTool (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.favoriteTool: undo restores"
+    ],
+    "multiStep": [],
     "phrasings": []
    }
   },
@@ -3776,6 +4100,60 @@
     "phrasings": []
    }
   },
+  "drawing.positionCalculator": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.positionCalculator: \"open the position calculator with entry 50 stop 48 target 56\"",
+     "drawing.positionCalculator: \"size this trade: entry 50, stop 48, target 56\"",
+     "drawing.positionCalculator: \"put a position calculator on the chart, entry 50, stop 48 and target 56\""
+    ],
+    "routing": [
+     "drawing.positionCalculator: \"open the position calculator with entry 50 stop 48 target 56\"",
+     "drawing.positionCalculator: \"size this trade: entry 50, stop 48, target 56\"",
+     "drawing.positionCalculator: \"put a position calculator on the chart, entry 50, stop 48 and target 56\""
+    ],
+    "args": [
+     "corpus drawing.positionCalculator"
+    ],
+    "execution": [
+     "drawing.positionCalculator (c)"
+    ],
+    "receipt": [
+     "drawing.positionCalculator (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.positionCalculator: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "drawing.remove": {
    "domain": "drawing",
    "group": "drawings",
@@ -3831,6 +4209,170 @@
     "multiStep": [
      "drawing.remove: after an earlier turn"
     ],
+    "phrasings": []
+   }
+  },
+  "drawing.renameBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.renameBoard: \"rename Board 2 to Breakouts\"",
+     "drawing.renameBoard: \"rename my Board 2 drawing board to Breakouts\"",
+     "drawing.renameBoard: \"call drawing Board 2 Breakouts\""
+    ],
+    "routing": [
+     "drawing.renameBoard: \"rename Board 2 to Breakouts\"",
+     "drawing.renameBoard: \"rename my Board 2 drawing board to Breakouts\"",
+     "drawing.renameBoard: \"call drawing Board 2 Breakouts\""
+    ],
+    "args": [
+     "corpus drawing.renameBoard"
+    ],
+    "execution": [
+     "drawing.renameBoard (c)"
+    ],
+    "receipt": [
+     "drawing.renameBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.renameBoard: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "drawing.saveDefaults": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.saveDefaults: \"make this trendline my default style\"",
+     "drawing.saveDefaults: \"save this trendline's style as the default for new drawings\"",
+     "drawing.saveDefaults: \"use that line's look as my default drawing style\""
+    ],
+    "routing": [
+     "drawing.saveDefaults: \"make this trendline my default style\"",
+     "drawing.saveDefaults: \"save this trendline's style as the default for new drawings\"",
+     "drawing.saveDefaults: \"use that line's look as my default drawing style\""
+    ],
+    "args": [
+     "corpus drawing.saveDefaults"
+    ],
+    "execution": [
+     "drawing.saveDefaults (c)"
+    ],
+    "receipt": [
+     "drawing.saveDefaults (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.saveDefaults: undo restores"
+    ],
+    "multiStep": [
+     "drawing.saveDefaults: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "drawing.setActiveBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.setActiveBoard: \"switch to my Swing board\"",
+     "drawing.setActiveBoard: \"switch to the Swing drawing board\"",
+     "drawing.setActiveBoard: \"draw on my Swing board\""
+    ],
+    "routing": [
+     "drawing.setActiveBoard: \"switch to my Swing board\"",
+     "drawing.setActiveBoard: \"switch to the Swing drawing board\"",
+     "drawing.setActiveBoard: \"draw on my Swing board\""
+    ],
+    "args": [
+     "corpus drawing.setActiveBoard"
+    ],
+    "execution": [
+     "drawing.setActiveBoard (c)"
+    ],
+    "receipt": [
+     "drawing.setActiveBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.setActiveBoard: undo restores"
+    ],
+    "multiStep": [],
     "phrasings": []
    }
   },
@@ -6949,6 +7491,120 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "periodSort.dock": {
+   "domain": "periodSort",
+   "group": "periodSort",
+   "target": "periodSort",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "periodSort.dock: \"dock that period sort onto the board\"",
+     "periodSort.dock: \"dock the ranking as a widget\"",
+     "periodSort.dock: \"keep that period sort on my board\"",
+     "periodSort.dock: \"pin the custom period sort results to the board\""
+    ],
+    "routing": [
+     "periodSort.dock: \"dock that period sort onto the board\"",
+     "periodSort.dock: \"dock the ranking as a widget\"",
+     "periodSort.dock: \"keep that period sort on my board\"",
+     "periodSort.dock: \"pin the custom period sort results to the board\""
+    ],
+    "args": [
+     "corpus periodSort.dock"
+    ],
+    "execution": [
+     "periodSort.dock (c)"
+    ],
+    "receipt": [
+     "periodSort.dock (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "periodSort.dock: undo restores"
+    ],
+    "multiStep": [
+     "periodSort.dock: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "periodSort.run": {
+   "domain": "periodSort",
+   "group": "periodSort",
+   "target": "periodSort",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "periodSort.run: \"run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked\"",
+     "periodSort.run: \"rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line\"",
+     "periodSort.run: \"period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start\"",
+     "periodSort.run: \"custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start\""
+    ],
+    "routing": [
+     "periodSort.run: \"run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked\"",
+     "periodSort.run: \"rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line\"",
+     "periodSort.run: \"period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start\"",
+     "periodSort.run: \"custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start\""
+    ],
+    "args": [
+     "corpus periodSort.run"
+    ],
+    "execution": [
+     "periodSort.run (c)"
+    ],
+    "receipt": [
+     "periodSort.run (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "periodSort.run: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

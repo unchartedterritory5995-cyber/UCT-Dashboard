@@ -48,9 +48,9 @@ export const RUN_FAMILIES = Object.freeze(['line', 'label', 'box', 'table', 'lin
 // default applies) — which is a different fact from `na` (NaN), passed.
 //
 // ⚠️ `table.cell`'s order is the vendor's: `text_size` comes BEFORE `bgcolor`.
-// (`pineObjects.js::CELL_POSITIONAL` lists `bgcolor, tooltip, text_size` after
-// `text_valign`; that host table is not this lane's to change, and a positional
-// call reaching both lanes with ten or more arguments is the case it decides.)
+// ⭐ Engine 51: the host lane's `pineObjects.js::CELL_POSITIONAL` now has the
+// same order, and `ast/cellPositionalOrder.test.js` derives it from
+// `OBJECT_OPS['table.cell'].params` below, so the two lanes cannot drift.
 const LINE_NEW = ['x1', 'y1', 'x2', 'y2', 'xloc', 'extend', 'color', 'style', 'width', 'force_overlay']
 const LABEL_NEW = ['x', 'y', 'text', 'xloc', 'yloc', 'color', 'style', 'textcolor', 'size', 'textalign',
   'tooltip', 'text_font_family', 'force_overlay', 'text_formatting']

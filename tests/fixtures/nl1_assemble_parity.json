@@ -131,6 +131,10 @@
   "drawing.setAlert": "alerts",
   "drawing.duplicate": "drawingOps",
   "drawing.setPositionAlerts": "drawingOps",
+  "drawing.setActiveBoard": "drawingBoards",
+  "drawing.createBoard": "drawingBoards",
+  "drawing.renameBoard": "drawingBoards",
+  "drawing.deleteBoard": "drawingBoards",
   "indicator.list": "indicators",
   "indicator.openCreate": "indicators",
   "indicator.add": "indicators",
@@ -151,12 +155,18 @@
   "chartSetup.resetView": "chartSetup",
   "chartSetup.openSettings": "chartSetup",
   "chartSetup.stepBars": "boardEdit",
+  "chartSetup.zoom": "chartView",
   "chartSetup.autoScale": "boardEdit",
   "chartSetup.setIndicatorsHidden": "chartSetup",
   "chartSetup.setMovingAverages": "chartSetup",
   "chartSetup.saveTemplate": "chartSetup",
   "chartSetup.deleteTemplate": "chartSetup",
   "chartSetup.compareGroup": "compareGroups",
+  "chartMenu.askAi": "chartMenu",
+  "chartMenu.resetWatermark": "chartMenu",
+  "drawing.positionCalculator": "drawingExtras",
+  "drawing.saveDefaults": "drawingExtras",
+  "drawing.favoriteTool": "drawingExtras",
   "indicatorStyle.set": "indicatorSetup",
   "indicatorStyle.placeIn": "indicatorSetup",
   "pane.move": "indicatorSetup",
@@ -176,6 +186,8 @@
   "guide.explain": "guide",
   "guide.show": "guide",
   "calendar.day": "calendar",
+  "periodSort.run": "periodSort",
+  "periodSort.dock": "periodSort",
   "multiChart.set": "multiChart",
   "multiChart.cell": "multiChart"
  },
@@ -191,6 +203,10 @@
   {
    "id": "compareGroups",
    "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+  },
+  {
+   "id": "chartMenu",
+   "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
   },
   {
    "id": "chartGrid",
@@ -241,6 +257,14 @@
    "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
   },
   {
+   "id": "drawingExtras",
+   "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+  },
+  {
+   "id": "drawingBoards",
+   "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+  },
+  {
    "id": "lists",
    "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
   },
@@ -287,6 +311,14 @@
   {
    "id": "guide",
    "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+  },
+  {
+   "id": "chartView",
+   "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+  },
+  {
+   "id": "periodSort",
+   "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
   }
  ],
  "cases": [
@@ -352,6 +384,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -400,6 +436,14 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -446,6 +490,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -529,6 +581,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -577,6 +633,14 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -623,6 +687,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -720,6 +792,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -768,6 +844,14 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -814,6 +898,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -921,6 +1013,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -969,6 +1065,14 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -1015,6 +1119,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -1094,6 +1206,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1142,6 +1258,14 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -1188,6 +1312,14 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
     ],
     "selected": [
@@ -1205,6 +1337,7 @@
     "charts",
     "chartSetup",
     "compareGroups",
+    "chartMenu",
     "chartGrid",
     "boardEdit",
     "workspace",
@@ -1217,6 +1350,8 @@
     "drawingOps",
     "drawingTools",
     "drawings",
+    "drawingExtras",
+    "drawingBoards",
     "lists",
     "screener",
     "alerts",
@@ -1228,7 +1363,9 @@
     "agent",
     "undo",
     "watchlistShow",
-    "guide"
+    "guide",
+    "chartView",
+    "periodSort"
    ],
    "names": [
     "chart.setType",
@@ -1355,6 +1492,10 @@
     "drawing.setAlert",
     "drawing.duplicate",
     "drawing.setPositionAlerts",
+    "drawing.setActiveBoard",
+    "drawing.createBoard",
+    "drawing.renameBoard",
+    "drawing.deleteBoard",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -1375,12 +1516,18 @@
     "chartSetup.resetView",
     "chartSetup.openSettings",
     "chartSetup.stepBars",
+    "chartSetup.zoom",
     "chartSetup.autoScale",
     "chartSetup.setIndicatorsHidden",
     "chartSetup.setMovingAverages",
     "chartSetup.saveTemplate",
     "chartSetup.deleteTemplate",
     "chartSetup.compareGroup",
+    "chartMenu.askAi",
+    "chartMenu.resetWatermark",
+    "drawing.positionCalculator",
+    "drawing.saveDefaults",
+    "drawing.favoriteTool",
     "indicatorStyle.set",
     "indicatorStyle.placeIn",
     "pane.move",
@@ -1400,6 +1547,8 @@
     "guide.explain",
     "guide.show",
     "calendar.day",
+    "periodSort.run",
+    "periodSort.dock",
     "multiChart.set",
     "multiChart.cell"
    ],

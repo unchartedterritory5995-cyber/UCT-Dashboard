@@ -19,6 +19,7 @@ import threading
 import time
 from datetime import date, timedelta as _td
 from zoneinfo import ZoneInfo
+from api.services.log_redaction import safe_exc as _safe_exc
 
 _logger = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
@@ -97,7 +98,7 @@ def _fmp_reporters_for_date_with_status(market_date: str) -> tuple[set[str], boo
             return set(), False
         data = resp.json()
     except Exception as e:
-        _logger.debug("[cal-alerts] FMP fallback failed: %s", e)
+        _logger.debug("[cal-alerts] FMP fallback failed: %s", _safe_exc(e))
         return set(), False
     if not isinstance(data, list):
         return set(), False

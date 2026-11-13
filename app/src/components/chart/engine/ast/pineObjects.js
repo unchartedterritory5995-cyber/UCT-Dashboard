@@ -41,6 +41,7 @@ import {
   bodyMayWriteList as bodyMayWriteListRule, forInMutationRefusal,
 } from './forInRule.js'
 import { MAX_COLLECTION_CAP } from './objectProgram.js'
+import { setterPineParams } from '../objectSetterParams.js'
 import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, chartSeriesFor, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
@@ -71,9 +72,18 @@ export const CREATE_POSITIONAL = Object.freeze({
 })
 
 /** `table.cell(table_id, column, row, text, …)` — the first three are the
- *  ADDRESS, not properties, so they are split out by the reader. */
+ *  ADDRESS, not properties, so they are split out by the reader.
+ *
+ *  ⛔⛔ ENGINE 51 — SLOTS 6-8 ARE `text_size, bgcolor, tooltip`, IN THAT ORDER
+ *  (Pine v4-v6 reference). Until engine 51 this list read `bgcolor, tooltip,
+ *  text_size`, so a positional cell with seven or more arguments after the
+ *  address read its size as a colour, its colour as a tooltip and its tooltip
+ *  as a size, while the same call written with names was read correctly. The
+ *  runtime lane's `objectStore.js` `table.cell` signature always had Pine's
+ *  order; `cellPositionalOrder.test.js` now derives one from the other, so the
+ *  two lanes cannot drift again. */
 export const CELL_POSITIONAL = Object.freeze(['text', 'width', 'height', 'text_color',
-  'text_halign', 'text_valign', 'bgcolor', 'tooltip', 'text_size',
+  'text_halign', 'text_valign', 'text_size', 'bgcolor', 'tooltip',
   // ⭐⭐ SLOTS 9 AND 10, FOR `text_formatting` — PINE'S FOURTEENTH ARGUMENT.
   // Master's, restored 2026-09-23: taking this file wholesale in the merge
   // dropped them, and a COMPUTED `text_formatting = cond ? bold : normal`
@@ -120,6 +130,83 @@ export const CELL_SETTER_PROPS = Object.freeze({
 
 export const CLEAR_POSITIONAL = Object.freeze(['start_column', 'start_row',
   'end_column', 'end_row'])
+
+/** ⭐⭐ ENGINE 51 — A STATEMENT'S ARGUMENTS IN PINE'S OWN ORDER, NAMED OR NOT.
+ *
+ *  ⚰️ The reader took the HANDLE as the first argument and a cell's address as
+ *  the next two, by position, whatever their names said. `table.cell(t, row=1,
+ *  column=0, …)` drew at column 1, row 0 (TradingView: column 0, row 1 —
+ *  `keltner-center-of-gravity-channel`, the vendor capture), and
+ *  `table.clear(table_id=t, …)` addressed nothing. Pine places a named argument
+ *  by its name; so does this, once, for every statement the reader splits.
+ *
+ *  The handle is `table_id` for a table op and `id` for the others (Pine
+ *  reference). After it, each op's parameters in Pine's order:
+ *    table.cell        column, row, then `CELL_POSITIONAL`
+ *    table.cell_set_*  column, row, then the one property (named as it is)
+ *    table.clear / merge_cells   `CLEAR_POSITIONAL`
+ *    <family>.delete   nothing
+ *    setters           the properties `SETTER_PROPS` names, a named value
+ *                      placed by PINE's parameter name only (`SETTER_PINE_PARAMS`,
+ *                      `../objectSetterParams.js`, shared with the runtime lane):
+ *                      `box.set_bgcolor(id, color)` writes `bgcolor`, and
+ *                      `label.set_text(lb, txt = "a")` is refused, as Pine does.
+ *  Returns `null` for an op this table does not describe (the caller keeps its
+ *  own path), `{refused}` for a call Pine would not compile or this reader cannot
+ *  place (a name the op does not take, a value given twice, a positional argument
+ *  after a named one, more arguments than it takes), else `{handle, slots}` —
+ *  `slots` keyed by parameter name. */
+export function objectCallParams(ns, method) {
+  if (ns === 'table' && method === 'cell') return ['column', 'row', ...CELL_POSITIONAL]
+  if (ns === 'table' && CELL_SETTER_PROPS[method]) return ['column', 'row', CELL_SETTER_PROPS[method]]
+  if (ns === 'table' && (method === 'clear' || method === 'merge_cells')) return [...CLEAR_POSITIONAL]
+  if (method === 'delete') return []
+  const props = (SETTER_PROPS[ns] || {})[method]
+  return props ? [...props] : null
+}
+export function placeObjectArgs(ns, method, handle, args) {
+  const params = objectCallParams(ns, method)
+  if (!params) return null
+  const handleName = ns === 'table' ? 'table_id' : 'id'
+  const order = handle ? params : [handleName, ...params]
+  const slots = {}
+  let h = handle || null
+  let pos = 0
+  let named = false
+  const isSetter = !!(SETTER_PROPS[ns] || {})[method]
+  // ⛔ Engine 51 (review of #1149, low 7) — a setter's value is named as Pine names it,
+  // never by the property it writes and never by any other word.
+  const pineNames = isSetter ? setterPineParams(ns, method) : null
+  for (const a of args || []) {
+    if (!a) continue
+    let key
+    if (a.name) {
+      named = true
+      const nm = String(a.name)
+      if (nm === handleName) key = handleName
+      else if (isSetter) {
+        const at = pineNames ? pineNames.indexOf(nm) : -1
+        if (at < 0) return { refused: `named argument \`${nm}\`` }
+        key = params[at]
+      } else if (params.includes(nm)) key = nm
+      else return { refused: `named argument \`${nm}\`` }
+    } else {
+      if (named) return { refused: 'a positional argument after a named one' }
+      if (pos >= order.length) return { refused: 'more arguments than it takes' }
+      key = order[pos]
+      pos += 1
+    }
+    if (key === handleName) {
+      if (h) return { refused: `\`${handleName}\` given twice` }
+      h = a
+      continue
+    }
+    if (Object.prototype.hasOwnProperty.call(slots, key)) return { refused: `\`${key}\` given twice` }
+    slots[key] = a
+  }
+  if (!h) return { refused: `no \`${handleName}\`` }
+  return { handle: h, slots }
+}
 
 /**
  * A Pine setter name → the canonical properties it writes, in the order its
@@ -2183,7 +2270,9 @@ export function collectObjectOps(stmts, h) {
     }
     const args = argsOf(toks)
     if (!args || !args.length) { diagnostics.unsupported.push(`${ns}.${method}`); return }
-    emitMethodOn(ns, method, args[0], args.slice(1), toks[0], guards, st, scope)
+    // ⭐ Engine 51 — the handle is found by its NAME when it has one
+    // (`table.clear(table_id=t, …)`), so `emitMethodOn` is handed every argument.
+    emitMethodOn(ns, method, null, args, toks[0], guards, st, scope)
   }
 
   /** ⭐⭐ ONE PLACE TURNS A FAMILY, A METHOD, A TARGET AND THE REST INTO AN OP.
@@ -2196,7 +2285,38 @@ export function collectObjectOps(stmts, h) {
    *  setter writes, and the two would drift the first time `SETTER_PROPS` gains
    *  a row (`lesson_a_second_authority_over_one_value`). The only thing the
    *  postfix caller supplies differently is WHERE the target came from. */
-  function emitMethodOn(ns, method, target, rest, at, guards, st, scope) {
+  function emitMethodOn(ns, method, targetIn, restIn, at, guards, st, scope) {
+    // ⭐⭐ ENGINE 51 — every argument placed by Pine's rule (`placeObjectArgs`),
+    // then handed on in the shape each op below already reads: the handle as
+    // `target`, an address as `col`/`row`, a cell's properties and a rectangle by
+    // NAME (`namedOrPositional`), a setter's values and a cell patch's value by
+    // position. A call Pine places differently from where the old reader looked
+    // now lands where Pine puts it; one this reader cannot place is refused by
+    // name, never read by position.
+    const placed = placeObjectArgs(ns, method, targetIn, restIn)
+    if (placed && placed.refused) { diagnostics.unsupported.push(`${ns}.${method}(${placed.refused})`); return }
+    let target = targetIn
+    let rest = restIn
+    let address = null
+    if (placed) {
+      target = placed.handle
+      const s = placed.slots
+      const named = (names) => names.filter((n) => s[n]).map((n) => ({ ...s[n], name: n }))
+      if (ns === 'table' && (method === 'cell' || CELL_SETTER_PROPS[method])) {
+        if (!s.column || !s.row) { diagnostics.unsupported.push(`${ns}.${method}(no column/row)`); return }
+        address = { col: { ...s.column, name: null }, row: { ...s.row, name: null } }
+        rest = method === 'cell' ? named(CELL_POSITIONAL)
+          : (s[CELL_SETTER_PROPS[method]] ? [{ ...s[CELL_SETTER_PROPS[method]], name: null }] : [])
+      } else if (ns === 'table' && (method === 'clear' || method === 'merge_cells')) {
+        rest = named(CLEAR_POSITIONAL)
+      } else if (method === 'delete') {
+        rest = []
+      } else {
+        // a setter: its values by position, a missing one left as a hole (the
+        // converter drops the setter by name, `update:props`)
+        rest = objectCallParams(ns, method).map((n) => (s[n] ? { ...s[n], name: null } : undefined))
+      }
+    }
     if (method === 'delete') {
       // ⭐⭐ C16 — `box.delete(array.shift(bs))`: TWO Pine operations in one
       // statement — the slot leaves the array and the box it held is deleted.
@@ -2256,7 +2376,7 @@ export function collectObjectOps(stmts, h) {
     }
     if (ns === 'table' && method === 'cell') {
       ops.push({
-        k: 'cell', target, col: rest[0], row: rest[1], args: rest.slice(2),
+        k: 'cell', target, col: address.col, row: address.row, args: rest,
         guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line,
       })
       return
@@ -2269,7 +2389,7 @@ export function collectObjectOps(stmts, h) {
     if (ns === 'table' && CELL_SETTER_PROPS[method]) {
       ops.push({
         k: 'cellpatch', prop: CELL_SETTER_PROPS[method],
-        target, col: rest[0], row: rest[1], args: rest.slice(2),
+        target, col: address.col, row: address.row, args: rest,
         // ⛔ THIS LANE'S OWN SHAPE, NOT MASTER'S VERBATIM. The sibling ops here
         // carry `at` (already resolved) and `loopIds`, which master's version has
         // no concept of — a ported op without them throws `toks is not defined`

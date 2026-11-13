@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
 import CompanyLogo from '../CompanyLogo'
-import uctMark from '../intro/assets/compass-mark.png'
+import uctMark from '../intro/assets/compass-mark.webp'
 import styles from './SymbolSearch.module.css'
 import { POPULAR_RESULTS, CHIPS, INDICES_PRESET, TYPE_LABEL, matchQ, rowIdentity, shownTicker, isBreadthRow, breadthChipRows, canonicalTicker } from './symbolSearchModel'
 import useMarketIndicators from '../../hooks/marketIndicatorRegistry'

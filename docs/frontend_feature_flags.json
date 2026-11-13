@@ -64,8 +64,9 @@
       "note": "Built dark (COV-11 / FT-070 plan): Chart Settings -> Indicators -> 'Indicator templates' (save this chart's indicators as a named template; add a saved template's indicators to any chart). Off, the surface renders nothing and nothing is read or written. The integrator arms it. Declared as a build ARG in Dockerfile.web. Reach: docs/feature_flags.json build_flags."
     },
     "VITE_PINE_RUNTIME_PANE_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "since": "2026-09-28",
+      "flipped": "2026-11-12T22:38Z -- railway variables --service web --set, which triggered a real rebuild+deploy (new boot 22:41:23Z); verified in the served bundle, not from --kv. Members still need PINE_RUNTIME_STAGE (admins since 2026-11-12T23:30Z).",
       "readBy": [
         "app/src/components/chart/engine/runtimePaneGate.js::runtimePaneEnabled"
       ],

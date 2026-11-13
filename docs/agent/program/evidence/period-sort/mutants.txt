@@ -1,0 +1,30 @@
+===== mutant-m1-readback-always-true.txt
+     × ⛔ no false success: a run that never lands is not claimed 42ms
+      Tests  1 failed | 18 passed (19)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected true to be false // Object.is equality
+===== mutant-m2-unreadable-as-empty.txt
+     × ⛔ refused, nothing written: unreadable date, future date, end not after start, state unreadable 13ms
+      Tests  1 failed | 18 passed (19)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected true to be false // Object.is equality
+===== mutant-m3-dock-no-panel-check.txt
+     × ⛔ refused with no panel open — nothing on the board changes 6ms
+      Tests  1 failed | 18 passed (19)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected true to be false // Object.is equality
+===== mutant-m4-undo-drops-split-geometry.txt
+     × exact Undo: a widget the dock's split resized gets its size back 101ms
+      Tests  1 failed | 18 passed (19)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected { color: 'N', opts: {}, id: 'c', …(5) } to match object { x: +0, y: +0, w: 24, h: 20 }
+===== mutant-m5-stale-undo-fingerprint-dropped.txt
+     × ⛔ Undo refuses once the member ran another sort themselves — their panel is never closed 100ms
+      Tests  1 failed | 18 passed (19)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected true to be false // Object.is equality
+===== mutant-m6-undo-removes-first-period-sort.txt
+     × ⛔ wrong-target control: a Period Sort WIDGET already on the board is never touched by run, dock or Undo 141ms
+      Tests  1 failed | 18 passed (19)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected undefined to deeply equal { id: 'ps0', type: 'periodsort', …(6) }
