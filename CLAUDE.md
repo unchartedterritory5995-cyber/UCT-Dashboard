@@ -1802,7 +1802,12 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
   `uct.barsPool.disabled`.
 - **Observability:** `GET /api/admin/bars-stream-status` (no-auth) — WS connected + subscribers +
   `bars_emitted_total`/`bars_dropped_total`/`last_emit_age_s`. Flat emitted while subscribers>0
-  during RTH = "push silently dead, everyone fell back to Finnhub". Boot fingerprint:
+  during RTH = "push silently dead, everyone fell back to Finnhub". `websocket.ingest` (2026-11-13,
+  measurement-only) splits live-price lag into LOCAL vs UPSTREAM per wall-clock minute
+  (`this_minute`/`last_minute`): `trade_lag_ms`/`recv_lag_ms` (now / frame-dequeue minus T.t, bucketed
+  p50/p90 = "<=" bounds), `busy_ratio` (near 1 = the consumer never waits = local backlog),
+  `busy_cpu_over_wall` (far below 1 = runnable but waiting for the GIL), `recv_queue_max` +
+  `frames_read_paused` (websockets max_queue backpressure), per-type `events` counts. Boot fingerprint:
   `[startup] bars-push-rail: …`. `tools/market_open_chart_check.py` reads the stream directly
   (the scheduled 9:45 ET agent's push-render proof).
 - **Env (web pod):** `STREAM_BARS_ENABLED=1` (backend push on) · `VITE_REALTIME_BARS=1`. Deliberately
