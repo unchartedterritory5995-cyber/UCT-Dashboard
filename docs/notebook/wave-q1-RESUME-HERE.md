@@ -7098,6 +7098,17 @@ recovery decision and does not say "Saved" over unsent work the store held on op
 proven equal to the server is settled, by the drain and on open; identical content
 never enters the landed ring** — the content proves the server HAS the words, never
 that THIS browser wrote the revision, and recording it would hand guard 2 a false
-"ours". Rails: `provenEqualSettles.test.js`, `provenEqualOnOpen.test.jsx`, every guard
+"ours". ⛔ **And a CACHED copy is never proof** (fix round 1): the editor settles on open
+only with a copy THAT MOUNT saw arrive from the network, and the helper refuses a proof
+whose revision is older than the base the record's words were written on — an in-app
+reopen served from cache leaves the mark for the drain, as before. ⭐ **Fix round 1 also
+closed an older defect the work found: Discard on the recovery banner did not discard.**
+`markSynced` went through `persist`, fix 6 kept the dirty record's words and re-queued
+them, and after the note closed the drain WROTE THE DISCARDED WORDS INTO THE NOTE.
+⛔⛔ **The rule it adds: Discard on the recovery banner removes the device's copy of
+exactly the offered words, by a content-checked transaction; it never removes words the
+member typed after the offer** (`useDurableNote` `discardOffered`; fix 6 untouched for
+every other writer). Rails: `provenEqualSettles.test.js`, `provenEqualOnOpen.test.jsx`, every guard
 mutation-proved; `ringVouchAuthority.test.js` names `supersedeIdentical` as the
-identical sites' remove-only call.
+identical sites' remove-only call and reads both helpers' bodies for a plan or a ring
+write; `f5Freeze.test.js` carries the amendment and pins the two call sites.
