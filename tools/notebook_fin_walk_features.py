@@ -120,6 +120,12 @@ _J2 = REPO / "app" / "src" / "pages" / "journal-2-0"
 DRAFT_REVIEW_ROW = re.search(r"key: 'reviews', label: '([^']+)'", (_J2 / "tabs" / "NotebookTab.jsx").read_text(encoding="utf-8")).group(1)
 REVIEW_LABELS = dict(re.findall(r"\{ period: '(\w+)', label: \"([^\"]+)\" \}", (_J2 / "lib" / "reviewPeriods.js").read_text(encoding="utf-8")))
 assert set(REVIEW_LABELS) == {"daily", "weekly", "monthly"}, REVIEW_LABELS
+# Master S9/S17 (read by blocks.prep-pack): what a prep block says while a gap fills itself, and what it asks a member
+# with no names (components/notebook/blocks/PrepCapture.jsx FILLING_WORDS, PREP_NAMES_ASK).
+_PREP_CAPTURE = (_J2 / "components" / "notebook" / "blocks" / "PrepCapture.jsx").read_text(encoding="utf-8")
+PREP_FILLING_WORDS = dict(re.findall(r'^\s+(\w+): "([^"]+)",$', re.search(r"export const FILLING_WORDS = \{([^}]*)\}", _PREP_CAPTURE).group(1), re.M))
+PREP_NAMES_ASK = re.search(r'export const PREP_NAMES_ASK = "([^"]+)"', _PREP_CAPTURE).group(1)
+assert set(PREP_FILLING_WORDS) == {"no_earnings_yet", "no_quotes", "source_error"}, PREP_FILLING_WORDS
 # Simplify pass 2 (B1, B4, B5): the Daily brief's one header button and its quiet line (TodayHome.jsx), and the daily
 # folder a NEW member's first daily note goes into (api/services/journal_two/note_daily.py; read, never imported: this
 # driver never imports api.* in its own process).
@@ -3276,9 +3282,22 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                             if snap.get("needs"):
                                 rec["names_gap"] = C.vis_loc(group.get_by_text(
                                     f"This block needs {snap['needs']}, which is not on for you.", exact=True), 10000)
+                            elif snap.get("missing") in PREP_FILLING_WORDS:
+                                # Master S9: a gap that fills itself (captured today, in an editable note) says its
+                                # "filling" words and draws no Captured line and no Capture again while it waits (the
+                                # block reads again by itself); the server's frozen `detail` is not shown.
+                                rec["filling"] = True
+                                rec["names_gap"] = C.vis_loc(group.get_by_text(PREP_FILLING_WORDS[snap["missing"]], exact=True), 10000)
+                            elif snap.get("missing") == "no_names":
+                                # Master S17: a block with no names to read asks for them.
+                                rec["names_gap"] = C.vis_loc(group.get_by_text(PREP_NAMES_ASK, exact=True), 10000)
                             elif snap.get("missing"):
                                 rec["names_gap"] = C.vis_loc(group.get_by_text(snap.get("detail") or "", exact=True), 10000)
-                            rec["captured_line"] = C.vis_loc(group.get_by_text(spaced(f"Captured {et_minute(snap['capturedAt'])} ET")), 10000)
+                            line = group.get_by_text(spaced(f"Captured {et_minute(snap['capturedAt'])} ET"))
+                            if rec.get("filling"):
+                                rec["captured_line"] = not C.vis_loc(line, 2000)   # held back while it fills (S9)
+                            else:
+                                rec["captured_line"] = C.vis_loc(line, 10000)
                         rec["ok"] = bool(rec["group"] and rec["frozen"] and rec.get("captured_line") and rec.get("names_gap", True))
                         parts[wid] = rec
                     old_at = (snapshot_of(held.get("bodyJson"), "prepWire") or {}).get("capturedAt")
