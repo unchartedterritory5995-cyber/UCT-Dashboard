@@ -1180,12 +1180,14 @@ def _rs_sensitivity_unavailable(reason: str) -> dict:
             "agree": None, "summary": None}
 
 
-def _rs_slope_leg(bars, leg_bars, window: int, name: str):
+def _rs_slope_leg(bars, leg_bars, window: int, name: str, rs=None):
     """``(leg, reason, note)``: the leg, or None with its ``reason`` (the long
     form `reasons` keeps) and its ``note`` (the short form the Agreement summary
-    prints after ``<ticker>: ``)."""
+    prints after ``<ticker>: ``). ``rs`` is the caller's ``rs_line(bars,
+    leg_bars)`` when it has already joined them (one join per leg, not two)."""
     from api.services import relative_strength as rsmod
-    rs = rsmod.rs_line(bars, leg_bars)
+    if rs is None:
+        rs = rsmod.rs_line(bars, leg_bars)
     if len(rs) < window:
         return (None, f"needs {window} bars of RS against {name} (have {len(rs)})",
                 f"needs {_rs_plural(window, 'bar')} (has {len(rs)})")
@@ -1250,16 +1252,19 @@ def _rs_sensitivity(sym: str, bars, bench: dict, tf: str, count: int, groups: di
             legs["sector"] = (etf, lb)
     series: dict[str, list] = {}
     for key, (ticker, lb) in legs.items():
-        leg, why, note = _rs_slope_leg(bars, lb, window, ticker)
+        rs = rsmod.rs_line(bars, lb)                   # joined once: the leg's slope and the agreement read it
+        leg, why, note = _rs_slope_leg(bars, lb, window, ticker, rs=rs)
         if leg is None:
             out["reasons"][key] = why
             notes[key] = (ticker, note)
             continue
         leg["ticker"] = ticker
         out[key] = leg
-        series[key] = rsmod.rs_line(bars, lb)
+        series[key] = rs
     if all(k in series for k in ("spy", "rsp", "sector")):
-        agree = rsmod.benchmark_agree(series["spy"], series["rsp"], series["sector"], window)[-1]
+        # Only the newest bar is read: the whole per-bar column was the largest single
+        # item of a cold compute (`relative_strength.benchmark_agree_last`).
+        agree = rsmod.benchmark_agree_last(series["spy"], series["rsp"], series["sector"], window)
         out["agree"] = (agree == 1.0) if agree is not None else None
     # The Agreement card's numbers block, one value per leg (A1): SPY
     # ``rising`` / RSP ``no bars`` / Sector ``XLK rising`` or ``none for an ETF``.
