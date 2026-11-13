@@ -13,6 +13,7 @@
 // ⛔ LAZY. Reached only by dynamic import (the Template library's Use) and by AdoptSheet, itself lazy.
 import { previewMine, useTemplate } from '../../../lib/templateLibrary'
 import { numberOf } from './SlotPicker'
+import { TYPE_LABELS } from '../../../lib/templateSlots'
 
 /** M8's checkbox, unticked by default: the one way a Use starts a routine or tracker. */
 export const START_EVERY_WEEKDAY = 'Also start this every weekday'
@@ -52,7 +53,9 @@ export function firstAnswers(slots) {
   return { answers, labels }
 }
 
+// Simplify pass 2 (A4): the server labels a note-kind choice "Kind of note"; the member reads "Note type".
 export const slotsOf = (data) => listOf(data?.slots).filter((s) => isRecord(s) && typeof s.id === 'string' && s.id)
+  .map((s) => (s.type === 'note_kind' ? { ...s, label: TYPE_LABELS.note_kind } : s))
 export const questionsOf = (data) => listOf(data?.questions).filter((q) => isRecord(q) && typeof q.slot === 'string' && q.slot)
 
 /** A reuse question's answer: the member's own when the server found one, else start one only when asked to. */

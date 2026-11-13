@@ -93,10 +93,10 @@ async function renderEditor(id = 'n1') {
   })
 }
 const editorOf = () => document.querySelector('.ProseMirror').editor
-const BANNER = 'This note uses Weekend prep v1. Update layout to v3?'
+const BANNER = 'This note uses Weekend prep v1. Update template to v3?'
 const openSheet = async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Review update' }))
-  return screen.findByRole('dialog', { name: 'Update layout' })
+  return screen.findByRole('dialog', { name: 'Update template' })
 }
 
 describe('styleUpdate.banner', () => {
@@ -137,7 +137,7 @@ describe('styleUpdate.unknownVersion', () => {
   it.each([['null', null], ['missing', undefined]])('a %s version reads as an earlier version, and is still offered', async (_n, v) => {
     NOTE = { ...baseNote(), styleVersion: v }
     await renderEditor()
-    const banner = await screen.findByText('This note uses an earlier version of Weekend prep. Update layout to v3?')
+    const banner = await screen.findByText('This note uses an earlier version of Weekend prep. Update template to v3?')
     expect(banner.closest('[role="status"]').textContent).not.toMatch(NO_STRAY_V)
   })
 
@@ -163,7 +163,7 @@ describe('styleUpdate.deletedStyleNoBanner', () => {
     await renderEditor()
     await waitFor(() => expect(fetchJournalStyles).toHaveBeenCalled())
     await act(async () => { await Promise.resolve() })
-    expect(screen.queryByText(/Update layout/)).toBeNull()
+    expect(screen.queryByText(/Update (layout|template)/)).toBeNull()
     expect(planStyleUpdate).not.toHaveBeenCalled()
     expect(editorOf().getJSON()).toEqual(NOTE.bodyJson)
   })
@@ -187,7 +187,7 @@ describe('styleUpdate.waitsForSave', () => {
     expect(applyStyleUpdate).toHaveBeenCalledWith('n1', { baseUpdatedAt: '2026-01-03T00:00:00Z' })
     // the editor adopts the server's copy
     await waitFor(() => expect(JSON.stringify(editor.getJSON())).toContain('Added by the update.'))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Update layout' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Update template' })).toBeNull())
   })
 
   it('if words are still unsent after the wait, nothing is applied and it says so', async () => {
@@ -259,7 +259,7 @@ describe('styleUpdate.staleBase', () => {
     const dialog = await openSheet()
     await within(dialog).findByText('Will be added')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
-    expect(await within(dialog).findByText('This note is locked. Unlock it to change its layout.')).toBeTruthy()
+    expect(await within(dialog).findByText('This note is locked. Unlock it to change its template.')).toBeTruthy()
   })
 })
 
@@ -314,7 +314,7 @@ describe('after Apply lands', () => {
     const dialog = await openSheet()
     await within(dialog).findByText('Will be added')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Update layout' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Update template' })).toBeNull())
     const status = await screen.findByText('Updated to the latest version of Weekend prep.')
     expect(status.closest('[role="status"]')).toBeTruthy()
     const keys = swrMutate.mock.calls.map(([k]) => k)
@@ -337,7 +337,7 @@ describe('after Apply lands', () => {
     const said = await screen.findByText('The update was applied. Your newest words are still saving; the note will refresh when they land.')
     expect(said.closest('[role="status"]')).toBeTruthy()
     // the sheet is closed and the same update is not offered again (not on the sheet, not as the banner)
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Update layout' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Update template' })).toBeNull())
     expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Review update' })).toBeNull()
     expect(applyStyleUpdate).toHaveBeenCalledTimes(1)
@@ -393,7 +393,7 @@ describe('the sheet', () => {
     act(() => { editorOf().view.dom.dispatchEvent(new CustomEvent(STYLE_EVENT, { bubbles: true })) })
     fireEvent.click(await screen.findByRole('button', { name: /^Weekend prep/ }))
     const dialog = await screen.findByRole('dialog')
-    expect(await within(dialog).findByText('This note already has the latest layout.')).toBeTruthy()
+    expect(await within(dialog).findByText('This note already has the latest template.')).toBeTruthy()
     expect(within(dialog).queryByRole('button', { name: 'Apply' })).toBeNull()
     expect(within(dialog).queryByRole('button', { name: 'Cancel' })).toBeNull()   // the footer offers Close alone
     expect(within(dialog).getAllByRole('button', { name: 'Close' }).length).toBeGreaterThan(0)

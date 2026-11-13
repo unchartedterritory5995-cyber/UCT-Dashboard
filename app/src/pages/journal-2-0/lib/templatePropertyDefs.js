@@ -37,6 +37,7 @@
 import { STARTER_FORMULAS } from './formula/computed'
 import { FormulaError, toStored } from './formula/formulaEngine'
 import { notebookFlag } from './offline/notebookFlags'
+import { NOTE_KIND_PROPERTY, NOTE_TYPE_LABEL } from './noteKinds'
 
 const DEFS_URL = '/api/j2/property-defs'
 
@@ -67,6 +68,10 @@ async function postDef(name, type, config) {
 }
 
 const norm = (s) => String(s || '').trim().toLowerCase()
+/** Final fix M6: the names a definition answers to. The built-in note kind property is "Kind of note" on the server and
+ *  "Note type" on screen (lib/noteKinds.js `NOTE_TYPE_LABEL`), so a template definition named either one is "taken" by it
+ *  (and, being a built-in, never reused: the next name is tried) -- never a member "Note type" beside the built-in one. */
+const namesOf = (d) => (d?.id === NOTE_KIND_PROPERTY ? [d.name, NOTE_TYPE_LABEL] : [d?.name])
 
 /**
  * Create or reuse every definition `tpl.propertyDefinitions` declares, numbers first.
@@ -100,7 +105,7 @@ export async function ensureTemplatePropertyDefs(tpl, {
     let def = null
     let reason = 'name_taken'
     for (const name of [spec.name, `${spec.name} (${spec.type})`]) {
-      const same = defs.filter((d) => norm(d.name) === norm(name))
+      const same = defs.filter((d) => namesOf(d).some((n) => norm(n) === norm(name)))
       if (same.length) {
         // The member's own definition of this name and type is REUSED as it is -- an
         // existing "R-multiple" formula keeps the member's expression.

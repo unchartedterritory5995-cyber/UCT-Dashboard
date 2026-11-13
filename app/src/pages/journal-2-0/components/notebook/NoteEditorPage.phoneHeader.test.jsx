@@ -121,7 +121,7 @@ describe('opened on a DESKTOP, More leads with Find and Outline', () => {
     await renderEditor()
     const h = within(header())
     const ai = h.getByRole('group', { name: 'AI' })
-    expect(within(ai).getByRole('button', { name: /^ask this note$/i })).toBeTruthy()
+    expect(within(ai).getByRole('button', { name: /^ask about this note$/i })).toBeTruthy()
     expect(within(ai).getByRole('button', { name: 'Writing help' })).toBeTruthy()
     for (const name of ['Find in note', 'Outline']) expect(h.queryByRole('button', { name }), name).toBeNull()
     expect(h.queryByRole('combobox', { name: 'Folder' })).toBeNull()

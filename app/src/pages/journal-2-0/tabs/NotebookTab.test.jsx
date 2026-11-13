@@ -886,12 +886,16 @@ describe('⛔ Graph mode never offers a "Save this view" trap', () => {
  * a checked `menuitemradio` as the current one, beside `radio`, so a re-pick is a deliberate no-op.
  */
 describe('⛔⛔ FX2 — the view modes are one labelled set (proof-walk item 2)', () => {
+  // Simplify pass 2 (C1): Graph and Timeline are in the menu's "More views" second view -- the SAME role=menu element,
+  // so the set is still one labelled menu (viewOption presses "More views" for them).
   it('the seven modes sit inside one labelled role=menu, as menuitemradio', () => {
     renderTab()
     viewOption('List')
     const menu = screen.getByRole('menu', { name: 'View' })
     for (const label of ['List', 'Table', 'Board', 'Calendar', 'Graph', 'Timeline', 'Tasks']) {
-      expect(within(menu).getByRole('menuitemradio', { name: label })).toBeInTheDocument()
+      const row = viewOption(label)
+      expect(menu.contains(row), label).toBe(true)
+      expect(row).toHaveAttribute('role', 'menuitemradio')
     }
   })
 
@@ -1003,6 +1007,43 @@ describe('lane KEYS3 (Q2): the templates door, and a ticker template starts in T
     renderTab('/journal/notebook?view=all')
     await screen.findByRole('button', { name: 'More ways to start a note' })
     expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull()
+  })
+
+  // Simplify pass 2 (D3): Back after the door (the hash leaves) closes the sheet the hash opened.
+  function WithBack({ entries }) {
+    let nav
+    function NavProbe() { nav = useNavigate(); return null }
+    const out = render(
+      <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+        <NotebookTab />
+        <NavProbe />
+      </MemoryRouter>,
+    )
+    return { ...out, back: () => act(() => { nav(-1) }) }
+  }
+
+  it('Back from "#templates" closes the sheet the hash opened', async () => {
+    const { back } = WithBack({ entries: ['/journal/notebook?view=all', '/journal/notebook?view=all#templates'] })
+    expect(await screen.findByRole('dialog', { name: 'New note' })).toBeTruthy()
+    back()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull())
+  })
+
+  it('CONTROL: a sheet opened by a button stays open when the location changes without the hash', async () => {
+    let nav
+    function NavProbe() { nav = useNavigate(); return null }
+    render(
+      <MemoryRouter initialEntries={['/journal/notebook?view=all']}>
+        <NotebookTab />
+        <NavProbe />
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'More ways to start a note' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'From a template' }))
+    expect(await screen.findByRole('dialog', { name: 'New note' })).toBeTruthy()
+    act(() => { nav('/journal/notebook?view=all&x=1') })
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(screen.getByRole('dialog', { name: 'New note' })).toBeTruthy()
   })
 
   it('a template whose title names a ticker, picked with no ticker, opens with focus in TICKER', async () => {

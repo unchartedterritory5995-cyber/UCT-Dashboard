@@ -149,7 +149,9 @@ describe('"Journal tools" is a row of the list ⋯ menu (Tier 2 fix round 1)', (
     expect(journalToolsDoorMounted()).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'More notebook actions' }))
     const menu = screen.getByRole('menu', { name: 'More notebook actions' })
-    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Journal tools' }))
+    // Simplify pass 2 (A9): "Trade journal tools", so it is not read as a sibling of "My tools".
+    expect(within(menu).queryByRole('menuitem', { name: 'Journal tools' })).toBeNull()
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Trade journal tools' }))
     expect(seen).toHaveBeenCalledTimes(1)
     unmount()
     expect(journalToolsDoorMounted()).toBe(false)

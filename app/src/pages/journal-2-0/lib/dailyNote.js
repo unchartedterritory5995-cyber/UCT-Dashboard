@@ -23,9 +23,11 @@ export const DAILY_TEMPLATE_PREF = 'notebook_daily_template'
 export const DAILY_TEMPLATE_MISSING = "Your daily template no longer exists, so today's note started blank."
 
 /** Audit 2026-11-05, spec S2 (B12): what a door says when it MADE the day's note. The server files a
- *  new daily note in a root `Daily` folder (creating the folder the first time); a member who never
- *  made that folder deserves to know where the note went. One sentence, one place. */
-export const DAILY_FOLDER_NOTICE = 'Saved in your Daily folder.'
+ *  new daily note in the member's root daily folder (creating it the first time); a member who never
+ *  made that folder deserves to know where the note went. One sentence, one place.
+ *  Simplify pass 2 (A3): that folder is "Daily notes" for a new member and stays "Daily" for one who
+ *  already has it, so the sentence names neither (it said "Saved in your Daily folder."). */
+export const DAILY_FOLDER_NOTICE = 'Saved with your daily notes.'
 
 /** Fix round 1 (review finding 7): a door OUTSIDE the Notebook (Today, the Compass recap card,
  *  Insights) that made the day's note navigates away at once, so it cannot say where the note went.

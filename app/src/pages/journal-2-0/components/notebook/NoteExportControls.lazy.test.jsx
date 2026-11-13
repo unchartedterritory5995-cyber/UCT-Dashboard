@@ -19,7 +19,8 @@ describe('the export doors load their module on use', () => {
     expect(loads.factoryRuns).toBe(0)
     // Notebook simplify, Task 4: Print is an item of the Export menu.
     fireEvent.click(screen.getByRole('button', { name: /^export/i }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Print' }))
+    // Simplify pass 2: the menu itself is a held chunk (export/NoteExportMenu.jsx), here pressed before it landed.
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Print' }))
     await waitFor(() => expect(loads.printNote).toHaveBeenCalledTimes(1))
     expect(loads.factoryRuns).toBe(1)
   })
