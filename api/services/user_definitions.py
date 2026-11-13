@@ -2393,6 +2393,24 @@ def decide_semantics(definition: Mapping[str, Any], prev_definition: Optional[Ma
 
 # ─── the write path ──────────────────────────────────────────────────────────
 
+def stored_bytes_for_new(definition: dict) -> int:
+    """ENGINE 53 -- the bytes ``save`` counts against ``MAX_DEFINITION_BYTES`` for a NEW row
+    (no predecessor, not a copy) built from ``definition`` as the client sends it: the same
+    repairs, the parameter hook, the graph split and the semantics strip, then the same
+    serialisation. The browser counts the same thing before it mints a run half
+    (``storedBytes.js``); ``tests/fixtures/run_half_stored_bytes.json`` holds the two equal."""
+    from api.services import param_manifest
+    d = refresh_stale_handle(definition)
+    d = refresh_width_control_max(d)
+    d = refresh_from_door_stamps(d)
+    if param_manifest.declares_parameters(d.get("compute")):
+        d = param_manifest.apply(d, None)
+    stored, _working = normalize_graph_document(d)
+    stored = _without_semantics(stored)
+    blob = json.dumps(stored, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return len(blob.encode("utf-8"))
+
+
 def normalize_pine_source(pine_source: Any) -> tuple:
     """``(source_or_None, dropped_for_size)`` — what `save` will store.
 
@@ -2870,6 +2888,13 @@ def save(user_id: Any, def_id: str, definition: dict,
         raise ValueError(
             "definition: a user definition is a FORMULA — compute.kind must be "
             f"'ast', got {(compute or {}).get('kind')!r}")
+    # ⛔⛔ ENGINE 53 — A RUN HALF RUNS THIS ROW'S OWN SCRIPT (`compute.runtimeObjects`): its
+    # source, the document's own stamp and the script saved beside it are one script, or the
+    # save is refused. A forged run half naming another script would have that script's
+    # drawings replace this document's on the chart.
+    _run_half_why = runtime_definitions.run_half_source_refusal(definition, pine_source)
+    if _run_half_why:
+        raise SaveRefused("presentation", _run_half_why, guard="run-half:source")
     # ⭐ R2 — the browser's one provable load-time repair, applied here too, so an old
     # param-edited document with a stale handle saves under its tree's own name.
     definition = refresh_stale_handle(definition)
@@ -3944,6 +3969,12 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
     # ⛔ A copy of a refused version is refused too: the installer's alerts and scans
     # must not run maths the author's engine refused. The verdict rides in the copy's
     # own transaction (`_carry_from`) and expires with its engine like any carry.
+    # ⛔ ENGINE 53 — and a run half does not travel either: it IS the author's script
+    # (`compute.runtimeObjects.source`), and a copy saved without that script could never be
+    # bound to it (`runtime_definitions.run_half_source_refusal`). The copy keeps its host
+    # picture, exactly what the author's chart draws wherever the run half is not served.
+    from api.services import runtime_definitions
+    doc = runtime_definitions.without_run_half(doc)
     out = save(user_id, def_id, doc, limits=limits, role=role, _copy_of_stored=True,
                _carry_from=(resolved["author_id"], resolved["origin_def_id"],
                             resolved["origin_version"]))
