@@ -113,6 +113,14 @@ def test_the_chart_menu_family_is_a_CHART_action_not_history():
     assert v2.domain_for("chartMenu.resetWatermark") == "chart"
 
 
+def test_the_calc_timeframe_action_is_an_INDICATOR_action_and_withheld():
+    # calc-TF family: indicatorStyle.setCalcTimeframe files under the indicator domain (as indicatorStyle.* does), never history,
+    # and its bare name is withheld by the existing indicatorStyle × set enumeration (no new GUARD_KNOWN_UNWITHHELD entry)
+    assert v2.domain_for("indicatorStyle.setCalcTimeframe") == v2.domain_for("indicatorStyle.set") != "history"
+    assert guard.suspicious(_bare("indicatorStyle.setCalcTimeframe")) is True
+    assert "indicatorStyle.setCalcTimeframe" not in GUARD_KNOWN_UNWITHHELD
+
+
 def test_the_chart_features_family_is_a_CHART_action_not_history():
     # the Company Info panel + Earnings Strip act on ONE chart widget's dock (the chart domain), never history
     assert v2.domain_for("chartFeatures.companyPanel") == "chart"

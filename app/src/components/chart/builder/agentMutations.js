@@ -24,7 +24,10 @@
 import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, setIndicatorInput, checkInstanceInput, inputSpecOf,
   setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor, setInstanceDisplayTarget, duplicateInstance, isValidColorValue,
   setInstanceVisibility, setInstanceDotSize, dotPlotsOf, instanceDotSizeReading } from '../engine/instanceControls'
+import { setInstanceCalculationTimeframe } from '../engine/instanceControls'
 import { normalizeVisibility, visibilitySummary, VISIBILITY_PRESETS } from '../engine/instanceTimeframe'
+import { CALC_TIMEFRAMES, calcTimeframeOf, calcTimeframeLabel, frameRelation, gatedReason } from '../engine/instanceTimeframe'
+import { calcTimeframeCapability, CAPABILITY_WORDS } from '../engine/calcTimeframeCapability'
 import { displayTargetOptions, automaticTargetOf, resolveDisplayTarget, paneOwnerOf } from '../engine/displayTarget'
 import { movePane as movePaneWriter, movePaneTo, resolvePaneOrder, storedPaneOrder } from '../engine/paneOrder'
 import { setPaneSize as setPaneSizeWriter, clearPaneSize, storedPaneSizes } from '../engine/paneSizes'
@@ -52,7 +55,10 @@ export const MUTATION_CONTRACT = 'uct.indicators.mutation/1'
 // ⭐ UCT RS Phase 2a (unit 2a-12): `setDotSize` — the Inspector's / dialog's "Dot size" control, through
 // `setInstanceDotSize`. `{instanceId, size: 'small'|'medium'|'large', plotKey?}`; the instance level unless an
 // output is named; only for a definition that draws dots. Appended, so the earlier ops keep their positions.
-export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize'])
+// ⭐ Agent Charts family (calc TF, 2026-11-12, owner-approved): `setCalculationTimeframe` — the Inspector's "Timeframe"
+// control (WHICH BARS compute the instance; never the chart's timeframe, never `visibility`), through
+// `setInstanceCalculationTimeframe`. `{instanceId, timeframe: CALC_TIMEFRAMES code | null (= Chart), chartTf}`. Appended.
+export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize', 'setCalculationTimeframe'])
 export const PANE_OPS = Object.freeze(['movePane', 'setPaneSize'])
 export const CREATE_OPS = Object.freeze(['duplicate', 'copyFrom'])
 export const MUTATION_OPS = Object.freeze(['add', 'remove', 'setVisible', 'setInputs', ...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS])
@@ -939,6 +945,7 @@ function writeStyle(view, req, inst, def, registry) {
     if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
     return { ok: true, cs: next, change: { what: 'visibility', before: visibilitySummary(before), after: visibilitySummary(want) } }
   }
+  if (req.op === 'setCalculationTimeframe') return writeCalcTimeframe(view, req, inst, def, registry)
   if (req.op === 'setDotSize') {
     // `size`: one of the three words the store takes; `plotKey` (optional) names ONE dot output,
     // absent = the instance level, as the Dot size control writes it
@@ -976,6 +983,51 @@ function writeStyle(view, req, inst, def, registry) {
     try { return paneOwnerOf(findInstance(view, r.instanceId), view) === id } catch { return false }
   })()).map((r) => ({ instanceId: r.instanceId, name: r.name }))
   return { ok: true, cs: next, change: { what: 'displayTarget', before, after, ...(req.target === 'auto' ? { automatic: true } : {}), guests } }
+}
+
+/**
+ * ⭐ CALCULATION TIMEFRAME (Agent Charts family, 2026-11-12) — the Inspector's "Timeframe" select, through ITS writer.
+ * `timeframe`: a `CALC_TIMEFRAMES` code, or null / 'chart' = CHART (the absent key). `chartTf`: the chart's timeframe now.
+ *
+ * ⛔ THE WRITER REFUSES SILENTLY (`cs` back unchanged) for a definition `calcTimeframeCapability` says no to and for an
+ * instance that inherits its source's frame. So the capability is asked FIRST and its own reason returned
+ * (`detail.capability` + `CAPABILITY_WORDS`), and a writer that still changed nothing is `writer-refused` — never success.
+ * ⛔ LOWER / STRADDLING frames are refused with the product's own words (`gatedReason`): the authoring door refuses them
+ * (`applyPatch` `calc-tf:lower`); the settings select stores one but the chart then computes on its own bars and shows
+ * the same note — so storing it would read as a change that draws nothing different.
+ * ⛔ ONE LEAF: the write may change only `indicatorInstances[id].calculationTimeframe` (never the chart's timeframe,
+ * never `visibility`); anything else is refused as `writer-refused`.
+ */
+const CALC_OPTIONS = () => [{ value: null, label: 'Chart' }, ...CALC_TIMEFRAMES.map((c) => ({ value: c, label: calcTimeframeLabel(c) }))]
+const stripDot = (s) => String(s || '').replace(/\.$/, '')
+function writeCalcTimeframe(view, req, inst, def, registry) {
+  const id = inst.instanceId
+  const raw = req.timeframe
+  const want = raw === null || raw === undefined || raw === 'chart' ? null : raw
+  if (want !== null && !(typeof want === 'string' && CALC_TIMEFRAMES.includes(want))) {
+    return refuse(REASONS.BAD_INPUT, { value: raw ?? null, why: 'a calculation timeframe is one the chart can fetch bars at, or the chart\'s own', options: CALC_OPTIONS() })
+  }
+  const before = calcTimeframeOf(inst)
+  if (before === want) return refuse(REASONS.NO_CHANGE)
+  if (want !== null) {
+    const cap = calcTimeframeCapability(def, inst)
+    if (!cap.ok) return refuse(REASONS.BAD_INPUT, { capability: cap.reason, why: stripDot(CAPABILITY_WORDS[cap.reason] || CAPABILITY_WORDS.unknown), options: [] })
+    if (cap.inherits) {
+      return refuse(REASONS.BAD_INPUT, { capability: 'inherits', from: nameOf(view, registry, cap.inherits) || null,
+        why: `it is calculated on the same timeframe as its source${nameOf(view, registry, cap.inherits) ? ` (${nameOf(view, registry, cap.inherits)})` : ''} — change that one instead`, options: [] })
+    }
+    const chartTf = typeof req.chartTf === 'string' && req.chartTf ? req.chartTf : null
+    const relation = chartTf ? frameRelation(want, chartTf) : 'higher'
+    if (relation === 'lower' || relation === 'straddle') {
+      return refuse(REASONS.BAD_INPUT, { relation, chartTf, why: stripDot(gatedReason(relation, want, chartTf)), options: [] })
+    }
+  }
+  const next = setInstanceCalculationTimeframe(view, id, want, registry)
+  if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
+  const leaf = (p) => p.path.length === 3 && p.path[0] === LIST && isObj(p.path[1]) && p.path[1].instanceId === id && p.path[2] === 'calculationTimeframe'
+  const paths = changeRecord(normOf(view), normOf(next)).paths.filter((p) => !(p.path.length === 1 && p.path[0] === 'preset'))
+  if (!paths.length || !paths.every(leaf) || calcTimeframeOf(findInstance(next, id)) !== want) return refuse(REASONS.WRITER_REFUSED)
+  return { ok: true, cs: next, change: { what: 'calcTimeframe', before, after: want, chartTf: typeof req.chartTf === 'string' ? req.chartTf : null } }
 }
 
 /** Run one PANE op's writer. `{ok:true, cs, change, paneKey, ids}` | refusal. */
