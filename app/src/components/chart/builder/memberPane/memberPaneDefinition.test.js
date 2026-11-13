@@ -157,7 +157,11 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
     // `ta.highest` inside a block that does not run on every bar — refused on this
     // lane (C31). With no reading of the condition the corner is not drawn at a
     // default. Evidence: docs/pine/evidence/2026-11-12-engine51-cell-order.
-    expect(byName.Drawings).toMatch(/^10 of 18 drawing elements in this script aren't supported yet/)
+    // ⛔ 11 of 18 since engine 52 (STOP item, reported): the Range table's ATRx cell is withheld
+    // by name too (`pine:prop-unreadable`, its `text_color` is a reassigned colour no reader follows).
+    // The Volume table stays withheld (C31: its position's condition reads `ta.highest` in a
+    // conditionally-run block; see the engine-52 EVIDENCE for why the gate path is not enabled).
+    expect(byName.Drawings).toMatch(/^11 of 18 drawing elements in this script aren't supported yet/)
 
     // Ruling D1: the condition is not drawn, and the member is told where it went.
     expect(byName.alertcondition).toContain("'HVE Trigger'")

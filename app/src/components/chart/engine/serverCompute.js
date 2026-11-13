@@ -450,6 +450,9 @@ export function clearServerColumns() {
   _inflight.clear()
   _asks.clear()
   _own.clear()
+  for (const h of _held.values()) clearTimeout(h.timer)
+  _held.clear()
+  _shown.clear()
   _batchDownUntil = 0
   for (const t of _degradedTimers.values()) clearTimeout(t)
   _degradedTimers.clear()
@@ -551,6 +554,17 @@ function _defaultFetch(url) {
       err.status = r.status
       throw err
     }
+    // ⛔ A PAGE IS NOT AN ANSWER. This app answers an API path it does not route with its own
+    // HTML and a 200 (the SPA catch-all; measured on production 2026-11-12 for the batch route
+    // one deploy before it existed). "No such route" therefore arrives as a 200 that is not
+    // JSON, and is reported as the 404 it stands for, so the batch door can remember it
+    // instead of asking a server that cannot answer on every symbol.
+    const type = (r.headers && typeof r.headers.get === 'function' && r.headers.get('content-type')) || ''
+    if (type && !/json/i.test(type)) {
+      const err = new Error('not JSON')
+      err.status = 404
+      throw err
+    }
     return r.json()
   })
 }
@@ -592,9 +606,10 @@ const _BATCH_TEST_MODE = (() => {
 })()
 let _batchGet = _BATCH_TEST_MODE ? null : _defaultFetch
 
-/** Test seam: arm (or, with null, disarm) the batch request for the whole module. */
+/** Test seam: arm (or, with null, disarm) the batch request for the whole module.
+ *  `'default'` arms the browser's own request, the one production uses. */
 export function __setServerBatchFetcherForTests(fn) {
-  _batchGet = typeof fn === 'function' ? fn : null
+  _batchGet = fn === 'default' ? _defaultFetch : (typeof fn === 'function' ? fn : null)
   _batchDownUntil = 0
 }
 
@@ -708,14 +723,103 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
 const _own = new Map()        // `${sym}|${tf}` -> { sym, tf, asks: Map(key -> {defId, inputs}) }
 let _ownFlushing = false
 
+// ─── A CHART RACING THROUGH SYMBOLS ASKS FOR THE ONE IT STOPS ON ─────────────
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13 (the arrow key held through 40 charts of a
+// watchlist, 6.6 charts a second, then released): every chart the member passed
+// sent its own ask, none of them could be cancelled, and the chart the member
+// LANDED on drew its RS line 7.0 s after its candles, behind 28 requests for
+// charts already gone. A server compute is real work per symbol (about 0.2 s of
+// Python even with the reads fixed), so forty abandoned asks are seconds of it.
+//
+// So a chart says what it is on (`chartShows`), and the lane reads the CADENCE
+// from that. A chart that was resting sends its ask at once, exactly as before:
+// stepping through a list at a reading pace costs nothing. A chart that changed
+// symbol less than `RAPID_MS` after its previous change is being raced, and its
+// ask is held for a little longer than that last gap (`SETTLE_FACTOR` x the gap,
+// between `SETTLE_MIN_MS` and `SETTLE_MAX_MS`): if the chart has moved on by
+// then the ask is never sent; if it is still there, the member stopped, and it
+// goes. A raced chart therefore costs one request (the landing one), sent about
+// a third of a step after the member stops.
+//
+// ⛔ FAIL OPEN. An ask is held only for a chart that REGISTERED and is known to
+// be racing. A host that never calls `chartShows`, a symbol no registered chart
+// shows, or two charts on one symbol of which one is resting: sent at once.
+// The pre-load of the rows ahead (`serverWarm.js`) is not touched by any of this.
+/** A symbol change this soon after the chart's previous one is "racing through". */
+export const RAPID_MS = 250
+/** A held ask waits this many times the chart's last gap ... */
+export const SETTLE_FACTOR = 1.3
+/** ... but never less than this, nor more than `SETTLE_MAX_MS`. */
+export const SETTLE_MIN_MS = 40
+export const SETTLE_MAX_MS = 250
+const _shown = new Map()      // slot (the chart's own token) -> { sym, tf, at, gap }
+const _held = new Map()       // `${sym}|${tf}` -> { g, timer }
+
+/**
+ * A chart says which (symbol, timeframe) it is on. Call it when either changes.
+ * @param {object} slot the chart's own token (any object it keeps for its lifetime)
+ */
+export function chartShows(slot, sym, tf) {
+  const prev = _shown.get(slot)
+  const t = String(tf)
+  if (prev && prev.sym === sym && prev.tf === t) return
+  const now = Date.now()
+  _shown.set(slot, { sym, tf: t, at: now, gap: prev ? now - prev.at : Infinity })
+}
+
+/** The chart is gone (unmounted): nothing it showed is waited for on its behalf. */
+export function chartGone(slot) {
+  _shown.delete(slot)
+}
+
+// How long an own ask for (sym, tf) is held: 0 = send now.
+function _settleMs(sym, tf) {
+  const t = String(tf)
+  let hold = 0
+  let any = false
+  for (const s of _shown.values()) {
+    if (s.sym !== sym || s.tf !== t) continue
+    const settle = s.gap < RAPID_MS ? Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MIN_MS, s.gap * SETTLE_FACTOR)) : 0
+    hold = any ? Math.min(hold, settle) : settle
+    any = true
+  }
+  return hold
+}
+
+function _stillShown(sym, tf) {
+  const t = String(tf)
+  for (const s of _shown.values()) if (s.sym === sym && s.tf === t) return true
+  return false
+}
+
+function _sendOwn(g) {
+  const asks = [...g.asks.values()]
+  if (asks.length === 1) fetchColumns(asks[0].defId, g.sym, g.tf, asks[0].inputs)
+  else fetchColumnsBatch(g.sym, g.tf, asks)
+}
+
 function _flushOwnAsks() {
   _ownFlushing = false
   const groups = [..._own.values()]
   _own.clear()
   for (const g of groups) {
-    const asks = [...g.asks.values()]
-    if (asks.length === 1) fetchColumns(asks[0].defId, g.sym, g.tf, asks[0].inputs)
-    else fetchColumnsBatch(g.sym, g.tf, asks)
+    const gk = `${g.sym}|${g.tf}`
+    const waiting = _held.get(gk)
+    if (waiting) {                                       // already held: a repaint's asks join it
+      for (const [k, a] of g.asks) waiting.g.asks.set(k, a)
+      continue
+    }
+    const hold = _settleMs(g.sym, g.tf)
+    if (!(hold > 0)) { _sendOwn(g); continue }
+    _held.set(gk, {
+      g,
+      timer: setTimeout(() => {
+        _held.delete(gk)
+        if (_stillShown(g.sym, g.tf)) _sendOwn(g)
+        else for (const k of g.asks.keys()) _wanted.delete(k)   // the chart moved on: nobody waits for these
+      }, hold),
+    })
   }
 }
 

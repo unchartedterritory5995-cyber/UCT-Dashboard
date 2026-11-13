@@ -164,6 +164,8 @@
   "chartSetup.compareGroup": "compareGroups",
   "chartMenu.askAi": "chartMenu",
   "chartMenu.resetWatermark": "chartMenu",
+  "chartFeatures.companyPanel": "chartFeatures",
+  "chartFeatures.earningsStrip": "chartFeatures",
   "drawing.positionCalculator": "drawingExtras",
   "drawing.saveDefaults": "drawingExtras",
   "drawing.favoriteTool": "drawingExtras",
@@ -189,6 +191,7 @@
   "calendar.day": "calendar",
   "periodSort.run": "periodSort",
   "periodSort.dock": "periodSort",
+  "compare.openView": "comparePanel",
   "multiChart.set": "multiChart",
   "multiChart.cell": "multiChart"
  },
@@ -208,6 +211,10 @@
   {
    "id": "chartMenu",
    "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+  },
+  {
+   "id": "chartFeatures",
+   "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
   },
   {
    "id": "chartGrid",
@@ -322,6 +329,10 @@
    "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
   },
   {
+   "id": "comparePanel",
+   "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
+  },
+  {
    "id": "periodSort",
    "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
   }
@@ -391,6 +402,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -503,6 +518,10 @@
      {
       "id": "chartView",
       "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
      },
      {
       "id": "periodSort",
@@ -594,6 +613,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -704,6 +727,10 @@
      {
       "id": "chartView",
       "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
      },
      {
       "id": "periodSort",
@@ -809,6 +836,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -919,6 +950,10 @@
      {
       "id": "chartView",
       "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
      },
      {
       "id": "periodSort",
@@ -1034,6 +1069,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1144,6 +1183,10 @@
      {
       "id": "chartView",
       "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
      },
      {
       "id": "periodSort",
@@ -1231,6 +1274,10 @@
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1343,6 +1390,10 @@
       "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -1363,6 +1414,7 @@
     "chartSetup",
     "compareGroups",
     "chartMenu",
+    "chartFeatures",
     "chartGrid",
     "boardEdit",
     "workspace",
@@ -1391,6 +1443,7 @@
     "watchlistShow",
     "guide",
     "chartView",
+    "comparePanel",
     "periodSort"
    ],
    "names": [
@@ -1551,6 +1604,8 @@
     "chartSetup.compareGroup",
     "chartMenu.askAi",
     "chartMenu.resetWatermark",
+    "chartFeatures.companyPanel",
+    "chartFeatures.earningsStrip",
     "drawing.positionCalculator",
     "drawing.saveDefaults",
     "drawing.favoriteTool",
@@ -1576,6 +1631,7 @@
     "calendar.day",
     "periodSort.run",
     "periodSort.dock",
+    "compare.openView",
     "multiChart.set",
     "multiChart.cell"
    ],

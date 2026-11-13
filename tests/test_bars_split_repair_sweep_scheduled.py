@@ -215,7 +215,7 @@ def _universe(monkeypatch, syms):
 def _meta(monkeypatch, mapping):
     """Serve corporate actions from the module's own key, never a retyped one."""
     for sym in mapping:
-        cache.invalidate(_san._META_KEY.format(sym))
+        _san._META_CACHE.invalidate(_san._META_KEY.format(sym))
     monkeypatch.setattr(_san, "_fetch_meta",
                         lambda t: {"ipo": None, "splits": mapping.get(t, [])})
 
@@ -260,7 +260,7 @@ def test_no_fmp_key_REFUSES_instead_of_reporting_a_clean_sweep(monkeypatch, swee
 
 def test_a_provider_failure_is_counted_not_swallowed_as_clean(monkeypatch, sweep_env):
     _universe(monkeypatch, ["ZZBOOM"])
-    cache.invalidate(_san._META_KEY.format("ZZBOOM"))
+    _san._META_CACHE.invalidate(_san._META_KEY.format("ZZBOOM"))
 
     def _boom(_t):
         raise RuntimeError("FMP is down")

@@ -3007,6 +3007,56 @@
     }
    }
   },
+  "compare.openView": {
+   "digest": "5598351f373e43a5",
+   "phrasings": {
+    "open the rotation map for nvda's sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me nvda's sector on the rrg view": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the compare panel on the rotation tab with nvda's sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pull up the relative rotation graph for the nvda sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "compare.openView.overlay": {
+   "digest": "6efec622cb6e7a5a",
+   "phrasings": {
+    "go to the overlay tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch the compare panel to its overlay tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "back to the overlay tab of the compare symbols panel": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the overlay tab in the compare window": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chart.replay.exit": {
    "digest": "3858cdefd5b544c3",
    "phrasings": {
@@ -4361,6 +4411,66 @@
      "modes": {}
     },
     "open the ai on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartFeatures.companyPanel": {
+   "digest": "6f6b2385593a9cb0",
+   "phrasings": {
+    "add the company panel and open news": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the company info panel on the news tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the profile panel on news": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartFeatures.companyPanel.remove": {
+   "digest": "91654df96a810986",
+   "phrasings": {
+    "remove the company panel from this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "take the company info off the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the company panel": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartFeatures.earningsStrip": {
+   "digest": "b3ebdae1e5c5b176",
+   "phrasings": {
+    "show the earnings strip on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the fundamentals strip": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the earnings strip under the chart": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}

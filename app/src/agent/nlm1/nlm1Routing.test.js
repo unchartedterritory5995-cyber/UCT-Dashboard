@@ -178,8 +178,12 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
   const opts = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold, correct })
   const sentOf = (msg) => new Set(routeManifestV2(full(), msg, opts()).manifest.map(c => groupOfAction(c.name)))
+  // compare.openView: the RS INDICATOR's Rotation view (its `view` input) never selects the Compare panel's words
+  it.each(['show rotation on the RS indicator', 'switch the RS indicator to the rotation view', 'set the relative strength view to rotation', 'put the rrg view in the rs pane', 'compare nvda with amd'])('"%s": not the comparePanel words', (msg) => expect(wordsSelect('comparePanel', msg)).toBe(false))
   const wordsOnly = GROUPS.filter(g => g.wordsOnly)
   const OWN_WORDS = {
+    // compare.openView: the rotation / RRG map, graph, tab or view; the Compare (Symbols) panel; its Overlay tab
+    comparePanel: ['open the rotation map', 'show me the rrg view for nvda', 'switch the compare panel to the rotation tab', 'go to the overlay tab'],
     // drawing extras: the Position Calculator, a drawing's Save as default, a drawing tool's ★
     drawingExtras: ['open the position calculator with entry 50 stop 48 target 56', 'make this trendline my default style', 'add the fib tool to my favourites'],
     watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],
@@ -201,6 +205,10 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     layoutBar: ['take Swing off the bar', 'pin my Momentum layout', 'move Day Trading to the left on the layout bar'],
     // family C (C1-178 / C1-061): Ask AI with about / on / for or a chart word; the watermark with a reset / back / default word
     chartMenu: ['ask ai about this chart', 'open the ai on the nvda chart', 'reset the watermark on this chart', 'put the watermark back where it was'],
+    // chartFeatures: the panel or the strip by name (company info / company or profile panel / earnings or fundamentals strip /
+    // the strip under the chart), or a tab only the company panel has
+    chartFeatures: ['add the company panel', 'collapse the company info on this chart', 'remove the profile panel', 'show the earnings strip',
+      'add the fundamentals strip to the nvda chart', 'take the strip under the chart off', 'switch to the ownership tab', 'open the news tab of the company panel'],
   }
   // #1070 negative controls: a bare "board" is the workspace — these never select drawingBoards
   it.each(['remove everything from the board', 'add a chart to the board', 'make the board 2x2', 'clear the board', 'new chart on the board'])
@@ -208,6 +216,9 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     expect(wordsSelect('drawingBoards', msg)).toBe(false)
   })
   // family C: "ask" / "watermark" / "journal" / "header" alone never select chartMenu (the words are used elsewhere)
+  // chartFeatures: a bare earnings / news / panel / strip word never selects it (data questions, other widgets' panels)
+  it.each(['when does nvda report earnings', 'show me the latest news on amd', 'open the settings panel', 'what is in the news tab',
+    'strip the indicators off this chart', 'add the earnings calendar widget', 'compare the fundamentals of nvda and amd'])('"%s": not the chartFeatures words', (msg) => expect(wordsSelect('chartFeatures', msg)).toBe(false))
   it.each(['make the watermark bigger', 'hide the watermark', 'send this chart to my journal', 'ask about nvda earnings', 'show the header', 'reset the view'])('"%s": not chartMenu\'s words', (msg) => expect(wordsSelect('chartMenu', msg)).toBe(false))
   it('there is a words-only group, and every one has phrases of its own words here', () => {
     expect(wordsOnly.length).toBeGreaterThan(0)

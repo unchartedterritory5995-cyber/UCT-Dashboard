@@ -457,6 +457,32 @@
    ],
    "fast": true
   },
+  "chartFeatures.companyPanel": {
+   "domain": "chartFeatures",
+   "group": "chartFeatures",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "chartFeatures.earningsStrip": {
+   "domain": "chartFeatures",
+   "group": "chartFeatures",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "chartGrid.set": {
    "domain": "chartGrid",
    "group": "chartGrid",
@@ -716,6 +742,19 @@
     "charts"
    ],
    "fast": true
+  },
+  "compare.openView": {
+   "domain": "compare",
+   "group": "comparePanel",
+   "target": "comparePanel",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
   },
   "definition.delete": {
    "domain": "definition",
