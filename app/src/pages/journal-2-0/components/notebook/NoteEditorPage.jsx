@@ -137,7 +137,7 @@ import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { pasteTerminalCommand } from '../../lib/terminalCommandPaste'
 import lazyChunk, { RETRY_WAIT_MS, importWithOneRetry } from '../../lib/lazyChunk'
 import whenIdle from '../../lib/whenIdle'
-import { FindBarSlot, TableToolbarSlot, warmEditorTools } from './EditorToolSlots'
+import { FindBarSlot, TableToolbarSlot, WidgetPaletteSlot, warmEditorTools, warmWidgetPalette } from './EditorToolSlots'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvasModel'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
@@ -229,11 +229,9 @@ function HelpfulPromptDoor({ noteId, onDone }) {
   return Line ? <Line noteId={noteId} onDone={onDone} /> : null
 }
 // Notebook widgets F3 (ruling R45's fallback lever): the widget palette is its own chunk, off the first open.
-// The editor warms it once idle (`warmWidgetPalette` below), so the toolbar's palette opens without a wait and
-// still opens offline once that warm has landed. A failed warm costs nothing: the open asks again (lazyChunk).
-const loadWidgetPalette = () => import('./WidgetPalette')
-const WidgetPalette = lazyChunk(loadWidgetPalette)
-const warmWidgetPalette = () => whenIdle(() => { loadWidgetPalette().catch(() => {}) })
+// Follow-up B fix round 1 (item 5): held, not lazy (EditorToolSlots.jsx `WidgetPaletteSlot`): warmed once the editor is
+// idle and when a pointer or focus reaches Insert, mounted in the press's own commit, a focused frame on a cold press.
+const warmWidgetPaletteWhenIdle = () => whenIdle(warmWidgetPalette)
 // Notebook first-open bytes (perf-budgets.md, 2026-11-10): the document preview (with its image and page-text
 // viewers and the PDF boundary) and the captured-passage sheet are drawn only after a press, so each is its own
 // chunk, off the first open. Each mounts on its first open and then stays mounted (the Tier 1a history idiom: a
@@ -1297,7 +1295,7 @@ export default function NoteEditorPage({
   const [paletteOpen, setPaletteOpen] = useState(false)
   // Follow-up A: which door opened the palette (`block_inserted`'s via).
   const [paletteVia, setPaletteVia] = useState('palette')
-  useEffect(warmWidgetPalette, [])
+  useEffect(warmWidgetPaletteWhenIdle, [])
   useEffect(warmSourceSheets, [])
   useEffect(warmEditorToolsWhenIdle, [])
   // Wave 5: the text colour + highlight picker, toggled from the toolbar row.
@@ -5962,6 +5960,8 @@ export default function NoteEditorPage({
             type="button"
             className={`${styles.toolBtn} ${styles.foldDesktop} ${paletteOpen ? styles.toolBtnActive : ''}`}
             onClick={togglePalette}
+            onPointerEnter={warmWidgetPalette}
+            onFocus={warmWidgetPalette}
             title="Insert a chart or preset: pick ticker and timeframe by clicking"
             aria-label="Insert widget"
           >
@@ -5993,6 +5993,8 @@ export default function NoteEditorPage({
               type="button"
               className={`${styles.toolBtn} ${paletteOpen ? styles.toolBtnActive : ''}`}
               onClick={togglePalette}
+              onPointerEnter={warmWidgetPalette}
+              onFocus={warmWidgetPalette}
               title="Insert a chart or preset: pick ticker and timeframe by clicking"
               aria-label="Insert"
             >
@@ -6009,9 +6011,7 @@ export default function NoteEditorPage({
           header wraps to (review finding: a fixed viewport offset here
           duplicated the chrome height by hand). */}
       {paletteOpen && editor && !locked && (
-        <Suspense fallback={null}>
-          <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} returnFocusTo={paletteOpenerRef} via={paletteVia} />
-        </Suspense>
+        <WidgetPaletteSlot editor={editor} onClose={() => setPaletteOpen(false)} returnFocusTo={paletteOpenerRef} via={paletteVia} />
       )}
       {/* P0.6: the phone "+" menu. Each row calls the same door its desktop button calls. */}
       {editor && !locked && !isCanvas && (

@@ -121,3 +121,51 @@ export function TableToolbarSlot({ editor }) {
   const { Component } = useHeldModule(tableToolbarModule)
   return Component ? <Component editor={editor} /> : null
 }
+
+// ── The Insert palette (WidgetPalette), held the same way (follow-up B fix round 1, item 5) ──────────────────────────
+// It was `lazyChunk` + <Suspense>: a member who pressed Insert and typed a ticker at once could write into the note
+// while the reveal was held back. Now: fetched once the editor is idle and when a pointer or focus reaches Insert;
+// with the chunk in hand the palette mounts in the press's own commit; before it lands a frame is drawn at once that
+// takes focus (so nothing typed reaches the note) and becomes the palette when it lands; a failed fetch says so, with a
+// Reload the member presses. Escape or Close in the frame close it and hand focus back to the door.
+export const widgetPaletteLoaders = { palette: () => import('./WidgetPalette') }
+export const widgetPaletteModule = heldModule(() => widgetPaletteLoaders.palette())
+export const warmWidgetPalette = () => { widgetPaletteModule.warm() }
+export const INSERT_UNAVAILABLE = 'Insert could not be loaded.'
+export const INSERT_LOADING = 'Loading Insert…'
+
+function PaletteFrame({ failed, onClose, returnFocusTo }) {
+  const statusRef = useRef(null)
+  useLayoutEffect(() => { statusRef.current?.focus() }, [])
+  const close = () => {
+    onClose?.()
+    returnFocusTo?.current?.focus?.()
+  }
+  const onKeyDown = (e) => {
+    if (e.key !== 'Escape') return
+    e.preventDefault()
+    e.stopPropagation()
+    close()
+  }
+  return (
+    <div className={styles.bar} role="dialog" aria-label="Insert widget" data-palette-stand-in="" onKeyDown={onKeyDown}>
+      <div className={styles.row}>
+        <p ref={statusRef} tabIndex={-1} className={styles.count} role={failed ? 'alert' : 'status'}>
+          {failed ? `${INSERT_UNAVAILABLE} ${RELOAD_TO_RECOVER}` : INSERT_LOADING}
+        </p>
+        {failed && <button type="button" className={styles.textBtn} onClick={pageReload.run}>Reload</button>}
+        <button type="button" className={styles.closeBtn} onClick={close} aria-label="Close insert panel">
+          <UIcon name="x" {...TOOLBAR_ICON} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function WidgetPaletteSlot(props) {
+  const { status, Component } = useHeldModule(widgetPaletteModule)
+  // The press asks too: the idle warm may not have run yet, or may have failed while offline.
+  useEffect(() => { widgetPaletteModule.warm() }, [])
+  if (Component) return <Component {...props} />
+  return <PaletteFrame failed={status === 'failed'} onClose={props.onClose} returnFocusTo={props.returnFocusTo} />
+}
