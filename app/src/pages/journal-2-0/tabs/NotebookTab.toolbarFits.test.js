@@ -44,3 +44,17 @@ describe('the phone toolbar fits its line (Important 7)', () => {
     expect(rule('.toolbar { flex-wrap: nowrap; gap: 6px; }', '.toolbar')).not.toMatch(/flex-wrap:\s*wrap/)
   })
 })
+
+describe('the phone ⋯ menu is as wide as its longest row (simplify pass 2, C6)', () => {
+  // Found by the fin walk at 390: at the menu engine's 200 px floor "Remove sample notebook" wrapped to two lines
+  // (row 57.6 px tall); at max-content the menu is 211 px and the row one line (44 px), measured in Chromium.
+  const phone = phoneBodies(CSS)
+  it('the row-end menu sizes to its content, still anchored right', () => {
+    const body = rule(phone, '.newWrap [role="menu"]')
+    expect(body).toMatch(/width:\s*max-content/)
+    expect(body).toMatch(/right:\s*0/)
+  })
+  it('CONTROL: the rule as pass 2 shipped it fails the read', () => {
+    expect(rule('.newWrap [role="menu"] { left: auto; right: 0; }', '.newWrap [role="menu"]')).not.toMatch(/width:\s*max-content/)
+  })
+})

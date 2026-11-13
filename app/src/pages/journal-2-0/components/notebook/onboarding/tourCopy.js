@@ -21,7 +21,7 @@ export const TOUR_STEP_COPY = Object.freeze({
   }),
   'view-switcher': Object.freeze({
     title: 'Views',
-    body: 'Open View to see your notes as a list, a table, a board, a calendar, a graph of their links, a timeline or a list of tasks. Your saved views are in View too.',
+    body: 'Open View to see your notes as a list, a table, a board, a calendar or a list of tasks. A graph of their links and a timeline are under More views. Your saved views are in View too.',
   }),
   import: Object.freeze({
     title: 'Import',

@@ -608,6 +608,7 @@ export function clearServerColumns() {
   for (const t of _diskHeld.values()) clearTimeout(t)
   _diskHeld.clear()
   _everAsked = false
+  _tfHabit = null
   _inflight.clear()
   _asks.clear()
   _own.clear()
@@ -616,6 +617,8 @@ export function clearServerColumns() {
   _shown.clear()
   _ownOut = 0
   _ownSentAt = 0
+  _laneMs = 0
+  _laneMsAt = 0
   _batchDownUntil = 0
   for (const t of _degradedTimers.values()) clearTimeout(t)
   _degradedTimers.clear()
@@ -689,9 +692,11 @@ export function fetchColumns(defId, sym, tf, inputs, fetcher) {
   if (existing) return existing
   const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
   let unchanged = false                                 // a provisional entry confirmed or kept: nothing to repaint
+  const sentAt = Date.now()
   const p = Promise.resolve()
     .then(() => get(key))
     .then((wire) => {
+      _noteLaneMs(Date.now() - sentAt, Date.now())
       const parsed = columnsFromWire(wire)
       unchanged = !_land(key, sym, tf, parsed, wire)
       return _cache.get(key) || parsed
@@ -849,9 +854,11 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
   }
   const url = serverColumnsBatchUrl(sym, tf, todo)
   let failed = false
+  const sentAt = Date.now()
   const p = Promise.resolve()
     .then(() => get(url))
     .then((body) => {
+      _noteLaneMs(Date.now() - sentAt, Date.now())
       const results = body && Array.isArray(body.results) ? body.results : null
       // Positional: one slot per ask. A body of any other shape answers nothing.
       if (!results || results.length !== todo.length) throw new Error('malformed batch body')
@@ -930,13 +937,30 @@ let _ownFlushing = false
 // The pre-load of the rows ahead (`serverWarm.js`) is not touched by any of this.
 /** A symbol change this soon after the chart's previous one is "racing through". */
 export const RAPID_MS = 250
-/** A held ask waits this many times the chart's last gap ... */
+/** A held ask waits this many times the SLOWER of the chart's last two steps ... */
 export const SETTLE_FACTOR = 1.3
 /** ... but never less than this, nor more than `SETTLE_MAX_MS`. */
 export const SETTLE_MIN_MS = 40
-export const SETTLE_MAX_MS = 250
-const _shown = new Map()      // slot (the chart's own token) -> { sym, tf, at, gap }
+export const SETTLE_MAX_MS = 500
+const _shown = new Map()      // slot (the chart's own token) -> { sym, tf, at, gap, prev }
 const _held = new Map()       // `${sym}|${tf}` -> { g, timer }
+
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13 (the key held through 40 deep charts of a list never
+// opened): the steps came 201 ms apart at the median, but unevenly (a deep chart takes
+// 100 to 290 ms to draw), so every step slower than `RAPID_MS` read as "resting" and its
+// chart sent its ask at once. Eight requests for charts already passed were in flight
+// when the key was released, and the landing chart drew its RS lines 5.2 s after its
+// candles. One slow step in a run of fast ones is still a run: a chart's PACE is the
+// faster of its last two steps. And "has the member stopped?" is asked of the SLOWER of
+// the two (`_stride`): a hold of 1.3 x a 180 ms step ends before a 290 ms step does, and
+// that chart's ask went out for nobody. (The old 250 ms ceiling on the hold was under the
+// 260 to 300 ms a deep chart takes to draw, for the same result; it is 500 now.)
+function _pace(s) {
+  return Math.min(s.gap, s.prev)
+}
+function _stride(s) {
+  return s.prev === Infinity ? s.gap : Math.max(s.gap, s.prev)
+}
 
 /**
  * A chart says which (symbol, timeframe) it is on. Call it when either changes.
@@ -947,7 +971,7 @@ export function chartShows(slot, sym, tf) {
   const t = String(tf)
   if (prev && prev.sym === sym && prev.tf === t) return
   const now = Date.now()
-  _shown.set(slot, { sym, tf: t, at: now, gap: prev ? now - prev.at : Infinity })
+  _shown.set(slot, { sym, tf: t, at: now, gap: prev ? now - prev.at : Infinity, prev: prev ? prev.gap : Infinity })
   // What this browser last had for the symbol, read before the first paint asks for
   // anything. A page that draws no server-lane definition stops looking after a moment.
   if (_everAsked || now - _bootAt < DISK_IDLE_READ_MS) _hydrateWhenSettled(sym, t)
@@ -965,7 +989,10 @@ function _settleMs(sym, tf) {
   let any = false
   for (const s of _shown.values()) {
     if (s.sym !== sym || s.tf !== t) continue
-    const settle = s.gap < RAPID_MS ? Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MIN_MS, s.gap * SETTLE_FACTOR)) : 0
+    // Racing by its own pace, or flying by the lane's present speed (`flyingMs`: a request
+    // sent now would land after the chart has moved on): either way the ask waits.
+    const settle = _pace(s) < Math.max(RAPID_MS, flyingMs())
+      ? Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MIN_MS, _stride(s) * SETTLE_FACTOR)) : 0
     hold = any ? Math.min(hold, settle) : settle
     any = true
   }
@@ -991,13 +1018,43 @@ function _stillShown(sym, tf) {
 // does (`serverWarm.js` asks before every request; what is already in flight finishes):
 //   * a chart's own ask is out (for at most `OWN_PRIORITY_MS`: a request that never
 //     settles must not stop the pre-load for good);
-//   * a chart is FLYING: changing symbol faster than every `FLYING_MS`. Six rows ahead at
-//     that pace is well under a second of lead, less than a compute takes, so a request
-//     started now lands on a row already passed and only delays the one the member stops
-//     on. (A chart stepping slower than that, even if "raced" by the hold's measure,
-//     keeps its pre-load: the rows ahead do land in time.)
-/** A chart changing symbol faster than this is flying through a list. */
+//   * a chart is FLYING: changing symbol faster than anything asked ahead could land
+//     (`flyingMs`). A request started now lands on a row already passed and only delays
+//     the one the member stops on. (A chart stepping slower than that keeps its
+//     pre-load: the rows ahead do land in time.)
+//
+// ⭐ HOW FAST IS "FASTER THAN IT COULD LAND" DEPENDS ON THE SERVER RIGHT NOW (2026-11-13).
+// A fixed 120 ms was right for a warm server (an answer in under 100 ms lands a row
+// ahead even at eight charts a second) and wrong for a cold one: in the run above each
+// cold request took 1.0 to 1.9 s, at 201 ms a step nothing asked ahead could land within
+// five rows, and the fixed threshold let them all start. So the lane times its own
+// requests (`_noteLaneMs`, the average of the last two, forgotten after `LANE_MS_TTL`)
+// and a chart is flying when it would be more than `FLY_LEAD_ROWS` rows further on by the
+// time a request started now came back: threshold = latency / FLY_LEAD_ROWS, never under
+// `FLYING_MS` (the floor, and the answer while nothing has been timed) nor over
+// `FLYING_MAX_MS` (a member reading a chart for over half a second is not flying,
+// whatever the server is doing).
+/** The floor: a chart changing symbol faster than this is always flying. */
 export const FLYING_MS = 120
+/** The ceiling of the flying threshold. */
+export const FLYING_MAX_MS = 600
+/** A request is worth starting if it lands within this many of the chart's steps. */
+export const FLY_LEAD_ROWS = 4
+/** A latency measured longer ago than this says nothing about the server now. */
+export const LANE_MS_TTL = 60_000
+let _laneMs = 0               // how long the lane's recent requests took (average of the last two)
+let _laneMsAt = 0
+
+function _noteLaneMs(ms, now) {
+  _laneMs = _laneMs > 0 && now - _laneMsAt < LANE_MS_TTL ? (_laneMs + ms) / 2 : ms
+  _laneMsAt = now
+}
+
+/** A chart whose pace is under this is flying, as the server answers right now. */
+export function flyingMs(now = Date.now()) {
+  if (!(_laneMs > 0) || now - _laneMsAt >= LANE_MS_TTL) return FLYING_MS
+  return Math.min(FLYING_MAX_MS, Math.max(FLYING_MS, _laneMs / FLY_LEAD_ROWS))
+}
 /** The longest one own ask keeps the pre-load waiting. */
 export const OWN_PRIORITY_MS = 8_000
 let _ownOut = 0
@@ -1011,7 +1068,10 @@ function _ownSettled() {
 export function chartsNeedTheLane() {
   const now = Date.now()
   if (_ownOut > 0 && now - _ownSentAt < OWN_PRIORITY_MS) return true
-  for (const s of _shown.values()) if (s.gap < FLYING_MS && now - s.at < RAPID_MS) return true
+  // (flying lasts until the chart has rested for a whole step at that threshold)
+  const fly = flyingMs(now)
+  const rest = Math.max(RAPID_MS, fly)
+  for (const s of _shown.values()) if (_pace(s) < fly && now - s.at < rest) return true
   return false
 }
 
@@ -1105,13 +1165,65 @@ export const ASK_TTL_MS = 30 * 60_000
 export const ASK_MAX = 24
 const _asks = new Map()       // `${defId}|${tf}|${inputs}` -> { defId, tf, inputs, at }
 
+// ─── A TIMEFRAME THE MEMBER USES, BEFORE ITS FIRST PAINT OF THE PAGE LOAD ────
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13 (a daily chart with the RS suite, switched to
+// weekly and back): the FIRST switch to weekly drew its RS lines 1,150 ms after its
+// candles; every later switch, in the candles' frame. `liveAsks('W')` is empty
+// until a weekly chart has painted once, so nothing could be asked ahead for it.
+//
+// The daily, weekly and monthly charts of one board draw the same definitions with
+// the same inputs. So the lane remembers, in this browser, WHICH of those three
+// timeframes a member draws server columns on (`TF_HABIT_KEY`: a timeframe and
+// when, nothing else). `habitAsks(tf)` answers, for one it has seen within
+// `TF_HABIT_MS` and that nothing has painted at yet, with the asks the other two
+// are drawing now. The bars prefetch already announces a rested symbol's other
+// timeframes to the warmers; `serverWarm.js` asks this for that ONE symbol, so the
+// weekly columns are there before the first switch.
+//
+// ⛔ ONLY A HABIT, ONLY D/W/M, ONLY WHILE NOTHING REAL IS KNOWN. A member who never
+// opens a weekly chart is never asked for one. An intraday timeframe never borrows
+// (the lane answers "daily charts only" there) and is never remembered. The moment
+// a real ask is noted at the timeframe, `liveAsks` is the answer and this is empty.
+// `liveAsks` itself is untouched: a whole list is only ever warmed at a timeframe a
+// chart is really drawing.
+export const TF_HABIT_KEY = 'uct.rslane.tfs'
+/** A timeframe drawn within this long is one the member uses. */
+export const TF_HABIT_MS = 14 * 24 * 60 * 60_000
+/** The habit is written at most this often per timeframe (a paint notes an ask every time). */
+export const TF_HABIT_WRITE_MS = 60 * 60_000
+const DAILY_FAMILY = new Set(['D', 'W', 'M'])
+let _tfHabit = null           // { [tf]: last seen (ms) }, read once per page load
+
+function _habit() {
+  if (_tfHabit) return _tfHabit
+  _tfHabit = {}
+  try {
+    const raw = JSON.parse(localStorage.getItem(TF_HABIT_KEY) || '{}')
+    if (raw && typeof raw === 'object') {
+      for (const tf of DAILY_FAMILY) if (Number.isFinite(raw[tf])) _tfHabit[tf] = raw[tf]
+    }
+  } catch { /* no storage, or not ours: no habit */ }
+  return _tfHabit
+}
+
+function _noteTf(tf, now) {
+  if (!DAILY_FAMILY.has(tf)) return
+  const h = _habit()
+  if (now - (h[tf] || 0) < TF_HABIT_WRITE_MS) return
+  h[tf] = now
+  try { localStorage.setItem(TF_HABIT_KEY, JSON.stringify(h)) } catch { /* the habit lasts this page load only */ }
+}
+
 function _noteAsk(defId, tf, sent) {
   _everAsked = true
   const t = String(tf == null ? 'D' : tf)
   const k = `${defId}|${t}|${serverInputsParam(sent)}`
+  const now = Date.now()
   _asks.delete(k)
-  _asks.set(k, { defId, tf: t, inputs: sent, at: Date.now() })
+  _asks.set(k, { defId, tf: t, inputs: sent, at: now })
   if (_asks.size > ASK_MAX) _asks.delete(_asks.keys().next().value)
+  _noteTf(t, now)
 }
 
 /**
@@ -1128,6 +1240,27 @@ export function liveAsks(tf, now = Date.now()) {
     if (a.tf === want) out.push({ defId: a.defId, inputs: a.inputs })
   }
   return out
+}
+
+/**
+ * For a timeframe nothing has painted at in this page load, but which this member
+ * uses: the asks its board's OTHER daily-family charts are drawing now (one per
+ * definition and inputs). Empty for any other timeframe, for a member without the
+ * habit, and as soon as a real ask is known (then `liveAsks` answers).
+ *
+ * @returns {Array<{defId: string, inputs: object|null|undefined}>}
+ */
+export function habitAsks(tf, now = Date.now()) {
+  const want = String(tf == null ? 'D' : tf)
+  const seen = _habit()[want]              // (only D, W and M are ever kept: `_habit`)
+  if (seen === undefined || now - seen > TF_HABIT_MS || seen > now) return []
+  const borrowed = new Map()
+  for (const a of _asks.values()) {
+    if (now - a.at > ASK_TTL_MS) continue
+    if (a.tf === want) return []                         // a real ask: nothing is borrowed
+    if (DAILY_FAMILY.has(a.tf)) borrowed.set(`${a.defId}|${serverInputsParam(a.inputs)}`, { defId: a.defId, inputs: a.inputs })
+  }
+  return [...borrowed.values()]
 }
 
 /**

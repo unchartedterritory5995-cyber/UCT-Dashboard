@@ -8,8 +8,9 @@
 //   ?view=all     the notes list
 //   no ?view=     the notes list
 //
-// ⛔ Opening the Notebook never makes the day's note. Only the Daily brief's own read does (`GET /api/j2/notes/today`),
-//    and only when the member opens it.
+// ⛔ Opening the Notebook never makes the day's note, and neither does opening the Daily brief (simplify pass 2, B1):
+//    its one read is `TODAY_READ_URL` (`make=0`), always. The note is made only by a press: the brief's "Start today's
+//    note", the list's "Today's note", Ctrl+Alt+D, the phone row (all one door, NotebookTab's `openToday`).
 // ⚰️ The landing used to be a choice ("Open the Notebook on", the `notebook_landing` preference: Today, Research home
 //    or All notes, default Today). The stored value is no longer read for the landing; `resolveLanding` answers
 //    'all' whatever it holds. The names stay exported for the files that still import them.
@@ -17,6 +18,9 @@
 export const TODAY_VIEW = 'today'
 export const HOME_VIEW = 'home'
 export const LANDING_PREF = 'notebook_landing'
+/** The Daily brief's one read (B1): today's note is read, never made, in every state. Here, in the eager half, so the
+ *  door that makes the note (`openToday`) can revalidate the brief's answer without fetching the brief's chunk. */
+export const TODAY_READ_URL = '/api/j2/notes/today?make=0'
 // ⚰️ `LANDINGS` (the old choice's three labels, "Research home" among them) left in go-live wave 1: nothing read it.
 
 // Where the 60-second first run's Done lands: the Daily brief (it shows what Build made). test-setup.js turns this off

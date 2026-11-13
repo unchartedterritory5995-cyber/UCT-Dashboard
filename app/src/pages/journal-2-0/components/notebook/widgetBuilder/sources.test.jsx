@@ -152,6 +152,7 @@ describe('Options strategies and Notes in the builder (Task 10.17)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
     const fields = screen.getByRole('list', { name: 'Fields' })
     expect(within(fields).getByRole('button', { name: 'Folder' })).toBeInTheDocument()
+    expect(within(fields).queryByRole('button', { name: 'Note type' })).toBeNull()
     expect(within(fields).queryByRole('button', { name: 'Note kind' })).toBeNull()
   })
 
@@ -175,9 +176,11 @@ describe('Options strategies and Notes in the builder (Task 10.17)', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: 'Notes' }))
     await flush(PREVIEW_DEBOUNCE_MS)
-    for (const [field, pick, chip] of [['Folder', 'Playbook', 'Folder is Playbook'], ['Note kind', 'Post-mortem', 'Note kind is Post-mortem'],
+    // Simplify pass 2 (Task 1 fix round 1): the catalog serves "Note kind"; the member reads "Note type".
+    for (const [field, pick, chip] of [['Folder', 'Playbook', 'Folder is Playbook'], ['Note type', 'Post-mortem', 'Note type is Post-mortem'],
       ['Tag', 'psychology', 'Tag includes psychology']]) {
       fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
+      expect(within(screen.getByRole('list', { name: 'Fields' })).queryByRole('button', { name: 'Note kind' })).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: field }))
       await flush()
       fireEvent.click(screen.getByRole('button', { name: pick }))

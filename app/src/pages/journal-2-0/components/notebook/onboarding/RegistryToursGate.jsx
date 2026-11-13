@@ -29,6 +29,8 @@ import {
 export const TOUR_FAILED_NOTICE = 'That walkthrough could not be shown here, so it was closed; you can start it again from Walkthroughs on the Support page.'
 /** How long that sentence stays up. */
 export const TOUR_NOTICE_MS = 8000
+/** Simplify pass 2 (D1): how long a wanted walkthrough waits behind the first run before it is let go, with the notice. */
+export const FIRST_RUN_HOLD_MS = 10000
 const NOTICE_STYLE = Object.freeze({
   position: 'fixed', left: '50%', bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
   transform: 'translateX(-50%)', zIndex: 1200, maxWidth: 'min(92vw, 520px)', margin: 0,
@@ -166,8 +168,18 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
     // run is on screen, due on the Notebook list, or not yet decided there (lib/firstRun.js), and opens after it.
     const firstRunShowing = useFirstRunShowing()
     const firstRunPending = useFirstRunPending()
+    // Simplify pass 2 (D1): never with no time limit. Held for FIRST_RUN_HOLD_MS, the walkthrough is let go and the
+    // member is told it could not be shown (they can start it again from Help once the first run is over).
+    const held = Boolean(allowed && (firstRunShowing || firstRunPending))
+    const failedRef = useRef(failed)
+    failedRef.current = failed
+    useEffect(() => {
+      if (!held) return undefined
+      const t = setTimeout(() => failedRef.current(), FIRST_RUN_HOLD_MS)
+      return () => clearTimeout(t)
+    }, [held])
     const said = notice ? <p role="status" data-tour-notice="" style={NOTICE_STYLE}>{notice}</p> : null
-    if (!allowed || firstRunShowing || firstRunPending) return said
+    if (!allowed || held) return said
     return (
       <>
         <RegistryTourCatch key={`${wantedId}:${run}`} onFail={failed}>

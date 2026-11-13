@@ -14,7 +14,7 @@ import { useEffect } from 'react'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
-import { makeRegistryToursGate, TOUR_FAILED_NOTICE } from './RegistryToursGate'
+import { FIRST_RUN_HOLD_MS, makeRegistryToursGate, TOUR_FAILED_NOTICE } from './RegistryToursGate'
 import {
   REGISTRY_TOUR_CLOSED_EVENT, getRegistryTourWanted, hasPendingRegistryTourOpen, openRegistryTour, __resetRegistryTourControl,
 } from './tourRegistryControl'
@@ -86,6 +86,55 @@ describe('never over the 60-second first run (the base tour hold, C5)', () => {
     render(<Page Gate={Gate} tours={[TOUR_A]} />)
     act(() => { openRegistryTour('w14-0-tour-a') })
     expect(await screen.findByText('Tour A is open')).toBeInTheDocument()
+  })
+
+  // Simplify pass 2 (D1): the hold has a limit. After FIRST_RUN_HOLD_MS (10 s) of first run the walkthrough is let go,
+  // the existing "could not be shown" notice says so, and it does not open later over or after the first run.
+  it.each([
+    ['on screen', setFirstRunShowing],
+    ['due on the notes list, or not decided yet', setFirstRunPending],
+  ])('first run %s for 10 s: the walkthrough is let go and the notice says so', async (_what, set) => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const closed = vi.fn()
+      window.addEventListener(REGISTRY_TOUR_CLOSED_EVENT, closed)
+      const Gate = makeRegistryToursGate(engineLoader(), 0)
+      render(<Page Gate={Gate} tours={[TOUR_A]} />)
+      act(() => { set(true) })
+      act(() => { openRegistryTour('w14-0-tour-a') })
+      await act(async () => { await vi.advanceTimersByTimeAsync(FIRST_RUN_HOLD_MS - 100) })
+      expect(screen.queryByRole('status')).toBeNull()
+      expect(getRegistryTourWanted()).toBe('w14-0-tour-a')
+      await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+      expect(screen.getByRole('status')).toHaveTextContent(TOUR_FAILED_NOTICE)
+      expect(getRegistryTourWanted()).toBeNull()
+      expect(closed.mock.calls.at(-1)[0].detail).toEqual({ tourId: 'w14-0-tour-a', opened: false })
+      window.removeEventListener(REGISTRY_TOUR_CLOSED_EVENT, closed)
+      // the first run ends: nothing opens late
+      act(() => { set(false) })
+      await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+      expect(screen.queryByText('Tour A is open')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('CONTROL: a first run that ends inside the 10 s opens the walkthrough and says nothing', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const Gate = makeRegistryToursGate(engineLoader(), 0)
+      render(<Page Gate={Gate} tours={[TOUR_A]} />)
+      act(() => { setFirstRunShowing(true) })
+      act(() => { openRegistryTour('w14-0-tour-a') })
+      await act(async () => { await vi.advanceTimersByTimeAsync(FIRST_RUN_HOLD_MS - 2000) })
+      act(() => { setFirstRunShowing(false) })
+      expect(await screen.findByText('Tour A is open')).toBeInTheDocument()
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+      expect(screen.getByText('Tour A is open')).toBeInTheDocument()
+      expect(screen.queryByText(TOUR_FAILED_NOTICE)).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

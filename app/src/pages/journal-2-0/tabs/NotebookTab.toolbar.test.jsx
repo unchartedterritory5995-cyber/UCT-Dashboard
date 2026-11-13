@@ -19,6 +19,7 @@ import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/noteboo
 import { parseRules, declarations } from '../a11y/cssAudit'
 import { VIEW_MODES } from '../lib/savedViewModes'
 import NotebookTab from './NotebookTab'
+import { expectSecondView } from '../lib/testing/menuSecondView.testkit'
 import {
   chooseSavedView, chooseView, currentView, offersSaveView, savedViewsGroup, toolbarOffers, viewOption,
 } from './__tests__/toolbarDoors'
@@ -66,14 +67,61 @@ describe('the list toolbar is one row with exactly these controls', () => {
     for (const el of bar().querySelectorAll('button')) expect(el.className).toMatch(/\bbtn\b/)
   })
 
-  it('the View trigger SAYS the mode and its menu offers every mode, then Save view', async () => {
+  // Simplify pass 2 (C1): List (Show as), Table, Board, Calendar, Tasks, then "More views" (Graph, Timeline), Save view
+  // and the saved views.
+  it('the View trigger SAYS the mode and its menu offers the modes, "More views", then Save view', async () => {
     await renderTab()
     const menu = (viewOption('List'), screen.getByRole('menu', { name: 'View' }))
+    const firstView = VIEW_MODES.filter((m) => !m.more).map((m) => m.short)
+    expect(firstView).toEqual(['List', 'Table', 'Board', 'Calendar', 'Tasks'])
     // the modes are the menu's own radios; the saved views (Task 2) are a named group of their own below them
     expect(within(menu).getAllByRole('menuitemradio').filter((el) => !el.closest('[role="group"]'))
       .map((el) => el.textContent.trim()))
-      .toEqual(VIEW_MODES.map((m) => m.short))
-    expect(within(menu).getByRole('menuitem', { name: 'Save view' })).toBeTruthy()
+      .toEqual(firstView)
+    const rows = [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.closest('[role="group"]'))
+      .map((el) => el.textContent.trim())
+    expect(rows).toEqual([...firstView, 'More views', 'Save view'])
+    expect(within(menu).queryByRole('menuitemradio', { name: 'Graph' })).toBeNull()
+    expect(within(menu).queryByRole('menuitemradio', { name: 'Timeline' })).toBeNull()
+  })
+
+  it('"More views" meets the shared second-view contract (Review focus 5): Graph and Timeline, then back', async () => {
+    await renderTab()
+    await expectSecondView({
+      openMenu: () => (viewOption('List'), screen.getByRole('menu', { name: 'View' })),
+      parentRowName: 'More views', childRowNames: ['Graph', 'Timeline'],
+      trigger: () => within(bar()).getByRole('button', { name: /^View:/ }),
+    })
+  })
+
+  it('the second view holds only Back, Graph and Timeline (no Save view, no saved views); a pick opens the mode', async () => {
+    await renderTab()
+    const menu = (viewOption('List'), screen.getByRole('menu', { name: 'View' }))
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'More views' }))
+    expect(within(menu).queryByRole('menuitem', { name: 'Save view' })).toBeNull()
+    expect(within(menu).queryByRole('group', { name: 'Saved views' })).toBeNull()
+    expect(within(menu).getByRole('group', { name: 'More views' })).toBeTruthy()
+    fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Timeline' }))
+    expect(currentView()).toBe('Timeline')
+    expect(screen.getByTestId('where').textContent).toContain('view=timeline')
+  })
+
+  // Review focus 3: a tucked mode still opens straight from its link and from a saved view, and says so.
+  it('?view=timeline opens the timeline, the trigger says "View: Timeline", and "More views" reads as the active row', async () => {
+    await renderTab('/journal/notebook?view=timeline')
+    expect(currentView()).toBe('Timeline')
+    const menu = (viewOption('List'), screen.getByRole('menu', { name: 'View' }))
+    const more = within(menu).getByRole('menuitem', { name: 'More views' })
+    expect(more).toHaveAttribute('aria-current', 'true')
+    expect(within(menu).getAllByRole('menuitemradio').filter((el) => el.getAttribute('aria-checked') === 'true')).toEqual([])
+    fireEvent.click(more)
+    expect(within(menu).getByRole('menuitemradio', { name: 'Timeline' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('CONTROL: on List, "More views" is not the active row', async () => {
+    await renderTab()
+    const menu = (viewOption('List'), screen.getByRole('menu', { name: 'View' }))
+    expect(within(menu).getByRole('menuitem', { name: 'More views' })).not.toHaveAttribute('aria-current')
   })
 
   it('the New ▾ lists Blank, From a template, Voice note (paid, gate on) and Import', async () => {

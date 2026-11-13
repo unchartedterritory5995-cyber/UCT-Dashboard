@@ -48,7 +48,9 @@ export default function TodayNotePanel() {
     setFailed(false)
     setBlankNoteId(null)
     try {
-      const { note, created, templateMissing } = await openDailyNote({ templateId })
+      // Final fix I1: with the seed, like every Notebook door that can make today's note (one note, one shape: the
+      // member's template and today's plan lines, written only into a note this press makes).
+      const { note, created, templateMissing } = await openDailyNote({ templateId, seedToday: true })
       // Fix round 1 (finding 7): a NEW day's note lands in the Daily folder; the Notebook says so.
       if (created && !templateMissing) queueNotebookNotice(DAILY_FOLDER_NOTICE, { noteId: note.id })
       if (templateMissing) setBlankNoteId(note.id)

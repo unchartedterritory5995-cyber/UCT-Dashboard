@@ -402,6 +402,8 @@ export const SURFACES = Object.freeze({
   // reads it through its slot, with the failure sentence on screen. The slot is the card's eager half.
   'components/notebook/FollowupOffer.jsx': { recipe: 'followup-card' },
   'components/notebook/FollowupOfferSlot.jsx': { coveredBy: 'followup-card' },
+  // Simplify pass 2 (C3): the Export menu's rows, a chunk of their own, read OPEN as the More panel's second view.
+  'components/notebook/export/NoteExportMenu.jsx': { coveredBy: 'note-more-export-view' },
   'components/notebook/NoteExportControls.jsx': {
     OTHER_LANES: { lane: '8C', railFile: 'components/notebook/NoteExportControls.a11y.test.jsx' },
   },
