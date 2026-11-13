@@ -767,6 +767,8 @@ const RUN_HALF_WHY = Object.freeze({
   'run-half:program-unbound': "the indicator's plots and drawings have changed since it was set up to run bar "
     + 'by bar',
   'run-half:rail-not-loaded': 'the part of the app that checks those drawings is not loaded',
+  'run-half:uncompared-site': 'running it bar by bar makes drawings this chart cannot check against its own, '
+    + "and that run hasn't been checked against TradingView for this script",
   'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is not loaded',
   'runtime:load-failed': 'the part of the app that runs scripts bar by bar could not be loaded in this tab',
   'runtime:request': 'the script reads another symbol or timeframe, which this chart cannot hand that run',

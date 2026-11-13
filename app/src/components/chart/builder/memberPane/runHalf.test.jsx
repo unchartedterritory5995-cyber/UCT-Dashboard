@@ -69,8 +69,15 @@ beforeEach(() => {
   __allowEveryRuntimeScriptForTests()
   setRuntimeKillList([])
   registry.registerRuntimeLane(runtimeColumnsFor)
+  // ⭐ ENGINE 54 (review) — this fixture's five loop labels come from a call the host program lost,
+  // which the object rail admits only on recorded evidence (`run-half:uncompared-site` otherwise:
+  // `runHalfObjectRail.test.jsx`); the gates and the column rail below are tested beside it
+  setRunHalfObjectEvidence([{ sha256: runtimeSourceHash(SRC), captures: [
+    { capture: 'a', verdict: 'MATCH', objectsV2: true, runtimeOn: true },
+    { capture: 'b', verdict: 'MATCH', objectsV2: true, runtimeOn: true }] }])
 })
 afterEach(() => {
+  setRunHalfObjectEvidence([])
   cleanup()
   resetObjectRenderDrops()
   setRuntimeKillList([])

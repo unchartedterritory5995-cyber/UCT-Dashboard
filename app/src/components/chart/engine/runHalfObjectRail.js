@@ -25,6 +25,10 @@
 //   run-half:host-object-withheld    the run does not make an object the host draws (at a
 //                                    compared site the host has more), whatever the reason:
 //                                    a warm-up, a collector, a branch the run did not take
+//   run-half:uncompared-site         the run draws an object at a site the rail did not compare (a
+//                                    call the host program lost, a family the host draws none of):
+//                                    every drawing served must have been held to the host's; only
+//                                    the Part 2 evidence hook admits such a run
 //   run-half:no-comparable-objects   nothing to compare: the host draws none of the run's
 //                                    sites (the verdict `removes`, a family the host withholds
 //                                    whole), or the compared sites hold no object on either
@@ -43,6 +47,9 @@ import { runtimeSourceHash } from './runtimeKill'
 export const RUN_HALF_OBJECT_RAIL = 'run-half:object-rail'
 export const RUN_HALF_HOST_OBJECT_WITHHELD = 'run-half:host-object-withheld'
 export const RUN_HALF_NO_COMPARABLE_OBJECTS = 'run-half:no-comparable-objects'
+/** ⭐⭐ ENGINE 54 (review) — the run draws an object at a site the rail did not compare: a call the
+ *  host program lost, or a family the host draws none of. Nothing held it to anything. */
+export const RUN_HALF_UNCOMPARED_SITE = 'run-half:uncompared-site'
 
 /** The price tolerance policy at an unknown price scale (`compare.mjs`: `REL_TOL`,
  *  `ABS_FLOOR_UNKNOWN_SCALE`). A bind does not know the symbol's tick. */
@@ -246,7 +253,18 @@ export function runHalfObjectVerdict({ program, hostRun, sites, payload, bars, t
       return refuse(RUN_HALF_OBJECT_RAIL, `${at}: its \`${diff}\` differs`)
     }
   }
-  return { ok: true, compared: host.length }
+  // ⛔⛔ EVERY OBJECT THE RUN DRAWS MUST COME FROM A SITE THIS RAIL COMPARED. A drawing made at a
+  // call the host program lost, or in a family the host draws none of, was held to nothing: it is
+  // the vacuous-rail class this rail exists to close (auto-trendlines-by-pivots: 52 labels compared
+  // and equal, 16 lines from a lost call). Only recorded evidence (the Part 2 hook, the same rule as
+  // nothing comparable) admits such a run.
+  const uncompared = (payload.live || []).filter((o) => !(typeof o.site === 'string' && keys.has(o.site)))
+  if (uncompared.length && !runHalfEvidenceAdmits(sourceSha256)) {
+    const o = uncompared[0]
+    return refuse(RUN_HALF_UNCOMPARED_SITE, `${uncompared.length} of the run's drawings come from a call the rail `
+      + `did not compare (the first, a ${o.family}${typeof o.site === 'string' ? ` at line ${o.site.split(':')[0]}` : ''})`)
+  }
+  return { ok: true, compared: host.length, ...(uncompared.length ? { admittedBy: 'evidence' } : {}) }
 }
 
 /** The registered rail (`runHalfRailSeam.js`): the host program evaluated as the binder draws

@@ -33,6 +33,7 @@ import {
 } from '../../engine/runHalfRailSeam'
 import {
   runHalfObjectVerdict, RUN_HALF_OBJECT_RAIL, RUN_HALF_HOST_OBJECT_WITHHELD, RUN_HALF_NO_COMPARABLE_OBJECTS,
+  RUN_HALF_UNCOMPARED_SITE,
 } from '../../engine/runHalfObjectRail'
 import {
   setRunHalfBeaconReporter, resetRunHalfTelemetry, runHalfRefusalCounts, runHalfBeaconOf, RUN_HALF_CODE_RE,
@@ -61,6 +62,10 @@ const BARS = Array.from({ length: 300 }, (_, i) => {
 const CTX = Object.freeze({ tf: 'D', symbol: { ticker: 'SPY', exchange: 'AMEX' }, newestBarIsForming: false, historyFromListing: true })
 const GUARD_TOKEN = /\b(pane|runtime|run-half|interpret|pine):[a-z]/
 const MATCH = (capture) => ({ capture, verdict: 'MATCH', objectsV2: true, runtimeOn: true })
+/** ⭐ ENGINE 54 (review) — the Part 2 evidence that admits a run drawing at a site the rail did not
+ *  compare (these fixtures' loop labels come from a call the host lost). A compared site that
+ *  disagrees refuses whatever the evidence: the tests below that expect `object-rail` hold with it. */
+const admit = (...srcs) => setRunHalfObjectEvidence(srcs.map((src) => ({ sha256: runtimeSourceHash(src), captures: [MATCH('a'), MATCH('b')] })))
 
 let seq = 0
 const door = (source = SRC, opts = {}) => memberPaneDefinition({ source, name: 'rh', ...opts, id: opts.id || `u_member-pane-ro${++seq}` })
@@ -161,7 +166,52 @@ describe('⭐⭐ both lanes name a drawing by the same source call', () => {
   })
 })
 
+describe('⛔⛔ EVERY OBJECT THE RUN DRAWS COMES FROM A COMPARED SITE (engine 54 review)', () => {
+  it('auto-trendlines shape, pure: labels compared and equal, plus lines from a lost call: refused', () => {
+    const lab = (id, site, x) => ({ family: 'label', id, site, createdBar: x, props: { x, y: 100 + x, text: 'p' } })
+    const program = { ops: [{ k: 'create', family: 'label', site: 's3' }, { k: 'create', family: 'label', site: 's4' }] }
+    const sites = { s3: '104:5', s4: '114:5' }
+    const host = [lab(1, 's3', 10), lab(2, 's4', 20), lab(3, 's3', 30), lab(4, 's4', 40)]
+    const runLabels = [lab(5, '104:5', 10), lab(6, '114:5', 20), lab(7, '104:5', 30), lab(8, '114:5', 40)]
+    const lines = [{ family: 'line', id: 9, site: '68:19', createdBar: 41, props: { x1: 1, y1: 1, x2: 2, y2: 2 } }]
+    const base = { program, sites, hostRun: { status: 'ok', live: host }, bars: BARS, tf: 'D', sourceSha256: 'ab'.repeat(32) }
+    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: runLabels } }), 'CONTROL: only compared sites')
+      .toEqual({ ok: true, compared: 4 })
+    const v = runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels, ...lines] } })
+    expect(v.ok).toBe(false)
+    expect(v.code).toBe(RUN_HALF_UNCOMPARED_SITE)
+    // a run object with no site at all is uncompared too
+    const bare = runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels, { ...lines[0], site: null }] } })
+    expect(bare.code).toBe(RUN_HALF_UNCOMPARED_SITE)
+    // ⭐ the Part 2 hook, and only it, admits such a run
+    setRunHalfObjectEvidence([{ sha256: 'ab'.repeat(32), captures: [MATCH('a'), MATCH('b')] }])
+    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels, ...lines] } }).ok).toBe(true)
+    setRunHalfObjectEvidence([{ sha256: 'ab'.repeat(32), captures: [MATCH('a')] }])
+    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels, ...lines] } }).code).toBe(RUN_HALF_UNCOMPARED_SITE)
+  })
+
+  it('at the bind: the line compared and equal, the loop labels from a lost call: refused; evidence admits', () => {
+    const def = install(door().definition)
+    expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: RUN_HALF_UNCOMPARED_SITE })
+    expect(runtimeObjectsOf(bind(def))).toBe(null)
+    const dOnly = install(door(DRAW_ONLY).definition)
+    expect(runHalfOf(bind(dOnly))).toEqual({ state: 'refused', code: RUN_HALF_UNCOMPARED_SITE })
+    admit(SRC)
+    expect(runHalfOf(bind(def)).state).toBe('served')
+    expect(runHalfOf(bind(dOnly)).code, 'evidence is per script').toBe(RUN_HALF_UNCOMPARED_SITE)
+  })
+
+  it('the member reads it in words', () => {
+    const s = runHalfRefusedSentence(RUN_HALF_UNCOMPARED_SITE)
+    expect(s).not.toBe(runHalfRefusedSentence('x:y'))
+    expect(s).not.toMatch(GUARD_TOKEN)
+  })
+})
+
 describe('⛔⛔ the object rail at the bind', () => {
+  // these fixtures' loop labels come from a lost call: admitted by evidence, so each test below
+  // isolates a COMPARED site, which refuses whatever the evidence
+  beforeEach(() => admit(SRC, DRAW_ONLY))
   it('CONTROL: the honest run half is served (the line compared, the labels drawn by the run)', () => {
     const cols = bind(install(door().definition))
     expect(runHalfOf(cols)).toEqual({ state: 'served', code: null })
@@ -285,6 +335,7 @@ describe('⛔ nothing comparable: refused, unless recorded evidence admits the s
 })
 
 describe('⛔⛔ the program binding (the forgery residual)', () => {
+  beforeEach(() => admit(SRC))
   it('an edited tree, an edited object program, an edited site map, a missing stamp: refused; re-stamped: served', () => {
     const minted = door().definition
     // a COHERENT forgery (it installs): another script's translated trees under this run half
@@ -346,7 +397,7 @@ describe('⭐ the chart: an object-rail refusal draws the host picture and says 
 
   it('⛔ every engine-54 code has its own sentence, none a guard token', () => {
     const general = runHalfRefusedSentence('x:y')
-    for (const code of [RUN_HALF_OBJECT_RAIL, RUN_HALF_HOST_OBJECT_WITHHELD, RUN_HALF_NO_COMPARABLE_OBJECTS,
+    for (const code of [RUN_HALF_OBJECT_RAIL, RUN_HALF_HOST_OBJECT_WITHHELD, RUN_HALF_NO_COMPARABLE_OBJECTS, RUN_HALF_UNCOMPARED_SITE,
       registry.RUN_HALF_PROGRAM_UNBOUND, registry.RUN_HALF_RAIL_NOT_LOADED]) {
       const s = runHalfRefusedSentence(code)
       expect(s, code).not.toBe(general)
@@ -356,6 +407,7 @@ describe('⭐ the chart: an object-rail refusal draws the host picture and says 
 })
 
 describe('⭐ refusal telemetry: counted per document session, beaconed {code, hash}, never the source', () => {
+  beforeEach(() => admit(SRC))
   it('one count per refusal entered (not per paint), one beacon per (script, code), no source', () => {
     const sent = []
     setRunHalfBeaconReporter((b) => sent.push(b))
