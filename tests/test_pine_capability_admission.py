@@ -111,7 +111,9 @@ def test_the_member_copy_misses_the_allowlist_and_uses_only_admitted_capabilitie
 def test_the_committed_admitted_set_is_the_evidence_supported_one():
     assert rt.admitted_capabilities()["admitted"] == sorted([
         "core", "reassign", "ternary", "if-block", "var", "fn-single", "fn-multi", "for",
-        "compound-assign", "history-expr", "tuple-destructure"])
+        "compound-assign", "history-expr", "tuple-destructure",
+        # coordinator ruling 2026-11-13: the one evidence rule, no exceptions in either direction
+        "while", "typed-array", "method-call", "generics"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -444,3 +446,72 @@ def test_the_door_stores_nothing_and_logs_no_source(store, on, caplog):
     assert r.status_code == 200 and marker not in r.text
     assert svc.list_for_user(USER) == before
     assert not [rec for rec in caplog.records if marker in rec.getMessage()]
+
+
+# ═══ THE REACH RULE (coordinator ruling 2026-11-13) ════════════════════════════
+# No capture drawn by the RUNTIME lane under admission may DIVERGE, and no capture may move
+# MATCH -> DIVERGE (production -> runtime-on). Read over the committed reach run
+# (`runs/report.json`, whose lanes `capabilityEvidenceLane.test.js` re-asks of the door) and the
+# committed harness snapshots of both lanes.
+
+REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-13-capability-admission" / "runs" / "report.json"
+VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
+
+
+def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) -> list:
+    rton = {r["id"]: r["verdict"] for r in rt_verdicts["results"]}
+    prod = {r["id"]: r["verdict"] for r in prod_verdicts["results"]}
+    out = []
+    if rt_verdicts.get("lane") != "runtime-on" or prod_verdicts.get("lane") != "production":
+        out.append("a snapshot is not the lane it is read as")
+    for c in report["captures"]:
+        if c["lane"] == "runtime" and rton.get(c["capture"]) != "MATCH" and rton.get(c["capture"]) != "INCONCLUSIVE":
+            out.append(f"{c['capture']}: drawn by the runtime lane and graded {rton.get(c['capture'])}")
+    for cid, v in prod.items():
+        if v == "MATCH" and rton.get(cid) == "DIVERGE":
+            out.append(f"{cid}: MATCH -> DIVERGE")
+    return out
+
+
+def _admitted_capture_ids() -> set:
+    out = set()
+    for r in _verdicts().values():
+        try:
+            text = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+        except (OSError, ValueError):
+            continue
+        if isinstance(text, str) and text.strip() and rt.capability_admitted(text)[0]:
+            out.add(r["id"])
+    return out
+
+
+def test_REACH_the_committed_reach_run_is_the_committed_registrys():
+    report = json.loads(REPORT.read_text(encoding="utf-8"))
+    assert {c["capture"] for c in report["captures"]} == _admitted_capture_ids()
+    assert report["stops"] == [] and report["matchToDiverge"] == []
+    assert sum(1 for c in report["captures"] if c["lane"] == "runtime") >= 10   # not vacuous
+
+
+def test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE():
+    report = json.loads(REPORT.read_text(encoding="utf-8"))
+    problems = reach_rule_violations(report, json.loads(VERDICTS_RT.read_text(encoding="utf-8")),
+                                     json.loads(VERDICTS_PROD.read_text(encoding="utf-8")))
+    assert problems == [], problems
+
+
+def test_REACH_the_rule_can_fail():
+    """CONTROLS: a runtime-lane capture graded DIVERGE, and a MATCH that moves to DIVERGE."""
+    report = json.loads(REPORT.read_text(encoding="utf-8"))
+    rtv = json.loads(VERDICTS_RT.read_text(encoding="utf-8"))
+    prodv = json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))
+    drawn = next(c["capture"] for c in report["captures"] if c["lane"] == "runtime")
+    for r in rtv["results"]:
+        if r["id"] == drawn:
+            r["verdict"] = "DIVERGE"
+    host_match = next(r["id"] for r in prodv["results"] if r["verdict"] == "MATCH" and r["id"] != drawn)
+    for r in rtv["results"]:
+        if r["id"] == host_match:
+            r["verdict"] = "DIVERGE"
+    got = reach_rule_violations(report, rtv, prodv)
+    assert any(drawn in p and "runtime lane" in p for p in got), got
+    assert any(host_match in p and "MATCH -> DIVERGE" in p for p in got), got

@@ -180,7 +180,11 @@ def cmd_report(a):
     door = {r["key"]: r for r in json.load(open(a.door, encoding="utf-8"))["rows"]}
     rton = _verdicts_by_id(a.verdicts)
     prod = _verdicts_by_id(a.prod_verdicts)
-    rep = {"populations": {}, "captures": [], "admittedUngraded": [], "stops": [], "matchToDiverge": []}
+    # THE RULE (coordinator ruling 2026-11-13): no capture drawn by the RUNTIME lane under admission
+    # may DIVERGE, and no capture may move MATCH -> DIVERGE (production -> runtime-on). A host-drawn
+    # DIVERGE is the production picture unchanged; it is listed, not a stop.
+    rep = {"populations": {}, "captures": [], "admittedUngraded": [], "stops": [], "hostDiverge": [],
+           "matchToDiverge": []}
     for pop in ("capture", "committed", "reference", "builtin"):
         rows = [s for s in inp if s["population"] == pop]
         adm = [s for s in rows if s["admitted"]]
@@ -201,7 +205,7 @@ def cmd_report(a):
                    "caps": s["caps"]}
             rep["captures"].append(row)
             if on == "DIVERGE":
-                rep["stops"].append(row)
+                rep["stops" if d.get("lane") == "runtime" else "hostDiverge"].append(row)
             if off == "MATCH" and on == "DIVERGE":
                 rep["matchToDiverge"].append(row)
         elif s["hash"] not in graded_hashes:
@@ -210,7 +214,8 @@ def cmd_report(a):
     json.dump(rep, open(a.out, "w", encoding="utf-8"), indent=1) if a.out else None
     print(json.dumps(rep["populations"], indent=1))
     print("admitted captures:", collections.Counter((c["lane"], c["runtimeOn"]) for c in rep["captures"]))
-    print("STOPS (admitted capture DIVERGEs runtime-on):", [(c["capture"], c["lane"]) for c in rep["stops"]])
+    print("STOPS (runtime-lane capture DIVERGEs):", [c["capture"] for c in rep["stops"]])
+    print("host-drawn DIVERGE (production picture):", [c["capture"] for c in rep["hostDiverge"]])
     print("MATCH->DIVERGE:", [c["capture"] for c in rep["matchToDiverge"]])
     print("admitted, ungraded:", len(rep["admittedUngraded"]),
           collections.Counter(r["lane"] for r in rep["admittedUngraded"]))

@@ -2,18 +2,18 @@
  "populations": {
   "capture": {
    "scripts": 369,
-   "admitted": 136,
-   "runtimeLane": 12,
+   "admitted": 140,
+   "runtimeLane": 16,
    "hostLane": 81,
    "refused": 43,
    "coreOnly": 31
   },
   "committed": {
    "scripts": 266,
-   "admitted": 26,
-   "runtimeLane": 7,
+   "admitted": 28,
+   "runtimeLane": 8,
    "hostLane": 17,
-   "refused": 2,
+   "refused": 3,
    "coreOnly": 4
   },
   "reference": {
@@ -286,6 +286,23 @@
    "production": "INCONCLUSIVE",
    "caps": [
     "core"
+   ]
+  },
+  {
+   "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary",
+    "typed-array",
+    "var"
    ]
   },
   {
@@ -624,6 +641,21 @@
    ]
   },
   {
+   "capture": "vw-array-na-spy-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-bar-counters-rddt-15-2026-09-30",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
@@ -830,6 +862,40 @@
    "production": "INCONCLUSIVE",
    "caps": [
     "core"
+   ]
+  },
+  {
+   "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-h4-loops-spy-1d-2026-10-03",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary",
+    "typed-array",
+    "var"
    ]
   },
   {
@@ -1525,6 +1591,23 @@
     "reassign",
     "ternary",
     "var"
+   ]
+  },
+  {
+   "key": "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888",
+   "lane": null,
+   "guard": "pine:block",
+   "declined": "runtime:output-map",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary",
+    "typed-array"
    ]
   },
   {
@@ -2756,7 +2839,8 @@
    ]
   }
  ],
- "stops": [
+ "stops": [],
+ "hostDiverge": [
   {
    "capture": "vw-bgcolor-barcolor-spy-1d-2026-10-02",
    "lane": "host",
