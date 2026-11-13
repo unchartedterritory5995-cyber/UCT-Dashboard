@@ -267,10 +267,10 @@ describe('C6 — calc vs show-on vs the chart\'s timeframe: none steals another'
     // inside a longer request it is not answered here (the model sees the whole message)
     expect(fastParse('put the rsi on weekly and add macd')?.kind).not.toBe('say')
   })
-  it('routing: calc phrasings select indicatorSetup; plain chart-timeframe phrasings do not', () => {
+  it('routing: calc phrasings select indicatorCalc (its own words-only group); plain chart-timeframe and show-on phrasings do not', () => {
     for (const m of ['show a weekly rsi on this daily chart', 'make the 50 sma use the weekly', 'calculate rsi on the weekly', 'put rsi back to the chart\'s timeframe', 'have the macd use weekly bars'])
-      expect(selectGroups(m).selected, m).toContain('indicatorSetup')
+      expect(selectGroups(m).selected, m).toContain('indicatorCalc')
     for (const m of ['switch the chart to weekly', 'switch to daily', 'weekly', 'show me the daily chart', 'go to the monthly'])
-      expect(wordsSelect('indicatorSetup', m), m).toBe(false)
+      expect(wordsSelect('indicatorCalc', m), m).toBe(false)
   })
 })

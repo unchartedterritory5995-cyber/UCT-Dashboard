@@ -147,7 +147,7 @@ Catalog: **206** capabilities (every server-gated kind on; 197 with production's
 | indicatorCopy.duplicate | indicatorSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | indicatorStyle.placeIn | indicatorSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | indicatorStyle.set | indicatorSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
-| indicatorStyle.setCalcTimeframe | indicatorSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ |
+| indicatorStyle.setCalcTimeframe | indicatorCalc | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ |
 | indicatorTemplate.apply | chartSetup | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | indicatorTemplate.delete | chartSetup | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
 | indicatorTemplate.list | chartSetup | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |

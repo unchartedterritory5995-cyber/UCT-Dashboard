@@ -207,16 +207,22 @@ export const GROUPS = [
       /\b(preview|draft)\b/] },
   // ⭐ INDICATORS P2 (AGENT-CONTRACT-P2, 2026-10-27): how an indicator looks and where it draws, pane order and
   // size, duplicating and copying across charts — their own group, so the NL-1 core keeps its size.
-  { id: 'indicatorSetup', title: 'Indicator look and placement: colours, line width / style, plot style, which pane it draws in, calculation timeframe, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
+  { id: 'indicatorSetup', title: 'Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
     words: [/\b(thick|thicker|thin|thinner|width|dashed|dotted|solid|histogram|columns|plot style|line style)\b/, /\bpanes?\b/, /\b(above|below) (the )?(price|volume)\b/,
       /\b(own|separate|new) pane\b|\b(overlay|put|move)\b.*\b(on|onto) (the )?(price|volume)\b/, /\b(duplicate|copy|copies|clone)\b.*\b(indicators?|studies|rsi|macd|ema|sma)\b/, /\b(same|these|my) indicators\b/,
       /\b(make|turn|colou?r|paint)\b.*\bthe \d{1,3}\b.*\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y)\b/,
       // ⭐ PACKAGE 3: which timeframes it shows on ("only show it on the daily", "daily charts only", "except the daily")
       /\b(daily|weekly|monthly|intraday|hourly)( charts?)? only\b|\bonly (show|display|draw|on)\b.*\b(daily|weekly|monthly|intraday|hourly)\b|\bexcept (on )?the (daily|weekly|monthly|intraday)\b/,
       // ⭐ PACKAGE 3: the indicator just built / changed onto another chart ("apply it to my other chart", "copy it to the SPY chart")
-      /\b(apply|put|copy|add|place)\b.*\b(it|this|that|them|those)\b.*\b(other|another|both|all)\b.*\bcharts?\b|\bcopy (it|this|that|them|those)\b.*\bcharts?\b/,
-      // calc-TF family (indicatorStyle.setCalcTimeframe): which bars COMPUTE it — "calculate the RSI on weekly", "make the 50 sma
-      // use the weekly bars", "a weekly RSI", "back to the chart's timeframe" (the chart's own timeframe words stay charts')
+      /\b(apply|put|copy|add|place)\b.*\b(it|this|that|them|those)\b.*\b(other|another|both|all)\b.*\bcharts?\b|\bcopy (it|this|that|them|those)\b.*\bcharts?\b/] },
+  // calc-TF family (indicatorStyle.setCalcTimeframe) in its OWN one-action group, WORDS-ONLY (as compareGroups / chartMenu): a 7th
+  // indicatorSetup action made that group outsize boardEdit in the per-request budget, and an unrecognised request ("show tomorrow
+  // on the terminal", agentExecTune C3-148) lost widget.setOption from its v2 first call (firstCallRatchet, AUDIT #1171 hold). Never
+  // a filler, so indicatorSetup keeps master's size and title. Its words: which bars COMPUTE it — "calculate the RSI on weekly",
+  // "make the 50 sma use the weekly bars", "a weekly RSI", "back to the chart's timeframe" (the chart's own timeframe words stay charts').
+  { id: 'indicatorCalc', title: 'An indicator calculated on another timeframe\'s bars (a weekly RSI on a daily chart), or back on the chart\'s own', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['indicatorStyle.setCalcTimeframe'],
+    words: [
       /\b(calculat\w*|comput\w*|calc)\b.*\b(daily|weekly|monthly|hourly|\d+ ?(min|minute|hour)s?|time ?frame)\b/,
       /\b(use|uses|using|run on)\b (the )?(daily|weekly|monthly|hourly)( bars| data| candles| closes)?$/,
       /\b(daily|weekly|monthly|hourly) (rsi|macd|atr|adx|cci|mfi|obv|stoch\w*|bollinger\w*|vwap|\d{1,3} ?(sma|ema|wma|ma)|(sma|ema|wma) ?\d{1,3})\b/,

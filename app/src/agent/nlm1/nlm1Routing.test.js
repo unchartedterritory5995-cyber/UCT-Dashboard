@@ -182,6 +182,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   it.each(['show rotation on the RS indicator', 'switch the RS indicator to the rotation view', 'set the relative strength view to rotation', 'put the rrg view in the rs pane', 'compare nvda with amd'])('"%s": not the comparePanel words', (msg) => expect(wordsSelect('comparePanel', msg)).toBe(false))
   const wordsOnly = GROUPS.filter(g => g.wordsOnly)
   const OWN_WORDS = {
+    // calc-TF (indicatorStyle.setCalcTimeframe): which bars compute an indicator — calculate / compute on, use the weekly bars, a weekly RSI
+    indicatorCalc: ['calculate the rsi on weekly bars', 'make the 50 sma use the weekly', 'show a weekly rsi on this daily chart', 'put rsi back to the chart\'s timeframe'],
     // compare.openView: the rotation / RRG map, graph, tab or view; the Compare (Symbols) panel; its Overlay tab
     comparePanel: ['open the rotation map', 'show me the rrg view for nvda', 'switch the compare panel to the rotation tab', 'go to the overlay tab'],
     // drawing extras: the Position Calculator, a drawing's Save as default, a drawing tool's ★
@@ -286,7 +288,7 @@ describe('calc-TF: indicatorStyle.setCalcTimeframe is sent on its own words, and
     expect(sent(v, msg).has('indicatorStyle.setCalcTimeframe')).toBe(true)
   })
   it.each(['switch the chart to weekly', 'go to the daily', 'weekly chart please', 'show me the monthly', 'change the timeframe to 1 hour'])
-  ('"%s": the calc words do not select indicatorSetup (the chart\'s own timeframe)', (msg) => {
-    expect(wordsSelect('indicatorSetup', msg)).toBe(false)
+  ('"%s": the calc words do not select indicatorCalc (the chart\'s own timeframe)', (msg) => {
+    expect(wordsSelect('indicatorCalc', msg)).toBe(false)
   })
 })

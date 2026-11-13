@@ -171,7 +171,7 @@
   "drawing.favoriteTool": "drawingExtras",
   "indicatorStyle.set": "indicatorSetup",
   "indicatorStyle.placeIn": "indicatorSetup",
-  "indicatorStyle.setCalcTimeframe": "indicatorSetup",
+  "indicatorStyle.setCalcTimeframe": "indicatorCalc",
   "pane.move": "indicatorSetup",
   "pane.resize": "indicatorSetup",
   "indicatorCopy.duplicate": "indicatorSetup",
@@ -246,7 +246,11 @@
   },
   {
    "id": "indicatorSetup",
-   "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, calculation timeframe, pane order and height, duplicate, copy indicators to other charts"
+   "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+  },
+  {
+   "id": "indicatorCalc",
+   "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
   },
   {
    "id": "definitions",
@@ -433,7 +437,11 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, calculation timeframe, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
      },
      {
       "id": "definitions",
@@ -638,7 +646,11 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, calculation timeframe, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
      },
      {
       "id": "definitions",
@@ -857,7 +869,11 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, calculation timeframe, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
      },
      {
       "id": "definitions",
@@ -1086,7 +1102,11 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, calculation timeframe, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
      },
      {
       "id": "definitions",
@@ -1287,7 +1307,11 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, calculation timeframe, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
      },
      {
       "id": "definitions",
@@ -1399,6 +1423,7 @@
     "layoutBar",
     "indicators",
     "indicatorSetup",
+    "indicatorCalc",
     "definitions",
     "drawingOps",
     "drawingTools",

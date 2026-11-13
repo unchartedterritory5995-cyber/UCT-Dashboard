@@ -6396,7 +6396,7 @@
   },
   "indicatorStyle.setCalcTimeframe": {
    "domain": "indicatorStyle",
-   "group": "indicatorSetup",
+   "group": "indicatorCalc",
    "target": "indicatorEdits",
    "risk": "local",
    "reversible": true,
