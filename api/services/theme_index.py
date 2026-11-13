@@ -25,6 +25,8 @@ l <= min(o,c).
 """
 from __future__ import annotations
 
+from collections import OrderedDict
+import threading
 import concurrent.futures
 import re
 import statistics
@@ -54,7 +56,37 @@ def _ymd_to_ms(ymd: int) -> int:
     return int(datetime(y, m, d, 12, tzinfo=timezone.utc).timestamp() * 1000)
 
 
+# ⚡ ONE READ PER HOLDING PER PREWARM PASS (2026-11-12). `prewarm_all` builds every theme's
+# index back to back, and a popular name (NVDA, AVGO, ...) sits in many themes, so the same
+# ~620-bar read + conversion ran once PER THEME. Boot-probe pool-work after a deploy:
+# `theme_index._holding_daily_bars @ bars_sqlite.get_bars` was the top burner of the boot
+# window's busiest pool. During a pass the converted bars are kept in a small LRU (each caller
+# gets its own list copy: `_overlay_today` appends/replaces list items, never edits a bar).
+# Outside a pass (a member's request) nothing is memoised, exactly as before.
+_PASS_MEMO_MAX = 400
+_pass_memo: "OrderedDict | None" = None
+_pass_lock = threading.Lock()
+
+
 def _holding_daily_bars(sym: str, from_date: str, to_date: str) -> list[dict]:
+    memo = _pass_memo
+    if memo is None:
+        return _holding_daily_bars_read(sym, from_date, to_date)
+    key = (sym, from_date, to_date)
+    with _pass_lock:
+        hit = memo.get(key)
+        if hit is not None:
+            memo.move_to_end(key)
+            return list(hit)
+    bars = _holding_daily_bars_read(sym, from_date, to_date)
+    with _pass_lock:
+        memo[key] = bars
+        while len(memo) > _PASS_MEMO_MAX:
+            memo.popitem(last=False)
+    return list(bars)
+
+
+def _holding_daily_bars_read(sym: str, from_date: str, to_date: str) -> list[dict]:
     """Daily bars for ONE holding — read from the WARM shared bars cache (the same
     SQLite the /api/bars path serves, kept fresh by the bars prewarmer + R2 bridge),
     NOT a fresh Massive REST call. That direct-fetch fan-out (up to 60 per index) was
@@ -432,12 +464,17 @@ def prewarm_all(tf: str = "D") -> int:
     """Compute + cache every theme's index for `tf`. Returns how many warmed.
     Sequential (each call already uses its own bounded worker pool); exception per
     theme is swallowed so one bad basket never aborts the sweep."""
+    global _pass_memo
     n = 0
-    for slug in all_theme_slugs():
-        try:
-            r = get_theme_index(slug, tf)
-            if r and r.get("bars"):
-                n += 1
-        except Exception:
-            pass
+    _pass_memo = OrderedDict()
+    try:
+        for slug in all_theme_slugs():
+            try:
+                r = get_theme_index(slug, tf)
+                if r and r.get("bars"):
+                    n += 1
+            except Exception:
+                pass
+    finally:
+        _pass_memo = None
     return n
