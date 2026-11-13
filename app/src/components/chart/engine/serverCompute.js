@@ -998,30 +998,44 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
   // forming bar's raw `close / benchClose` is scaled by the same k as the history,
   // so it moves with price on the rated scale. Before `derive`, so a glyph built
   // from the line rides the scaled line. Off (the declared default), identity.
-  const scaled = withRescale(def, live, rescaleFactorFor(def, parsed, inputs, ctx.tf))
+  // ⭐ 2026-11-13 — k anchors on the last COMPLETED bar: while the chart's newest
+  // bar is forming, its cell is skipped (`before`), so the closed line ends on the
+  // rating and only the live point moves with price.
+  const scaled = withRescale(def, live, rescaleFactorFor(def, parsed, inputs, ctx.tf, formingKeyOf(bars, ctx)))
   return withDerivedColumns(def, scaled, inputs)
 }
 
-// One factor per (envelope, choice, timeframe): `scalarsFor` and the compute ask
-// for it on every paint, and the readout's memo keys on the scalars' identity.
-const _rescaleMemo = new WeakMap()   // parsed -> Map(`choice|tf` -> {factor, scalars})
+/** The forming bar's time key while the chart's newest bar is forming, else null
+ *  (sealed, or unknown: the newest envelope cell is then the last completed one). */
+function formingKeyOf(bars, ctx) {
+  if (!ctx || ctx.newestBarIsForming !== true || !Array.isArray(bars) || !bars.length) return null
+  const last = bars[bars.length - 1]
+  const k = last ? barTimeKey(last.t) : NaN
+  return typeof k === 'number' && Number.isFinite(k) ? k : null
+}
 
-function rescaleEntry(def, parsed, inputs, tf) {
+// One factor per (envelope, choice, timeframe, forming bar): `scalarsFor` and the
+// compute ask for it on every paint, and the readout's memo keys on the scalars'
+// identity. The readout's entry is the one with no forming bar (`before` null):
+// its state and sentence name the rating and its date, never the anchor cell.
+const _rescaleMemo = new WeakMap()   // parsed -> Map(`choice|tf|before` -> {factor, scalars})
+
+function rescaleEntry(def, parsed, inputs, tf, before = null) {
   if (!rescaleOf(def) || !parsed || typeof parsed !== 'object') return null
-  const memoKey = `${String(rescaleChoice(def, inputs))}|${String(tf == null ? 'D' : tf).toUpperCase()}`
+  const memoKey = `${String(rescaleChoice(def, inputs))}|${String(tf == null ? 'D' : tf).toUpperCase()}|${before == null ? '' : before}`
   let byKey = _rescaleMemo.get(parsed)
   if (!byKey) { byKey = new Map(); _rescaleMemo.set(parsed, byKey) }
   let hit = byKey.get(memoKey)
   if (!hit) {
-    const factor = rescaleFactor(def, parsed, inputs, tf, barTimeKey)
+    const factor = rescaleFactor(def, parsed, inputs, tf, barTimeKey, { before })
     hit = { factor, scalars: withRescaleScalars(def, parsed.payload || null, factor) }
     byKey.set(memoKey, hit)
   }
   return hit
 }
 
-function rescaleFactorFor(def, parsed, inputs, tf) {
-  const e = rescaleEntry(def, parsed, inputs, tf)
+function rescaleFactorFor(def, parsed, inputs, tf, before) {
+  const e = rescaleEntry(def, parsed, inputs, tf, before)
   return e ? e.factor : null
 }
 

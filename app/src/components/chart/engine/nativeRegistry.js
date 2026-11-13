@@ -5174,12 +5174,14 @@ const RS_LINE_SLIM_RAW = {
   placement: { target: 'price', ownScale: true, pane: { height: 0.20, minPx: 64 }, axis: 'hidden',
     axisWhen: { key: 'scaleToRating', notEquals: 'off' } },
   // ⭐ 2026-11-12 — THE RATING SCALE (`engine/rescale.js`): every column drawn in
-  // RS units multiplied by k = rating / (the RS line on the rating's date), the
-  // date `rating.asof` (the nightly rating's session; on weekly, the week holding
-  // it), not the last bar: the history stays put and the live last point moves
-  // with price on the same k. Intraday, no rating, or no line value on that date:
-  // the raw line, and the Scale row says why. `rsAbove` is a 0/1 condition column
-  // and is not in the list.
+  // RS units multiplied by k = rating / (the RS line on the LAST COMPLETED bar),
+  // so the closed line ends exactly on the rating, as Deepvue draws it (2026-11-13:
+  // anchoring on `rating.asof` left AMD's line at 101.99 beside "RS 96" after a
+  // +5.9% day). While a bar is forming, k is read off the bar before it and the
+  // live last point moves with price on that k. Intraday, no rating, or no line
+  // value on a closed bar: the raw line, and the Scale row says why. `at` names
+  // the rating's date for the readout. `rsAbove` is a 0/1 condition column and is
+  // not in the list.
   rescale: {
     input: 'scaleToRating', off: 'off',
     to: { ibd: 'scalar:rating.ibd', m1: 'scalar:rating.m1', m3: 'scalar:rating.m3', m6: 'scalar:rating.m6',
@@ -5211,7 +5213,7 @@ const RS_LINE_SLIM_RAW = {
     // to its own pane with an axis (`placement.axisWhen`).
     { key: 'scaleToRating', type: 'enum', label: 'Scale to rating', default: 'off', group: 'Simple',
       options: RS_SCALE_OPTIONS,
-      tooltip: 'Rescale the line so it reads like a rating, equal to the chosen rating on the day it was set, in its own pane with a 1 to 99 style axis and the same shape (daily and weekly charts).' },
+      tooltip: 'Rescale the line so it ends on the chosen rating at the last close, in its own pane with a 1 to 99 style axis and the same shape (daily and weekly charts); while the market is open the live end moves a little with price.' },
     // ── rendered: Average (folded) ──
     { key: 'maLength', type: 'int', label: 'Average (bars)', default: 21, min: 2, max: 200, step: 1, group: 'Average',
       tooltip: 'Average length in bars: the moving average on the RS line, drawn while Show average is on and read by the RS line row either way. 21 is the curriculum default; 50 is a slower read.' },

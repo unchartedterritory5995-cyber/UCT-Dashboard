@@ -64,7 +64,7 @@ export default function IndicatorUndoToast({ surfaceKey, userId = null, chartId 
   const doUndo = useCallback(() => {
     const r = undoIndicatorChange(surfaceKey, cs, write, { userId })
     if (r.ok) setShown({ mode: 'redo', entry: r.entry, text: 'Undone' })
-    else if (r.reason === 'changed-since') setShown({ mode: 'refused', entry: r.entry, text: `Can't undo: ${r.entry?.label ? r.entry.label.replace(/ (hidden|shown|added)( \(\d+\))?$/, '') : 'the indicator'} changed since.` })
+    else if (r.reason === 'changed-since') setShown({ mode: 'refused', entry: r.entry, text: `Can't undo: ${r.entry?.label ? r.entry.label.replace(/ (hidden|shown|added|edited)( \(\d+\))?$/, '') : 'the indicator'} changed since.` })
     else setShown(null)
   }, [surfaceKey, cs, write, userId])
 
