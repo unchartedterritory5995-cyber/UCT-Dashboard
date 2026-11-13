@@ -114,7 +114,7 @@ describe('stock.dailyBars: every arg shape accepted at 27e228693e still validate
     expect(ORACLE_SRC).toContain("const MEASURES = ['lastClose', 'change', 'range52w', 'session', 'range']")
     expect(ORACLE_SRC).toContain("required: ['symbol', 'measure', 'sessions', 'date'],")
     const now = getCapability(CAPABILITY)
-    expect(now.absentAsNull).toEqual(['from'])
+    expect(now.absentAsNull).toEqual(['from', 'timeframe', 'symbols'])      // Phase 2 history added timeframe + symbols
     for (const [k, p] of Object.entries(OLD_ARGS.properties)) expect(now.args.properties[k].type).toEqual(p.type)
     expect(OLD_MEASURES.every(m => now.args.properties.measure.enum.includes(m))).toBe(true)
     // the manifest still sends a fully required object (the server's strict grammar drops anything else)
