@@ -67,7 +67,24 @@ person restored the 01:44 UTC backup at 09:30:40 ET. Now:
 **After a self-repair:** rows written after the backup are missing. Run the gap-fill for each day
 since the backup was taken (status endpoint shows `last_result`), after the close.
 
-## Recovery (worked twice on 2026-11-12; writes back within seconds, no restart)
+## ⛔⛔ ROOT CAUSE (found 2026-11-13): two write-ahead logs. RESTART AFTER EVERY SWAP.
+
+On 11/13 the worker's PID 1 held `/data/flow.db-wal (deleted)` while its other connections wrote
+to a NEW `flow.db-wal`. Two logs for one database is the textbook SQLite corruption, and it
+explains all 8 damages: each followed a moment when the file was swapped under a running process
+(the "no restart needed" swaps below renamed the live -wal/-shm; long-lived connections kept
+writing into the renamed log) or two containers held the volume during a deploy/restart (the old
+process, believing it held the LAST connection, checkpointed and deleted the WAL the new one was
+using). The damage surfaced hours later, which is why some looked deploy-free.
+
+Fixed in code (`api/flow_db_guard.py`): an anchor connection held for the process life (SQLite
+never deletes the WAL while any connection in the process is open), `os._exit` after shutdown
+(a dying container never deletes the WAL), a tripwire in every canary tick (a handle to a deleted
+flow.db/-wal/-shm → Discord + clean restart), and the self-repair restarts after its swap.
+**Rule for people: after ANY manual swap of flow.db, restart flow-worker** (`railway restart
+--service flow-worker --yes`), and never inspect flow.db with plain file I/O inside the worker.
+
+## Recovery (the swap itself; then RESTART flow-worker, see above)
 
 Scripts: `tools/flow_db_recovery/stepA_rebuild_and_swap.py`, `stepB_restore_history.py`.
 Production writes need the owner's OK.
