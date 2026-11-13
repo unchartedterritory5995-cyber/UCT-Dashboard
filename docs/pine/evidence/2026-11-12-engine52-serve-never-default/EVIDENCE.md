@@ -375,3 +375,84 @@ changes; 0 captures move away.**
 - Heavy run on the review-fix head (ONE heavy-lock run: `ast`, `runtime/__tests__`, `__tests__`,
   `builder`, `--maxWorkers=1`): 1,124 files, **19,558 passed, 2 failed, 199 skipped**. The 2 are the
   master reds `rsRatingDef` / `rsVsEmaDef` (#1136).
+
+
+## Part 3: re-review of #1164 (CHANGES-REQUIRED at `cb14293297`), same branch, engine stays 52
+
+### B1: the escape rule is now an ALLOWLIST (`staticReadOnlyRoots` in `buildObjectProgram`)
+The static reader answers an object or a list through a name only when EVERY token occurrence of
+that name is one of:
+- (a) its single `=` declaration;
+- (b) a pure read `name.f1…fn` whose LAST field is declared primitive (`int`, `float`, `bool`,
+  `string`, `color`) in the script's types and by no type as anything else, and that is not followed
+  by an assignment operator, `(` or `[`;
+- (c) a list read by the builtin `array.get(name, …)` / `array.size(name)`, or by the method forms
+  `name.get(…)` / `name.size()`, the latter ONLY when the script declares no function or method of
+  its own named `get` / `size` (a bare `get(` / `size(` token).
+
+Everything else is an escape. That covers a sub-chain yielding an object (`inner = outer.inner`,
+`f(outer.inner)`, where Pine objects are references), a pass, an alias, a reassignment, a field
+assignment at any depth, and any method call.
+
+Rails cover N7 and N10 (user methods named `get` / `size` that mutate), N8 (alias through a field
+read), N9 (field passed as an argument), and N4 (deep field assignment, in a block and at the top
+level). They also cover repros A and B at the top level (the reviewer's G2: the reassigned-name
+ledger does not hold the dotted name there), plus every earlier case. Controls: an untouched value,
+and an untouched nested value read through its primitive leaf, are still served.
+
+**Correction:** part 2's U2 note was wrong. The C28 guard does NOT cover a top-level field
+assignment; the field-assignment escape is load-bearing and is now railed (V2 below goes RED 3).
+
+### B2: division by the engine's own classifier (F1)
+Gone: the restated int tagging (token spelling, input kinds).
+
+Now: a `/` truncates only when `constIntDivisionTruncates(version)` holds and BOTH operands are
+`const int` by `pineConstIntValue` (with the script's declaration words), the classifier witnessed
+by `vw-int-div-assign`.
+- An input, a `var`, a `simple` or a `float` declaration keeps the fraction.
+- A quotient over a helper's own local or parameter (which that classifier cannot follow) folds only
+  when exact.
+
+Rails, through an enum switch on `k / 2 * 2`:
+- v4 `k = input(7)`, v5 `input.int(7)`, `input.int(9)` (9, never 8), `var k = 7`, `float k = 7` and
+  `simple int k = 7` all keep the fraction;
+- controls: v5 and v4 `int k = 7` -> 6, literal `7 / 2 * 2` -> 6, v6 -> 7, v5 `7.0 / 2 * 2` -> 7.
+
+### LOW
+- The merge exception now reads real calls (`table.merge_cells(` / `t.merge_cells(`) off the token
+  stream, where comments are already gone. Railed: a comment naming it leaves the count inert.
+- A self-overlapping `str.replace` target (`"aaa"` / `"aa"`) is railed (G6), with a control
+  (`"aab"` / `"ab"` -> `ax`).
+
+### Census, part 3 (base = `origin/master`'s engine tree, extracted; head = this branch)
+53 rows change, 0 in key order only, 0 new errors. **The same 53 rows and the same classes as
+part 2.** Drawn vs served is unchanged: 112 / 83 / 264 / 4, and 0 at a default.
+
+### Objects v2, part 3
+v1 79 / 31 / 15, v2 **75 / 35 / 15**. Per family identical (lines 88/1, labels 87/2, boxes 91/2,
+tables 95/0, tableCells 82/13, linefills 5/2). The v1-MATCH -> v2-DIVERGE list is exactly engine 51's
+four (two linefill counts, two creation-order-only). **0 move away.**
+
+### Mutants, part 3 (`engine52ServeNeverDefault.test.js`; restore from the copy, hash == HEAD for all)
+| id | mutant | result |
+|---|---|---|
+| C0 | none | 42/42 green |
+| V1 | allowlist off | RED 13 |
+| V2 (G2) | a field assignment is not an escape | RED 3 (after the top-level rails) |
+| V3 | `get` / `size` exempt by name alone | RED 2 |
+| V4 | an object-yielding sub-chain allowed | RED 2 |
+| V5 | any method call allowed | RED 5 |
+| V6 | a bare occurrence allowed | RED 5 |
+| W1 | pre-v6 always truncates | RED 2 |
+| W2 | declaration words ignored | RED 1 |
+| W3 | the v6 rule off | RED 1 |
+| M1 | merge read off the raw source | RED 1 |
+| G6 | the `str.replace` overlap guard off | RED 1 |
+
+### Runs, part 3
+- Focused (5 files a run, two runs): memberPaneTables, pineTableVendorParity, w3CapturedCells,
+  c28StaleSnapshot, c47PositionSize, engine51ReviewFixes, objectColourNodes, fvgVendorParity,
+  c10SecurityObjects, rt5RuntimeObjects. All green.
+- hostParity HP-1 GREEN 166/166.
+- Heavy run on this head (ONE heavy-lock run: `ast`, `runtime/__tests__`, `__tests__`, `builder`): 1,126 files,
+  **19,591 passed, 2 failed, 199 skipped**. The 2 are the master reds `rsRatingDef` / `rsVsEmaDef` (#1136).
