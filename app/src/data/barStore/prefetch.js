@@ -69,6 +69,7 @@ import { isCacheCurrentForView } from '../../utils/marketSession'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
   _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled, _typedCachePaints,
+  tellSymbolWarmers, warmCompanionsOnIntent,
 } from '../../utils/prefetchBars'
 
 // Lane plumbing the chart imports from the same module — re-exported unchanged so one import
@@ -76,6 +77,11 @@ import {
 export {
   _packStillIngesting, joinPendingBars, setPrefetchShowExtended, barsBeforeUrl, barsLaneRequest,
   URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled,
+  // ⭐ ONE REGISTRY OF COMPANION WARMERS (2026-11-12): a lane with its own per-symbol data (the
+  // server-computed indicator columns) registers with the legacy module and is told the symbols
+  // BOTH warmers are about to warm. The entry points below announce exactly what the legacy
+  // ones do (`prefetch.symbolWarmers.test.js` holds the two side by side).
+  registerSymbolWarmer,
 } from '../../utils/prefetchBars'
 
 export const DISPLAYABLE = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT])
@@ -345,6 +351,7 @@ export function createPrefetch(o = {}) {
   function prefetchBars(tickers, tf = 'D', { priority = false, urgent = false } = {}) {
     if (!tickers?.length) return
     const syms = tickers.filter(Boolean)
+    tellSymbolWarmers(syms, tf, { priority: priority || urgent })
     const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
     if (urgent) {
       // Only the LATEST urgent call stays urgent: rows the member already passed are aborted
@@ -366,11 +373,13 @@ export function createPrefetch(o = {}) {
 
   function prefetchBar(sym, tf = 'D') {
     if (!sym) return
+    tellSymbolWarmers([sym], tf, { priority: true })
     _many([sym], tf, 'background', { warm: true })
   }
 
   function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended } = {}) {
     if (!tickers?.length) return
+    tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
     _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority }, showExtended)
   }
 
@@ -431,6 +440,7 @@ export function createPrefetch(o = {}) {
 
   function prefetchBarOnIntent(sym, tf = 'D', { delay = 120 } = {}) {
     if (!sym || !tf) return
+    warmCompanionsOnIntent(sym, tf, { delay })   // before the early return: warm bars need nothing, the companions may
     const key = keyFor(sym, tf)
     if (!key || DISPLAYABLE.includes(S().peek(key)?.status)) return
     if (intentTimers.has(key)) return
@@ -452,7 +462,11 @@ export function createPrefetch(o = {}) {
       typed = null
     }
     const held = S().peek(key)
-    if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_FRESH_MS) return null
+    const typedSym = String(sym).trim().toUpperCase()
+    if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_FRESH_MS) {
+      tellSymbolWarmers([typedSym], tf, { priority: true })   // a known name, bars current: its companions may not be
+      return null
+    }
     if (typed && typed.key === key) return null
     const ctl = new AbortController()
     const mine = { key, ctl, kept: false }
@@ -462,6 +476,8 @@ export function createPrefetch(o = {}) {
       if (typed !== mine) return 'superseded'
       // Legacy `_typedCachePaints`: the chart's daily paint authority, with the record's savedAt.
       if (s0?.depth) {
+        // A held set exists, so the text IS a ticker (a prefix has none, see below).
+        tellSymbolWarmers([typedSym], tf, { priority: true })
         const last = s0.developing ? s0.developing.t : s0.bars[s0.bars.length - 1].t
         if (_typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
       }
@@ -469,7 +485,9 @@ export function createPrefetch(o = {}) {
       if (!s0?.depth && !packIngesting()) return 'unknown'
       const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false })
       if (ctl.signal.aborted && !mine.kept) return false
-      return s?.restSeen && !s.error && s.depth ? 'network' : false
+      const answered = !!(s?.restSeen && !s.error && s.depth)
+      if (answered && !s0?.depth && typed === mine) tellSymbolWarmers([typedSym], tf, { priority: true })   // the authority just said it is real
+      return answered ? 'network' : false
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }
 

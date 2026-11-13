@@ -1078,15 +1078,38 @@ def server_columns(
     body is untouched, and the cached envelope never carries a timing.
     """
     s = _sym_or_422(sym)
-    try:
-        parsed = json.loads(inputs) if inputs else {}
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=422, detail="inputs must be a JSON object")
-    if parsed is not None and not isinstance(parsed, dict):
-        raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    parsed = _columns_inputs_or_422(inputs)
     rs_provider.timing_reset()
     try:
-        return registry_defs.serve(defId, s, str(tf or "D"), parsed)
+        return _serve_columns(defId, s, tf, parsed)
+    finally:
+        _rs_server_timing(response)
+
+
+def _columns_inputs_or_422(inputs) -> dict | None:
+    """An ask's `inputs` as the lane takes them: a JSON object (or nothing). The
+    single route hands the query string, the batch route an already-parsed value."""
+    if isinstance(inputs, str):
+        try:
+            inputs = json.loads(inputs) if inputs else {}
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    if inputs is not None and not isinstance(inputs, dict):
+        raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    return inputs
+
+
+def _serve_columns(def_id: str, s: str, tf: str, parsed: dict | None) -> dict:
+    """ONE ask of the lane, answered: the body BOTH column routes return for it.
+
+    A refusal is an `HTTPException` (404 for a definition this server does not
+    offer, 422 for an input it rejects); a defect of ours is the error envelope
+    the client draws nothing from. Two routes that each spelled this out would
+    be two answers to one question, so `/columns` and `/columns-batch` both ask
+    here and neither can drift from the other.
+    """
+    try:
+        return registry_defs.serve(def_id, s, str(tf or "D"), parsed)
     except registry_defs.DefinitionNotOffered as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except registry_defs.InputRejected as exc:
@@ -1097,11 +1120,98 @@ def server_columns(
         # defect, not the user's, so they are logged with a traceback and the
         # response is an envelope the client draws nothing from — never a 500,
         # and never a payload that could be remembered as good.
-        logger.exception("signature: server lane failed for %s/%s", defId, s)
-        return {"defId": defId, "sym": s, "tf": tf, "columns": {}, "times": [],
+        logger.exception("signature: server lane failed for %s/%s", def_id, s)
+        return {"defId": def_id, "sym": s, "tf": tf, "columns": {}, "times": [],
                 "error": "server lane unavailable", "asOf": time.time()}
-    finally:
-        _rs_server_timing(response)
+
+
+#: How many asks one batch may carry. One chart's RS suite is five definitions;
+#: sixteen leaves room for a board whose charts differ in inputs, and bounds what
+#: a single request can make this pod compute.
+COLUMNS_BATCH_MAX_ASKS = 16
+
+
+@router.get("/columns-batch")
+def server_columns_batch(
+    response: Response,
+    sym: str = Query(...),
+    tf: str = Query("D"),
+    asks: str = Query("", description="JSON list of {defId, inputs}: the definitions wanted for this symbol"),
+    _user: dict = Depends(require_paid),
+):
+    """EVERY SERVER DEFINITION ONE CHART DRAWS FOR A SYMBOL, IN ONE REQUEST.
+
+    ⚡ WHY (measured on production 2026-11-12, a member arrowing down a
+    watchlist): the next symbol's candles were on screen 40 ms after the key
+    press and its five RS definitions 1.2 to 2.0 s after them, each on its own
+    request, each waiting on the same bars read. One request per symbol reads
+    the stock and its benchmarks once (`_rs_core`, `_bars_rows_shared`), costs
+    one worker thread instead of five, and is what lets the chart ask for the
+    NEXT symbols' columns ahead of the member (`serverCompute.warmSymbols`)
+    without multiplying this pod's load by the size of the RS suite.
+
+    ⛔ THE SAME ANSWER AS `/columns`, ASK FOR ASK. Each entry is served by
+    `_serve_columns`, the one function the single route calls, so an envelope
+    here is the envelope `/columns` returns for the same (definition, symbol,
+    timeframe, inputs). A refused ask does not fail its neighbours: its slot
+    carries the status and the sentence `/columns` would have raised
+    (`{"status": 404 | 422, "detail": ...}`); a served one carries
+    `{"status": 200, "envelope": ...}`. `results` is positional: one slot per
+    ask, in the order asked.
+
+    Bounded: at most `COLUMNS_BATCH_MAX_ASKS` asks for one symbol, served in turn
+    on this request's own worker (never fanned out), so a batch occupies exactly
+    the one thread a single ask would.
+    """
+    s = _sym_or_422(sym)
+    try:
+        wanted = json.loads(asks) if asks else []
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="asks must be a JSON list of {defId, inputs}")
+    if not isinstance(wanted, list) or not wanted:
+        raise HTTPException(status_code=422, detail="asks must be a JSON list of {defId, inputs}")
+    if len(wanted) > COLUMNS_BATCH_MAX_ASKS:
+        raise HTTPException(status_code=422,
+                            detail=f"at most {COLUMNS_BATCH_MAX_ASKS} asks per request")
+    results: list[dict] = []
+    timings: list[dict] = []
+    for ask in wanted:
+        def_id = ask.get("defId") if isinstance(ask, dict) else None
+        if not isinstance(def_id, str) or not def_id:
+            results.append({"status": 422, "detail": "each ask needs a defId"})
+            continue
+        rs_provider.timing_reset()
+        try:
+            parsed = _columns_inputs_or_422(ask.get("inputs"))
+            results.append({"status": 200, "envelope": _serve_columns(def_id, s, tf, parsed)})
+        except HTTPException as exc:
+            results.append({"status": exc.status_code, "detail": exc.detail})
+        rec = rs_provider.last_timing()
+        if rec is not None:
+            timings.append(rec)
+    _rs_batch_server_timing(response, timings)
+    return {"sym": s, "tf": tf, "results": results}
+
+
+def _rs_batch_server_timing(response, timings: list) -> None:
+    """The batch's `Server-Timing`: the RS provider's stages summed over the asks
+    that ran it, `desc` "cold" when any of them computed and "cache" when every
+    one was a cache hit. Behaviour-neutral, like `_rs_server_timing`."""
+    try:
+        if not timings or response is None:
+            return
+        from api.services.serve_stale import server_timing as _head
+        tier = "cold" if any(t["tier"] != "cache" for t in timings) else "cache"
+        out = _head("rs", tier, sum(t["total_ms"] for t in timings))
+        stages: dict = {}
+        for t in timings:
+            for name, ms in t["stages"].items():
+                stages[name] = stages.get(name, 0.0) + ms
+        for name, ms in stages.items():
+            out += f", rs-{name};dur={ms:.1f}"
+        response.headers["Server-Timing"] = out + f", rs-asks;dur={len(timings)}"
+    except Exception:                                  # noqa: BLE001
+        pass
 
 
 def _rs_server_timing(response) -> None:
