@@ -16,7 +16,9 @@ are not OHLCV aggregates. The broadcaster's push_aggregate branches on kind="T".
 
 Lifecycle:
 - start_stream(on_bar) launches a daemon thread running an asyncio event loop
-- subscribe_symbols(syms) / unsubscribe_symbols(syms) are thread-safe entry points
+- subscribe_symbols(syms, owner, channels) / unsubscribe_symbols(syms, owner) are
+  thread-safe entry points, refcounted per (symbol, channel) across owners
+  (channels honoured only with STREAM_SCOPED_CHANNELS=1; off = every channel)
 - reconnect uses exponential backoff capped at 60s; on reconnect the full active
   set is resubscribed from scratch (Massive protocol does not persist subs)
 """
@@ -37,15 +39,36 @@ _WS_URL = os.environ.get("MASSIVE_WS_URL", "wss://socket.massive.com/stocks")
 _API_KEY = os.environ.get("MASSIVE_API_KEY", "")
 
 # State (module globals — single connection per process by design)
-_active: set[str] = set()              # symbols currently subscribed
-_pending_subscribe: set[str] = set()   # queued for next send (when ws live)
-_pending_unsubscribe: set[str] = set()
-# Owner refcount: a symbol is protocol-subscribed while ANY owner wants it, and
-# only unsubscribed when its last owner drops it. Lets independent consumers (the
-# chart bars feed, owner "bars"; the NH/NL print-exact tap, owner "nhnl") share the
-# one connection without one's unsubscribe cutting the other's feed.
-_sub_owners: dict[str, set[str]] = {}
+_active: set[str] = set()              # symbols subscribed on at least one channel
+# Per-channel protocol state: sym -> the channels ("AM"/"A"/"T") currently wanted
+# upstream, i.e. the UNION of every owner's channels for that symbol.
+_active_channels: dict[str, set[str]] = {}
+# Queued for next send (when ws live): sym -> channels to subscribe / unsubscribe.
+_pending_subscribe: dict[str, set[str]] = {}
+_pending_unsubscribe: dict[str, set[str]] = {}
+# Owner refcount, PER CHANNEL: sym -> {owner: channels}. A symbol is subscribed on a
+# channel while ANY owner needs that channel, and a channel is unsubscribed only
+# when its last owner releases it. Lets independent consumers (the chart bars feed,
+# owner "bars"; the NH/NL print-exact tap, owner "nhnl"; the volume push, owner
+# "volume") share the one connection without one's release narrowing another's feed.
+_sub_owners: dict[str, dict[str, frozenset[str]]] = {}
 _state_lock = threading.Lock()
+
+# ── Owner-scoped channels (STREAM_SCOPED_CHANNELS) ───────────────────────────
+# Wire order of the channels for one symbol. Fixed so the messages stay
+# byte-identical to the pre-scoping builder (AM.X,A.X,T.X per symbol, sorted).
+_CHANNEL_ORDER = ("AM", "A", "T")
+#: Every channel: what each owner got before owner scoping existed.
+CHANNELS_FULL: frozenset[str] = frozenset(_CHANNEL_ORDER)
+#: Aggregates only (AM + per-second A), no per-trade T. AM is dropped on the wire
+#: whenever the universe AM.* wildcard is on, exactly as before.
+CHANNELS_AGGREGATE: frozenset[str] = frozenset({"AM", "A"})
+
+
+def _scoped_channels_enabled() -> bool:
+    """STREAM_SCOPED_CHANNELS=1: each owner gets only the channels it declares.
+    Unset/0 (default): every owner gets CHANNELS_FULL, i.e. exactly today's messages."""
+    return os.environ.get("STREAM_SCOPED_CHANNELS", "0") == "1"
 
 # Extra per-trade listeners (beyond the primary on_bar). Only T. events fan out to
 # these; the list is empty (zero cost) unless a consumer registers one. Used by the
@@ -237,35 +260,61 @@ class BarStreamClient:
         self.pending_subscribe -= gone
 
 
-def _build_subscribe_message(syms: Iterable[str]) -> str:
-    """Polygon-compatible subscribe message: subscribes to AM.*, A.*, and T.* for each symbol.
+def _wire_parts(entries, universe: bool) -> list[str]:
+    """`CH.SYM` params for `entries`, in wire order: symbols sorted, then AM, A, T.
+
+    `entries` is either an iterable of symbols (every channel, the pre-scoping
+    shape) or a mapping sym -> channels (owner-scoped). Under the universe feed
+    AM.<sym> is never sent: the AM.* wildcard already carries every symbol, and an
+    AM.<sym> unsubscribe must never be sent out from under it."""
+    # Local import: keeps this PR off the module import block (PR #1183 edits it).
+    from collections.abc import Mapping
+    if isinstance(entries, Mapping):
+        pairs = [(s, entries[s]) for s in sorted(entries)]
+    else:
+        pairs = [(s, CHANNELS_FULL) for s in sorted(entries)]
+    parts = []
+    for s, chans in pairs:
+        for ch in _CHANNEL_ORDER:
+            if ch not in chans or (ch == "AM" and universe):
+                continue
+            parts.append(f"{ch}.{s}")
+    return parts
+
+
+def _channel_message(action: str, entries, universe: Optional[bool] = None) -> Optional[str]:
+    """The subscribe/unsubscribe frame for `entries`, or None when nothing is left
+    to send (e.g. only AM.<sym> changed while the universe wildcard is on)."""
+    if universe is None:
+        universe = _universe_stream_enabled()
+    parts = _wire_parts(entries, universe)
+    if not parts:
+        return None
+    return json.dumps({"action": action, "params": ",".join(parts)})
+
+
+def _build_subscribe_message(syms, universe: Optional[bool] = None) -> str:
+    """Polygon-compatible subscribe message.
+
+    `syms` as a plain iterable subscribes AM.*, A.*, and T.* for each symbol (the
+    pre-scoping shape). As a mapping sym -> channels it subscribes only those.
 
     Phase 4.5: includes A.<sym> alongside AM.<sym> so we receive per-second aggregates
     for sub-second chart flicker in addition to the authoritative 1-min closes.
     Phase 4.6: adds T.<sym> for per-trade tick events enabling true tick-by-tick updates.
     Example: AM.AAPL,A.AAPL,T.AAPL,AM.MSFT,A.MSFT,T.MSFT
     """
-    parts = []
-    universe = _universe_stream_enabled()
-    for s in sorted(syms):
-        if not universe:  # under the universe feed, AM.* already carries every symbol
-            parts.append(f"AM.{s}")
-        parts.append(f"A.{s}")
-        parts.append(f"T.{s}")
-    params = ",".join(parts)
+    if universe is None:
+        universe = _universe_stream_enabled()
+    params = ",".join(_wire_parts(syms, universe))
     return json.dumps({"action": "subscribe", "params": params})
 
 
-def _build_unsubscribe_message(syms: Iterable[str]) -> str:
-    """Unsubscribe from AM.*, A.*, and T.* for each symbol (Phase 4.6)."""
-    parts = []
-    universe = _universe_stream_enabled()
-    for s in sorted(syms):
-        if not universe:  # never drop AM.<sym> out from under the AM.* wildcard
-            parts.append(f"AM.{s}")
-        parts.append(f"A.{s}")
-        parts.append(f"T.{s}")
-    params = ",".join(parts)
+def _build_unsubscribe_message(syms, universe: Optional[bool] = None) -> str:
+    """Unsubscribe counterpart of _build_subscribe_message (same two input shapes)."""
+    if universe is None:
+        universe = _universe_stream_enabled()
+    params = ",".join(_wire_parts(syms, universe))
     return json.dumps({"action": "unsubscribe", "params": params})
 
 
@@ -338,14 +387,12 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                     await asyncio.sleep(60)
                     continue  # back to outer while True; async with closes ws cleanly
 
-                # Resubscribe whatever was active before the disconnect.
-                with _state_lock:
-                    syms_to_resubscribe = sorted(_active)
-                    _pending_subscribe.clear()
-                    _pending_unsubscribe.clear()
-                if syms_to_resubscribe:
-                    await ws.send(_build_subscribe_message(syms_to_resubscribe))
-                    _logger.info("[bar_stream] Resubscribed %d symbols on (re)connect", len(syms_to_resubscribe))
+                # Resubscribe whatever was active before the disconnect, channel by
+                # channel (the per-channel union every owner currently needs).
+                n_resub, resub_msg = _take_resubscribe_message()
+                if resub_msg:
+                    await ws.send(resub_msg)
+                    _logger.info("[bar_stream] Resubscribed %d symbols on (re)connect", n_resub)
 
                 # Universe live bars: every minute bar for every ticker, rolled into 5m
                 # and forwarded to the serving tier (`bars_live_ingest`). A new socket
@@ -684,85 +731,172 @@ def _stall_watch() -> None:
 async def _drain_pending_queue(ws) -> None:
     """Periodically flush queued subscribe/unsubscribe messages to the live WS.
 
-    Runs every 250 ms. Cheap because most ticks the queues are empty.
+    Runs every 250 ms. Cheap because most ticks the queues are empty. The queues
+    are sym -> channels; each flush sends one subscribe and one unsubscribe frame
+    built per channel, and on a failed send re-queues only the channels that are
+    still wanted (subscribe) or still unwanted (unsubscribe).
     """
-    # REQUIRED: the re-queue paths below do `_pending_subscribe |= ...` /
-    # `_pending_unsubscribe |= ...` (augmented assignment). Without this global
-    # declaration Python treats both names as function-LOCAL for the entire
-    # scope, so the reads at the top of the loop (`sorted(_pending_subscribe)`)
-    # raise UnboundLocalError on the drain task's very first tick — the task
-    # dies silently and the subscribe queue NEVER flushes (bars never subscribe
-    # when STREAM_BARS_ENABLED=1). Mirrors _run_websocket's global declaration.
+    # KEEP this declaration. The re-queue paths now mutate the queue dicts in
+    # place (`.setdefault(...).update(...)`), which needs no `global`. But an
+    # earlier version re-queued with `_pending_subscribe |= ...` (augmented
+    # assignment) and had no declaration: Python made both names function-LOCAL,
+    # the first read raised UnboundLocalError, the task died silently and bars
+    # never subscribed. The declaration means a future `|=` or `=` here cannot
+    # bring that back. tests/test_bar_stream_drain_globals.py pins it.
     global _pending_subscribe, _pending_unsubscribe
     while True:
         await asyncio.sleep(0.25)
         with _state_lock:
-            sub = sorted(_pending_subscribe)
-            unsub = sorted(_pending_unsubscribe)
+            sub = {s: set(c) for s, c in _pending_subscribe.items()}
+            unsub = {s: set(c) for s, c in _pending_unsubscribe.items()}
             _pending_subscribe.clear()
             _pending_unsubscribe.clear()
-        if sub:
+        universe = _universe_stream_enabled() if (sub or unsub) else False
+        sub_msg = _channel_message("subscribe", sub, universe) if sub else None
+        if sub_msg:
             try:
-                await ws.send(_build_subscribe_message(sub))
+                await ws.send(sub_msg)
             except Exception as e:
                 _logger.warning("[bar_stream] subscribe flush failed: %s", e)
                 with _state_lock:
-                    _pending_subscribe |= (set(sub) & _active)  # Fix 4: only re-queue symbols still wanted
+                    # Fix 4: only re-queue channels still wanted
+                    for s, chans in sub.items():
+                        keep = chans & _active_channels.get(s, set())
+                        if keep:
+                            _pending_subscribe.setdefault(s, set()).update(keep)
                 return  # Fix 3: stop retrying on dead ws; reconnect loop starts fresh drain task
-        if unsub:
+        unsub_msg = _channel_message("unsubscribe", unsub, universe) if unsub else None
+        if unsub_msg:
             try:
-                await ws.send(_build_unsubscribe_message(unsub))
+                await ws.send(unsub_msg)
             except Exception as e:
                 _logger.warning("[bar_stream] unsubscribe flush failed: %s", e)
                 with _state_lock:
-                    _pending_unsubscribe |= (set(unsub) - _active)  # Fix 4: only re-queue symbols still unwanted
+                    # Fix 4: only re-queue channels still unwanted
+                    for s, chans in unsub.items():
+                        keep = chans - _active_channels.get(s, set())
+                        if keep:
+                            _pending_unsubscribe.setdefault(s, set()).update(keep)
                 return  # Fix 3: stop retrying on dead ws; reconnect loop starts fresh drain task
 
 
-def subscribe_symbols(symbols: Iterable[str], owner: str = "bars") -> None:
-    """Thread-safe: register `owner`'s interest in `symbols`; a symbol is queued for
-    a protocol subscribe only when it gains its FIRST owner. Flush happens via
-    _drain_pending_queue. `owner` defaults to "bars" so existing callers are unchanged."""
+def _take_resubscribe_message() -> tuple[int, Optional[str]]:
+    """On (re)connect: clear the pending queues (Massive does not persist subs, so the
+    full state is resent) and build ONE subscribe frame carrying, per symbol, exactly
+    the channels the owners currently need. Returns (symbol count, frame or None)."""
+    with _state_lock:
+        snapshot = {s: set(c) for s, c in _active_channels.items() if c}
+        _pending_subscribe.clear()
+        _pending_unsubscribe.clear()
+    if not snapshot:
+        return 0, None
+    return len(snapshot), _channel_message("subscribe", snapshot)
+
+
+def _normalize_channels(channels: Optional[Iterable[str]]) -> frozenset[str]:
+    """The channels an owner actually gets. Flag off: always CHANNELS_FULL (exactly
+    the pre-scoping behaviour, whatever the owner declares). Flag on: the declared
+    set, or CHANNELS_FULL when the caller declares none."""
+    if channels is None:
+        declared = CHANNELS_FULL
+    else:
+        declared = frozenset(str(c).upper() for c in channels)
+        unknown = declared - CHANNELS_FULL
+        if unknown or not declared:
+            raise ValueError(f"bar_stream channels must be a non-empty subset of "
+                             f"{sorted(CHANNELS_FULL)}; got {sorted(declared)}")
+    if not _scoped_channels_enabled():
+        return CHANNELS_FULL
+    return declared
+
+
+def _reconcile_locked(sym: str) -> None:
+    """Caller holds _state_lock. Recompute `sym`'s wanted channels as the union over
+    its owners and queue only the per-channel difference against what is subscribed."""
+    owners = _sub_owners.get(sym)
+    want: set[str] = set().union(*owners.values()) if owners else set()
+    have = _active_channels.get(sym, set())
+    added = want - have
+    removed = have - want
+    if added:
+        _pending_subscribe.setdefault(sym, set()).update(added)
+        left = _pending_unsubscribe.get(sym)
+        if left is not None:
+            left -= added
+            if not left:
+                del _pending_unsubscribe[sym]
+    if removed:
+        _pending_unsubscribe.setdefault(sym, set()).update(removed)
+        left = _pending_subscribe.get(sym)
+        if left is not None:
+            left -= removed
+            if not left:
+                del _pending_subscribe[sym]
+    if want:
+        _active_channels[sym] = want
+        _active.add(sym)
+    else:
+        _active_channels.pop(sym, None)
+        _active.discard(sym)
+
+
+def subscribe_symbols(symbols: Iterable[str], owner: str = "bars",
+                      channels: Optional[Iterable[str]] = None) -> None:
+    """Thread-safe: register `owner`'s interest in `symbols` on `channels`.
+
+    A symbol is subscribed on a channel while ANY owner needs that channel, so only
+    channels the symbol does not already carry are queued. Calling again for the same
+    (symbol, owner) replaces that owner's channel set. `channels` defaults to every
+    channel; with STREAM_SCOPED_CHANNELS off every owner gets every channel, which
+    reproduces the pre-scoping messages byte for byte. Flush via _drain_pending_queue."""
     syms = {s.upper() for s in symbols}
     if not syms:
         return
+    chans = _normalize_channels(channels)
     with _state_lock:
-        newly_active = set()
         for s in syms:
-            owners = _sub_owners.get(s)
-            if owners is None:
-                _sub_owners[s] = {owner}
-                if s not in _active:
-                    newly_active.add(s)
-            else:
-                owners.add(owner)
-        if newly_active:
-            _active.update(newly_active)
-            _pending_subscribe.update(newly_active)
-            _pending_unsubscribe.difference_update(newly_active)
+            _sub_owners.setdefault(s, {})[owner] = chans
+            _reconcile_locked(s)
 
 
 def unsubscribe_symbols(symbols: Iterable[str], owner: str = "bars") -> None:
-    """Thread-safe: drop `owner`'s interest; a symbol is queued for a protocol
-    unsubscribe only when its LAST owner releases it. Flush via _drain_pending_queue."""
+    """Thread-safe: drop `owner`'s interest. A channel is queued for a protocol
+    unsubscribe only when no remaining owner needs it, so releasing one owner never
+    narrows another owner's channels. Flush via _drain_pending_queue."""
     syms = {s.upper() for s in symbols}
     if not syms:
         return
     with _state_lock:
-        now_gone = set()
         for s in syms:
             owners = _sub_owners.get(s)
-            if not owners:
+            if not owners or owner not in owners:
                 continue
-            owners.discard(owner)
+            del owners[owner]
             if not owners:
-                _sub_owners.pop(s, None)
-                if s in _active:
-                    now_gone.add(s)
-        if now_gone:
-            _active.difference_update(now_gone)
-            _pending_unsubscribe.update(now_gone)
-            _pending_subscribe.difference_update(now_gone)
+                del _sub_owners[s]
+            _reconcile_locked(s)
+
+
+def get_channel_counts() -> dict:
+    """Read-only: how many symbols are subscribed on each channel, and each owner's
+    symbol count + channels. Lets the STREAM_SCOPED_CHANNELS flip be verified live
+    (the T count should fall to the symbols the T-owning owners hold)."""
+    with _state_lock:
+        per_channel = {ch: sum(1 for c in _active_channels.values() if ch in c)
+                       for ch in _CHANNEL_ORDER}
+        owners: dict[str, dict] = {}
+        for owned in _sub_owners.values():
+            for o, c in owned.items():
+                row = owners.setdefault(o, {"symbols": 0, "channels": set()})
+                row["symbols"] += 1
+                row["channels"] |= c
+    return {
+        "scoped": _scoped_channels_enabled(),
+        "symbols_per_channel": per_channel,
+        "owners": {o: {"symbols": r["symbols"],
+                       "channels": [ch for ch in _CHANNEL_ORDER if ch in r["channels"]]}
+                   for o, r in sorted(owners.items())},
+    }
 
 
 def add_trade_listener(fn) -> None:
@@ -868,11 +1002,19 @@ def start_stream(on_bar: OnBarCallback) -> None:
     _logger.info("[bar_stream] thread started")
 
 
+#: Owner "bars" = the BarBroadcaster's refcounted interest. Every consumer that comes
+#: in through the broadcaster (chart bars SSE, the live quote, Time & Sales via
+#: add_interest, D3's add_interest) shares it, so it keeps every channel: T drives
+#: the tick-by-tick developing bar, the last price and the T&S prints.
+BARS_OWNER = "bars"
+BARS_CHANNELS: frozenset[str] = CHANNELS_FULL
+
+
 def subscribe_symbols_one(symbol: str) -> None:
     """Single-symbol convenience used by BarBroadcaster.on_first_subscribe."""
-    subscribe_symbols([symbol])
+    subscribe_symbols([symbol], owner=BARS_OWNER, channels=BARS_CHANNELS)
 
 
 def unsubscribe_symbols_one(symbol: str) -> None:
     """Single-symbol convenience used by BarBroadcaster.on_last_unsubscribe."""
-    unsubscribe_symbols([symbol])
+    unsubscribe_symbols([symbol], owner=BARS_OWNER)
