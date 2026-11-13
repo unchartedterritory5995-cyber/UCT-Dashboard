@@ -134,30 +134,22 @@ export const warmWidgetPalette = () => { widgetPaletteModule.warm() }
 export const INSERT_UNAVAILABLE = 'Insert could not be loaded.'
 export const INSERT_LOADING = 'Loading Insert…'
 
+// The frame itself takes focus (kept small: it is on the editor's first open). Escape closes it and hands focus back
+// to the door; pressing Insert again closes it too.
 function PaletteFrame({ failed, onClose, returnFocusTo }) {
-  const statusRef = useRef(null)
-  useLayoutEffect(() => { statusRef.current?.focus() }, [])
-  const close = () => {
+  const ref = useRef(null)
+  useLayoutEffect(() => { ref.current?.focus() }, [])
+  const onKeyDown = (e) => {
+    if (e.key !== 'Escape') return
+    e.stopPropagation()
     onClose?.()
     returnFocusTo?.current?.focus?.()
   }
-  const onKeyDown = (e) => {
-    if (e.key !== 'Escape') return
-    e.preventDefault()
-    e.stopPropagation()
-    close()
-  }
   return (
-    <div className={styles.bar} role="dialog" aria-label="Insert widget" data-palette-stand-in="" onKeyDown={onKeyDown}>
-      <div className={styles.row}>
-        <p ref={statusRef} tabIndex={-1} className={styles.count} role={failed ? 'alert' : 'status'}>
-          {failed ? `${INSERT_UNAVAILABLE} ${RELOAD_TO_RECOVER}` : INSERT_LOADING}
-        </p>
-        {failed && <button type="button" className={styles.textBtn} onClick={pageReload.run}>Reload</button>}
-        <button type="button" className={styles.closeBtn} onClick={close} aria-label="Close insert panel">
-          <UIcon name="x" {...TOOLBAR_ICON} />
-        </button>
-      </div>
+    <div ref={ref} tabIndex={-1} className={styles.bar} role="dialog" aria-label="Insert widget" data-palette-stand-in=""
+      onKeyDown={onKeyDown}>
+      <span role={failed ? 'alert' : 'status'}>{failed ? `${INSERT_UNAVAILABLE} ${RELOAD_TO_RECOVER}` : INSERT_LOADING}</span>
+      {failed && <button type="button" className={styles.textBtn} onClick={pageReload.run}>Reload</button>}
     </div>
   )
 }

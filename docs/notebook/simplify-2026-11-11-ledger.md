@@ -646,3 +646,13 @@ The Journal's Today tab (the account day) and the Notebook's Daily brief (the no
 - 6b. Regression rail for the Daily brief's Restore accepting a retried library fetch (`TodayHome.restoreRetry.test.jsx`; the loader is a swappable property). Undo: delete the test.
 
 First open 2,252,797 B to 2,253,325 B (+528 B). Full record: `.superpowers/followups/B-report.md` (local).
+
+### Follow-up B, fix round 1 (2026-11-13), base `04fdfe0e7a`
+
+- 2b, redone: the generic `backFrom` engine change is reverted; a step may carry `noBack: true` (its card draws no Back; the registry rail accepts the key, only as `true`). The Reviews walkthrough's first review card (inside Draft a review's second view, both tiers) has it. Undo: drop `noBack` from `reviewDrafts.steps.js`.
+- 2c, a known consequence: a walkthrough asked for while the first run is undecided waits without a limit and without a notice; that includes a member whose notes read failed and whose first run was never recorded (a Notebook that cannot read its notes cannot run a walkthrough either). Undo: as 2c.
+- 4c, two known consequences: an import whose ROOT folders differ only by case ("Daily notes" and "Daily Notes") now folds them into one at creation; and a remote folder renamed only by case no longer moves its notes (the root lookup already matches the old one). Undo: as 4c.
+- The Daily brief's Recap card accepts a retried fetch of its library (`recapDraftsLoader`, its own acceptor), and Restore and Recap say "This action could not be loaded. Reload the page to get this back." with a Reload the member presses when their code cannot be fetched, never the browser's error text; a refused request still shows the server's own sentence. Undo: revert `ActionError` in `TodayHome.jsx`.
+- Every member-facing sentence in `note_kinds.py` (name length, duplicate, limit, built-in change and delete, in use) and two gallery sentences (`EXAMPLE_KIND_SENTENCE`, the share report's note type line) say "note type"; contract fixtures regenerated. Undo: revert the strings.
+- The Insert palette (`EditorToolSlots.jsx` `WidgetPaletteSlot`) and "Or tell Notebook what to change" (`NotebookAiPanel.jsx` `AiActionsSlot`) are held modules: warmed on idle and from their doors, drawn in the press's own commit, a focused frame on a cold press (nothing typed reaches the note), a failure sentence with a member-pressed Reload. Undo: back to `lazyChunk` + Suspense in each file.
+- Minors: `FIRST_RUN_PENDING` is two string constants (`FIRST_RUN_DUE`, `FIRST_RUN_UNDECIDED`); `builderCatalog.js` no longer relabels "Note kind" (dead since 5a); a NotebookTab comment quotes "Choose a note type.".
