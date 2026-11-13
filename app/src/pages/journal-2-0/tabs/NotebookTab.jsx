@@ -58,10 +58,6 @@ import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
 import { openJournalTools, registerJournalToolsDoor } from '../lib/journalToolsDoor'
 import { TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorVisibility'
 import { NOTEBOOK_LIST_HASH, NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
-import {
-  checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
-  joinUndo, precheckNoteBatch, runNoteBatch, undoFor,
-} from '../lib/noteBatch'
 import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags from '../hooks/useJ2NoteTags'
@@ -74,7 +70,7 @@ import { checklistEnabled, withDone } from '../components/notebook/onboarding/ge
 import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk, { importWithOneRetry } from '../lib/lazyChunk'
-import { heldModule, useHeldModule } from '../lib/heldModule'
+import { RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../lib/heldModule'
 import NotebookAiPanelSlot, { warmAiPanel } from '../components/notebook/NotebookAiPanelSlot'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
 import { widgetsWaveOn, doorLostSentence } from '../lib/notebookWidgetsFlags'
@@ -132,6 +128,34 @@ const fetchSampleStatus = (url) => fetch(url, { credentials: 'include' }).then((
   return r.json()
 })
 const REMOVE_SAMPLE_OP = 'remove-sample'
+
+// Follow-up A (first-open bytes): the bulk actions' library (lib/noteBatch.js) is fetched on idle, when a selection
+// starts and when the More menu opens, and a press awaits it while the bulk bar is already busy (startBulk). A fetch
+// that fails twice says so in the notice line with a Reload the member presses: never an automatic reload, never a
+// throw out of the list. A later press asks again.
+export const noteBatchLoader = { load: () => import('../lib/noteBatch') }
+export const BULK_UNAVAILABLE = 'This action could not be loaded.'
+let noteBatchLib = null
+let noteBatchInflight = null
+export function loadNoteBatch() {
+  if (noteBatchLib) return Promise.resolve(noteBatchLib)
+  if (!noteBatchInflight) {
+    noteBatchInflight = importWithOneRetry(() => noteBatchLoader.load()).then(
+      (m) => { noteBatchLib = m; noteBatchInflight = null; return m },
+      () => {
+        noteBatchInflight = null
+        const err = new Error(BULK_UNAVAILABLE)
+        err.chunkLost = true
+        throw err
+      },
+    )
+  }
+  return noteBatchInflight
+}
+const warmNoteBatch = () => { loadNoteBatch().catch(() => {}) }
+/** Tests only: forget the library, as on a fresh page. */
+export const __resetNoteBatchForTests = () => { noteBatchLib = null; noteBatchInflight = null }
+const chunkLostNotice = () => ({ message: `${BULK_UNAVAILABLE} ${RELOAD_TO_RECOVER}`, tone: 'error', reload: true })
 // Fix round 1 (first-open bytes): the View menu's "Saved views" group is a chunk of its own. It is asked for when the
 // browser is idle after the list's first paint, and again when a pointer or focus reaches "View", into a module-level
 // slot, so it is in hand by the time the menu opens; until then the group is simply not drawn yet. Fix round 2: drawn
@@ -1755,6 +1779,7 @@ export default function NotebookTab() {
   ) => {
     if (!ids.length || !startBulk()) return
     try {
+      const { runNoteBatch, describeBatch, describeUnchecked, undoFor, joinUndo } = await loadNoteBatch()
       const outcome = await runNoteBatch({ ids, op, args, blockedNoteIds, acceptUnchecked })
       const { message, tone } = describeBatch(outcome, { ...ctx, titleOf })
       // R1-S1: notes this device could not be ASKED about are not "still
@@ -1790,7 +1815,8 @@ export default function NotebookTab() {
       afterBulkWrite(op, changedIds)
     } catch (e) {
       console.error('[notebook] bulk action failed', e)
-      setBulkNotice({ message: e?.message || 'That did not go through. Nothing was changed.', tone: 'error' })
+      setBulkNotice(e?.chunkLost ? chunkLostNotice()
+        : { message: e?.message || 'That did not go through. Nothing was changed.', tone: 'error' })
     } finally {
       endBulk()
     }
@@ -1834,6 +1860,14 @@ export default function NotebookTab() {
     let combined = { op: 'renameTag', results: [], changed: 0, unchanged: 0, failed: 0 }
     let stoppedAt = null
     try {
+      let nb
+      try {
+        nb = await loadNoteBatch()
+      } catch {
+        setBulkNotice(chunkLostNotice())
+        return
+      }
+      const { runNoteBatch, describeBatch, describeUnchecked, describeUnsentRename } = nb
       for (let i = 0; i < ids.length; i += RENAME_TAG_CHUNK_SIZE) {
         const chunk = ids.slice(i, i + RENAME_TAG_CHUNK_SIZE)
         let outcome
@@ -1921,6 +1955,7 @@ export default function NotebookTab() {
       // not be asked about is offered a confirmed "Export anyway" (R1-S1).
       const blocked = ids.filter((id) => blockedNoteIds.has(id))
       const rest = ids.filter((id) => !blockedNoteIds.has(id))
+      const { checkUnsentWork, describeExport, describeUnchecked, exportSelectedNotes } = await loadNoteBatch()
       const checked = await checkUnsentWork(rest)
       const unsent = rest.filter((id) => checked.unsent.has(id))
       const unchecked = acceptUnchecked ? [] : rest.filter((id) => checked.unchecked.has(id))
@@ -1936,7 +1971,7 @@ export default function NotebookTab() {
         : said)
     } catch (e) {
       console.error('[notebook] bulk export failed', e)
-      setBulkNotice({ message: e?.message || 'The export could not be prepared.', tone: 'error' })
+      setBulkNotice(e?.chunkLost ? chunkLostNotice() : { message: e?.message || 'The export could not be prepared.', tone: 'error' })
     } finally {
       endBulk()
     }
@@ -2240,6 +2275,10 @@ export default function NotebookTab() {
   useEffect(() => whenIdle(preloadSavedViewsGroup), [])
   // Fix round 2: the AI section's chunk, the same way (and on pointer or focus of "AI", below).
   useEffect(() => whenIdle(warmAiPanel), [])
+  // Follow-up A: the bulk actions' library, on idle and the moment a selection starts (the bulk bar appears).
+  useEffect(() => whenIdle(warmNoteBatch), [])
+  const selecting = selection.selectedIds.length > 0
+  useEffect(() => { if (selecting) warmNoteBatch() }, [selecting])
   const [aiOpen, setAiOpen] = useState(false)
   const aiBtnRef = useRef(null)
   const aiOpenerRef = useRef(null)
@@ -2441,7 +2480,7 @@ export default function NotebookTab() {
   // opens, and only for a member whose preferences record a sample at all (onboarding switch on), never on every open.
   const sampleRecorded = notebookFlag('notebook_onboarding_enabled') === true && Boolean(readSamplePref(prefs?.[SAMPLE_PREF]))
   const [moreMenuAsked, setMoreMenuAsked] = useState(false)
-  useEffect(() => { if (moreMenu.open) setMoreMenuAsked(true) }, [moreMenu.open])
+  useEffect(() => { if (moreMenu.open) { setMoreMenuAsked(true); warmNoteBatch() } }, [moreMenu.open])
   const { data: sampleStatus, error: sampleStatusError, mutate: refreshSampleStatus } = useSWR(
     sampleRecorded && moreMenuAsked ? SAMPLE_URL : null, fetchSampleStatus, SAMPLE_STATUS_SWR)
   const sampleActiveIds = Array.isArray(sampleStatus?.activeIds) ? sampleStatus.activeIds : []
@@ -2463,6 +2502,7 @@ export default function NotebookTab() {
         setBulkNotice(null)
         return
       }
+      const { precheckNoteBatch } = await loadNoteBatch()
       const pre = await precheckNoteBatch({ ids, op: 'trash', blockedNoteIds, acceptUnchecked })
       // Final fix (C1): a held note is always named, on screen or not (sampleNotebook.js `heldTitles`).
       const hold = m.describeSampleHold(pre, { titleOf: await m.heldTitles(pre, titleOf) })
@@ -2482,6 +2522,7 @@ export default function NotebookTab() {
       setBulkNotice({ message: m.removedMessage(out), tone: 'info' })
     } catch (e) {
       console.error('[notebook] remove sample notebook failed', e)
+      if (e?.chunkLost) { setBulkNotice(chunkLostNotice()); return }
       setBulkNotice({ message: m?.SAMPLE_COPY?.removeFailed || "We couldn't remove the sample notebook. Try again in a moment.", tone: 'error' })
     } finally {
       removingSampleRef.current = false
@@ -2785,6 +2826,10 @@ export default function NotebookTab() {
                     Cancel
                   </button>
                 </>
+              )}
+              {/* Follow-up A: the bulk actions' library could not be fetched twice (likely a stale tab after a deploy). */}
+              {bulkNotice.reload && (
+                <button type="button" className={styles.bulkNoticeBtn} onClick={pageReload.run}>Reload</button>
               )}
               <button
                 type="button"
