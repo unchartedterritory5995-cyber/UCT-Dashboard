@@ -45,6 +45,7 @@ const EFFECTS = {
   },
   board(p, host) {
     const out = []
+    if (!Array.isArray(p.after?.board)) return out            // not a board state (a plan builder that could not build one)
     const info = p.snap?.charts || new Map()
     const all = liveCharts(host)
     const chartOf = (id) => { const c = info.get?.(String(id)); const ref = c?.ref ?? String(id); return { ref, symbol: up(c?.symbol), position: all.find(x => x.ref === ref)?.position || null } }
@@ -132,9 +133,12 @@ export function keptCharts(words, host) {
   return { refs, symbols, all }
 }
 
-const ADDITIVE = /\b(?:new|another|more|additional|extra|as well|too|also|in addition|besides?|alongside|on top of (?:those|these|them|my))\b/i
+const ADDITIVE = /\b(?:new|another|more|additional|extra|as well|too|also|in addition|besides?|alongside|on top of (?:those|these|them|my)|next to (?:them|those|these|my (?:charts?|other)))\b/i
+// ⛔ ADD NEVER REPLACES (hotfix 2026-11-13, AUDIT): an ADD verb asks for more charts — it never changes one already there,
+// whatever position the words give (only replace words — replace / instead / swap out / change … to — permit that)
+const ADD_VERB = /\b(?:add|adds|added|adding|include|includes|included|including)\b/i
 const ADD_REST = /\badd(?:ing)?\b[^.;!?]*\b(?:other|others|remaining|rest)\b|\b(?:as|for|in|into) the (?:other|remaining|empty|new)\b/i
-const REPLACE = /\b(?:replace|replacing|replaced|instead|swap(?:ping)? out|get rid of|switch (?:out|over)|change (?:the |my |that |this |both |all )?(?:\w+ )?(?:chart|charts|one|ones|symbol|ticker)s?\b(?!\s+layout))/i
+const REPLACE = /\b(?:replace|replacing|replaced|instead|swap(?:ping)? out|get rid of|switch (?:out|over)|change (?:the |my |that |this |both |all )?(?:\w+ )?(?:chart|charts|one|ones|symbol|ticker)s?\b(?!\s+layout)|(?:change|switch|turn|flip) (?:the |my |that |this )?(?:\w+ )?(?:chart |one )?(?:to|into) \$?[A-Za-z]{1,5}\b)/i
 const REMOVAL = /\b(?:remove|removing|delete|deleting|close|closing|get rid|replace|replacing|clear|clean(?:ing)? up|tidy|drop|dropping|only|just|fewer|less|reduce|down to|instead|swap(?:ping)? out|single|one chart)\b/i
 const SHAPE = /\b([1-4])\s*(?:x|×|by|-by-|\s+by\s+)\s*([1-4])\b/i
 const QUAD = /\bquad\b/i
@@ -145,7 +149,9 @@ const named = (words, e, host) => {
   for (const pm of String(words || '').matchAll(POS)) if (matchPosition([{ position: e.position }], normPos(pm[1])).length) return true
   return false
 }
-export const isAdditive = (words) => (ADDITIVE.test(words) || ADD_REST.test(words)) && !REPLACE.test(words)
+export const isAdditive = (words) => (ADDITIVE.test(words) || ADD_REST.test(words) || ADD_VERB.test(words)) && !REPLACE.test(words)
+// "just add …" / "only add …" limit what is ADDED — never a permission to remove
+const removalWords = (w) => String(w || '').replace(/\b(?:just|only)\s+(?=(?:add|adds|added|adding|put|include|includes|included|including)\b)/gi, ' ')
 export function requestedPanels(words) {
   const t = String(words || '').replace(/(\d)\s*-\s*by\s*-\s*(\d)/gi, '$1x$2')
   const m = SHAPE.exec(t)
@@ -175,12 +181,13 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
     }
     // ADDITIVE: exempt only a chart the words address by its position
     if (isAdditive(w)) {
-      const bad = effects.filter(e => !named(w, e, host))
+      // a chart addressed by position is exempt for "too / as well" — never for an ADD verb (add = new charts)
+      const bad = effects.filter(e => ADD_VERB.test(w) || !named(w, e, host))
       if (bad.length) return `I didn’t change anything: you asked for more charts, but this would have changed the ones you have (${listOf([...new Set(bad.map(said))])}). I only replace a chart when you say which one — ask to add them as new charts, or say which chart to replace.`
     }
     // REMOVAL: never at once without the words for it
     const removed = effects.filter(e => e.type === 'remove')
-    if (removed.length && mode === 'apply' && !REMOVAL.test(w)) {
+    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w))) {
       return `I didn’t change anything: this would have removed ${listOf(removed.map(nameOf))}, and you didn’t ask to remove a chart. Say which chart to remove or replace.`
     }
   }

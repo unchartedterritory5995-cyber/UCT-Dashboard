@@ -1983,6 +1983,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // live train 4: the member's pick — replace the charts (a card: it removes charts) or add these beside them
       const ops = ref === 'grid:replace' ? p.gridChoice.replace : ref === 'grid:add' ? p.gridChoice.add : null
       if (!ops) return
+      // ⛔ CHART RAIL: the member's pick is part of this request's words ("Replace my 2 charts with these 4" permits the replace)
+      railWordsRef.current = [railWordsRef.current, label].filter(Boolean).join(' . ')
       lastActionsRef.current = ops.map(o => o.action)
       if (p.gridThen?.length) {
         // review t4 M5: the grid, then the per-chart changes — one request (runCompound; a card holds the rest until approved)

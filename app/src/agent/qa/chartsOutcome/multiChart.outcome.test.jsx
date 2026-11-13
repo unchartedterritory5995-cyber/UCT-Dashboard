@@ -712,3 +712,42 @@ describe('CHART RAIL × Multi Chart — multiChart.set under the rail', () => {
     expect(raw()).toBe(raw0)
   }, 30000)
 })
+
+// ⛔ ADD NEVER REPLACES × Multi Chart (hotfix 2026-11-13): a model plan that calls multiChart.set ITSELF with replacing args — a
+// smaller grid, the next group, a saved grid — under ADDITIVE wording is refused by the rail; the grid byte-identical
+describe('ADD NEVER REPLACES × Multi Chart — direct multiChart.set plans under additive words are refused', () => {
+  it('the instant path on "add AAPL and MSFT to the grid": the filled cells keep their tickers', async () => {
+    const { undo } = mount()
+    const box = screen.getByLabelText('Message UCT Agent')
+    await idle(); fireEvent.change(box, { target: { value: 'add AAPL and MSFT to the grid' } }); fireEvent.keyDown(box, { key: 'Enter' }); await idle()
+    expect(syms().slice(0, 3)).toEqual(['NVDA', 'AMD', 'TSLA'])
+    void undo
+  }, 30000)
+  const SAYS = ['I would like AAPL and MSFT added to the grid', 'just add AAPL and MSFT', 'include AAPL and MSFT as well']
+  for (const said of SAYS) {
+    it(`layout 1×2 (drops TSLA) · "${said}"`, async () => {
+      const { say } = mount()
+      const raw0 = raw(); const p0 = persisted()
+      await say(said, gridOp('layout', { rows: 1, cols: 2 }))
+      expect(raw()).toBe(raw0); expect(persisted()).toBe(p0)
+      expect(screen.getByTestId('agent-transcript').textContent).toMatch(/you asked for more charts/)
+    }, 30000)
+    it(`next group (refills every cell) · "${said}"`, async () => {
+      H.prefs = { multichart_state: JSON.stringify(GRID(groupState({ id: 'space', name: 'Space' }))) }
+      const { say } = mount()
+      const raw0 = raw()
+      await say(said, gridOp('stepGroup', { direction: 'next' }))
+      expect(raw()).toBe(raw0)
+      expect(screen.getByTestId('agent-transcript').textContent).toMatch(/you asked for more charts/)
+    }, 30000)
+    it(`a saved grid (replaces every cell) · "${said}"`, async () => {
+      H.layouts = { global: [], mine: [{ id: 7, name: 'Momentum Nine', scope: 'user', layout: tpl('3x3', ['NVDA', 'AMD', 'TSLA', 'META', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'NFLX']) }] }
+      const { say } = mount()
+      await layoutsLoaded()
+      const raw0 = raw()
+      await say(said, gridOp('applySaved', { name: 'Momentum Nine' }))
+      expect(raw()).toBe(raw0)
+      expect(screen.getByTestId('agent-transcript').textContent).toMatch(/you asked for more charts/)
+    }, 30000)
+  }
+})

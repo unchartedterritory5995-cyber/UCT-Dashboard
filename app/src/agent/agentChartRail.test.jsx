@@ -197,6 +197,44 @@ describe('PENDING TASK lifecycle · answer, ask again, Cancel, TTL', () => {
   }, 30000)
 })
 
+describe('PENDING TASK · the ask-again prompt is deterministic UI: no model call, no write — typed yes / no / cancel', () => {
+  const held = async () => {
+    const r = mount(...SPY_NVDA())
+    envelopes.push(clarify('Should the two new charts be daily or weekly?'))
+    await r.say(ASK)
+    const raw0 = raw(r.board)
+    const turns0 = turnBodies().length
+    await r.say('Add AAPL and MSFT')
+    // the prompt: no model call, nothing written
+    expect(turnBodies()).toHaveLength(turns0)
+    expect(raw(r.board)).toBe(raw0)
+    expect(transcript()).toMatch(/Is that your answer to my question about/)
+    return { ...r, raw0, turns0 }
+  }
+  it('typed "yes": the held reply goes to the model as the answer (one call), the pending task continues', async () => {
+    const { board, h, say, turns0 } = await held()
+    envelopes.push(grid(['SPY', 'NVDA', 'AAPL', 'MSFT']))
+    await say('yes')
+    expect(turnBodies()).toHaveLength(turns0 + 1)
+    expect(turnBodies().at(-1).message).toBe('Add AAPL and MSFT')
+    expect(syms(board, h)).toEqual(['SPY', 'NVDA', 'AAPL', 'MSFT'])
+  }, 30000)
+  it('typed "cancel": nothing runs, no model call, the board byte-identical', async () => {
+    const { board, say, raw0, turns0 } = await held()
+    await say('cancel')
+    expect(turnBodies()).toHaveLength(turns0)
+    expect(raw(board)).toBe(raw0)
+  }, 30000)
+  it('the original constraint holds on the continued turn: "yes" + a model plan that drops a KEPT chart → refused', async () => {
+    const { board, h, say, raw0 } = await held()
+    envelopes.push(grid(['AAPL', 'MSFT']))
+    await say('yes')
+    expect(raw(board)).toBe(raw0)
+    expect(syms(board, h)).toEqual(['SPY', 'NVDA'])
+    expect(transcript()).toMatch(/you asked to keep SPY and NVDA/)
+  }, 30000)
+})
+
 describe('units · replyRelation / keptCharts / isAdditive / requestedPanels', () => {
   const host = makeBoard(...SPY_NVDA()).host
   it('replyRelation', () => {
@@ -220,7 +258,9 @@ describe('units · replyRelation / keptCharts / isAdditive / requestedPanels', (
   })
   it('isAdditive / requestedPanels', () => {
     expect(isAdditive(REPLY)).toBe(true)
-    expect(isAdditive('add a 2x2 of SPY QQQ IWM DIA')).toBe(false)          // GRID-REUSE (owner ruling): a count of tickers is THE grid
+    expect(isAdditive('add a 2x2 of SPY QQQ IWM DIA')).toBe(true)           // hotfix 11-13: an ADD never re-symbols (the instant path asks replace / add)
+    expect(isAdditive('just add AAPL and MSFT')).toBe(true)
+    expect(isAdditive('replace my charts with AAPL and MSFT')).toBe(false)
     expect(isAdditive('replace the others with two more charts')).toBe(false)
     expect(requestedPanels(ASK)).toBe(4)
     expect(requestedPanels('3x3 please')).toBe(9)
