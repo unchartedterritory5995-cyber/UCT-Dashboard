@@ -7559,6 +7559,8 @@ export default function StockChart({
   // `known` = the patterns response has answered, so a gated layer it does not carry is NOT released (not "not loaded yet")
   uctIntelAgentRef.current = {
     available: uctIntelAvailable, known: !!patternsFetch && !patternsLoading && !patternsError, availability: uctIntelAvailability,
+    // a patterns request IN FLIGHT right now: only then may the Agent say "still loading" (AUDIT #1172)
+    loading: !!patternsFetch && !!patternsLoading,
   }
   // The confirmed-setup LIST is the Technical tab's, released with it; the setup-drawing lines can light the same
   // toggle on their own, and must not pull a list that is not released to this viewer.

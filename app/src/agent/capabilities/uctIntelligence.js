@@ -49,11 +49,14 @@ const isAre = (k) => (plural(k) ? 'are' : 'is')
 const itThem = (k) => (plural(k) ? 'them' : 'it')
 const notReleased = (k) => `${UCT_LAYERS[k]} ${plural(k) ? 'aren’t' : 'isn’t'} released to your account on this chart, so the UCT Intelligence panel has no switch for ${itThem(k)} — I can’t turn ${itThem(k)} on.`
 const SR_EMPTY = 'Support & resistance has no clear levels on this chart (the UCT Intelligence panel shows that switch greyed out), so there is nothing to turn on.'
-// gates not known yet: on a chart WITH the indicator its data is loading (say so, nothing else); WITHOUT it nothing loads until it is
-// added, so the honest next step is to add it first
-const unknownGate = (k, added) => (added
+// gates not known yet (AUDIT #1172): "still loading" ONLY while StockChart reports the patterns request in flight (`loading`); a
+// chart WITH the indicator and no request in flight (it never fetched, or the request ended without the gates) says so and how to
+// get them — the Patterns button, whose title reads "Patterns: OFF (click to show)"; WITHOUT the indicator, add it first
+const unknownGate = (k, added, loading) => (added && loading
   ? `I can’t tell yet whether ${UCT_LAYERS[k]} ${isAre(k)} available on this chart — UCT Intelligence’s pattern data is still loading. Try again in a moment.`
-  : `I can’t tell whether ${UCT_LAYERS[k]} ${isAre(k)} available on this chart until UCT Intelligence is on it (its pattern data loads once it is added). Add UCT Intelligence first, then ask again.`)
+  : added
+    ? `I can’t tell yet whether ${UCT_LAYERS[k]} ${isAre(k)} available on this chart — it has no pattern data for UCT Intelligence. Turn on Auto patterns (the chart’s Patterns button) so the chart fetches it, then ask again.`
+    : `I can’t tell whether ${UCT_LAYERS[k]} ${isAre(k)} available on this chart until UCT Intelligence is on it (its pattern data loads once it is added). Add UCT Intelligence first, then ask again.`)
 // ⛔ the panel's ADMIN section (UctIntelligencePanel `admin`: learned lines, all tiers, key levels) is never a layer of this action —
 // refused here by key, not only left out of the manifest's enum
 export const ADMIN_LAYERS = Object.freeze(['admin-learned', 'admin-all', 'admin-levels', 'learned', 'learnedLines', 'showLearned', 'allTiers', 'showAll', 'all', 'keyLevels', 'levels', 'showLevels', 'showPatternLevels'])
@@ -86,7 +89,7 @@ function patternsAmbiguous({ lower, host }) {
 export function layerOnRefusal(uci, layer, added = false) {
   if (!GATED.includes(layer)) return null
   const a = uci?.availability || {}
-  if (a[layer] !== true) return uci?.known ? notReleased(layer) : unknownGate(layer, added)
+  if (a[layer] !== true) return uci?.known ? notReleased(layer) : unknownGate(layer, added, uci?.loading === true)
   if (layer === 'supportResistance' && a.supportResistanceEmpty === true) return SR_EMPTY
   return null
 }

@@ -343,13 +343,23 @@ describe('U9 · a bare "patterns" toggle on a chart with UCT Intelligence asks w
 
 // ── AUDIT #1172 ruling 2: gates not known yet — honest wording either way, and a compound refused whole
 describe('U10 · unknown gates: "still loading" on a chart WITH the indicator, "add it first" on one without', () => {
-  const UNKNOWN = { available: true, known: false, availability: { setups: false } }
-  it('added, gates not loaded: says it can\'t tell yet (loading), never "add it first"; nothing written', async () => {
-    const { say, board: b } = mountOn('c0', { c0: { showPatterns: true, uctIntelligence: { added: true } } }, { c0: UNKNOWN })
+  const UNKNOWN = { available: true, known: false, loading: false, availability: { setups: false } }
+  it('added, the patterns request IN FLIGHT: "can\'t tell yet … still loading", never "add it first"; nothing written', async () => {
+    const { say, board: b } = mountOn('c0', { c0: { showPatterns: true, uctIntelligence: { added: true } } }, { c0: { ...UNKNOWN, loading: true } })
     const was = JSON.stringify(b.state.widgets)
     p.st.envelopes.push(plan(['c0', op('on', 'supportResistance')]))
     const out = await say('turn on support and resistance')
     expect(out).toMatch(/can’t tell yet whether Support & resistance is available on this chart — UCT Intelligence’s pattern data is still loading/)
+    expect(out).not.toMatch(/Add UCT Intelligence first/)
+    expect(JSON.stringify(b.state.widgets)).toBe(was)
+  }, 40000)
+  it('added, NO request in flight (never fetched, or it ended without the gates): "can\'t tell yet" WITHOUT "loading", and how to get them', async () => {
+    const { say, board: b } = mountOn('c0', { c0: { showPatterns: false, uctIntelligence: { added: true } } }, { c0: UNKNOWN })
+    const was = JSON.stringify(b.state.widgets)
+    p.st.envelopes.push(plan(['c0', op('on', 'supportResistance')]))
+    const out = await say('turn on support and resistance')
+    expect(out).toMatch(/can’t tell yet whether Support & resistance is available on this chart — it has no pattern data for UCT Intelligence\. Turn on Auto patterns \(the chart’s Patterns button\)/)
+    expect(out).not.toMatch(/loading/i)
     expect(out).not.toMatch(/Add UCT Intelligence first/)
     expect(JSON.stringify(b.state.widgets)).toBe(was)
   }, 40000)
