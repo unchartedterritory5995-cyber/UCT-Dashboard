@@ -68,28 +68,62 @@ function rowObjects(rel) {
 }
 
 /** The hand-written menu rows: role="menuitem(radio)" buttons, the note More panel's buttons, NoteMenuActions' rows. */
+const rowOf = (rel, n) => ({
+  where: `${rel}:${n.loc.start.line}`, label: textOf(n) || attrLit(n, 'aria-label') || '(button)',
+  row: attr(n, 'data-row') ? (attrLit(n, 'data-row') ?? '(expression)') : undefined,
+})
+
+/** Fix round 1 (M6): the note More panel's rows, found STRUCTURALLY: every button rendered inside `<NoteMoreMenu>` in
+ *  the editor, every button of a function handed to it as a prop (whatever its name), every button of a component
+ *  rendered inside it (followed to its file through the editor's imports), and NoteMenuActions (the `noteMenu` render
+ *  prop NotebookTab passes). A row defined in a new helper is found the same way and fails by name without an id.
+ *  Not rows: a form's own controls inside a row (FORM_CONTROLS) and a chunk-failure "Reload". */
+const NOT_ROWS = new Set([...FORM_CONTROLS, 'Reload'])
+function morePanelRows() {
+  const rel = 'components/notebook/NoteEditorPage.jsx'
+  const ast = parse(rel)
+  const imports = new Map()
+  const decls = new Map()
+  let panel = null
+  visit(ast, (n) => {
+    if (n.type === 'ImportDeclaration') for (const s of n.specifiers) imports.set(s.local.name, n.source.value)
+    if (n.type === 'VariableDeclarator' && n.id?.type === 'Identifier') decls.set(n.id.name, n)
+    if (n.type === 'JSXElement' && n.openingElement.name.name === 'NoteMoreMenu') panel = n
+  })
+  if (!panel) return []
+  const out = []
+  const files = new Set()
+  const collect = (root, file) => visit(root, (n) => {
+    if (isButton(n) && !NOT_ROWS.has(textOf(n))) out.push(rowOf(file, n))
+    const name = n.type === 'JSXElement' && n.openingElement.name.name
+    if (file === rel && name && /^[A-Z]/.test(name) && name !== 'UIcon' && name !== 'NoteMoreMenu' && imports.get(name)?.startsWith('./')) {
+      files.add(`components/notebook/${imports.get(name).slice(2).replace(/\.jsx?$/, '')}.jsx`)
+    }
+  })
+  collect(panel, rel)
+  for (const a of panel.openingElement.attributes) {
+    const id = a.value?.type === 'JSXExpressionContainer' && a.value.expression.type === 'Identifier' && a.value.expression.name
+    if (id && decls.has(id)) collect(decls.get(id), rel)
+  }
+  files.add('components/notebook/NoteMenuActions.jsx')
+  for (const f of files) collect(parse(f), f)
+  return out
+}
+
 function rowButtons(rel) {
   const out = []
-  const ast = parse(rel)
-  const moreScopes = new Set(['moreLead', 'phoneTools', 'journalToolsItem'])
-  visit(ast, (n, parents) => {
+  visit(parse(rel), (n) => {
     if (!isButton(n)) return
     const role = attrLit(n, 'role')
-    const inMorePanel = parents.some((p) => (p.type === 'JSXElement' && p.openingElement.name.name === 'NoteMoreMenu')
-      || (p.type === 'VariableDeclarator' && moreScopes.has(p.id?.name)))
-    const isRow = role === 'menuitem' || role === 'menuitemradio' || Boolean(attr(n, 'data-row'))
-      || (rel.endsWith('NoteEditorPage.jsx') && inMorePanel)
-      || (rel.endsWith('NoteMenuActions.jsx') && !FORM_CONTROLS.has(textOf(n)))
-      || (rel.endsWith('NoteExportControls.jsx') && attrLit(n, 'aria-haspopup') === 'menu')
-    if (!isRow) return
-    out.push({ where: `${rel}:${n.loc.start.line}`, label: textOf(n) || attrLit(n, 'aria-label') || '(button)', row: attr(n, 'data-row') ? (attrLit(n, 'data-row') ?? '(expression)') : undefined })
+    if (role === 'menuitem' || role === 'menuitemradio' || attr(n, 'data-row')) out.push(rowOf(rel, n))
   })
   return out
 }
 
 describe('a menu row with no usage id fails by name', () => {
   const objects = ROW_OBJECT_FILES.flatMap(rowObjects)
-  const buttons = ROW_JSX_FILES.flatMap(rowButtons)
+  // De-duplicated by place: a row both role-marked and inside the panel is one row.
+  const buttons = [...new Map([...ROW_JSX_FILES.flatMap(rowButtons), ...morePanelRows()].map((b) => [b.where, b])).values()]
 
   it('NON-VACUITY: the walk found the menus it reads', () => {
     expect(objects.length).toBeGreaterThan(30)
