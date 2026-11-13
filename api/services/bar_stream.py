@@ -28,6 +28,7 @@ import logging
 import os
 import threading
 import time
+from bisect import bisect_left
 from typing import Callable, Iterable, Optional
 
 _logger = logging.getLogger(__name__)
@@ -86,6 +87,42 @@ _stall = {"count": 0, "max_s": 0.0, "last_s": 0.0, "last_at": None, "dumps": 0}
 _liveness = {"pongs": 0, "dead_closes": 0, "last_pong_rtt_ms": None}
 #: Minute-bar delivery lag (receipt time minus the minute's end), current minute window.
 _am_lag = {"window_start": 0.0, "max_ms": 0, "prev_window_max_ms": 0, "worst_ms": 0}
+
+# ── Ingest telemetry (2026-11-13, measurement-only) ─────────────────────────────
+# Answers ONE question in production: is live-price lag a LOCAL consumer backlog
+# (this loop starved of the GIL, frames piling up in kernel/upstream buffers once
+# websockets' max_queue pauses reads) or an UPSTREAM delay? Per wall-clock minute:
+#   trade_lag_ms  now - T.t, taken when the event is processed
+#   recv_lag_ms   frame-dequeue time - T.t (the moment `async for` handed us the frame)
+#   idle_s/busy_s time awaiting the next frame vs processing frames; busy_ratio -> 1
+#                 means the consumer never waits, i.e. it is the bottleneck
+#   busy_cpu_s    time.thread_time() over the busy slices; busy_cpu_over_wall far
+#                 below 1 means the thread was runnable but waiting for the GIL
+#   recv_queue    library receive-queue depth at dequeue (max) + frames dequeued
+#                 while the library had paused socket reads
+#   events        per-minute arrival counts per ev type (feed.msgs_per_sec is since boot)
+# Hot-path cost: plain int/float updates + one bisect per T event; no locks, no logs.
+# Lag percentiles come from fixed buckets: p50/p90 are the bucket's upper edge (ms),
+# capped at the observed max, so they are "<=" bounds, never sorted samples.
+_LAG_EDGES_MS = (100, 250, 500, 1000, 2000, 3000, 5000, 7500, 10000, 15000, 20000,
+                 30000, 45000, 60000, 90000, 120000, 180000, 300000)
+
+
+def _new_hist() -> dict:
+    return {"n": 0, "max": None, "b": [0] * (len(_LAG_EDGES_MS) + 1)}
+
+
+def _new_ingest_window(minute) -> dict:
+    return {"minute": minute, "frames": 0, "events": {"A": 0, "AM": 0, "T": 0},
+            "trade": _new_hist(), "recv": _new_hist(),
+            "idle_s": 0.0, "busy_s": 0.0, "busy_cpu_s": 0.0, "await_cpu_s": 0.0,
+            "q_max": None, "paused_frames": 0}
+
+
+_ing_cur = _new_ingest_window(None)
+_ing_prev: Optional[dict] = None
+_ing_recv_ms = 0.0          # wall ms at which the frame being processed was dequeued
+_ing_queue_source = "unavailable"
 
 OnBarCallback = Callable[[str, dict, str], None]  # (symbol, payload_dict, kind) -> None
 # kind is "AM" (authoritative 1-min close), "A" (per-second aggregate), or "T" (per-trade tick)
@@ -326,7 +363,7 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                 drain_task = asyncio.create_task(_drain_pending_queue(ws))
                 live_task = asyncio.create_task(_liveness_watch(ws))
                 try:
-                    async for raw_msg in ws:
+                    async for raw_msg in _timed_frames(ws):
                         # Measurement: frame size + count (cheap; monitoring only).
                         try:
                             _feed_bytes += len(raw_msg)
@@ -344,6 +381,7 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                                 _ec = ev.get("ev")
                                 if _ec in _feed_counts:
                                     _feed_counts[_ec] += 1
+                                    _note_ingest_event(_ec, ev)
                             parsed = parse_aggregate_event(ev)
                             if parsed is None:
                                 # Status events: routine per-subscription "success"
@@ -413,6 +451,140 @@ def _note_am_lag(end_ms) -> None:
         _am_lag["max_ms"] = lag
         if lag > _am_lag["worst_ms"]:
             _am_lag["worst_ms"] = lag
+
+
+def _recv_queue_of(ws):
+    """(queue, assembler, source) for the library's receive queue, or Nones.
+    Private attributes, so every access is guarded; absent -> depth not reported."""
+    try:  # websockets >= 14 asyncio implementation (prod runs 16.x)
+        asm = ws.recv_messages
+        q = asm.frames
+        len(q)
+        return q, asm, "websockets.recv_messages.frames"
+    except Exception:  # noqa: BLE001
+        pass
+    try:  # legacy implementation (websockets < 14)
+        q = ws.messages
+        len(q)
+        return q, None, "websockets.legacy.messages"
+    except Exception:  # noqa: BLE001
+        return None, None, "unavailable"
+
+
+async def _timed_frames(ws):
+    """Yield ws's frames unchanged while timing the consumer (measurement only).
+    Time between asking for a frame and getting it = idle; time from handing a frame
+    to the loop body until it asks for the next = busy (the body never awaits)."""
+    global _ing_cur, _ing_prev, _ing_recv_ms, _ing_queue_source
+    q, asm, _ing_queue_source = _recv_queue_of(ws)
+    mono, cpu, wall = time.monotonic, time.thread_time, time.time
+    t_wait, c_wait = mono(), cpu()
+    async for raw in ws:
+        t_got, c_got, now = mono(), cpu(), wall()
+        w = _ing_cur
+        m = int(now // 60)
+        if m != w["minute"]:
+            _ing_prev, w = w, _new_ingest_window(m)
+            _ing_cur = w
+        _ing_recv_ms = now * 1000.0
+        w["frames"] += 1
+        w["idle_s"] += t_got - t_wait
+        w["await_cpu_s"] += c_got - c_wait
+        if q is not None:
+            try:
+                d = len(q)
+                if w["q_max"] is None or d > w["q_max"]:
+                    w["q_max"] = d
+                if asm is not None and asm.paused:
+                    w["paused_frames"] += 1
+            except Exception:  # noqa: BLE001
+                q = None
+        yield raw
+        t_wait, c_wait = mono(), cpu()
+        w["busy_s"] += t_wait - t_got
+        w["busy_cpu_s"] += c_wait - c_got
+
+
+def _hist_add(h: dict, v: float) -> None:
+    h["b"][bisect_left(_LAG_EDGES_MS, v)] += 1
+    h["n"] += 1
+    if h["max"] is None or v > h["max"]:
+        h["max"] = v
+
+
+def _note_ingest_event(ec, ev, now_ms: Optional[float] = None) -> None:
+    """Per-minute arrival count by ev type, plus trade/receive lag for T events.
+    A T event without a usable numeric `t` is counted but never enters the lag stats."""
+    w = _ing_cur
+    w["events"][ec] += 1
+    if ec != "T":
+        return
+    try:
+        t = float(ev["t"])
+        if t != t:  # NaN
+            return
+        if now_ms is None:
+            now_ms = time.time() * 1000.0
+        _hist_add(w["trade"], now_ms - t)
+        _hist_add(w["recv"], _ing_recv_ms - t)
+    except Exception:  # noqa: BLE001 — missing/garbage t is ignored, never raises
+        return
+
+
+def _hist_summary(h: dict) -> dict:
+    n = h["n"]
+    if not n:
+        return {"n": 0, "max": None, "p50": None, "p90": None}
+    b, mx = list(h["b"]), h["max"]
+
+    def pct(p):
+        need, acc = max(1, -(-n * p // 100)), 0
+        for i, c in enumerate(b):
+            acc += c
+            if acc >= need:
+                return round(min(_LAG_EDGES_MS[i], mx)) if i < len(_LAG_EDGES_MS) else round(mx)
+        return round(mx)
+    return {"n": n, "max": round(mx), "p50": pct(50), "p90": pct(90)}
+
+
+def _ingest_window_summary(w: Optional[dict]) -> dict:
+    if w is None:
+        w = _new_ingest_window(None)
+    idle, busy, cpu = w["idle_s"], w["busy_s"], w["busy_cpu_s"]
+    return {
+        "frames": w["frames"],
+        "events": dict(w["events"]),
+        "trade_lag_ms": _hist_summary(w["trade"]),
+        "recv_lag_ms": _hist_summary(w["recv"]),
+        "idle_s": round(idle, 3),
+        "busy_s": round(busy, 3),
+        "busy_ratio": round(busy / (idle + busy), 3) if idle + busy > 0 else None,
+        "busy_cpu_s": round(cpu, 3),
+        "busy_cpu_over_wall": round(cpu / busy, 3) if busy > 0 else None,
+        "await_cpu_s": round(w["await_cpu_s"], 3),
+        "recv_queue_max": w["q_max"],
+        "frames_read_paused": w["paused_frames"],
+    }
+
+
+def _ingest_status(now: Optional[float] = None) -> dict:
+    """this_minute / last_minute views keyed on the wall-clock minute. Read-only: a
+    minute with no frames reads as empty instead of showing a stale window."""
+    m = int((time.time() if now is None else now) // 60)
+    cur, prev = _ing_cur, _ing_prev
+    if cur["minute"] == m:
+        this, last = cur, (prev if prev is not None and prev["minute"] == m - 1 else None)
+    elif cur["minute"] == m - 1:
+        this, last = None, cur
+    else:
+        this = last = None
+    return {
+        "minute_start": m * 60,
+        "recv_queue_source": _ing_queue_source,
+        "lag_bucket_edges_ms": list(_LAG_EDGES_MS),
+        "this_minute": _ingest_window_summary(this),
+        "last_minute": _ingest_window_summary(last),
+    }
 
 
 async def _liveness_watch(ws) -> None:
@@ -649,6 +821,7 @@ def get_status() -> dict:
         "am_lag_ms": {"this_minute_max": _am_lag["max_ms"],
                       "last_minute_max": _am_lag["prev_window_max_ms"],
                       "worst": _am_lag["worst_ms"]},
+        "ingest": _ingest_status(),
     }
 
 
