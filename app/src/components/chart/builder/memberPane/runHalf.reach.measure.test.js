@@ -96,8 +96,12 @@ function row(name, source, mode) {
     if (!installed.length) r.installErrors = errors.slice(0, 3)
     else {
       try {
-        const cols = registry.computeFor(installed[0], syntheticBars(), undefined,
+        const bars = syntheticBars()
+        const t0 = performance.now()
+        const cols = registry.computeFor(installed[0], bars, undefined,
           { tf: 'D', symbol: { ticker: 'SPY', exchange: 'AMEX' }, newestBarIsForming: false, historyFromListing: true })
+        // the bind with its run (synchronous here: no worker in a test), cold
+        r.boundMs = Math.round(performance.now() - t0)
         const h = runHalfOf(cols)
         r.bound = h ? h.state : null
         r.boundCode = h ? h.code : null
@@ -149,6 +153,12 @@ describe.skipIf(!RUN)('engine 53 — the run half reach (opt-in)', () => {
       if (r.declined) t.declined[r.declined] = (t.declined[r.declined] || 0) + 1
       if (r.bound) t.bound[r.bound] = (t.bound[r.bound] || 0) + 1
       if (r.boundCode) t.boundCodes[r.boundCode] = (t.boundCodes[r.boundCode] || 0) + 1
+      if (Number.isFinite(r.boundMs)) (t.boundMsAll || (t.boundMsAll = [])).push(r.boundMs)
+    }
+    for (const t of Object.values(tally)) {
+      const ms = (t.boundMsAll || []).sort((a, b) => a - b)
+      delete t.boundMsAll
+      if (ms.length) t.boundMs = { n: ms.length, p50: ms[Math.floor((ms.length - 1) / 2)], p95: ms[Math.ceil(0.95 * ms.length) - 1], max: ms[ms.length - 1] }
     }
     fs.mkdirSync(path.dirname(OUT), { recursive: true })
     fs.writeFileSync(OUT, JSON.stringify({ generatedBy: 'runHalf.reach.measure.test.js', realAllowlist: REAL_HASHES, tally, rows }, null, 1) + '\n')
