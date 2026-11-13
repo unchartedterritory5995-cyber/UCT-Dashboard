@@ -276,6 +276,57 @@ describe('the mentions fetch is gated by cs.markers.desk', () => {
   })
 })
 
+/* ── 2b. The rows ahead ───────────────────────────────────────────────────── */
+
+// A chart's three per-symbol marker reads (events, news, desk mentions) are asked for ahead
+// for the rows a member is about to reach (lib/symbolResourceWarm.js), under the SAME key
+// function the chart's own request uses. Here a real chart is mounted and the warmer is called
+// the way the bars prefetch calls it; what is asserted is the URL that reaches the network.
+describe('the rows ahead get this chart\'s marker reads asked for', () => {
+  const allUrls = () => fetchSpy.mock.calls.map(c => String(c[0]))
+  const NEAR = { priority: true }
+
+  it('each category that is ON is asked for the next row, under the chart\'s own key', async () => {
+    const { __resetSymbolResourceWarm } = await import('../lib/symbolResourceWarm')
+    __resetSymbolResourceWarm({ painted: true })
+    render(<StockChart sym="AHEADON" tf="D" barsOverride={FIXTURE_BARS}
+      settingsOverride={{ markers: { desk: true, earnings: true, news: true } }} />)
+    await waitFor(() => expect(mentionUrls().length).toBeGreaterThan(0), { timeout: 3000 })
+    // the chart's own three requests, for its own symbol: the keys the next row must match
+    expect(allUrls()).toContain('/api/education/tickers/AHEADON/mentions')
+    await waitFor(() => expect(allUrls()).toContain('/api/chart/markers/AHEADON?days=36500'))
+    expect(allUrls()).toContain('/api/chart-news/AHEADON?days=60')
+
+    // ⭐ THROUGH THE REAL REGISTRY: the chart module armed the warmer when it loaded, so a bars
+    // warm of the rows ahead (this is the call `prefetchBarsToIDB` makes) reaches it.
+    const { tellSymbolWarmers } = await import('../utils/prefetchBars')
+    tellSymbolWarmers(['NEXTROW'], 'D', { priority: true, visible: false })
+    await waitFor(() => expect(allUrls()).toContain('/api/chart/markers/NEXTROW?days=36500'))
+    expect(allUrls()).toContain('/api/education/tickers/NEXTROW/mentions')
+    expect(allUrls()).toContain('/api/chart-news/NEXTROW?days=60')
+  })
+
+  it('a category that is OFF asks for no row: only what this chart shows is warmed', async () => {
+    const { warmSymbolResources, __resetSymbolResourceWarm } = await import('../lib/symbolResourceWarm')
+    __resetSymbolResourceWarm({ painted: true })
+    render(<StockChart sym="AHEADOFF" tf="D" barsOverride={FIXTURE_BARS}
+      settingsOverride={{ markers: { desk: true } }} />)
+    await waitFor(() => expect(mentionUrls().length).toBeGreaterThan(0), { timeout: 3000 })
+    expect(warmSymbolResources(['NEXTROW'], 'D', NEAR), 'desk mentions only').toBe(1)
+    await new Promise(r => setTimeout(r, 60))
+    expect(allUrls().filter(u => u.includes('NEXTROW'))).toEqual(['/api/education/tickers/NEXTROW/mentions'])
+  })
+
+  it('everything off (the default) holds nothing at all', async () => {
+    const { warmSymbolResources, __resetSymbolResourceWarm } = await import('../lib/symbolResourceWarm')
+    __resetSymbolResourceWarm({ painted: true })
+    render(<StockChart sym="AHEADNIL" tf="D" barsOverride={FIXTURE_BARS} />)
+    await waitFor(() => expect(lw.markerSets.length).toBeGreaterThan(0), { timeout: 3000 })
+    expect(warmSymbolResources(['NEXTROW'], 'D', NEAR)).toBe(0)
+    expect(allUrls().filter(u => u.includes('NEXTROW'))).toEqual([])
+  })
+})
+
 /* ── 3. The wires ─────────────────────────────────────────────────────────── */
 
 describe('desk markers reach the chart', () => {

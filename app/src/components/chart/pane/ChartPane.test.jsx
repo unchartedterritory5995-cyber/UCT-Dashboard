@@ -118,6 +118,24 @@ test('density="full" (the /charts default) still fetches fundamentals with enabl
   expect(useFundamentalSnapshot).toHaveBeenCalledWith('NVDA', true)
 })
 
+// The header's values arrive with the candles on a list scan because the pane HOLDS the snapshot
+// resource while its info row can show (lib/symbolResourceWarm.js asks for the rows ahead). The
+// hook's own suite proves the warm; this proves THIS pane is the one holding it, and that a pane
+// which cannot show the row (compact, mini) holds nothing, so no row is asked for on its behalf.
+test('a pane showing the info row holds the snapshot for the rows ahead; compact and mini panes hold nothing', async () => {
+  const { symbolResourceWarmStats, __resetSymbolResourceWarm } = await import('../../../lib/symbolResourceWarm')
+  __resetSymbolResourceWarm({ painted: true })
+  const full = render(<ChartPane sym="NVDA" tf="D" onSymbolChange={() => {}} onTfChange={() => {}} />)
+  expect(symbolResourceWarmStats().resources).toBe(1)
+  full.unmount()
+  expect(symbolResourceWarmStats().resources, 'released with the pane').toBe(0)
+  const compact = render(<ChartPane sym="NVDA" tf="D" density="compact" onTfChange={() => {}} />)
+  expect(symbolResourceWarmStats().resources).toBe(0)
+  compact.unmount()
+  render(<ChartPane sym="NVDA" tf="D" density="mini" onTfChange={() => {}} />)
+  expect(symbolResourceWarmStats().resources).toBe(0)
+})
+
 // --- Fix 2: showTfBar / tfCodes make the timeframe lock symmetric with the symbol lock ---
 // (Finding 2: omitting onTfChange left a full row of clickable-but-dead TF buttons,
 // and visibleTfs always derived from the user's global favorites with no way for a
