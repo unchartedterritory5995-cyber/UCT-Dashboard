@@ -112,6 +112,31 @@ describe('COMPOUND × anaphor × exclusion: both ops on the ticker\'s chart, the
   }, 60000)
 })
 
+// ── ANAPHORA alone: the exclusion's "one left" cannot stand in — no exclusion at all, or THREE charts (two left after it) ──────
+// (on two charts, "leave NVDA alone" leaves exactly SPY, which already identifies the chart; these isolate the antecedent rule)
+const ANA_GRID = []
+for (const pair of PAIRS) for (const ana of ANAPHORS) {
+  ANA_GRID.push([`${pair[2]('SPY', ana)}.`, ['SPY', 'NVDA'], pair[1]])
+  ANA_GRID.push([`${pair[2]('SPY', ana)}.`, ['NVDA', 'SPY'], pair[1]])
+  for (let e = 0; e < EXCLUSIONS.length; e++) ANA_GRID.push([wordsFor(pair, ana, 'SPY', 'NVDA', e), ['NVDA', 'SPY', 'QQQ'], pair[1]])
+}
+describe('ANAPHORA: "it" / "that chart" / "that one" is the chart the ticker named — with no exclusion, and on three charts', () => {
+  it('the grid is generated: 4 op pairs × 4 anaphors × (2 two-chart boards + 5 exclusions on three charts)', () => expect(ANA_GRID).toHaveLength(112))
+  it.each(ANA_GRID)('"%s" on %j', async (t, syms, ops) => {
+    const m = mount(syms)
+    const ids = syms.map((_, i) => `w${i}`), spyId = ids[syms.indexOf('SPY')]
+    const others = ids.filter(id => id !== spyId).map(id => [id, stored(m.board, id)])
+    const spy0 = stored(m.board, spyId)
+    p.st.envelopes.push(plan(ops, 'SPY'))
+    await m.say(t)
+    expect(asked(), transcript()).toBe(false)
+    for (const k of ops) expect(effect[k](m.board, spyId), `${k}: ${transcript()}`).toBe(true)
+    for (const [id, s0] of others) expect(stored(m.board, id)).toBe(s0)
+    await undo(m, () => stored(m.board, spyId) === spy0)
+    expect(stored(m.board, spyId), transcript()).toBe(spy0)
+  }, 60000)
+})
+
 // ── AMBIGUITY: never loosened ─────────────────────────────────────────────────────────────────────────────────────────────
 const SAMPLE = PAIRS.flatMap(pair => ANAPHORS.map(ana => [pair, ana]))
 describe('AMBIGUITY: genuine ambiguity still asks and writes nothing', () => {
