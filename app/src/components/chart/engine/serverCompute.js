@@ -955,7 +955,14 @@ const _held = new Map()       // `${sym}|${tf}` -> { g, timer }
 // the two (`_stride`): a hold of 1.3 x a 180 ms step ends before a 290 ms step does, and
 // that chart's ask went out for nobody. (The old 250 ms ceiling on the hold was under the
 // 260 to 300 ms a deep chart takes to draw, for the same result; it is 500 now.)
+//
+// ⭐ A STEP TAKEN AFTER A PAUSE IS NOT PART OF THE RUN BEFORE IT (2026-11-13). The pace above
+// read "200 ms, then 5 s, then a step" as 200 ms: the first chart a member moved to after
+// holding the key and stopping had its own ask held for the full ceiling. A gap longer than
+// the longest hold means the chart before it had rested (its ask was sent), so the run is
+// over and this step is a reader's.
 function _pace(s) {
+  if (s.gap > SETTLE_MAX_MS) return s.gap
   return Math.min(s.gap, s.prev)
 }
 function _stride(s) {
