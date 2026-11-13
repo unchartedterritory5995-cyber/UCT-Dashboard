@@ -21,6 +21,7 @@ import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { writeVolumeProfile, volumeProfileOf, confirmVolumeProfile, checkVolumeProfilePatch } from '../components/chart/builder/agentMutations'
 import { VOLUME_PROFILE_ACTION, vpPatchOf } from './capabilities/volumeProfile'
 import { defIdOfWords, VP_NOT_AN_ADD } from './capabilities/indicatorEdits'
+import { __setBreadthSymbolsForTest } from '../hooks/useBreadthSymbols'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -374,4 +375,43 @@ describe('contract and routing', () => {
     expect(pendingLine('Turned on Volume Profile with 40 bins')).toBe('Turn on Volume Profile with 40 bins')
     expect(pendingLine('Set Volume Profile to 30 bins (was 24)')).toMatch(/^Set /)
   })
+})
+
+describe('AUDIT #1173 round 2 · no more than the member\'s own click; a breadth (vol=0) chart', () => {
+  // the member's click in Chart Settings → Indicators: ChartSettingsModal `setRow` = applyRowPatch(row, patch, settings) then
+  // `onChange({...next, preset: 'custom'})`, over the chart's EFFECTIVE settings (the merged blob the dialog is handed)
+  const clickOf = (storedBlob, patch) => {
+    const cs = mergeChartSettings(storedBlob)
+    const row = listAllIndicators(cs, nativeRegistry).find(r => r.id === 'volumeProfile' && r.engineOwned === false)
+    return { ...applyRowPatch(row, patch, cs, nativeRegistry), preset: 'custom' }
+  }
+  const partial = () => { const s = bareSettings(); return { ...s, indicators: { ...s.indicators, volumeProfile: { enabled: true, bins: 37 } } } }
+  it.each([
+    ['a PARTIAL raw row, bins 20', partial, 'set the volume profile bins to 20', { bins: 20 }],
+    ['a PARTIAL raw row, off', partial, 'turn off volume profile', { enabled: false }],
+    ['the default row, on', () => bareSettings(), 'turn on volume profile', { enabled: true }],
+  ])('%s: the stored blob after the Agent\'s write EQUALS the click\'s output (default colours filled exactly as the click fills them, + preset custom)', async (_n, mk, t, patch) => {
+    const start = mk()
+    const { say, board: b } = mountOn('c0', { c0: start })
+    const want = clickOf(JSON.parse(JSON.stringify(stored(b, 'c0'))), patch)
+    await say(t)
+    expect(stored(b, 'c0')).toEqual(want)
+  }, 40000)
+  it('the seam itself: writeVolumeProfile(cs, p).cs + preset === applyRowPatch(row, p, cs) + preset, for a partial row', () => {
+    const cs = mergeChartSettings(partial())
+    const row = listAllIndicators(cs, nativeRegistry).find(r => r.id === 'volumeProfile')
+    expect({ ...writeVolumeProfile(cs, { bins: 20 }, nativeRegistry).cs, preset: 'custom' }).toEqual({ ...applyRowPatch(row, { bins: 20 }, cs, nativeRegistry), preset: 'custom' })
+  })
+  it('a BREADTH chart (synthetic bars carry vol=0, ChartPane.jsx:1151): declined with the true reason, nothing written', async () => {
+    __setBreadthSymbolsForTest([{ symbol: 'UCTA50' }])
+    try {
+      const breadth = (s) => (String(s.ref).startsWith('c0') ? { ...label(s), symbol: 'UCTA50' } : label(s))
+      const { say, board: b } = mountOn('c0', {}, breadth)
+      const was = JSON.stringify(b.state.widgets)
+      p.st.envelopes.push(plan(['c0', VP, vp({ enabled: true })]))
+      const out = await say('turn on the volume profile here please')
+      expect(out).toMatch(/I didn’t turn on Volume Profile on UCTA50: it bins traded volume and UCTA50 has no volume data, so nothing would draw/)
+      expect(JSON.stringify(b.state.widgets)).toBe(was)
+    } finally { __setBreadthSymbolsForTest(null) }
+  }, 40000)
 })
