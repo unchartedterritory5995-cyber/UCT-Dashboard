@@ -86,13 +86,17 @@ describe('the steps point where R-P5-7 and the rulings say', () => {
     ])
   })
 
+  // Final fix (A1): the ▾ is not drawn on a phone, so its step is wide-only and two phone steps open the sheet
+  // through ⋯ > "New from a template"; steps 2 to 4 are shared (b1TemplateGallery.steps.test.js pins the tiers).
   it('Community library: Templates (wait for the door), the door (wait for the gallery), the type chips, Adopt', async () => {
     const { steps } = await TOURS.find((t) => t.id === 'style-library').load()
-    expect(steps.map(({ anchor, file, waitFor }) => ({ anchor, file, waitFor: waitFor ?? null }))).toEqual([
-      { anchor: 'templates', file: TAB, waitFor: 'template-gallery-door' },
-      { anchor: 'template-gallery-door', file: PICKER, waitFor: 'library-types' },
-      { anchor: 'library-types', file: GALLERY, waitFor: null },
-      { anchor: 'library-adopt', file: CARD, waitFor: null },
+    expect(steps.map(({ anchor, file, waitFor, tier }) => ({ anchor, file, waitFor: waitFor ?? null, tier: tier ?? null }))).toEqual([
+      { anchor: 'templates', file: TAB, waitFor: 'template-gallery-door', tier: 'wide' },
+      { anchor: 'styles-button', file: TAB, waitFor: 'new-from-template-phone', tier: 'phone' },
+      { anchor: 'new-from-template-phone', file: TAB, waitFor: 'template-gallery-door', tier: 'phone' },
+      { anchor: 'template-gallery-door', file: PICKER, waitFor: 'library-types', tier: null },
+      { anchor: 'library-types', file: GALLERY, waitFor: null, tier: null },
+      { anchor: 'library-adopt', file: CARD, waitFor: null, tier: null },
     ])
   })
 

@@ -12,6 +12,7 @@ import GenericTourEngine from '../GenericTourEngine'
 import { expectNoAxeViolations } from '../../../../a11y/axeHarness'
 import { installTourLayout } from '../__fixtures__/tourLayout'
 import { TOURS } from './b4Styles'
+import { stepsForScreen } from '../tourTiers'
 
 let restoreLayout = () => {}
 
@@ -44,9 +45,11 @@ describe('the B4 tours through the generic engine: axe', () => {
 
   for (const entry of TOURS) {
     it(`${entry.id}: walks every step with its real copy; the last step has zero violations`, async () => {
-      const { steps, copy } = await entry.load()
+      // Final fix (A1): the engine keeps the steps for this screen (jsdom: the desktop tour), so the walk does too.
+      const { steps: all, copy } = await entry.load()
+      const steps = stepsForScreen(all)
       expect(steps.length).toBeGreaterThan(1)
-      render(<Page entry={entry} steps={steps} />)
+      render(<Page entry={entry} steps={all} />)
       await screen.findByRole('dialog', {}, { timeout: 2000 })
       for (let i = 0; i < steps.length; i += 1) {
         expect(screen.getByText(copy[steps[i].id].title)).toBeInTheDocument()

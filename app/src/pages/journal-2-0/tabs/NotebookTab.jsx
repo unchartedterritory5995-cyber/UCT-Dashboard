@@ -2468,7 +2468,11 @@ export default function NotebookTab() {
   const moreMenuItems = [
     { key: 'today', label: 'Today', icon: 'sun', run: openToday, className: phoneOnly },
     { key: 'ask', label: 'Ask your Notebook', icon: 'sparkle', run: openAiFromMenu, className: touchOnly },
-    { key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly },
+    // Final fix (A1): the template-gallery and template-library walkthroughs open here on a phone (a literal anchor).
+    {
+      key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly,
+      render: (p, c) => <button {...p} data-tour="new-from-template-phone">{c}</button>,
+    },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport, className: phoneOnly },
     recordVoiceNote && {
       key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote, className: phoneOnly,
