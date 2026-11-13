@@ -226,7 +226,7 @@ export function checkExpect(ctx, e, label) {
   // the chart's view as its read-back reports it (activeRange, atDefaultView, indicatorsHidden)
   if (e.view) for (const [k, v] of Object.entries(e.view)) expect(ctx.st.views[chartsOf(board)[0]?.id]?.[k], `${label}: the chart's view ${k}`).toEqual(v)
   // chartReplay.playback: the first chart's Replay / Time Machine bar as getDateMeta().replay reads it (only the fields named)
-  if (e.replay) expect(ctx.st.views[chartsOf(board)[0]?.id]?.replay, `${label}: the chart's bar replay`).toMatchObject(e.replay)
+  if (e.barReplay) expect(ctx.st.views[chartsOf(board)[0]?.id]?.replay, `${label}: the chart's bar replay`).toMatchObject(e.barReplay)
   // C1-165: the member's favourite drawing tools, as the toolbar's ★ stores them (drawToolFavorites)
   if (e.favoriteTools) expect(readFavoriteTools(), `${label}: favourite drawing tools`).toEqual(e.favoriteTools)
   // C1-127: the first chart's Chart Settings dialog open (or not), as the pane reads it back

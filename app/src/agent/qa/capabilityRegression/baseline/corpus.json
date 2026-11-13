@@ -11112,7 +11112,7 @@
         ]
       },
       "expect": {
-        "replay": {
+        "barReplay": {
           "mode": true,
           "playing": false,
           "speed": 1
@@ -11123,7 +11123,7 @@
       "undo": {
         "say": "undo",
         "expect": {
-          "replay": {
+          "barReplay": {
             "mode": false,
             "playing": false,
             "index": null
