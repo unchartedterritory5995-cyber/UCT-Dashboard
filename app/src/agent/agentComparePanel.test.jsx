@@ -12,6 +12,7 @@ import { buildContext, getCapability, getTargetKind } from './capabilities'
 import { planOps, collectTargets, prepareOps, undoNotesFor } from './executor'
 import { commitPlan, undoEntry } from './runtime'
 import { makeBoard } from './__fixtures__/board'
+import { setupPanel, ONE } from './testing/panelHarness'
 import { selectGroups, GROUPS } from './routing'
 import { COMPARE_NO_UNDO, COMPARE_NOT_HERE } from './capabilities/comparePanel'
 import { compareAgentSource } from '../pages/charts/compareAgent'
@@ -366,4 +367,58 @@ describe('through the REAL CompareSymbolsPanel', () => {
     expect(r.p.refusals[0].reason).toBe(COMPARE_NOT_HERE)
     expect(screen.queryByRole('dialog')).toBe(null)
   })
+})
+
+// AUDIT #1170 point 1 (c): the contract's per-capability `undoNote` (as chartSetup.setRange's) — the manifest says which
+// paths have no Undo (summary), and this rail shows the REAL panel's receipt is NOT undoable on exactly those paths (data-undoable; "undo" leaves it alone)
+describe('rail: the receipt offers an Undo button only where Undo is exact (through the REAL AgentPanel; it has no Undo BUTTON, the receipt marks itself undoable)', () => {
+  let p
+  beforeEach(() => { p = setupPanel() })
+  const lastReceipt = () => screen.getAllByTestId('agent-receipt').at(-1)
+  const mountWith = (opts) => {
+    const m = p.mount(...ONE('NVDA'))
+    const w = workspace(opts)
+    live.push(w)
+    m.h.compare = w.source
+    return { ...m, w }
+  }
+  it('Rotation → Overlay: switched, the receipt says why there is no Undo, and the receipt is not undoable', async () => {
+    const { say, w } = mountWith({ open: true, tab: 'rotation' })
+    p.st.envelopes.push(p.env('apply', [view({ tab: 'overlay' })]))
+    const out = await say('go to the overlay tab')
+    expect(out).toMatch(/Switched the Compare panel to its Overlay tab/)
+    expect(out).toContain(COMPARE_NO_UNDO)
+    expect(w.tab).toBe('overlay')
+    expect(lastReceipt().getAttribute('data-undoable')).toBe(null)
+    // and "undo" cannot reach it: the tab stays, no event is sent
+    const n = w.events.length
+    await say('undo')
+    expect([w.open, w.tab, w.events.length]).toEqual([true, 'overlay', n])
+  }, 40000)
+  it('a re-pick on an open Rotation tab: not undoable either', async () => {
+    const { say, w } = mountWith({ open: true, tab: 'rotation' })
+    p.st.envelopes.push(p.env('apply', [view({ symbol: 'AMD', groupType: 'sector' })]))
+    const out = await say('show amd\'s sector on the rotation map')
+    expect(out).toContain(COMPARE_NO_UNDO)
+    expect(strip(w.intent)).toEqual({ tab: 'rotation', sym: 'AMD', group: 'sector' })
+    expect(lastReceipt().getAttribute('data-undoable')).toBe(null)
+  }, 40000)
+  it('closed → Rotation and Overlay → Rotation: undoable, no no-Undo note; "undo" puts the panel back', async () => {
+    const a = mountWith({})
+    p.st.envelopes.push(p.env('apply', [view({})]))
+    const out = await a.say('open the rotation map')
+    expect(out).not.toContain(COMPARE_NO_UNDO)
+    expect(lastReceipt().getAttribute('data-undoable')).toBe('true')
+    await a.say('undo')
+    expect(a.w.open).toBe(false)
+    cleanup()
+    p = setupPanel()
+    const b = mountWith({ open: true, tab: 'overlay' })
+    p.st.envelopes.push(p.env('apply', [view({})]))
+    const out2 = await b.say('switch to the rotation tab')
+    expect(out2).not.toContain(COMPARE_NO_UNDO)
+    expect(lastReceipt().getAttribute('data-undoable')).toBe('true')
+    await b.say('undo')
+    expect([b.w.open, b.w.tab]).toEqual([true, 'overlay'])
+  }, 40000)
 })
