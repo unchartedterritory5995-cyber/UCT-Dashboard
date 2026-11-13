@@ -293,7 +293,7 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
             ) : null
           })}
           {!showAll && snapshots.some((it) => it.group === 'more') && (
-            <button type="button" className={`${styles.headBtn} ${styles.showAll}`} aria-label="Show all blocks"
+            <button type="button" className={`${styles.headBtn} ${styles.showAll}`} aria-label="Show all widgets"
               onClick={() => setShowAll(true)}>
               Show all
             </button>

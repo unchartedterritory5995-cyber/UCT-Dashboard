@@ -156,7 +156,7 @@ describe('/news (Task 16)', () => {
     const ed = mount('<p>x</p>')
     render(<WidgetPalette editor={ed} />)
     // Simplify pass 2 (C4): News is in the panel's "More" group, folded behind "Show all".
-    fireEvent.click(screen.getByRole('button', { name: 'Show all blocks' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show all widgets' }))
     fireEvent.click(screen.getByText('News and catalysts'))
     fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: 'NVDA' } })
     fireEvent.keyDown(screen.getByLabelText('Ticker'), { key: 'Enter' })

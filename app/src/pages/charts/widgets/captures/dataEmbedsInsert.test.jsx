@@ -148,7 +148,7 @@ describe('reachable: the Live data section and the Insert panel', () => {
   it('the Insert panel lists both; COT asks for a market from the COT tab\'s own list', async () => {
     render(<WidgetPalette editor={mount('<p></p>')} />)
     // Simplify pass 2 (C4): both are in the panel's "More" group, folded behind "Show all".
-    fireEvent.click(screen.getByRole('button', { name: 'Show all blocks' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show all widgets' }))
     const row = (title) => screen.getByText(title, { selector: 'span' }).closest('button')
     expect(row('Model Book').textContent).toContain('Choose a ticker, then insert a snapshot')
     expect(row('COT positioning').textContent).toContain('Choose a market, then insert a snapshot')

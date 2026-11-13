@@ -454,12 +454,12 @@ describe('WidgetPalette: the More group waits behind Show all (C4)', () => {
   afterEach(() => { __resetNotebookFlags() })
   const dialog = () => screen.getByRole('dialog', { name: 'Insert widget' })
 
-  it('draws the other groups, not More; "Show all" sits at the foot, named "Show all blocks"', () => {
+  it('draws the other groups, not More; "Show all" sits at the foot, named "Show all widgets"', () => {
     render(<WidgetPalette editor={makeEditor().editor} />)
     expect(within(dialog()).queryByRole('group', { name: 'More' })).toBeNull()
     expect(within(dialog()).queryByText('News and catalysts')).toBeNull()
     expect(within(dialog()).getByRole('group', { name: 'Before the open' })).toBeTruthy()
-    const show = within(dialog()).getByRole('button', { name: 'Show all blocks' })
+    const show = within(dialog()).getByRole('button', { name: 'Show all widgets' })
     expect(show.textContent.trim()).toBe('Show all')
     // at the foot: after every drawn group's rows
     const groups = within(dialog()).getAllByRole('group')
@@ -468,10 +468,10 @@ describe('WidgetPalette: the More group waits behind Show all (C4)', () => {
 
   it('pressing it draws the More group, puts focus on its first item and leaves; Back from a form keeps it open', () => {
     render(<WidgetPalette editor={makeEditor().editor} />)
-    fireEvent.click(within(dialog()).getByRole('button', { name: 'Show all blocks' }))
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Show all widgets' }))
     const more = within(dialog()).getByRole('group', { name: 'More' })
     expect(document.activeElement).toBe(within(more).getAllByRole('button')[0])
-    expect(within(dialog()).queryByRole('button', { name: 'Show all blocks' })).toBeNull()
+    expect(within(dialog()).queryByRole('button', { name: 'Show all widgets' })).toBeNull()
     fireEvent.click(within(more).getByText('News and catalysts'))
     fireEvent.click(screen.getByRole('button', { name: '‹ Back' }))
     expect(within(dialog()).getByRole('group', { name: 'More' })).toBeTruthy()
@@ -481,6 +481,6 @@ describe('WidgetPalette: the More group waits behind Show all (C4)', () => {
     __resetNotebookFlags()
     latchNotebookFlags({ notebook_widgets_w1_enabled: true })
     render(<WidgetPalette editor={makeEditor().editor} />)
-    expect(within(dialog()).queryByRole('button', { name: 'Show all blocks' })).toBeNull()
+    expect(within(dialog()).queryByRole('button', { name: 'Show all widgets' })).toBeNull()
   })
 })
