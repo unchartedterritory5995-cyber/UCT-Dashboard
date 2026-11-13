@@ -18,7 +18,9 @@ This document reflects:
 - the CHANGES-REQUIRED review of PR #1204 at head 3799bb8ab5: B1, C1, C2, C3, the
   evidence-quality ruling, the endpoint notes and the D note;
 - the re-verify at 4e30752e41: the serving cost with the flag on, and the evidence-classifier
-  hardening.
+  hardening;
+- the final verify at 761c0747f6 (approved to merge dark): the process-wide detector gate, the
+  0.9 s edge, the pending wording, and the notes before arming.
 
 ## What was built
 
@@ -270,6 +272,91 @@ list endpoint over the same 50 near-cap runtime rows takes **9.7 s**:
 - Railed. Re-derived: `runs/evidence.json` and the registry are byte-identical, so **no admitted
   capability changes**. None of those captures is runtime-lane evidence.
 
+## Final verify of #1204 (761c0747f6): concurrency, the 0.9 s edge, pending rows
+
+**A2 concurrency.** Measured by the reviewer: 8 members x 50 distinct cold rows, threadpool 8,
+3.5-5.1 s per request. The per-request budget bounds one request, but the detector holds the GIL.
+Two process-wide controls, both NON-BLOCKING:
+- **The gate.** A `threading.Semaphore(1)` taken without waiting, so one detector run at a time.
+- **A duty cycle on top of it.** After a run of cost c, no run starts for 2c, so the detector uses
+  at most 1/3 of wall time. The gate alone was not enough: 8 cold lists each took 3.8 s, because
+  they took the gate in turn and each waited out the other seven runs under the GIL.
+
+A request that finds the gate busy, or the detector cooling down, serves the row "still being
+checked" and moves on.
+
+How each door behaves when the gate is busy or cooling:
+- **The save door** stores the row and persists no set (`not_graded_at_save`). The first serve then
+  computes the set under the gate. A save is never refused or blocked by the gate.
+- **The verdict door** answers `missing: ["pending"]`. The client never latches that answer; it asks
+  again (5 x 1.5 s), and until then the row reads "still being checked" (fail closed).
+
+**The 0.9 s edge.**
+- A run is PROJECTED before it starts: source bytes times a running per-byte estimate (an
+  exponential average of measured runs, seeded at 5 us/byte). It does not start if spent plus
+  projected would exceed 0.3 s.
+- The first run of a request is always allowed; otherwise a large source would never be checked.
+- A source over 64 KiB gets at most ONE fresh run per request.
+
+**Pending rows.**
+- A pending row is stamped `meta.runtimePending: true` beside the "still being checked"
+  `meta.runtimeNotGraded`. The flag is dropped with the other run-read stamps by the share strip.
+- The install door words it on its own: "it is being checked, and it will draw once the check
+  completes" (never "comes back when it is taken off the list").
+- **It clears by itself.** The definitions list had NO periodic read: SWR, no `refreshInterval`,
+  `revalidateOnFocus: false`. It now re-reads every 15 s ONLY while a row is pending
+  (`useUserDefinitions.pendingRefreshInterval`; polls pause while the app is hidden, through the
+  app-wide `isVisible`). Otherwise there is no periodic read, as before.
+- A cold member with 50 adversarial near-cap rows is fully checked after 50 list reads, one big
+  source per read, so about 12.5 minutes of 15 s re-reads.
+
+**Serving costs cut on the way.** A stamped row copies only `meta`, instead of a JSON round trip
+of the whole script. The list prefetches its stored sets in ONE query (misses are not looked up
+again). The admitted set is read once per request.
+
+**Timings (flag ON; `timings_final.py`, kept with the run notes):**
+
+| case | time |
+|---|---:|
+| detector on adversarial near-cap shapes (unclosed calls, spaced words, eq runs, tuple opens; 126 KB) | 0.22-0.36 s here (the reviewer saw up to 0.63 s) |
+| list, 50 adversarial near-cap rows, cold, one request | **0.44 s** |
+| rail: 8 concurrent cold lists x 12 adversarial rows | each **< 1 s** (about 0.5 s), exactly 1 detector run |
+| 8 concurrent cold lists x 50 adversarial near-cap rows, flag ON | 0.88-0.94 s each in the final run; 1.1-1.3 s in earlier runs on this shared box |
+| the same 8 x 50, flag OFF (no detector at all) | 0.62-0.85 s each: pre-existing list work under the GIL |
+
+That last load sits near 1 s whatever admission does: the plain list work alone is ~0.75 s, and one
+0.3 s detector run per burst is shared by every concurrent request through the GIL.
+**FOLLOW-UP:** run the detector in a worker process, off the request GIL, if admission ever serves
+members with many near-cap scripts.
+
+**Rails (flag ON), all in `tests/test_pine_capability_admission.py`:**
+- GATE 8 concurrent: each request < 1 s, exactly 1 detector run.
+- GATE run in progress: deterministic; a second run is refused at once while one holds the gate.
+- GATE busy gate: the row is served pending, without waiting, and the verdict door answers pending.
+- GATE save while busy: the row is stored, nothing is persisted, and the first serve computes the
+  set.
+- GATE projected: a 60 KB row first, then no big run after it.
+- GATE one big source per request.
+
+Client rails:
+- `runtimeCapabilityPending.test.js`: the install-door wording; the refresh only while a row is
+  pending; the hook is wired.
+- `runtimeCapabilityAdmission.test.js`: a pending verdict is never latched and is retried.
+
+Mutants G1-G9 and the re-run of S1-S8 are listed below.
+
+## Before arming (notes; not built here)
+
+- **HARD PRECONDITION before `PINE_RUNTIME_SAVE_ENABLED` is ever set:** the server-lane stamp's
+  cost. Listing 50 near-cap runtime rows costs 16.8 s (the reviewer's measure, flag on or off; 9.7 s
+  measured here). The cause: `svc.server_lanes_stamp` -> `server_lane_composition` ->
+  `request_reads` -> `runtime_repaint_of`, which re-lexes each runtime row three times per serve.
+  **Named follow-up: "memoise the repaint lex per source hash"** (the same pattern as the
+  persisted capability sets). It is master code and needs no capability admission to bite.
+- **Optional:** garbage-collect `runtime_capabilities` rows whose source hash no live row (or live
+  run half) references. Today they accumulate one small row per distinct source ever served or
+  saved with the flag on.
+
 ## C2 / C3 / endpoint
 
 - **C2.** `join_continuations` folds Pine's wrapped lines before scanning: a line where `(` or `[`
@@ -316,7 +403,7 @@ The method:
 `.pyc` files are cleared and `PYTHONDONTWRITEBYTECODE=1` is set. C0 (no edit) is green for every
 set. The record is `runs/mutants.json`.
 
-Sets 1-3 ran at `549deeb910` (38 mutants); set 4 (S1-S8, serving cost) ran at `f344fbd526`. 46 mutants in all, every one KILLED; C0 green for every set.
+Sets 1-3 ran at `549deeb910` (38 mutants). Set 4 (S1-S8, serving cost) ran at `f344fbd526`, and again at `193dce412e` after the final-verify changes (S6 retargeted to the run limit). Set 5 (G1-G9, final verify) ran at `316c46b7e9`. 55 mutants in all, every one KILLED; C0 green for every set. Two survived a first pass and their rails were strengthened: G1 (gate removed) survived a timing-only burst, so a deterministic gate rail was added; G3 (no projection) was masked by the cool-down, so that rail isolates the projection.
 
 | id | mutant | killed by |
 |---|---|---|
@@ -351,9 +438,18 @@ Sets 1-3 ran at `549deeb910` (38 mutants); set 4 (S1-S8, serving cost) ran at `f
 | S3 | the list has no detector budget | SERVE list (over 1 s; more than 8 runs) |
 | S4 | a computed set is not persisted | SERVE saved row (re-run on the hot path) |
 | S5 | a stored set is read whatever detector computed it | SERVE older detector |
-| S6 | the budget ignores time | SERVE budget |
+| S6 | the budget allows any number of runs (was: ignores time; now G3) | SERVE budget |
 | S7 | probe- and uct- captures read as community | EVIDENCE classifier |
 | S8 | the detector changes without a version bump | SERVE fingerprint |
+| G1 | the process-wide gate removed | GATE rails (deterministic: a run in progress refuses a second) |
+| G2 | the duty cycle (cool-down) removed | GATE 8 concurrent (each over 1 s) |
+| G3 | a run is not projected before it starts | GATE projected (a second, big run) |
+| G4 | no limit of one big source per request | GATE one big source |
+| G5 | a busy gate refuses the save | GATE save while busy |
+| G6 | a pending row is not stamped `runtimePending` | GATE busy gate |
+| G7 | the install door says "taken off the list" for a pending row | runtimeCapabilityPending.test.js |
+| G8 | a pending verdict is latched | runtimeCapabilityAdmission.test.js |
+| G9 | the list never re-reads while a row is pending | runtimeCapabilityPending.test.js (wiring) |
 
 
 ## Not built here (follow-ups)

@@ -625,7 +625,7 @@
  ],
  "note": "reviewFixes pass 1 (at b2bda92601): B1c SURVIVED (the rail used a raising stub that capability_admitted swallows); the rail now spies on the detector; pass 2 kills all.",
  "servingCost": {
-  "ranAt": "f344fbd526",
+  "ranAt": "193dce412e",
   "results": [
    {
     "id": "C0",
@@ -633,35 +633,35 @@
     "runs": {
      "tests/test_pine_capability_admission.py::EVIDENCE": [
       0,
-      "16 passed, 82 deselected in 4.38s"
+      "16 passed, 87 deselected in 6.35s"
      ],
      "tests/test_pine_capability_admission.py::SERVE": [
       0,
-      "10 passed, 88 deselected in 24.00s"
+      "11 passed, 92 deselected in 30.40s"
      ],
      "tests/test_pine_capability_admission.py::SERVE_a_saved_row": [
       0,
-      "1 passed, 97 deselected in 1.30s"
+      "1 passed, 102 deselected in 1.57s"
      ],
      "tests/test_pine_capability_admission.py::SERVE_a_set_from_an_older": [
       0,
-      "1 passed, 97 deselected in 1.38s"
+      "1 passed, 102 deselected in 1.50s"
      ],
      "tests/test_pine_capability_admission.py::SERVE_history": [
       0,
-      "1 passed, 97 deselected in 2.05s"
+      "1 passed, 102 deselected in 2.09s"
      ],
      "tests/test_pine_capability_admission.py::SERVE_the_budget": [
       0,
-      "1 passed, 97 deselected in 1.28s"
+      "1 passed, 102 deselected in 1.37s"
      ],
      "tests/test_pine_capability_admission.py::SERVE_the_list": [
       0,
-      "1 passed, 97 deselected in 16.92s"
+      "1 passed, 102 deselected in 27.51s"
      ],
      "tests/test_pine_capability_admission.py::detector_version_moves": [
       0,
-      "1 passed, 97 deselected in 1.22s"
+      "1 passed, 102 deselected in 1.79s"
      ]
     },
     "green": true
@@ -673,7 +673,7 @@
     "killed": true,
     "run": [
      1,
-     "1 failed, 6 passed, 88 deselected in 21.05s"
+     "1 failed, 6 passed, 92 deselected in 28.23s"
     ],
     "restoredBlobMatches": true
    },
@@ -684,7 +684,7 @@
     "killed": true,
     "run": [
      1,
-     "1 failed, 97 deselected in 2.67s"
+     "1 failed, 102 deselected in 3.65s"
     ],
     "restoredBlobMatches": true
    },
@@ -695,7 +695,7 @@
     "killed": true,
     "run": [
      1,
-     "1 failed, 97 deselected in 11.68s"
+     "1 failed, 102 deselected in 12.69s"
     ],
     "restoredBlobMatches": true
    },
@@ -706,7 +706,7 @@
     "killed": true,
     "run": [
      1,
-     "1 failed, 97 deselected in 1.51s"
+     "1 failed, 102 deselected in 1.78s"
     ],
     "restoredBlobMatches": true
    },
@@ -717,18 +717,18 @@
     "killed": true,
     "run": [
      1,
-     "1 failed, 97 deselected in 1.29s"
+     "1 failed, 102 deselected in 1.52s"
     ],
     "restoredBlobMatches": true
    },
    {
     "id": "S6",
-    "mutant": "the budget ignores time",
+    "mutant": "the budget allows any number of runs",
     "file": "api/services/runtime_definitions.py",
     "killed": true,
     "run": [
      1,
-     "1 failed, 97 deselected in 1.79s"
+     "1 failed, 102 deselected in 1.75s"
     ],
     "restoredBlobMatches": true
    },
@@ -739,7 +739,7 @@
     "killed": true,
     "run": [
      1,
-     "1 failed, 4 passed, 82 deselected in 3.76s"
+     "1 failed, 4 passed, 87 deselected in 6.83s"
     ],
     "restoredBlobMatches": true
    },
@@ -750,10 +750,154 @@
     "killed": true,
     "run": [
      1,
-     "1 failed, 97 deselected in 1.44s"
+     "1 failed, 102 deselected in 2.24s"
     ],
     "restoredBlobMatches": true
    }
   ]
+ },
+ "finalVerify": {
+  "ranAt": "316c46b7e9",
+  "results": [
+   {
+    "id": "C0",
+    "mutant": "no edit (control)",
+    "runs": {
+     "js:src/components/chart/engine/__tests__/runtimeCapabilityAdmission.test.js:None": [
+      0,
+      "Tests  19 passed (19)"
+     ],
+     "js:src/components/chart/engine/__tests__/runtimeCapabilityPending.test.js:None": [
+      0,
+      "Tests  5 passed (5)"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE": [
+      0,
+      "7 passed, 97 deselected in 3.27s"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE_8_concurrent": [
+      0,
+      "1 passed, 103 deselected in 2.59s"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE_a_busy_gate": [
+      0,
+      "1 passed, 103 deselected in 1.26s"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE_a_run_is_projected": [
+      0,
+      "1 passed, 103 deselected in 1.53s"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE_a_save_while": [
+      0,
+      "1 passed, 103 deselected in 1.28s"
+     ],
+     "py:tests/test_pine_capability_admission.py:GATE_one_big_source": [
+      0,
+      "1 passed, 103 deselected in 1.20s"
+     ]
+    },
+    "green": true
+   },
+   {
+    "id": "G1",
+    "mutant": "the process-wide gate removed",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 2 passed, 97 deselected in 2.88s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "G2",
+    "mutant": "the duty cycle (cool-down) removed",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 103 deselected in 4.58s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "G3",
+    "mutant": "a run is not projected before it starts",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 103 deselected in 2.11s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "G4",
+    "mutant": "no limit of one big source per request",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 103 deselected in 1.35s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "G5",
+    "mutant": "a busy gate refuses the save",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 103 deselected in 1.49s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "G6",
+    "mutant": "a pending row is not stamped runtimePending",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 103 deselected in 1.85s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "G7",
+    "mutant": "the install door says 'taken off the list' for a pending row",
+    "file": "app/src/components/chart/engine/nativeRegistry.js",
+    "killed": true,
+    "run": [
+     1,
+     "Tests  1 failed | 4 passed (5)"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "G8",
+    "mutant": "a pending verdict is latched",
+    "file": "app/src/components/chart/engine/runtimeKill.js",
+    "killed": true,
+    "run": [
+     1,
+     "Tests  2 failed | 17 passed (19)"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "G9",
+    "mutant": "the list never re-reads while a row is pending",
+    "file": "app/src/hooks/useUserDefinitions.js",
+    "killed": true,
+    "run": [
+     1,
+     "Tests  1 failed | 4 passed (5)"
+    ],
+    "restoredBlobMatches": true
+   }
+  ],
+  "note": "G1 and G3 survived a first pass (a timing-only burst; a cool-down masking the projection); the rails were strengthened and both are now killed."
  }
 }
