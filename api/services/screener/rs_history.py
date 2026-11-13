@@ -2229,6 +2229,57 @@ def _sessions_desc(conn, limit=None, upto=None) -> list:
 #: universe) reads each session whole, which is cheaper at that size.
 NARROW_READ_MAX = 200
 
+# ── A CHART'S ASK DOES NOT REDISCOVER THE STORE EVERY TIME ───────────────────
+#
+# ⚰️ MEASURED ON PRODUCTION 2026-11-13 (Server-Timing on /api/signature/columns-batch,
+# after the bars read was fixed): `rs-rating` 430 to 850 ms per symbol, for a read of
+# three rows. `read_fields` for ONE ticker ran ~28 statements: 22 to find the newest 21
+# stored sessions (one `MAX(session)` seek each), one `PRAGMA table_info`, the connection's
+# own two, and the three rows. Every statement is at least one `sqlite3_step`, and on the
+# web pod a thread waits to get the GIL back after each one.
+#
+# The session list changes once a day and the table's columns only at a migration. So the
+# narrow ask (a chart's) remembers both for `REMEMBER_S`:
+#   * the session list is CHECKED, not trusted: one `MAX(session)` seek per call, and a
+#     newest session that differs from the remembered one rebuilds the list at once (a
+#     session stored by this process or installed by another shows up on the next ask);
+#   * the columns are remembered as read (they are only ever ADDED, so the worst a stale
+#     copy does is report a brand-new column as None for a minute).
+# Both are keyed by the database path. The screener build's bulk ask and an ask for a
+# named session are untouched: they read the store as before.
+REMEMBER_S = 60.0
+_remembered: dict = {}          # (db path, what) -> (monotonic at, value)
+
+
+def _remembered_get(key):
+    hit = _remembered.get(key)
+    if hit is not None and 0 <= time.monotonic() - hit[0] < REMEMBER_S:
+        return hit[1]
+    return None
+
+
+def _newest_sessions_remembered(conn, limit: int) -> list:
+    """`_sessions_desc(conn, limit)`, remembered while the newest stored session is unchanged."""
+    key = (snapshot_db.get_db_path(), "sessions", limit)
+    newest = conn.execute(f"SELECT MAX(session) FROM {TABLE}").fetchone()[0]
+    held = _remembered_get(key)
+    if held and held[0] == newest:
+        return held
+    sess = _sessions_desc(conn, limit)
+    _remembered[key] = (time.monotonic(), sess)
+    return sess
+
+
+def _read_columns_remembered(conn) -> tuple:
+    """`_read_columns(conn)`, remembered for `REMEMBER_S`."""
+    key = (snapshot_db.get_db_path(), "columns")
+    held = _remembered_get(key)
+    if held is not None:
+        return held
+    cols = _read_columns(conn)
+    _remembered[key] = (time.monotonic(), cols)
+    return cols
+
 
 def read_fields(tickers, session=None, failures=None, now=None) -> dict:
     """``{TICKER: {ibd, fast, m1, m3, m6, m9, m12, score, bars, d5, d20, asof}}`` for the
@@ -2257,13 +2308,16 @@ def read_fields(tickers, session=None, failures=None, now=None) -> dict:
                 sess = _sessions_desc(conn, 21, upto=key)
                 if not sess or sess[0] != key:
                     sess = []
+            elif len(want) <= NARROW_READ_MAX:
+                sess = _newest_sessions_remembered(conn, 21)
             else:
                 sess = _sessions_desc(conn, 21)
             if not sess:
                 _note(failures, "missing")
                 return {}
             latest = sess[0]
-            cols = ", ".join(_read_columns(conn))
+            cols = ", ".join(_read_columns_remembered(conn) if len(want) <= NARROW_READ_MAX
+                             else _read_columns(conn))
             # A chart asks for one symbol: read its rows by primary key rather than
             # three whole sessions (review finding #30, 2026-11-07). The build's
             # bulk ask keeps the whole-session read.
