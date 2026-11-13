@@ -3775,6 +3775,70 @@ function validateRuntimeColours(compute, plotKeyIndex, errors) {
   return keys
 }
 
+/** ⭐⭐ ENGINE 53 — the fields `compute.runtimeObjects` may carry. CLOSED: anything else is
+ *  refused, so a hand-posted document cannot smuggle a field a later reader would trust. */
+export const RUNTIME_OBJECTS_FIELDS = Object.freeze(['source', 'outputs', 'runtimeLanguage', 'runtimeFrontend',
+  'runtimeIr', 'runtimeOutputSignature'])
+
+/** ⭐⭐ ENGINE 53 — `compute.runtimeObjects = { source, outputs, ...runtimeVersionStamp }`:
+ *  the RUN HALF of a host document whose object program lost drawings
+ *  (`memberPaneDefinition::hostPartialRunHalf`, drawn by `nativeRegistry.js::withRunHalf`).
+ *  The rules, mirrored rule for rule by the server (`presentation_schema._check_runtime_objects`,
+ *  one fixture both suites read: `tests/fixtures/runtime_objects_schema.json`):
+ *    · only on an `ast` definition;
+ *    · `source` a non-empty string; `outputs` an object mapping a DECLARED plot key to a
+ *      whole-number run output index, no index named twice (the column rail compares each);
+ *    · the version stamp, when present: `runtimeLanguage` a non-empty string,
+ *      `runtimeFrontend` / `runtimeIr` positive whole numbers, `runtimeOutputSignature` an
+ *      array of strings that names every mapped index;
+ *    · no other field.
+ *  @param {object} compute  the definition's `compute`
+ *  @param {Set<string>|Map<string, any>} plotKeys the declared plot keys
+ *  @returns {string[]} errors (empty when absent or valid) */
+export function runtimeObjectsErrors(compute, plotKeys) {
+  const ro = compute && compute.runtimeObjects
+  if (ro === undefined) return []
+  const at = 'compute.runtimeObjects'
+  if (!compute || compute.kind !== 'ast') {
+    return [`${at}: only an "ast" definition draws its objects from the per-bar run, got kind ${fmt(compute && compute.kind)}`]
+  }
+  if (!isPlainObject(ro)) return [`${at}: expected {source, outputs, ...stamp}, got ${fmt(ro)}`]
+  const errors = []
+  const extra = Object.keys(ro).filter((k) => !RUNTIME_OBJECTS_FIELDS.includes(k))
+  if (extra.length) errors.push(`${at}: unknown field(s) ${list(extra.map(fmt))}`)
+  if (!isNonEmptyString(ro.source)) errors.push(`${at}.source: expected the script the run runs, a non-empty string, got ${fmt(ro.source)}`)
+  if (!isPlainObject(ro.outputs)) {
+    errors.push(`${at}.outputs: expected an object mapping a plot key to a run output index, got ${fmt(ro.outputs)}`)
+  } else {
+    const seen = new Set()
+    for (const [k, idx] of Object.entries(ro.outputs)) {
+      if (!plotKeys.has(k)) errors.push(`${at}.outputs.${k}: names no declared plot`)
+      if (!(Number.isInteger(idx) && idx >= 0)) {
+        errors.push(`${at}.outputs.${k}: expected a whole-number run output index, got ${fmt(idx)}`)
+      } else if (seen.has(idx)) {
+        errors.push(`${at}.outputs.${k}: run output ${idx} is named by two plots`)
+      } else seen.add(idx)
+    }
+  }
+  if (ro.runtimeLanguage !== undefined && !isNonEmptyString(ro.runtimeLanguage)) {
+    errors.push(`${at}.runtimeLanguage: expected a non-empty string, got ${fmt(ro.runtimeLanguage)}`)
+  }
+  for (const f of ['runtimeFrontend', 'runtimeIr']) {
+    if (ro[f] !== undefined && !(Number.isInteger(ro[f]) && ro[f] >= 1)) errors.push(`${at}.${f}: expected a positive whole number, got ${fmt(ro[f])}`)
+  }
+  const sig = ro.runtimeOutputSignature
+  if (sig !== undefined) {
+    if (!Array.isArray(sig) || !sig.every((x) => typeof x === 'string')) {
+      errors.push(`${at}.runtimeOutputSignature: expected an array of strings, got ${fmt(sig)}`)
+    } else if (isPlainObject(ro.outputs)) {
+      for (const [k, idx] of Object.entries(ro.outputs)) {
+        if (Number.isInteger(idx) && idx >= sig.length) errors.push(`${at}.outputs.${k}: run output ${idx} is past the signature's ${sig.length} outputs`)
+      }
+    }
+  }
+  return errors
+}
+
 function validatePaints(paints, columnKeys, errors) {
   if (paints === undefined) return
   if (!Array.isArray(paints)) {
@@ -4198,6 +4262,8 @@ export function validateDefinition(def) {
     // ⭐ DIV-4 — a paint may also read a colour column the per-bar run computes
     // (`compute.runtimeColours`, `nativeRegistry.js::withRuntimeColours`).
     const rtColourKeys = validateRuntimeColours(out.compute, plotKeyIndex, errors)
+    // ⭐ ENGINE 53 — a host document's run half (`compute.runtimeObjects`).
+    errors.push(...runtimeObjectsErrors(out.compute, plotKeyIndex))
     validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys(), ...rtColourKeys]), errors)
 
     // A definition with no plots and no events returns no columns: it computes

@@ -170,7 +170,7 @@ import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './ru
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
 import './lowerTfGate.js'
-import { runtimeWarmupOf } from './runtime/runtimeObjects'
+import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf } from './runtime/runtimeObjects'
 import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
@@ -3132,6 +3132,8 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
  * unchanged byte for byte.
  */
 export function computeSignature(def, inputs, ctx) {
+  // ⭐ ENGINE 53 — a run half's gates (`runHalfGateSignature`).
+  if (carriesRunHalf(def)) return runHalfGateSignature(def)
   if (def?.compute?.kind !== 'server' || !definitionHasLiveTail(def)) return ''
   const resolved = resolveInputs(def, inputs)
   return liveTailSignature(def, scalarsFor(def, resolved, ctx), resolved, ctx && ctx.sym, ctx && ctx.tf)
@@ -3258,13 +3260,17 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   // (A runtime DOCUMENT is reached only after the door asked both; this one is an
   // ordinary `ast` document and is not.)
   const notGraded = runtimeNotGradedOf({ source: rc && rc.source })
+  // ⭐ ENGINE 53 — and the server's stamps on the row it served (`runtime_definitions.stamp_served`,
+  // extended to an `ast` row carrying a run-read value): a kill or an ungraded script reaches a
+  // saved document before this tab's own read of the lists does.
+  const stamp = servedRunStamp(def)
   if (!runtimePaneBuilt()) {
     refuse('pane:not-built')
   } else if (!runtimePanePermitted()) {
     refuse('pane:not-permitted')
-  } else if (killed) {
+  } else if (killed || stamp === 'killed') {
     refuse('pane:killed')
-  } else if (notGraded) {
+  } else if (notGraded || stamp === 'not-graded') {
     refuse('pane:not-graded')
   } else if (stop && stop.reached) {
     // ⛔ the script's own `runtime.error` was reached: TradingView holds nothing, and no colour is drawn either
@@ -3300,6 +3306,167 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   return withColumnErrors(res, errors)
 }
 
+/** ⭐ ENGINE 53 — the server's stamp on a served `ast` row carrying a run-read value
+ *  (`runtime_definitions.stamp_served`): `'killed'`, `'not-graded'`, or null. */
+function servedRunStamp(def) {
+  const meta = (def && def.meta) || {}
+  if (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled) return 'killed'
+  if (typeof meta.runtimeNotGraded === 'string' && meta.runtimeNotGraded) return 'not-graded'
+  return null
+}
+
+/** ⭐⭐ ENGINE 53 — THE CODE a run half is refused with when the run's columns do not equal
+ *  the host's on this chart: the run is not proved to be the same computation, so its
+ *  drawings are not drawn and the host picture stays. */
+export const RUN_HALF_COLUMN_RAIL = 'run-half:column-rail'
+
+/** Two column values agree: both `na`, or equal to 1e-9 of their size (the runtime lane's
+ *  own rule, `runtimeColumns.js::sameValue`, restated as a value comparison: this module
+ *  must not import the lane). */
+function sameColumnValue(x, y) {
+  if (x === y) return true
+  const xn = typeof x !== 'number' || Number.isNaN(x)
+  const yn = typeof y !== 'number' || Number.isNaN(y)
+  if (xn || yn) return xn && yn
+  return Math.abs(x - y) <= 1e-9 * Math.max(Math.abs(x), Math.abs(y), 1e-300)
+}
+
+/** The drawing families a host object program creates (loop bodies included). */
+function hostObjectFamilies(program) {
+  const out = new Set()
+  const walk = (ops) => {
+    for (const op of ops || []) {
+      if (!op) continue
+      if (op.k === 'create' && typeof op.family === 'string') out.add(op.family)
+      if (Array.isArray(op.body)) walk(op.body)
+    }
+  }
+  walk(program && program.ops)
+  return out
+}
+
+/** ⭐ ENGINE 53 — ONE frozen runtime document per `compute.runtimeObjects` object, so the
+ *  run's own memo (`runtimeColumnsFor`, keyed by the document's identity and content per
+ *  bars array) hits on the next paint. It is the runtime lane's own shape (`kind: 'runtime'`,
+ *  `objects: true`), built from the run half and nothing else: the host's trees never reach it. */
+const _runHalfDefs = new WeakMap()
+function runHalfDefOf(def, ro) {
+  let rt = _runHalfDefs.get(ro)
+  if (!rt) {
+    const meta = { runtimeHistory: 'listing' }
+    for (const k of ['runtimeLanguage', 'runtimeFrontend', 'runtimeIr', 'runtimeOutputSignature']) {
+      if (ro[k] !== undefined) meta[k] = ro[k]
+    }
+    rt = Object.freeze({
+      id: `${def.id}~run`,
+      ...(Number.isInteger(def.version) ? { version: def.version } : {}),
+      compute: Object.freeze({
+        kind: 'runtime', fn: `runtime:${def.id}~run`, rev: 1,
+        source: ro.source, outputs: Object.freeze({ ...(ro.outputs || {}) }), objects: true,
+      }),
+      meta: Object.freeze(meta),
+    })
+    _runHalfDefs.set(ro, rt)
+  }
+  return rt
+}
+
+/** A column record copied with every property it carries, enumerable or not (the error
+ *  record, a reached stop, the chart-clock / lower-timeframe / other-symbol reports), so a
+ *  run half's records are attached without touching a map another caller may hold. */
+function copyColumns(out) {
+  const res = {}
+  for (const k of Reflect.ownKeys(out || {})) {
+    Object.defineProperty(res, k, Object.getOwnPropertyDescriptor(out, k))
+  }
+  return res
+}
+
+/** ⭐⭐ ENGINE 53 — A HOST DOCUMENT'S DRAWINGS FROM THE PER-BAR RUN (`compute.runtimeObjects`).
+ *
+ *  `compute.runtimeObjects = { source, outputs, ...runtimeVersionStamp }` (minted by the
+ *  member door, `memberPaneDefinition::hostPartialRunHalf`, for a script whose host object
+ *  program lost drawings): `outputs` maps each visible host plot key to the run output that
+ *  computes the same plot. The run is asked for its DRAWINGS only; the plots stay the host's.
+ *
+ *  ⛔ EVERY GATE, ON EVERY RUN (a stored or hand-posted document answers to all of them):
+ *  the build flag, the per-member permission (the latch), the kill list and the starter
+ *  allowlist (this tab's lists AND the server's stamp on the row it served), the script's
+ *  own `runtime.error`, the member's settings at the script's defaults (the run computes
+ *  the script as written), and the run itself: built, completed, its drawings neither
+ *  withheld nor stopped, no family withheld that the host program draws.
+ *  ⛔⛔ THE COLUMN RAIL: every mapped run column equals the host's column on every bar the
+ *  run serves (`na` with `na`, a number to 1e-9 of its size). That is what proves the run's
+ *  drawings belong to the plots beside them on THIS chart; one bar off and the host picture
+ *  stays.
+ *  The answer rides non-enumerable (`runtimeObjects.js::RUN_HALF_KEY`): `served` with the
+ *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),
+ *  `pending` while the run is in flight, `refused` with its code. `ctx` absent (a probe that
+ *  is not a chart, `validateEventColumns`) asks nothing of the run. */
+function withRunHalf(def, out, bars, inputs, ctx) {
+  if (!ctx) return out
+  const ro = def.compute.runtimeObjects
+  const res = copyColumns(out)
+  const refused = (code) => withRunHalfState(res, { state: 'refused', code })
+  if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
+    return refused('run-half:malformed')
+  }
+  const stamp = servedRunStamp(def)
+  if (!runtimePaneBuilt()) return refused('pane:not-built')
+  if (!runtimePanePermitted()) return refused('pane:not-permitted')
+  if (stamp === 'killed' || runtimeKillOf({ defId: def.id, source: ro.source })) return refused('pane:killed')
+  if (stamp === 'not-graded' || runtimeNotGradedOf({ source: ro.source })) return refused('pane:not-graded')
+  const stop = runtimeErrorStopOf(out)
+  if (stop && stop.reached) return refused('runtime:runtime.error')
+  if (!runtimeColoursAtDefaults(def, inputs)) return refused('runtime:member-inputs')
+  if (!_runtimeLane) {
+    if (_runtimeLoadFailed !== null) return refused(RUNTIME_LOAD_FAILED_GUARD)
+    if (loadRuntimeLane()) return withRunHalfState(res, { state: 'pending', code: 'runtime:not-loaded' })
+    return refused('runtime:not-loaded')
+  }
+  let cols
+  try {
+    cols = _runtimeLane(runHalfDefOf(def, ro), bars, {}, ctx)
+  } catch (err) {
+    return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
+  }
+  const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
+  // ⛔ A run that owns its drawings always attaches them when it finishes
+  // (`runtimeColumns.js`): nothing attached is a run still in flight.
+  if (!payload || typeof payload !== 'object') return withRunHalfState(res, { state: 'pending', code: 'runtime:in-flight' })
+  if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
+  if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
+  const hostFams = hostObjectFamilies(def.objects)
+  if (Object.keys(payload.withheld || {}).some((f) => hostFams.has(f))) return refused('run-half:family-withheld')
+  // ⛔⛔ THE COLUMN RAIL.
+  const n = bars.length
+  const warm = runtimeWarmupOf(cols)
+  const from = warm && Number.isInteger(warm.withheldBars) && warm.withheldBars > 0 ? warm.withheldBars : 0
+  for (const key of Object.keys(ro.outputs)) {
+    const host = out[key]
+    const run = cols[key]
+    if (!host || !run || typeof host.length !== 'number' || host.length !== n || run.length !== n) {
+      return refused(RUN_HALF_COLUMN_RAIL)
+    }
+    for (let i = from; i < n; i += 1) {
+      if (!sameColumnValue(host[i], run[i])) return refused(RUN_HALF_COLUMN_RAIL)
+    }
+  }
+  Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
+  return withRunHalfState(res, { state: 'served', code: null })
+}
+
+/** ⭐ ENGINE 53 — what a run half's gates read that can change under an unchanged
+ *  (def, bars, inputs) key: the per-member permission and this tab's lists. Joined to the
+ *  binder's memo key (`computeSignature`), so a revoked latch or a kill reaches an open
+ *  chart on its next paint instead of keeping the run's drawings. */
+function runHalfGateSignature(def) {
+  const ro = def.compute.runtimeObjects
+  const source = ro && ro.source
+  return `rh:${runtimePaneBuilt() ? 1 : 0}${runtimePanePermitted() ? 1 : 0}`
+    + `${runtimeKillOf({ defId: def.id, source }) ? 'k' : ''}${runtimeNotGradedOf({ source }) ? 'g' : ''}`
+}
+
 export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'runtime') {
     return runtimeColumnsOrReasons(def, Array.isArray(bars) ? bars : [], inputs, ctx)
@@ -3319,7 +3486,9 @@ export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'ast') {
     const rows = Array.isArray(bars) ? bars : []
     const out = astColumnsFor(def, rows, treeScalars(def, resolveInputs(def, inputs)), ctx)
-    return def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
+    const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
+    // ⭐⭐ ENGINE 53 — and its drawings, when it carries a run half (`withRunHalf`).
+    return def.compute.runtimeObjects ? withRunHalf(def, coloured, rows, inputs, ctx) : coloured
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {

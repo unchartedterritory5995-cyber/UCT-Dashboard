@@ -717,3 +717,52 @@ export function stoppedRunSentence(reason, kind, { fromListing = false } = {}) {
   }
   return `None of this script's drawings are shown on this chart: ${plain}.`
 }
+
+// ─── ⭐⭐ ENGINE 53 — THE RUN HALF, IN THE MEMBER'S WORDS ─────────────────────────
+//
+// A host document whose object program lost drawings may carry a run half
+// (`compute.runtimeObjects`): the same script run bar by bar, which makes the drawings
+// complete. Where the run is proved to be the same computation on a chart, its drawings
+// are drawn instead of the incomplete set; anywhere else the incomplete set stays, and
+// the member is told why the complete one is not shown. ⛔ No guard token reaches a
+// sentence: the code is mapped to plain words, and an unmapped code reads the general one.
+
+/** The key a refused run half's sentence rides under in the binder's `why` (not a family). */
+export const RUN_HALF_WHY_KEY = '+run'
+
+/** Said on the document's drawing note when it carries a run half. */
+export const RUN_HALF_DRAWING_SENTENCE = 'Where this chart can run the script bar by bar the way TradingView '
+  + "does (at the script's own settings, with every plot agreeing with that run), its drawings are made by "
+  + 'that run instead, complete.'
+
+const RUN_HALF_WHY = Object.freeze({
+  'pane:not-built': "running scripts bar by bar isn't part of this version of the app",
+  'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now',
+  'pane:killed': 'this script is switched off for running bar by bar',
+  'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet",
+  'runtime:member-inputs': "a setting has been changed from the script's default, and the complete drawings "
+    + "are only worked out at the script's own settings",
+  'runtime:runtime.error': 'the script stops itself with its own error message on this chart',
+  'runtime:history-start': "this chart's bars don't start at the symbol's first trading day, and where the "
+    + 'drawings land depends on where the chart begins',
+  'runtime:warmup-never-converges': "this chart's bars don't start at the symbol's first trading day, and what "
+    + 'the script shows depends on where the chart begins',
+  'run-half:column-rail': 'running it bar by bar gives one of its plots a different value from the one drawn '
+    + 'here, so its drawings are not taken from that run',
+  'run-half:family-withheld': 'running it bar by bar holds back a kind of drawing this chart already draws',
+  'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is not loaded',
+  'runtime:load-failed': 'the part of the app that runs scripts bar by bar could not be loaded in this tab',
+  'runtime:request': 'the script reads another symbol or timeframe, which this chart cannot hand that run',
+})
+const RUN_HALF_WHY_LIMIT = 'running the script bar by bar needed more work than a chart is allowed'
+const RUN_HALF_WHY_OTHER = "part of the script can't be run bar by bar here"
+const LIMIT_CODE_RE = /^runtime:(limit|time-budget|worker-unresponsive|[A-Z][A-Z_]*)$/
+
+/** The member's sentence for a refused run half (`code` is the refusal's code). */
+export function runHalfRefusedSentence(code) {
+  const c = String(code || '')
+  const why = Object.hasOwn(RUN_HALF_WHY, c) ? RUN_HALF_WHY[c]
+    : LIMIT_CODE_RE.test(c) ? RUN_HALF_WHY_LIMIT : RUN_HALF_WHY_OTHER
+  return `The complete set of this script's drawings isn't shown on this chart: ${why}. `
+    + 'The drawings shown are the ones this chart makes without that run.'
+}

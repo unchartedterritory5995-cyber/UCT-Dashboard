@@ -1,0 +1,33 @@
+{
+ "_readme": "ENGINE 53 -- compute.runtimeObjects (a host document's run half): ONE rule set, client (defSchema.runtimeObjectsErrors) and server (presentation_schema._check_runtime_objects). Both suites read this file: app/src/components/chart/engine/__tests__/runtimeObjectsSchemaParity.test.js and tests/test_runtime_objects_schema_parity.py. Each case: the compute kind, the declared plot keys, the runtimeObjects value, and the error paths both sides must report (empty = valid).",
+ "cases": [
+  {"name": "valid, stamped", "kind": "ast", "plots": ["value", "out2"],
+   "runtimeObjects": {"source": "//@version=5\nindicator('x')\nplot(close)\n", "outputs": {"value": 0, "out2": 2},
+                      "runtimeLanguage": "pine", "runtimeFrontend": 1, "runtimeIr": 1, "runtimeOutputSignature": ["plot", "plotshape", "plot"]},
+   "paths": []},
+  {"name": "valid, no plot mapped (a drawing-only script)", "kind": "ast", "plots": ["value"],
+   "runtimeObjects": {"source": "x", "outputs": {}}, "paths": []},
+  {"name": "valid, a whole-number float index", "kind": "ast", "plots": ["value"],
+   "runtimeObjects": {"source": "x", "outputs": {"value": 1.0}}, "paths": []},
+  {"name": "not an ast document", "kind": "runtime", "plots": ["value"],
+   "runtimeObjects": {"source": "x", "outputs": {}}, "paths": ["compute.runtimeObjects"]},
+  {"name": "not an object", "kind": "ast", "plots": ["value"], "runtimeObjects": ["x"], "paths": ["compute.runtimeObjects"]},
+  {"name": "null", "kind": "ast", "plots": ["value"], "runtimeObjects": null, "paths": ["compute.runtimeObjects"]},
+  {"name": "an unknown field", "kind": "ast", "plots": ["value"],
+   "runtimeObjects": {"source": "x", "outputs": {}, "draw": true}, "paths": ["compute.runtimeObjects"]},
+  {"name": "no source", "kind": "ast", "plots": ["value"], "runtimeObjects": {"outputs": {}}, "paths": ["compute.runtimeObjects.source"]},
+  {"name": "a blank source", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "  ", "outputs": {}}, "paths": ["compute.runtimeObjects.source"]},
+  {"name": "outputs not an object", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": [0]}, "paths": ["compute.runtimeObjects.outputs"]},
+  {"name": "an undeclared plot key", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {"out9": 0}}, "paths": ["compute.runtimeObjects.outputs.out9"]},
+  {"name": "a negative index", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {"value": -1}}, "paths": ["compute.runtimeObjects.outputs.value"]},
+  {"name": "a fractional index", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {"value": 0.5}}, "paths": ["compute.runtimeObjects.outputs.value"]},
+  {"name": "a boolean index", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {"value": true}}, "paths": ["compute.runtimeObjects.outputs.value"]},
+  {"name": "a string index", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {"value": "0"}}, "paths": ["compute.runtimeObjects.outputs.value"]},
+  {"name": "one index named twice", "kind": "ast", "plots": ["value", "out2"], "runtimeObjects": {"source": "x", "outputs": {"value": 1, "out2": 1}}, "paths": ["compute.runtimeObjects.outputs.out2"]},
+  {"name": "a blank language", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "runtimeLanguage": ""}, "paths": ["compute.runtimeObjects.runtimeLanguage"]},
+  {"name": "a zero front end", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "runtimeFrontend": 0}, "paths": ["compute.runtimeObjects.runtimeFrontend"]},
+  {"name": "a fractional IR", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "runtimeIr": 1.5}, "paths": ["compute.runtimeObjects.runtimeIr"]},
+  {"name": "a signature that is not strings", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "runtimeOutputSignature": [1]}, "paths": ["compute.runtimeObjects.runtimeOutputSignature"]},
+  {"name": "an index past the signature", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {"value": 3}, "runtimeOutputSignature": ["plot"]}, "paths": ["compute.runtimeObjects.outputs.value"]}
+ ]
+}

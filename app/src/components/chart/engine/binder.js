@@ -75,7 +75,7 @@ import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics
 // provide one simply draws no objects.
 import { evaluateObjects } from './objectRuntime'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
-import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runHalfOf, carriesRunHalf } from './runtime/runtimeObjects.js'
 // ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
 import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
   joinMarkersToState } from './runtime/tradeMarkers.js'
@@ -114,7 +114,7 @@ import { setChartClockNotes } from './chartClockNotice'
 import { serverDeclares } from './serverCompute'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
-import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY } from './ast/objectLoss'
+import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY, runHalfRefusedSentence, RUN_HALF_WHY_KEY } from './ast/objectLoss'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 import { isRthBar } from '../barTime'
 
@@ -1189,8 +1189,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const markersCleared = () => { if (markersHere) markOutcomes.set(inst.instanceId, markersWithheldWith(marks)) }
       const markLive = marks ? attempt(() => tradeMarkerObjects(marks)).value || [] : []
       const markSig = markersHere ? `:mk:${markLive.map((o) => `${o.id}=${o.props.text}`).join(',')}` : ''
+      // ⭐⭐ ENGINE 53 — A HOST DOCUMENT'S RUN HALF (`nativeRegistry.js::withRunHalf`), read off
+      // the column record step 1 computed. `served`: the run's drawings, through the run's
+      // branch below, and the host program's are NOT drawn (never both pictures). `pending`:
+      // the run's branch with nothing to draw yet, so the layer is EMPTY until the run lands
+      // (never the host picture first and a swap after). `refused`: the host program's branch,
+      // with the reason the complete picture is not shown said in the drawing note.
+      const runHalf = carriesRunHalf(def) ? runHalfOf((runCols ? runCols.get(inst.instanceId) : null)
+        || (computeMemo.get(inst.instanceId) || {}).cols) : null
+      const runHalfDraws = !!(runHalf && (runHalf.state === 'served' || runHalf.state === 'pending'))
+      const runHalfWhy = runHalf && runHalf.state === 'refused' ? runHalfRefusedSentence(runHalf.code) : null
       // the run's branch: a document whose run draws its objects, or a strategy with no host program
-      if (drawsRuntimeObjects(def) || (markersHere && !(def && def.objects))) {
+      if (drawsRuntimeObjects(def) || runHalfDraws || (markersHere && !(def && def.objects))) {
         alive.add(inst.instanceId)
         const memo = computeMemo.get(inst.instanceId)
         // (r3) no object layer on this surface, or one that could not be made: nothing is drawn
@@ -1395,10 +1405,13 @@ export function createBinder({ chart, LWC, scope = '' }) {
           meta.stats.dropped = hstate.dropped
         } else markersCleared()
       }
+      // ⭐ ENGINE 53 — a refused run half says why the complete picture is not shown here
+      // (`RUN_HALF_KEY` in the note's `why`, never a guard token).
+      const hostWhy = built.value.run.withheldWhy || null
       publishDrops(inst.instanceId, hstate, {
         families: (built.value.run.withheldBy || {})['objects:collector'] || null,
         familiesAll: (built.value.run.withheldBy || {})['objects:collector-all'] || null,
-        why: built.value.run.withheldWhy || null,
+        why: runHalfWhy ? { ...(hostWhy || {}), [RUN_HALF_WHY_KEY]: runHalfWhy } : hostWhy,
       })
       if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
@@ -2061,7 +2074,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // array changed for some unrelated reason.
         // ⭐ RT5 — a drawing-only runtime document's record carries no column
         // and IS an answer (its drawings ride non-enumerably beside them).
-        if (Object.keys(cols).length || runtimeObjectsOf(cols)) {
+        // ⛔ ENGINE 53 — and a host result whose run half is still in flight is NOT memoised:
+        // remembering it would pin the empty object layer until the bars changed, and the run's
+        // landing (`notifyColumnsLanded`) would repaint the same pending answer.
+        const halfPending = (runHalfOf(cols) || {}).state === 'pending'
+        if ((Object.keys(cols).length || runtimeObjectsOf(cols)) && !halfPending) {
           computeMemo.set(inst.instanceId, { registry, def, bars: calcBars, sig, cols })
         } else {
           computeMemo.delete(inst.instanceId)
