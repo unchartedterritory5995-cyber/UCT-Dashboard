@@ -88,7 +88,7 @@ describe('the contract is additive', () => {
     expect(MUTATION_OPS.slice(0, 4)).toEqual(['add', 'remove', 'setVisible', 'setInputs'])
     expect(MUTATION_OPS.slice(4)).toEqual([...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS])
     // ⭐ 2a-12 appended `setDotSize` to the STYLE ops; every earlier op keeps its position
-    expect([...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS]).toEqual(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
+    expect([...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS]).toEqual(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize', 'setCalculationTimeframe', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
   })
   it('REASONS is exactly the frozen set — no new refusal codes', () => {
     expect(Object.values(REASONS).sort()).toEqual(['ambiguous', 'bad-input', 'bad-request', 'changed-while-working', 'dependent-exists', 'did-not-land',

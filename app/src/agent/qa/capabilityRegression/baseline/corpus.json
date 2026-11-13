@@ -9160,6 +9160,64 @@
       ]
     },
     {
+      "id": "indicatorStyle.calcTimeframe-weekly",
+      "source": "calc-TF family (pl-ctf, 11-12): the Inspector's Timeframe — an indicator calculated on a higher timeframe's bars, the chart's own timeframe unchanged",
+      "capabilities": [
+        "indicatorStyle.setCalcTimeframe"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "indicatorStyle.setCalcTimeframe"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorStyle.setCalcTimeframe",
+            "args": {
+              "timeframe": "weekly"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorStyle.setCalcTimeframe",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "ovl:2",
+              "timeframe": "W"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "inputs.period": 50,
+            "inputs.maType": "sma"
+          },
+          "has": {
+            "calculationTimeframe": "W"
+          }
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "calculate the 50 sma on weekly",
+        "compute the 50 sma on the weekly bars",
+        "make the 50 sma use the weekly"
+      ]
+    },
+    {
       "id": "indicatorCopy.duplicate",
       "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — configure an existing indicator",
       "capabilities": [
@@ -11878,6 +11936,46 @@
     }
   ],
   "refusals": [
+    {
+      "id": "refuse.calcTimeframe.unclear-put-on-weekly",
+      "source": "calc-TF family (pl-ctf, 11-12): \"put the 50 sma on weekly\" could mean its calculation, where it shows, or the chart — it ASKS in fixed words, changes nothing, no model turn; the clear follow-up calculates it, and Undo takes it back",
+      "capabilities": [
+        "indicatorStyle.setCalcTimeframe"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "steps": [
+        {
+          "say": "put the 50 sma on weekly",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "calculate the 50 sma on weekly",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "instance": {
+              "find": {
+                "inputs.period": 50,
+                "inputs.maType": "sma"
+              },
+              "has": {
+                "calculationTimeframe": "W"
+              }
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
     {
       "id": "refuse.undo-nothing",
       "capabilities": [
