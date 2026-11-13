@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 206,
-  "withProductionKinds": 197,
+  "all": 208,
+  "withProductionKinds": 199,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 206,
-  "withAnyRegressionCase": 154,
+  "capabilities": 208,
+  "withAnyRegressionCase": 156,
   "perProtection": {
    "nl": {
-    "covered": 151,
-    "applicable": 206
+    "covered": 153,
+    "applicable": 208
    },
    "routing": {
-    "covered": 148,
-    "applicable": 206
+    "covered": 150,
+    "applicable": 208
    },
    "args": {
-    "covered": 154,
-    "applicable": 206
+    "covered": 156,
+    "applicable": 208
    },
    "execution": {
-    "covered": 151,
-    "applicable": 206
+    "covered": 153,
+    "applicable": 208
    },
    "receipt": {
-    "covered": 123,
-    "applicable": 206
+    "covered": 125,
+    "applicable": 208
    },
    "refusal": {
-    "covered": 34,
-    "applicable": 206
+    "covered": 35,
+    "applicable": 208
    },
    "permission": {
-    "covered": 199,
-    "applicable": 206
+    "covered": 201,
+    "applicable": 208
    },
    "undo": {
-    "covered": 77,
-    "applicable": 136
+    "covered": 79,
+    "applicable": 138
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 206
+    "applicable": 208
    },
    "phrasings": {
-    "covered": 147,
-    "applicable": 206
+    "covered": 149,
+    "applicable": 208
    }
   }
  },
@@ -6394,6 +6394,62 @@
     "phrasings": []
    }
   },
+  "indicatorStyle.setCalcTimeframe": {
+   "domain": "indicatorStyle",
+   "group": "indicatorCalc",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": true,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "indicatorStyle.calcTimeframe-weekly: \"calculate the 50 sma on weekly\"",
+     "indicatorStyle.calcTimeframe-weekly: \"compute the 50 sma on the weekly bars\"",
+     "indicatorStyle.calcTimeframe-weekly: \"make the 50 sma use the weekly\""
+    ],
+    "routing": [
+     "indicatorStyle.calcTimeframe-weekly: \"calculate the 50 sma on weekly\"",
+     "indicatorStyle.calcTimeframe-weekly: \"compute the 50 sma on the weekly bars\"",
+     "indicatorStyle.calcTimeframe-weekly: \"make the 50 sma use the weekly\""
+    ],
+    "args": [
+     "corpus indicatorStyle.calcTimeframe-weekly"
+    ],
+    "execution": [
+     "indicatorStyle.calcTimeframe-weekly (c)"
+    ],
+    "receipt": [
+     "indicatorStyle.calcTimeframe-weekly (c)"
+    ],
+    "refusal": [
+     "refuse.calcTimeframe.unclear-put-on-weekly"
+    ],
+    "permission": [],
+    "undo": [
+     "indicatorStyle.calcTimeframe-weekly: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "indicatorTemplate.apply": {
    "domain": "indicatorTemplate",
    "group": "chartSetup",
@@ -9056,6 +9112,82 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "uctIntelligence.set": {
+   "domain": "uctIntelligence",
+   "group": "uctIntelligence",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 13,
+   "evidence": {
+    "nl": [
+     "uctIntelligence.add: \"add uct intelligence to this chart\"",
+     "uctIntelligence.add: \"put the UCT Intelligence indicator on this chart\"",
+     "uctIntelligence.add: \"turn on uct intelligence\"",
+     "uctIntelligence.layer: \"turn on the setups layer\"",
+     "uctIntelligence.layer: \"enable the uct intelligence setups\"",
+     "uctIntelligence.layer: \"switch on setups in uct intelligence\""
+    ],
+    "routing": [
+     "uctIntelligence.add: \"add uct intelligence to this chart\"",
+     "uctIntelligence.add: \"put the UCT Intelligence indicator on this chart\"",
+     "uctIntelligence.add: \"turn on uct intelligence\"",
+     "uctIntelligence.layer: \"turn on the setups layer\"",
+     "uctIntelligence.layer: \"enable the uct intelligence setups\"",
+     "uctIntelligence.layer: \"switch on setups in uct intelligence\""
+    ],
+    "args": [
+     "corpus uctIntelligence.add",
+     "corpus uctIntelligence.layer",
+     "corpus uctIntelligence.autoPatterns",
+     "corpus uctIntelligence.remove",
+     "corpus uctIntelligence.gated",
+     "corpus uctIntelligence.patterns.which"
+    ],
+    "execution": [
+     "uctIntelligence.add (c)",
+     "uctIntelligence.layer (c)",
+     "uctIntelligence.autoPatterns (c)",
+     "uctIntelligence.remove (c)",
+     "uctIntelligence.gated (c)",
+     "uctIntelligence.patterns.which (c)"
+    ],
+    "receipt": [
+     "uctIntelligence.add (c)",
+     "uctIntelligence.layer (c)",
+     "uctIntelligence.autoPatterns (c)",
+     "uctIntelligence.remove (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "uctIntelligence.add: undo restores",
+     "uctIntelligence.layer: undo restores",
+     "uctIntelligence.autoPatterns: undo restores",
+     "uctIntelligence.remove: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

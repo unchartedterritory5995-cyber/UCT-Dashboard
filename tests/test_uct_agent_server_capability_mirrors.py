@@ -101,6 +101,14 @@ def test_every_manifest_action_name_is_withheld_by_the_guard_ratchet():
     assert all(guard.suspicious(f"run {n} now") for n in NAMES)
 
 
+def test_the_uct_intelligence_indicator_is_a_CHART_action_withheld_bare():
+    # uctIntelligence.set adds / removes ONE chart's UCT Intelligence indicator and its layers (the chart's settings): chart, never history
+    assert v2.domain_for("uctIntelligence.set") == "chart"
+    assert guard.suspicious(_bare("uctIntelligence.set")) is True
+    for text in ("Add UCT Intelligence to the chart.", "See uctintelligence.com for the auto patterns."):
+        assert guard.suspicious(text) is False, text
+
+
 def test_the_guard_still_passes_ordinary_multi_chart_prose():
     for text in ("I keep a 2x3 multi chart grid of the leaders.", "Maximize the cell when you study a base.",
                  "Set the chart to weekly before the open."):
@@ -120,6 +128,14 @@ def test_the_chart_menu_family_is_a_CHART_action_not_history():
     # #1106: the chart's right-click Ask AI and watermark Reset act on ONE chart (the chart domain), never history
     assert v2.domain_for("chartMenu.askAi") == "chart"
     assert v2.domain_for("chartMenu.resetWatermark") == "chart"
+
+
+def test_the_calc_timeframe_action_is_an_INDICATOR_action_and_withheld():
+    # calc-TF family: indicatorStyle.setCalcTimeframe files under the indicator domain (as indicatorStyle.* does), never history,
+    # and its bare name is withheld by the existing indicatorStyle × set enumeration (no new GUARD_KNOWN_UNWITHHELD entry)
+    assert v2.domain_for("indicatorStyle.setCalcTimeframe") == v2.domain_for("indicatorStyle.set") != "history"
+    assert guard.suspicious(_bare("indicatorStyle.setCalcTimeframe")) is True
+    assert "indicatorStyle.setCalcTimeframe" not in GUARD_KNOWN_UNWITHHELD
 
 
 def test_the_chart_features_family_is_a_CHART_action_not_history():

@@ -34,6 +34,8 @@ import { registerIndicatorTemplateCapabilities } from './capabilities/indicatorT
 // Charts family (2026-11-12): the chart's Volume Profile overlay (the carved-out canvas key) — on / off, bins, colours
 import { registerVolumeProfileCapabilities } from './capabilities/volumeProfile'
 import { registerDefinitionCapabilities } from './capabilities/definitions'
+// the chart's UCT Intelligence INDICATOR (its library row + panel layers) — not indicator authoring
+import { registerUctIntelligenceCapabilities } from './capabilities/uctIntelligence'
 import { registerBreadthCapabilities } from './capabilities/breadth'
 import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
 import { registerGuideCapabilities } from './capabilities/guide'
@@ -92,6 +94,7 @@ export function registerBuiltins() {
   registerIndicatorTemplateCapabilities()
   registerVolumeProfileCapabilities()       // volumeProfile.set: Chart Settings → Indicators' Volume Profile row (never an instance)
   registerDefinitionCapabilities()
+  registerUctIntelligenceCapabilities()     // uctIntelligence.set: add / remove the UCT Intelligence indicator, its layers on / off
   registerAboutCapabilities()
   registerGuideCapabilities()
   registerScreenerPageCapabilities()

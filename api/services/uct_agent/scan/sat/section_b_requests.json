@@ -11216,6 +11216,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -11242,6 +11246,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -11580,6 +11588,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -11606,6 +11618,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -11942,6 +11958,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -11968,6 +11988,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -12310,6 +12334,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -12336,6 +12364,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -12671,6 +12703,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -12697,6 +12733,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -13033,6 +13073,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -13059,6 +13103,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -13395,6 +13443,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -13421,6 +13473,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -14024,6 +14080,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -14050,6 +14110,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -14387,6 +14451,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -14413,6 +14481,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -14748,6 +14820,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -14774,6 +14850,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -15370,6 +15450,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -15396,6 +15480,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -15732,6 +15820,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -15758,6 +15850,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -16361,6 +16457,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -16387,6 +16487,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -16984,6 +17088,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -17010,6 +17118,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -17607,6 +17719,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -17633,6 +17749,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -17969,6 +18089,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -17995,6 +18119,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -18598,6 +18726,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -18624,6 +18756,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -18960,6 +19096,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -18986,6 +19126,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -19328,6 +19472,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -19354,6 +19502,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -19696,6 +19848,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -19722,6 +19878,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -20064,6 +20224,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -20090,6 +20254,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -20426,6 +20594,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -20452,6 +20624,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -20788,6 +20964,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -20814,6 +20994,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -21149,6 +21333,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -21175,6 +21363,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -21511,6 +21703,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -21537,6 +21733,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -22133,6 +22333,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -22159,6 +22363,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -22757,6 +22965,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -22783,6 +22995,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -23380,6 +23596,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -23406,6 +23626,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -24003,6 +24227,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -24029,6 +24257,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -24364,6 +24596,10 @@
       "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
+     },
+     {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
@@ -24390,6 +24626,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",

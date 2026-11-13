@@ -1,0 +1,535 @@
+{
+ "_readme": "ENGINE 53: a run-half document as the script door SENDS it, and the same with values whose JSON text differs between JS and Python. Both suites count the bytes the store counts: storedBytes.parity.test.js and tests/test_run_half_source_binding.py.",
+ "source": "//@version=5\nindicator(\"run half\", overlay = true)\nlen = input.int(5, \"len\")\nm = ta.sma(close, len)\nplot(m, \"m\")\nplot(m * 2, \"m2\")\nif barstate.islast\n    line.new(bar_index - 1, low, bar_index, high)\n    for i = 0 to 4\n        if close[i] > open[i]\n            label.new(bar_index - i, high[i], \"up\")",
+ "sent": {
+  "schemaVersion": 1,
+  "id": "u_0123456789ab",
+  "version": 1,
+  "objects": {
+   "programVersion": 1,
+   "pineVersion": 5,
+   "regs": [],
+   "colls": [],
+   "ops": [
+    {
+     "k": "create",
+     "family": "line",
+     "site": "s1",
+     "into": null,
+     "when": null,
+     "lastBarOnly": true,
+     "props": {
+      "x1": {
+       "v": "tree",
+       "tree": 0
+      },
+      "y1": {
+       "v": "tree",
+       "tree": 1
+      },
+      "x2": {
+       "v": "bar"
+      },
+      "y2": {
+       "v": "tree",
+       "tree": 2
+      }
+     }
+    }
+   ],
+   "trees": [
+    {
+     "type": "op",
+     "name": "-",
+     "args": [
+      {
+       "type": "series",
+       "name": "barindex"
+      },
+      {
+       "type": "num",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "type": "series",
+     "name": "low"
+    },
+    {
+     "type": "series",
+     "name": "high"
+    }
+   ],
+   "lostCreates": [
+    "label"
+   ]
+  },
+  "compute": {
+   "kind": "ast",
+   "fn": "sha256:56d09295278c7d4d22c4e9f60ee1b50592487c8935774066e2480a8ff4682037",
+   "rev": 1,
+   "ast": {
+    "type": "call",
+    "name": "sma",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 5
+     }
+    ]
+   },
+   "source": "sma(close, 5)",
+   "paramManifest": {
+    "__uct_param_1001": {
+     "sourceName": "len",
+     "title": "len",
+     "type": "int",
+     "default": 5,
+     "min": null,
+     "max": null,
+     "step": null,
+     "options": null,
+     "locators": [
+      {
+       "treeIndex": "value",
+       "astPath": [
+        "args",
+        1
+       ]
+      },
+      {
+       "treeIndex": "out2",
+       "astPath": [
+        "args",
+        0,
+        "args",
+        1
+       ]
+      }
+     ]
+    }
+   },
+   "trees": {
+    "value": {
+     "type": "call",
+     "name": "sma",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 5
+      }
+     ]
+    },
+    "out2": {
+     "type": "op",
+     "name": "*",
+     "args": [
+      {
+       "type": "call",
+       "name": "sma",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        },
+        {
+         "type": "num",
+         "value": 5
+        }
+       ]
+      },
+      {
+       "type": "num",
+       "value": 2
+      }
+     ]
+    }
+   },
+   "treesHash": "sha256:227e48a3623e684beea1dcc29d49b94de4b2f883db252887dbd8e7bcc7901df6",
+   "scanPlot": "value",
+   "sources": {
+    "value": "sma(close, 5)",
+    "out2": "sma(close, 5) * 2"
+   },
+   "runtimeObjects": {
+    "source": "//@version=5\nindicator(\"run half\", overlay = true)\nlen = input.int(5, \"len\")\nm = ta.sma(close, len)\nplot(m, \"m\")\nplot(m * 2, \"m2\")\nif barstate.islast\n    line.new(bar_index - 1, low, bar_index, high)\n    for i = 0 to 4\n        if close[i] > open[i]\n            label.new(bar_index - i, high[i], \"up\")",
+    "outputs": {
+     "value": 0,
+     "out2": 1
+    },
+    "runtimeLanguage": "pine",
+    "runtimeFrontend": 1,
+    "runtimeIr": 1,
+    "runtimeOutputSignature": [
+     "plot",
+     "plot"
+    ]
+   }
+  },
+  "meta": {
+   "name": "rh",
+   "shortName": "rh",
+   "category": "Custom",
+   "description": "the 5-bar average of close",
+   "tags": [
+    "custom"
+   ],
+   "tier": "premium",
+   "repaint": "non-repainting",
+   "freshness": "live",
+   "pineSourceSha256": "d0ae27fadd6a086f89f6001616eacdbc51ad27509bf5c5bcdd72092b62337381",
+   "disclosures": [
+    {
+     "name": "Drawings",
+     "note": "2 of 3 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 3 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) Where this chart can run the script bar by bar the way TradingView does (at the script's own settings, with every plot agreeing with that run), its drawings are made by that run instead, complete."
+    }
+   ],
+   "requirementTags": [],
+   "recurrenceOrigin": "pine",
+   "pineVersion": 5,
+   "doorVersion": 1,
+   "naConditionFalse": true,
+   "engineVersion": 53
+  },
+  "placement": {
+   "target": "price"
+  },
+  "inputs": [
+   {
+    "key": "color",
+    "type": "color",
+    "label": "Color",
+    "default": "#2962FF"
+   },
+   {
+    "key": "lineWidth",
+    "type": "int",
+    "label": "Line width",
+    "default": 1,
+    "min": 1,
+    "max": 10,
+    "step": 1
+   },
+   {
+    "key": "out2Color",
+    "type": "color",
+    "label": "m2 colour",
+    "default": "#2962FF"
+   },
+   {
+    "key": "out2Width",
+    "type": "int",
+    "label": "m2 width",
+    "default": 1,
+    "min": 1,
+    "max": 10,
+    "step": 1
+   }
+  ],
+  "plots": [
+   {
+    "key": "value",
+    "label": "m",
+    "style": "line",
+    "color": "$color",
+    "width": "$lineWidth",
+    "role": "primary",
+    "legend": {
+     "decimals": 2
+    }
+   },
+   {
+    "key": "out2",
+    "label": "m2",
+    "style": "line",
+    "color": "$out2Color",
+    "width": "$out2Width",
+    "role": "secondary",
+    "legend": {
+     "decimals": 2
+    }
+   }
+  ]
+ },
+ "sentBytes": 3610,
+ "edge": {
+  "schemaVersion": 1,
+  "id": "u_0123456789ab",
+  "version": 1,
+  "objects": {
+   "programVersion": 1,
+   "pineVersion": 5,
+   "regs": [],
+   "colls": [],
+   "ops": [
+    {
+     "k": "create",
+     "family": "line",
+     "site": "s1",
+     "into": null,
+     "when": null,
+     "lastBarOnly": true,
+     "props": {
+      "x1": {
+       "v": "tree",
+       "tree": 0
+      },
+      "y1": {
+       "v": "tree",
+       "tree": 1
+      },
+      "x2": {
+       "v": "bar"
+      },
+      "y2": {
+       "v": "tree",
+       "tree": 2
+      }
+     }
+    }
+   ],
+   "trees": [
+    {
+     "type": "op",
+     "name": "-",
+     "args": [
+      {
+       "type": "series",
+       "name": "barindex"
+      },
+      {
+       "type": "num",
+       "value": 1
+      }
+     ]
+    },
+    {
+     "type": "series",
+     "name": "low"
+    },
+    {
+     "type": "series",
+     "name": "high"
+    }
+   ],
+   "lostCreates": [
+    "label"
+   ]
+  },
+  "compute": {
+   "kind": "ast",
+   "fn": "sha256:56d09295278c7d4d22c4e9f60ee1b50592487c8935774066e2480a8ff4682037",
+   "rev": 1,
+   "ast": {
+    "type": "call",
+    "name": "sma",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 5
+     }
+    ]
+   },
+   "source": "sma(close, 5)",
+   "paramManifest": {
+    "__uct_param_1001": {
+     "sourceName": "len",
+     "title": "len",
+     "type": "int",
+     "default": 5,
+     "min": null,
+     "max": null,
+     "step": null,
+     "options": null,
+     "locators": [
+      {
+       "treeIndex": "value",
+       "astPath": [
+        "args",
+        1
+       ]
+      },
+      {
+       "treeIndex": "out2",
+       "astPath": [
+        "args",
+        0,
+        "args",
+        1
+       ]
+      }
+     ]
+    }
+   },
+   "trees": {
+    "value": {
+     "type": "call",
+     "name": "sma",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 5
+      }
+     ]
+    },
+    "out2": {
+     "type": "op",
+     "name": "*",
+     "args": [
+      {
+       "type": "call",
+       "name": "sma",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        },
+        {
+         "type": "num",
+         "value": 5
+        }
+       ]
+      },
+      {
+       "type": "num",
+       "value": 2
+      }
+     ]
+    }
+   },
+   "treesHash": "sha256:227e48a3623e684beea1dcc29d49b94de4b2f883db252887dbd8e7bcc7901df6",
+   "scanPlot": "value",
+   "sources": {
+    "value": "sma(close, 5)",
+    "out2": "sma(close, 5) * 2"
+   },
+   "runtimeObjects": {
+    "source": "//@version=5\nindicator(\"run half\", overlay = true)\nlen = input.int(5, \"len\")\nm = ta.sma(close, len)\nplot(m, \"m\")\nplot(m * 2, \"m2\")\nif barstate.islast\n    line.new(bar_index - 1, low, bar_index, high)\n    for i = 0 to 4\n        if close[i] > open[i]\n            label.new(bar_index - i, high[i], \"up\")",
+    "outputs": {
+     "value": 0,
+     "out2": 1
+    },
+    "runtimeLanguage": "pine",
+    "runtimeFrontend": 1,
+    "runtimeIr": 1,
+    "runtimeOutputSignature": [
+     "plot",
+     "plot"
+    ]
+   }
+  },
+  "meta": {
+   "name": "rh",
+   "shortName": "rh",
+   "category": "Custom",
+   "description": "the 5-bar average of close",
+   "tags": [
+    "custom"
+   ],
+   "tier": "premium",
+   "repaint": "non-repainting",
+   "freshness": "live",
+   "pineSourceSha256": "d0ae27fadd6a086f89f6001616eacdbc51ad27509bf5c5bcdd72092b62337381",
+   "disclosures": [
+    {
+     "name": "Drawings",
+     "note": "2 of 3 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 3 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) Where this chart can run the script bar by bar the way TradingView does (at the script's own settings, with every plot agreeing with that run), its drawings are made by that run instead, complete."
+    }
+   ],
+   "requirementTags": [],
+   "recurrenceOrigin": "pine",
+   "pineVersion": 5,
+   "doorVersion": 1,
+   "naConditionFalse": true,
+   "engineVersion": 53,
+   "bytesProbe": [
+    0.00001,
+    0.0001,
+    0.00012,
+    1.5e-7,
+    123.456,
+    -2.5e-9,
+    1e+21,
+    7,
+    "tab\tq\"\u0001é😀\\"
+   ]
+  },
+  "placement": {
+   "target": "price"
+  },
+  "inputs": [
+   {
+    "key": "color",
+    "type": "color",
+    "label": "Color",
+    "default": "#2962FF"
+   },
+   {
+    "key": "lineWidth",
+    "type": "int",
+    "label": "Line width",
+    "default": 1,
+    "min": 1,
+    "max": 10,
+    "step": 1
+   },
+   {
+    "key": "out2Color",
+    "type": "color",
+    "label": "m2 colour",
+    "default": "#2962FF"
+   },
+   {
+    "key": "out2Width",
+    "type": "int",
+    "label": "m2 width",
+    "default": 1,
+    "min": 1,
+    "max": 10,
+    "step": 1
+   }
+  ],
+  "plots": [
+   {
+    "key": "value",
+    "label": "m",
+    "style": "line",
+    "color": "$color",
+    "width": "$lineWidth",
+    "role": "primary",
+    "legend": {
+     "decimals": 2
+    }
+   },
+   {
+    "key": "out2",
+    "label": "m2",
+    "style": "line",
+    "color": "$out2Color",
+    "width": "$out2Width",
+    "role": "secondary",
+    "legend": {
+     "decimals": 2
+    }
+   }
+  ]
+ },
+ "edgeBytes": 3704
+}

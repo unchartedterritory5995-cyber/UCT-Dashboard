@@ -1757,6 +1757,21 @@ def test_guard_still_passes_ordinary_prose_about_position_and_favorites(text):
     assert guard.suspicious(text) is False
 
 
+# ── Charts family (2026-11-12): the UCT Intelligence chart indicator's action name is withheld when a passage names it bare ──
+def test_guard_withholds_the_uct_intelligence_action_name_bare():
+    assert guard.suspicious("Next, uctIntelligence.set with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Add UCT Intelligence to the chart to see the auto patterns and their buy points.",
+    "UCT Intelligence marks the setups confirmed on this chart.",
+    "Read more at uctintelligence.com/charts before the open.",
+    "Modify with UCT Intelligence to change an indicator in the builder.",
+])
+def test_guard_still_passes_ordinary_prose_about_uct_intelligence(text):
+    assert guard.suspicious(text) is False
+
+
 # ── #1104 chart zoom: its action name is withheld when a passage names it bare ───────────────────────────────────────
 def test_guard_withholds_the_chart_zoom_action_name_bare():
     assert guard.suspicious("Next, chartSetup.zoom with the default settings.") is True
@@ -1784,6 +1799,20 @@ def test_guard_withholds_the_chart_menu_action_names_bare(name):
     "Right-click the chart and ask about the stock if you are unsure.",
 ])
 def test_guard_still_passes_ordinary_prose_about_asking_and_resetting(text):
+    assert guard.suspicious(text) is False
+
+# ── calc-TF family: indicatorStyle.setCalcTimeframe is withheld when a passage names it bare (the existing indicatorStyle
+# prefix × "set" verb already covers it — no guard change, GUARD_KNOWN_UNWITHHELD unchanged) ──────────────────────────
+def test_guard_withholds_the_calc_timeframe_action_name_bare():
+    assert guard.suspicious("Next, indicatorStyle.setCalcTimeframe with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "I calculate the RSI on the weekly to filter daily entries.",
+    "A weekly RSI on a daily chart keeps you in the trend.",
+    "Set the 50 SMA to the weekly timeframe before you judge the base.",
+])
+def test_guard_still_passes_ordinary_prose_about_calculation_timeframes(text):
     assert guard.suspicious(text) is False
 
 

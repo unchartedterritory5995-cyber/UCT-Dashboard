@@ -45,12 +45,16 @@
 //     worker thread for its duration). A chart's own ask is never queued here.
 //   · NOT FOR NOBODY. A hidden app drops the queue; the rows are asked for
 //     again when the member comes back and moves.
+//   · THE CHART ON SCREEN COMES FIRST. While a chart's own ask is out, or a chart is
+//     flying through a list faster than anything asked ahead could land, no new
+//     request starts (`serverCompute.chartsNeedTheLane`); it looks again every
+//     `YIELD_MS`. What is already in flight finishes.
 //   · A STRUGGLING SERVER IS LEFT ALONE. A failed request pauses every warm for
 //     `BACKOFF_MS`; a server without the batch route is never sent five single
 //     asks per symbol in its place (`fetchColumnsBatch` refuses for a warm).
 //
 // Kill switch, per browser, no deploy: localStorage['uct.indwarm.off'] = '1'.
-import { liveAsks, hasColumns, fetchColumnsBatch, batchAvailable } from './serverCompute'
+import { liveAsks, hasColumns, fetchColumnsBatch, batchAvailable, chartsNeedTheLane } from './serverCompute'
 import { isAppVisible } from '../../../lib/deskVisibility'
 import { afterFirstChartPaint } from '../../../lib/barsPackClient'
 import { registerSymbolWarmer, _packStillIngesting } from '../../../utils/prefetchBars'
@@ -69,6 +73,8 @@ export const BULK_HEAD = 16
 export const BACKLOG_MAX = 300
 /** After a failed request, how long every warm rests. */
 export const BACKOFF_MS = 15_000
+/** While a chart on screen needs the lane, how often the pre-load looks again. */
+export const YIELD_MS = 120
 
 const _queue = []          // { sym, tf, near }
 let _backlog = null        // { tf, syms } the rest of the list that opened last, in list order
@@ -131,6 +137,10 @@ function _pump() {
   if (!isAppVisible()) { _queue.length = 0; _backlog = null; return }
   if (!_queue.length) _refill()
   if (!_queue.length) return
+  // ⭐ THE CHART ON SCREEN COMES FIRST (`serverCompute.chartsNeedTheLane`): while a chart's own
+  // ask is out, or a chart is flying through a list, nothing new is started. On production a
+  // landing chart drew its RS line 4.8 s late behind three requests this queue had just begun.
+  if (chartsNeedTheLane()) { _kickSoon(YIELD_MS); return }
   const now = Date.now()
   if (now < _backoffUntil) { _kickSoon(_backoffUntil - now + 50); return }
   while (_queue.length) {

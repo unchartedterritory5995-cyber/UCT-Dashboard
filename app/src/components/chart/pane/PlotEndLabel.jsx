@@ -36,10 +36,16 @@ import styles from './PlotEndLabel.module.css'
 
 // ⛔ No `data-instance-id` here: the tour and several rails count those nodes as
 // the chips a chart draws, and a tag is not a chip.
-const PlotEndLabel = forwardRef(function PlotEndLabel({ text, color, labelKey }, ref) {
+// `color`: the text ink, when the plot's colour reads on the canvas; absent, the legend's
+// neutral ink (the stylesheet). `swatch`: the plot's colour, always, as the tag's left edge,
+// so the tag still says which line it belongs to when its text cannot wear that colour.
+const PlotEndLabel = forwardRef(function PlotEndLabel({ text, color, swatch, labelKey }, ref) {
+  const style = color || swatch
+    ? { ...(color ? { color } : null), ...(swatch ? { borderLeftColor: swatch } : null) }
+    : undefined
   return (
     <div ref={ref} className={styles.legendEndTag} data-end-label={labelKey || ''} data-hidden=""
-      style={color ? { color } : undefined} aria-hidden="true">
+      style={style} aria-hidden="true">
       {typeof text === 'string' ? text : ''}
     </div>
   )

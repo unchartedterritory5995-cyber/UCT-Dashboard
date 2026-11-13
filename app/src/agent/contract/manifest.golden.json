@@ -6965,6 +6965,38 @@
    "shape": null
   },
   {
+   "name": "indicatorStyle.setCalcTimeframe",
+   "domain": "indicatorStyle",
+   "target": "indicatorEdits",
+   "summary": "Calculate ONE indicator on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own — the chart's timeframe does not change. Undo puts it back.",
+   "hints": "target = the chart's indicatorEdits entry; instance = the indicator; timeframe = 1, 5, 15, 30, 60, D, W, M or \"chart\". Not showOn (which charts it shows on) and not chart.setTimeframe. \"Put the RSI on weekly\" is unclear: ask which.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     },
+     "timeframe": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "instance",
+     "timeframe"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "pane.move",
    "domain": "pane",
    "target": "indicatorEdits",
@@ -7386,6 +7418,56 @@
     "additionalProperties": false
    },
    "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "uctIntelligence.set",
+   "domain": "uctIntelligence",
+   "target": "chart",
+   "summary": "ONE chart's UCT Intelligence INDICATOR (its Indicators library row and panel): add or remove it, or turn one of its layers on or off, as the member's own switches do. Layers not released to the member are refused. Undo restores it exactly.",
+   "hints": "target = the chart. op add | remove (the indicator), or on | off with layer = autoPatterns (the Patterns button / auto chart patterns) | labels (pattern labels & numbers) | supportResistance | candles (candlestick patterns) | setups | caution. Creating or modifying an indicator WITH UCT Intelligence is indicator authoring, not this. Chart IQ is chart.setSetting.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "add",
+       "remove",
+       "on",
+       "off"
+      ]
+     },
+     "layer": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "autoPatterns",
+       "labels",
+       "supportResistance",
+       "candles",
+       "setups",
+       "caution",
+       null
+      ]
+     }
+    },
+    "required": [
+     "op",
+     "layer"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
    "reversible": true,
    "undo": "exact",
    "query": false,

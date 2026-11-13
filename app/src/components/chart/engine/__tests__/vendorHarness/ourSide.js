@@ -36,7 +36,7 @@ import { evaluateObjects } from '../../objectRuntime'
 import { NOT_SHOWN, runtimeWithheldWhy, runtimeWithheldCause } from '../../ast/objectLoss'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
-import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY } from '../../runtime/runtimeObjects'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { maxLookback, CHART_CLOCK_WHOLE } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
@@ -772,8 +772,20 @@ function notShownReport(withheldBy, withheldWhy, base = null) {
   }
 }
 
-/** The object lane's LIVE set at the last bar, as counts and texts. */
+/** ⭐⭐ ENGINE 53 — a host document's RUN HALF (`nativeRegistry.js::withRunHalf`): where the
+ *  bind served it, the run's drawings are graded (the binder draws them and not the host
+ *  program's); otherwise the host program's, as the chart draws them. The state rides on
+ *  the report (`runHalf`, `runHalfCode`) for the census and the regrade. */
 function objectsOf(def, bars, ctx, cols, built = null) {
+  const half = carriesRunHalf(def) ? runHalfOf(cols) : null
+  const tag = half ? { runHalf: half.state, runHalfCode: half.code || null } : {}
+  if (half && half.state === 'served') return { ...runtimeObjectsReport(def, bars, ctx, cols), ...tag }
+  const r = hostObjectsOf(def, bars, ctx, cols, built)
+  return r && half ? { ...r, ...tag } : r
+}
+
+/** The object lane's LIVE set at the last bar, as counts and texts. */
+function hostObjectsOf(def, bars, ctx, cols, built = null) {
   if (drawsRuntimeObjects(def)) return runtimeObjectsReport(def, bars, ctx, cols)
   if (!def.objects || !(def.objects.ops || []).length) {
     const w = drawingWithheldBy(built)
@@ -1238,6 +1250,9 @@ function runOurSideOnTheParityClock(capture) {
         speaksFor: replay ? 'the standalone daily chart (not a grid cell, which first-paints shallow; W / M stay cold)' : null },
       translationPaints: runtimeAwarePaints(built, def),
       drawnPaints,
+      // ⭐ ENGINE 53 — what the door did with the run half (minted / declined by code); the bind's
+      // answer (served / refused) rides on `objects.runHalf`.
+      runHalfDoor: built.runHalf ? 'minted' : (built.runHalfDeclined ? `declined:${built.runHalfDeclined.code}` : null),
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)

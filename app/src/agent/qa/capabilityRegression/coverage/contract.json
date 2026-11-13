@@ -1497,6 +1497,19 @@
    ],
    "fast": true
   },
+  "indicatorStyle.setCalcTimeframe": {
+   "domain": "indicatorStyle",
+   "group": "indicatorCalc",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "indicatorTemplate.apply": {
    "domain": "indicatorTemplate",
    "group": "chartSetup",
@@ -2189,6 +2202,19 @@
     "*"
    ],
    "fast": false
+  },
+  "uctIntelligence.set": {
+   "domain": "uctIntelligence",
+   "group": "uctIntelligence",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
   },
   "volume.setState": {
    "domain": "volume",
