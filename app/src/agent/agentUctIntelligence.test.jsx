@@ -1,4 +1,4 @@
-// re-merged onto master 28f8d6bda9 (2026-11-13): this line starts the Agent CI push run for a merge-only head.
+// re-merged onto master 2f4034d2af (2026-11-13): this line starts the Agent CI push run for a merge-only head.
 // Charts family: uctIntelligence.set (marker: uctIntelligence.set) through the REAL panel on the fixture board, the model scripted
 // (no paid call). The UCT Intelligence chart INDICATOR as a member's own switches drive it — the Indicators library row's add /
 // remove (addUctIntelligence / removeUctIntelligence) and the panel's toggles (setUctIntelligenceLayer; Auto patterns = the
