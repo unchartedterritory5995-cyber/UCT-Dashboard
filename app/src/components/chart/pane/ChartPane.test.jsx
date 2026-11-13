@@ -109,13 +109,13 @@ test('omitting onSymbolChange renders a static, non-interactive label', () => {
 test('density="compact" fetches fundamentals with enabled=false (no fetch storm for a row it never renders)', () => {
   useFundamentalSnapshot.mockClear()
   render(<ChartPane sym="NVDA" tf="D" density="compact" onTfChange={() => {}} />)
-  expect(useFundamentalSnapshot).toHaveBeenCalledWith('NVDA', false)
+  expect(useFundamentalSnapshot).toHaveBeenCalledWith('NVDA', false, expect.any(Function))   // (+ the pane's rest gate)
 })
 
 test('density="full" (the /charts default) still fetches fundamentals with enabled=true', () => {
   useFundamentalSnapshot.mockClear()
   render(<ChartPane sym="NVDA" tf="D" onSymbolChange={() => {}} onTfChange={() => {}} />)
-  expect(useFundamentalSnapshot).toHaveBeenCalledWith('NVDA', true)
+  expect(useFundamentalSnapshot).toHaveBeenCalledWith('NVDA', true, expect.any(Function))   // (+ the pane's rest gate)
 })
 
 // The header's values arrive with the candles on a list scan because the pane HOLDS the snapshot
@@ -148,7 +148,7 @@ test('identityLabel renders the host label in the static slot and looks nothing 
   expect(screen.getByTestId('exhibit-label').textContent).toBe('MASKED')
   expect(screen.getByTestId('sym-label').textContent).toBe('MASKED')      // never the item id
   expect(screen.queryByTestId('day-gain')).toBeNull()                      // no day change on an exhibit
-  expect(useTickerMeta).toHaveBeenCalledWith(null)                          // no meta lookup on the item id
+  expect(useTickerMeta).toHaveBeenCalledWith(null, expect.any(Function))                          // no meta lookup on the item id
   expect(useTickerMeta).not.toHaveBeenCalledWith('si_7d53fd256e37')
   expect(screen.getByTestId('chart-sym').textContent).toBe('si_7d53fd256e37')   // the canvas still mounts under the item id
 })
@@ -216,7 +216,7 @@ test('density="mini" renders the timeframe bar and the chart, but no identity ro
 test('density="mini" fetches fundamentals with enabled=false (it never renders the meta row that needs them)', () => {
   useFundamentalSnapshot.mockClear()
   render(<ChartPane sym="NVDA" tf="D" density="mini" onTfChange={() => {}} />)
-  expect(useFundamentalSnapshot).toHaveBeenCalledWith('NVDA', false)
+  expect(useFundamentalSnapshot).toHaveBeenCalledWith('NVDA', false, expect.any(Function))   // (+ the pane's rest gate)
 })
 
 // --- Owner-feedback Defect 1: the settings gear must not lie about being live ---

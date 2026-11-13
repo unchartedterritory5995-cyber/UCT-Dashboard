@@ -6,11 +6,11 @@
 //
 // It lives beside the chart, not in the hook: the snapshot hook is read on pages that load no
 // chart, and they should not carry the warmer.
-import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
+import { useChartSnapshot } from '../restedReaders'
 import { snapshotKey, snapshotFetcher } from '../../../hooks/fundamentalSnapshotKey'
 import { useSymbolResource } from '../../../lib/symbolResourceWarm'
 
 export default function useHeaderSnapshot(sym, enabled) {
   useSymbolResource(enabled ? snapshotKey : null, snapshotFetcher)
-  return useFundamentalSnapshot(sym, enabled)
+  return useChartSnapshot(sym, enabled)
 }
