@@ -28,6 +28,7 @@ import useMarketOpen from '../../../hooks/useMarketOpen'
 import { getExtSessionCached } from '../../../utils/extSession'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useHeaderSnapshot from './useHeaderSnapshot'
+import useHeaderExtrasWarm from './useHeaderExtrasWarm'
 import useWatchlistPerformance from '../../../hooks/useWatchlistPerformance'
 import useWatchlistMeta from '../../../hooks/useWatchlistMeta'
 import useVolumeCurve from '../../../hooks/useVolumeCurve'
@@ -559,6 +560,10 @@ function ChartPane({
   const { perfData } = useWatchlistPerformance(wantsPerf ? [sym] : [])
   // One request per chart symbol (its own curve rides the market one), never per tick.
   const volCurve = useVolumeCurve(wantsCurve, wantsCurve ? [sym] : [])
+  // The rows a member is about to reach have these same reads asked for ahead, each only
+  // while this header makes it (the delisted check: for every real ticker, on a pane whose
+  // info row can show, as with the snapshot: a compact or mini pane asks for no row).
+  useHeaderExtrasWarm({ perf: wantsPerf, theme: wantsTheme, meta: wantsMeta, curve: wantsCurve, delisted: infoGate && !(synthDailyOnly || exhibit) })
   const metaItems = useMemo(() => {
     const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, volCurve, sym }
     return infoFieldKeys.map((key) => {
