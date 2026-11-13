@@ -134,6 +134,12 @@ def _clamp(v, lo, hi, default):
 
 
 def _is_num(v) -> bool:
+    # ⚡ 2026-11-13. A plain float is decided first, with one type test: this is called
+    # about 70,000 times for one symbol's cold RS compute and was its largest self-time
+    # (profiled: 22% of the batch). For every other type the answer is the line below,
+    # exactly as before (`tests/test_rs_is_num_fast_path.py` compares the two).
+    if type(v) is float:
+        return math.isfinite(v)
     return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
@@ -656,6 +662,35 @@ def benchmark_agree(rs_vs_a: Column, rs_vs_b: Column, rs_vs_c: Column,
         signs = {1 if sl > 0 else (-1 if sl < 0 else 0) for sl in slopes}
         out[t] = 1.0 if signs in ({1}, {-1}) else 0.0
     return out
+
+
+def benchmark_agree_last(rs_vs_a: Column, rs_vs_b: Column, rs_vs_c: Column,
+                         window: int = DEFAULT_SENSITIVITY_WINDOW) -> MaybeNum:
+    """``benchmark_agree(...)[-1]``, computed without the bars before it.
+
+    ⚡ 2026-11-13. The readout's Agreement card reads only the newest bar, and the
+    column costs three least-squares slopes PER BAR: on a cold RS compute it was
+    the largest single item (profiled: 110 of 326 ms for one symbol's five
+    definitions, 2,480 slopes of which 3 were read). This is the same three
+    slopes over the same slices through the same `_slope`, so the value is the
+    column's last cell bit for bit (`tests/test_rs_benchmark_agree_last.py`
+    compares them over thousands of random series).
+
+    ``None`` for an empty first series (where the column has no last cell at all).
+    """
+    series = (rs_vs_a, rs_vs_b, rs_vs_c)
+    n = len(series[0])
+    if n < window:
+        return None                    # (a window under two bars has no slope: `_slope` answers None below)
+    t = n - 1
+    slopes: List[float] = []
+    for s in series:
+        sl = _slope(s[t - window + 1:t + 1]) if len(s) > t else None
+        if sl is None:
+            return None
+        slopes.append(sl)
+    signs = {1 if sl > 0 else (-1 if sl < 0 else 0) for sl in slopes}
+    return 1.0 if signs in ({1}, {-1}) else 0.0
 
 
 # ⛔ A SECOND TUPLE, NOT AN EXTENSION OF THE FIRST. `PHASE1_COLUMNS` is the
