@@ -224,18 +224,6 @@ function scripted(plan, disposition) {
     return env('answer', [], '«not given»')
   }
 }
-const cellAt = (ctx, position) => must((ctx.charts || []).find(c => c.position === position), `cell at ${position}`)
-const onCell = (position, action, args) => (ctx) => [{ action, target: cellAt(ctx, position).ref, args }]
-
-const cells = () => H.mc.state.cells
-const at = (id) => cells().find(c => c.id === id)
-const savedCells = () => JSON.parse(H.prefs.multichart_state).cells
-/** Every cell but `id`, as stored: what "the other cells are untouched" compares. */
-const othersOf = (id) => JSON.stringify(cells().filter(c => c.id !== id))
-const receipts = () => screen.queryAllByTestId('agent-receipt')
-/** The chart type a cell draws: its own Style pick wins, else its own settings fork (what GridChartCell hands the canvas). */
-const drawnType = (id) => H.chartProps[id]?.settingsOverride?.chartType ?? null
-
 // ════ HOTFIX (negated-ticker targeting): the multiChart family of the cross-family matrix ════
 const must = (v, what) => { if (v == null || v === false) throw new Error(`the context has no ${what}`); return v }
 const cellsNow = () => H.mc.state.cells
