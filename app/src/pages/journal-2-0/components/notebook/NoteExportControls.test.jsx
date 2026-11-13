@@ -6,7 +6,10 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
-import NoteExportControls, { UNSENT_BEFORE_EXPORT, exportMenuModule } from './NoteExportControls'
+import NoteExportControls, {
+  EXPORT_UNAVAILABLE, EXPORT_WAITING, UNSENT_BEFORE_EXPORT, exportMenuLoader, exportMenuModule,
+} from './NoteExportControls'
+import { pageReload } from '../../lib/heldModule'
 import { exportNoteAsPng } from '../../lib/exportNote'
 import { EXPORT_FORMATS } from './export/exportFormats'
 import { featureCalls, telemetryBodies } from '../../lib/testing/telemetryFetch'
@@ -519,5 +522,114 @@ describe('NoteExportControls: the menu is a held chunk', () => {
     render(<Host />)
     fireEvent.click(trigger())
     expect(screen.getByRole('menu', { name: 'Export this note as' })).toBeTruthy()
+    expect(trigger()).not.toHaveAttribute('aria-busy')
+    expect(trigger().textContent).toBe('Export')
+  })
+
+  // Final fix M8: a cold press is heard at once, opens only where the member still is, and a failed fetch says so with
+  // a Reload the member presses.
+  const hold = () => {
+    let open
+    const gate = new Promise((r) => { open = r })
+    const real = exportMenuLoader.load
+    exportMenuLoader.load = () => gate.then(() => real())
+    return { release: () => open(), restore: () => { exportMenuLoader.load = real } }
+  }
+
+  it('M8: a cold press shows "Export…" with aria-busy at once; the formats open when the chunk lands', async () => {
+    exportMenuModule.resetForTests()
+    const h = hold()
+    try {
+      render(<Host />)
+      trigger().focus()
+      fireEvent.click(trigger())
+      expect(trigger().textContent).toBe(EXPORT_WAITING)
+      expect(trigger()).toHaveAttribute('aria-busy', 'true')
+      expect(screen.queryByRole('menu')).toBeNull()
+      await act(async () => { h.release() })
+      const items = await screen.findAllByRole('menuitem')
+      await waitFor(() => expect(document.activeElement).toBe(items[0]))
+      expect(trigger()).not.toHaveAttribute('aria-busy')
+    } finally { h.restore() }
+  })
+
+  it('M8: a member who moved on while the chunk loaded keeps their place: nothing opens under them', async () => {
+    exportMenuModule.resetForTests()
+    const h = hold()
+    try {
+      render(<Host />)
+      trigger().focus()
+      fireEvent.click(trigger())
+      const elsewhere = screen.getByRole('button', { name: 'elsewhere in the note' })
+      elsewhere.focus()
+      await act(async () => { h.release() })
+      await waitFor(() => expect(trigger().textContent).toBe('Export'))
+      expect(screen.queryByRole('menu')).toBeNull()
+      expect(document.activeElement).toBe(elsewhere)
+    } finally { h.restore() }
+  })
+
+  it('M8: in the More panel, focus still inside the panel: the formats open when the chunk lands', async () => {
+    exportMenuModule.resetForTests()
+    const h = hold()
+    try {
+      render(
+        <NoteMoreMenu>
+          <button type="button">History</button>
+          <NoteExportControls noteId="n1" title="Plan" columnRef={{ current: null }} onMessage={() => {}} />
+        </NoteMoreMenu>,
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+      const exp = screen.getByRole('button', { name: /^Export/ })
+      exp.focus()
+      fireEvent.click(exp)
+      screen.getByRole('button', { name: 'History' }).focus()            // still inside the panel
+      await act(async () => { h.release() })
+      expect(await screen.findByRole('menu', { name: 'Export this note as' })).toBeTruthy()
+    } finally { h.restore() }
+  })
+
+  it('M8: ArrowRight on the panel’s Export row opens the formats', async () => {
+    render(
+      <NoteMoreMenu>
+        <NoteExportControls noteId="n1" title="Plan" columnRef={{ current: null }} onMessage={() => {}} />
+      </NoteMoreMenu>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    const exp = screen.getByRole('button', { name: /^Export/ })
+    exp.focus()
+    fireEvent.keyDown(exp, { key: 'ArrowRight' })
+    const menu = await screen.findByRole('menu', { name: 'Export this note as' })
+    await waitFor(() => expect(document.activeElement).toBe(within(menu).getByRole('menuitem', { name: 'PNG' })))
+  })
+
+  it('CONTROL: alone (no panel) ArrowRight is not the door; ArrowDown is', () => {
+    render(<Host />)
+    trigger().focus()
+    fireEvent.keyDown(trigger(), { key: 'ArrowRight' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    fireEvent.keyDown(trigger(), { key: 'ArrowDown' })
+    expect(screen.getByRole('menu', { name: 'Export this note as' })).toBeTruthy()
+  })
+
+  it('M8: a chunk that cannot be fetched says so beside Export, with a Reload the member presses', async () => {
+    exportMenuModule.resetForTests()
+    const real = exportMenuLoader.load
+    exportMenuLoader.load = () => Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
+    const reload = vi.spyOn(pageReload, 'run').mockImplementation(() => {})
+    try {
+      render(<Host />)
+      trigger().focus()
+      fireEvent.click(trigger())
+      const alert = await screen.findByRole('alert', {}, { timeout: 3000 })
+      expect(alert).toHaveTextContent(EXPORT_UNAVAILABLE)
+      expect(EXPORT_UNAVAILABLE).toBe('Export could not be loaded. Reload the page to get it back.')
+      expect(screen.getByTestId('chrome-msg').textContent).not.toBe('export failed')
+      expect(screen.queryByRole('menu')).toBeNull()
+      expect(trigger().textContent).toBe('Export')
+      expect(reload).not.toHaveBeenCalled()                                  // never an automatic reload
+      fireEvent.click(within(alert).getByRole('button', { name: 'Reload' }))
+      expect(reload).toHaveBeenCalledTimes(1)
+    } finally { exportMenuLoader.load = real }
   })
 })

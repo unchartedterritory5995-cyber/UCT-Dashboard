@@ -3,6 +3,17 @@
 .menuWrap {
   position: relative;
   display: inline-flex;
+  flex-wrap: wrap;
+}
+/* Final fix M8: the menu's chunk could not be fetched: the sentence and a Reload, on their own line under Export. */
+.loadFailed {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 .trigger {
   display: inline-flex;

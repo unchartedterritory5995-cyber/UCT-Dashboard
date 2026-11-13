@@ -49,11 +49,11 @@
 // and drawn directly once there. This file keeps the button, the open state and what each item does.
 import { useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MoreMenuOpenContext } from './NoteMoreMenu'
+import { MORE_NOTE_ACTIONS, MoreMenuOpenContext } from './NoteMoreMenu'
 import { NOTEBOOK_DOORS, onNotebookDoor } from '../../lib/notebookDoors'
 import UIcon from '../../../../components/ui/UIcon'
 import { importWithOneRetry } from '../../lib/lazyChunk'
-import { heldModule, useHeldModule } from '../../lib/heldModule'
+import { heldModule, pageReload, useHeldModule } from '../../lib/heldModule'
 import whenIdle from '../../lib/whenIdle'
 // Tier 1a bytes (perf-budgets.md): the PNG and print doors' module is fetched when one is pressed, never on the
 // Notebook's first open (the same on-use import exportNote.js already does for modern-screenshot).
@@ -74,8 +74,16 @@ async function failureSentence(res) {
   return 'export failed'
 }
 
-/** The Export menu's chunk, held once fetched (a rail warms it, or holds it back, through this slot). */
-export const exportMenuModule = heldModule(() => import('./export/NoteExportMenu'))
+/** The Export menu's chunk, held once fetched (a rail warms it, or holds it back, through this slot). The loader is a
+ *  property, so a rail can fail the fetch (jsdom cannot fail a real chunk), like `editorToolLoaders`. */
+export const exportMenuLoader = { load: () => import('./export/NoteExportMenu') }
+export const exportMenuModule = heldModule(() => exportMenuLoader.load())
+
+/** Final fix M8: what Export says when its menu's chunk could not be fetched (a stale tab after a deploy, most likely),
+ *  beside a Reload the MEMBER presses (never an automatic reload: the pattern of Find and Ask, lib/heldModule.js). */
+export const EXPORT_UNAVAILABLE = 'Export could not be loaded. Reload the page to get it back.'
+/** Final fix M8: the Export row while a cold press waits for the menu's chunk. */
+export const EXPORT_WAITING = 'Export…'
 
 /** M-9: the sentence when the editor still holds words the server has not taken. */
 export const UNSENT_BEFORE_EXPORT = "Your latest edits haven't reached the server yet, so the file would miss them. Nothing was downloaded — try again in a moment."
@@ -95,11 +103,31 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
   useEffect(() => whenIdle(exportMenuModule.warm), [])
   const shown = useRef(true)
   shown.current = more ? more.shown : true
-  const openMenu = useCallback(() => {
+  // Final fix M8: a cold press shows at once that it was heard (`waiting`: "Export…", aria-busy) and opens the formats
+  // when the chunk lands ONLY if the member is still on the Export row or inside its panel (`force`: the palette's door,
+  // an explicit ask from elsewhere). A fetch that failed says so beside Export, with a Reload the member presses.
+  const [waiting, setWaiting] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const stillHere = useCallback(() => {
+    const active = document.activeElement
+    const button = triggerRef.current
+    if (!button) return false
+    // Focus on nothing (<body>: a click that focuses no button, as Safari's does) is not "moved on", the M-1 rule below.
+    if (!active || active === document.body || active === button) return true
+    const panel = more ? button.closest(`[role="group"][aria-label="${MORE_NOTE_ACTIONS}"]`) : null
+    return Boolean(panel?.contains(active))
+  }, [more])
+  const openMenu = useCallback(({ force = false } = {}) => {
+    setLoadFailed(false)
     if (exportMenuModule.get().Component) return setMenuOpen(true)
-    // a cold press: open when the chunk lands, unless the panel was closed meanwhile
-    return exportMenuModule.warm().then((C) => (!C ? onMessage('export failed') : shown.current && setMenuOpen(true)))
-  }, [setMenuOpen, onMessage])
+    setWaiting(true)
+    return exportMenuModule.warm().then((C) => {
+      setWaiting(false)
+      if (!C) { setLoadFailed(true); return }
+      // the panel was closed meanwhile, or the member moved on: nothing opens under them
+      if (shown.current && (force || stillHere())) setMenuOpen(true)
+    })
+  }, [setMenuOpen, stillHere])
   // M-1: the button to hand focus back to once the busy state clears.
   const refocusRef = useRef(null)
   useEffect(() => {
@@ -194,7 +222,7 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
   useEffect(() => onNotebookDoor(NOTEBOOK_DOORS.EXPORT, () => {
     if (exportBusy) return false
     more?.open()
-    openMenu()
+    openMenu({ force: true })
     return true
   }), [more, exportBusy, openMenu])
 
@@ -212,21 +240,31 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         aria-controls={menuOpen ? menuId : undefined}
+        aria-busy={waiting || undefined}
         disabled={exportBusy}
         onClick={() => (menuOpen ? setMenuOpen(false) : openMenu())}
         onPointerEnter={exportMenuModule.warm}
         onFocus={exportMenuModule.warm}
         onKeyDown={(e) => {
-          if (e.key === 'ArrowDown' && !menuOpen) {
+          // ArrowDown opens it (the menu button's key); in the More panel the row shows a chevron and opens on Right too,
+          // as the menu engine's second-view rows do (final fix M8).
+          if (!menuOpen && (e.key === 'ArrowDown' || (more && e.key === 'ArrowRight'))) {
             e.preventDefault()
+            e.stopPropagation()
             openMenu()
           }
         }}
         title="Save this note as a PNG image, print it, or download it as Markdown, a web page, JSON or Word"
       >
-        Export
+        {waiting ? EXPORT_WAITING : 'Export'}
         <UIcon name={more ? 'chevronRight' : 'chevronDown'} size={12} gold={false} />
       </button>
+      {loadFailed && (
+        <span className={styles.loadFailed} role="alert" data-export-load-failed="">
+          {EXPORT_UNAVAILABLE}
+          <button type="button" className={editorStyles.chromeBtn} onClick={pageReload.run}>Reload</button>
+        </span>
+      )}
       {/* In a More panel the formats replace the panel's content (its `slot`); alone they drop down here. */}
       {more ? menu && more.slot && createPortal(menu, more.slot) : menu}
     </span>
