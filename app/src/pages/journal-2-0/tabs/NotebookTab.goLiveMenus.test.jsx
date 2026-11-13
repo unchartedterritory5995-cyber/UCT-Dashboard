@@ -10,13 +10,14 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const draft = vi.hoisted(() => ({ calls: [], release: null, notice: null }))
+const draft = vi.hoisted(() => ({ calls: [], opts: [], release: null, notice: null }))
 vi.mock('../lib/reviewDraftRun', async (importOriginal) => {
   const real = await importOriginal()
   return {
     ...real,
     draftReview: vi.fn((period, opts) => {
       draft.calls.push({ period, accountId: opts.accountId })
+      draft.opts.push(opts)
       return new Promise((resolve) => { draft.release = () => { if (draft.notice) opts.onNotice(draft.notice); resolve() } })
     }),
   }
@@ -31,7 +32,7 @@ import { expectSecondView } from '../lib/testing/menuSecondView.testkit'
 import styles from './NotebookTab.module.css'
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
-beforeEach(() => { draft.calls = []; draft.release = null; draft.notice = null })
+beforeEach(() => { draft.calls = []; draft.opts = []; draft.release = null; draft.notice = null })
 afterEach(() => { cleanup(); __resetNotebookFlags() })
 
 async function renderTab(routes = [], route = '/journal/notebook?view=all') {
@@ -212,6 +213,18 @@ describe('D3: a failed saved-views read is said in the View menu', () => {
 describe('D4: drafting a review from the New menu', () => {
   beforeEach(() => latchNotebookFlags({ notebook_review_drafts_enabled: true }))
   afterEach(() => { vi.useRealTimers() })
+
+  // Final fix I1: "Today's recap" can make today's note, so the door is handed the member's daily template (the recap
+  // door then sends it with the plan seed: lib/reviewDraftRun.test.js).
+  it("I1: Today's recap hands the draft door the member's daily template", async () => {
+    await renderTab([[/^\/api\/auth\/preferences$/, { notebook_daily_template: 'tpl-d' }]])
+    await waitFor(() => expect(global.fetch.mock.calls.some(([u]) => String(u) === '/api/auth/preferences')).toBe(true))
+    await settle()
+    fireEvent.click(within(openReviews(openNew())).getByRole('menuitem', { name: "Today's recap" }))
+    await waitFor(() => expect(draft.calls).toHaveLength(1))
+    expect(draft.opts[0].dailyTemplateId).toBe('tpl-d')
+    await act(async () => { draft.release() })
+  })
 
   it("shows 'Drafting today's recap…' while it runs, disables the rows, drafts for the selected account, then clears", async () => {
     // Fix round 1 (review 4a): fake timers from the start, so the 8 s auto-dismiss is really reached below.

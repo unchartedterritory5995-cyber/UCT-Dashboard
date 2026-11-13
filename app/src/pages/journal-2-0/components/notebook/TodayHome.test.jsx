@@ -18,11 +18,10 @@ vi.mock('../../lib/noteBatch', () => ({ runNoteBatch: (...a) => runNoteBatch(...
 
 import TodayHome, {
   CARD_ORDER, FRESH_ACTION, NAMES_ASK_LINE, NOTE_ACTION, NOTHING_YET, OPEN_ACTION, RECAP_ACTION, RECAP_WRITTEN,
-  RESTORE_ACTION, SKELETON_ORDER, START_ACTION, STARTING_ACTION, TRASHED_NOTE, cardOrder, headerLine, msUntilET,
+  RESTORE_ACTION, SKELETON_ORDER, START_ACTION, STARTED_STATUS, STARTING_ACTION, TRASHED_NOTE, cardOrder, headerLine,
+  msUntilET,
 } from './TodayHome'
 import { TODAY_READ_URL } from '../../lib/todayHome'
-
-const TODAY_URL = '/api/j2/notes/today'
 import { CAPTURE_OPEN_EVENT } from '../../lib/captureBus'
 import { NAMES_ASK } from './EmptyNamesAsk'
 import { FIRST_PLAN } from './FirstPlanAsk'
@@ -32,6 +31,8 @@ import { SOON_URL } from '../../lib/earningsPrepShared'
 import { PASSED_URL } from '../../lib/researchCapture'
 import { AuthContext } from '../../../../context/AuthContext'
 import { __resetRegistryTourControl, publishRegistryTourWanted } from './onboarding/tourRegistryControl'
+
+const TODAY_URL = '/api/j2/notes/today'
 
 const NOTE = {
   id: 'n-today', title: '2026-11-05 · Thursday', updatedAt: 'x', created: false, templateMissing: false,
@@ -188,20 +189,37 @@ describe('B1: the read never makes today’s note; the header button says which 
   it('(b) no note yet: "Start today’s note" calls the create path once, reads busy while it runs, and makes nothing itself', async () => {
     S.today = payload({ todayNote: EMPTY().todayNote })
     let done
-    const onOpenToday = vi.fn(() => new Promise((r) => { done = r }))
-    renderToday({ onOpenToday })
+    // Final fix I4: Start is the stay-on-the-brief door (`onStartToday`), never the one that opens the note.
+    const onStartToday = vi.fn(() => new Promise((r) => { done = r }))
+    const onOpenToday = vi.fn()
+    renderToday({ onStartToday, onOpenToday })
     const start = await within(header()).findByRole('button', { name: START_ACTION })
     expect(screen.queryByTestId('today-plan')).toBeNull()                 // no plan lines: no plan card (B2)
     fireEvent.click(start)
     fireEvent.click(start)                                                  // a second press while the first runs
-    expect(onOpenToday).toHaveBeenCalledTimes(1)
+    expect(onStartToday).toHaveBeenCalledTimes(1)
+    expect(onOpenToday).not.toHaveBeenCalled()
     expect(start).toBeDisabled()
     expect(start).toHaveTextContent(STARTING_ACTION)
     expect(start.getAttribute('aria-busy')).toBe('true')
-    await act(async () => { done() })
+    await act(async () => { done(false) })                                  // the press failed (NotebookTab said so)
     expect(start).not.toBeDisabled()
     expect(start).toHaveTextContent(START_ACTION)
+    expect(document.querySelector('[data-today-status]').textContent).toBe('')
     expect(S.calls.some((c) => c.method === 'POST' && c.url.startsWith('/api/j2/notes'))).toBe(false)
+  })
+
+  it('I4: a Start that made the note says so in the polite status, which is in the page before it speaks', async () => {
+    S.today = payload({ todayNote: EMPTY().todayNote })
+    const onStartToday = vi.fn(async () => true)
+    renderToday({ onStartToday })
+    const start = await within(header()).findByRole('button', { name: START_ACTION })
+    const status = document.querySelector('[data-today-status]')
+    expect(status.getAttribute('role')).toBe('status')
+    expect(status.textContent).toBe('')
+    fireEvent.click(start)
+    await waitFor(() => expect(status.textContent).toBe(STARTED_STATUS))
+    expect(document.querySelector('[data-today-status]')).toBe(status)       // the same live region, never remounted
   })
 
   it('(c) a note today: "Open today’s note" opens it', async () => {
@@ -280,6 +298,8 @@ describe('B2 to B5: only what it has', () => {
     S.today = payload(EMPTY())
     renderToday()
     expect(await screen.findByText(NOTHING_YET)).toBeInTheDocument()
+    // Final fix M1: the card's own name, so it cannot read as the chart plan the setups ask right under it asks for.
+    expect(NOTHING_YET).toBe("Nothing for today yet. Today's plan, the setups near your entry and your names will show here.")
     expect(cards()).toEqual(['setups', 'names'])
     const h3s = [...document.querySelectorAll('[data-today-home] h3')]
     expect(h3s).toHaveLength(2)
@@ -392,6 +412,9 @@ describe('fix round 1: nothing on screen before the read moves when it lands', (
     renderToday({ onOpenToday })
     await waitFor(() => expect(document.querySelector('[data-load-failed]')).not.toBeNull())
     expect(within(document.querySelector('[data-load-failed]')).getByRole('button', { name: /try again|retry/i })).toBeTruthy()
+    // Final fix M2: named as the heading names it.
+    expect(document.querySelector('[data-load-failed]')).toHaveTextContent("Couldn't load your Daily brief.")
+    expect(document.querySelector('[data-load-failed]')).not.toHaveTextContent(/load Today/)
     fireEvent.click(within(header()).getByRole('button', { name: NOTE_ACTION }))
     expect(onOpenToday).toHaveBeenCalledTimes(1)
     expect(document.querySelector('[data-today-more]')).not.toBeNull()
@@ -427,9 +450,23 @@ describe('the evening loop (S18)', () => {
     expect(cards()[0]).toBe('recap')
     fireEvent.click(screen.getByRole('button', { name: RECAP_ACTION }))
     await waitFor(() => expect(onOpenNote).toHaveBeenCalled())
-    expect(draftDailyReview).toHaveBeenCalledWith({ accountId: null, day: '2026-11-05' })
+    expect(draftDailyReview).toHaveBeenCalledWith({ accountId: null, day: '2026-11-05', templateId: '', seedToday: true })
     expect(onOpenNote.mock.calls[0][0]).toEqual({ id: 'n-today' })
     expect(onNotice).not.toHaveBeenCalled()                          // the note already existed
+  })
+
+  // Final fix I1: after 16:05 the recap can be the first door of the day; it makes today's note as Start would, from the
+  // member's daily template and with today's plan lines.
+  it("I1: a recap on a day with no note sends the member's daily template and the seed", async () => {
+    latchNotebookFlags({ notebook_review_drafts_enabled: true })
+    S.today = evening({ todayNote: EMPTY().todayNote })
+    draftDailyReview.mockResolvedValue({ note: { id: 'n-new' }, created: true })
+    renderToday({ dailyTemplateId: 'tpl-daily' })
+    fireEvent.click(await screen.findByRole('button', { name: RECAP_ACTION }))
+    await waitFor(() => expect(draftDailyReview).toHaveBeenCalledTimes(1))
+    expect(draftDailyReview).toHaveBeenCalledWith({
+      accountId: null, day: '2026-11-05', templateId: 'tpl-daily', seedToday: true,
+    })
   })
 
   it('a recap that made the note says where it went', async () => {
@@ -448,6 +485,10 @@ describe('the evening loop (S18)', () => {
     renderToday()
     await screen.findByText(RECAP_WRITTEN)
     expect(screen.queryByRole('button', { name: RECAP_ACTION })).toBeNull()
+    // Final fix M3: the card says where the recap is; the header's button is the ONE door to the note.
+    const opens = screen.getAllByRole('button', { name: /open today.s note/i })
+    expect(opens).toHaveLength(1)
+    expect(header().contains(opens[0])).toBe(true)
   })
 
   it('a failed recap says so and changes nothing', async () => {

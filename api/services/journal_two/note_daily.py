@@ -118,7 +118,7 @@ def _answer(user_id: str, note_id: str, conn: sqlite3.Connection, *, created: bo
     from api.services.journal_two import notes as notes_service
 
     return {"note": notes_service.get_note(user_id, note_id, conn=conn),
-            "created": created, "templateMissing": missing}
+            "created": created, "templateMissing": missing, "planSeeded": False}
 
 
 def _text_of(node: Any) -> str:
@@ -210,7 +210,9 @@ def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None, *,
             if winner is None:
                 raise
             return _answer(user_id, winner, conn, created=False, missing=False)
-        return {"note": note, "created": True, "templateMissing": missing}
+        # Final fix M4: `planSeeded` says whether today's plan lines went into the note this call made (the first run
+        # says "Today's plan written" only then; an empty seed made a note with no plan).
+        return {"note": note, "created": True, "templateMissing": missing, "planSeeded": bool(seed)}
     except BaseException:
         if conn.in_transaction:
             conn.rollback()

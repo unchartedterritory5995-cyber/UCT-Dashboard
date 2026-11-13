@@ -984,8 +984,9 @@ export default function NotebookTab() {
   // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
   // S15: the Daily brief has no list toolbar either.
   const listToolbarShown = !noteId && !isToday
-  // the compact sort words, on a phone only (review minor 12)
-  const phoneSortWords = useIsPhone()
+  // On a phone: the compact sort words (review minor 12) and the sample row's short label (final fix M10: one honest
+  // name for both readers).
+  const onPhone = useIsPhone()
   // Simplify pass 2 (C5): the empty list's template grid waits while the Get started card is up (its "Start a note from
   // a template" row opens the picker, as "+ New" does). With the card's switch on, its answer waits on the preferences
   // read, so until that lands neither is drawn: the grid never flashes in and out.
@@ -2269,14 +2270,17 @@ export default function NotebookTab() {
   // Simplify pass 2 (B1): also the Daily brief's "Start today's note". One door, one note: every caller (the list's
   // button, Ctrl+Alt+D, the phone row, the brief's Start) asks for `seedToday`, today's plan from the held figures, which
   // the server writes only into a note THIS call makes (an existing note is opened unchanged).
-  const openToday = async () => {
-    if (openingTodayRef.current) return
+  // Final fix I4 (ruling): the brief's Start makes the note and STAYS on the brief (`stay`): the plan card arrives with
+  // the re-read below and the brief moves focus to "Open today's note". Every other caller opens the note. Resolves
+  // true when the note is there (made or found), false when the press failed (the failure sentence is on screen).
+  const startToday = async ({ stay = false } = {}) => {
+    if (openingTodayRef.current) return false
     openingTodayRef.current = true
     setActionError('')
     try {
       const { note, created, templateMissing } = await openDailyNote({ templateId: dailyTemplateId, seedToday: true })
       // The Daily brief's cached answer may say "Start today's note": it says the note exists at once (a return to the
-      // brief reads "Open today's note"), and is read again for the plan lines.
+      // brief, or the brief still on screen, reads "Open today's note"), and is read again for the plan lines.
       mutateSwrKey(TODAY_READ_URL, (d) => d && {
         ...d, todayNote: { ...d.todayNote, id: note.id, title: note.title, missing: false, trashed: false },
       })
@@ -2291,14 +2295,21 @@ export default function NotebookTab() {
       if (templateMissing) {
         setActionError(DAILY_TEMPLATE_MISSING)
       }
-      openNote(note)
+      if (!stay) openNote(note)
+      return true
     } catch (e) {
       console.error('[notebook] open daily note failed', e)
       setActionError("Couldn't open today's note. Nothing was created.")
+      return false
     } finally {
       openingTodayRef.current = false
     }
   }
+  // ⛔ Both take NO arguments, on purpose: they are click handlers and the shortcut's callback, so an event can never be
+  // read as options. `openToday` opens the note (the list's button, Ctrl+Alt+D, the phone row); `startTodayHere` is the
+  // Daily brief's Start (final fix I4).
+  const openToday = () => startToday()
+  const startTodayHere = () => startToday({ stay: true })
   const openTodayRef = useRef(openToday)
   openTodayRef.current = openToday
   useEffect(() => {
@@ -2362,6 +2373,7 @@ export default function NotebookTab() {
         (m) => typeof m?.draftReview === 'function')
       await draftReview(period, {
         accountId: reviewAccountId,
+        dailyTemplateId,   // final fix I1: a recap that makes today's note makes it from the member's template
         onOpenNote: openNote,
         onNotice: (message) => setBulkNotice({ message, tone: 'info' }),
       })
@@ -2551,7 +2563,7 @@ export default function NotebookTab() {
     // phone the menu scrolls inside the window above the "+" (C3), so it stays reachable there.
     // Simplify pass 2 (C6): one line on a phone ("Remove sample notebook"); the desktop words are unchanged.
     sampleActiveIds.length > 0 && {
-      key: 'remove-sample', label: SAMPLE_ROW_COPY[phoneSortWords ? 'removeRowPhone' : 'removeRow'], icon: 'trash', run: () => removeSample(),
+      key: 'remove-sample', label: SAMPLE_ROW_COPY[onPhone ? 'removeRowPhone' : 'removeRow'], icon: 'trash', run: () => removeSample(),
     },
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
@@ -3013,6 +3025,7 @@ export default function NotebookTab() {
           <TodayHome
             onOpenNote={openNote}
             onOpenToday={openToday}
+            onStartToday={startTodayHere}
             headingRef={paneHeadingRef}
             dailyTemplateId={dailyTemplateId}
             onNotice={(message) => setBulkNotice({ message, tone: 'info' })}
@@ -3084,7 +3097,7 @@ export default function NotebookTab() {
             // aria-hidden. Above 1024 px the face is not drawn and the select renders as before.
             <span className={styles.sortWrap} data-sort-wrap="">
             <span className={`btn btn-secondary btn-sm ${styles.toolBtn} ${styles.sortFace}`} aria-hidden="true" data-sort-face="">
-              {SORT_OPTIONS.find((o) => o.value === sortField)?.[phoneSortWords ? 'short' : 'label'] || 'Sort'}
+              {SORT_OPTIONS.find((o) => o.value === sortField)?.[onPhone ? 'short' : 'label'] || 'Sort'}
               <UIcon name="chevronDown" {...TOOLBAR_ICON} />
             </span>
             <select
@@ -3106,7 +3119,7 @@ export default function NotebookTab() {
               {/* Tier 2 (production check of Tier 1b, 390 px): "Recently upd…" was cut off and pushed ⋯ onto a line
                   of its own. On a PHONE the words are compact (review minor 12: only there); the control's NAME
                   ("Sort notes") says what they order. Wider screens keep "Recently updated". */}
-              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{phoneSortWords ? o.short : o.label}</option>)}
+              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{onPhone ? o.short : o.label}</option>)}
             </select>
             </span>
           )}

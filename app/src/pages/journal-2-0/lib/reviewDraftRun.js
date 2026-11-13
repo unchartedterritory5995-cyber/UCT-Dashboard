@@ -14,8 +14,12 @@ import { invalidateNoteViews } from './offline/invalidateNoteViews'
 
 const loadReviewDrafts = () => importWithOneRetry(() => import('./reviewDrafts'))
 
+// Final fix I1: today's recap can MAKE today's note, so it carries the member's daily template and the plan seed, as
+// "Today's note" does (one note, one shape, whichever door makes it).
 const DRAFTERS = {
-  daily: (m, accountId) => m.draftDailyReview({ accountId, day: m.todayDayIso() }),
+  daily: (m, accountId, { dailyTemplateId = '' } = {}) => m.draftDailyReview({
+    accountId, day: m.todayDayIso(), templateId: dailyTemplateId, seedToday: true,
+  }),
   weekly: (m, accountId) => m.draftWeeklyReview({ accountId, weekStart: m.mondayOfIso() }),
   monthly: (m, accountId) => m.draftMonthlyReview({ accountId, month: m.thisMonthIso() }),
 }
@@ -27,11 +31,12 @@ export { REVIEW_PERIODS, reviewDraftFailedSentence, reviewDraftingSentence } fro
 /**
  * Draft `period`'s review ('daily' | 'weekly' | 'monthly') and open it.
  * `accountId`: the member's selected account (null is "All accounts"). `onOpenNote(note, null, { to: 'collapsed' })`
- * opens it; `onNotice(sentence)` is told where a newly made daily note went.
+ * opens it; `onNotice(sentence)` is told where a newly made daily note went. `dailyTemplateId`: the member's daily
+ * template (the `notebook_daily_template` preference), for a recap that makes today's note.
  */
-export async function draftReview(period, { accountId = null, onOpenNote, onNotice = null } = {}) {
+export async function draftReview(period, { accountId = null, onOpenNote, onNotice = null, dailyTemplateId = '' } = {}) {
   // A failed fetch of the drafts chunk throws to the caller, like a failed draft.
-  const { note, created } = await DRAFTERS[period](await loadReviewDrafts(), accountId)
+  const { note, created } = await DRAFTERS[period](await loadReviewDrafts(), accountId, { dailyTemplateId })
   // S2 (B12): Today's recap that MADE the day's note says where it went (the server files it in
   // a root Daily folder, made on first use). A recap added to an existing note says nothing more.
   if (period === 'daily' && created) onNotice?.(DAILY_FOLDER_NOTICE)

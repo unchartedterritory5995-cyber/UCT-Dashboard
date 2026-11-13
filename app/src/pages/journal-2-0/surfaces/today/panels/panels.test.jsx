@@ -314,7 +314,8 @@ describe('TodayNotePanel', () => {
     mount(<TodayNotePanel />)
     fireEvent.click(screen.getByRole('button', { name: "Open today's note" }))
     await waitFor(() => expect(openDailyNoteSpy).toHaveBeenCalledTimes(1))
-    expect(openDailyNoteSpy.mock.calls[0][0]).toEqual({ templateId: 'tpl7' })
+    // Final fix I1: with the plan seed, like every Notebook door that can make today's note.
+    expect(openDailyNoteSpy.mock.calls[0][0]).toEqual({ templateId: 'tpl7', seedToday: true })
   })
 
   // Fix round 1 (review finding 7): a NEW day's note lands in the Daily folder the server makes.

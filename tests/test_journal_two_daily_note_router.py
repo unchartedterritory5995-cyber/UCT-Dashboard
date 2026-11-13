@@ -411,6 +411,23 @@ def test_I3_with_no_note_the_seed_is_built_once_and_its_lines_land(app, client, 
     assert "Check your names: NVDA" in str(r.json()["note"]["bodyJson"])
 
 
+def test_M4_planSeeded_says_whether_plan_lines_went_into_the_note_this_call_made(app, client, monkeypatch):
+    # Final fix M4: the first run says "Today's plan written" only when plan lines went in.
+    _login_as(app, "u1")
+    _spy_seed(monkeypatch)
+    made = _today(client, "2026-09-24", seedToday=True).json()
+    assert made["created"] is True and made["planSeeded"] is True
+    again = _today(client, "2026-09-24", seedToday=True).json()
+    assert again["created"] is False and again["planSeeded"] is False, "nothing was written into an existing note"
+    from api.services.journal_two import notebook_today
+    # the seed has nothing to say (no market, no setups, no names): plan_seed_for answers an empty list
+    monkeypatch.setattr(notebook_today, "plan_seed_for", lambda user_id, *, paid, now=None: [])
+    empty = _today(client, "2026-09-25", seedToday=True).json()
+    assert empty["created"] is True and empty["planSeeded"] is False
+    plain = _today(client, "2026-09-26").json()
+    assert plain["created"] is True and plain["planSeeded"] is False
+
+
 def test_I3_a_bad_date_with_the_seed_is_still_a_400(app, client, monkeypatch):
     _login_as(app, "u1")
     calls = _spy_seed(monkeypatch)

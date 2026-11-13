@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 
 /**
@@ -79,6 +79,11 @@ const at = (path) => render(<MemoryRouter initialEntries={[path]}><NotebookTab /
 const urls = () => global.fetch.mock.calls.map(([u]) => String(u))
 const dayNoteCalls = () => urls().filter((u) => u.startsWith('/api/j2/notes/today') || u.startsWith('/api/j2/notes/daily'))
 const listToolbar = () => screen.findByRole('toolbar', { name: 'Notes list tools' }, T)
+/** Final fix I4: where the member is, read from the router itself. */
+function LocationProbe({ into }) {
+  into.search = useLocation().search
+  return null
+}
 
 describe('a bare Notebook opens the notes list (Task 5)', () => {
   for (const stored of ['today', 'home', 'all', undefined]) {
@@ -131,44 +136,89 @@ describe('the Daily brief (?view=today)', () => {
     expect(within(document.querySelector('[data-today-home]')).queryByRole('button', { name: 'All notes' })).toBeNull()
   })
 
-  it('B1: the Daily brief reads with make=0 and makes nothing; its Start is the list button’s door', async () => {
+  // Final fix I4 (ruling): Start makes the note and STAYS on the brief. One POST (the list button's door, with the seed);
+  // the URL is still ?view=today and no note opens; the door's write into the brief's cache flips the button to "Open
+  // today's note" at once (the re-read is held here), focus moves to it and a polite status says so; when the re-read
+  // lands, the plan card draws the seeded lines.
+  it('B1 + I4: the brief reads with make=0; Start makes the note once and stays, the plan card arriving with the re-read', async () => {
     const body = { ...TODAY_BODY, todayNote: { id: null, missing: true, trashed: false, created: false, items: [] } }
+    const seeded = {
+      ...TODAY_BODY,
+      todayNote: { id: 'made1', title: '2026-11-11 · Wednesday', missing: false, trashed: false, created: false,
+        items: [{ index: 0, text: 'Check your names: NVDA', checked: false }], openCount: 1, itemCount: 1 },
+    }
     let made = false
+    let land
+    const reread = new Promise((r) => { land = r })
     global.fetch.mockImplementation(async (url, opts = {}) => {
       const u = String(url)
       const ok = (b) => ({ ok: true, status: 200, json: async () => b })
       if (u === '/api/auth/preferences') return ok(prefs)
       if (u.startsWith('/api/j2/note-folders')) return ok({ folders: [] })
-      // Fix round 1: once the note is made, the brief's re-read never answers -- so a brief that says "Open" says it
-      // from the answer the door wrote into its cache, not from a re-read.
-      if (u.startsWith('/api/j2/notes/today')) return made ? new Promise(() => {}) : ok(body)
+      if (u.startsWith('/api/j2/notes/today')) return made ? reread.then(() => ok(seeded)) : ok(body)
       if (u === '/api/j2/notes/daily' && opts.method === 'POST') {
         made = true
         return ok({ note: { id: 'made1', title: '2026-11-11 · Wednesday', folderId: 'fd' }, created: true, templateMissing: false })
       }
       return ok({})
     })
-    // The app's own dedupe window (App.jsx SWR_CONFIG is 8 s; longer here): a return to the brief inside it reads
-    // nothing unless the door that made the note revalidated the brief's key. A fresh cache, so no other case's
-    // answer is in it.
+    const where = { search: null }
+    // A fresh cache with a long dedupe window, so no other case's answer is in it and only the door's own revalidate
+    // can start the re-read.
     render(
       <SWRConfig value={{ dedupingInterval: 600_000, provider: () => new Map() }}>
-        <MemoryRouter initialEntries={['/journal?view=today']}><NotebookTab /></MemoryRouter>
+        <MemoryRouter initialEntries={['/journal?view=today']}><NotebookTab /><LocationProbe into={where} /></MemoryRouter>
       </SWRConfig>,
     )
     const start = await screen.findByRole('button', { name: "Start today's note" }, T)
     await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
     expect(dayNoteCalls()).toEqual(['/api/j2/notes/today?make=0'])
     act(() => { start.click() })
-    await waitFor(() => expect(screen.getByTestId('note-editor')).toBeTruthy(), T)
+    const open = await screen.findByRole('button', { name: "Open today's note" }, T)
+    await waitFor(() => expect(document.activeElement).toBe(open), T)
+    const status = document.querySelector('[data-today-status]')
+    expect(status.getAttribute('role')).toBe('status')
+    expect(status.textContent).toBe("Today's note started.")
     const posts = global.fetch.mock.calls.filter(([u, o]) => String(u) === '/api/j2/notes/daily' && o?.method === 'POST')
     expect(posts).toHaveLength(1)
     expect(JSON.parse(posts[0][1].body)).toMatchObject({ seedToday: true })
-    // Back on the brief (inside SWR's dedupe window, its re-read held): the door wrote "the note exists" into the
-    // brief's cache, so it says "Open today's note" at once.
-    act(() => { screen.getByRole('button', { name: 'Daily brief row' }).click() })
-    expect(await screen.findByRole('button', { name: "Open today's note" }, T)).toBeTruthy()
-    expect(screen.queryByRole('button', { name: "Start today's note" })).toBeNull()
+    expect(screen.queryByTestId('note-editor')).toBeNull()
+    expect(where.search).toBe('?view=today')
+    expect(screen.queryByTestId('today-plan')).toBeNull()                    // the re-read is still held
+    await act(async () => { land() })
+    const plan = await screen.findByTestId('today-plan', {}, T)
+    expect(plan).toHaveTextContent('Check your names: NVDA')
+    expect(dayNoteCalls().filter((u) => u === '/api/j2/notes/today?make=0')).toHaveLength(2)
+    expect(where.search).toBe('?view=today')
+    expect(screen.queryByTestId('note-editor')).toBeNull()
+  })
+
+  it('I4: a failed Start says the failure sentence and the button reads "Start today\'s note" again', async () => {
+    const body = { ...TODAY_BODY, todayNote: { id: null, missing: true, trashed: false, created: false, items: [] } }
+    global.fetch.mockImplementation(async (url, opts = {}) => {
+      const u = String(url)
+      const ok = (b) => ({ ok: true, status: 200, json: async () => b })
+      if (u === '/api/auth/preferences') return ok(prefs)
+      if (u.startsWith('/api/j2/note-folders')) return ok({ folders: [] })
+      if (u.startsWith('/api/j2/notes/today')) return ok(body)
+      if (u === '/api/j2/notes/daily' && opts.method === 'POST') return { ok: false, status: 500, json: async () => ({}) }
+      return ok({})
+    })
+    const where = { search: null }
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <MemoryRouter initialEntries={['/journal?view=today']}><NotebookTab /><LocationProbe into={where} /></MemoryRouter>
+      </SWRConfig>,
+    )
+    const start = await screen.findByRole('button', { name: "Start today's note" }, T)
+    act(() => { start.click() })
+    expect(await screen.findByText("Couldn't open today's note. Nothing was created.", {}, T)).toBeTruthy()
+    await waitFor(() => expect(screen.getByRole('button', { name: "Start today's note" })).not.toBeDisabled(), T)
+    expect(screen.queryByRole('button', { name: "Open today's note" })).toBeNull()
+    expect(document.querySelector('[data-today-status]').textContent).toBe('')
+    expect(where.search).toBe('?view=today')
+    err.mockRestore()
   })
 
   it('the panel’s Daily brief row opens it', async () => {
