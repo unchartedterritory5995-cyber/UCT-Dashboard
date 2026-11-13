@@ -1,6 +1,6 @@
 {
- "ranAt": "9e93df7e56",
- "results": [
+ "ranAt": "549deeb910",
+ "firstPass": [
   {
    "id": "C0",
    "mutant": "no edit (control)",
@@ -14,67 +14,67 @@
     "js:src/components/chart/engine/__tests__/vendorHarness/capabilityEvidenceLane.test.js:None": [
      [
       0,
-      "      Tests  169 passed (169)"
+      "      Tests  168 passed (168)"
      ]
     ],
     "py:tests/test_pine_capabilities.py:A6": [
      [
       0,
-      "3 passed, 34 deselected in 9.61s"
+      "3 passed, 65 deselected in 10.52s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A1": [
      [
       0,
-      "17 passed, 48 deselected in 1.29s"
+      "20 passed, 58 deselected in 1.51s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A2": [
      [
       0,
-      "4 passed, 61 deselected in 1.30s"
+      "4 passed, 74 deselected in 1.44s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A3": [
      [
       0,
-      "2 passed, 63 deselected in 1.31s"
+      "2 passed, 76 deselected in 1.34s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A4": [
      [
       0,
-      "1 passed, 64 deselected in 1.17s"
+      "1 passed, 77 deselected in 1.53s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A5": [
      [
       0,
-      "7 passed, 58 deselected in 1.14s"
+      "7 passed, 71 deselected in 1.48s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A7": [
      [
       0,
-      "4 passed, 61 deselected in 1.11s"
+      "4 passed, 74 deselected in 1.31s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A8": [
      [
       0,
-      "2 passed, 63 deselected in 2.98s"
+      "2 passed, 76 deselected in 3.76s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A9": [
      [
       0,
-      "1 passed, 64 deselected in 1.36s"
+      "1 passed, 77 deselected in 1.23s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:OFF": [
      [
       0,
-      "11 passed, 54 deselected in 1.44s"
+      "12 passed, 66 deselected in 1.45s"
      ]
     ]
    },
@@ -88,7 +88,7 @@
    "runs": [
     [
      1,
-     "1 failed, 3 passed, 48 deselected in 1.52s"
+     "1 failed, 3 passed, 58 deselected in 1.98s"
     ]
    ],
    "restoredBlobMatches": true
@@ -101,7 +101,7 @@
    "runs": [
     [
      1,
-     "1 failed, 6 passed, 48 deselected in 1.54s"
+     "1 failed, 6 passed, 58 deselected in 1.80s"
     ]
    ],
    "restoredBlobMatches": true
@@ -114,7 +114,7 @@
    "runs": [
     [
      1,
-     "1 failed, 61 deselected in 1.55s"
+     "1 failed, 74 deselected in 2.05s"
     ]
    ],
    "restoredBlobMatches": true
@@ -127,7 +127,7 @@
    "runs": [
     [
      1,
-     "1 failed, 63 deselected in 1.35s"
+     "1 failed, 76 deselected in 1.83s"
     ]
    ],
    "restoredBlobMatches": true
@@ -140,7 +140,7 @@
    "runs": [
     [
      1,
-     "1 failed, 64 deselected in 1.67s"
+     "1 failed, 77 deselected in 2.28s"
     ]
    ],
    "restoredBlobMatches": true
@@ -153,7 +153,7 @@
    "runs": [
     [
      1,
-     "1 failed, 58 deselected in 1.55s"
+     "1 failed, 71 deselected in 1.99s"
     ]
    ],
    "restoredBlobMatches": true
@@ -166,7 +166,7 @@
    "runs": [
     [
      1,
-     "1 failed, 34 deselected in 8.69s"
+     "1 failed, 65 deselected in 11.09s"
     ]
    ],
    "restoredBlobMatches": true
@@ -179,7 +179,7 @@
    "runs": [
     [
      1,
-     "1 failed, 34 deselected in 7.65s"
+     "1 failed, 65 deselected in 10.62s"
     ]
    ],
    "restoredBlobMatches": true
@@ -192,7 +192,7 @@
    "runs": [
     [
      1,
-     "1 failed, 61 deselected in 1.31s"
+     "1 failed, 74 deselected in 1.67s"
     ]
    ],
    "restoredBlobMatches": true
@@ -205,7 +205,7 @@
    "runs": [
     [
      1,
-     "1 failed, 63 deselected in 3.26s"
+     "1 failed, 76 deselected in 3.91s"
     ]
    ],
    "restoredBlobMatches": true
@@ -218,7 +218,7 @@
    "runs": [
     [
      1,
-     "1 failed, 64 deselected in 1.59s"
+     "1 failed, 77 deselected in 1.46s"
     ]
    ],
    "restoredBlobMatches": true
@@ -231,7 +231,7 @@
    "runs": [
     [
      1,
-     "1 failed, 8 passed, 54 deselected in 2.04s"
+     "1 failed, 8 passed, 66 deselected in 1.80s"
     ]
    ],
    "restoredBlobMatches": true
@@ -244,7 +244,7 @@
    "runs": [
     [
      1,
-     "1 failed, 3 passed, 54 deselected in 3.17s"
+     "1 failed, 3 passed, 66 deselected in 1.81s"
     ]
    ],
    "restoredBlobMatches": true
@@ -322,7 +322,7 @@
    "runs": [
     [
      1,
-     "      Tests  1 failed | 169 passed (170)"
+     "      Tests  1 failed | 168 passed (169)"
     ]
    ],
    "restoredBlobMatches": true
@@ -336,13 +336,13 @@
     "js:src/components/chart/engine/__tests__/vendorHarness/capabilityEvidenceLane.test.js:None": [
      [
       0,
-      "      Tests  169 passed (169)"
+      "      Tests  168 passed (168)"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:REACH": [
      [
       0,
-      "3 passed, 62 deselected in 10.36s"
+      "3 passed, 75 deselected in 4.75s"
      ]
     ]
    },
@@ -356,7 +356,7 @@
    "runs": [
     [
      1,
-     "1 failed, 1 passed, 62 deselected in 7.24s"
+     "1 failed, 1 passed, 75 deselected in 4.88s"
     ]
    ],
    "restoredBlobMatches": true
@@ -369,7 +369,7 @@
    "runs": [
     [
      1,
-     "1 failed, 1 passed, 62 deselected in 5.58s"
+     "1 failed, 1 passed, 75 deselected in 4.89s"
     ]
    ],
    "restoredBlobMatches": true
@@ -382,7 +382,7 @@
    "runs": [
     [
      1,
-     "      Tests  1 failed | 168 passed (169)"
+     "      Tests  1 failed | 167 passed (168)"
     ]
    ],
    "restoredBlobMatches": true
@@ -395,10 +395,233 @@
    "runs": [
     [
      1,
-     "1 failed, 62 deselected in 5.95s"
+     "1 failed, 75 deselected in 5.42s"
     ]
    ],
    "restoredBlobMatches": true
   }
- ]
+ ],
+ "reviewFixes": [
+  {
+   "id": "C0",
+   "mutant": "no edit (control)",
+   "runs": {
+    "tests/test_pine_capabilities.py::B1_0": [
+     0,
+     "1 passed, 67 deselected in 1.00s"
+    ],
+    "tests/test_pine_capabilities.py::B1_1": [
+     0,
+     "1 passed, 67 deselected in 1.00s"
+    ],
+    "tests/test_pine_capabilities.py::C3": [
+     0,
+     "2 passed, 66 deselected in 1.06s"
+    ],
+    "tests/test_pine_capabilities.py::declares_at_least": [
+     0,
+     "28 passed, 40 deselected in 1.06s"
+    ],
+    "tests/test_pine_capabilities.py::declares_at_least or C2": [
+     0,
+     "29 passed, 39 deselected in 0.99s"
+    ],
+    "tests/test_pine_capabilities.py::over_the_cap": [
+     0,
+     "1 passed, 67 deselected in 0.89s"
+    ],
+    "tests/test_pine_capability_admission.py::A1": [
+     0,
+     "20 passed, 58 deselected in 1.31s"
+    ],
+    "tests/test_pine_capability_admission.py::A8": [
+     0,
+     "2 passed, 76 deselected in 3.95s"
+    ],
+    "tests/test_pine_capability_admission.py::B1_with_the_flag_off": [
+     0,
+     "1 passed, 77 deselected in 1.84s"
+    ],
+    "tests/test_pine_capability_admission.py::B1c": [
+     0,
+     "2 passed, 76 deselected in 1.59s"
+    ],
+    "tests/test_pine_capability_admission.py::B1c_the_route": [
+     0,
+     "1 passed, 77 deselected in 1.63s"
+    ],
+    "tests/test_pine_capability_admission.py::C3": [
+     0,
+     "1 passed, 77 deselected in 1.35s"
+    ]
+   },
+   "green": true
+  },
+  {
+   "id": "B1a",
+   "mutant": "the old conditional-ta regex restored",
+   "file": "api/services/pine_capabilities.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 67 deselected in 32.99s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "B1b",
+   "mutant": "a line-anchored row back to `^\\s*` (var)",
+   "file": "api/services/pine_capabilities.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 67 deselected in 4.56s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "B1c",
+   "mutant": "flag off: the door runs the detector",
+   "file": "api/services/runtime_definitions.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 77 deselected in 1.95s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "B1d",
+   "mutant": "the rate limit never trips",
+   "file": "api/routers/user_definitions.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 76 deselected in 1.93s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "B1e",
+   "mutant": "the route does not charge",
+   "file": "api/routers/user_definitions.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 77 deselected in 3.15s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "B1f",
+   "mutant": "the detector reads past the 128 KiB cap",
+   "file": "api/services/pine_capabilities.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 67 deselected in 1.24s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "C1a",
+   "mutant": "no collection namespace is declared",
+   "file": "api/services/pine_capabilities.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 18 passed, 40 deselected in 1.21s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "C1b",
+   "mutant": "generics misses <ns>.new<T>",
+   "file": "api/services/pine_capabilities.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 21 passed, 40 deselected in 1.27s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "C2a",
+   "mutant": "wrapped lines are not folded",
+   "file": "api/services/pine_capabilities.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 24 passed, 39 deselected in 0.97s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "C3a",
+   "mutant": "an unreadable source is not UNREADABLE",
+   "file": "api/services/pine_capabilities.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 66 deselected in 1.44s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "C3b",
+   "mutant": "an id outside the vocabulary is not missing",
+   "file": "api/services/runtime_definitions.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 77 deselected in 1.71s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "E1",
+   "mutant": "scripts counted by capture, not by family",
+   "file": "api/services/rollout_gate.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 6 passed, 58 deselected in 2.01s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "E2",
+   "mutant": "no community script required",
+   "file": "api/services/rollout_gate.py",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 15 passed, 58 deselected in 1.71s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "E3",
+   "mutant": "evidence states a probe is a community script (data)",
+   "file": "api/data/pine_runtime_allowlist.json",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 76 deselected in 3.82s"
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "E4",
+   "mutant": "evidence names a probe variant as its own script (data)",
+   "file": "api/data/pine_runtime_allowlist.json",
+   "killed": true,
+   "run": [
+    1,
+    "1 failed, 76 deselected in 3.85s"
+   ],
+   "restoredBlobMatches": true
+  }
+ ],
+ "note": "reviewFixes pass 1 (at b2bda92601): B1c SURVIVED (the rail used a raising stub that capability_admitted swallows); the rail now spies on the detector; pass 2 kills all."
 }
