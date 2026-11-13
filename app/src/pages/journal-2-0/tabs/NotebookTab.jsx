@@ -99,7 +99,7 @@ import TourOfferDoor from '../components/notebook/onboarding/TourOfferDoor'
 import NotebookPlusFab from '../components/notebook/NotebookPlusFab'
 import { holdImageForNote } from '../lib/pendingImageInsert'
 import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
-import GettingStartedChecklist from '../components/notebook/GettingStartedChecklist'
+import GettingStartedChecklist, { useGettingStartedCardUp } from '../components/notebook/GettingStartedChecklist'
 // Fix round 1 (first-open bytes): what the list needs before a press about the sample notebook is its keys module and
 // the two hooks; the sample's client (sampleNotebook.js: add, the removal's sentences, remove) is fetched on a press,
 // and the zero-notes door is a lazy chunk (below).
@@ -984,6 +984,10 @@ export default function NotebookTab() {
   const listToolbarShown = !noteId && !isToday
   // the compact sort words, on a phone only (review minor 12)
   const phoneSortWords = useIsPhone()
+  // Simplify pass 2 (C5): the empty list's template grid waits while the Get started card is up (its "Start a note from
+  // a template" row opens the picker, as "+ New" does). The card's answer waits on the preferences read, so until that
+  // lands neither is drawn: the grid never flashes in and out.
+  const gettingStartedUp = useGettingStartedCardUp()
   // VIS-6 fix round 1 (review 9): the FIELD the sort dropdown shows, whatever the direction (FX4: the table's headers
   // set `updated_asc` / `title_desc`). ONE authority for the select's value and its touch-tier face.
   const sortField = sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort
@@ -2543,7 +2547,10 @@ export default function NotebookTab() {
     // Go-live wave 1 (A7): at every width, only while the sample is active (its status read says so). Final fix residual
     // R3: right after Export, so on a desktop (no phone rows) More never opens with focus on this destructive row; on a
     // phone the menu scrolls inside the window above the "+" (C3), so it stays reachable there.
-    sampleActiveIds.length > 0 && { key: 'remove-sample', label: SAMPLE_ROW_COPY.removeRow, icon: 'trash', run: () => removeSample() },
+    // Simplify pass 2 (C6): one line on a phone ("Remove sample notebook"); the desktop words are unchanged.
+    sampleActiveIds.length > 0 && {
+      key: 'remove-sample', label: SAMPLE_ROW_COPY[phoneSortWords ? 'removeRowPhone' : 'removeRow'], icon: 'trash', run: () => removeSample(),
+    },
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
     stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true) },
@@ -3347,7 +3354,7 @@ export default function NotebookTab() {
             {/* P5 final fix: not while the New note sheet is open, so the page holds ONE picker (one
                 gallery door for a tour to wait on, one "How do you trade?", ruling P5-T10-R2). */}
             <div className={styles.emptyPicker}>
-              {!pickerOpen && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} kindSection={kindSection(false)} />}
+              {!pickerOpen && !prefsLoading && !gettingStartedUp && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} kindSection={kindSection(false)} />}
             </div>
           </div>
         ) : (

@@ -186,3 +186,31 @@ describe('Remove the sample notebook, from the notes list', () => {
     S.releaseStatus?.()
   })
 })
+
+// Simplify pass 2 (C6): on a phone (640 px and below) the row reads "Remove sample notebook" (one line); above, the
+// words are unchanged. One row, and its name is the words it shows at that width.
+describe('C6: the removal row on a phone', () => {
+  const phoneScreen = () => vi.spyOn(window, 'matchMedia').mockImplementation((q) => ({
+    matches: /max-width:\s*640px/.test(q) && !/min-width/.test(q), media: q, onchange: null,
+    addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+  }))
+  afterEach(() => { vi.restoreAllMocks() })
+
+  it('at 390: "Remove sample notebook", and it still removes the sample', async () => {
+    phoneScreen()
+    await renderTab()
+    await openMore()
+    const row = await screen.findByRole('menuitem', { name: SAMPLE_COPY.removeRowPhone })
+    expect(row.textContent.trim()).toBe('Remove sample notebook')
+    expect(screen.queryByRole('menuitem', { name: SAMPLE_COPY.removeRow })).toBeNull()
+    fireEvent.click(row)
+    await waitFor(() => expect(S.deletes).toBe(1))
+  })
+
+  it('CONTROL: above 640 the desktop words stay', async () => {
+    await renderTab()
+    await openMore()
+    const row = await screen.findByRole('menuitem', { name: 'Remove the sample notebook' })
+    expect(row.textContent.trim()).toBe('Remove the sample notebook')
+  })
+})

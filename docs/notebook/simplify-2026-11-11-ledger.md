@@ -487,3 +487,19 @@ Walker, door-table and Python-test strings this group invalidates (Task 4; `tool
 Existing tests changed, and why: listed in the report's group 1 section (the second view's focus and Back name in the Aa cases; C1 and C2 row lists; the review tour's start; the export cases that now find the menu after its chunk lands).
 
 First-open bytes after the build: 2,257,929 B of 2,260,793 B (PASS), base 2,258,148 B: group 1 is -219 B (the same group measured +1,217 B before the Export menu moved to its own chunk).
+
+### Group 2: C4, C5, C6
+
+What moved, and the one-line undo:
+- C4 Insert palette (`components/notebook/WidgetPalette.jsx`): the "More" group (the wave-4 market snapshots: news, breadth, indexes, market context, alerts, scans, watchlist, themes, COT, Model Book) is not drawn until "Show all" (accessible name "Show all blocks") at the foot of the list is pressed; then it stays for that palette's life (a form's Back keeps it) and focus goes to its first row. The palette has no search; the slash menu is unchanged. Undo: `const folded = false` (or drop `showAll`).
+- C5 the zero-notes list (`tabs/NotebookTab.jsx`): the inline template grid is not drawn while the Get started card is up (`useGettingStartedCardUp()`, pass 1's signal), nor while the preferences read that decides the card is in flight; with the card hidden, closed, failed to load or switched off the grid draws as before. "+ New"'s arrow and the card's template row still open the picker. Undo: drop `!prefsLoading && !gettingStartedUp &&` from the grid's condition.
+- C6 the More menu's removal row: "Remove sample notebook" at 640 px and below (`SAMPLE_ROW_COPY.removeRowPhone`, `sampleNotebookKeys.js`, chosen by the file's existing `useIsPhone()`), "Remove the sample notebook" above. Undo: label back to `SAMPLE_ROW_COPY.removeRow`.
+
+Walker, door-table and Python-test strings this group invalidates (Task 4):
+- `tools/notebook_fin_walk_features.py:1861`, `:1891`, `:1892`, `:1909` (`discover.phone-more-sample`, 390 px): the row is named "Remove sample notebook" there; `SAMPLE_REMOVE_ROW` (`:95`) still reads `removeRow` (desktop words), so the 390 step must read `removeRowPhone`. `:530`, `:4241`, `:4274` (desktop) are unchanged. `tests/test_notebook_wave8_walk.py:549` (`removeRow`) is unchanged.
+- C5: a walk that opens a brand-new member's empty list with the Get started card up and expects the inline grid must open the picker (the card's "Start a note from a template", or "+ New"'s arrow, then "From a template") first. By grep, `tools/notebook_fin_walk_live.py:103` presses "Templates" first (a pre-S11 name already) and `tools/notebook_w13q_clicks.py:1045` reads the sheet, so no walker reads the inline grid on an empty account directly.
+- C4: no walker presses a "More" group row in the Insert palette (grep of the ten titles in `tools/notebook_*.py`; `tools/notebook_fin_walk_features.py:2812` reaches Market context by the slash menu, unchanged). `tools/notebook_proof_walk.py:1547`-`:1549` opens the palette; its first view now ends in "Show all".
+
+Existing tests changed: `pages/charts/widgets/captures/dataEmbedsInsert.test.jsx` and `newsCapture.test.jsx` press "Show all" before the More group's COT, Model Book and News rows.
+
+First-open bytes after the build: 2,258,012 B (group 2: +83 B; the palette is its own chunk, so C4 costs nothing on first open).
