@@ -4157,6 +4157,10 @@ const RS_BAND_WHEN = 'input:ratingBands'
  *  shade (`showAverage`), in the inputs' condition grammar: the `rsMa` plot, its
  *  band and the Average group's colour read it. */
 const RS_AVERAGE_ON = Object.freeze({ key: 'showAverage', equals: true })
+/** 2026-11-12 — the slim line's "Scale to rating" choices (`rescale`), shared with
+ *  the v5 definition's legacy declaration so a stored value survives a rollback. */
+const RS_SCALE_OPTIONS = [['off', 'Off'], ['ibd', 'RS Rating'], ['m1', '1M rank'], ['m3', '3M rank'],
+  ['m6', '6M rank'], ['m9', '9M rank'], ['m12', '12M rank']]
 /**
  * ⭐ THE CLASSIC LOOK AS INPUT VALUES (UCT RS split, U7 / U8). The v5 Classic
  * preset's inputs, and what the Study drill overlay (`pages/study/studyRsOverlay.js`)
@@ -4470,6 +4474,10 @@ const RS_LINE_V5_RAW = {
     // still validates if the build flag is rolled back (F20 drops an undeclared
     // key). Never rendered, never sent, nothing reads it on this definition.
     { key: 'showAverage', type: 'bool', label: 'Show average', default: false, group: 'Line', legacy: true },
+    // The same rule for the slim line's `scaleToRating` (2026-11-12): declared here
+    // legacy with the slim options exactly, so a stored choice survives a rollback.
+    { key: 'scaleToRating', type: 'enum', label: 'Scale to rating', default: 'off', group: 'Line', legacy: true,
+      options: RS_SCALE_OPTIONS },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
@@ -5121,7 +5129,29 @@ const RS_LINE_SLIM_RAW = {
   // axis, no last-value tag. "Display in" moves it to its own pane, 0.20 of the
   // candle frame and never under 64 px (U3). A member who already moved it keeps
   // the stored target (`displayTarget.resolveDisplayTarget`).
-  placement: { target: 'price', ownScale: true, pane: { height: 0.20, minPx: 64 }, axis: 'hidden' },
+  // ⭐ 2026-11-12 — WITH "Scale to rating" ON, ITS OWN PANE AND A VISIBLE AXIS
+  // (`axisWhen`): the point of the scale is to read the numbers, and the price
+  // pane's own scale is an invisible overlay that can show no axis. Automatic, so
+  // a member who moves it with "Display in" keeps the choice; off, back under the bars.
+  placement: { target: 'price', ownScale: true, pane: { height: 0.20, minPx: 64 }, axis: 'hidden',
+    axisWhen: { key: 'scaleToRating', notEquals: 'off' } },
+  // ⭐ 2026-11-12 — THE RATING SCALE (`engine/rescale.js`): every column drawn in
+  // RS units multiplied by k = rating / (the RS line on the rating's date), the
+  // date `rating.asof` (the nightly rating's session; on weekly, the week holding
+  // it), not the last bar: the history stays put and the live last point moves
+  // with price on the same k. Intraday, no rating, or no line value on that date:
+  // the raw line, and the Scale row says why. `rsAbove` is a 0/1 condition column
+  // and is not in the list.
+  rescale: {
+    input: 'scaleToRating', off: 'off',
+    to: { ibd: 'scalar:rating.ibd', m1: 'scalar:rating.m1', m3: 'scalar:rating.m3', m6: 'scalar:rating.m6',
+      m9: 'scalar:rating.m9', m12: 'scalar:rating.m12' },
+    anchor: 'rsLine', at: 'scalar:rating.asof',
+    plots: ['rsLine', 'rsMa', 'dotNH', 'dotNHred', 'dotNHbeforePx'],
+    timeframes: ['D', 'W'],
+    // the axis while a rating is chosen: 79.25, not the ratio's four decimals
+    precision: 2,
+  },
   inputs: [
     // ── rendered: Simple ──
     {
@@ -5146,6 +5176,14 @@ const RS_LINE_SLIM_RAW = {
       tooltip: 'Red-day highs: large dot when the RS line makes a new high on a day the benchmark closed down at least 0.5%. Strength on a weak day. Daily and weekly charts only.' },
     { key: 'showRating', type: 'bool', label: 'RS Rating', default: true, group: 'Simple',
       tooltip: 'The 1 to 99 RS Rating at the end of the line, in the pane label and the readout. 90 means the stock beat 90% of the names rated.' },
+    // ⭐ 2026-11-12 — Deepvue's "Rating Period": the line rescaled so it reads like
+    // a rating (`rescale` below, `engine/rescale.js`). Presentation only: never a
+    // server input, so it keys no fetch and no alert reads it. Declared 'off' so
+    // every saved chart draws exactly as before; choosing a rating moves the line
+    // to its own pane with an axis (`placement.axisWhen`).
+    { key: 'scaleToRating', type: 'enum', label: 'Scale to rating', default: 'off', group: 'Simple',
+      options: RS_SCALE_OPTIONS,
+      tooltip: 'Rescale the line so it reads like a rating, equal to the chosen rating on the day it was set, in its own pane with a 1 to 99 style axis and the same shape (daily and weekly charts).' },
     // ── rendered: Average (folded) ──
     { key: 'maLength', type: 'int', label: 'Average (bars)', default: 21, min: 2, max: 200, step: 1, group: 'Average',
       tooltip: 'Average length in bars: the moving average on the RS line, drawn while Show average is on and read by the RS line row either way. 21 is the curriculum default; 50 is a slower read.' },
@@ -5283,6 +5321,13 @@ const RS_LINE_SLIM_RAW = {
       when: 'input:showRating', band: { source: 'scalar:rating.m9', when: RS_BAND_WHEN } },
     { key: 'rank12m', label: '12M rank', source: 'scalar:rating.m12', format: 'int', detailOf: 'ratingSummary',
       when: 'input:showRating', band: { source: 'scalar:rating.m12', when: RS_BAND_WHEN } },
+    // ⭐ 2026-11-12 — the rating scale's state, only while Scale to rating is on:
+    // what the line is scaled to and on which day, or why it is drawn unscaled
+    // (`rescale.rescaleScalars`; the client adds `rescale` beside the payload).
+    // No card: the sentence is the whole statement, and the cards are exported to
+    // `api/data/rs_teaching.json` for the agent, which has no scale to explain.
+    { key: 'scale', label: 'Scale', source: 'scalar:rescale.summary', format: 'text', when: 'scalar:rescale.summary',
+      muted: 'scalar:rescale.unscaled' },
     { key: 'phase', label: 'RS line', source: 'scalar:legend.summary', format: 'text',
       card: { what: 'Whether the RS line closed above or below its moving average on the last bar, and by how much. Above is the bullish phase; the cross is the event the screener and alerts read. The average is drawn while Show average is on and read here either way.',
         origin: 'Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.',

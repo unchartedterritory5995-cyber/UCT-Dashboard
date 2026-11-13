@@ -163,6 +163,9 @@ import { DERIVE_FIELDS } from './derivedColumns'
 // this module is in the runtime lane's compute closure, which may hold neither
 // (`tools/pine_runtime_closure.mjs`; fix lane F2, 2026-11-10).
 import { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES } from './liveTailSchema'
+// ⭐ The rating scale (`def.rescale`, 2026-11-12): its grammar is the leaf
+// `rescaleSchema.js`, never the reader `rescale.js`, for the closure reason above.
+import { RESCALE_FIELDS, RESCALE_TIMEFRAMES } from './rescaleSchema'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -3590,6 +3593,95 @@ function validateDerives(def, plots, errors, inputsByKey) {
 }
 
 /**
+ * ⭐ `rescale: {input, off, to, anchor, at, plots, timeframes}` (2026-11-12) — the
+ * drawn columns multiplied by one factor per envelope so the line reads like a
+ * rating (`rescale.js`). Fail closed: only on the SERVER lane (the one lane whose
+ * columns arrive whole and are aligned in one place); `input` is a declared enum
+ * input that is NOT a server input (the scale is presentation and must never key
+ * the fetch) and defaults to `off`, so every saved chart draws as before; every
+ * other option maps, in `to`, to a payload `scalar:` path; `anchor` names a
+ * declared line plot among `plots`; `at` is a `scalar:` path (the rating's date);
+ * `plots` are declared plots with a column; `timeframes` is a non-empty subset of
+ * D/W/M; unknown fields are refused.
+ */
+function validateRescale(def, plots, errors, inputsByKey) {
+  if (!def || def.rescale === undefined) return
+  const path = 'rescale'
+  const r = def.rescale
+  if (!isPlainObject(r)) { errors.push(`${path}: expected {${RESCALE_FIELDS.join(', ')}}, got ${fmt(r)}`); return }
+  for (const k of Object.keys(r)) {
+    if (!RESCALE_FIELDS.includes(k)) errors.push(`${path}.${k}: unknown field — expected one of: ${list(RESCALE_FIELDS)}`)
+  }
+  if (!(isPlainObject(def.compute) && def.compute.kind === 'server')) {
+    errors.push(`${path}: a rating scale multiplies columns where server columns are aligned (\`serverColumnsFor\`), so only a compute.kind "server" definition may declare one`)
+  }
+  const input = isNonEmptyString(r.input) ? inputsByKey.get(r.input) : null
+  const options = input && Array.isArray(input.options) ? input.options.map(enumOptionValue) : []
+  if (!input || input.type !== 'enum') {
+    errors.push(`${path}.input: ${fmt(r.input)} names no declared enum input`)
+  } else {
+    const sent = isPlainObject(def.meta) && Array.isArray(def.meta.serverInputs) ? def.meta.serverInputs : []
+    if (sent.includes(r.input)) {
+      errors.push(`${path}.input: ${fmt(r.input)} is a server input — the scale is presentation and must never key the fetch`)
+    }
+    if (!options.includes(r.off)) errors.push(`${path}.off: ${fmt(r.off)} is not an option of ${fmt(r.input)}`)
+    else if (input.default !== r.off) {
+      errors.push(`${path}.off: ${fmt(r.input)} must default to ${fmt(r.off)}, so every saved chart draws exactly as before`)
+    }
+  }
+  if (!isPlainObject(r.to)) {
+    errors.push(`${path}.to: expected {<option>: 'scalar:<path>'}, got ${fmt(r.to)}`)
+  } else {
+    for (const [k, v] of Object.entries(r.to)) {
+      const parsed = parseReadoutSource(v)
+      if (!parsed || parsed.kind !== 'scalar') errors.push(`${path}.to.${k}: expected a payload \`scalar:<path>\`, got ${fmt(v)}`)
+      if (input && !options.includes(k)) errors.push(`${path}.to.${k}: ${fmt(k)} is not an option of ${fmt(r.input)}`)
+      if (k === r.off) errors.push(`${path}.to.${k}: the off option scales nothing`)
+    }
+    for (const o of options) {
+      if (o !== r.off && !Object.prototype.hasOwnProperty.call(r.to, o)) errors.push(`${path}.to: option ${fmt(o)} names no rating to scale to`)
+    }
+  }
+  const at = parseReadoutSource(r.at)
+  if (!at || at.kind !== 'scalar') errors.push(`${path}.at: expected a payload \`scalar:<path>\` naming the rating's date, got ${fmt(r.at)}`)
+  const byKey = new Map()
+  for (const p of plots) if (isPlainObject(p) && isNonEmptyString(p.key) && !byKey.has(p.key)) byKey.set(p.key, p)
+  const keys = Array.isArray(r.plots) ? r.plots : null
+  if (!keys || !keys.length) {
+    errors.push(`${path}.plots: expected a non-empty list of the plots drawn in the line's units, got ${fmt(r.plots)}`)
+  } else {
+    for (const k of keys) {
+      const p = byKey.get(k)
+      if (!p) errors.push(`${path}.plots: ${fmt(k)} names no declared plot`)
+      else if (p.style === 'hlines') errors.push(`${path}.plots: ${fmt(k)} is a guide and returns no column`)
+    }
+  }
+  const anchor = byKey.get(r.anchor)
+  if (!anchor || anchor.style !== 'line') errors.push(`${path}.anchor: ${fmt(r.anchor)} names no declared line plot`)
+  else if (keys && !keys.includes(r.anchor)) errors.push(`${path}.anchor: ${fmt(r.anchor)} must be among the plots it scales`)
+  const tfs = Array.isArray(r.timeframes) ? r.timeframes : null
+  if (!tfs || !tfs.length || tfs.some((t) => !RESCALE_TIMEFRAMES.includes(t))) {
+    errors.push(`${path}.timeframes: expected a non-empty list of ${list(RESCALE_TIMEFRAMES)}, got ${fmt(r.timeframes)}`)
+  }
+  if (r.precision !== undefined && !(Number.isInteger(r.precision) && r.precision >= 0 && r.precision <= 8)) {
+    errors.push(`${path}.precision: expected the axis decimals while scaled, a whole number 0 to 8, got ${fmt(r.precision)}`)
+  }
+}
+
+/**
+ * ⭐ `placement.axisWhen` (2026-11-12) — an input condition (the `activeWhen`
+ * grammar) under which the definition NEEDS its numbers read: while it holds, the
+ * automatic destination is the definition's own pane (`displayTarget.
+ * resolveDisplayTarget`) and a declared `axis: 'hidden'` is lifted there
+ * (`placement.axisHiddenOf`). A member's own explicit destination still wins.
+ */
+function validateAxisWhen(def, errors, inputsByKey) {
+  const p = def && isPlainObject(def.placement) ? def.placement : null
+  if (!p || p.axisWhen === undefined) return
+  validateInputCondition(p.axisWhen, 'placement.axisWhen', inputsByKey, errors)
+}
+
+/**
  * ⭐ `plots[].liveTail` (RS split, unit U2b, 2026-11-09) — the FORMING bar's cell
  * of a server column recomputed on the client while the cached envelope's history
  * is served as it is (`liveTail.js`):
@@ -4193,6 +4285,8 @@ export function validateDefinition(def) {
     validateFills(plots, errors, inputsByKey)
     validateDerives(out, plots, errors, inputsByKey)
     validateLiveTails(out, plots, errors, inputsByKey)
+    validateRescale(out, plots, errors, inputsByKey)
+    validateAxisWhen(out, errors, inputsByKey)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
     // ⭐ DIV-4 — a paint may also read a colour column the per-bar run computes
