@@ -683,6 +683,7 @@ def test_SERVE_the_list_with_50_near_cap_rows_cold_is_under_1s(store, monkeypatc
     # the server-lane composition stamp re-lexes every runtime row (pre-existing on master, flag
     # OFF too: ~10 s for these 50 rows, `EVIDENCE.md`); it is not admission, so it is held still here
     monkeypatch.setattr(svc, "server_lanes_stamp", lambda row: {})
+    monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)   # the per-request budget alone (the gate rails test the cool-down)
     rt._reset_capability_cache(persisted=True)
     calls = _count_detector(monkeypatch)
     t0 = time.perf_counter()
