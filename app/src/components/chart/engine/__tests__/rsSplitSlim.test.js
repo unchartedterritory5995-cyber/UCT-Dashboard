@@ -75,6 +75,8 @@ const DECLARED = Object.freeze({
 /** What the slim definition RENDERS, in declaration order, with the live row declared. */
 const RENDERED = Object.freeze([
   'benchmark', 'customBenchmark', 'showAverage', 'showNewHigh', 'showNewHighBeforePrice', 'showRedDay', 'showRating',
+  // 2026-11-12: Scale to rating (`rsScaleToRating.test.js`)
+  'scaleToRating',
   'maLength', 'maType', 'maColor',
   'color', 'lineWidth',
   'lookback', 'dotColor', 'dotBeforePriceColor', 'dotRedColor',
@@ -111,7 +113,8 @@ describe('1 · the shape', () => {
   })
 
   it('on the price pane by default, own invisible scale, no axis; a 0.20 pane never under 64 px after "Display in"', () => {
-    expect(SLIM.placement).toEqual({ target: 'price', ownScale: true, pane: { height: 0.2, minPx: 64 }, axis: 'hidden' })
+    expect(SLIM.placement).toEqual({ target: 'price', ownScale: true, pane: { height: 0.2, minPx: 64 }, axis: 'hidden',
+      axisWhen: { key: 'scaleToRating', notEquals: 'off' } })
     expect(V5.placement.target, 'v5 stays in its own pane by default').toBe('pane')
   })
 
@@ -309,10 +312,10 @@ describe('4 · the readout', () => {
   })
   const rows = (inputs = {}) => readoutRows(SLIM, PAYLOAD, { inputs })
 
-  it('the glance list, in reading order; every glance row but History opens a card', () => {
-    expect(SLIM.readout.filter(isGlanceRow).map((r) => r.key)).toEqual(['benchmarkName', 'ratingSummary', 'phase', 'rsHigh', 'checks', 'shortHistory'])
+  it('the glance list, in reading order; every glance row but History and Scale opens a card', () => {
+    expect(SLIM.readout.filter(isGlanceRow).map((r) => r.key)).toEqual(['benchmarkName', 'ratingSummary', 'scale', 'phase', 'rsHigh', 'checks', 'shortHistory'])
     for (const r of SLIM.readout.filter(isGlanceRow)) {
-      if (r.key !== 'shortHistory') expect(r.card, r.key).toBeTruthy()
+      if (r.key !== 'shortHistory' && r.key !== 'scale') expect(r.card, r.key).toBeTruthy()
       expect(r.label.length, r.key).toBeLessThanOrEqual(12)
     }
     // the chip rows: the resolved benchmark and the IBD-style rating, ungated by any headline choice

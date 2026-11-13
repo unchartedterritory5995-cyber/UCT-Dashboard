@@ -62,3 +62,43 @@ def test_memo_is_bounded(monkeypatch):
     monkeypatch.setattr(ti, "OrderedDict", lambda: seen.setdefault("m", real()))
     ti.prewarm_all("D")
     assert len(seen["m"]) == ti._PASS_MEMO_MAX
+
+
+def test_pass_logs_where_its_time_went(monkeypatch, caplog):
+    import logging
+    reads, _ = _install(monkeypatch, {"ai": ["NVDA", "AVGO"], "semis": ["NVDA"]})
+    with caplog.at_level(logging.INFO, logger="theme_index"):
+        ti.prewarm_all("D")
+    line = [r.getMessage() for r in caplog.records if "prewarm pass" in r.getMessage()]
+    assert line and "2/2 themes, 2 bars reads, 1 memo hits, 0 Massive fallbacks" in line[0]
+    assert ti._pass_stats is None
+
+
+def test_stale_cache_fallback_is_counted(monkeypatch, caplog):
+    import logging
+    monkeypatch.setattr(ti, "get_agg_bars", lambda s, f, t: [])
+    monkeypatch.setattr(ti, "all_theme_slugs", lambda: ["x"])
+    monkeypatch.setattr(ti, "get_theme_index",
+                        lambda slug, tf="D": {"bars": [ti._holding_daily_bars("ZZZZ", "a", "b")]})
+    import api.services.bars_sqlite as bs
+    monkeypatch.setattr(bs, "get_bars", lambda *a, **k: [])
+    with caplog.at_level(logging.INFO, logger="theme_index"):
+        ti.prewarm_all("D")
+    msg = [r.getMessage() for r in caplog.records if "prewarm pass" in r.getMessage()][0]
+    assert "1 Massive fallbacks" in msg
+
+
+def test_theme_list_loaded_once_per_pass(monkeypatch):
+    from api.services import theme_db
+    loads = []
+    monkeypatch.setattr(theme_db, "get_all_themes",
+                        lambda: loads.append(1) or {"themes": [{"id": "T1", "name": "AI"}]})
+    monkeypatch.setattr(theme_db, "get_theme_holdings", lambda tid: [{"sym": "NVDA"}])
+    monkeypatch.setattr(ti, "all_theme_slugs", lambda: ["a", "b", "c"])
+    monkeypatch.setattr(ti, "get_theme_index",
+                        lambda slug, tf="D": {"bars": ti._merged_db_syms("T1", {"name": "AI"})})
+    ti.prewarm_all("D")
+    assert len(loads) == 1
+    assert ti._pass_themes is None
+    ti._merged_db_syms("T1", {"name": "AI"})      # outside a pass: fresh read
+    assert len(loads) == 2

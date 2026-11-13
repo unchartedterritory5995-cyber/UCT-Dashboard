@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 import threading
+import time
 import concurrent.futures
 import re
 import statistics
@@ -66,6 +67,32 @@ def _ymd_to_ms(ymd: int) -> int:
 _PASS_MEMO_MAX = 400
 _pass_memo: "OrderedDict | None" = None
 _pass_lock = threading.Lock()
+# One line per pass says where its time went (reads vs memo hits vs Massive fallbacks for
+# names whose cached bars are stale): the 15-min re-warm rebuilds every theme in RTH.
+_pass_stats: "dict | None" = None
+# theme_db.get_all_themes() loads every theme + the whole merged membership table; it ran once
+# PER THEME (110x a pass), holding the GIL in Python dict-building. A pass loads it once.
+_pass_themes: "list | None" = None
+
+
+def _all_db_themes() -> list:
+    global _pass_themes
+    from api.services import theme_db
+    if _pass_stats is None:                      # not in a pass: always fresh
+        return theme_db.get_all_themes().get("themes", [])
+    themes = _pass_themes
+    if themes is None:
+        themes = theme_db.get_all_themes().get("themes", [])
+        _pass_themes = themes
+        _bump("theme_list_loads")
+    return themes
+
+
+def _bump(key: str, n: float = 1) -> None:
+    st = _pass_stats
+    if st is not None:
+        with _pass_lock:
+            st[key] = st.get(key, 0) + n
 
 
 def _holding_daily_bars(sym: str, from_date: str, to_date: str) -> list[dict]:
@@ -77,8 +104,11 @@ def _holding_daily_bars(sym: str, from_date: str, to_date: str) -> list[dict]:
         hit = memo.get(key)
         if hit is not None:
             memo.move_to_end(key)
+            if _pass_stats is not None:
+                _pass_stats["memo_hits"] = _pass_stats.get("memo_hits", 0) + 1
             return list(hit)
     bars = _holding_daily_bars_read(sym, from_date, to_date)
+    _bump("reads")
     with _pass_lock:
         memo[key] = bars
         while len(memo) > _PASS_MEMO_MAX:
@@ -106,7 +136,12 @@ def _holding_daily_bars_read(sym: str, from_date: str, to_date: str) -> list[dic
             stale = True
         if not stale:
             return [{"t": _ymd_to_ms(int(r[0])), "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in rows]
-    return get_agg_bars(sym, from_date, to_date)
+    t0 = time.perf_counter()
+    try:
+        return get_agg_bars(sym, from_date, to_date)
+    finally:
+        _bump("fallbacks")
+        _bump("fallback_s", time.perf_counter() - t0)
 
 
 def _overlay_today(holdings_bars: dict[str, list[dict]]) -> None:
@@ -159,7 +194,7 @@ def _merged_db_syms(etf_key: str, td: dict) -> list[str]:
     from api.services import theme_db
     tid = None
     want = _slugify(td.get("name") or "")
-    for t in theme_db.get_all_themes().get("themes", []):
+    for t in _all_db_themes():
         if (t["id"] == etf_key or (t.get("etf_ticker") or "") == etf_key
                 or _slugify(t.get("name") or "") == want):
             tid = t["id"]
@@ -464,11 +499,15 @@ def prewarm_all(tf: str = "D") -> int:
     """Compute + cache every theme's index for `tf`. Returns how many warmed.
     Sequential (each call already uses its own bounded worker pool); exception per
     theme is swallowed so one bad basket never aborts the sweep."""
-    global _pass_memo
+    global _pass_memo, _pass_stats, _pass_themes
     n = 0
+    t0 = time.perf_counter()
+    slugs_total = 0
     _pass_memo = OrderedDict()
+    _pass_stats = {}
     try:
         for slug in all_theme_slugs():
+            slugs_total += 1
             try:
                 r = get_theme_index(slug, tf)
                 if r and r.get("bars"):
@@ -476,5 +515,12 @@ def prewarm_all(tf: str = "D") -> int:
             except Exception:
                 pass
     finally:
-        _pass_memo = None
+        st, _pass_stats, _pass_memo, _pass_themes = (_pass_stats or {}), None, None, None
+        try:
+            _log.info("[theme_index] prewarm pass: %d/%d themes, %d bars reads, %d memo hits, "
+                      "%d Massive fallbacks (%.1fs), %.1fs total",
+                      n, slugs_total, int(st.get("reads", 0)), int(st.get("memo_hits", 0)),
+                      int(st.get("fallbacks", 0)), st.get("fallback_s", 0.0), time.perf_counter() - t0)
+        except Exception:
+            pass
     return n
