@@ -453,6 +453,8 @@ export function clearServerColumns() {
   for (const h of _held.values()) clearTimeout(h.timer)
   _held.clear()
   _shown.clear()
+  _ownOut = 0
+  _ownSentAt = 0
   _batchDownUntil = 0
   for (const t of _degradedTimers.values()) clearTimeout(t)
   _degradedTimers.clear()
@@ -793,10 +795,51 @@ function _stillShown(sym, tf) {
   return false
 }
 
+// ─── THE CHART ON SCREEN COMES FIRST ─────────────────────────────────────────
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13, after the hold above went live (a fresh list, the
+// key held at once, 11 charts a second, then released): the landing chart sent the ONLY
+// own ask, 245 ms after the stop, and still drew its RS line 4.8 s after its candles. Three
+// pre-load requests for the rows ahead had started a third of a second before the member
+// stopped, and one server core was computing all four at once (2.3 to 2.5 s each instead
+// of about 1).
+//
+// So the lane says when a chart on screen needs it, and a pre-load starts nothing while it
+// does (`serverWarm.js` asks before every request; what is already in flight finishes):
+//   * a chart's own ask is out (for at most `OWN_PRIORITY_MS`: a request that never
+//     settles must not stop the pre-load for good);
+//   * a chart is FLYING: changing symbol faster than every `FLYING_MS`. Six rows ahead at
+//     that pace is well under a second of lead, less than a compute takes, so a request
+//     started now lands on a row already passed and only delays the one the member stops
+//     on. (A chart stepping slower than that, even if "raced" by the hold's measure,
+//     keeps its pre-load: the rows ahead do land in time.)
+/** A chart changing symbol faster than this is flying through a list. */
+export const FLYING_MS = 120
+/** The longest one own ask keeps the pre-load waiting. */
+export const OWN_PRIORITY_MS = 8_000
+let _ownOut = 0
+let _ownSentAt = 0
+
+function _ownSettled() {
+  _ownOut = Math.max(0, _ownOut - 1)
+}
+
+/** True while a chart on screen is waiting on the lane, or is flying through a list. */
+export function chartsNeedTheLane() {
+  const now = Date.now()
+  if (_ownOut > 0 && now - _ownSentAt < OWN_PRIORITY_MS) return true
+  for (const s of _shown.values()) if (s.gap < FLYING_MS && now - s.at < RAPID_MS) return true
+  return false
+}
+
 function _sendOwn(g) {
   const asks = [...g.asks.values()]
-  if (asks.length === 1) fetchColumns(asks[0].defId, g.sym, g.tf, asks[0].inputs)
-  else fetchColumnsBatch(g.sym, g.tf, asks)
+  const sent = asks.length === 1
+    ? fetchColumns(asks[0].defId, g.sym, g.tf, asks[0].inputs)
+    : fetchColumnsBatch(g.sym, g.tf, asks)
+  _ownOut += 1
+  _ownSentAt = Date.now()
+  Promise.resolve(sent).then(_ownSettled, _ownSettled)
 }
 
 function _flushOwnAsks() {
