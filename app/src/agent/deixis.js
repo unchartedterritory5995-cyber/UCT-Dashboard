@@ -759,6 +759,7 @@ function changeWords(text) {
   }
   return withoutExclusions(change)
 }
+const TGT_ANCHOR_BEFORE = /\b(?:above|below|under|underneath|beneath|over|beside|alongside|near|nearest|by|next\s+(?:door\s+)?to|left\s+of|right\s+of|across\s+from|opposite|adjacent\s+to|diagonal(?:ly)?(?:\s+(?:from|to|across\s+from))?|kitty[\s-]?corner\s+(?:from|to)|catty[\s-]?corner\s+(?:from|to))\s+(?:the\s+|my\s+)?\$?$/i
 /** The tickers the change words name as the chart being changed (never a value position like "switch to AMD" — see the carve-out). */
 export function targetTickers(text) {
   const w = changeWords(text)
@@ -767,6 +768,8 @@ export function targetTickers(text) {
   for (const re of [TGT_VERB, TGT_PREP, TGT_NOUN]) for (const m of w.matchAll(re)) {
     const t = m[1].replace(/^\$/, '').toUpperCase()
     if (NOT_TICKER_CAPS.has(t) || (!m[1].startsWith('$') && isReservedWord(t)) || out.includes(t)) continue
+    // the ANCHOR of a relation ("the one below the QQQ one", "next to the SPY chart") is a reference point, never the target
+    if (TGT_ANCHOR_BEFORE.test(w.slice(0, m.index + m[0].indexOf(m[1])))) continue
     out.push(t)
   }
   return out
@@ -795,6 +798,9 @@ export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTarg
     const other = new Set([...chartsNamedBy(w, charts, sel)].filter(r => !bySym.has(r)))
     // "the TSLA chart to hourly and THIS one too": a clause that points at the click names it as a target of its own
     if (sel && /\b(?:this|here)\b/i.test(w)) other.add(sel)
+    // …and a RELATION's charts ("the AMD chart …, and the one to its right too"; "the one below the QQQ one")
+    try { for (const c of relativeChart(w, charts, relationAnchor(w, charts, sel))?.hits || []) other.add(c.ref) } catch { /* no relation */ }
+    try { for (const r of namedAnchorRelation(w, charts)?.hits || []) other.add(r) } catch { /* no relation */ }
     const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
     const written = []
     for (const o of ops || []) {
