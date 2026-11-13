@@ -7105,10 +7105,15 @@ reopen served from cache leaves the mark for the drain, as before. ⭐ **Fix rou
 closed an older defect the work found: Discard on the recovery banner did not discard.**
 `markSynced` went through `persist`, fix 6 kept the dirty record's words and re-queued
 them, and after the note closed the drain WROTE THE DISCARDED WORDS INTO THE NOTE.
-⛔⛔ **The rule it adds: Discard on the recovery banner removes the device's copy of
-exactly the offered words, by a content-checked transaction; it never removes words the
-member typed after the offer** (`useDurableNote` `discardOffered`; fix 6 untouched for
-every other writer). Rails: `provenEqualSettles.test.js`, `provenEqualOnOpen.test.jsx`, every guard
+⛔⛔ **The rule it adds: when Discard's transaction runs, it removes the device's copy of
+exactly the offered words and nothing the member typed after the offer** (`useDurableNote`
+`discardOffered`, content-checked; fix 6 untouched for every other writer). ⚠️ **Residual,
+ruled not fixed in this release:** a durable write or a save-settle already in flight for
+the note when Discard is pressed (roughly the two seconds after the last keystroke) can put
+the offered words back; the outcome is then what it was before this fix (the words are
+sent after close, or arrive as a conflicted copy). Closing it means the two writers
+re-deciding inside one transaction, which touches fix 6's writer and is left for its own
+change. Rails: `provenEqualSettles.test.js`, `provenEqualOnOpen.test.jsx`, every guard
 mutation-proved; `ringVouchAuthority.test.js` names `supersedeIdentical` as the
 identical sites' remove-only call and reads both helpers' bodies for a plan or a ring
 write; `f5Freeze.test.js` carries the amendment and pins the two call sites.
