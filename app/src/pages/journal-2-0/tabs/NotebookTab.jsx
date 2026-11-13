@@ -2260,20 +2260,20 @@ export default function NotebookTab() {
   const dailyTemplateId = prefs?.[DAILY_TEMPLATE_PREF] || ''
   const openingTodayRef = useRef(false)
   const { mutate: mutateSwrKey } = useSWRConfig()   // the cache this tree reads from (the brief's read is in it)
-  // Simplify pass 2 (B1): also the Daily brief's "Start today's note", which asks for `seedToday` (today's plan from the
-  // held figures, what the brief's read used to write into a note it made). Any other caller -- a click handler handed
-  // an event, the shortcut, the phone row -- gets the plain door, as before.
-  const openToday = async (opts) => {
+  // Simplify pass 2 (B1): also the Daily brief's "Start today's note". One door, one note: every caller (the list's
+  // button, Ctrl+Alt+D, the phone row, the brief's Start) asks for `seedToday`, today's plan from the held figures, which
+  // the server writes only into a note THIS call makes (an existing note is opened unchanged).
+  const openToday = async () => {
     if (openingTodayRef.current) return
     openingTodayRef.current = true
     setActionError('')
     try {
-      const { note, created, templateMissing } = await openDailyNote({
-        templateId: dailyTemplateId, seedToday: opts?.seedToday === true,
+      const { note, created, templateMissing } = await openDailyNote({ templateId: dailyTemplateId, seedToday: true })
+      // The Daily brief's cached answer may say "Start today's note": it says the note exists at once (a return to the
+      // brief reads "Open today's note"), and is read again for the plan lines.
+      mutateSwrKey(TODAY_READ_URL, (d) => d && {
+        ...d, todayNote: { ...d.todayNote, id: note.id, title: note.title, missing: false, trashed: false },
       })
-      // The Daily brief's answer is now out of date (it may say "Start today's note"): read it again, so a return to
-      // the brief says "Open today's note" and shows the plan.
-      mutateSwrKey(TODAY_READ_URL)
       if (created) {
         addNoteToTree(note)
         refreshAll()

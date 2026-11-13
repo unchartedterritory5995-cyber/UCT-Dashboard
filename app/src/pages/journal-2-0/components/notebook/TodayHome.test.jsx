@@ -18,9 +18,11 @@ vi.mock('../../lib/noteBatch', () => ({ runNoteBatch: (...a) => runNoteBatch(...
 
 import TodayHome, {
   CARD_ORDER, FRESH_ACTION, NAMES_ASK_LINE, NOTE_ACTION, NOTHING_YET, OPEN_ACTION, RECAP_ACTION, RECAP_WRITTEN,
-  RESTORE_ACTION, SKELETON_ORDER, START_ACTION, TODAY_URL, TRASHED_NOTE, cardOrder, headerLine, msUntilET,
+  RESTORE_ACTION, SKELETON_ORDER, START_ACTION, STARTING_ACTION, TRASHED_NOTE, cardOrder, headerLine, msUntilET,
 } from './TodayHome'
 import { TODAY_READ_URL } from '../../lib/todayHome'
+
+const TODAY_URL = '/api/j2/notes/today'
 import { CAPTURE_OPEN_EVENT } from '../../lib/captureBus'
 import { NAMES_ASK } from './EmptyNamesAsk'
 import { FIRST_PLAN } from './FirstPlanAsk'
@@ -29,6 +31,7 @@ import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/note
 import { SOON_URL } from '../../lib/earningsPrepShared'
 import { PASSED_URL } from '../../lib/researchCapture'
 import { AuthContext } from '../../../../context/AuthContext'
+import { __resetRegistryTourControl, publishRegistryTourWanted } from './onboarding/tourRegistryControl'
 
 const NOTE = {
   id: 'n-today', title: '2026-11-05 · Thursday', updatedAt: 'x', created: false, templateMissing: false,
@@ -78,7 +81,7 @@ beforeEach(() => {
     return ok({})
   }))
 })
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); __resetNotebookFlags() })
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); __resetNotebookFlags(); __resetRegistryTourControl() })
 
 const renderToday = (props = {}) => render(
   <MemoryRouter><TodayHome onOpenNote={vi.fn()} onOpenToday={vi.fn()} {...props} /></MemoryRouter>)
@@ -121,24 +124,21 @@ describe('one read, the M1 layout', () => {
     expect(screen.getByText('1 year ago')).toBeInTheDocument()
   })
 
-  // Fix round 1 (I7): before the server says which session it is, the boxes are reserved in ONE fixed order. Every
-  // half-width card reserves the same height (TodayHome.layout.test.js reads the CSS), so the answer's order -- a
-  // session's, or a holiday's "closed" -- fills the same total space: same boxes, same wide cards, same reserves.
-  it.each(['premarket', 'open', 'closed'])('reserves every card in a fixed order; the %s answer fills the same space', async (phase) => {
+  // Simplify pass 2, fix round 1: the answer's card count is unknown until it lands (B2 hides empty cards), so the read
+  // in flight draws the header and ONE skeleton, and nothing below the grid. The session's order fills in after it.
+  it.each(['premarket', 'open', 'closed'])('one skeleton while the read is in flight; the %s answer draws its order', async (phase) => {
     let release
     S.hold = new Promise((r) => { release = r })
     S.today = payload({ session: { ...payload().session, phase, recap: false } })
     renderToday()
     const skeletons = () => [...document.querySelectorAll('[data-today-skeleton]')]
     await waitFor(() => expect(skeletons().length).toBeGreaterThan(0))
-    expect(skeletons().map((s) => s.getAttribute('data-today-skeleton'))).toEqual([...SKELETON_ORDER])
-    const reserve = (el) => el.className.split(' ').filter((c) => /card_|wide/.test(c)).map((c) => c.replace(/_[^_]+$/, ''))
-    const before = skeletons().map(reserve).map((r) => r.join(' ')).sort()
+    expect(skeletons().map((s) => s.getAttribute('data-today-skeleton'))).toEqual(['plan'])
+    expect([...SKELETON_ORDER]).toEqual(['plan'])
     await act(async () => { release() })
     await screen.findByTestId('today-plan')
-    const cards = [...document.querySelectorAll('[data-today-card]')]
-    expect(cards.map((c) => c.getAttribute('data-today-card'))).toEqual(CARD_ORDER[phase])
-    expect(cards.map(reserve).map((r) => r.join(' ')).sort()).toEqual(before)
+    expect(skeletons()).toEqual([])
+    expect(cards()).toEqual(CARD_ORDER[phase])
   })
 
   it('A1: a member with a name is greeted by first name, as the first part of the date line', async () => {
@@ -185,7 +185,7 @@ describe('B1: the read never makes today’s note; the header button says which 
     expect(S.calls.filter((c) => c.method !== 'GET' && c.url !== '/api/j2/telemetry')).toEqual([])
   })
 
-  it('(b) no note yet: "Start today’s note" calls the create path once (with the plan seed) and makes nothing itself', async () => {
+  it('(b) no note yet: "Start today’s note" calls the create path once, reads busy while it runs, and makes nothing itself', async () => {
     S.today = payload({ todayNote: EMPTY().todayNote })
     let done
     const onOpenToday = vi.fn(() => new Promise((r) => { done = r }))
@@ -195,10 +195,12 @@ describe('B1: the read never makes today’s note; the header button says which 
     fireEvent.click(start)
     fireEvent.click(start)                                                  // a second press while the first runs
     expect(onOpenToday).toHaveBeenCalledTimes(1)
-    expect(onOpenToday).toHaveBeenCalledWith({ seedToday: true })
     expect(start).toBeDisabled()
+    expect(start).toHaveTextContent(STARTING_ACTION)
+    expect(start.getAttribute('aria-busy')).toBe('true')
     await act(async () => { done() })
     expect(start).not.toBeDisabled()
+    expect(start).toHaveTextContent(START_ACTION)
     expect(S.calls.some((c) => c.method === 'POST' && c.url.startsWith('/api/j2/notes'))).toBe(false)
   })
 
@@ -326,6 +328,87 @@ describe('B2 to B5: only what it has', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(todayReads().length).toBe(reads + 1))
     expect(screen.getByTestId('today-on-this-day')).toBeInTheDocument()
+  })
+})
+
+describe('fix round 1: nothing on screen before the read moves when it lands', () => {
+  beforeEach(() => { latchNotebookFlags({ notebook_earnings_prep_enabled: true, notebook_passed_setups_enabled: true }) })
+  const home = () => document.querySelector('[data-today-home]')
+  const below = () => ({
+    more: document.querySelector('[data-today-more]'),
+    firstRun: document.querySelector('[data-today-first-run]'),
+    notes: document.querySelector('[data-today-home-notes]'),
+    nothing: document.querySelector('[data-today-nothing]'),
+  })
+  const FOLLOWS = Node.DOCUMENT_POSITION_FOLLOWING
+
+  it('read pending: the header and exactly one skeleton card; no folded box, no first-run slot, nothing else', async () => {
+    S.hold = new Promise(() => {})
+    renderToday()
+    await waitFor(() => expect(document.querySelector('[data-today-skeleton]')).not.toBeNull())
+    expect(document.querySelectorAll('[data-today-skeleton]')).toHaveLength(1)
+    expect(document.querySelector('[data-today-skeleton]').getAttribute('data-today-skeleton')).toBe('plan')
+    expect(below()).toEqual({ more: null, firstRun: null, notes: null, nothing: null })
+    expect(screen.queryByRole('button', { name: /^Reporting soon/ })).toBeNull()
+    expect(screen.queryByTestId('first-run-inline')).toBeNull()
+    expect(document.querySelectorAll('[data-today-card]')).toHaveLength(0)
+  })
+
+  it('a member with nothing: the quiet line, the two compact asks and the folded boxes, all AFTER what was there', async () => {
+    let release
+    S.hold = new Promise((r) => { release = r })
+    S.today = payload(EMPTY())
+    renderToday()
+    await waitFor(() => expect(document.querySelector('[data-today-skeleton]')).not.toBeNull())
+    // Before the read: only the header and the one skeleton (in its grid) carry anything on screen.
+    const headerBefore = header()
+    const before = [...home().querySelectorAll('header, [data-today-skeleton], [data-today-card], [data-today-more], '
+      + '[data-today-first-run], [data-today-nothing], [data-today-home-notes]')]
+    expect(before.map((el) => el.tagName === 'HEADER' ? 'header' : el.getAttribute('data-today-skeleton'))).toEqual(['header', 'plan'])
+    await act(async () => { release() })
+    const quiet = await screen.findByText(NOTHING_YET)
+    expect(header()).toBe(headerBefore)                                   // the same node, still first
+    const { more, firstRun } = below()
+    expect(more).not.toBeNull()
+    expect(firstRun).not.toBeNull()
+    expect(cards()).toEqual(['setups', 'names'])
+    const grid = document.querySelector('[data-today-card]').parentElement
+    // header -> quiet line -> grid -> first-run slot -> folded boxes; nothing new sits above what was on screen
+    expect(headerBefore.compareDocumentPosition(quiet) & FOLLOWS).toBeTruthy()
+    expect(quiet.compareDocumentPosition(grid) & FOLLOWS).toBeTruthy()
+    expect(grid.compareDocumentPosition(firstRun) & FOLLOWS).toBeTruthy()
+    expect(firstRun.compareDocumentPosition(more) & FOLLOWS).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Reporting soon/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Passed setups/ })).toBeInTheDocument()
+  })
+
+  it('a failed read still draws the retry line, the header button and the folded boxes', async () => {
+    vi.stubGlobal('fetch', vi.fn((url) => {
+      const u = String(url)
+      if (u.startsWith(TODAY_URL)) return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) })
+      return ok({})
+    }))
+    const onOpenToday = vi.fn()
+    renderToday({ onOpenToday })
+    await waitFor(() => expect(document.querySelector('[data-load-failed]')).not.toBeNull())
+    expect(within(document.querySelector('[data-load-failed]')).getByRole('button', { name: /try again|retry/i })).toBeTruthy()
+    fireEvent.click(within(header()).getByRole('button', { name: NOTE_ACTION }))
+    expect(onOpenToday).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('[data-today-more]')).not.toBeNull()
+    expect(document.querySelectorAll('[data-today-skeleton]')).toHaveLength(0)
+  })
+
+  it('a walkthrough wanted before the read: the folded boxes arrive with the answer, already open for it', async () => {
+    let release
+    S.hold = new Promise((r) => { release = r })
+    publishRegistryTourWanted('earnings-prep')
+    renderToday()
+    await waitFor(() => expect(document.querySelector('[data-today-skeleton]')).not.toBeNull())
+    expect(document.querySelector('[data-today-more]')).toBeNull()
+    await act(async () => { release() })
+    const soon = await screen.findByRole('button', { name: /^Reporting soon/ })
+    await waitFor(() => expect(soon.getAttribute('aria-expanded')).toBe('true'))
+    expect(screen.getByRole('button', { name: /^Passed setups/ }).getAttribute('aria-expanded')).toBe('true')
   })
 })
 

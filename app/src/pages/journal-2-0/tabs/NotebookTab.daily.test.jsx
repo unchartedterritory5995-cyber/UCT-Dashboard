@@ -61,13 +61,16 @@ describe('Today', () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: /Today/ }))
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'day1'))
-    expect(posts).toEqual([{ date: '2031-01-02', templateId: 'tpl-daily' }])
+    // Simplify pass 2, fix round 1: one door, one note -- the list's button seeds a note it makes with today's plan,
+    // as the Daily brief's Start does (the server applies the seed only when this call makes the note).
+    expect(posts).toEqual([{ date: '2031-01-02', templateId: 'tpl-daily', seedToday: true }])
   })
 
   it('Ctrl+Alt+D and Cmd+Option+D do the same, from anywhere on the page', async () => {
     renderTab()
     fireEvent.keyDown(window, { code: 'KeyD', key: '∂', altKey: true, metaKey: true })
     await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0]).toMatchObject({ seedToday: true })
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'day1'))
   })
 

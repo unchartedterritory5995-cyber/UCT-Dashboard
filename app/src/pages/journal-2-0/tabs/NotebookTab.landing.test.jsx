@@ -132,15 +132,18 @@ describe('the Daily brief (?view=today)', () => {
   })
 
   it('B1: the Daily brief reads with make=0 and makes nothing; its Start is the list button’s door', async () => {
-    let body = { ...TODAY_BODY, todayNote: { id: null, missing: true, trashed: false, created: false, items: [] } }
+    const body = { ...TODAY_BODY, todayNote: { id: null, missing: true, trashed: false, created: false, items: [] } }
+    let made = false
     global.fetch.mockImplementation(async (url, opts = {}) => {
       const u = String(url)
       const ok = (b) => ({ ok: true, status: 200, json: async () => b })
       if (u === '/api/auth/preferences') return ok(prefs)
       if (u.startsWith('/api/j2/note-folders')) return ok({ folders: [] })
-      if (u.startsWith('/api/j2/notes/today')) return ok(body)
+      // Fix round 1: once the note is made, the brief's re-read never answers -- so a brief that says "Open" says it
+      // from the answer the door wrote into its cache, not from a re-read.
+      if (u.startsWith('/api/j2/notes/today')) return made ? new Promise(() => {}) : ok(body)
       if (u === '/api/j2/notes/daily' && opts.method === 'POST') {
-        body = { ...TODAY_BODY, todayNote: { id: 'made1', title: '2026-11-11 · Wednesday', items: [] } }
+        made = true
         return ok({ note: { id: 'made1', title: '2026-11-11 · Wednesday', folderId: 'fd' }, created: true, templateMissing: false })
       }
       return ok({})
@@ -161,7 +164,8 @@ describe('the Daily brief (?view=today)', () => {
     const posts = global.fetch.mock.calls.filter(([u, o]) => String(u) === '/api/j2/notes/daily' && o?.method === 'POST')
     expect(posts).toHaveLength(1)
     expect(JSON.parse(posts[0][1].body)).toMatchObject({ seedToday: true })
-    // Back on the brief (well inside SWR's dedupe window): its read was revalidated, so it says the note exists.
+    // Back on the brief (inside SWR's dedupe window, its re-read held): the door wrote "the note exists" into the
+    // brief's cache, so it says "Open today's note" at once.
     act(() => { screen.getByRole('button', { name: 'Daily brief row' }).click() })
     expect(await screen.findByRole('button', { name: "Open today's note" }, T)).toBeTruthy()
     expect(screen.queryByRole('button', { name: "Start today's note" })).toBeNull()

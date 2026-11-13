@@ -61,20 +61,15 @@
    only nodes that existed before and moved, so the cards themselves cannot shift. Every half-width skeleton reserves
    the same height, so the session's order fills the same space. (Fix round 1 put the CAPPED height on the filled
    cards and left large blank areas; S17: never reserve blank space.) Rail: TodayHome.layout.test.js. */
+/* Simplify pass 2, fix round 1: only ONE skeleton is drawn now (the plan card's; SKELETON_ORDER), and nothing below the
+   grid is drawn until the answer lands, so the half-card and recap reserves went with their skeletons. */
 .today {
   --today-row-h: 44px;
   --today-plan-h: 220px;
-  --today-half-h: 240px;
-  --today-recap-h: 130px;
 }
 .card_plan,
 .card_recap { border-color: rgba(220, 187, 94, 0.45); }
 .skeleton.card_plan { min-height: var(--today-plan-h); }
-.skeleton.card_recap { min-height: var(--today-recap-h); }
-.skeleton.card_setups,
-.skeleton.card_names,
-.skeleton.card_yesterday,
-.skeleton.card_onThisDay { min-height: var(--today-half-h); }
 .unavailable { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 /* The inline first-run ask's slot, below the cards, holding its height while its chunk loads. */
 .firstRunSlot { min-height: 420px; }

@@ -445,3 +445,21 @@ Existing tests changed, and why:
 
 First-open bytes after the build: 2,257,922 B of 2,260,793 B (PASS). The same build with the base's copies of this task's nine source files measures 2,256,949 B, so this task costs 973 B: `TodayHome` +311 B, `NotebookFlagGate` (NotebookTab) +370 B, `FirstPlanAsk` +265 B, `EmptyNamesAsk` +26 B, `reviewDraftsFlag` (dailyNote) +1 B. ⚠️ `TodayHome.jsx` is one of the budget's three roots (`docs/notebook/perf-budgets.json`), so the brief's code IS counted as first open; the brief chunk is not exempt.
 
+
+### Pass 2, Task 2, fix round 1 (base `45220376c4`)
+
+What moved, and the one-line undo:
+- Nothing shifts on the first read (review Important 1): while the brief's read is in flight it draws the header and ONE skeleton (the plan card's; `SKELETON_ORDER = ['plan']`), and nothing below the grid: the first-run slot and the folded boxes ("Reporting soon", "Passed setups") wait for the answer or its failure, as the note sections already did. The half-card and recap skeleton reserves left `TodayHome.module.css` with their skeletons. A walkthrough wanted before the read still finds its fold open: the boxes mount with the answer and `CollapsibleSection` opens on a truthy `openSignal` at mount (the engine waits up to 8 s for a first anchor, `GenericTourEngine.START_WAIT_MS`). Undo: restore the five-card `SKELETON_ORDER` and its reserves, and draw `FirstRunSlot` / `MoreBoxes` unconditionally.
+- One door, one note: `openToday` asks for `seedToday` on EVERY call, so a note made from the list's "Today's note", Ctrl+Alt+D or the phone row now starts with today's plan lines, as notes made by visiting the brief always did (an existing note is opened unchanged: the server seeds only a note this call makes). Undo: `seedToday: false` for those callers.
+- After any create through `openToday`, the brief's cached answer is told at once that the note exists (an optimistic `todayNote` built from the create response), then re-read: a return to the brief says "Open today's note" without waiting. Undo: `mutateSwrKey(TODAY_READ_URL)` with no data.
+- Start reads "Starting today's note…" (disabled, `aria-busy`) while it runs. Undo: drop `STARTING_ACTION`.
+- `TODAY_URL` is no longer exported from `TodayHome.jsx` (tests use `TODAY_READ_URL` or the literal).
+- The recap card's press can now make today's note and its folder (the page no longer does): its docstring says so.
+
+Recorded facts (one line each):
+- A3's match is case-insensitive, so a root folder named "Daily Notes" (a Roam import's) is adopted as the daily folder.
+- `today_opened.created` is now always false on a page open.
+
+Tests changed: `TodayHome.test.jsx` (the five-skeleton order case became "one skeleton, then the session's order"; new cases for read pending, a member with nothing, a failed read, and a walkthrough wanted before the read; Start's busy words), `TodayHome.layout.test.js` (one skeleton reserve, no others), `NotebookTab.daily.test.jsx` (the list button's and Ctrl+Alt+D's create requests carry `seedToday`), `NotebookTab.landing.test.jsx` (the brief's re-read is held after Start, so "Open today's note" must come from the written cache).
+
+Walker strings this round touches (Task 4): the list button now seeds a note it makes, so a walk that makes today's note through it and then reads the body sees today's plan lines first: `tools/notebook_proof_walk.py:3041`, `:3826`, `tools/notebook_w13q_clicks.py:1296`, `:1298`, `tools/notebook_fin_walk_live.py:83` (by grep they check only that a note opened). The brief's busy label "Starting today's note…" is read by no walker.

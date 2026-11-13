@@ -14,10 +14,13 @@
 // the member presses it. The two review sections read `GET /api/j2/notebook/home` (useNotebookHome) only AFTER that
 // read has answered, so they never delay a card; the Notices box makes its own two reads (NoticesBox.jsx).
 //
-// The page is a lazy view (tabs/NotebookTab.jsx `lazyView`): its bytes are not on the Notebook's first open.
+// The page is a lazy view (tabs/NotebookTab.jsx `lazyView`), and one of the first-open byte budget's roots
+// (docs/notebook/perf-budgets.json): its bytes count.
 //
-// ⛔ NOTHING SHIFTS. While the read is in flight every card is drawn as a skeleton of the SAME card, in the same order
-// and at the same reserved height (TodayHome.module.css), so the answer fills boxes that are already there.
+// ⛔ NOTHING SHIFTS (simplify pass 2, fix round 1). How many cards the answer draws is not known until it lands (B2 hides
+// the empty ones), so while the read is in flight the page draws the header and ONE skeleton (the wide plan card's), and
+// NOTHING below the grid: the first-run slot and the folded boxes wait for the answer (or its failure), as the note
+// sections always did. Nothing that is on screen before the read sits under a grid that then changes height.
 //
 // ⛔ ONLY WHAT IT HAS (simplify pass 2, B2 to B5). A card with nothing to show is not drawn: "Open from yesterday" and
 // "On this day" when empty, "Today's plan" when it has no open lines, and a figure the member's plan does not include.
@@ -63,8 +66,6 @@ import {
 } from './onboarding/tourRegistryControl'
 import styles from './TodayHome.module.css'
 
-export const TODAY_URL = '/api/j2/notes/today'
-
 // Research home's two boxes, fetched only while their switch is on and the member opens them.
 const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
 const PassedSetups = lazyChunk(() => import('./PassedSetups'))
@@ -90,10 +91,11 @@ export const NOTE_ACTION = "Today's note"
 export const NOTHING_YET = 'Nothing for today yet. Your plan, the setups near your entry and your names will show here.'
 /** B3: the names ask's one line on the brief (EmptyNamesAsk's full sentence is the widgets'). */
 export const NAMES_ASK_LINE = 'Add the tickers you watch, and your earnings and plan will follow them.'
-/** I7: the order the cards are reserved in before the server has said which session it is. Every half-width card
- *  reserves the SAME height (TodayHome.module.css), so the answer's own order fills the same total space whatever it
- *  is (a holiday's "closed" order included) and nothing below the grid moves. */
-export const SKELETON_ORDER = Object.freeze(['plan', 'setups', 'names', 'yesterday', 'onThisDay'])
+/** What is drawn while the read is in flight: one skeleton, the wide plan card's (fix round 1). The answer replaces it,
+ *  and nothing below the grid is drawn until then, so a short answer moves nothing that was on screen. */
+export const SKELETON_ORDER = Object.freeze(['plan'])
+/** The Start button while its press runs (the recap button's "Writing…" pattern). */
+export const STARTING_ACTION = "Starting today's note…"
 
 /** The cards, in each ET session's order (S15). `recap` is drawn only when the server offers it (S18). */
 export const CARD_ORDER = Object.freeze({
@@ -266,7 +268,7 @@ function TodayNoteAction({ state, note, templateId, onOpenNote, onStart, onChang
   return (
     <button type="button" className="btn btn-primary btn-sm" disabled={starting} aria-busy={starting || undefined}
       onClick={start}>
-      {state === 'missing' ? START_ACTION : NOTE_ACTION}
+      {starting ? STARTING_ACTION : state === 'missing' ? START_ACTION : NOTE_ACTION}
     </button>
   )
 }
@@ -461,7 +463,9 @@ function OnThisDayCard({ onThisDay, reason, onOpenNote, onRetry }) {
   )
 }
 
-/** S18: after 16:05 ET, the existing review drafts written into today's note (never a new folder or note). */
+/** S18: after 16:05 ET, the existing review drafts written into today's note. Since simplify pass 2 (B1) the page
+ *  never makes that note, so when there is none yet this press makes it, in the daily folder (made too if the member
+ *  has none), and says where it went (DAILY_FOLDER_NOTICE). */
 function RecapCard({ note, onOpenNote, onNotice, onWritten }) {
   // M8: the selected account is read from this tab's own choice; the accounts list is not fetched for it.
   const { accountId } = useJ2SelectedAccount(false)
@@ -685,9 +689,9 @@ export default function TodayHome({
   const name = String(auth?.user?.display_name || '').trim().split(/\s+/)[0]
   const refresh = () => mutate()
   // B1: "Start today's note" is NotebookTab's `openToday` (the list's "Today's note" and Ctrl+Alt+D), never a second
-  // create path. It opens the note and revalidates this read, so a return here says "Open today's note". The seed is
-  // what the read used to write into a note it made: today's plan from the held figures (S18).
-  const startTodayNote = () => onOpenToday?.({ seedToday: true })
+  // create path. It makes the note with today's plan from the held figures (every caller of that door does), opens it,
+  // and writes "it exists" into this read's cache, so a return here says "Open today's note".
+  const startTodayNote = () => onOpenToday?.()
   const noteState = todayNoteState(data, error)
   // B2: only what has something to show is drawn, in the session's order. B5: nothing but the asks -> one quiet line.
   const drawn = data ? order.filter((id) => cardKind(id, data)) : order
@@ -744,11 +748,11 @@ export default function TodayHome({
       {showNotices && <Suspense fallback={null}><NoticesPanel /></Suspense>}
       {nothingYet && <p className={styles.quiet} data-today-nothing="">{NOTHING_YET}</p>}
       {!error && <div className={styles.grid}>{drawn.map(card)}</div>}
-      <FirstRunSlot onOpenNote={onOpenNote} onOpenToday={refresh} />
+      {(data || error) && <FirstRunSlot onOpenNote={onOpenNote} onOpenToday={refresh} />}
       {showNotes && (
         <Suspense fallback={null}><HomeNotes ready onOpenNote={onOpenNote} styles={styles} /></Suspense>
       )}
-      <MoreBoxes onOpenNote={onOpenNote} />
+      {(data || error) && <MoreBoxes onOpenNote={onOpenNote} />}
     </div>
   )
 }
