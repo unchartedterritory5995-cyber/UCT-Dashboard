@@ -35,6 +35,7 @@ from fastapi.testclient import TestClient
 from api.middleware.auth_middleware import get_current_user_with_plan
 from api.routers import user_definitions as router_mod
 from api.services import indicator_alert_service as ias
+from api.services import presentation_schema as ps
 from api.services import runtime_definitions as rt
 from api.services import user_definition_relint as rl
 from api.services import user_definitions as svc
@@ -147,6 +148,9 @@ def test_a_DIV4_copy_is_the_document_the_door_writes_with_the_runtime_lane_OFF()
     got = rt.without_run_reads(doc)
     assert doc == DIV4["document"], "the strip never mutates its argument"
     assert "runtimeColours" not in got["compute"] and "paints" not in got
+    # a paint left naming the dropped column would be a document the schema refuses
+    assert ps.presentation_errors(DIV4["document"]) == []          # CONTROL
+    assert ps.presentation_errors(got) == []
     off = copy.deepcopy(DIV4["laneOff"])
     gone = [n for n in got["meta"]["disclosures"] if n["note"].endswith(rt.RUN_READ_PAINT_GONE)]
     assert [n["name"] for n in gone] == ["`barcolor` (line 13)"]
@@ -208,6 +212,7 @@ def test_an_INSTALLED_copy_has_neither_key_and_no_script(kind):
     out = svc.install_share(VIEWER, token)
     row = svc.get(VIEWER, out["def_id"], with_source=True)
     assert not set(rt.RUN_READ_KEYS) & set(row["definition"]["compute"])
+    assert ps.presentation_errors(row["definition"]) == []
     assert row["has_pine_source"] is False and "pine_source" not in row
     _assert_no_script(row, src)
     _assert_no_script(svc.list_for_user(VIEWER, source_below=999), src)
