@@ -9,9 +9,10 @@
 // pre-load, #1196); these cases drive what the chart drives, and the source rails at the end
 // pin that the chart's call sites are the gated ones and nobody else pays for the gate.
 //
-// The six below are the reads the production measurement counted per chart passed
+// The first six below are the reads the production measurement counted per chart passed
 // (2026-11-13: about 30 of each in a 40-chart run). The chart's event markers are the
-// seventh; they are read inside StockChart, which the source rail at the end covers.
+// seventh; they are read inside StockChart, which the source rail at the end covers. The
+// last four are the header's OPTIONAL fields, read only while a member shows them.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
@@ -20,6 +21,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
   useChartDelisted, useChartSingleStockEtfs, useChartTickerMeta, useChartTickerIpo, useChartSnapshot,
+  useChartPerformance, useChartThemes, useChartMeta, useChartVolumeCurve,
 } from '../components/chart/restedReaders'
 import useTickerMeta from '../hooks/useTickerMeta'
 import AdjustmentLabel from '../components/chart/AdjustmentLabel'
@@ -32,7 +34,8 @@ beforeEach(() => {
   vi.useFakeTimers()
   urls = []
   // every request is counted and left open: what is asserted is what was ASKED
-  vi.stubGlobal('fetch', vi.fn((url) => { urls.push(String(url)); return new Promise(() => {}) }))
+  // (a POST read names its symbols in the body: it is kept beside the address)
+  vi.stubGlobal('fetch', vi.fn((url, init) => { urls.push(String(url) + (init && init.body ? ` body=${init.body}` : '')); return new Promise(() => {}) }))
   localStorage.removeItem(REST_GATE_OFF_KEY)
   __resetRestGate()
 })
@@ -50,11 +53,19 @@ const READERS = [
   { name: 'listing date', part: '/api/ticker-ipo/', Use: ({ sym }) => { useChartTickerIpo(sym); return null } },
   { name: 'snapshot', part: '/api/research/snapshot/', Use: ({ sym }) => { useChartSnapshot(sym, true); return null } },
   { name: 'split basis', part: '/api/adjustment-basis/', Use: ({ sym }) => <AdjustmentLabel sym={sym} tf="D" /> },
+  { name: 'N-day change (optional field)', part: '/api/watchlist-performance', Use: ({ sym }) => { useChartPerformance([sym]); return null } },
+  { name: 'theme (optional field)', part: '/api/watchlists/themes-batch', Use: ({ sym }) => { useChartThemes([sym]); return null } },
+  { name: 'average volume and IPO date (optional fields)', part: '/api/research/snapshot-batch', Use: ({ sym }) => { useChartMeta([sym]); return null } },
+  { name: 'volume curve (optional field)', part: '/api/screener/volume-curve?tickers=', Use: ({ sym }) => { useChartVolumeCurve(true, [sym]); return null } },
 ]
 
 const wait = (ms) => act(async () => { await vi.advanceTimersByTimeAsync(ms) })
 /** the symbols this reader asked the server for, in order */
-const askedFor = (part) => urls.filter((u) => u.includes(part)).map((u) => u.split(part)[1].split(/[/?]/)[0])
+const askedFor = (part) => urls.filter((u) => u.includes(part)).map((u) => {
+  const body = u.split(' body=')[1]
+  if (body) return JSON.parse(body).tickers[0]
+  return u.split(part)[1].split(/[/?&]/)[0]
+})
 
 async function scan(reader, tag, stepMs) {
   const ui = (sym) => (
@@ -122,7 +133,8 @@ const code = (rel) => readFileSync(resolve(SRC, rel), 'utf8')
 
 describe('the chart\'s call sites are the gated ones', () => {
   const SITES = [
-    ['components/chart/pane/ChartPane.jsx', ['useChartTickerMeta', 'useChartDelisted'], ['hooks/useTickerMeta', 'hooks/useDelisted']],
+    ['components/chart/pane/ChartPane.jsx', ['useChartTickerMeta', 'useChartDelisted', 'useChartPerformance', 'useChartMeta', 'useChartVolumeCurve', 'useChartThemes'],
+      ['hooks/useTickerMeta', 'hooks/useDelisted', 'hooks/useWatchlistPerformance', 'hooks/useWatchlistMeta', 'hooks/useVolumeCurve', 'hooks/useWatchlistThemes']],
     ['components/StockChart.jsx', ['useChartTickerMeta', 'useChartTickerIpo'], ['hooks/useTickerMeta', 'hooks/useTickerIpo']],
     ['pages/charts/widgets/ChartWidget.jsx', ['useChartSingleStockEtfs'], ['hooks/useSingleStockEtfs']],
     ['pages/charts/widgets/LeverageInverseControl.jsx', ['useChartSingleStockEtfs'], ['hooks/useSingleStockEtfs']],
@@ -146,13 +158,14 @@ describe('the chart\'s call sites are the gated ones', () => {
   })
 
   it('⛔ the generic hooks import nothing from the gate: it stays out of the app\'s first bytes', () => {
-    const hooks = ['hooks/useDelisted.js', 'hooks/useSingleStockEtfs.js', 'hooks/useTickerMeta.js', 'hooks/useTickerIpo.js', 'hooks/useFundamentalSnapshot.js', 'hooks/useMobileSWR.js']
+    const hooks = ['hooks/useDelisted.js', 'hooks/useSingleStockEtfs.js', 'hooks/useTickerMeta.js', 'hooks/useTickerIpo.js', 'hooks/useFundamentalSnapshot.js',
+      'hooks/useWatchlistPerformance.js', 'hooks/useWatchlistThemes.js', 'hooks/useWatchlistMeta.js', 'hooks/useVolumeCurve.js', 'hooks/useMobileSWR.js']
     const offenders = hooks.filter((rel) => /symbolPace|restedReaders/.test(code(rel)))
     expect(offenders).toEqual([])
     // CONTROL: the check sees an import when one is there
     expect(/symbolPace|restedReaders/.test(code('components/chart/restedReaders.js'))).toBe(true)
     // ...and each of them takes the pause it is handed
-    for (const rel of hooks.slice(0, 5)) expect(code(rel), rel).toMatch(/\.\.\.\(isPaused && \{ isPaused \}\)/)
+    for (const rel of hooks.slice(0, 9)) expect(code(rel), rel).toMatch(/\.\.\.\(isPaused && \{ isPaused \}\)/)
   })
 
   it('⛔ a POLLING read never goes through `useRestedSWR` (the polling rail counts `useSWR` sites)', () => {
