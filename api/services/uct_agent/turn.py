@@ -1105,6 +1105,8 @@ DATA_READ_ACTIONS = frozenset({
     "news.latest", "news.catalysts", "screener.run", "screener.runSaved",
     # train2 (W2-B3 #746, live for admins): the setup description is a deterministic read of bars.daily
     "chart.describeSetup",
+    # Phase 2 COT research: the positioning card is UCT's deterministic read of stored CFTC rows (cot.positioning)
+    "cot.positioning",
 })
 #: Brain response handling (owner, 2026-11-03, before activation). Planner v1 writes `reply` BEFORE any knowledge is
 #: read, so a plan holding ANY knowledge read (playbook.*, decided by action name: knowledge.frame) never serves it,

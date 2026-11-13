@@ -128,3 +128,17 @@ def test_the_guard_still_passes_ordinary_company_and_earnings_prose():
     for text in ("The company reported earnings after the close.", "Open the company panel on the chart to read the profile.",
                  "The earnings strip shows quarterly EPS and revenue.", "Check the stock's earnings date before entering."):
         assert guard.suspicious(text) is False, text
+
+
+# ── Phase 2 COT research: cot.positioning is SERVER-GATED (registered only while the server serves the kind), so it is not
+#    in manifest.golden.json and the ratchets above cannot see it — pinned by name here instead ──
+def test_the_cot_positioning_capability_is_a_DATA_action_withheld_bare_and_a_data_read():
+    assert v2.domain_for("cot.positioning") == "data"
+    assert guard.suspicious(_bare("cot.positioning")) is True
+    assert "cot.positioning" in turn.DATA_READ_ACTIONS        # the model's pre-read reply never serves a COT figure
+
+
+def test_the_guard_still_passes_ordinary_cot_prose():
+    for text in ("COT positioning in gold is near a three-year extreme.", "Commercials are net short crude in the COT report.",
+                 "Large speculators added to their net long position this week."):
+        assert guard.suspicious(text) is False, text
