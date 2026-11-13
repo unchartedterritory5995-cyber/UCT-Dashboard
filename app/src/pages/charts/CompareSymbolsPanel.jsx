@@ -15,7 +15,7 @@ import shell from './PeriodSortPanel.module.css'
 import c from './CompareSymbolsPanel.module.css'
 import Input from '../../components/ui/Input'
 import useFocusTrap from '../../components/mobile/useFocusTrap'
-import { COMPARE_OPEN_EVENT, GROUP_TYPES, fetchGroupList, fetchGroupMembers, withGroupAdded, withoutGroup, withGroupScale } from './compareGroups'
+import { COMPARE_OPEN_EVENT, compareChartApi, GROUP_TYPES, fetchGroupList, fetchGroupMembers, withGroupAdded, withoutGroup, withGroupScale } from './compareGroups'
 
 const CompareRotation = lazy(() => import('./CompareRotation'))
 
@@ -27,9 +27,12 @@ const TABS = [
 /** A fresh intent object per open, so the Rotation tab acts on each one once. */
 const intentOf = (detail) => (detail && detail.tab === 'rotation' ? { ...detail } : null)
 
-export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onClose, initialIntent = null }) {
+export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onClose, initialIntent = null, onTabChange = null }) {
   const [tab, setTab] = useState(() => (initialIntent?.tab === 'rotation' ? 'rotation' : 'overlay'))
   const [intent, setIntent] = useState(() => intentOf(initialIntent))
+  // The tab ON SCREEN, reported to the workspace (UCT Agent's compare.openView reads it back): a click, an arrow key and a
+  // `uct:compare-open` event all land here, so the read is the panel's own state, never what was asked for.
+  useEffect(() => { onTabChange?.(tab) }, [tab, onTabChange])
   const tabRefs = useRef({})
   const cardRef = useRef(null)
   const [symbols, setSymbols] = useState([])
@@ -51,8 +54,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
     const resolve = () => {
       const map = chartApiById?.current
       if (map && map.size) {
-        const active = activeChartRef?.current
-        const api = (active && map.has(active)) ? map.get(active) : map.get([...map.keys()][0])
+        const api = compareChartApi(map, activeChartRef?.current)
         if (api) {
           apiRef.current = api
           setSymbols(api.getComparison() || [])
