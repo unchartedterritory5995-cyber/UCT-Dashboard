@@ -63,7 +63,8 @@ Serving first, through the engine-51 static reader generalised (`staticEnumValue
 
 - numbers, unary minus, `+ - * /` (division folded only where int and float division agree),
   `< > <= >=`, `==`/`!=` by kind, `math.max/min/abs`;
-- `input.int` / `input.float` / `input.bool` / `input.color` defaults and v4 `input(<value>)`
+- `input.int` / `input.float` / `input.bool` / `input.color` defaults, v4 `input(<value>)` and
+  v4 `input(…, type = input.integer)` (fvg: `color.new(color.black, boxTransparency)`)
   (C16; a member's knob is still left to the per-bar reader, `isKnob`);
 - C44 colours: `color.new(c, t)` and `color.rgb(r, g, b[, t])` painted by the object runtime's one
   formula (`withObjectTransparency`); C46 `color.from_gradient` by the runtime's own measured
@@ -231,4 +232,11 @@ Copy, edit, run, restore FROM THE COPY, `git hash-object` == `HEAD:` blob (all t
 - `service_smoke.json` re-recorded against a local engine-52 pine-runtime service (Node 20, the
   Dockerfile's permission flags, a throwaway in-memory secret): `--record` PASS, plain smoke PASS
   (engine 52, canary green, run digest `b5f203f30c16`, unsigned POST 401).
-- Heavy run: see the PR body.
+- Heavy run (ONE heavy-lock run on the final head: `ast`, `runtime/__tests__`, `__tests__`,
+  `builder`, `--maxWorkers=1`): 1,124 files, **19,535 passed, 2 failed, 199 skipped**; 3 files
+  failed: the master reds `rsRatingDef` / `rsVsEmaDef` (#1136), and `PineBox.editor.test.jsx`, a
+  collection error `ENOSPC: no space left on device` (the disk was at 96%); it passes alone (5/5).
+  An earlier heavy run on an intermediate head is what found the artemis C28 wrong cell and the
+  fvg v4 `input.integer` withhold, both fixed and railed above.
+- objects-v2 re-grade and HP-1 re-run on the final head: unchanged (above), HP-1 GREEN 166/166.
+- Engine 51 (#1149) was not on master when this was pushed, so master was not merged in.
