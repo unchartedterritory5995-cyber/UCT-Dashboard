@@ -299,7 +299,7 @@ describe('B2 to B5: only what it has', () => {
     renderToday()
     expect(await screen.findByText(NOTHING_YET)).toBeInTheDocument()
     // Final fix M1: the card's own name, so it cannot read as the chart plan the setups ask right under it asks for.
-    expect(NOTHING_YET).toBe("Nothing for today yet. Today's plan, the setups near your entry and your names will show here.")
+    expect(NOTHING_YET).toBe('Nothing for today yet. Today’s plan, the setups near your entry and your names will show here.')
     expect(cards()).toEqual(['setups', 'names'])
     const h3s = [...document.querySelectorAll('[data-today-home] h3')]
     expect(h3s).toHaveLength(2)

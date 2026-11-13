@@ -89,8 +89,9 @@ export const START_ACTION = "Start today's note"
 export const OPEN_ACTION = "Open today's note"
 export const NOTE_ACTION = "Today's note"
 /** B5: the one quiet line when no card has anything to show. Final fix M1: "Today's plan" (the card's own name), not
- *  "Your plan", which read as the chart plan the setups ask right under it asks for. */
-export const NOTHING_YET = "Nothing for today yet. Today's plan, the setups near your entry and your names will show here."
+ *  "Your plan", which read as the chart plan the setups ask right under it asks for. Single-quoted with the typographic
+ *  apostrophe, as the recap card's line is: the fin walk reads this constant with a single-quote pattern. */
+export const NOTHING_YET = 'Nothing for today yet. Today’s plan, the setups near your entry and your names will show here.'
 /** B3: the names ask's one line on the brief (EmptyNamesAsk's full sentence is the widgets'). */
 export const NAMES_ASK_LINE = 'Add the tickers you watch, and your earnings and plan will follow them.'
 /** What is drawn while the read is in flight: one skeleton, the wide plan card's (fix round 1). The answer replaces it,
