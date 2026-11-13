@@ -153,6 +153,15 @@ describe('setCalculationTimeframe — the Inspector Timeframe select, through it
     const u2 = undoIndicatorMutation(w2.cs, w2.undo, ctx())
     expect(instOf(u2.cs, 'inst:rsi:1').calculationTimeframe).toBe('M')
   })
+  it('C7: Undo after an UNRELATED change since (no verbatim restore point) still puts exactly this frame back, keeping the other change', () => {
+    const w = run(chart(), req('inst:rsi:1', 'W'))
+    const other = json(setInstanceCalculationTimeframe(load(w.cs), 'inst:rsi:2', 'M', registry))
+    const u = undoIndicatorMutation(other, w.undo, ctx())
+    expect(u.ok, JSON.stringify(u)).toBe(true)
+    expect(confirmIndicatorMutation(json(u.cs), u.pending, ctx()).status).toBe('confirmed')
+    expect('calculationTimeframe' in instOf(u.cs, 'inst:rsi:1')).toBe(false)
+    expect(instOf(u.cs, 'inst:rsi:2').calculationTimeframe).toBe('M')
+  })
   it('C7: Undo is stale-aware — a frame changed by hand since is never clobbered', () => {
     const w = run(chart(), req('inst:rsi:1', 'W'))
     const byHand = json(setInstanceCalculationTimeframe(load(w.cs), 'inst:rsi:1', 'M', registry))
