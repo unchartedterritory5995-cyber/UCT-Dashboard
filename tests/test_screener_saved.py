@@ -215,7 +215,9 @@ _KNOWN_EMPTY_IN_PROD = {
 
 def _rs_sets():
     from api.services.screener import rs_columns, snapshot_builder
-    return frozenset(rs_columns.COLUMNS), frozenset(snapshot_builder._RS_HISTORY_COLUMNS)
+    # The five RS Exit Warning columns share the ten's writer and fill on the same first build.
+    return (frozenset(rs_columns.COLUMNS) | frozenset(rs_columns.EXIT_COLUMNS),
+            frozenset(snapshot_builder._RS_HISTORY_COLUMNS))
 
 
 def _rs_starters(ss):

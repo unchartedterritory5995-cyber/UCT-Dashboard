@@ -54,7 +54,7 @@
 //     asks per symbol in its place (`fetchColumnsBatch` refuses for a warm).
 //
 // Kill switch, per browser, no deploy: localStorage['uct.indwarm.off'] = '1'.
-import { liveAsks, habitAsks, hasColumns, fetchColumnsBatch, batchAvailable, chartsNeedTheLane } from './serverCompute'
+import { liveAsks, habitAsks, hasColumns, fetchColumnsBatch, batchAvailable, chartsNeedTheLane, readAhead } from './serverCompute'
 import { isAppVisible } from '../../../lib/deskVisibility'
 import { afterFirstChartPaint } from '../../../lib/barsPackClient'
 import { registerSymbolWarmer, _packStillIngesting } from '../../../utils/prefetchBars'
@@ -199,6 +199,11 @@ export function warmSymbols(syms, tf, opts = {}) {
   // a near row (never parked, the third slot), and the rows ahead keep their own standing. A
   // timeframe a chart really draws is queued exactly as before.
   const rested = habit && !liveAsks(T).length
+  // The rows a member is about to reach (and the symbol on screen at a timeframe it uses) are
+  // read from this browser's store now, so their first paint has them (`readAhead`). Before
+  // any of the queue's own rules: a disk read is not a request, and it is the answer a member
+  // gets when the server is slow or the lane is yielding. Never for a list: only near rows.
+  if (near || rested) for (const raw of syms) { const sym = _symOf(raw); if (sym) readAhead(sym, T) }
   const bulk = !near && !opts.visible
   const take = bulk ? syms.slice(0, BULK_HEAD) : syms
   // ⭐ WHICH CALLS ARE "A LIST OPENED". The on-screen rows of a list (`visible`) are a new
