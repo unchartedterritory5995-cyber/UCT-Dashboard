@@ -157,6 +157,23 @@ function gridRequest(raw0, lower0, charts, host) {
   // charts ADDED four — 10 charts): more charts on the board than tickers, and the member's words neither ask for new
   // ones nor build a whole workspace — never guessed, never a silent removal: ONE question, replace the charts (the ones
   // showing a named ticker kept; the removal approval-gated) or add these beside them
+  // ⛔ ADD NEVER REPLACES (hotfix 2026-11-13, AUDIT: "add AAPL and MSFT" / "add two charts for …" on a SPY + NVDA board re-symbolled
+  // both charts): an ADD (add / include, no replace word) never reuses or re-symbols a chart already there — the tickers go on NEW
+  // charts. A grid SHAPE or a COUNT said with it ("add a 2x2 of …", "add four charts for …") on a board that has charts could mean
+  // the whole grid (GRID-REUSE, 11-04) or more charts:
+  // ASKED (replace them — shown first — or add beside them); more than the board holds: asked (replace, or nothing).
+  if (!lead && ADD_VERB.test(raw) && !REPLACE_INTENT.test(raw)) {
+    const onBoard = gridChartCount(host, charts.length)
+    const layout = layoutHit ? layoutHit[1] : null
+    if (onBoard > 0) {
+      const q = addQuestion(syms, tf, layout, rail, onBoard, { shape: (GRID_SHAPE_WORDS.test(raw) || !!count) && !ASKS_NEW.test(raw), full: !roomFor(host, syms.length + (rail ? 1 : 0)) })
+      if (q) return q
+    }
+    if (!layout && !rail && !EQUAL_SIZE_WORDS.test(raw) && fitsEmpty(host, syms.length)) {
+      return { kind: 'ops', ops: [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: syms, timeframe: tf || null, chart_type: null, exact: null } }], mode: 'apply' }
+    }
+    return { kind: 'ops', ops: [chartGrid(syms, tf, layout, onBoard > 0, rail)], mode: 'apply' }
+  }
   if (!lead && !explicitGridIntent(raw)) {
     const q = gridQuestion(syms, tf, layoutHit ? layoutHit[1] : null, rail, gridChartCount(host, charts.length))
     if (q) return q
@@ -218,6 +235,33 @@ export function gridChoiceFor(ops, text, host) {
   return gridQuestion((a.symbols || []).map(s => String(s || '').toUpperCase()), a.timeframe || null, a.layout || null, a.watchlist === true, gridChartCount(host, 0))
 }
 const wantsNew = (text, n, onBoard) => asksNew(text) || n < onBoard
+// ⛔ ADD NEVER REPLACES (hotfix 2026-11-13): the verbs that ask for MORE charts, and a grid shape said in words
+export const ADD_VERB = /\b(?:add|adds|added|adding|include|includes|included|including)\b/i
+const GRID_SHAPE_WORDS = /\b[1-4]\s*(?:x|by|-by-)\s*[1-4]\b|\bquad\b/i
+// the board's room for n more widgets (unknown → assumed, the grid's own check still refuses past the cap)
+function roomFor(host, n) {
+  let s = null
+  try { s = host?.widgets?.snapshot?.() || null } catch { s = null }
+  return !s || typeof s.max !== 'number' || s.count + n <= s.max
+}
+/** ADD on a board with charts: a grid SHAPE asked with it → replace (shown first) or add beside; no room → replace or nothing. */
+export function addQuestion(syms, tf, layout, rail, onBoard, { shape = false, full = false } = {}) {
+  const k = (syms || []).length
+  if (k < 1 || (!shape && !full)) return null
+  const grid = (fresh) => chartGrid(syms, tf, layout, fresh, rail)
+  const replace = [{ ...grid(false), args: { ...grid(false).args, replace: 'charts' } }]
+  const mine = `${onBoard} chart${onBoard === 1 ? '' : 's'}`
+  if (full) {
+    return { kind: 'ask', text: `There isn't room for ${k} more chart${k === 1 ? '' : 's'} beside your ${mine}. Replace your ${mine} with these ${k} (${syms.join(', ')})? Nothing has changed yet.`,
+      choices: [{ ref: 'grid:replace', label: `Replace my ${mine} with these ${k}` }], options: { replace } }
+  }
+  return {
+    kind: 'ask',
+    text: `You have ${mine} here. Add these ${k} (${syms.join(', ')}) beside them, or replace your ${mine} with these ${k}? Nothing has changed yet.`,
+    choices: [{ ref: 'grid:add', label: `Add ${k} more chart${k === 1 ? '' : 's'}` }, { ref: 'grid:replace', label: `Replace my ${mine} with these ${k}` }],
+    options: { replace, add: [grid(true)] },
+  }
+}
 // n new charts land in EMPTY space as the product places them (nothing resized or moved)
 function fitsEmpty(host, n) {
   let s = null

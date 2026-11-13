@@ -680,3 +680,74 @@ describe('Multi Chart execution family — the grid itself (pl-grid: multiChart.
 describe('Multi Chart execution family — rows not executed (BLOCKED-owner)', () => {
   it.todo('C3-054 save a grid as global (admin) — BLOCKED-owner: admin/global scope is an owner decision (same as C3-032); not attempted. The Agent saves only the member\'s own grids (multiChart.set saveGrid, scope user) and refuses to delete a prebuilt one (C3-054 BOUNDARY above)')
 })
+
+// ⛔ CHART RAIL × Multi Chart (hotfix 2026-11-13, agent/chartRail.js): a smaller grid drops filled cells and a group / saved grid
+// refills every filled cell — allowed when asked (a smaller grid is shown first), refused for a cell the member named as KEPT;
+// each allowed one has an exact Undo
+describe('CHART RAIL × Multi Chart — multiChart.set under the rail', () => {
+  it('a smaller grid ASKED for ("remove the bottom row, make it one by two"): shown first, applied, TSLA dropped; Undo is exact', async () => {
+    const { say, apply, undo } = mount()
+    const raw0 = raw()
+    await say('remove the bottom row, make it a one by two grid', gridOp('layout', { rows: 1, cols: 2 }))
+    await apply()
+    await waitFor(() => expect(H.mc.state.layout).toBe('1x2'))
+    expect(syms()).toEqual(['NVDA', 'AMD'])
+    await undoesExactly(undo, raw0)
+    expect(syms()).toEqual(['NVDA', 'AMD', 'TSLA', null])
+  }, 30000)
+  it('KEPT: "keep TSLA and make it a one by two grid" — the plan would drop TSLA: refused, nothing written', async () => {
+    const { say } = mount()
+    const raw0 = raw(); const p0 = persisted()
+    await say('keep TSLA and make it a one by two grid', gridOp('layout', { rows: 1, cols: 2 }))
+    expect(screen.getByTestId('agent-transcript').textContent).toMatch(/I can’t change a chart you asked to keep — you asked to keep TSLA/)
+    expect(raw()).toBe(raw0)
+    expect(persisted()).toBe(p0)
+  }, 30000)
+  it('KEPT: "keep NVDA in the grid and load the next group" — the group would refill NVDA\'s cell: refused, nothing written', async () => {
+    H.prefs = { multichart_state: JSON.stringify(GRID(groupState({ id: 'space', name: 'Space' }))) }
+    const { say } = mount()
+    const raw0 = raw()
+    await say('keep NVDA in the grid and load the next group', gridOp('stepGroup', { direction: 'next' }))
+    expect(screen.getByTestId('agent-transcript').textContent).toMatch(/you asked to keep NVDA/)
+    expect(raw()).toBe(raw0)
+  }, 30000)
+})
+
+// ⛔ ADD NEVER REPLACES × Multi Chart (hotfix 2026-11-13): a model plan that calls multiChart.set ITSELF with replacing args — a
+// smaller grid, the next group, a saved grid — under ADDITIVE wording is refused by the rail; the grid byte-identical
+describe('ADD NEVER REPLACES × Multi Chart — direct multiChart.set plans under additive words are refused', () => {
+  it('the instant path on "add AAPL and MSFT to the grid": the filled cells keep their tickers', async () => {
+    const { undo } = mount()
+    const box = screen.getByLabelText('Message UCT Agent')
+    await idle(); fireEvent.change(box, { target: { value: 'add AAPL and MSFT to the grid' } }); fireEvent.keyDown(box, { key: 'Enter' }); await idle()
+    expect(syms().slice(0, 3)).toEqual(['NVDA', 'AMD', 'TSLA'])
+    void undo
+  }, 30000)
+  const SAYS = ['I would like AAPL and MSFT added to the grid', 'just add AAPL and MSFT', 'include AAPL and MSFT as well']
+  for (const said of SAYS) {
+    it(`layout 1×2 (drops TSLA) · "${said}"`, async () => {
+      const { say } = mount()
+      const raw0 = raw(); const p0 = persisted()
+      await say(said, gridOp('layout', { rows: 1, cols: 2 }))
+      expect(raw()).toBe(raw0); expect(persisted()).toBe(p0)
+      expect(screen.getByTestId('agent-transcript').textContent).toMatch(/you asked for more charts/)
+    }, 30000)
+    it(`next group (refills every cell) · "${said}"`, async () => {
+      H.prefs = { multichart_state: JSON.stringify(GRID(groupState({ id: 'space', name: 'Space' }))) }
+      const { say } = mount()
+      const raw0 = raw()
+      await say(said, gridOp('stepGroup', { direction: 'next' }))
+      expect(raw()).toBe(raw0)
+      expect(screen.getByTestId('agent-transcript').textContent).toMatch(/you asked for more charts/)
+    }, 30000)
+    it(`a saved grid (replaces every cell) · "${said}"`, async () => {
+      H.layouts = { global: [], mine: [{ id: 7, name: 'Momentum Nine', scope: 'user', layout: tpl('3x3', ['NVDA', 'AMD', 'TSLA', 'META', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'NFLX']) }] }
+      const { say } = mount()
+      await layoutsLoaded()
+      const raw0 = raw()
+      await say(said, gridOp('applySaved', { name: 'Momentum Nine' }))
+      expect(raw()).toBe(raw0)
+      expect(screen.getByTestId('agent-transcript').textContent).toMatch(/you asked for more charts/)
+    }, 30000)
+  }
+})
