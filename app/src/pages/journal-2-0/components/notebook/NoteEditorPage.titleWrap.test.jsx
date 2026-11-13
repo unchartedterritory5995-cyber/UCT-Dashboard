@@ -96,7 +96,8 @@ describe('an open note offers the "Journal tools" door', () => {
     try {
       await renderEditor()
       fireEvent.click(screen.getByRole('button', { name: /more note actions/i }))
-      const item = await screen.findByRole('button', { name: /Journal tools/ })
+      // Simplify pass 2 (A9): the row reads "Trade journal tools", the same words as the list's ⋯ row.
+      const item = await screen.findByRole('button', { name: /^Trade journal tools$/ })
       expect(item).toHaveAttribute('data-journal-tools-door')
       let opened = 0
       const on = () => { opened += 1 }

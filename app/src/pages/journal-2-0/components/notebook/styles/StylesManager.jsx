@@ -259,14 +259,14 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
 
   const addKind = (e) => {
     e.preventDefault()
-    if (!newKind.name.trim()) { setKindProblem('Give the kind a name.'); return }
+    if (!newKind.name.trim()) { setKindProblem('Give the note type a name.'); return }
     run(async () => {
       try {
         await createKind({ name: newKind.name.trim(), icon: newKind.icon })
       } catch (err) { setKindProblem(reportError(err)); return }
       setNewKind({ name: '', icon: 'document' })
       await mutate()
-      setStatus('Kind added.')
+      setStatus('Note type added.')
     })
   }
   const saveRename = (e) => {
@@ -277,7 +277,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
       } catch (err) { setKindProblem(reportError(err)); return }
       setRenaming(null)
       await mutate()
-      setStatus('Kind renamed.')
+      setStatus('Note type renamed.')
     })
   }
   const removeKind = (k) => run(async () => {
@@ -306,7 +306,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     markOfferApplied(userId)                            // ...and not on the next visit either (this tab remounts)
     globalMutate((k) => typeof k === 'string' && k.startsWith('/api/j2/notes'))
     setStatus(
-      `Set the kind on ${plural(count, 'note', 'notes')}.`
+      `Set the note type on ${plural(count, 'note', 'notes')}.`
       + (lockedN ? ` ${plural(lockedN, 'locked note', 'locked notes')} ${lockedN === 1 ? 'was' : 'were'} left as ${lockedN === 1 ? 'it was' : 'they were'}.` : '')
       + (unsent ? ` ${plural(unsent, 'note', 'notes')} with unsent changes ${unsent === 1 ? 'was' : 'were'} left for later.` : ''))
   })
@@ -349,7 +349,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
         {showOffer && (
           <section className={styles.notice} aria-label="Set Note type from Research Type">
             <span>{`You have ${plural(offer.total, 'note', 'notes')} with a Research Type. Set their Note type to match?`}</span>
-            <button type="button" className={styles.btn} onClick={applyOffer} disabled={locked}>Set kinds</button>
+            <button type="button" className={styles.btn} onClick={applyOffer} disabled={locked}>Set note types</button>
             <button type="button" className={styles.btn} onClick={notNow}>Not now</button>
           </section>
         )}
@@ -453,8 +453,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
               </div>
 
               <section className={styles.kindGroup} aria-labelledby="js-own-kinds">
-                <h3 id="js-own-kinds" className={styles.kindHead}>Your kinds of note</h3>
-                {ownKinds.length === 0 && <p className={styles.hint}>You have no kinds of your own yet. Add one below.</p>}
+                <h3 id="js-own-kinds" className={styles.kindHead}>Your note types</h3>
+                {ownKinds.length === 0 && <p className={styles.hint}>You have no note types of your own yet. Add one below.</p>}
                 <ul className={styles.kindList}>
                   {ownKinds.map((k) => (
                     <li key={k.id} className={styles.kindRow} tabIndex={-1}
@@ -468,12 +468,12 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                         </form>
                       ) : confirmKind === k.id ? (
                         <>
-                          <p className={styles.hint}>{`Delete the kind ${k.name}? Templates you deleted that used it are removed permanently.`}</p>
+                          <p className={styles.hint}>{`Delete the note type ${k.name}? Templates you deleted that used it are removed permanently.`}</p>
                           <div className={styles.rowActions}>
                             <button type="button" ref={confirmYesRef} className={`${styles.btn} ${styles.danger}`} disabled={locked}
-                              onClick={() => removeKind(k)}>{`Yes, delete kind ${k.name}`}</button>
+                              onClick={() => removeKind(k)}>{`Yes, delete note type ${k.name}`}</button>
                             <button type="button" className={styles.btn}
-                              onClick={() => { pendingFocus.current = { type: 'kindDelete', id: k.id }; setConfirmKind(null) }}>{`Keep kind ${k.name}`}</button>
+                              onClick={() => { pendingFocus.current = { type: 'kindDelete', id: k.id }; setConfirmKind(null) }}>{`Keep note type ${k.name}`}</button>
                           </div>
                         </>
                       ) : (
@@ -487,7 +487,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                               onClick={() => { setKindProblem(''); setRenaming({ id: k.id, name: k.name }) }}>Rename</button>
                             <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={locked}
                               ref={(el) => { if (el) kindDeleteBtns.current[k.id] = el; else delete kindDeleteBtns.current[k.id] }}
-                              aria-label={`Delete kind ${k.name}`} onClick={() => { setKindProblem(''); setConfirmKind(k.id) }}>Delete</button>
+                              aria-label={`Delete note type ${k.name}`} onClick={() => { setKindProblem(''); setConfirmKind(k.id) }}>Delete</button>
                           </div>
                         </>
                       )}
@@ -496,7 +496,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                 </ul>
                 <form className={styles.kindForm} onSubmit={addKind} aria-label="Add a note type">
                   <div className={styles.field}>
-                    <label htmlFor="js-kind-name">New kind name</label>
+                    <label htmlFor="js-kind-name">New note type name</label>
                     <input id="js-kind-name" type="text" value={newKind.name} maxLength={MAX_KIND_NAME}
                       onChange={(e) => setNewKind({ ...newKind, name: e.target.value })} />
                   </div>
@@ -506,7 +506,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                       {UICON_NAMES.map((n) => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </div>
-                  <button type="submit" className={styles.btn} disabled={locked}>Add kind</button>
+                  <button type="submit" className={styles.btn} disabled={locked}>Add note type</button>
                 </form>
                 {kindProblem && <p role="alert" className={styles.error}>{kindProblem}</p>}
               </section>

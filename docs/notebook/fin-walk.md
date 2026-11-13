@@ -564,3 +564,127 @@ Rows not PASS, all classified INSTRUMENT (none is a product change of this branc
 Door audit, rows touched (`evidence/door-audit-20261113T023016Z/`, tip `7e849c6740`): 23 EASY, 26 EASY and OK, 34 OK,
 54 OK (was EASY: at 390 the capped phone menu needs a scroll to its last row), 56 EASY, 63 HARD (reasoned; the reason now
 says the template walkthroughs start on the phone row). Control: all six behaved. Exit 0.
+
+## 10. Notebook simplify, pass 2 (2026-11-13, c2 on `d84aa2d949`)
+
+Branch `feat/notebook-simplify-2`. Pass 2 gave each thing one name (spec A), made the Daily brief show only what it has
+and never make a note by being opened (B), and moved Graph and Timeline, the reviews, the export formats and the
+palette's market snapshots one press deeper (C). The walkers were re-pointed first (`c0b0029b00`, `d84aa2d949`); one
+product fix came out of the walk (`cbb10afc94`, C6: the phone ⋯ menu is as wide as its longest row, so "Remove sample
+notebook" is one line). This is the first full c2 record since `13f1b01f5e` (pass 1 shipped on that run plus the
+targeted re-walk `7e849c6740-rewalk`).
+
+Raw record: `evidence/fin-walk/d84aa2d949/c2/` (paths redacted to `<temp>` / `<home>`; members are synthetic `@local.dev`
+sandbox accounts; `sandbox-c2.log` thinned for size: each repeat of an already-printed Python warning dropped, the first
+kept, a header line says how many). One sandbox boot, port 8132, an empty data dir, tip `d84aa2d949` (product code as of
+`cbb10afc94`). Integrity: pre-boot, post-boot and post-prewarm CLEAN; the shutdown checkpoint is missing (stop FORCED
+after 120 s without a graceful exit), as in `13f1b01f5e`.
+
+| run | tip | steps | PASS | FAIL | INFO | NOT RUN |
+|---|---|---|---|---|---|---|
+| pass 1 final | `13f1b01f5e` | 316 | 282 | 16 | 11 | 7 |
+| **pass 2 full** | **`d84aa2d949`** | **332** | **308** | **6** | **11** | **7** |
+
+### 10.1 Rows not PASS
+
+| step | width | `13f1b01f5e` | now | class | why |
+|---|---|---|---|---|---|
+| blocks.prep-pack | 1280, 820, 390 | PASS | FAIL | INSTRUMENT | the run reached the earnings part at about 3 AM ET and froze the retryable gap `no_earnings_yet`; since master S9 such a gap says its "filling" words and holds back its Captured line while it fills itself, and the walk waited for the server's `detail` and a Captured line. Re-pointed (`703a85d816`) to read the words the block draws for each gap (filling, S17's names ask, others' `detail`); re-run on a held sandbox, PASS x3 twice (`evidence/fin-walk/703a85d816-rerun/`: once on a member with no names, once with names and no gap; the filling words themselves did not recur). The blocks are unchanged on this branch. |
+| smart.screenshot-tag | 1280, 820, 390 | FAIL | FAIL | INSTRUMENT (configuration) | c2 leaves `J2_OCR_ENABLED` unset: a pasted screenshot has no text, so no chip. |
+
+INFO (11) and NOT RUN (7) rows are the same rows as in `13f1b01f5e` (NO KEY x6; five passed setups: the member has fewer).
+No row that passed in `13f1b01f5e` or the re-walk fails here because of a product change. Six rows of `13f1b01f5e` have
+no row of the same name because this work renamed them; each passes under its new name (first run x3, the New menu
+row, the 390 sample control, discover.coverage over 21 door features).
+
+### 10.2 What the review asked a real browser to settle (all PASS)
+
+- (a) 390, from an open note: "+" > "Ask your Notebook" lands on `/journal/notebook?view=all` with Ask open and focus in
+  its field ("What have I written about…"); closing Ask puts focus on "Add to your notebook" (`discover.plus-ask-390`).
+- (b) `earnings-prep` and `passed-setups` open on the Daily brief (`?view=today`, step one) at 1280, 820 and 390.
+- (c) The Reviews walkthrough: 4 of 4 steps at 1280, 820 and 390.
+- (d) A cold press on the note's More > Export 4.1 s after a page load, with the formats' chunk held back for 2 s after
+  the press: the menu came when the chunk landed (Back and the six formats); the press was not lost.
+- (e) The Daily brief for a member with nothing, its read held: header and one skeleton; when the read landed the
+  heading and date line kept their place and height (the date line only gained words), the button's room was the same
+  box, and the quiet line took the skeleton's top (180.2 px). Screenshots `c2-1280-discover.daily-brief-first-paint.png`
+  and `-after-read.png` in the raw record's `shots/`. Opening the brief made no note and no folder; "Start today's note"
+  made today's note in "Daily notes"; back on the brief it read "Open today's note".
+- (f) A saved view of type Graph opens the graph; `?view=graph` and `?view=timeline` open their views; in the View menu
+  both sit under "More views" only.
+- (g) At 390 every second view sits inside the window with its last row above the floating "+" (top 772 px): View > More
+  views (menu bottom 340), More > Draft a review (434), the note's More > Export (677). "Aa > Font" has no second view on
+  a phone: "Aa" there toggles the format row, whose font is the native select "Font family" (inside the window, 233 to
+  277 px). New > Draft a review is desktop-only (the New menu is not drawn on a phone; its phone door is More).
+
+Also walked and green in the full run: the three reviews through "+ New" arrow > "Draft a review" (daily and weekly
+anchors on their rows), the phone More's one row (one line after `cbb10afc94`), the Insert palette's "Show all" (the
+market group appears, focus on its first row), the empty list with no template grid under the Get started card (C5),
+"Update template to vN?", "Trade journal tools", "Choose a template", and sample removal in one press.
+
+### 10.3 Door audit (`evidence/door-audit-20261113T083108Z/`, tip `703a85d816`)
+
+`--self-check` holds (17 verdict cases, 13 exit cases). A sandbox booted through `--serve` from an empty data dir
+(integrity CLEAN at every checkpoint, graceful stop). Both widths, realistic state: EASY 7, OK 12, HARD 11, HIDDEN 0,
+exit 0; the control behaved at both widths. Same counts as pass 1 (`door-audit-20261112T211834Z`). Against that audit no
+door went from EASY or OK to HARD; row 41's card is EASY at 1280 (was OK), row 54 is EASY at 390 again (was OK in the
+pass 1 re-walk), row 65's settled 390 reading went HARD -> OK.
+
+### 10.4 Addendum, 2026-11-13: final fix re-walk (`4f3d94089f`, product as of `b4312c0ea7`)
+
+The committed full record is still `d84aa2d949`. No full c2 run was made at this head: the steps the final fix (part 1,
+`d77ca7ff4d`..`46436f6d6f`, plus R1 `b4312c0ea7`) can touch were re-walked with `--attach --only` on ONE held c2 sandbox
+from a fresh empty data dir (port 8132). Raw records `evidence/fin-walk/4f3d94089f-rewalk/c2/` (paths redacted to
+`<temp>` / `<home>`, a session cookie in the driver-failure record redacted; members are synthetic `@local.dev`
+accounts; `sandbox-c2.log` thinned to under 1 MB, its two header lines say what was removed). Integrity: pre-boot,
+post-boot and post-prewarm CLEAN; the shutdown checkpoint is missing (stop FORCED after 120 s), as in `d84aa2d949`.
+
+| run | tip | steps | rows | PASS | FAIL | INFO | NOT RUN |
+|---|---|---|---|---|---|---|---|
+| 0 | `141c001088` | (as run 1) | 0 | 0 | 0 | 0 | 0 |
+| 1 | `141c001088` | firstrun, sample, examples, checklist, chartplan, positions, reviews, discover | 76 | 67 | 3 | 4 | 2 |
+| 2 | `4f3d94089f` | discover | 45 | 42 | 0 | 3 | 0 |
+| 3 | `4f3d94089f` | resurface, trades, tours1280, tours820, tours390, blocks, remove | 105 | 98 | 5 | 2 | 0 |
+
+Run 0 was a DRIVER FAILURE before any step: the admin sign-up answered 200 but its body did not reach the driver in
+30 s while the new sandbox warmed (about 700% CPU); run 1 followed at once.
+
+What the re-walk shows (all PASS):
+- I4 (the brief's Start stays): a member who watches one name double-clicks "Start today's note": ONE daily POST, one
+  note, in "Daily notes"; the URL stays `?view=today`; the button becomes "Open today's note" and holds focus; the polite
+  status says "Today's note started."; the "Today's plan" card draws "Check the market: Yellow regime, 61% above the
+  50-day" and "Check your names: NVDA". "Open today's note" then opens that note (244 / 328 ms press to editor).
+- I3 (an existing note opens at once): the list's "Today's note" on the existing note: the POST answered in 43 / 65 ms
+  with `created: false`, the editor was visible 222 / 343 ms after the press, nothing was made.
+- I1 (`discover.recap-template`): a daily template chosen in the template sheet ("Daily notes start from"), a watched
+  name, no note today; New > Draft a review > Today's recap made ONE note, today's daily note, holding the plan's lines,
+  the template's words and, after both, the recap. (The plan's lines sit above the template's body because the template
+  has no "Today's plan" heading: `note_daily.merge_seed`, by design.)
+- M8 (Export): a press on the note's More > Export 4.2 to 4.3 s after a page load, the formats' chunk held: the row read
+  "Export…" with `aria-busy="true"` at once and 2 s later; the formats came when the chunk landed; ArrowRight on the
+  Export row (reached by Tab: the panel is a disclosure) opened them; with the chunk aborted the row said "Export could
+  not be loaded. Reload the page to get this back." with a Reload button, and no "export failed".
+- M9: the Insert palette's button is named "Show all widgets" at 1280 and at 390 (there through "+" > "Chart or block"),
+  its words "Show all".
+- Unchanged and green: the Daily brief's no-note / no-folder open, its held-read geometry and the new quiet line; the
+  first run at 1280, 820, 390; sample add, examples, Get started; the three reviews through "+ New" > Draft a review;
+  the New menu, phone More, View > More views and their 390 second views; every walkthrough at 1280, 820 and 390
+  (review-drafts 4/4 at each; earnings-prep 1, 1, 4 of 4; passed-setups 2 of 3); blocks (22 rows) including
+  `blocks.prep-pack` x3, where the earnings part showed the "filling" words with no Captured line in a browser for the
+  first time; sample removal in one press.
+- Not staged: M7 (a second view whose parent row disappears) has no member action that removes the row while the view
+  is open; its vitest is the evidence.
+
+Rows not PASS:
+
+| step | width | `d84aa2d949` | here | class | why |
+|---|---|---|---|---|---|
+| discover.recap-template | 1280 | (new) | FAIL run 1, PASS run 2 | INSTRUMENT | expected the template's words before the plan; the seed goes above a template without its own plan heading, by design |
+| discover.note-second-views (ArrowRight) | 1280 | (new) | FAIL run 1, PASS run 2 | INSTRUMENT | walked the More panel with ArrowDown; it is a disclosure walked with Tab |
+| discover.insert-palette | 390 | (new) | FAIL run 1, PASS run 2 | INSTRUMENT | the phone's "+" opens the Insert sheet; "Chart or block" is the palette's door there |
+| note resurfacing x2 (inbox, opens at 'What you wrote then'), tour: note-resurfaces at 1280 (first open), 820, 390 | | PASS / INFO | FAIL run 3 | INSTRUMENT (attach state) | the `child` step that seeds the crossed stops and their versions was not in the run; the same rows failed the same way in the `7e849c6740` re-walk and Task 4's attach run 2. Untouched by the final fix. |
+
+Door audit (`evidence/door-audit-20261113T160915Z/`, tip `4f3d94089f`, the held sandbox, `--only 41,46`): no door-table
+row presses the brief's Start, so no row's door changed; the two rows on the Daily brief were re-measured: row 41 card
+1280 EASY / 390 HARD, row 41 way back 1280 OK / 390 HARD, row 46 1280 EASY / 390 HARD, the same readings as
+`door-audit-20261113T083108Z` (HARD at 390 by the recorded ruling); the control behaved at both widths; exit 0.

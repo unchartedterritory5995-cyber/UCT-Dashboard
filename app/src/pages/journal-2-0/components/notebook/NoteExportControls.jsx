@@ -38,18 +38,29 @@
 // ⛔ Final review M-1: the Export button is DISABLED while a file (or a PNG) is made, and a
 // disabled button loses focus (the browser moves it to <body>). When the work ends, the
 // Export button takes focus back -- unless the member has moved on meanwhile.
+//
+// Simplify pass 2 (C3): inside the note's More panel (every real mount) the formats are the panel's SECOND VIEW, not a
+// popup under the button: "Export" swaps the panel's content for "Back" and the six formats (NoteMoreMenu.jsx `slot`),
+// the same behaviour as the menu engine's `children` rows (NewNoteMenu.jsx), held to the same contract by the same
+// test kit (lib/testing/menuSecondView.testkit.js). Back, Escape or Left return to the panel with focus on Export; a
+// second Escape closes the panel. Alone (no panel around it) the menu still drops down under the button.
+// The menu itself (its rows, keys and outside press) is export/NoteExportMenu.jsx, a chunk of its own: it is drawn only
+// after a press, so it is fetched once the editor is idle (or at the press) into a module slot (lib/heldModule.js)
+// and drawn directly once there. This file keeps the button, the open state and what each item does.
 import { useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { MoreMenuOpenContext } from './NoteMoreMenu'
 import { NOTEBOOK_DOORS, onNotebookDoor } from '../../lib/notebookDoors'
 import UIcon from '../../../../components/ui/UIcon'
 import { importWithOneRetry } from '../../lib/lazyChunk'
+import { RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../../lib/heldModule'
+import whenIdle from '../../lib/whenIdle'
 // Tier 1a bytes (perf-budgets.md): the PNG and print doors' module is fetched when one is pressed, never on the
 // Notebook's first open (the same on-use import exportNote.js already does for modern-screenshot).
 const loadExport = () => importWithOneRetry(() => import('../../lib/exportNote'), undefined,
   (m) => typeof m?.exportNoteAsPng === 'function' && typeof m?.printNote === 'function')
-import { EXPORT_FORMATS, noteExportUrl, saveResponse } from './export/exportFormats'
+import { noteExportUrl, saveResponse } from './export/exportFormats'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
-import useDisclosureFocus from '../../lib/useDisclosureFocus'
 import editorStyles from './NoteEditorPage.module.css'
 import styles from './NoteExportControls.module.css'
 
@@ -63,22 +74,57 @@ async function failureSentence(res) {
   return 'export failed'
 }
 
-/** The two doors that read the note on screen, first in the menu (Notebook simplify, Task 4). */
-const SCREEN_DOORS = Object.freeze([
-  Object.freeze({ id: 'png', label: 'PNG', keeps: 'The note as it looks on screen, charts included, as one image.' }),
-  Object.freeze({ id: 'print', label: 'Print', keeps: 'Print it, or save it as a PDF from the print dialog.' }),
-])
+/** The Export menu's chunk, held once fetched (a rail warms it, or holds it back, through this slot). The loader is a
+ *  property, so a rail can fail the fetch (jsdom cannot fail a real chunk), like `editorToolLoaders`. */
+export const exportMenuLoader = { load: () => import('./export/NoteExportMenu') }
+export const exportMenuModule = heldModule(() => exportMenuLoader.load())
+
+/** Final fix M8: what Export says when its menu's chunk could not be fetched (a stale tab after a deploy, most likely),
+ *  beside a Reload the MEMBER presses (never an automatic reload): the pattern, and the second sentence, of Find and Ask
+ *  (lib/heldModule.js `RELOAD_TO_RECOVER`, one authority for it). */
+export const EXPORT_UNAVAILABLE = `Export could not be loaded. ${RELOAD_TO_RECOVER}`
+/** Final fix M8: the Export row while a cold press waits for the menu's chunk. */
+export const EXPORT_WAITING = 'Export…'
 
 /** M-9: the sentence when the editor still holds words the server has not taken. */
 export const UNSENT_BEFORE_EXPORT = "Your latest edits haven't reached the server yet, so the file would miss them. Nothing was downloaded — try again in a moment."
 
 export default function NoteExportControls({ noteId, title, columnRef, onMessage, onBeforeExport = null }) {
   const [exportBusy, setExportBusy] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
+  // In a More panel the open state is the panel's second view (C3); alone, it is this button's own.
+  const more = useContext(MoreMenuOpenContext)
+  const [ownOpen, setOwnOpen] = useState(false)
+  const menuOpen = more ? more.sub === 'export' : ownOpen
+  const setMenuOpen = useCallback((v) => (more ? more.setSub(v ? 'export' : null) : setOwnOpen(v)), [more])
   const menuId = useId()
   const triggerRef = useRef(null)
-  const menuRef = useRef(null)
-  const itemRefs = useRef([])
+  const { Component: ExportMenu } = useHeldModule(exportMenuModule)
+  // The menu's chunk is asked for once the editor is idle (as the find bar's is), on a hover or focus of Export, and at
+  // the press itself; it opens once it is in hand (a fetch that fails says so on the chrome line).
+  useEffect(() => whenIdle(exportMenuModule.warm), [])
+  const shown = useRef(true)
+  shown.current = more ? more.shown : true
+  // Final fix M8: a cold press shows at once that it was heard (`waiting`: "Export…", aria-busy) and opens the formats
+  // when the chunk lands ONLY if the member is still on the Export row or inside its panel (`force`: the palette's door,
+  // an explicit ask from elsewhere). A fetch that failed says so beside Export, with a Reload the member presses.
+  const [waiting, setWaiting] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const openMenu = useCallback((force) => {
+    setLoadFailed(false)
+    if (exportMenuModule.get().Component) return setMenuOpen(true)
+    setWaiting(true)
+    return exportMenuModule.warm().then((C) => {
+      setWaiting(false)
+      if (!C) return setLoadFailed(true)
+      // Still here: focus on Export, on nothing (<body>: a click that focuses no button, as Safari's does; the M-1 rule
+      // below), or inside its More panel (the button's nearest role="group", NoteMoreMenu.jsx). The panel closed
+      // meanwhile, or the member moved on: nothing opens under them.
+      const a = document.activeElement
+      const b = triggerRef.current
+      if (shown.current && (force === true || !a || a === document.body || a === b
+        || (more && b?.closest('[role="group"]')?.contains(a)))) setMenuOpen(true)
+    })
+  }, [setMenuOpen, more])
   // M-1: the button to hand focus back to once the busy state clears.
   const refocusRef = useRef(null)
   useEffect(() => {
@@ -90,10 +136,18 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
     if (!active || active === document.body || active === el) el.focus()
   }, [exportBusy])
 
+  // Focus goes back to Export once it is on screen again, after the render that closes the menu: in a panel Export is
+  // hidden while the formats show, and a hidden button cannot take focus.
+  const focusBack = useRef(false)
   const closeMenu = useCallback((returnFocus) => {
     setMenuOpen(false)
-    if (returnFocus) triggerRef.current?.focus()
-  }, [])
+    focusBack.current = Boolean(returnFocus)
+  }, [setMenuOpen])
+  useEffect(() => {
+    if (menuOpen || !focusBack.current) return
+    focusBack.current = false
+    triggerRef.current?.focus()
+  }, [menuOpen])
 
   const savePng = async () => {
     closeMenu(true)
@@ -129,12 +183,6 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
       trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format: 'print', scope: 'note', count: 1 })
     }, () => onMessage('export failed'))
   }
-  const closeOnly = useCallback(() => setMenuOpen(false), [])
-  // K2: Tab stays inside while focus is inside; Escape closes and hands focus to the button.
-  // The first item takes focus through the effect below, so the hook does not move it.
-  const { disclosureProps } = useDisclosureFocus({
-    open: menuOpen, containerRef: menuRef, onClose: closeOnly, openerRef: triggerRef, focusOnOpen: false,
-  })
 
   // Wave C's portable single-note export, now in four formats: a bare fetch + blob
   // download (one note is bounded in size — no multi-minute wait to progress-bar).
@@ -165,121 +213,57 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
     }
   }
 
-  // Focus the first item when the menu opens.
-  useEffect(() => {
-    if (menuOpen) itemRefs.current[0]?.focus()
-  }, [menuOpen])
-
   // Lane KEYS3 (Q12): the command palette's "Export this note". The panel these controls live
-  // in opens (it is hidden while closed), then this menu, in one render; the effect above puts
-  // focus on the first format. Nothing is exported until the member picks one.
-  const openMore = useContext(MoreMenuOpenContext)
+  // in opens (it is hidden while closed), then this menu (as soon as its chunk is in hand), and
+  // the menu puts focus on the first format. Nothing is exported until the member picks one.
   useEffect(() => onNotebookDoor(NOTEBOOK_DOORS.EXPORT, () => {
     if (exportBusy) return false
-    openMore?.()
-    setMenuOpen(true)
+    more?.open()
+    openMenu(true)
     return true
-  }), [openMore, exportBusy])
+  }), [more, exportBusy, openMenu])
 
-  // A press outside the menu closes it (the trigger toggles on its own).
-  useEffect(() => {
-    if (!menuOpen) return undefined
-    const onDown = (e) => {
-      if (menuRef.current?.contains(e.target) || triggerRef.current?.contains(e.target)) return
-      setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('touchstart', onDown)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('touchstart', onDown)
-    }
-  }, [menuOpen])
-
-  const onMenuKeyDown = (e) => {
-    const items = itemRefs.current.filter(Boolean)
-    const at = items.indexOf(document.activeElement)
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      items[(at + 1) % items.length]?.focus()
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      items[(at - 1 + items.length) % items.length]?.focus()
-    } else if (e.key === 'Home') {
-      e.preventDefault()
-      items[0]?.focus()
-    } else if (e.key === 'End') {
-      e.preventDefault()
-      items[items.length - 1]?.focus()
-    } else {
-      disclosureProps.onKeyDown(e)   // Escape: close, focus back to the button
-    }
-  }
+  const pick = (id) => (id === 'png' ? savePng() : id === 'print' ? print() : download(id))
+  const menu = menuOpen && ExportMenu && (
+    <ExportMenu id={menuId} inPanel={Boolean(more)} triggerRef={triggerRef} onPick={pick} onClose={closeMenu} />
+  )
 
   return (
-    <>
-      <span className={styles.menuWrap}>
-        <button
-          ref={triggerRef}
-          type="button"
-          className={`${editorStyles.chromeBtn} ${styles.trigger}`}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          aria-controls={menuOpen ? menuId : undefined}
-          disabled={exportBusy}
-          onClick={() => setMenuOpen((v) => !v)}
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowDown' && !menuOpen) {
-              e.preventDefault()
-              setMenuOpen(true)
-            }
-          }}
-          title="Save this note as a PNG image, print it, or download it as Markdown, a web page, JSON or Word"
-        >
-          Export
-          <UIcon name="chevronDown" size={12} gold={false} />
-        </button>
-        {menuOpen && (
-          // ⛔ KNOWN DEVIATION (K2 review M-6): a `role="menu"` whose Tab stays inside it -- the APG
-          // menu pattern closes on Tab; this follows the Notebook's one keep-Tab-inside contract.
-          <div ref={menuRef} id={menuId} role="menu" aria-label="Export this note as"
-            className={styles.menu} {...disclosureProps} onKeyDown={onMenuKeyDown}>
-            {/* PNG rasterizes the note column (charts included); Print rides the browser's Save-as-PDF via
-                the print stylesheet. Both read the note on screen, so neither waits on the server. */}
-            {SCREEN_DOORS.map((d, i) => (
-              <button
-                key={d.id}
-                ref={(el) => { itemRefs.current[i] = el }}
-                type="button"
-                role="menuitem"
-                className={styles.item}
-                aria-label={d.label}
-                aria-describedby={`${menuId}-${d.id}`}
-                onClick={d.id === 'png' ? savePng : print}
-              >
-                <span className={styles.itemLabel}>{d.label}</span>
-                <span id={`${menuId}-${d.id}`} className={styles.itemKeeps}>{d.keeps}</span>
-              </button>
-            ))}
-            <div role="separator" className={styles.sep} />
-            {EXPORT_FORMATS.map((f, i) => (
-              <button
-                key={f.id}
-                ref={(el) => { itemRefs.current[SCREEN_DOORS.length + i] = el }}
-                type="button"
-                role="menuitem"
-                className={styles.item}
-                aria-label={f.menuLabel}
-                aria-describedby={`${menuId}-${f.id}`}
-                onClick={() => download(f.id)}
-              >
-                <span className={styles.itemLabel}>{f.menuLabel}</span>
-                <span id={`${menuId}-${f.id}`} className={styles.itemKeeps}>{f.keeps}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </span>
-    </>
+    <span className={styles.menuWrap}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`${editorStyles.chromeBtn} ${styles.trigger}`}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        aria-controls={menuOpen ? menuId : undefined}
+        aria-busy={waiting || undefined}
+        disabled={exportBusy}
+        onClick={() => (menuOpen ? setMenuOpen(false) : openMenu())}
+        onPointerEnter={exportMenuModule.warm}
+        onFocus={exportMenuModule.warm}
+        onKeyDown={(e) => {
+          // ArrowDown opens it (the menu button's key); in the More panel the row shows a chevron and opens on Right too,
+          // as the menu engine's second-view rows do (final fix M8).
+          if (!menuOpen && (e.key === 'ArrowDown' || (more && e.key === 'ArrowRight'))) {
+            e.preventDefault()
+            e.stopPropagation()
+            openMenu()
+          }
+        }}
+        title="Save this note as a PNG image, print it, or download it as Markdown, a web page, JSON or Word"
+      >
+        {waiting ? EXPORT_WAITING : 'Export'}
+        <UIcon name={more ? 'chevronRight' : 'chevronDown'} size={12} gold={false} />
+      </button>
+      {loadFailed && (
+        <span className={styles.loadFailed} role="alert">
+          {EXPORT_UNAVAILABLE}
+          <button type="button" className={editorStyles.chromeBtn} onClick={pageReload.run}>Reload</button>
+        </span>
+      )}
+      {/* In a More panel the formats replace the panel's content (its `slot`); alone they drop down here. */}
+      {more ? menu && more.slot && createPortal(menu, more.slot) : menu}
+    </span>
   )
 }

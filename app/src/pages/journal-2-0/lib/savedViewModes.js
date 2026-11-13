@@ -27,9 +27,10 @@ export const VIEW_MODES = [
   { id: 'table', icon: 'columns', label: 'Table view', short: 'Table' },
   { id: 'board', icon: 'board', label: 'Board view', short: 'Board' },
   { id: 'calendar', icon: 'calendar', label: 'Calendar view', short: 'Calendar' },
-  { id: 'graph', icon: 'graph', label: 'Graph view', short: 'Graph' },
+  // Simplify pass 2 (C1): `more` -- the View menu lists it under "More views" (a second view of the menu).
+  { id: 'graph', icon: 'graph', label: 'Graph view', short: 'Graph', more: true },
   // Wave 6: notes on a time axis, in lanes by folder or tag. Read-only in v1.
-  { id: 'timeline', icon: 'clock', label: 'Timeline view', short: 'Timeline' },
+  { id: 'timeline', icon: 'clock', label: 'Timeline view', short: 'Timeline', more: true },
   // Wave 6: every checklist item across the notebook (NoteTasksView). ⛔ NOT
   // SAVEABLE: it lists tasks, not the notes a folder/tag/filter selects, so a
   // saved "tasks view" would store nothing — and the server's

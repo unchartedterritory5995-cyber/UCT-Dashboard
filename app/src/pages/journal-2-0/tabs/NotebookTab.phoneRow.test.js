@@ -14,9 +14,9 @@ const phone = [...css.matchAll(/@media \(max-width: 640px\) \{([\s\S]*?)\n\}/g)]
 describe('the phone filter row holds the ⋯', () => {
   it('the sort words are compact ON A PHONE only (review minor 12); the select is still named for what it orders', () => {
     const sel = jsx.slice(jsx.indexOf('className={styles.sortSelect}'), jsx.indexOf('</select>', jsx.indexOf('className={styles.sortSelect}')))
-    expect(sel).toMatch(/SORT_OPTIONS\.map\(\(o\) => <option key=\{o\.value\} value=\{o\.value\}>\{phoneSortWords \? o\.short : o\.label\}<\/option>\)/)
+    expect(sel).toMatch(/SORT_OPTIONS\.map\(\(o\) => <option key=\{o\.value\} value=\{o\.value\}>\{onPhone \? o\.short : o\.label\}<\/option>\)/)
     expect(sel).toMatch(/aria-label="Sort notes"/)
-    expect(jsx).toMatch(/const phoneSortWords = useIsPhone\(\)/)
+    expect(jsx).toMatch(/const onPhone = useIsPhone\(\)/)
   })
 
   it('on a phone only, the row\'s labelled buttons give up side padding', () => {

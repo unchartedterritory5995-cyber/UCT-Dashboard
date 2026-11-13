@@ -331,13 +331,23 @@ describe('the copy contract', () => {
     expect(kb).not.toMatch(/Ctrl|⌘|Cmd|Alt\+|Shift\+/)     // it never restates a chord
     const exp = await read('How do I export my notes, and what does each format keep?')
     for (const f of ['Markdown', 'Web page (HTML)', 'JSON', 'Word (.docx)']) expect(exp).toContain(f)
-    // Final fix (C5): Print is inside the note's Export menu now.
-    expect(exp).toContain('For a PDF, open Export, choose Print, then Save as PDF.')
+    // Final fix (C5): Print is inside the note's Export menu now. Pass 2 final fix M5: Export is in the note's More menu.
+    expect(exp).toContain("For one note, open the note's More menu, then Export. For a PDF, choose Print there, then Save as PDF.")
+    expect(exp).toContain("Open the notes list's More menu and choose Export to download every note as one zip")
+    expect(exp).not.toContain('toolbar')                     // neither Export is a toolbar button any more
     // Final fix (C5): Trash and Archived sit under the folders panel's "More" fold.
     expect(await read('How do I organize notes with folders, tags and archive?')).toContain('Trash and Archived are under More in the folders panel.')
     expect(await read('What is the sample notebook, and how do I remove it?')).toContain('move to Trash (under More in the folders panel)')
     expect(await read('Does the Notebook work offline, and what is a conflicted copy?')).toContain('(conflicted copy)')
     expect(await read('What can Ask your notebook answer?')).toContain("Ask says it couldn't find it rather than guessing.")
+    // Simplify pass 2 (A5): a template is called a template, never "a layout".
+    const tpl = await read('How do templates and the daily note work?')
+    expect(tpl).toContain('to start a note from a template: a thesis, a daily note and more.')
+    expect(tpl).not.toMatch(/\blayout/i)
+    // Simplify pass 2 (B2): the teaching sentences the Daily brief's empty cards carried are in Help now.
+    const start = await read('How do I get started with the Notebook?')
+    expect(start).toContain("A checklist line you don't tick today, or a task due today, shows there tomorrow")
+    expect(start).toContain('what you write today comes back there next year.')
   })
 
 })

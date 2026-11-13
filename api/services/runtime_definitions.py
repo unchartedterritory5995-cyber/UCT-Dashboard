@@ -742,17 +742,109 @@ def run_half_source_refusal(definition: Any, pine_source: Optional[str]) -> Opti
     return None
 
 
-def without_run_half(definition: Any) -> Any:
-    """ENGINE 53 -- ``definition`` with no run half (a copy when one was present; never
-    mutates): ``compute.runtimeObjects`` and its source stamp removed."""
+#: ⛔⛔ THE KEYS ON AN ``ast`` DOCUMENT'S ``compute`` THAT CARRY THE AUTHOR'S PINE (each holds the
+#: whole script as ``.source``): ENGINE 53's run half and DIV-4's run-read colours. `run_read_source`
+#: reads the same two; `without_run_reads` removes both.
+RUN_READ_KEYS = ("runtimeObjects", "runtimeColours")
+
+#: The served stamps (`_stamp_run_read_ast`) that answer only for a run-read part: dropped with it.
+RUN_READ_STAMPS = ("runtimeKilled", "runtimeNotGraded")
+
+#: `objectLoss.js::RUN_HALF_DRAWING_SENTENCE`, said on the drawing note of a document carrying a
+#: run half (`memberPaneDefinition.js`). A copy without its run half drops it, exactly as the
+#: client's own `withoutRunHalf` does. Held to the JS text by
+#: `tests/test_share_strips_run_reads.py::test_the_run_half_sentence_is_the_clients`.
+RUN_HALF_DRAWING_SENTENCE = (
+    "Where this chart can run the script bar by bar the way TradingView does (at the script's own "
+    "settings, with every plot agreeing with that run), its drawings are made by that run instead, "
+    "complete.")
+
+#: What the door says of a run-read paint (`memberPaneDefinition.js`, the `rtReadLines` note):
+#: recognised by this lead, after the paint's own name.
+RUN_READ_PAINT_LEAD = " takes its colour from running the script bar by bar"
+
+#: What a copy says instead, of a `barcolor` whose colour only the author's script could compute.
+RUN_READ_PAINT_GONE = (" is not drawn: its colour is worked out by running the author's script bar "
+                       "by bar, and a shared copy does not carry the script.")
+
+
+def _paint_name(p: dict) -> str:
+    """The door's name for a paint in a disclosure: its kind in backticks, then `` (line N)``."""
+    line = p.get("line")
+    at = f" (line {line})" if isinstance(line, int) and not isinstance(line, bool) else ""
+    return f"`{p.get('kind')}`{at}"
+
+
+def without_run_reads(definition: Any) -> Any:
+    """⛔⛔ THE AUTHOR'S PINE NEVER TRAVELS WITH A SHARE: ``definition`` as it may leave its owner.
+
+    The ONE strip for every path that hands a definition to somebody other than its owner (the
+    share preview `user_definitions.resolve_share`, and through it the copy `install_share`
+    saves). Never mutates; returns the SAME object when there is nothing to strip, so a plain
+    document travels byte for byte as before. Removes:
+
+    * ``compute.runtimeObjects`` (ENGINE 53's run half) and ``compute.runtimeColours`` (DIV-4):
+      each carries the whole script as ``.source``;
+    * the paints that read a run-read colour column (``colorMode: column:<key>`` for a key of
+      ``runtimeColours.keys``) -- without the run that column does not exist, and the schema
+      refuses a paint naming it -- and ``paints`` itself when none is left, so the copy is the
+      host document the door writes with the runtime lane off (the candles keep their own
+      colours);
+    * ``meta.pineSourceSha256`` (the script's fingerprint), and with a run-read part the served
+      stamps that answered for it (``runtimeKilled``/``runtimeNotGraded``);
+    * the disclosures that promised the run: the run half's drawing sentence, and a run-read
+      paint's note, which is said again as not drawn.
+
+    ⚠️ NOT A RUNTIME DOCUMENT (``compute.kind == "runtime"``): its ``compute.source`` IS its
+    implementation, and is not a run-read part. It is returned unchanged (an open owner call,
+    `docs/pine/evidence/2026-11-13-share-strips-run-reads/EVIDENCE.md`)."""
     if not isinstance(definition, dict):
         return definition
     compute = definition.get("compute")
-    if not isinstance(compute, dict) or "runtimeObjects" not in compute:
+    meta = definition.get("meta")
+    present = [k for k in RUN_READ_KEYS if isinstance(compute, dict) and k in compute]
+    stamped = isinstance(meta, dict) and RUN_HALF_SOURCE_STAMP in meta
+    if not present and not stamped:
         return definition
     out = dict(definition)
-    out["compute"] = {k: v for k, v in compute.items() if k != "runtimeObjects"}
-    meta = definition.get("meta")
-    if isinstance(meta, dict) and RUN_HALF_SOURCE_STAMP in meta:
-        out["meta"] = {k: v for k, v in meta.items() if k != RUN_HALF_SOURCE_STAMP}
+    if present:
+        out["compute"] = {k: v for k, v in compute.items() if k not in RUN_READ_KEYS}
+    gone_meta = {RUN_HALF_SOURCE_STAMP} | (set(RUN_READ_STAMPS) if present else set())
+    new_meta = ({k: v for k, v in meta.items() if k not in gone_meta}
+                if isinstance(meta, dict) else meta)
+    # the run-read colour columns, and the paints that read one
+    rc = compute.get("runtimeColours") if "runtimeColours" in present else None
+    keys = {k for k in (rc.get("keys") or ()) if isinstance(k, str)} if isinstance(rc, dict) else set()
+    dropped: list = []
+    if "runtimeColours" in present and isinstance(definition.get("paints"), list):
+        kept = []
+        for p in definition["paints"]:
+            mode = p.get("colorMode") if isinstance(p, dict) else None
+            if isinstance(mode, str) and mode.startswith("column:") and (
+                    not keys or mode[len("column:"):] in keys):
+                dropped.append(p)
+            else:
+                kept.append(p)
+        if kept:
+            out["paints"] = kept
+        else:
+            out.pop("paints", None)
+    # the disclosures that promised the run
+    if isinstance(new_meta, dict) and isinstance(new_meta.get("disclosures"), list):
+        gone_names = {_paint_name(p) for p in dropped}
+        tail = " " + RUN_HALF_DRAWING_SENTENCE
+        notes = []
+        for n in new_meta["disclosures"]:
+            note = n.get("note") if isinstance(n, dict) else None
+            if isinstance(note, str):
+                if "runtimeObjects" in present and note.endswith(tail):
+                    n = {**n, "note": note[:-len(tail)]}
+                else:
+                    name = next((g for g in gone_names if note.startswith(g + RUN_READ_PAINT_LEAD)), None)
+                    if name is not None:
+                        n = {**n, "note": name + RUN_READ_PAINT_GONE}
+            notes.append(n)
+        new_meta = {**new_meta, "disclosures": notes}
+    if isinstance(meta, dict):
+        out["meta"] = new_meta
     return out
