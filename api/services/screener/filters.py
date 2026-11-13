@@ -790,6 +790,22 @@ FILTERS = dict([
                 "clenow_score"),
     _rs_names_enum("vars_state", "Volatility-Adjusted RS State", "vars_state",
                    "VARS_STATE_NAMES"),
+    # ── relative strength: RS Exit Warnings (2026-11-13; the chart's rsExit) ──
+    # Written by the same RS_V2 `bars_rs` step as the ten (`rs_columns.EXIT_COLUMNS`),
+    # so `rs_dark_keys` darkens them with that family. `rs_exit_last` is an enum
+    # whose options are the writer's own names (`rs_columns.EXIT_NAMES`); the four
+    # ages ship BARE like every other RS age (0 = the newest session), and the
+    # "in the last N sessions" windows live in the starter screens.
+    _rs_names_enum("rs_exit_last", "RS Exit Warning (latest)", "rs_exit_last",
+                   "EXIT_NAMES"),
+    _open_range("rs_exit_bars_ago", "RS Exit Warning Age (sessions)",
+                "relative_strength", "rs_exit_bars_ago"),
+    _open_range("rs_quicksand_bars_ago", "Quicksand Age (sessions)",
+                "relative_strength", "rs_quicksand_bars_ago"),
+    _open_range("rs_quick_break_bars_ago", "Quick Break Age (sessions)",
+                "relative_strength", "rs_quick_break_bars_ago"),
+    _open_range("rs_dead_break_bars_ago", "Grateful Dead Break Age (sessions)",
+                "relative_strength", "rs_dead_break_bars_ago"),
     # ── technical: expose the dark columns (registry/UI only) ──
     # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
     # name `atr` (the manifest's own indicator call), and the plain-language
@@ -1206,7 +1222,11 @@ VIEWS = {
         # S1: kept computed and valid for every saved screen, hidden from the
         # picker by `picker_hidden_keys()` (see its docstring).
         "rs_rating_ibd", "rs_rating_chg_5", "rs_benchmark_agree",
-        "rrg_quadrant", "clenow_score", "vars_state"]},
+        "rrg_quadrant", "clenow_score", "vars_state",
+        # RS Exit Warnings (2026-11-13): the newest warning, its age, and each
+        # warning's own age.
+        "rs_exit_last", "rs_exit_bars_ago", "rs_quicksand_bars_ago",
+        "rs_quick_break_bars_ago", "rs_dead_break_bars_ago"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1733,7 +1753,8 @@ def _shared_filters(dist):
 # ── UCT Relative Strength: shown only while the data behind it fills ─────────
 # Review findings #12 and #14 (2026-11-07). The two RS column families each have
 # one writer, and each writer sits behind its own flag:
-#   * the ten bar-derived columns (`rs_columns.COLUMNS`) are written by the
+#   * the ten bar-derived columns (`rs_columns.COLUMNS`), and the five RS Exit
+#     Warning columns (`rs_columns.EXIT_COLUMNS`), are written by the
 #     builder's `bars_rs` step, which follows `registry_defs.RS_V2_ENABLED`;
 #   * the seven rating columns (`snapshot_builder._RS_HISTORY_COLUMNS`) read the
 #     side table the 04:15 ET job writes, which follows
@@ -1824,7 +1845,8 @@ def rs_dark_keys(v2_on=None, history_on=None, v3_on=None) -> frozenset:
     v3_on = _rs_v3_on() if v3_on is None else v3_on
     from . import rs_columns  # noqa: PLC0415 - lazy: the registry stays import-light
     family = {k for k, f in FILTERS.items() if f.get("category") == "relative_strength"}
-    bars = family & set(rs_columns.COLUMNS)
+    # The five RS Exit Warning columns share the ten's writer and gate.
+    bars = family & (set(rs_columns.COLUMNS) | set(rs_columns.EXIT_COLUMNS))
     phase3 = family & set(rs_columns.PHASE3_COLUMNS)
     ratings = family - bars - phase3
     dark = set()

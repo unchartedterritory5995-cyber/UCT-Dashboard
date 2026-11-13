@@ -619,4 +619,17 @@ export const COLUMN_DEFS = {
     desc: 'A Clenow-style trend score over the last 90 daily closes: how fast price has been rising, as a yearly rate, multiplied by how steadily it rose (R², from 0 for a jumpy path to 1 for a straight line). 0.50 is about a 50%-a-year pace after that steadiness discount, a negative score is a falling trend, and a smooth climb scores higher than a jumpy one of the same size. It describes the last 90 sessions, not the next ones; blank until 90 sessions exist.' },
   vars_state: { label: 'VARS', fmt: v => v || '—',
     desc: 'Volatility-adjusted relative strength against SPY on daily bars (VARS-style): each day\'s move is counted in units of the stock\'s own typical daily range (its 20-session ATR), SPY\'s move the same way, and the difference is added up over 60 sessions. Strong means the stock has out-moved SPY on that measure and Weak means it has trailed; the second word says whether the reading is above its own 50-session average (rising, improving) or not (fading, falling). Blank until about 130 sessions exist.' },
+  // ── UCT RS Exit Warnings (2026-11-13; the chart's rsExit, Mike Webster\'s method) ──
+  // Written by the same RS_V2 `bars_rs` step as the ten (`rs_columns.EXIT_COLUMNS`), so they
+  // follow that family's seats. `rs_exit_last` prints the writer's own name as it is.
+  rs_exit_last: { label: 'RS Exit', fmt: v => v || '—',
+    desc: 'The newest of Mike Webster\'s three exit warnings on the RS line against SPY (daily bars, 21- and 50-session simple averages of the RS line): Quick Break (the RS line closed below its 21-day average), Quicksand (later in that same dip it closed below its level on the Quick Break day) or Grateful Dead Break (it closed below its 50-day average). The worse one is named when two fire on the same day. A warning to review the position, not an order to sell; blank when none has fired.' },
+  rs_exit_bars_ago: { label: 'Exit Age', fmt: barsAgo,
+    desc: 'Sessions since the newest RS exit warning (Quick Break, Quicksand or Grateful Dead Break), "today" on the warning bar; 0 to 9 is "a warning in the last 10 sessions". The count keeps running after the RS line recovers, and a warning is a prompt to review, not an order to sell.' },
+  rs_quicksand_bars_ago: { label: 'Quicksand Age', fmt: barsAgo,
+    desc: 'Sessions since the RS line last undercut its own Quick Break level within the same dip below its 21-day average (Mike Webster\'s Quicksand), "today" on the warning bar; 0 to 4 is "Quicksand in the last 5 sessions". Blank when none has fired; a warning, not an order to sell.' },
+  rs_quick_break_bars_ago: { label: 'Quick Brk Age', fmt: barsAgo,
+    desc: 'Sessions since the RS line against SPY last closed below its 21-day simple average after closing at or above it (Mike Webster\'s Quick Break, the first and mildest warning), "today" on the warning bar; blank when none has fired.' },
+  rs_dead_break_bars_ago: { label: 'GD Break Age', fmt: barsAgo,
+    desc: 'Sessions since the RS line against SPY last closed below its 50-day simple average after closing at or above it (Mike Webster\'s Grateful Dead Break, the most serious of the three), "today" on the warning bar; blank when none has fired. A warning to review, not an order to sell.' },
 }

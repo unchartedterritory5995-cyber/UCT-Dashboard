@@ -362,7 +362,12 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # They are not member columns at all, so they are EXCLUDED with their own dated reason.
     # 110 -> 111 on 2026-11-10 (RS split S1): rs_rating_9m, a rating-history column excluded like its siblings (R8).
     # => 116: master's four live_base_* columns + the RS split's rs_rating_9m (both 2026-11-10).
-    assert (len(declared), len(excluded)) == (149, 116)
+    # ⭐ (149, 116) → (149, 121) on 2026-11-13 (RS Exit Warnings in the screener): `rs_exit_last`
+    # (TEXT, a verdict: excluded for `rs_line_trend`'s reason) and the four exit ages
+    # (`rs_exit_bars_ago`, `rs_quick_break_bars_ago`, `rs_quicksand_bars_ago`,
+    # `rs_dead_break_bars_ago`) joined COLUMNS, NULL until the first build after deploy (R8);
+    # the ages are re-admitted once the artifact shows them filled. The declared half did not move.
+    assert (len(declared), len(excluded)) == (149, 121)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
