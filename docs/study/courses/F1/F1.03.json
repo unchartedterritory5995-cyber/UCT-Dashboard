@@ -106,6 +106,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The owner's review notes (2026-11-12)",
+   "url": "repo:docs/study/REVIEW_LEARNINGS.md",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -342,6 +350,30 @@
    "source": "s12",
    "quote": "E58. No new buys outside regular trading hours.",
    "claim": "Our rule: no new buys outside regular trading hours."
+  },
+  {
+   "id": "f40",
+   "source": "h3",
+   "quote": "Answer the way a working trader says it: a market buy fills at the ask",
+   "claim": "The owner teaches it the trader's way: a market buy fills at the ask."
+  },
+  {
+   "id": "f41",
+   "source": "h3",
+   "quote": "bid = the most a buyer pays right now, ask = the least a seller takes",
+   "claim": "Plain definitions: the bid is the most a buyer pays right now, the ask is the least a seller takes."
+  },
+  {
+   "id": "f42",
+   "source": "h3",
+   "quote": "spread 0.10, midpoint 20.00, 0.10 / 20.00 = 0.5%",
+   "claim": "Worked steps for the spread percent: spread 0.10, midpoint 20.00, 0.10 divided by 20.00 is 0.5%."
+  },
+  {
+   "id": "f43",
+   "source": "h3",
+   "quote": "Order-flow questions name the tool.",
+   "claim": "A question about shares at a price names the tool: Level 2 or time and sales."
   }
  ],
  "walkthroughs": [
@@ -401,27 +433,30 @@
    "rung": 1,
    "format": "mcq",
    "term": "bid",
-   "q": "On a quote, what does the bid tell you?",
+   "q": "On a stock quote, what is the bid?",
    "choices": [
-    "The most a buyer will pay now",
-    "The least a seller will take now",
+    "The most a buyer will pay right now",
+    "The least a seller will take right now",
     "The price of the last trade",
-    "The quote's midpoint price"
+    "The price halfway between bid and ask"
    ],
-   "answer": "The most a buyer will pay now",
-   "why": "The most a buyer will pay now. The bid is the highest price a buyer is offering at this moment, for a stated number of shares. It sits below the ask, the least a seller will take. It is not the last trade, which already happened, and not the midpoint, which is only a reference for value.",
+   "answer": "The most a buyer will pay right now",
+   "why": "The most a buyer will pay right now. That is the bid, and it is what you get when you sell at market. The ask is the least a seller will take, and it sits above the bid. The last trade already happened. The midpoint is only a reference for value.",
    "lesson_line": "The bid is the buyer's side of the quote.",
    "facts": [
     "f1",
     "f2",
     "f3",
+    "f7",
     "f8",
-    "f31"
+    "f25",
+    "f31",
+    "f41"
    ],
    "wrong": {
-    "The least a seller will take now": "That's the ask, the seller's side of the quote.",
-    "The price of the last trade": "That's the last. It already happened, and nobody has to repeat it.",
-    "The quote's midpoint price": "That's the midpoint, halfway between bid and ask. It's a reference, not anyone's order."
+    "The price of the last trade": "That's the last price. It already happened, and the quote may have moved since.",
+    "The least a seller will take right now": "That's the ask, the seller's side of the quote. It sits above the bid.",
+    "The price halfway between bid and ask": "That's the midpoint. It's a reference, not anyone's order."
    },
    "simple": "The bid is the highest price a buyer is offering right now, the buyer's side of the quote.",
    "tier": "core",
@@ -431,7 +466,7 @@
      "fixed before (distractor replaced by the checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q02",
@@ -534,16 +569,18 @@
    "skill": "basics.spread",
    "rung": 3,
    "format": "tf",
-   "q": "The last price is the price your market order will get.",
+   "q": "A market buy fills at the last price you saw on your screen.",
    "answer": "False",
-   "why": "False. The SEC says the last-traded price is not necessarily the price a market order gets. A market order generally fills at or near the current bid or ask, which can differ from the last trade. In a fast market, even those can move before your order fills.",
-   "lesson_line": "Last is history. Bid and ask are what you can trade at now.",
+   "why": "False. The last price is a trade that already happened. A market buy almost always fills at the ask, the least a seller will take right now. The ask can sit above the last. In a fast market it can move before you fill.",
+   "lesson_line": "Last is history. A market buy pays the ask.",
    "facts": [
-    "f8",
     "f7",
-    "f20"
+    "f33",
+    "f8",
+    "f20",
+    "f40"
    ],
-   "simple": "False, the last price is a trade that already happened, and a market order usually fills near the bid or the ask.",
+   "simple": "False, the last price already happened, and a market buy almost always fills at the ask.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -551,7 +588,7 @@
      "stable rule, two Tier 1 sources"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q06",
@@ -630,11 +667,14 @@
     }
    },
    "prefix": "$",
-   "why": "$0.04. The spread is the ask minus the bid: $25.02 minus $24.98. That is what each share costs you if you buy at the ask and sell straight back at the bid.",
+   "why": "$0.04. The bid is the most a buyer pays right now, $24.98. The ask is the least a seller takes, $25.02. The spread is ask minus bid: 25.02 minus 24.98 = 0.04. Buy at the ask and sell back at the bid, and you lose that 4 cents a share.",
    "lesson_line": "Spread equals ask minus bid. Work it out before every order.",
    "facts": [
     "f3",
-    "f4"
+    "f4",
+    "f1",
+    "f2",
+    "f41"
    ],
    "simple": "The spread is $0.04, because the ask of $25.02 minus the bid of $24.98 leaves four cents.",
    "tier": "core",
@@ -645,7 +685,7 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q09",
@@ -727,16 +767,17 @@
     "$42.00 or more"
    ],
    "answer": "Near $41.90",
-   "why": "Near $41.90. The stop price is only a trigger. Once it is hit, the stop becomes a market order, and a market sell fills at or near the bid. The price is not guaranteed: in a fast market the fill can come in below the bid you saw. It is never a promise of $42.00.",
+   "why": "Near $41.90. The stop price is only a trigger. Once it is hit, the stop becomes a market order. A market sell fills at or near the bid, the most a buyer pays right now. The price is not guaranteed: in a fast market the fill can come in below it. It is never a promise of $42.00.",
    "lesson_line": "Your stop is a trigger, not a price. Expect the bid, or worse in a fast market.",
    "facts": [
     "f13",
     "f7",
     "f9",
-    "f20"
+    "f20",
+    "f41"
    ],
    "wrong": {
-    "Near $42.05": "That's the ask, the price buyers pay. You're the seller here.",
+    "Near $42.05": "That's the ask, the price a buyer pays. You are selling, so you get the bid.",
     "Exactly $42.00": "The stop price only triggers the order. It is not a guaranteed fill price.",
     "$42.00 or more": "That treats the stop as a floor. Once it triggers it's a market sell, and the bid is already below $42.00."
    },
@@ -748,14 +789,14 @@
      "stable rule, Tier 1 sources"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q12",
    "skill": "basics.spread",
    "rung": 5,
    "format": "scenario",
-   "story": "The ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares.",
+   "story": "On Level 2, the ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares.",
    "q": "What should you expect from the fill?",
    "choices": [
     "All 1,000 shares at $12.40",
@@ -764,14 +805,16 @@
     "Some at $12.40, rest cancelled"
    ],
    "answer": "Some at $12.40, rest higher",
-   "why": "Some at $12.40, rest higher. Only 300 shares show at the $12.40 ask, and a market order generally fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. A better fill is possible, but it is never promised. The SEC's own example works the same way: 500 of 1,000 shares could fill at the quote, the rest higher.",
+   "why": "Some at $12.40, rest higher. The ask is the least a seller will take, and only 300 shares sit there. A market order fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. The SEC's own example works the same way: 500 of 1,000 shares fill at the quote, the rest higher.",
    "lesson_line": "Read the size before you send size. A market order takes what's there, then reaches higher.",
    "facts": [
     "f10",
     "f11",
     "f9",
     "f18",
-    "f20"
+    "f20",
+    "f2",
+    "f43"
    ],
    "wrong": {
     "It waits until $12.40 has size": "A market order doesn't wait for more sellers at your price. It generally executes right away, against the sellers who are there.",
@@ -789,7 +832,7 @@
      "fixed before (absolute wording softened by the checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q13",
@@ -892,28 +935,30 @@
    "skill": "basics.spread",
    "rung": 7,
    "format": "scenario",
-   "story": "Four stocks, and you want 2,000 shares of one. Each line shows bid / ask, then the shares at the bid / at the ask.",
-   "q": "Which quote would you buy 2,000 shares into?",
+   "story": "You want to buy 2,000 shares. Level 2 shows four stocks. Each line reads bid / ask, then the shares at the bid / at the ask.",
+   "q": "On Level 2, which quote can you buy 2,000 shares into cleanly?",
    "choices": [
-    "50.00 / 50.02, sizes 3,000 / 2,500",
-    "49.70 / 50.30, 2,000 / 2,500",
-    "50.01 / 50.02, sizes 100 / 100",
-    "49.95 / 50.05, 1,500 / 1,800"
+    "50.00 / 50.02 with 3,000 / 2,500",
+    "49.70 / 50.30 with 2,000 / 2,500",
+    "50.01 / 50.02 with 100 / 100",
+    "49.95 / 50.05 with 1,500 / 1,800"
    ],
-   "answer": "50.00 / 50.02, sizes 3,000 / 2,500",
-   "why": "50.00 / 50.02, sizes 3,000 / 2,500. Its spread is tight, and 2,500 shares sit at the ask, enough for your 2,000. The 49.70 / 50.30 quote costs far more to cross. The 50.01 / 50.02 quote is tighter, but only 100 shares sit at the ask. Most of your order likely fills higher. Judge a spread with the size behind it.",
+   "answer": "50.00 / 50.02 with 3,000 / 2,500",
+   "why": "50.00 / 50.02 with 3,000 / 2,500. On Level 2, the ask side shows 2,500 shares at 50.02, enough for your 2,000. The spread is only two cents. The 49.70 / 50.30 quote has the size but costs sixty cents to cross. The 50.01 / 50.02 quote is tight, but only 100 shares sit at the ask, so the rest fills higher. Time and sales, the live list of trades, shows whether size really trades there.",
    "lesson_line": "I want a tight spread AND real size at the price. One without the other costs you.",
    "facts": [
     "f26",
     "f10",
     "f35",
+    "f36",
     "f28",
-    "f34"
+    "f34",
+    "f43"
    ],
    "wrong": {
-    "49.70 / 50.30, 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
-    "50.01 / 50.02, sizes 100 / 100": "Tight, but only 100 shares at the ask. The rest of your order likely fills at higher prices.",
-    "49.95 / 50.05, 1,500 / 1,800": "Wider than the best quote, and 1,800 shares at the ask won't cover your 2,000. The rest likely fills higher."
+    "49.70 / 50.30 with 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
+    "50.01 / 50.02 with 100 / 100": "Tight, but only 100 shares at the ask. The rest of your order likely fills at higher prices.",
+    "49.95 / 50.05 with 1,500 / 1,800": "Wider than the best quote, and 1,800 shares at the ask won't cover your 2,000. The rest likely fills higher."
    },
    "simple": "Pick the tight quote with 2,500 shares at the ask, because it is cheap to cross and covers your 2,000 shares.",
    "deeper": {
@@ -926,7 +971,7 @@
      "fixed before (story clarified by the checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q17",
@@ -953,13 +998,14 @@
     },
     "round": 0
    },
-   "why": "A, by about 20 times. Divide each spread by its midpoint, the way the SEC's ETF rule states spreads. B's spread is bigger in cents, but B's price is far bigger still. So B's spread is a tiny slice of its price. A's spread is a big slice of a small price. With the same dollars in either, A costs far more to cross.",
+   "why": "A, by about 20 times. The midpoint is the price halfway between bid and ask. A: spread 0.10, midpoint 5.00, so 0.10 / 5.00 = 2%. B: spread is twenty cents, midpoint 200.00, so about a tenth of a percent. B's spread is bigger in cents, but its price is far bigger still. A's spread eats a big slice of a small price. With the same dollars in either, A costs far more to cross.",
    "lesson_line": "Compare spreads in percent, not cents. A small spread on a cheap stock can cost the most.",
    "facts": [
     "f23",
     "f22",
     "f26",
-    "f10"
+    "f10",
+    "f42"
    ],
    "wrong": {
     "B costs about 2x more": "That's comparing cents. B's spread is bigger in cents, but its price is far bigger still.",
@@ -978,7 +1024,7 @@
      "sources differ on the divisor; 'about 20x' holds either way, see conflicts"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q18",
@@ -994,13 +1040,12 @@
     "Fills right at the quote you see"
    ],
    "answer": "A wider spread than in the day",
-   "why": "A wider spread than in the day. The SEC says less trading interest after hours generally means wider spreads, or no quote at all. Orders can be harder to fill, at worse prices than in regular hours. Many brokers accept only limit orders after hours. Our own rule adds one more: no new buys outside regular trading hours.",
+   "why": "A wider spread than in the day. Fewer traders work after hours, so the gap between bid and ask is usually wider, or there is no quote at all. Orders can be harder to fill, at worse prices than in regular hours. Our own rule adds one more: no new buys outside regular trading hours.",
    "lesson_line": "After hours, spreads widen and fills get harder. Our rule: no new buys outside regular hours.",
    "facts": [
     "f15",
     "f16",
     "f20",
-    "f38",
     "f39"
    ],
    "wrong": {
@@ -1021,7 +1066,7 @@
      "broker practice in extended hours can change (f38 says 'currently')"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q19",
@@ -1148,6 +1193,51 @@
     ]
    },
    "batch": "wave6"
+  },
+  {
+   "key": "q90",
+   "skill": "basics.spread",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint, the price halfway between them?",
+   "choices": [
+    "0.5%",
+    "0.1%",
+    "0.005%",
+    "5%"
+   ],
+   "answer": "0.5%",
+   "calc": {
+    "fn": "spread_pct",
+    "args": {
+     "bid": 19.95,
+     "ask": 20.05
+    }
+   },
+   "why": "0.5%. First, the spread is 20.05 minus 19.95, which is 0.10. Next, the midpoint, halfway between bid and ask, is 20.00. Then 0.10 / 20.00 = 0.005, which is 0.5%. A percent lets you compare a cheap stock with a pricey one.",
+   "lesson_line": "Spread divided by midpoint, as a percent. Percent compares cheap and pricey stocks.",
+   "facts": [
+    "f23",
+    "f22",
+    "f31",
+    "f42"
+   ],
+   "wrong": {
+    "0.1%": "That calls the ten cent spread 0.1%. A percent needs the spread divided by the price: 0.10 / 20.00.",
+    "0.005%": "That is the decimal 0.005, not yet turned into a percent. As a percent it is 0.5%.",
+    "5%": "The decimal point slipped two places. 0.10 / 20.00 is 0.005, which is 0.5%."
+   },
+   "simple": "It is 0.5%, the gap between bid and ask divided by the price halfway between them.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key",
+     "replaces q09 (owner asked for multiple choice with the steps shown)"
+    ]
+   },
+   "house": true,
+   "batch": "review1"
   }
  ],
  "conflicts": [
@@ -1178,14 +1268,14 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Derived 'the most a buyer will pay now' from f1 before reading the key; matches. Key not the longest (29 vs 32). Every claim in the why and wrong notes rests on f1, f2, f3, f8, f31. The ask choice teaches what w1 already teaches, so it does not give away q02 in any new way."
+   "fixed": true,
+   "notes": "Stem is plainer and answers 'slightly odd'. Four distinct choices, key not the odd one out. The why says the bid is what you get when you sell at market, but f7 and f25 were not cited, so they are added. The last-price wrong note ('nobody has to repeat it') read oddly, so it is reworded."
   },
   "q02": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Derived 'ask' from f2 before reading the key; matches. f2 and f3 checked against s1 as quoted. Bank words are all real quote terms, and none fits the blank except ask. The why and simple define the bid and the spread in passing (q01, q03, q04 territory), but w1 teaches all three before any question and q01 and q04 do the same in return, so this is recall of the walkthrough, not a giveaway. The lesson_line no longer carries q06's key. Every claim sits on f1, f2, f3, f31."
+   "notes": "cut in review1: see the resolver's notes"
   },
   "q03": {
    "status": "pass",
@@ -1203,7 +1293,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False derived from f8 before reading the key. The SEC Types of Orders page (s2) and Understanding Order Types page (s3) were downloaded fresh, and f8 and f7 are word for word on them. The why now hedges like the source ('generally', 'can differ'), and the fast-market line rests on f20. The absolute 'will get' mirrors the misconception the SEC names, so it is the belief being tested, not a tell. The lesson's six tf items are still 3 True / 3 False. Note for the lesson, not this question: q06's wrong note ('The last trade already happened. Your fill comes from the quote as it stands now.') and q"
+   "notes": "Answers his note: a market buy almost always fills at the ask (f7, f33, f40). False is right: the last is a past trade (f8). Why defines the ask, keeps the fast-market caveat (f20). Still 3 True / 3 False in the lesson."
   },
   "q06": {
    "status": "pass",
@@ -1219,15 +1309,15 @@
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "He asked for the bid and ask explained: why now defines both in the learnings' own words (f41) and shows the subtraction 25.02 - 24.98 = 0.04. Math right. Format stays numeric, as the unit allows."
   },
   "q09": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review1: see the resolver's notes"
   },
   "q10": {
    "status": "pass",
@@ -1237,15 +1327,15 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Near 41.90 is right (stop becomes a market sell, fills near the bid, f13, f7). The why defines the bid in plain words (rule 3). The ask wrong note is sharper and right. Sentences are short."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key derived from the story plus f10 and f11 before reading it; matches. f9, f10 and the f11 SEC example are word for word on the fresh s3 page. Not the longest choice. $12.40 fits B23, and a market buy fits E57. Defect: the wrong note for 'It waits until $12.40 has size' ends 'A limit order is the one that waits'. No fact cited on q12 supports that (f12, f14 and f21 are not on the question). It also leans toward q15's answer (a limit at the bid may never fill) at the same rung. Fix: the note now argues only from f9 and f10, with no limit-order claim. The other two notes and every other field s"
+   "fixed": false,
+   "notes": "Story now names Level 2 (rule 6). Some at 12.40 and the rest higher is right (f10, f11, f9). The why defines the ask. The SEC 500-of-1000 example matches f11."
   },
   "q13": {
    "status": "pass",
@@ -1254,10 +1344,10 @@
    "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q14": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review1: see the resolver's notes"
   },
   "q15": {
    "status": "pass",
@@ -1269,20 +1359,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Before reading the key, picked 50.00 / 50.02 with 2,500 at the ask: the only quote that is both tight and covers 2,000 shares. It matches. Key length ties with two other choices (34), so no longest tell. The why names quotes only by their printed prices. Every wrong note is grounded (f26, f10, f28, f29). It fits E57 (market entries) and B23 ($10 or more).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Answers 'time and sales, can be better': story and stem name Level 2, the why names time and sales. Key 50.00 / 50.02 with 3,000 / 2,500 is right: 2,500 at the ask covers 2,000 and the spread is 2 cents. The 49.70 / 50.30 spread is 60 cents, 50.01 / 50.02 has only 100 at the ask, 49.95 / 50.05 has only 1,800. The choices are uniform in wording and the key is not the odd one out. Minor: the time and sales line has no cited fact, it rests on the owner's rule (f43), which is acceptable framing."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the ratio: (0.10/5.00)/(0.20/200.00) = 20, so 'A costs about 20x more' is right, and it holds by the ask divisor too (see conflicts). Key not the longest. 'Can't tell without the size' fails because the stem asks for percent of the midpoint, and f10 supports its note. The $5 stock is a hypothetical comparison, and the lesson_line lines up with B23's $10 floor. It does not recommend a trade."
+   "notes": "Steps now shown and correct: A is 0.10 / 5.00 = 2%, B is 0.20 / 200.00 = 0.1%, ratio 20. Midpoint is defined. Key and wrong answers unchanged and right."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived 'a wider spread' from f15 before reading the key; matches. f15, f16 and f38 were confirmed word for word on a fresh download of the SEC extended-hours bulletin (page dated June 6, 2022). f38 says 'currently', and the why's 'Many brokers accept only limit orders after hours' still holds at the big US brokers as of 2026-11. The risk entry already flags the date. The earnings story is the real trap (news feels like liquidity), and the key keeps the SEC's 'generally' as 'expect'. Not the longest choice. The why teaches E58 as ours and agrees with the rulebook. The question does not ask the"
+   "notes": "Broker-minutiae line cut as the learnings ask. Wider spread is right (f15, f16). Why defines the wider gap in plain words. Rule E58 still taught (f39). Sentences are within 22 words."
   },
   "q19": {
    "status": "pass",
@@ -1307,6 +1396,12 @@
    "by": "checker",
    "fixed": false,
    "notes": "Derived 'It becomes a market order' from f13 before reading the key; matches. f13 and f9 are word for word on the fresh s3 page. Not the longest choice. 'It becomes a limit order' is the real stop-limit mix-up, and the stem says 'a stop order', which the SEC defines apart from a stop-limit, so there is no second right answer. 'It only sends you an alert' is a real beginner belief, and it ties to D41. q22 (rung 3) teaches the trigger, and q11 (rung 4) applies it to a quote with the bid as the fill. That is a ladder, not a giveaway. Minor: the 'fills at exactly the stop' note nearly repeats q11'"
+  },
+  "q90": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Replaces q09, now multiple choice with steps shown: spread 0.10, midpoint 20.00, 0.10 / 20.00 = 0.005 = 0.5% (f23, f42). His math was right. Four choices from real slips (cent-to-percent, decimal not turned into percent, point moved two places). Calc key matches the answer."
   }
  }
 }

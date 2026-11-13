@@ -771,12 +771,15 @@
    "format": "tf",
    "q": "A higher share price means a bigger company.",
    "answer": "False",
-   "why": "False. Price alone does not tell you how big a company is. FINRA's example: two stocks both trade at $50. One has 5 million shares outstanding, a $250 million company. The other has 5 billion, a $250 billion company. The share count matters most, so multiply the price by the shares outstanding.",
+   "why": "False. Market cap is price times shares outstanding, so price alone cannot show size. FINRA's example: two stocks both trade at $50. One has 5 million shares: $50 x 5 million = $250 million, a small-cap. The other has 5 billion shares: $50 x 5 billion = $250 billion, a mega-cap. Same price, a thousand times the size. Always check the share count too.",
    "lesson_line": "Never judge size by the share price. Multiply by the shares outstanding.",
    "facts": [
     "f7",
     "f8",
-    "f9"
+    "f9",
+    "f4",
+    "f6",
+    "f1"
    ],
    "simple": "False, because size is price times shares, so a high price on few shares can still be a small company.",
    "tier": "core",
@@ -784,7 +787,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q06",
@@ -1359,17 +1362,19 @@
    "skill": "basics.float_cap",
    "rung": 9,
    "format": "tf",
-   "q": "Two companies have the same market cap. Insiders hold most of one, almost none of the other. A float-adjusted index weights them the same.",
-   "answer": "False",
-   "why": "False. Russell indexes weight each stock by float-adjusted market cap: the closing price times the shares available to the public. The adjustment leaves out the part of a company that is not available to buy. Shares held by officers and directors are typically left out. So the insider-heavy company has a smaller float and gets less weight.",
+   "q": "A float-adjusted index gives an insider-heavy company less weight than its market cap suggests.",
+   "answer": "True",
+   "why": "True. The float is the shares the public can trade. Market cap counts every share outstanding, insiders included. A float-adjusted index uses price times the float only. When insiders hold most shares, the float is small. So the index weight is small too, even if market cap looks large.",
    "lesson_line": "Index weight follows the float. An insider-heavy company counts for less than its market cap suggests.",
    "facts": [
     "f40",
     "f39",
     "f61",
-    "f62"
+    "f62",
+    "f26",
+    "f2"
    ],
-   "simple": "False, because the index counts only shares the public can buy, so the company insiders mostly own weighs less.",
+   "simple": "True, because the index counts only shares the public can buy, and insiders' shares are left out.",
    "deeper": {
     "trap": "Two companies can show the same market cap on a quote screen and still weigh very differently in a float-adjusted index. The weight follows the shares available to buy, not every share outstanding. Fidelity says free-float cap typically subtracts shares held by officers and directors, and by other public companies."
    },
@@ -1380,7 +1385,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q22",
@@ -1463,9 +1468,9 @@
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Why now defines market cap as price times shares outstanding, shows both multiplications ($50 x 5 million = $250 million small-cap; $50 x 5 billion = $250 billion, over FINRA's $200 billion mega-cap line f4) and the 1,000x ratio (250B / 250M). Supported by f7, f8, f9, f4, f6, f1. Answer False is right. Sentences under 22 words; simple unchanged and valid."
   },
   "q06": {
    "status": "pass",
@@ -1560,9 +1565,9 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "One-idea stem fixes his 'slightly confusing' note, key True is right (f40, f39, f61, f62, f26, f2), why defines float and walks the logic. Defect: the 'simple' starts 'Smaller,' but the question is true/false and the answer is True, and 'this one' has no referent. Rewritten to open with True."
   },
   "q22": {
    "status": "pass",

@@ -90,71 +90,6 @@
  },
  {
   "answer_json": {
-   "answer": "ticker"
-  },
-  "difficulty": 1,
-  "id": "si_7c93bf46353b",
-  "lesson_origin": "session",
-  "lesson_text": "Ticker. Each publicly traded US common stock gets a short abbreviation that identifies it, known as its ticker or stock symbol. A ticker runs from one letter up to five. Funds have tickers too: SPY is a fund that lists on NYSE Arca. An index, an exchange or a sector is not a stock's name. Ticker first. One to five letters that say exactly what you're buying.",
-  "module": "F1",
-  "prompt_json": {
-   "bank": [
-    "ticker",
-    "index",
-    "exchange",
-    "sector",
-    "float"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "Every US stock has a short code that identifies it, called its ___.",
-   "subject": "ticker"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Glossary: Ticker",
-      "quote": "Each publicly traded common stock in the U.S. receives a short abbreviation that identifies it, known as its stock symbol or stock ticker symbol.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/ticker"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Glossary: Ticker",
-      "quote": "Some stocks have single-letter ticker symbols while others may have up to five.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/ticker"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "State Street Investment Management (formerly SSGA), SPY's trustee and marketing agent: SPY: State Street SPDR S&P 500 ETF Trust (fund page)",
-      "quote": "Exchange Listing Date Trading Currency Ticker CUSIP ISIN NYSE ARCA Jan 22 1993 USD SPY",
-      "tier": 1,
-      "url": "https://www.ssga.com/us/en/individual/etfs/spdr-sp-500-etf-trust-spy"
-     }
-    ],
-    "summary": "Every US-listed common stock has a short code that identifies it: its ticker, or stock symbol. A ticker runs from one letter up to five. SPY's listing exchange is NYSE Arca, listed Jan 22, 1993, ticker SPY."
-   },
-   "facts": {
-    "given": "Tap the word that fits the blank. Every US stock has a short code that identifies it, called its ___."
-   },
-   "lesson_line": "Ticker first. One to five letters that say exactly what you're buying.",
-   "simple": "Ticker. It is the short code of letters that names a stock, and funds have one too, like SPY.",
-   "tier": "core",
-   "unit": "F1.02",
-   "why": "Ticker. Each publicly traded US common stock gets a short abbreviation that identifies it, known as its ticker or stock symbol. A ticker runs from one letter up to five. Funds have tickers too: SPY is a fund that lists on NYSE Arca. An index, an exchange or a sector is not a stock's name."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.shares",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.02.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "True"
   },
   "difficulty": 1,
@@ -390,74 +325,6 @@
  },
  {
   "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 1,
-  "id": "si_abbd9f5477cc",
-  "lesson_origin": "session",
-  "lesson_text": "False. It is not possible to invest directly in an index. A SPY share is ownership in the SPDR S&P 500 ETF Trust, a unit investment trust. The trust aims to match the S&P 500's price and yield, before expenses. Its results correspond generally to the index, not exactly. SPY is the fund. The S&P 500 is the scoreboard it follows.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "When you buy SPY, you are buying the S&P 500 index itself.",
-   "subject": "F1.02#q06"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "State Street Investment Management (formerly SSGA), SPY's trustee and marketing agent: SPY: State Street SPDR S&P 500 ETF Trust (fund page)",
-      "quote": "It is not possible to invest directly in an index.",
-      "tier": 1,
-      "url": "https://www.ssga.com/us/en/individual/etfs/spdr-sp-500-etf-trust-spy"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "State Street Investment Management (formerly SSGA), SPY's trustee and marketing agent: SPY: State Street SPDR S&P 500 ETF Trust (fund page)",
-      "quote": "The shares of the State Street® SPDR® S&P 500® ETF Trust represent ownership in the State Street® SPDR® S&P 500® ETF Trust, a unit investment trust.",
-      "tier": 1,
-      "url": "https://www.ssga.com/us/en/individual/etfs/spdr-sp-500-etf-trust-spy"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "State Street Investment Management (formerly SSGA), SPY's trustee and marketing agent: SPY: State Street SPDR S&P 500 ETF Trust (fund page)",
-      "quote": "The State Street® SPDR® S&P 500® ETF Trust seeks to provide investment results that, before expenses, correspond generally to the price and yield performance of the S&P 500® Index",
-      "tier": 1,
-      "url": "https://www.ssga.com/us/en/individual/etfs/spdr-sp-500-etf-trust-spy"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: What is the S&P 500? (Fidelity Learning Center)",
-      "quote": "Although you can’t invest directly in the S&P 500, you can buy shares of an index mutual fund or exchange-traded fund (ETF) that aims to track the index and match its returns.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/smart-money/what-is-the-sp-500"
-     }
-    ],
-    "summary": "You cannot invest in an index directly. A SPY share is ownership in the fund (a unit investment trust), not in the index. SPY aims to match the S&P 500's price and yield performance, before expenses. You can't buy the S&P 500 itself; you buy a fund that tracks it."
-   },
-   "facts": {
-    "given": "When you buy SPY, you are buying the S&P 500 index itself."
-   },
-   "lesson_line": "SPY is the fund. The S&P 500 is the scoreboard it follows.",
-   "simple": "False. You cannot buy an index itself, so a SPY share makes you an owner of a fund that tracks it.",
-   "tier": "core",
-   "unit": "F1.02",
-   "why": "False. It is not possible to invest directly in an index. A SPY share is ownership in the SPDR S&P 500 ETF Trust, a unit investment trust. The trust aims to match the S&P 500's price and yield, before expenses. Its results correspond generally to the index, not exactly."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.shares",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.02.json#q06",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Nasdaq-100"
   },
   "difficulty": 2,
@@ -559,7 +426,7 @@
   "difficulty": 2,
   "id": "si_06084246b145",
   "lesson_origin": "session",
-  "lesson_text": "Small. IWM seeks to track the Russell 2000. FTSE Russell says that index measures the small-cap segment of the US market. It holds about 2,000 of the smallest stocks, picked by market cap and current index membership. It is not a mid-cap or large-cap index. IWM is your small-cap read. Small caps can swing harder and trade thinner than big names.",
+  "lesson_text": "Small. IWM seeks to track the Russell 2000. FTSE Russell says that index measures the small-cap segment of the US market. Market cap is the share price times all shares outstanding, so a small cap is a company with a small total value. The index holds about 2,000 of the smallest stocks. It is not a mid-cap or large-cap index. IWM is your small-cap read. Small caps can swing harder and trade thinner than big names.",
   "module": "F1",
   "prompt_json": {
    "bank": [
@@ -603,9 +470,16 @@
       "quote": "Small-capitalization companies may be less stable and more susceptible to adverse developments, and their securities may be more volatile and less liquid than larger capitalization companies.",
       "tier": 1,
       "url": "https://www.ishares.com/us/products/239710/ishares-russell-2000-etf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Glossary: Market Capitalization",
+      "quote": "Market capitalization is the value of a corporation determined by multiplying the current public market price of one share of the corporation by the number of total outstanding shares.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/market-capitalization"
      }
     ],
-    "summary": "IWM tracks the Russell 2000, US small-cap stocks. The Russell 2000 measures US small caps: about 2,000 of the smallest stocks. The Russell 2000 tracks about 2,000 US small caps. Small-cap stocks can be more volatile and less liquid than large caps."
+    "summary": "IWM tracks the Russell 2000, US small-cap stocks. The Russell 2000 measures US small caps: about 2,000 of the smallest stocks. The Russell 2000 tracks about 2,000 US small caps. Small-cap stocks can be more volatile and less liquid than large caps. Market cap is one share's price times all the shares outstanding."
    },
    "facts": {
     "given": "Tap the word that fits the blank. IWM tracks the Russell 2000, an index of ___-cap US stocks."
@@ -614,7 +488,7 @@
    "simple": "Small. The Russell 2000 is an index of about 2,000 small US stocks, so IWM gives you a small-cap read.",
    "tier": "core",
    "unit": "F1.02",
-   "why": "Small. IWM seeks to track the Russell 2000. FTSE Russell says that index measures the small-cap segment of the US market. It holds about 2,000 of the smallest stocks, picked by market cap and current index membership. It is not a mid-cap or large-cap index."
+   "why": "Small. IWM seeks to track the Russell 2000. FTSE Russell says that index measures the small-cap segment of the US market. Market cap is the share price times all shares outstanding, so a small cap is a company with a small total value. The index holds about 2,000 of the smallest stocks. It is not a mid-cap or large-cap index."
   },
   "review_status": "draft",
   "skill_id": "basics.shares",
@@ -1093,88 +967,6 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "4.5",
-    "4.50",
-    "4.500"
-   ],
-   "answer": 4.5
-  },
-  "difficulty": 3,
-  "id": "si_b4616ab24ec8",
-  "lesson_origin": "session",
-  "lesson_text": "4.5 percentage points. The gap is 3.6 minus negative 0.9, which is 3.6 plus 0.9. When one index rises and the other falls, you add the two moves. The answer is in percentage points, not a percent change. One slip is to subtract 0.9 from 3.6, which treats the fall as a rise. Measure the gap between the big caps and the small caps. A wide split shows you which group leads.",
-  "module": "F1",
-  "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "On July 11, 2024 the Russell 2000 rose 3.6% and the S&P 500 fell 0.9%. How many percentage points apart were they?",
-   "subject": "F1.02#q14",
-   "suffix": "points"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "Percentage points are not percent. The gap between a 3.6% rise and a 0.9% fall is 4.5 percentage points. It is not a 4.5% change in anything."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "The Associated Press: How major US stock indexes fared Thursday, 7/11/2024 (AP wire, as carried by Yahoo Finance)",
-      "quote": "The Russell 2000 index of smaller companies rose 73.28 points, or 3.6%, to 2,125.04.",
-      "tier": 2,
-      "url": "https://ca.finance.yahoo.com/news/major-us-stock-indexes-fared-202835996.html"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "The Associated Press: How major US stock indexes fared Thursday, 7/11/2024 (AP wire, as carried by Yahoo Finance)",
-      "quote": "The S&P 500 fell 49.37 points, or 0.9%, to 5,584.52.",
-      "tier": 2,
-      "url": "https://ca.finance.yahoo.com/news/major-us-stock-indexes-fared-202835996.html"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "CNBC: S&P 500 retreats from record as investors sell high-flying Big Tech stocks, Nvidia drops 5%: Live updates (July 11, 2024)",
-      "quote": "The small-cap benchmark Russell 2000 Index gained about 3.6% as investors hoped for a Federal Reserve rate cut in September and an economic soft landing following the inflation data.",
-      "tier": 2,
-      "url": "https://www.cnbc.com/2024/07/10/stock-market-today-live-updates.html"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "CNBC: S&P 500 retreats from record as investors sell high-flying Big Tech stocks, Nvidia drops 5%: Live updates (July 11, 2024)",
-      "quote": "The S&P 500 fell 0.88%, retreating from a record it touched earlier in the session and closing at 5,584.54.",
-      "tier": 2,
-      "url": "https://www.cnbc.com/2024/07/10/stock-market-today-live-updates.html"
-     }
-    ],
-    "summary": "The Russell 2000 rose 3.6% on July 11, 2024. The S&P 500 fell 0.9% on July 11, 2024. CNBC: the small-cap Russell 2000 gained about 3.6% that day. CNBC: the S&P 500 fell 0.88% that day."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "expr": "russell_2000 - sp_500",
-      "russell_2000": 3.6,
-      "sp_500": -0.9
-     },
-     "fn": "arith",
-     "result": 4.5
-    },
-    "given": "On July 11, 2024 the Russell 2000 rose 3.6% and the S&P 500 fell 0.9%. How many percentage points apart were they?"
-   },
-   "lesson_line": "Measure the gap between the big caps and the small caps. A wide split shows you which group leads.",
-   "simple": "4.5 points. One index rose 3.6% and the other fell 0.9%, so you add the two moves to get the gap.",
-   "tier": "extended",
-   "unit": "F1.02",
-   "why": "4.5 percentage points. The gap is 3.6 minus negative 0.9, which is 3.6 plus 0.9. When one index rises and the other falls, you add the two moves. The answer is in percentage points, not a percent change. One slip is to subtract 0.9 from 3.6, which treats the fall as a rise."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.shares",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.02.json#q14",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "False"
   },
   "difficulty": 3,
@@ -1260,22 +1052,22 @@
  },
  {
   "answer_json": {
-   "answer": "It's a headwind. Go slow or wait"
+   "answer": "Track it. Watch its relative strength"
   },
   "difficulty": 3,
   "id": "si_81ea9cd6164b",
   "lesson_origin": "session",
-  "lesson_text": "It's a headwind, so go slow or wait. A stock's price moves on its own news and also on the market as a whole. When the whole market drops, it can pull down the stocks you hold. IBD's rule of thumb is that 3 of 4 stocks move with the general market. Strong earnings do not make a stock immune. At UCT, a market filter decides when we trade: the app's market reading. Check the market before the stock. Good news doesn't make a stock immune to a falling market.",
+  "lesson_text": "Track it and watch its relative strength. Relative strength is how well a stock holds up while the market falls. A good setup that holds up while SPY, QQQ and IWM drop is a name to track until the market stabilizes. A stock's price moves on its own news and also on the market as a whole. When the whole market drops, it can pull down the stocks you hold. IBD's rule of thumb is that 3 of 4 stocks move with the general market. Strong earnings do not make a stock immune. At UCT, a market filter decides when we trade: the app's market reading. In a weak market, track the strong setup's relative strength. Act when the market stabilizes.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Not much. One stock moves on its own",
-    "Strong earnings make it safe to buy",
-    "It's on sale. A good time to buy",
-    "It's a headwind. Go slow or wait"
+    "Ignore the market. Stocks move alone",
+    "Buy it. Strong earnings make it safe",
+    "Buy the dip. The market is on sale",
+    "Track it. Watch its relative strength"
    ],
    "kind": "mcq",
-   "q": "What does the weak market mean for this trade?",
+   "q": "How should you treat this setup while the market is weak?",
    "story": "A stock you like just reported strong earnings. Its chart looks good. But SPY, QQQ and IWM have all fallen hard for two weeks.",
    "subject": "F1.02#q16"
   },
@@ -1333,22 +1125,29 @@
       "quote": "A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "a strong setup is a name to track for relative strength until the market stabilizes",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
      }
     ],
-    "summary": "A single stock's performance is also driven by the stock market as a whole. When the whole market drops, it can pull down the stocks you hold. A stock's price moves on company news and also on market events the company cannot control. IBD: in a market downtrend, even the best stocks have a hard time moving higher. IBD's rule of thumb: 3 of 4 stocks move the same way as the general market. IBD: buying in a correction is riskier, because most stocks follow the market down. Our rule: a market filter, the app's market reading, decides when we trade."
+    "summary": "A single stock's performance is also driven by the stock market as a whole. When the whole market drops, it can pull down the stocks you hold. A stock's price moves on company news and also on market events the company cannot control. IBD: in a market downtrend, even the best stocks have a hard time moving higher. IBD's rule of thumb: 3 of 4 stocks move the same way as the general market. IBD: buying in a correction is riskier, because most stocks follow the market down. Our rule: a market filter, the app's market reading, decides when we trade. Our view: in a weak market, a strong setup is a name to track for relative strength until the market stabilizes."
    },
    "facts": {
-    "given": "What does the weak market mean for this trade? A stock you like just reported strong earnings. Its chart looks good. But SPY, QQQ and IWM have all fallen hard for two weeks. It's a headwind. Go slow or wait Strong earnings make it safe to buy Not much. One stock moves on its own It's on sale. A good time to buy"
+    "given": "How should you treat this setup while the market is weak? A stock you like just reported strong earnings. Its chart looks good. But SPY, QQQ and IWM have all fallen hard for two weeks. Track it. Watch its relative strength Buy it. Strong earnings make it safe Ignore the market. Stocks move alone Buy the dip. The market is on sale"
    },
-   "lesson_line": "Check the market before the stock. Good news doesn't make a stock immune to a falling market.",
-   "simple": "It's a headwind. A falling market drags most stocks down with it, even ones with good news.",
+   "lesson_line": "In a weak market, track the strong setup's relative strength. Act when the market stabilizes.",
+   "simple": "Track it. A strong stock that holds up in a weak market is one to watch until the market stabilizes.",
    "tier": "expert",
    "unit": "F1.02",
-   "why": "It's a headwind, so go slow or wait. A stock's price moves on its own news and also on the market as a whole. When the whole market drops, it can pull down the stocks you hold. IBD's rule of thumb is that 3 of 4 stocks move with the general market. Strong earnings do not make a stock immune. At UCT, a market filter decides when we trade: the app's market reading.",
+   "why": "Track it and watch its relative strength. Relative strength is how well a stock holds up while the market falls. A good setup that holds up while SPY, QQQ and IWM drop is a name to track until the market stabilizes. A stock's price moves on its own news and also on the market as a whole. When the whole market drops, it can pull down the stocks you hold. IBD's rule of thumb is that 3 of 4 stocks move with the general market. Strong earnings do not make a stock immune. At UCT, a market filter decides when we trade: the app's market reading.",
    "wrong": {
-    "It's on sale. A good time to buy": "Buying in a correction is riskier. IBD says most stocks follow the market's downward trend.",
-    "Not much. One stock moves on its own": "Stocks don't trade alone. Market events move prices in ways the company can't control.",
-    "Strong earnings make it safe to buy": "Nothing makes it safe. A single stock's price also depends on what the whole market is doing."
+    "Buy it. Strong earnings make it safe": "Nothing makes it safe. A single stock's price also depends on what the whole market is doing.",
+    "Buy the dip. The market is on sale": "Buying in a correction is riskier. IBD says most stocks follow the market's downward trend.",
+    "Ignore the market. Stocks move alone": "Stocks don't trade alone. Market events move prices in ways the company can't control."
    }
   },
   "review_status": "draft",
@@ -1467,23 +1266,23 @@
  },
  {
   "answer_json": {
-   "answer": "QQQ follows a different index"
+   "answer": "QQQ follows a different basket"
   },
   "difficulty": 3,
   "id": "si_c04a21c3b771",
   "lesson_origin": "session",
-  "lesson_text": "QQQ follows a different index. \"The Nasdaq\" in the news often means the Nasdaq Composite, which includes all common-type stocks listed on Nasdaq. QQQ tracks the Nasdaq-100, just 100 of the largest non-financial Nasdaq companies. Two different baskets can move by different amounts on the same day. Fees cannot explain it: QQQ's total expense ratio is 0.18%. Know which index a headline means. The Nasdaq Composite is not QQQ.",
+  "lesson_text": "QQQ follows a different basket. When the news says \"the Nasdaq\", it often means the Nasdaq Composite, which holds all common-type stocks listed on Nasdaq. QQQ tracks the Nasdaq-100, only 100 of the largest non-financial Nasdaq companies. Different baskets can move by different amounts on the same day. Fees do not explain it. QQQ's fee is 0.18% for a whole year. The gap here is 2 minus 1.6, which is bigger than that, and it came in one day. A headline's \"Nasdaq\" is often the Composite. QQQ follows the Nasdaq-100, so the two can differ.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "QQQ's fees ate the gap",
-    "QQQ follows a different index",
+    "QQQ's yearly fee ate the gap",
+    "QQQ follows a different basket",
     "QQQ weights stocks by price",
-    "QQQ stopped trading early"
+    "QQQ stopped trading early today"
    ],
    "kind": "mcq",
-   "q": "Why don't the two numbers match?",
-   "story": "The evening news says the Nasdaq fell 2% today. You check QQQ. It fell 1.6%.",
+   "q": "What is the likeliest reason the two numbers differ?",
+   "story": "The evening news says the Nasdaq fell 2% today. You check QQQ and it fell 1.6%.",
    "subject": "F1.02#q18"
   },
   "reveal_json": {
@@ -1573,17 +1372,17 @@
     "summary": "The Nasdaq Composite, often just called \"the Nasdaq\", tracks almost every Nasdaq-listed company. AP's own shorthand: \"the Nasdaq\" fell 2% that day. The Nasdaq composite fell 2% on July 11, 2024. The Nasdaq Composite measures the common stocks listed on Nasdaq, a different index from the Nasdaq-100. QQQ tracks the Nasdaq-100. The Nasdaq-100 measures 100 of the largest non-financial companies listed on Nasdaq. QQQ's total expense ratio is 0.18% a year. ETF shares trade all day on exchanges, like stocks. Nasdaq: the Composite holds every common-type stock listed on Nasdaq, US and foreign. The Nasdaq-100 is weighted by (modified) market cap. AP's index recap for Thursday, July 11, 2024."
    },
    "facts": {
-    "given": "Why don't the two numbers match? The evening news says the Nasdaq fell 2% today. You check QQQ. It fell 1.6%. QQQ follows a different index QQQ's fees ate the gap QQQ stopped trading early QQQ weights stocks by price"
+    "given": "What is the likeliest reason the two numbers differ? The evening news says the Nasdaq fell 2% today. You check QQQ and it fell 1.6%. QQQ follows a different basket QQQ's yearly fee ate the gap QQQ stopped trading early today QQQ weights stocks by price"
    },
-   "lesson_line": "Know which index a headline means. The Nasdaq Composite is not QQQ.",
-   "simple": "QQQ follows a different index. The news often means the Nasdaq Composite, while QQQ tracks the smaller Nasdaq-100.",
+   "lesson_line": "A headline's \"Nasdaq\" is often the Composite. QQQ follows the Nasdaq-100, so the two can differ.",
+   "simple": "Likely they track two different sets of stocks. News often means the Nasdaq Composite, but QQQ follows the smaller Nasdaq-100.",
    "tier": "expert",
    "unit": "F1.02",
-   "why": "QQQ follows a different index. \"The Nasdaq\" in the news often means the Nasdaq Composite, which includes all common-type stocks listed on Nasdaq. QQQ tracks the Nasdaq-100, just 100 of the largest non-financial Nasdaq companies. Two different baskets can move by different amounts on the same day. Fees cannot explain it: QQQ's total expense ratio is 0.18%.",
+   "why": "QQQ follows a different basket. When the news says \"the Nasdaq\", it often means the Nasdaq Composite, which holds all common-type stocks listed on Nasdaq. QQQ tracks the Nasdaq-100, only 100 of the largest non-financial Nasdaq companies. Different baskets can move by different amounts on the same day. Fees do not explain it. QQQ's fee is 0.18% for a whole year. The gap here is 2 minus 1.6, which is bigger than that, and it came in one day.",
    "wrong": {
-    "QQQ stopped trading early": "ETF shares trade throughout the day on exchanges. The gap is in what each one tracks.",
-    "QQQ weights stocks by price": "The Nasdaq-100 uses a modified market cap weighting, not share price. The gap comes from tracking a different index.",
-    "QQQ's fees ate the gap": "QQQ's total expense ratio is 0.18% a year. That can't explain a gap this size in one day."
+    "QQQ stopped trading early today": "ETF shares trade throughout the day on exchanges. The gap comes from what each one tracks.",
+    "QQQ weights stocks by price": "The Nasdaq-100 uses a modified market cap weighting, not share price. The gap comes from tracking a different basket.",
+    "QQQ's yearly fee ate the gap": "QQQ's fee is 0.18% for a whole year. The gap here is 2 minus 1.6 in one day, which is bigger."
    }
   },
   "review_status": "draft",
@@ -1922,22 +1721,22 @@
  },
  {
   "answer_json": {
-   "answer": "The most a buyer will pay now"
+   "answer": "The most a buyer will pay right now"
   },
   "difficulty": 1,
   "id": "si_bfa5f599a1fd",
   "lesson_origin": "session",
-  "lesson_text": "The most a buyer will pay now. The bid is the highest price a buyer is offering at this moment, for a stated number of shares. It sits below the ask, the least a seller will take. It is not the last trade, which already happened, and not the midpoint, which is only a reference for value. The bid is the buyer's side of the quote.",
+  "lesson_text": "The most a buyer will pay right now. That is the bid, and it is what you get when you sell at market. The ask is the least a seller will take, and it sits above the bid. The last trade already happened. The midpoint is only a reference for value. The bid is the buyer's side of the quote.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "The most a buyer will pay now",
-    "The least a seller will take now",
+    "The most a buyer will pay right now",
+    "The least a seller will take right now",
     "The price of the last trade",
-    "The quote's midpoint price"
+    "The price halfway between bid and ask"
    ],
    "kind": "mcq",
-   "q": "On a quote, what does the bid tell you?",
+   "q": "On a stock quote, what is the bid?",
    "subject": "bid"
   },
   "reveal_json": {
@@ -1967,6 +1766,13 @@
      {
       "accessed": "2026-11-08",
       "name": "SEC, Investor.gov: Types of Orders",
+      "quote": "A market order generally will execute at or near the current bid (for a sell order) or ask (for a buy order) price.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Types of Orders",
       "quote": "the last-traded price is not necessarily the price at which a market order will be executed.",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
@@ -1974,79 +1780,9 @@
      {
       "accessed": "2026-11-08",
       "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
-      "quote": "If someone asked you what a share of JKL was “worth,” you would probably choose the midpoint, $50.00, or maybe the last price at which you can see a trade actually happened.",
+      "quote": "But if you wanted to buy JKL right now, you would probably have to pay $50.10. If you wanted to sell right now, all you’d get is $49.90.",
       "tier": 2,
       "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
-     }
-    ],
-    "summary": "The bid is the highest price a buyer will pay right now, for a stated number of shares. The ask is the lowest price a seller will take. The bid sits below the ask, and the gap between them (ask minus bid) is the spread. The last trade is not the price your market order is promised. The midpoint and the last trade are reference values for what a share is worth, not prices you can trade at right now."
-   },
-   "facts": {
-    "given": "On a quote, what does the bid tell you? The most a buyer will pay now The least a seller will take now The price of the last trade The quote's midpoint price"
-   },
-   "lesson_line": "The bid is the buyer's side of the quote.",
-   "simple": "The bid is the highest price a buyer is offering right now, the buyer's side of the quote.",
-   "tier": "core",
-   "unit": "F1.03",
-   "why": "The most a buyer will pay now. The bid is the highest price a buyer is offering at this moment, for a stated number of shares. It sits below the ask, the least a seller will take. It is not the last trade, which already happened, and not the midpoint, which is only a reference for value.",
-   "wrong": {
-    "The least a seller will take now": "That's the ask, the seller's side of the quote.",
-    "The price of the last trade": "That's the last. It already happened, and nobody has to repeat it.",
-    "The quote's midpoint price": "That's the midpoint, halfway between bid and ask. It's a reference, not anyone's order."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "basics.spread",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.03.json#q01",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "ask"
-  },
-  "difficulty": 1,
-  "id": "si_92f391e399ae",
-  "lesson_origin": "session",
-  "lesson_text": "Ask. The ask is the lowest price a seller will take right now. It sits above the bid, the most a buyer will pay. The last is a trade that already happened, and the spread is the gap between bid and ask. Buyers bid, sellers ask. The ask is the seller's side of the quote.",
-  "module": "F1",
-  "prompt_json": {
-   "bank": [
-    "bid",
-    "ask",
-    "last",
-    "spread",
-    "close"
-   ],
-   "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "The ___ is the lowest price a seller will take right now.",
-   "subject": "ask"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
-      "quote": "The term “ask” refers to the lowest price at which a seller will sell the ETF shares.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
-      "quote": "The bid price will be lower than the ask price and the difference between two prices is called the spread.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
-      "quote": "The term “bid” refers to the highest price a buyer will pay to buy a specified number of ETF shares at any given time.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
      },
      {
       "accessed": "2026-11-08",
@@ -2054,23 +1790,35 @@
       "quote": "If someone asked you what a share of JKL was “worth,” you would probably choose the midpoint, $50.00, or maybe the last price at which you can see a trade actually happened.",
       "tier": 2,
       "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "bid = the most a buyer pays right now, ask = the least a seller takes",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
      }
     ],
-    "summary": "The ask is the lowest price a seller will take. The bid sits below the ask, and the gap between them (ask minus bid) is the spread. The bid is the highest price a buyer will pay right now, for a stated number of shares. The midpoint and the last trade are reference values for what a share is worth, not prices you can trade at right now."
+    "summary": "The bid is the highest price a buyer will pay right now, for a stated number of shares. The ask is the lowest price a seller will take. The bid sits below the ask, and the gap between them (ask minus bid) is the spread. A market buy fills at or near the ask; a market sell fills at or near the bid. The last trade is not the price your market order is promised. Buying right now costs the ask; selling right now gets the bid. The midpoint and the last trade are reference values for what a share is worth, not prices you can trade at right now. Plain definitions: the bid is the most a buyer pays right now, the ask is the least a seller takes."
    },
    "facts": {
-    "given": "Tap the word that fits the blank. The ___ is the lowest price a seller will take right now."
+    "given": "On a stock quote, what is the bid? The most a buyer will pay right now The least a seller will take right now The price of the last trade The price halfway between bid and ask"
    },
-   "lesson_line": "Buyers bid, sellers ask. The ask is the seller's side of the quote.",
-   "simple": "The ask is the lowest price a seller will take, and it sits above the bid.",
+   "lesson_line": "The bid is the buyer's side of the quote.",
+   "simple": "The bid is the highest price a buyer is offering right now, the buyer's side of the quote.",
    "tier": "core",
    "unit": "F1.03",
-   "why": "Ask. The ask is the lowest price a seller will take right now. It sits above the bid, the most a buyer will pay. The last is a trade that already happened, and the spread is the gap between bid and ask."
+   "why": "The most a buyer will pay right now. That is the bid, and it is what you get when you sell at market. The ask is the least a seller will take, and it sits above the bid. The last trade already happened. The midpoint is only a reference for value.",
+   "wrong": {
+    "The least a seller will take right now": "That's the ask, the seller's side of the quote. It sits above the bid.",
+    "The price halfway between bid and ask": "That's the midpoint. It's a reference, not anyone's order.",
+    "The price of the last trade": "That's the last price. It already happened, and the quote may have moved since."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.spread",
   "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.03.json#q02",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q01",
   "type": "recall",
   "version": 1
  },
@@ -2224,7 +1972,7 @@
   "difficulty": 1,
   "id": "si_2c55f7760f9c",
   "lesson_origin": "session",
-  "lesson_text": "False. The SEC says the last-traded price is not necessarily the price a market order gets. A market order generally fills at or near the current bid or ask, which can differ from the last trade. In a fast market, even those can move before your order fills. Last is history. Bid and ask are what you can trade at now.",
+  "lesson_text": "False. The last price is a trade that already happened. A market buy almost always fills at the ask, the least a seller will take right now. The ask can sit above the last. In a fast market it can move before you fill. Last is history. A market buy pays the ask.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -2232,19 +1980,12 @@
     "False"
    ],
    "kind": "tf",
-   "q": "The last price is the price your market order will get.",
+   "q": "A market buy fills at the last price you saw on your screen.",
    "subject": "F1.03#q05"
   },
   "reveal_json": {
    "depth": {
     "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Types of Orders",
-      "quote": "the last-traded price is not necessarily the price at which a market order will be executed.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
-     },
      {
       "accessed": "2026-11-08",
       "name": "SEC, Investor.gov: Types of Orders",
@@ -2254,22 +1995,43 @@
      },
      {
       "accessed": "2026-11-08",
+      "name": "Fidelity Investments: ETF trading tips (Fidelity Viewpoints)",
+      "quote": "By contrast, with a market order, you get the prevailing market bid or ask price.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/viewpoints/active-investor/etf-trading-tips"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Types of Orders",
+      "quote": "the last-traded price is not necessarily the price at which a market order will be executed.",
+      "tier": 1,
+      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders"
+     },
+     {
+      "accessed": "2026-11-08",
       "name": "FINRA: Order Types",
       "quote": "On the downside, you might not get the price you saw or were originally quoted, especially in fast-moving markets.",
       "tier": 1,
       "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "Answer the way a working trader says it: a market buy fills at the ask",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
      }
     ],
-    "summary": "The last trade is not the price your market order is promised. A market buy fills at or near the ask; a market sell fills at or near the bid. In a fast market, a market order can fill away from the quote you saw."
+    "summary": "A market buy fills at or near the ask; a market sell fills at or near the bid. A market order takes the bid (selling) or the ask (buying). The last trade is not the price your market order is promised. In a fast market, a market order can fill away from the quote you saw. The owner teaches it the trader's way: a market buy fills at the ask."
    },
    "facts": {
-    "given": "The last price is the price your market order will get."
+    "given": "A market buy fills at the last price you saw on your screen."
    },
-   "lesson_line": "Last is history. Bid and ask are what you can trade at now.",
-   "simple": "False, the last price is a trade that already happened, and a market order usually fills near the bid or the ask.",
+   "lesson_line": "Last is history. A market buy pays the ask.",
+   "simple": "False, the last price already happened, and a market buy almost always fills at the ask.",
    "tier": "core",
    "unit": "F1.03",
-   "why": "False. The SEC says the last-traded price is not necessarily the price a market order gets. A market order generally fills at or near the current bid or ask, which can differ from the last trade. In a fast market, even those can move before your order fills."
+   "why": "False. The last price is a trade that already happened. A market buy almost always fills at the ask, the least a seller will take right now. The ask can sit above the last. In a fast market it can move before you fill."
   },
   "review_status": "draft",
   "skill_id": "basics.spread",
@@ -2439,7 +2201,7 @@
   "difficulty": 2,
   "id": "si_48c879a5ce9e",
   "lesson_origin": "session",
-  "lesson_text": "$0.04. The spread is the ask minus the bid: $25.02 minus $24.98. That is what each share costs you if you buy at the ask and sell straight back at the bid. Spread equals ask minus bid. Work it out before every order.",
+  "lesson_text": "$0.04. The bid is the most a buyer pays right now, $24.98. The ask is the least a seller takes, $25.02. The spread is ask minus bid: 25.02 minus 24.98 = 0.04. Buy at the ask and sell back at the bid, and you lose that 4 cents a share. Spread equals ask minus bid. Work it out before every order.",
   "module": "F1",
   "prompt_json": {
    "kind": "fill_numeric",
@@ -2463,9 +2225,30 @@
       "quote": "If an investor buys 200 ETF shares at the ask price of $60 and sells them immediately at the bid price of $59.50, the investor would incur a loss of $100.",
       "tier": 1,
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The term “bid” refers to the highest price a buyer will pay to buy a specified number of ETF shares at any given time.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The term “ask” refers to the lowest price at which a seller will sell the ETF shares.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "bid = the most a buyer pays right now, ask = the least a seller takes",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
      }
     ],
-    "summary": "The bid sits below the ask, and the gap between them (ask minus bid) is the spread. Buying at the ask and selling straight back at the bid loses the spread on every share."
+    "summary": "The bid sits below the ask, and the gap between them (ask minus bid) is the spread. Buying at the ask and selling straight back at the bid loses the spread on every share. The bid is the highest price a buyer will pay right now, for a stated number of shares. The ask is the lowest price a seller will take. Plain definitions: the bid is the most a buyer pays right now, the ask is the least a seller takes."
    },
    "facts": {
     "calc": {
@@ -2482,83 +2265,12 @@
    "simple": "The spread is $0.04, because the ask of $25.02 minus the bid of $24.98 leaves four cents.",
    "tier": "core",
    "unit": "F1.03",
-   "why": "$0.04. The spread is the ask minus the bid: $25.02 minus $24.98. That is what each share costs you if you buy at the ask and sell straight back at the bid."
+   "why": "$0.04. The bid is the most a buyer pays right now, $24.98. The ask is the least a seller takes, $25.02. The spread is ask minus bid: 25.02 minus 24.98 = 0.04. Buy at the ask and sell back at the bid, and you lose that 4 cents a share."
   },
   "review_status": "draft",
   "skill_id": "basics.spread",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.03.json#q08",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "accept": [
-    "0.5",
-    "0.50",
-    "0.500"
-   ],
-   "answer": 0.5
-  },
-  "difficulty": 2,
-  "id": "si_ab7d0e3a2f53",
-  "lesson_origin": "session",
-  "lesson_text": "0.5%. The gap is $20.05 minus $19.95. Divide it by the midpoint, the price halfway between bid and ask, and write the result as a percent. The SEC's ETF rule measures spreads this way, rounded to the nearest hundredth. A percent lets you compare a cheap stock with a pricey one. Percent lets you compare spreads on cheap stocks and pricey ones.",
-  "module": "F1",
-  "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint?",
-   "subject": "F1.03#q09",
-   "suffix": "%"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC rule text, eCFR (17 CFR 270.6c-11): Rule 6c-11, Exchange-traded funds (median bid-ask spread)",
-      "quote": "Dividing the difference between each such bid and offer by the midpoint of the national best bid and national best offer",
-      "tier": 1,
-      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-270/section-270.6c-11"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC rule text, eCFR (17 CFR 270.6c-11): Rule 6c-11, Exchange-traded funds (median bid-ask spread)",
-      "quote": "The exchange-traded fund's median bid-ask spread, expressed as a percentage rounded to the nearest hundredth, computed by:",
-      "tier": 1,
-      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-270/section-270.6c-11"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
-      "quote": "If someone asked you what a share of JKL was “worth,” you would probably choose the midpoint, $50.00, or maybe the last price at which you can see a trade actually happened.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
-     }
-    ],
-    "summary": "The SEC's ETF rule gets the spread percent by dividing ask minus bid by the midpoint. The SEC's ETF rule states the spread as a percentage, to two decimals. The midpoint and the last trade are reference values for what a share is worth, not prices you can trade at right now."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "ask": 20.05,
-      "bid": 19.95
-     },
-     "fn": "spread_pct",
-     "result": 0.5
-    },
-    "given": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint?"
-   },
-   "lesson_line": "Percent lets you compare spreads on cheap stocks and pricey ones.",
-   "simple": "It is 0.5%, the gap between bid and ask divided by the price halfway between them.",
-   "tier": "extended",
-   "unit": "F1.03",
-   "why": "0.5%. The gap is $20.05 minus $19.95. Divide it by the midpoint, the price halfway between bid and ask, and write the result as a percent. The SEC's ETF rule measures spreads this way, rounded to the nearest hundredth. A percent lets you compare a cheap stock with a pricey one."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.spread",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.03.json#q09",
   "type": "recall",
   "version": 1
  },
@@ -2629,7 +2341,7 @@
   "difficulty": 2,
   "id": "si_dc29e3025e42",
   "lesson_origin": "session",
-  "lesson_text": "Near $41.90. The stop price is only a trigger. Once it is hit, the stop becomes a market order, and a market sell fills at or near the bid. The price is not guaranteed: in a fast market the fill can come in below the bid you saw. It is never a promise of $42.00. Your stop is a trigger, not a price. Expect the bid, or worse in a fast market.",
+  "lesson_text": "Near $41.90. The stop price is only a trigger. Once it is hit, the stop becomes a market order. A market sell fills at or near the bid, the most a buyer pays right now. The price is not guaranteed: in a fast market the fill can come in below it. It is never a promise of $42.00. Your stop is a trigger, not a price. Expect the bid, or worse in a fast market.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -2673,9 +2385,16 @@
       "quote": "On the downside, you might not get the price you saw or were originally quoted, especially in fast-moving markets.",
       "tier": 1,
       "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "bid = the most a buyer pays right now, ask = the least a seller takes",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
      }
     ],
-    "summary": "A stop price is a trigger: once hit, the stop becomes a market order with no promised price. A market buy fills at or near the ask; a market sell fills at or near the bid. A market order fills right away, but its price is not guaranteed. In a fast market, a market order can fill away from the quote you saw."
+    "summary": "A stop price is a trigger: once hit, the stop becomes a market order with no promised price. A market buy fills at or near the ask; a market sell fills at or near the bid. A market order fills right away, but its price is not guaranteed. In a fast market, a market order can fill away from the quote you saw. Plain definitions: the bid is the most a buyer pays right now, the ask is the least a seller takes."
    },
    "facts": {
     "given": "Near which price should you expect your shares to sell? You own a stock with a sell stop at $42.00. It trades down and the stop triggers. The quote now reads $41.90 bid, $42.05 ask. Near $41.90 Near $42.05 Exactly $42.00 $42.00 or more"
@@ -2684,11 +2403,11 @@
    "simple": "Expect about $41.90, because a triggered stop becomes a market sell, and a market sell fills near the bid.",
    "tier": "core",
    "unit": "F1.03",
-   "why": "Near $41.90. The stop price is only a trigger. Once it is hit, the stop becomes a market order, and a market sell fills at or near the bid. The price is not guaranteed: in a fast market the fill can come in below the bid you saw. It is never a promise of $42.00.",
+   "why": "Near $41.90. The stop price is only a trigger. Once it is hit, the stop becomes a market order. A market sell fills at or near the bid, the most a buyer pays right now. The price is not guaranteed: in a fast market the fill can come in below it. It is never a promise of $42.00.",
    "wrong": {
     "$42.00 or more": "That treats the stop as a floor. Once it triggers it's a market sell, and the bid is already below $42.00.",
     "Exactly $42.00": "The stop price only triggers the order. It is not a guaranteed fill price.",
-    "Near $42.05": "That's the ask, the price buyers pay. You're the seller here."
+    "Near $42.05": "That's the ask, the price a buyer pays. You are selling, so you get the bid."
    }
   },
   "review_status": "draft",
@@ -2705,7 +2424,7 @@
   "difficulty": 2,
   "id": "si_d021029177dc",
   "lesson_origin": "session",
-  "lesson_text": "Some at $12.40, rest higher. Only 300 shares show at the $12.40 ask, and a market order generally fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. A better fill is possible, but it is never promised. The SEC's own example works the same way: 500 of 1,000 shares could fill at the quote, the rest higher. Read the size before you send size. A market order takes what's there, then reaches higher.",
+  "lesson_text": "Some at $12.40, rest higher. The ask is the least a seller will take, and only 300 shares sit there. A market order fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. The SEC's own example works the same way: 500 of 1,000 shares fill at the quote, the rest higher. Read the size before you send size. A market order takes what's there, then reaches higher.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -2716,7 +2435,7 @@
    ],
    "kind": "mcq",
    "q": "What should you expect from the fill?",
-   "story": "The ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares.",
+   "story": "On Level 2, the ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares.",
    "subject": "F1.03#q12"
   },
   "reveal_json": {
@@ -2759,18 +2478,32 @@
       "quote": "On the downside, you might not get the price you saw or were originally quoted, especially in fast-moving markets.",
       "tier": 1,
       "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
+      "quote": "The term “ask” refers to the lowest price at which a seller will sell the ETF shares.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "Order-flow questions name the tool.",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
      }
     ],
-    "summary": "A big market order can fill at several prices when one price does not hold enough shares. Part of a market order can fill at the quoted price and the rest at higher prices. A market order fills right away, but its price is not guaranteed. You can be filled better than the quote (price improvement), but nothing promises it. In a fast market, a market order can fill away from the quote you saw."
+    "summary": "A big market order can fill at several prices when one price does not hold enough shares. Part of a market order can fill at the quoted price and the rest at higher prices. A market order fills right away, but its price is not guaranteed. You can be filled better than the quote (price improvement), but nothing promises it. In a fast market, a market order can fill away from the quote you saw. The ask is the lowest price a seller will take. A question about shares at a price names the tool: Level 2 or time and sales."
    },
    "facts": {
-    "given": "What should you expect from the fill? The ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares. All 1,000 shares at $12.40 Some at $12.40, rest higher It waits until $12.40 has size Some at $12.40, rest cancelled"
+    "given": "What should you expect from the fill? On Level 2, the ask is $12.40 with 300 shares showing. More sellers wait at $12.45 and $12.50. You send a market buy for 1,000 shares. All 1,000 shares at $12.40 Some at $12.40, rest higher It waits until $12.40 has size Some at $12.40, rest cancelled"
    },
    "lesson_line": "Read the size before you send size. A market order takes what's there, then reaches higher.",
    "simple": "Only 300 shares sit at $12.40, so expect some to fill there and the rest at the higher prices above it.",
    "tier": "extended",
    "unit": "F1.03",
-   "why": "Some at $12.40, rest higher. Only 300 shares show at the $12.40 ask, and a market order generally fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. A better fill is possible, but it is never promised. The SEC's own example works the same way: 500 of 1,000 shares could fill at the quote, the rest higher.",
+   "why": "Some at $12.40, rest higher. The ask is the least a seller will take, and only 300 shares sit there. A market order fills right away against what is there. Expect the rest to fill against the sellers above it, at $12.45, $12.50 or higher. The SEC's own example works the same way: 500 of 1,000 shares fill at the quote, the rest higher.",
    "wrong": {
     "All 1,000 shares at $12.40": "Only 300 shares show there. You can't count on more at that price, so expect the rest higher.",
     "It waits until $12.40 has size": "A market order doesn't wait for more sellers at your price. It generally executes right away, against the sellers who are there.",
@@ -2850,71 +2583,6 @@
  },
  {
   "answer_json": {
-   "answer": "size"
-  },
-  "difficulty": 1,
-  "id": "si_518d34bda2c2",
-  "lesson_origin": "session",
-  "lesson_text": "Size. The size is the number of shares waiting at a quoted price. A bid size of 300 means 300 shares wanted at that bid price. Price tells you where buyers and sellers stand; size tells you how many shares are there. At the best bid or ask, the size is often small. Price tells you where. Size tells you how many.",
-  "module": "F1",
-  "prompt_json": {
-   "bank": [
-    "size",
-    "volume",
-    "spread",
-    "range",
-    "last"
-   ],
-   "kind": "fill",
-   "q": "Fill the blank with the right word.",
-   "sentence": "The number of shares waiting at a quoted price is its ___.",
-   "subject": "size"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: Level II (thinkorswim Learning Center)",
-      "quote": "for example, 300 in the bid size column means that there are 300 shares or contracts ready to be bought at the respective bid price at the respective exchange.",
-      "tier": 2,
-      "url": "https://toslc.thinkorswim.com/center/howToTos/thinkManual/Left-Sidebar/Level-II.html"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Investor Bulletin: Exchange-Traded Funds (ETFs)",
-      "quote": "The term “bid” refers to the highest price a buyer will pay to buy a specified number of ETF shares at any given time.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
-      "quote": "Typically, the number of shares offered on the bid or the ask will be small",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
-     }
-    ],
-    "summary": "Bid size is the number of shares buyers want at that bid price. The bid is the highest price a buyer will pay right now, for a stated number of shares. The number of shares showing at the best bid or ask is usually small."
-   },
-   "facts": {
-    "given": "Fill the blank with the right word. The number of shares waiting at a quoted price is its ___."
-   },
-   "lesson_line": "Price tells you where. Size tells you how many.",
-   "simple": "The size is how many shares wait at that price, like 300 shares wanted at the bid.",
-   "tier": "core",
-   "unit": "F1.03",
-   "why": "Size. The size is the number of shares waiting at a quoted price. A bid size of 300 means 300 shares wanted at that bid price. Price tells you where buyers and sellers stand; size tells you how many shares are there. At the best bid or ask, the size is often small."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.spread",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.03.json#q14",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "False"
   },
   "difficulty": 2,
@@ -2976,23 +2644,23 @@
  },
  {
   "answer_json": {
-   "answer": "50.00 / 50.02, sizes 3,000 / 2,500"
+   "answer": "50.00 / 50.02 with 3,000 / 2,500"
   },
   "difficulty": 3,
   "id": "si_eddc23ebe29f",
   "lesson_origin": "session",
-  "lesson_text": "50.00 / 50.02, sizes 3,000 / 2,500. Its spread is tight, and 2,500 shares sit at the ask, enough for your 2,000. The 49.70 / 50.30 quote costs far more to cross. The 50.01 / 50.02 quote is tighter, but only 100 shares sit at the ask. Most of your order likely fills higher. Judge a spread with the size behind it. I want a tight spread AND real size at the price. One without the other costs you.",
+  "lesson_text": "50.00 / 50.02 with 3,000 / 2,500. On Level 2, the ask side shows 2,500 shares at 50.02, enough for your 2,000. The spread is only two cents. The 49.70 / 50.30 quote has the size but costs sixty cents to cross. The 50.01 / 50.02 quote is tight, but only 100 shares sit at the ask, so the rest fills higher. Time and sales, the live list of trades, shows whether size really trades there. I want a tight spread AND real size at the price. One without the other costs you.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "50.01 / 50.02, sizes 100 / 100",
-    "49.70 / 50.30, 2,000 / 2,500",
-    "50.00 / 50.02, sizes 3,000 / 2,500",
-    "49.95 / 50.05, 1,500 / 1,800"
+    "50.01 / 50.02 with 100 / 100",
+    "49.70 / 50.30 with 2,000 / 2,500",
+    "50.00 / 50.02 with 3,000 / 2,500",
+    "49.95 / 50.05 with 1,500 / 1,800"
    ],
    "kind": "mcq",
-   "q": "Which quote would you buy 2,000 shares into?",
-   "story": "Four stocks, and you want 2,000 shares of one. Each line shows bid / ask, then the shares at the bid / at the ask.",
+   "q": "On Level 2, which quote can you buy 2,000 shares into cleanly?",
+   "story": "You want to buy 2,000 shares. Level 2 shows four stocks. Each line reads bid / ask, then the shares at the bid / at the ask.",
    "subject": "F1.03#q16"
   },
   "reveal_json": {
@@ -3024,6 +2692,13 @@
      },
      {
       "accessed": "2026-11-08",
+      "name": "Charles Schwab: Level II (thinkorswim Learning Center)",
+      "quote": "the bid area of the gadget is sorted in descending order by the bid price column, so that highest prices are on top. The ask side is sorted vice versa: the default sorting displays lowest prices on top.",
+      "tier": 2,
+      "url": "https://toslc.thinkorswim.com/center/howToTos/thinkManual/Left-Sidebar/Level-II.html"
+     },
+     {
+      "accessed": "2026-11-08",
       "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
       "quote": "Typically, the number of shares offered on the bid or the ask will be small",
       "tier": 2,
@@ -3035,22 +2710,29 @@
       "quote": "In general, smaller spreads are better, but context is key.",
       "tier": 2,
       "url": "https://www.fidelity.com/viewpoints/active-investor/etf-trading-tips"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "Order-flow questions name the tool.",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
      }
     ],
-    "summary": "A wider spread costs you more to trade. A big market order can fill at several prices when one price does not hold enough shares. Bid size is the number of shares buyers want at that bid price. The number of shares showing at the best bid or ask is usually small. Smaller spreads are generally better, judged in context."
+    "summary": "A wider spread costs you more to trade. A big market order can fill at several prices when one price does not hold enough shares. Bid size is the number of shares buyers want at that bid price. On a Level II book, the best prices sit on top: the highest bid and the lowest ask. The number of shares showing at the best bid or ask is usually small. Smaller spreads are generally better, judged in context. A question about shares at a price names the tool: Level 2 or time and sales."
    },
    "facts": {
-    "given": "Which quote would you buy 2,000 shares into? Four stocks, and you want 2,000 shares of one. Each line shows bid / ask, then the shares at the bid / at the ask. 50.00 / 50.02, sizes 3,000 / 2,500 49.70 / 50.30, 2,000 / 2,500 50.01 / 50.02, sizes 100 / 100 49.95 / 50.05, 1,500 / 1,800"
+    "given": "On Level 2, which quote can you buy 2,000 shares into cleanly? You want to buy 2,000 shares. Level 2 shows four stocks. Each line reads bid / ask, then the shares at the bid / at the ask. 50.00 / 50.02 with 3,000 / 2,500 49.70 / 50.30 with 2,000 / 2,500 50.01 / 50.02 with 100 / 100 49.95 / 50.05 with 1,500 / 1,800"
    },
    "lesson_line": "I want a tight spread AND real size at the price. One without the other costs you.",
    "simple": "Pick the tight quote with 2,500 shares at the ask, because it is cheap to cross and covers your 2,000 shares.",
    "tier": "extended",
    "unit": "F1.03",
-   "why": "50.00 / 50.02, sizes 3,000 / 2,500. Its spread is tight, and 2,500 shares sit at the ask, enough for your 2,000. The 49.70 / 50.30 quote costs far more to cross. The 50.01 / 50.02 quote is tighter, but only 100 shares sit at the ask. Most of your order likely fills higher. Judge a spread with the size behind it.",
+   "why": "50.00 / 50.02 with 3,000 / 2,500. On Level 2, the ask side shows 2,500 shares at 50.02, enough for your 2,000. The spread is only two cents. The 49.70 / 50.30 quote has the size but costs sixty cents to cross. The 50.01 / 50.02 quote is tight, but only 100 shares sit at the ask, so the rest fills higher. Time and sales, the live list of trades, shows whether size really trades there.",
    "wrong": {
-    "49.70 / 50.30, 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
-    "49.95 / 50.05, 1,500 / 1,800": "Wider than the best quote, and 1,800 shares at the ask won't cover your 2,000. The rest likely fills higher.",
-    "50.01 / 50.02, sizes 100 / 100": "Tight, but only 100 shares at the ask. The rest of your order likely fills at higher prices."
+    "49.70 / 50.30 with 2,000 / 2,500": "The size is there, but the spread is wide. You're well under water the moment you buy.",
+    "49.95 / 50.05 with 1,500 / 1,800": "Wider than the best quote, and 1,800 shares at the ask won't cover your 2,000. The rest likely fills higher.",
+    "50.01 / 50.02 with 100 / 100": "Tight, but only 100 shares at the ask. The rest of your order likely fills at higher prices."
    }
   },
   "review_status": "draft",
@@ -3067,7 +2749,7 @@
   "difficulty": 3,
   "id": "si_137f7fd7ea7c",
   "lesson_origin": "session",
-  "lesson_text": "A, by about 20 times. Divide each spread by its midpoint, the way the SEC's ETF rule states spreads. B's spread is bigger in cents, but B's price is far bigger still. So B's spread is a tiny slice of its price. A's spread is a big slice of a small price. With the same dollars in either, A costs far more to cross. Compare spreads in percent, not cents. A small spread on a cheap stock can cost the most.",
+  "lesson_text": "A, by about 20 times. The midpoint is the price halfway between bid and ask. A: spread 0.10, midpoint 5.00, so 0.10 / 5.00 = 2%. B: spread is twenty cents, midpoint 200.00, so about a tenth of a percent. B's spread is bigger in cents, but its price is far bigger still. A's spread eats a big slice of a small price. With the same dollars in either, A costs far more to cross. Compare spreads in percent, not cents. A small spread on a cheap stock can cost the most.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -3114,9 +2796,16 @@
       "quote": "In addition, parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
       "tier": 1,
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "spread 0.10, midpoint 20.00, 0.10 / 20.00 = 0.5%",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
      }
     ],
-    "summary": "The SEC's ETF rule gets the spread percent by dividing ask minus bid by the midpoint. The SEC's ETF rule states the spread as a percentage, to two decimals. A wider spread costs you more to trade. A big market order can fill at several prices when one price does not hold enough shares."
+    "summary": "The SEC's ETF rule gets the spread percent by dividing ask minus bid by the midpoint. The SEC's ETF rule states the spread as a percentage, to two decimals. A wider spread costs you more to trade. A big market order can fill at several prices when one price does not hold enough shares. Worked steps for the spread percent: spread 0.10, midpoint 20.00, 0.10 divided by 20.00 is 0.5%."
    },
    "facts": {
     "calc": {
@@ -3136,7 +2825,7 @@
    "simple": "A costs more, about 20 times, because its small spread sits on a small price, so it eats more of each dollar.",
    "tier": "expert",
    "unit": "F1.03",
-   "why": "A, by about 20 times. Divide each spread by its midpoint, the way the SEC's ETF rule states spreads. B's spread is bigger in cents, but B's price is far bigger still. So B's spread is a tiny slice of its price. A's spread is a big slice of a small price. With the same dollars in either, A costs far more to cross.",
+   "why": "A, by about 20 times. The midpoint is the price halfway between bid and ask. A: spread 0.10, midpoint 5.00, so 0.10 / 5.00 = 2%. B: spread is twenty cents, midpoint 200.00, so about a tenth of a percent. B's spread is bigger in cents, but its price is far bigger still. A's spread eats a big slice of a small price. With the same dollars in either, A costs far more to cross.",
    "wrong": {
     "B costs about 2x more": "That's comparing cents. B's spread is bigger in cents, but its price is far bigger still.",
     "Can't tell without the size": "Size matters for a big order, but this asks the spread as a percent of its midpoint. The two quotes give you all you need.",
@@ -3157,7 +2846,7 @@
   "difficulty": 3,
   "id": "si_2fe5283968ab",
   "lesson_origin": "session",
-  "lesson_text": "A wider spread than in the day. The SEC says less trading interest after hours generally means wider spreads, or no quote at all. Orders can be harder to fill, at worse prices than in regular hours. Many brokers accept only limit orders after hours. Our own rule adds one more: no new buys outside regular trading hours. After hours, spreads widen and fills get harder. Our rule: no new buys outside regular hours.",
+  "lesson_text": "A wider spread than in the day. Fewer traders work after hours, so the gap between bid and ask is usually wider, or there is no quote at all. Orders can be harder to fill, at worse prices than in regular hours. Our own rule adds one more: no new buys outside regular trading hours. After hours, spreads widen and fills get harder. Our rule: no new buys outside regular hours.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -3199,13 +2888,6 @@
       "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types"
      },
      {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin",
-      "quote": "With respect to extended-hours trading, many brokerage firms currently accept only limit orders",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
-     },
-     {
       "accessed": "2026-11-12",
       "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
       "quote": "E58. No new buys outside regular trading hours.",
@@ -3213,7 +2895,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Before and after the regular session, spreads are usually wider, or there may be no quote at all. Wider extended-hours spreads make fills harder and prices worse than in the regular session. In a fast market, a market order can fill away from the quote you saw. In extended hours, many brokers accept only limit orders. Our rule: no new buys outside regular trading hours."
+    "summary": "Before and after the regular session, spreads are usually wider, or there may be no quote at all. Wider extended-hours spreads make fills harder and prices worse than in the regular session. In a fast market, a market order can fill away from the quote you saw. Our rule: no new buys outside regular trading hours."
    },
    "facts": {
     "given": "Compared with the regular session, what should you expect from the quote? A stock reports earnings after the close. It jumps in after-hours trading. You pull up its quote. A wider spread than in the day A tighter spread, with all the news The same spread as in the day Fills right at the quote you see"
@@ -3222,7 +2904,7 @@
    "simple": "Fewer people trade after hours, so expect a wider spread, and our rule is no new buys then.",
    "tier": "expert",
    "unit": "F1.03",
-   "why": "A wider spread than in the day. The SEC says less trading interest after hours generally means wider spreads, or no quote at all. Orders can be harder to fill, at worse prices than in regular hours. Many brokers accept only limit orders after hours. Our own rule adds one more: no new buys outside regular trading hours.",
+   "why": "A wider spread than in the day. Fewer traders work after hours, so the gap between bid and ask is usually wider, or there is no quote at all. Orders can be harder to fill, at worse prices than in regular hours. Our own rule adds one more: no new buys outside regular trading hours.",
    "wrong": {
     "A tighter spread, with all the news": "News can feel like it brings buyers. But the SEC says lower trading interest after hours generally means wider spreads.",
     "Fills right at the quote you see": "The SEC says after-hours orders can be harder to fill, at worse prices. The quote you see is not a promise.",
@@ -3511,6 +3193,89 @@
  },
  {
   "answer_json": {
+   "answer": "0.5%"
+  },
+  "difficulty": 2,
+  "id": "si_53f5a8d0748e",
+  "lesson_origin": "session",
+  "lesson_text": "0.5%. First, the spread is 20.05 minus 19.95, which is 0.10. Next, the midpoint, halfway between bid and ask, is 20.00. Then 0.10 / 20.00 = 0.005, which is 0.5%. A percent lets you compare a cheap stock with a pricey one. Spread divided by midpoint, as a percent. Percent compares cheap and pricey stocks.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "0.005%",
+    "0.1%",
+    "0.5%",
+    "5%"
+   ],
+   "kind": "mcq",
+   "q": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint, the price halfway between them?",
+   "subject": "F1.03#q90"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC rule text, eCFR (17 CFR 270.6c-11): Rule 6c-11, Exchange-traded funds (median bid-ask spread)",
+      "quote": "Dividing the difference between each such bid and offer by the midpoint of the national best bid and national best offer",
+      "tier": 1,
+      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-270/section-270.6c-11"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC rule text, eCFR (17 CFR 270.6c-11): Rule 6c-11, Exchange-traded funds (median bid-ask spread)",
+      "quote": "The exchange-traded fund's median bid-ask spread, expressed as a percentage rounded to the nearest hundredth, computed by:",
+      "tier": 1,
+      "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-270/section-270.6c-11"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "If someone asked you what a share of JKL was “worth,” you would probably choose the midpoint, $50.00, or maybe the last price at which you can see a trade actually happened.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "spread 0.10, midpoint 20.00, 0.10 / 20.00 = 0.5%",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
+     }
+    ],
+    "summary": "The SEC's ETF rule gets the spread percent by dividing ask minus bid by the midpoint. The SEC's ETF rule states the spread as a percentage, to two decimals. The midpoint and the last trade are reference values for what a share is worth, not prices you can trade at right now. Worked steps for the spread percent: spread 0.10, midpoint 20.00, 0.10 divided by 20.00 is 0.5%."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "ask": 20.05,
+      "bid": 19.95
+     },
+     "fn": "spread_pct",
+     "result": 0.5
+    },
+    "given": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint, the price halfway between them? 0.5% 0.1% 0.005% 5%"
+   },
+   "lesson_line": "Spread divided by midpoint, as a percent. Percent compares cheap and pricey stocks.",
+   "simple": "It is 0.5%, the gap between bid and ask divided by the price halfway between them.",
+   "tier": "extended",
+   "unit": "F1.03",
+   "why": "0.5%. First, the spread is 20.05 minus 19.95, which is 0.10. Next, the midpoint, halfway between bid and ask, is 20.00. Then 0.10 / 20.00 = 0.005, which is 0.5%. A percent lets you compare a cheap stock with a pricey one.",
+   "wrong": {
+    "0.005%": "That is the decimal 0.005, not yet turned into a percent. As a percent it is 0.5%.",
+    "0.1%": "That calls the ten cent spread 0.1%. A percent needs the spread divided by the price: 0.10 / 20.00.",
+    "5%": "The decimal point slipped two places. 0.10 / 20.00 is 0.005, which is 0.5%."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.spread",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.03.json#q90",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "unscored": true
   },
   "difficulty": 1,
@@ -3790,67 +3555,6 @@
  },
  {
   "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 1,
-  "id": "si_2cb89f47dac8",
-  "lesson_origin": "session",
-  "lesson_text": "False. Volume counts each traded share once. If A sells 100 shares to B, the volume is 100 shares, not 200. Nasdaq's glossary says it another way. With a seller for every buyer, volume is half the shares counted on both sides. Every share traded has a buyer and a seller. Volume counts it once.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "When one investor sells 100 shares to another, the day's volume goes up by 200 shares.",
-   "subject": "F1.04#q02"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Nasdaq: Trading volume (Nasdaq glossary)",
-      "quote": "As there is a seller for every buyer, one can think of the trading volume as half of the number of shares transacted.",
-      "tier": 1,
-      "url": "https://www.nasdaq.com/glossary/t/trading-volume"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Nasdaq: Trading volume (Nasdaq glossary)",
-      "quote": "That is, if A sells 100 shares to B, the volume is 100 shares.",
-      "tier": 1,
-      "url": "https://www.nasdaq.com/glossary/t/trading-volume"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: Why Is Volume Important? (Erin Swenlin, ChartWatchers, March 2018)",
-      "quote": "Remember that a unit of volume represents a transaction of a buyer and seller. If you want to buy a stock, you have to find a seller.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/articles-chartwatchers-2018-03-why-is-volume-important/"
-     }
-    ],
-    "summary": "Every share traded has a buyer and a seller, and volume counts that share once. When one investor sells 100 shares to another, volume is 100 shares, not 200. Every share of volume has a buyer and a seller; to buy, you have to find a seller."
-   },
-   "facts": {
-    "given": "When one investor sells 100 shares to another, the day's volume goes up by 200 shares."
-   },
-   "lesson_line": "Every share traded has a buyer and a seller. Volume counts it once.",
-   "simple": "False, because each share sold to a buyer counts once, so 100 shares sold adds 100 to volume.",
-   "tier": "core",
-   "unit": "F1.04",
-   "why": "False. Volume counts each traded share once. If A sells 100 shares to B, the volume is 100 shares, not 200. Nasdaq's glossary says it another way. With a seller for every buyer, volume is half the shares counted on both sides."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.volume",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.04.json#q02",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "average"
   },
   "difficulty": 1,
@@ -3916,111 +3620,22 @@
  },
  {
   "answer_json": {
-   "answer": "A large-cap stock"
-  },
-  "difficulty": 1,
-  "id": "si_f9303c33f43f",
-  "lesson_origin": "session",
-  "lesson_text": "A large-cap stock. FINRA says large caps are usually more liquid than small or micro caps. Well-known stocks with heavy daily volume are generally more liquid than low-priced, low-volume or obscure ones. Usually is the key word: stocks with higher trading volume are generally more liquid, so check the volume itself. Big, heavily traded names are usually the easiest to get in and out of.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "A micro-cap",
-    "A large-cap stock",
-    "A cheap stock",
-    "A small-cap"
-   ],
-   "kind": "mcq",
-   "q": "Which kind of stock is usually the easiest to buy and sell quickly?",
-   "subject": "F1.04#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Understanding Market Liquidity and Your Investments",
-      "quote": "Large-cap stocks are usually more liquid than small- or micro-cap stocks.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/market-liquidity-risk"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Understanding Market Liquidity and Your Investments",
-      "quote": "For example, well-known stocks with higher daily trading volumes are generally more liquid than low-priced, low-volume or obscure securities.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/market-liquidity-risk"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: Microcap Stock Basics (Part 1 of 3: General Information)",
-      "quote": "Another risk that pertains to microcap stocks involves the low volumes of trades, which may make it difficult for you to sell your shares when you want to do so.",
-      "tier": 1,
-      "url": "https://investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-microcap-stock-basics-part-1-3"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: Microcap Stock Basics (Part 1 of 3: General Information)",
-      "quote": "Because many microcap stocks trade in low volumes, any size trade can have a large percentage impact on the price of the stock.",
-      "tier": 1,
-      "url": "https://investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-microcap-stock-basics-part-1-3"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Low-Priced Stocks Can Spell Big Problems",
-      "quote": "They tend to be volatile, and they trade in low volumes, which means they’re subject to price fluctuations from even relatively small trades.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/low-priced-stocks-big-problems"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Understanding Market Liquidity and Your Investments",
-      "quote": "Generally, securities with higher trading volume are more liquid. Executing a large order quickly in a low-volume security can be difficult.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/market-liquidity-risk"
-     }
-    ],
-    "summary": "Large-cap stocks are usually more liquid than small-cap or micro-cap stocks. Well-known stocks with heavy daily volume are generally more liquid than cheap, low-volume or obscure ones. Low volume can make it hard to sell your shares when you want to. In a low-volume stock, any size trade can move the price a lot in percentage terms. Low-priced stocks often trade in low volumes, so even fairly small trades can move their price. Higher volume usually means more liquid, and a large order in a low-volume stock is hard to fill quickly."
-   },
-   "facts": {
-    "given": "Which kind of stock is usually the easiest to buy and sell quickly? A large-cap stock A small-cap A micro-cap A cheap stock"
-   },
-   "lesson_line": "Big, heavily traded names are usually the easiest to get in and out of.",
-   "simple": "A large-cap stock, because FINRA says large caps are usually more liquid than small or micro caps.",
-   "tier": "core",
-   "unit": "F1.04",
-   "why": "A large-cap stock. FINRA says large caps are usually more liquid than small or micro caps. Well-known stocks with heavy daily volume are generally more liquid than low-priced, low-volume or obscure ones. Usually is the key word: stocks with higher trading volume are generally more liquid, so check the volume itself.",
-   "wrong": {
-    "A cheap stock": "A low price is not liquidity. Low-priced stocks tend to trade in low volumes, so even fairly small trades can move them.",
-    "A micro-cap": "Micro caps often trade in low volumes. Even small trades can move them, and selling can be hard.",
-    "A small-cap": "Small caps are usually less liquid than large caps, so getting in and out quickly can be harder."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "basics.volume",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.04.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "Easy to trade without moving the price"
+   "answer": "Enough volume to get in and out"
   },
   "difficulty": 1,
   "id": "si_7ed73f574b21",
   "lesson_origin": "session",
-  "lesson_text": "Easy to trade without moving the price. A stock's liquidity is how fast its shares can be bought or sold without a big hit to the price. FINRA adds: at a fair price, when you want to. It is about the shares trading, not the company's cash, a calm price or a cheap one. Liquid means you can get in and out fast, at a fair price.",
+  "lesson_text": "Enough volume to get in and out. Volume is the shares traded in a day. A liquid stock trades enough of them that you can buy or sell when you want, quickly and without moving the price much. Cash on the balance sheet, a calm price or a low price do not make a stock liquid. Liquid means enough volume to get in and out.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Its price barely moves day to day",
-    "Its shares cost only a few dollars",
+    "A price that barely moves daily",
+    "A share price of only a few dollars",
     "The company holds plenty of cash",
-    "Easy to trade without moving the price"
+    "Enough volume to get in and out"
    ],
    "kind": "mcq",
-   "q": "When we call a stock liquid, what do we mean?",
+   "q": "What makes a stock liquid?",
    "subject": "liquid"
   },
   "reveal_json": {
@@ -4053,89 +3668,42 @@
       "quote": "For example, well-known stocks with higher daily trading volumes are generally more liquid than low-priced, low-volume or obscure securities.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/market-liquidity-risk"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: Understanding an ETF's spreads and volumes (ETF.com article on Fidelity's Learning Center)",
+      "quote": "Volume is the number of shares that trade on any given day. The higher the volume, the better.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/investment-products/etf/etfs-spreads-volumes"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "a liquid stock is one that trades enough volume to get in and out",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
      }
     ],
-    "summary": "A stock is liquid when its shares can be bought or sold quickly without a big move in the price. Market liquidity is how easily you can buy or sell at a fair price when you want to. Liquidity is how easily a security can be bought or sold without moving its price. Well-known stocks with heavy daily volume are generally more liquid than cheap, low-volume or obscure ones."
+    "summary": "A stock is liquid when its shares can be bought or sold quickly without a big move in the price. Market liquidity is how easily you can buy or sell at a fair price when you want to. Liquidity is how easily a security can be bought or sold without moving its price. Well-known stocks with heavy daily volume are generally more liquid than cheap, low-volume or obscure ones. Volume is the shares traded in a day, and more volume makes a stock easier to trade. A liquid stock is one that trades enough volume to get in and out."
    },
    "facts": {
-    "given": "When we call a stock liquid, what do we mean? Easy to trade without moving the price The company holds plenty of cash Its price barely moves day to day Its shares cost only a few dollars"
+    "given": "What makes a stock liquid? Enough volume to get in and out The company holds plenty of cash A price that barely moves daily A share price of only a few dollars"
    },
-   "lesson_line": "Liquid means you can get in and out fast, at a fair price.",
-   "simple": "Liquid means you can buy or sell the shares quickly without moving the price much.",
+   "lesson_line": "Liquid means enough volume to get in and out.",
+   "simple": "A liquid stock trades enough volume that you can get in and out quickly without moving the price.",
    "tier": "core",
    "unit": "F1.04",
-   "why": "Easy to trade without moving the price. A stock's liquidity is how fast its shares can be bought or sold without a big hit to the price. FINRA adds: at a fair price, when you want to. It is about the shares trading, not the company's cash, a calm price or a cheap one.",
+   "why": "Enough volume to get in and out. Volume is the shares traded in a day. A liquid stock trades enough of them that you can buy or sell when you want, quickly and without moving the price much. Cash on the balance sheet, a calm price or a low price do not make a stock liquid.",
    "wrong": {
-    "Its price barely moves day to day": "That's a quiet stock, not a liquid one. Liquidity is about how easily shares trade at a fair price.",
-    "Its shares cost only a few dollars": "Cheap doesn't mean liquid. Low-priced, low-volume stocks are generally less liquid.",
-    "The company holds plenty of cash": "That's the company's balance sheet. A stock's liquidity is about how easily its shares trade."
+    "A price that barely moves daily": "That's a quiet stock, not a liquid one. A quiet stock can still trade too few shares to exit.",
+    "A share price of only a few dollars": "Cheap is not liquid. Low-priced stocks often trade in low volumes, so even fairly small trades can move them.",
+    "The company holds plenty of cash": "That's the balance sheet. A stock is liquid when enough shares trade for you to get in and out."
    }
   },
   "review_status": "draft",
   "skill_id": "basics.volume",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.04.json#q05",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 1,
-  "id": "si_51cb0817035a",
-  "lesson_origin": "session",
-  "lesson_text": "False. There is a seller for every buyer, so shares bought always equal shares sold, on any day. Heavy volume means more shares changed hands. It shows how much traded, not which side pushed, and average volume does not predict direction. Volume tells you how much traded. It doesn't tell you which way the stock goes.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "On a heavy-volume day, more shares usually get bought than sold.",
-   "subject": "F1.04#q06"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Nasdaq: Trading volume (Nasdaq glossary)",
-      "quote": "As there is a seller for every buyer, one can think of the trading volume as half of the number of shares transacted.",
-      "tier": 1,
-      "url": "https://www.nasdaq.com/glossary/t/trading-volume"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: Why Is Volume Important? (Erin Swenlin, ChartWatchers, March 2018)",
-      "quote": "Remember that a unit of volume represents a transaction of a buyer and seller. If you want to buy a stock, you have to find a seller.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/articles-chartwatchers-2018-03-why-is-volume-important/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Understanding Average Daily Trading Volume (ADTV)",
-      "quote": "Significant volume changes can indicate shifting investor interest, though ADTV itself does not predict direction.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/a/averagedailytradingvolume.asp"
-     }
-    ],
-    "summary": "Every share traded has a buyer and a seller, and volume counts that share once. Every share of volume has a buyer and a seller; to buy, you have to find a seller. Big changes in volume can signal shifting interest, but average volume does not predict direction."
-   },
-   "facts": {
-    "given": "On a heavy-volume day, more shares usually get bought than sold."
-   },
-   "lesson_line": "Volume tells you how much traded. It doesn't tell you which way the stock goes.",
-   "simple": "False, because every share bought is a share sold, so buys and sells always match.",
-   "tier": "core",
-   "unit": "F1.04",
-   "why": "False. There is a seller for every buyer, so shares bought always equal shares sold, on any day. Heavy volume means more shares changed hands. It shows how much traded, not which side pushed, and average volume does not predict direction."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.volume",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.04.json#q06",
   "type": "recall",
   "version": 1
  },
@@ -4223,152 +3791,12 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "100",
-    "100.0",
-    "100.00",
-    "100.000"
-   ],
-   "answer": 100.0
-  },
-  "difficulty": 2,
-  "id": "si_5197ea221930",
-  "lesson_origin": "session",
-  "lesson_text": "$100 million. Dollar volume is shares times price: 2,500,000 shares at $40 is $100 million a day on average. S&P Dow Jones Indices measures dollar value traded the same way, price times volume. I read volume in dollars. It puts cheap and pricey stocks on the same scale.",
-  "module": "F1",
-  "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "A $40 stock averages 2,500,000 shares a day. What is its average daily dollar volume, in millions?",
-   "subject": "F1.04#q08",
-   "suffix": " million"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "S&P Dow Jones Indices: Float Adjusted Liquidity Ratio Clarification for Certain U.S. Indices (Dec 9, 2024)",
-      "quote": "annual dollar value traded is defined as the average closing price multiplied by the historical volume over the 365 calendar days prior to the evaluation date.",
-      "tier": 1,
-      "url": "https://press.spglobal.com/2024-12-09-S-P-Dow-Jones-Indices-Float-Adjusted-Liquidity-Ratio-Clarification-for-Certain-U-S-Indices"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Nasdaq Global Indexes: Nasdaq-100 Index Consultation, November 2023",
-      "quote": "In terms of dollar volume, this imposes a more stringent requirement on companies with higher stock prices and a less stringent requirement on those with lower prices.",
-      "tier": 1,
-      "url": "https://indexes.nasdaq.com/docs/NDX%20Index%20Consultation%20November%202023%20-%20Final.pdf"
-     }
-    ],
-    "summary": "S&P Dow Jones Indices measures dollar value traded as price times volume. Measured in dollars, a share-count test is tougher on high-priced stocks and easier on cheap ones."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "expr": "shares * price / 1000000",
-      "price": 40,
-      "shares": 2500000
-     },
-     "fn": "arith",
-     "result": 100.0
-    },
-    "given": "A $40 stock averages 2,500,000 shares a day. What is its average daily dollar volume, in millions?"
-   },
-   "lesson_line": "I read volume in dollars. It puts cheap and pricey stocks on the same scale.",
-   "simple": "It is $100 million, because 2,500,000 shares times $40 a share is $100 million.",
-   "tier": "core",
-   "unit": "F1.04",
-   "why": "$100 million. Dollar volume is shares times price: 2,500,000 shares at $40 is $100 million a day on average. S&P Dow Jones Indices measures dollar value traded the same way, price times volume."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.volume",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.04.json#q08",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "accept": [
-    "4",
-    "4.0",
-    "4.00",
-    "4.000"
-   ],
-   "answer": 4.0
-  },
-  "difficulty": 2,
-  "id": "si_2f9830fde0c5",
-  "lesson_origin": "session",
-  "lesson_text": "4x. Divide today's volume by the average: 4.8 million over 1.2 million is 4. Measured against the stock's own average, today is clearly heavy. Knowing volume is above average gives a sense of how much conviction a move might have. Heavy or light is relative. Measure today against the stock's own average.",
-  "module": "F1",
-  "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "A stock averages 1.2 million shares a day. Today it trades 4.8 million. How many times its average is that?",
-   "subject": "F1.04#q09",
-   "suffix": "x"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: What Is Average Volume? (Technical Indicator Guide)",
-      "quote": "Compare the Average Volume for the specified period to determine if volume is above or below average.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/average-volume"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Why to consider stock volume (Fidelity Viewpoints)",
-      "quote": "You can tell when volume is high or low by comparing the current level to another time period (such as previous days, weeks, or months, depending on your time frame), an average, or some other benchmark.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/viewpoints/active-investor/stock-volume"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: Learn How to Read Stock Quotes (Schwab Workplace)",
-      "quote": "If volume so far today is above or below average, it's helpful to know for a sense of how much conviction a move might have.",
-      "tier": 2,
-      "url": "https://workplace.schwab.com/story/learn-how-to-read-stock-quotes"
-     }
-    ],
-    "summary": "Compare a day's volume with the average to see whether it is above or below normal. You judge volume as high or low by comparing it with past periods or with an average. Knowing whether today's volume is above or below average gives a sense of how much conviction a move might have."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "avg": 1.2,
-      "expr": "today / avg",
-      "today": 4.8
-     },
-     "fn": "arith",
-     "result": 4.0
-    },
-    "given": "A stock averages 1.2 million shares a day. Today it trades 4.8 million. How many times its average is that?"
-   },
-   "lesson_line": "Heavy or light is relative. Measure today against the stock's own average.",
-   "simple": "It is 4 times the average, because 4.8 million divided by 1.2 million is 4.",
-   "tier": "core",
-   "unit": "F1.04",
-   "why": "4x. Divide today's volume by the average: 4.8 million over 1.2 million is 4. Measured against the stock's own average, today is clearly heavy. Knowing volume is above average gives a sense of how much conviction a move might have."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.volume",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.04.json#q09",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Wednesday"
   },
   "difficulty": 2,
   "id": "si_062477fe5c5e",
   "lesson_origin": "session",
-  "lesson_text": "Wednesday. Judge each day against the 800,000 average. Wednesday's 2,400,000 is far above it. Monday's 760,000, Tuesday's 840,000 and Thursday's 910,000 all sit close to normal. Volume spikes usually come on earnings, a report or news. A heavy day stands out against the stock's own average.",
+  "lesson_text": "Wednesday. Judge each day against the 800,000 average. Wednesday's 2,400,000 is three times normal. Monday's 760,000, Tuesday's 840,000 and Thursday's 910,000 all sit close to the average. Volume spikes usually come on earnings, a report or news. A heavy day stands out against the stock's own average.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -4433,7 +3861,7 @@
    "simple": "Wednesday, because its 2,400,000 shares are far above the 800,000 average, while the other days sit near it.",
    "tier": "extended",
    "unit": "F1.04",
-   "why": "Wednesday. Judge each day against the 800,000 average. Wednesday's 2,400,000 is far above it. Monday's 760,000, Tuesday's 840,000 and Thursday's 910,000 all sit close to normal. Volume spikes usually come on earnings, a report or news.",
+   "why": "Wednesday. Judge each day against the 800,000 average. Wednesday's 2,400,000 is three times normal. Monday's 760,000, Tuesday's 840,000 and Thursday's 910,000 all sit close to the average. Volume spikes usually come on earnings, a report or news.",
    "wrong": {
     "Monday": "760,000 is a touch under the 800,000 average. That's a normal day.",
     "Thursday": "910,000 is a little above average, but nowhere near Wednesday.",
@@ -4445,86 +3873,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.04.json#q10",
   "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "accept": [
-    "25",
-    "25.0",
-    "25.00",
-    "25.000"
-   ],
-   "answer": 25.0
-  },
-  "difficulty": 2,
-  "id": "si_51cdc28b8c3d",
-  "lesson_origin": "session",
-  "lesson_text": "25%. Divide your order by the average day: 20,000 over 80,000 is a quarter of a normal day's volume. Traders often use average volume as a benchmark for trade size. A large order in a low-volume stock can be hard to fill quickly without moving the price. Our rule: never own more than 1% of a stock's average daily volume. This order is far past it. Size your order against the average volume. A big slice of the day can move the price on you.",
-  "module": "F1",
-  "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "You want to buy 20,000 shares. The stock averages 80,000 shares a day. What percent of a normal day is your order?",
-   "subject": "F1.04#q11",
-   "suffix": "%"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Understanding Average Daily Trading Volume (ADTV)",
-      "quote": "Traders often use ADTV as a benchmark for determining appropriate trade sizes.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/a/averagedailytradingvolume.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: ETF trading tips (Fidelity Viewpoints)",
-      "quote": "where even small orders have the potential to represent a high percentage of an ETF's average daily volume and, as a result, impact the prevailing market price.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/viewpoints/active-investor/etf-trading-tips"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Understanding Market Liquidity and Your Investments",
-      "quote": "Generally, securities with higher trading volume are more liquid. Executing a large order quickly in a low-volume security can be difficult.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/market-liquidity-risk"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "Traders often use average daily volume as a benchmark for how big a trade should be. In thinly traded names, even a small order can be a big share of average daily volume and move the price. Higher volume usually means more liquid, and a large order in a low-volume stock is hard to fill quickly. Our rule: never own more than 1% of a stock's average daily volume, and we do not even watch illiquid stocks."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "adv": 80000,
-      "expr": "order / adv * 100",
-      "order": 20000
-     },
-     "fn": "arith",
-     "result": 25.0
-    },
-    "given": "You want to buy 20,000 shares. The stock averages 80,000 shares a day. What percent of a normal day is your order?"
-   },
-   "lesson_line": "Size your order against the average volume. A big slice of the day can move the price on you.",
-   "simple": "It is 25%, because 20,000 shares is a quarter of the 80,000 shares a normal day trades.",
-   "tier": "extended",
-   "unit": "F1.04",
-   "why": "25%. Divide your order by the average day: 20,000 over 80,000 is a quarter of a normal day's volume. Traders often use average volume as a benchmark for trade size. A large order in a low-volume stock can be hard to fill quickly without moving the price. Our rule: never own more than 1% of a stock's average daily volume. This order is far past it."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.volume",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.04.json#q11",
-  "type": "recall",
   "version": 1
  },
  {
@@ -4620,7 +3968,7 @@
   "difficulty": 2,
   "id": "si_fa53ce311df1",
   "lesson_origin": "session",
-  "lesson_text": "B, at $60 million a day. Dollar volume is shares traded times the price. B's 400,000 shares at $150 is $60 million. A trades more shares, but at $2 each they come to far fewer dollars. Compare stocks in dollars traded, not shares. Compare stocks in dollars traded, not shares. A share count hides the price.",
+  "lesson_text": "B, at $60 million a day. Dollar volume is shares traded times the price. B is 400,000 shares times $150, which is $60 million. A is 3,000,000 shares times $2, only $6 million. A trades more shares, but a tenth of the dollars. Compare stocks in dollars traded, not shares. Compare stocks in dollars traded, not shares. A share count hides the price.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -4677,7 +4025,7 @@
    "simple": "B trades more dollars, because 400,000 shares at $150 is $60 million a day, while A's cheap shares come to far less.",
    "tier": "extended",
    "unit": "F1.04",
-   "why": "B, at $60 million a day. Dollar volume is shares traded times the price. B's 400,000 shares at $150 is $60 million. A trades more shares, but at $2 each they come to far fewer dollars. Compare stocks in dollars traded, not shares.",
+   "why": "B, at $60 million a day. Dollar volume is shares traded times the price. B is 400,000 shares times $150, which is $60 million. A is 3,000,000 shares times $2, only $6 million. A trades more shares, but a tenth of the dollars. Compare stocks in dollars traded, not shares.",
    "wrong": {
     "A, 3 million shares a day": "More shares, but cheap ones. At $2 a share, A trades far fewer dollars than B.",
     "Need market cap to tell": "Market cap uses shares outstanding. Dollars traded uses only the shares that trade: price times volume.",
@@ -4802,92 +4150,6 @@
   "skill_id": "basics.volume",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.04.json#q14",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "The $2,800 stock"
-  },
-  "difficulty": 3,
-  "id": "si_f7c39e84c1ea",
-  "lesson_origin": "session",
-  "lesson_text": "The $2,800 stock. The old rule counted shares: an average of 200,000 a day. Nasdaq said that, in dollar terms, this was more stringent on high-priced stocks and less on cheap ones. The same share count is far more money at $2,800 than at $5. Nasdaq's current rule uses dollars: at least $5 million a day, on a three-month average. Same shares, different dollars. That's why I check dollar volume, not just the share count.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "The $2,800 stock",
-    "The $5 stock",
-    "Same bar for both",
-    "The bigger company"
-   ],
-   "kind": "mcq",
-   "q": "Measured in dollars, which stock faced the higher bar under that rule?",
-   "story": "The Nasdaq-100 once required an average of 200,000 shares traded a day. Nasdaq noted its members ranged from about $5 to $2,800 a share.",
-   "subject": "F1.04#q15"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "The trap is reading a share count as a size. 200,000 shares a day sounds the same for every stock. But at $5 it is a small sum, and at $2,800 a huge one. That gap is why Nasdaq's current test is in dollars. It is an index entry rule, not ours: we trade only stocks that trade at least $20 million a day."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Nasdaq Global Indexes: Nasdaq-100 Index Consultation, November 2023",
-      "quote": "The Nasdaq-100 Index methodology, as currently written, requires a security to have a minimum average daily trading volume of 200,000 shares.",
-      "tier": 1,
-      "url": "https://indexes.nasdaq.com/docs/NDX%20Index%20Consultation%20November%202023%20-%20Final.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Nasdaq Global Indexes: Nasdaq-100 Index Consultation, November 2023",
-      "quote": "In terms of dollar volume, this imposes a more stringent requirement on companies with higher stock prices and a less stringent requirement on those with lower prices.",
-      "tier": 1,
-      "url": "https://indexes.nasdaq.com/docs/NDX%20Index%20Consultation%20November%202023%20-%20Final.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Nasdaq Global Indexes: Nasdaq-100 Index Consultation, November 2023",
-      "quote": "Recent prices of current NDX members range from as little as $5 per share, to as high as $2,800.",
-      "tier": 1,
-      "url": "https://indexes.nasdaq.com/docs/NDX%20Index%20Consultation%20November%202023%20-%20Final.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Nasdaq Global Indexes: Nasdaq-100 Index Methodology (liquidity criterion)",
-      "quote": "A security must have a three-month average daily value traded (“ADVT”) of at least $5 million (USD).",
-      "tier": 1,
-      "url": "https://indexes.nasdaqomx.com/docs/methodology_NDX.pdf"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "In November 2023 the Nasdaq-100 liquidity test was an average of 200,000 shares traded a day. Measured in dollars, a share-count test is tougher on high-priced stocks and easier on cheap ones. Nasdaq-100 members then ranged from about $5 to $2,800 a share. Nasdaq's current Nasdaq-100 rule measures liquidity in dollars: at least $5 million traded a day, on a three-month average. Our rule: we trade only stocks priced at $10 or more that trade at least $20 million a day."
-   },
-   "facts": {
-    "given": "Measured in dollars, which stock faced the higher bar under that rule? The Nasdaq-100 once required an average of 200,000 shares traded a day. Nasdaq noted its members ranged from about $5 to $2,800 a share. The $2,800 stock The $5 stock Same bar for both The bigger company"
-   },
-   "lesson_line": "Same shares, different dollars. That's why I check dollar volume, not just the share count.",
-   "simple": "The $2,800 stock, because 200,000 shares at that price is far more money than 200,000 shares at $5.",
-   "tier": "extended",
-   "unit": "F1.04",
-   "why": "The $2,800 stock. The old rule counted shares: an average of 200,000 a day. Nasdaq said that, in dollar terms, this was more stringent on high-priced stocks and less on cheap ones. The same share count is far more money at $2,800 than at $5. Nasdaq's current rule uses dollars: at least $5 million a day, on a three-month average.",
-   "wrong": {
-    "Same bar for both": "Same share count, very different dollars. Nasdaq pointed to exactly that gap.",
-    "The $5 stock": "At $5, 200,000 shares is little money. That was the easy bar to clear.",
-    "The bigger company": "The test counted shares traded, not company size. At the same share count, a higher price means more dollars."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "basics.volume",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.04.json#q15",
   "type": "scenario",
   "version": 1
  },
@@ -5128,28 +4390,28 @@
  },
  {
   "answer_json": {
-   "answer": "Stock Y, despite the price"
+   "answer": "Stock Y, it trades far more dollars"
   },
   "difficulty": 3,
   "id": "si_384e4266fb01",
   "lesson_origin": "session",
-  "lesson_text": "Stock Y. Multiply price by average volume to see the dollars a stock trades each day. X at $12 on 25,000 shares trades so few dollars that your $60,000 would be a big piece of its day. Y at $45 on 2,000,000 shares trades so much that yours barely shows. A lower share price does not make a stock easier to trade. Our own rule agrees: we trade only stocks that trade at least $20 million a day, and X falls far short. Before I size up, I check dollar volume. My order should be a small part of a normal day.",
+  "lesson_text": "Stock Y. Dollar volume is price times shares traded, the money that changes hands in a day. X is $12 times 25,000 shares, only a few hundred thousand dollars a day, so your $60,000 would be a fifth of its day and would move the price. Y is $45 times 2,000,000 shares, tens of millions of dollars a day, so your order barely shows. A lower share price does not make a stock easier to trade. Our rule agrees: we trade only stocks that trade at least $20 million a day. Before I size up, I check dollar volume. My order should be a small part of a normal day.",
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Neither, $60,000 is too big",
-    "Stock X, it's cheaper",
-    "Stock Y, despite the price",
-    "Either one at this size"
+    "Neither, $60,000 is too much",
+    "Stock X, the share price is lower",
+    "Stock Y, it trades far more dollars",
+    "Either one, $60,000 is small"
    ],
    "kind": "mcq",
-   "q": "Which one can take your size and still let you out cleanly?",
-   "story": "You want a $60,000 position. Stock X is $12 and averages 25,000 shares a day. Stock Y is $45 and averages 2,000,000 shares a day.",
+   "q": "Which stock lets you get in and out without moving it?",
+   "story": "You want to buy $60,000 of one stock. Stock X trades 25,000 shares a day at $12. Stock Y trades 2,000,000 shares a day at $45.",
    "subject": "F1.04#q19"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is thinking the cheaper stock is easier because you get more shares for the money. Price does not decide liquidity; how much trades each day says far more. Before you size up, check what part of a normal day your order would be."
+    "trap": "The trap is thinking the cheaper stock is easier because the same money buys more shares. Price does not decide liquidity. What trades each day does. Before you size up, check what part of a normal day your order would be."
    },
    "depth": {
     "sources": [
@@ -5206,17 +4468,17 @@
     "summary": "Higher volume usually means more liquid, and a large order in a low-volume stock is hard to fill quickly. Traders often use average daily volume as a benchmark for how big a trade should be. When average volume is low, even small orders can move the price more. S&P Dow Jones Indices measures dollar value traded as price times volume. Well-known stocks with heavy daily volume are generally more liquid than cheap, low-volume or obscure ones. Higher average volume usually means easier entries and exits without moving the price much. Our rule: we trade only stocks priced at $10 or more that trade at least $20 million a day."
    },
    "facts": {
-    "given": "Which one can take your size and still let you out cleanly? You want a $60,000 position. Stock X is $12 and averages 25,000 shares a day. Stock Y is $45 and averages 2,000,000 shares a day. Stock Y, despite the price Stock X, it's cheaper Either one at this size Neither, $60,000 is too big"
+    "given": "Which stock lets you get in and out without moving it? You want to buy $60,000 of one stock. Stock X trades 25,000 shares a day at $12. Stock Y trades 2,000,000 shares a day at $45. Stock Y, it trades far more dollars Stock X, the share price is lower Either one, $60,000 is small Neither, $60,000 is too much"
    },
    "lesson_line": "Before I size up, I check dollar volume. My order should be a small part of a normal day.",
    "simple": "Stock Y, because it trades far more dollars a day, so your $60,000 is a tiny part of its normal day.",
    "tier": "expert",
    "unit": "F1.04",
-   "why": "Stock Y. Multiply price by average volume to see the dollars a stock trades each day. X at $12 on 25,000 shares trades so few dollars that your $60,000 would be a big piece of its day. Y at $45 on 2,000,000 shares trades so much that yours barely shows. A lower share price does not make a stock easier to trade. Our own rule agrees: we trade only stocks that trade at least $20 million a day, and X falls far short.",
+   "why": "Stock Y. Dollar volume is price times shares traded, the money that changes hands in a day. X is $12 times 25,000 shares, only a few hundred thousand dollars a day, so your $60,000 would be a fifth of its day and would move the price. Y is $45 times 2,000,000 shares, tens of millions of dollars a day, so your order barely shows. A lower share price does not make a stock easier to trade. Our rule agrees: we trade only stocks that trade at least $20 million a day.",
    "wrong": {
-    "Either one at this size": "Not here. In X, an order this big against the day's volume can be hard to fill fast without moving the price.",
-    "Neither, $60,000 is too big": "Not for Y. It trades millions of shares a day, so your order barely shows there.",
-    "Stock X, it's cheaper": "A lower price doesn't make it liquid. X's dollar volume is small, so your order would be a big part of its day."
+    "Either one, $60,000 is small": "Not for X. Against its small dollar volume, $60,000 is a big order that can move the price.",
+    "Neither, $60,000 is too much": "Not for Y. It trades millions of shares a day, so your order barely shows there.",
+    "Stock X, the share price is lower": "A lower price does not make a stock liquid. X trades few dollars a day, so your order would be a big part of it."
    }
   },
   "review_status": "draft",
@@ -5224,63 +4486,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.04.json#q19",
   "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 3,
-  "id": "si_8afdce734e5f",
-  "lesson_origin": "session",
-  "lesson_text": "False. A listing on a major exchange does not promise volume. FINRA warns that bad actors exploit the sense of safety a listing gives. They particularly target listed stocks with low trading volume and a price of $5 or less. Check the average volume yourself before you trust a name. A listing is not liquidity. Check the average volume before you trust a name.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "A major-exchange listing tells you a stock trades plenty of shares.",
-   "subject": "F1.04#q21"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "A big-exchange ticker can feel safe. FINRA's warning is about exactly that feeling: bad actors target listed stocks with low trading volume. The listing tells you where a stock trades, not how much it trades."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Low-Priced Stocks Can Spell Big Problems",
-      "quote": "bad actors might exploit the sense of safety that comes from exchange-listed stocks and target these securities for manipulation schemes, particularly stocks that that have low trading volume and trade at a lower price ($5 or less)",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/low-priced-stocks-big-problems"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Low-Priced Stocks Can Spell Big Problems",
-      "quote": "treat stocks with a small market cap, foreign issuers or significant price spikes and drops with particular caution.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/low-priced-stocks-big-problems"
-     }
-    ],
-    "summary": "Bad actors target exchange-listed stocks too, particularly ones with low trading volume and a price of $5 or less. FINRA says to treat small caps and stocks with sharp price spikes and drops with particular caution."
-   },
-   "facts": {
-    "given": "A major-exchange listing tells you a stock trades plenty of shares."
-   },
-   "lesson_line": "A listing is not liquidity. Check the average volume before you trust a name.",
-   "simple": "False, because listed stocks can trade thinly too, so check the volume yourself.",
-   "tier": "expert",
-   "unit": "F1.04",
-   "why": "False. A listing on a major exchange does not promise volume. FINRA warns that bad actors exploit the sense of safety a listing gives. They particularly target listed stocks with low trading volume and a price of $5 or less. Check the average volume yourself before you trust a name."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.volume",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.04.json#q21",
-  "type": "recall",
   "version": 1
  },
  {
@@ -5294,10 +4499,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "We skip it: too few dollars a day",
     "We skip it until price is $20",
     "We trade it at small size",
-    "We trade it: price is over $10"
+    "We trade it: price is over $10",
+    "We skip it: too few dollars a day"
    ],
    "kind": "mcq",
    "q": "What does our rule say about this stock?",
@@ -5357,24 +4562,336 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "6000",
-    "6000.0",
-    "6000.00",
-    "6000.000"
-   ],
-   "answer": 6000.0
+   "answer": "True"
   },
-  "difficulty": 2,
-  "id": "si_326101331346",
+  "difficulty": 1,
+  "id": "si_feeb91715b69",
   "lesson_origin": "session",
-  "lesson_text": "6,000 shares. One percent of 600,000 is 6,000. Our rule: never own more than 1% of a stock's average daily volume. That keeps our position a tiny part of a normal day, and illiquid stocks are not even watched. We never own more than 1% of a stock's average daily volume.",
+  "lesson_text": "True. Dollar volume, the shares traded times the price, shows how much money changes hands. The more it trades, the easier it is to get out. Before I buy, I check how much trades in a normal day.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "Our rule: never own more than 1% of a stock's average daily volume. It averages 600,000 shares a day. What is the most we'd own?",
-   "subject": "F1.04#q23",
-   "suffix": " shares"
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Before you buy, the dollars a stock trades each day best tell you that you can get out.",
+   "subject": "F1.04#q90"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: ETF trading and liquidity (Schwab Asset Management)",
+      "quote": "For this reason, average daily trading volume is generally a clear indicator of stock liquidity.",
+      "tier": 2,
+      "url": "https://www.schwabassetmanagement.com/content/etf-trading-and-liquidity"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "FINRA: Understanding Market Liquidity and Your Investments",
+      "quote": "For example, well-known stocks with higher daily trading volumes are generally more liquid than low-priced, low-volume or obscure securities.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/market-liquidity-risk"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "FINRA: Understanding Market Liquidity and Your Investments",
+      "quote": "Large-cap stocks are usually more liquid than small- or micro-cap stocks.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/market-liquidity-risk"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "S&P Dow Jones Indices: Float Adjusted Liquidity Ratio Clarification for Certain U.S. Indices (Dec 9, 2024)",
+      "quote": "annual dollar value traded is defined as the average closing price multiplied by the historical volume over the 365 calendar days prior to the evaluation date.",
+      "tier": 1,
+      "url": "https://press.spglobal.com/2024-12-09-S-P-Dow-Jones-Indices-Float-Adjusted-Liquidity-Ratio-Clarification-for-Certain-U-S-Indices"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "FINRA: Low-Priced Stocks Can Spell Big Problems",
+      "quote": "They tend to be volatile, and they trade in low volumes, which means they’re subject to price fluctuations from even relatively small trades.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/low-priced-stocks-big-problems"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investopedia: Understanding Average Daily Trading Volume (ADTV)",
+      "quote": "Traders often use ADTV as a benchmark for determining appropriate trade sizes.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/a/averagedailytradingvolume.asp"
+     }
+    ],
+    "summary": "For a stock, average daily volume is generally a clear sign of how liquid it is. Well-known stocks with heavy daily volume are generally more liquid than cheap, low-volume or obscure ones. Large-cap stocks are usually more liquid than small-cap or micro-cap stocks. S&P Dow Jones Indices measures dollar value traded as price times volume. Low-priced stocks often trade in low volumes, so even fairly small trades can move their price. Traders often use average daily volume as a benchmark for how big a trade should be."
+   },
+   "facts": {
+    "given": "Before you buy, the dollars a stock trades each day best tell you that you can get out."
+   },
+   "lesson_line": "Before I buy, I check how much trades in a normal day.",
+   "simple": "True, because the more dollars trade each day, the easier it is to get out of your shares.",
+   "tier": "core",
+   "unit": "F1.04",
+   "why": "True. Dollar volume, the shares traded times the price, shows how much money changes hands. The more it trades, the easier it is to get out."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.volume",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.04.json#q90",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "$100 million"
+  },
+  "difficulty": 2,
+  "id": "si_17be55380a62",
+  "lesson_origin": "session",
+  "lesson_text": "$100 million. Dollar volume is shares traded times the price, roughly the money that changes hands. The steps: 2,500,000 shares times $40 is 100 million dollars a day. Volume in dollars puts cheap and pricey stocks on the same scale. I read volume in dollars. It puts cheap and pricey stocks on the same scale.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "$100 million",
+    "$62,500",
+    "$1 billion",
+    "$10 million"
+   ],
+   "kind": "mcq",
+   "q": "A $40 stock averages 2,500,000 shares a day. What is its average daily dollar volume?",
+   "subject": "F1.04#q91"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "S&P Dow Jones Indices: Float Adjusted Liquidity Ratio Clarification for Certain U.S. Indices (Dec 9, 2024)",
+      "quote": "annual dollar value traded is defined as the average closing price multiplied by the historical volume over the 365 calendar days prior to the evaluation date.",
+      "tier": 1,
+      "url": "https://press.spglobal.com/2024-12-09-S-P-Dow-Jones-Indices-Float-Adjusted-Liquidity-Ratio-Clarification-for-Certain-U-S-Indices"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Nasdaq Global Indexes: Nasdaq-100 Index Consultation, November 2023",
+      "quote": "In terms of dollar volume, this imposes a more stringent requirement on companies with higher stock prices and a less stringent requirement on those with lower prices.",
+      "tier": 1,
+      "url": "https://indexes.nasdaq.com/docs/NDX%20Index%20Consultation%20November%202023%20-%20Final.pdf"
+     }
+    ],
+    "summary": "S&P Dow Jones Indices measures dollar value traded as price times volume. Measured in dollars, a share-count test is tougher on high-priced stocks and easier on cheap ones."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "expr": "shares * price / 1000000",
+      "price": 40,
+      "shares": 2500000
+     },
+     "fn": "arith",
+     "result": 100.0
+    },
+    "given": "A $40 stock averages 2,500,000 shares a day. What is its average daily dollar volume? $100 million $10 million $1 billion $62,500"
+   },
+   "lesson_line": "I read volume in dollars. It puts cheap and pricey stocks on the same scale.",
+   "simple": "It is $100 million, because 2,500,000 shares times $40 a share is $100 million.",
+   "tier": "core",
+   "unit": "F1.04",
+   "why": "$100 million. Dollar volume is shares traded times the price, roughly the money that changes hands. The steps: 2,500,000 shares times $40 is 100 million dollars a day. Volume in dollars puts cheap and pricey stocks on the same scale.",
+   "wrong": {
+    "$1 billion": "One zero too many. Count them: 2,500,000 times 40 is 100 million.",
+    "$10 million": "A zero slipped. 2,500,000 times 40 is 100 million, not 10 million.",
+    "$62,500": "That divides the shares by the price. Dollar volume multiplies them."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.volume",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.04.json#q91",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "4 times"
+  },
+  "difficulty": 2,
+  "id": "si_61d3de25063c",
+  "lesson_origin": "session",
+  "lesson_text": "4 times. Divide today's volume by the average: 4.8 million divided by 1.2 million is 4. Heavy or light is judged against the stock's own average, and volume well above average gives a sense of how much conviction a move might have. Heavy or light is relative. Measure today against the stock's own average.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "3.6 times",
+    "0.25 times",
+    "6 times",
+    "4 times"
+   ],
+   "kind": "mcq",
+   "q": "A stock averages 1.2 million shares a day. Today it trades 4.8 million. Today is how many times its average?",
+   "subject": "F1.04#q92"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: What Is Average Volume? (Technical Indicator Guide)",
+      "quote": "Compare the Average Volume for the specified period to determine if volume is above or below average.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/average-volume"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: Why to consider stock volume (Fidelity Viewpoints)",
+      "quote": "You can tell when volume is high or low by comparing the current level to another time period (such as previous days, weeks, or months, depending on your time frame), an average, or some other benchmark.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/viewpoints/active-investor/stock-volume"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Charles Schwab: Learn How to Read Stock Quotes (Schwab Workplace)",
+      "quote": "If volume so far today is above or below average, it's helpful to know for a sense of how much conviction a move might have.",
+      "tier": 2,
+      "url": "https://workplace.schwab.com/story/learn-how-to-read-stock-quotes"
+     }
+    ],
+    "summary": "Compare a day's volume with the average to see whether it is above or below normal. You judge volume as high or low by comparing it with past periods or with an average. Knowing whether today's volume is above or below average gives a sense of how much conviction a move might have."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "avg": 1.2,
+      "expr": "today / avg",
+      "today": 4.8
+     },
+     "fn": "arith",
+     "result": 4.0
+    },
+    "given": "A stock averages 1.2 million shares a day. Today it trades 4.8 million. Today is how many times its average? 4 times 3.6 times 6 times 0.25 times"
+   },
+   "lesson_line": "Heavy or light is relative. Measure today against the stock's own average.",
+   "simple": "It is 4 times the average, because 4.8 million divided by 1.2 million is 4.",
+   "tier": "core",
+   "unit": "F1.04",
+   "why": "4 times. Divide today's volume by the average: 4.8 million divided by 1.2 million is 4. Heavy or light is judged against the stock's own average, and volume well above average gives a sense of how much conviction a move might have.",
+   "wrong": {
+    "0.25 times": "That flips it. Divide today by the average, not the average by today.",
+    "3.6 times": "That subtracts. 4.8 minus 1.2 is 3.6 million more shares, not 3.6 times as many.",
+    "6 times": "That adds. 4.8 plus 1.2 is 6 million shares, not a multiple."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.volume",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.04.json#q92",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "25%"
+  },
+  "difficulty": 2,
+  "id": "si_897452435f06",
+  "lesson_origin": "session",
+  "lesson_text": "25%. Divide your order by the average day: 20,000 over 80,000 is one quarter, or 25%. Traders often use average volume as a benchmark for trade size. A large order in a low-volume stock can be hard to fill without moving the price. Our rule: never own more than 1% of a stock's average daily volume. This order is far past it. Size your order against the average volume. A big slice of the day can move the price on you.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "2.5%",
+    "4%",
+    "25%",
+    "250%"
+   ],
+   "kind": "mcq",
+   "q": "You want 20,000 shares of a stock that averages 80,000 a day. What share of a normal day is your order?",
+   "subject": "F1.04#q93"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Investopedia: Understanding Average Daily Trading Volume (ADTV)",
+      "quote": "Traders often use ADTV as a benchmark for determining appropriate trade sizes.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/a/averagedailytradingvolume.asp"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: ETF trading tips (Fidelity Viewpoints)",
+      "quote": "where even small orders have the potential to represent a high percentage of an ETF's average daily volume and, as a result, impact the prevailing market price.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/viewpoints/active-investor/etf-trading-tips"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "FINRA: Understanding Market Liquidity and Your Investments",
+      "quote": "Generally, securities with higher trading volume are more liquid. Executing a large order quickly in a low-volume security can be difficult.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/market-liquidity-risk"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "Traders often use average daily volume as a benchmark for how big a trade should be. In thinly traded names, even a small order can be a big share of average daily volume and move the price. Higher volume usually means more liquid, and a large order in a low-volume stock is hard to fill quickly. Our rule: never own more than 1% of a stock's average daily volume, and we do not even watch illiquid stocks."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "adv": 80000,
+      "expr": "order / adv * 100",
+      "order": 20000
+     },
+     "fn": "arith",
+     "result": 25.0
+    },
+    "given": "You want 20,000 shares of a stock that averages 80,000 a day. What share of a normal day is your order? 25% 4% 250% 2.5%"
+   },
+   "lesson_line": "Size your order against the average volume. A big slice of the day can move the price on you.",
+   "simple": "It is 25%, because 20,000 shares is a quarter of the 80,000 shares a normal day trades.",
+   "tier": "extended",
+   "unit": "F1.04",
+   "why": "25%. Divide your order by the average day: 20,000 over 80,000 is one quarter, or 25%. Traders often use average volume as a benchmark for trade size. A large order in a low-volume stock can be hard to fill without moving the price. Our rule: never own more than 1% of a stock's average daily volume. This order is far past it.",
+   "wrong": {
+    "2.5%": "A decimal slip the other way. A quarter of the day is 25%, not 2.5%.",
+    "250%": "A decimal slip. A quarter of the day is 25%, not 250%.",
+    "4%": "That flips it. 80,000 over 20,000 is 4. Divide your order by the day, not the day by your order."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "basics.volume",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.04.json#q93",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "6,000 shares"
+  },
+  "difficulty": 2,
+  "id": "si_861b7ccc9446",
+  "lesson_origin": "session",
+  "lesson_text": "6,000 shares. One percent of 600,000 is 6,000. Our rule: never own more than 1% of a stock's average daily volume. That keeps our position a tiny part of a normal day, so we can get out. Illiquid stocks are not even watched. We never own more than 1% of a stock's average daily volume.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "600 shares",
+    "6,000 shares",
+    "60,000 shares",
+    "600,000 shares"
+   ],
+   "kind": "mcq",
+   "q": "Our rule: never own more than 1% of a stock's average daily volume. It averages 600,000 shares. Most we'd own?",
+   "subject": "F1.04#q94"
   },
   "reveal_json": {
    "depth": {
@@ -5413,18 +4930,101 @@
      "fn": "arith",
      "result": 6000.0
     },
-    "given": "Our rule: never own more than 1% of a stock's average daily volume. It averages 600,000 shares a day. What is the most we'd own?"
+    "given": "Our rule: never own more than 1% of a stock's average daily volume. It averages 600,000 shares. Most we'd own? 6,000 shares 60,000 shares 600 shares 600,000 shares"
    },
    "lesson_line": "We never own more than 1% of a stock's average daily volume.",
-   "simple": "6,000 shares, because 1% of the 600,000 shares it trades on an average day is 6,000.",
+   "simple": "It is 6,000 shares, because 1% of the 600,000 shares it trades on an average day is 6,000.",
    "tier": "extended",
    "unit": "F1.04",
-   "why": "6,000 shares. One percent of 600,000 is 6,000. Our rule: never own more than 1% of a stock's average daily volume. That keeps our position a tiny part of a normal day, and illiquid stocks are not even watched."
+   "why": "6,000 shares. One percent of 600,000 is 6,000. Our rule: never own more than 1% of a stock's average daily volume. That keeps our position a tiny part of a normal day, so we can get out. Illiquid stocks are not even watched.",
+   "wrong": {
+    "60,000 shares": "That is ten times too many. One percent of 600,000 is 6,000.",
+    "600 shares": "A zero too many removed. One percent of 600,000 is 6,000, not 600.",
+    "600,000 shares": "That is the whole average day. Our cap is only 1% of it."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.volume",
   "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.04.json#q23",
+  "source_ref": "docs/study/courses/F1/F1.04.json#q94",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_34b565c9f8f4",
+  "lesson_origin": "session",
+  "lesson_text": "True. A market buy fills at the ask, the least a seller takes right now. When one price lacks enough shares, parts of a big market order fill at other prices, here higher ones. In a thin stock that means your later shares cost more. A limit order caps the price, but it may not fill. In a thin stock, a big market order walks the price against you.",
+  "module": "F1",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "In a thin stock, one big market buy can fill at several different prices.",
+   "subject": "F1.04#q96"
+  },
+  "reveal_json": {
+   "deeper": {
+    "trap": "The trap is trusting the last trade. It is not the price your order is promised. In a thin stock the next prices up can be far away."
+   },
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: Investor Bulletin: Understanding Order Types",
+      "quote": "In addition, parts of a large market order may execute at different prices due to lack of liquidity at a price at the time of execution.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: Investor Bulletin: Microcap Stock Basics (Part 1 of 3: General Information)",
+      "quote": "Because many microcap stocks trade in low volumes, any size trade can have a large percentage impact on the price of the stock.",
+      "tier": 1,
+      "url": "https://investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-microcap-stock-basics-part-1-3"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "FINRA: Understanding Market Liquidity and Your Investments",
+      "quote": "They prevent you from accepting an unwanted price when trading in illiquid markets. However, a limit order might sit unfilled if there aren’t enough buyers or sellers at your specified price or better.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/market-liquidity-risk"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "a market buy fills at the ask",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "bid = the most a buyer pays right now, ask = the least a seller takes",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
+     }
+    ],
+    "summary": "When one price lacks enough shares, parts of a big market order can fill at other prices. In a low-volume stock, any size trade can move the price a lot in percentage terms. Limit orders keep you from taking an unwanted price in an illiquid market, but they may not fill. A market buy fills at the ask. The bid is the most a buyer pays right now. The ask is the least a seller takes."
+   },
+   "facts": {
+    "given": "In a thin stock, one big market buy can fill at several different prices."
+   },
+   "lesson_line": "In a thin stock, a big market order walks the price against you.",
+   "simple": "True, because a thin stock may lack enough shares at one price, so the rest of your order fills at worse prices.",
+   "tier": "extended",
+   "unit": "F1.04",
+   "why": "True. A market buy fills at the ask, the least a seller takes right now. When one price lacks enough shares, parts of a big market order fill at other prices, here higher ones. In a thin stock that means your later shares cost more. A limit order caps the price, but it may not fill."
+  },
+  "review_status": "draft",
+  "skill_id": "basics.volume",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F1/F1.04.json#q96",
   "type": "recall",
   "version": 1
  },
@@ -5855,184 +5455,6 @@
  },
  {
   "answer_json": {
-   "answer": "Outside regular trading hours"
-  },
-  "difficulty": 1,
-  "id": "si_37883e3dab25",
-  "lesson_origin": "session",
-  "lesson_text": "Outside regular trading hours. FINRA says earnings and other big company announcements normally come out in the extended-hours period. Schwab and Fidelity say many companies report after the regular close. So the first trades on the news happen in extended hours, not in the regular session. Extended hours also include the pre-market, before the open. Big news lands while the regular session is shut. That's when the stock starts to reprice.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "During regular trading hours",
-    "Right at the 9:30 a.m. open",
-    "Outside regular trading hours",
-    "Mid-session, with trading halted"
-   ],
-   "kind": "mcq",
-   "q": "When do companies usually release their earnings reports?",
-   "subject": "F1.05#q04"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Extended-Hours Trading: Know the Risks",
-      "quote": "key corporate events, such as earnings or other significant announcements, which normally take place during the extended-hours period.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/extended-hours-trading"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin",
-      "quote": "Companies may announce important news or financial information outside of regular trading hours.",
-      "tier": 1,
-      "url": "https://www.sec.gov/oiea/investor-alerts-and-bulletins/extended-hours-trading-investor-bulletin"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: How Does After-Hours Trading Work?",
-      "quote": "Many companies release earnings after the close of the regular session.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/how-does-extended-hours-trading-work"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Stock market hours (Fidelity Learning Center)",
-      "quote": "Avid investors may use this time to place orders to buy or sell stocks, sometimes in response to news or earnings reports that come out after traditional market hours.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/smart-money/stock-market-hours"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Extended-Hours Trading: Know the Risks",
-      "quote": "Any activity that takes place outside of regular trading hours, whether in the pre-market, after-hours or overnight periods, is generally referred to as extended-hours trading.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/extended-hours-trading"
-     }
-    ],
-    "summary": "Earnings and other big company announcements normally come out during extended hours. Companies may release important news and financial results outside regular trading hours. Many companies report earnings after the regular close. Earnings reports often come out after regular hours, and investors can trade on them right away in extended hours. Pre-market, after-hours and overnight trading together are called extended-hours trading."
-   },
-   "facts": {
-    "given": "When do companies usually release their earnings reports? Outside regular trading hours During regular trading hours Right at the 9:30 a.m. open Mid-session, with trading halted"
-   },
-   "lesson_line": "Big news lands while the regular session is shut. That's when the stock starts to reprice.",
-   "simple": "Usually outside regular hours, so the first trades on the news happen after hours or before the next open.",
-   "tier": "core",
-   "unit": "F1.05",
-   "why": "Outside regular trading hours. FINRA says earnings and other big company announcements normally come out in the extended-hours period. Schwab and Fidelity say many companies report after the regular close. So the first trades on the news happen in extended hours, not in the regular session. Extended hours also include the pre-market, before the open.",
-   "wrong": {
-    "During regular trading hours": "Not usually. Many companies report after the regular close, so the first reaction trades after hours.",
-    "Mid-session, with trading halted": "Not usually. FINRA says earnings normally come out in the extended-hours period, when the regular session is already shut.",
-    "Right at the 9:30 a.m. open": "The news usually comes out outside the session, not at the bell. By the open it's already out."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "basics.hours",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.05.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 1,
-  "id": "si_aa5a4d61f46f",
-  "lesson_origin": "session",
-  "lesson_text": "False. Nasdaq's own pre-market starts at 4:00 a.m. ET, but brokers set their own windows. Fidelity takes pre-market orders from 7:00 a.m. to 9:28 a.m. ET. Schwab's pre-market runs 7:00 to 9:25 a.m., and its after hours starts at 4:05 p.m. Check your own broker's hours. The exchange's hours are not your hours. Check what your broker allows.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "Your broker's pre-market hours are set by the exchange, so they start at Nasdaq's 4:00 a.m. ET.",
-   "subject": "F1.05#q05"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Nasdaq: U.S. Market Holidays & Trading Hours",
-      "quote": "For Nasdaq, pre-market trading hours are 4:00 am to 9:30 am, Eastern Time Zone. After hours runs from 4:00 pm to 8:00 pm, Eastern Time Zone.",
-      "tier": 1,
-      "url": "https://www.nasdaq.com/stock-market-trading-hours-for-nasdaq"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Nasdaq: U.S. Market Holidays & Trading Hours",
-      "quote": "Certain brokers have different pre-market and after hours trading times.",
-      "tier": 1,
-      "url": "https://www.nasdaq.com/stock-market-trading-hours-for-nasdaq"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Trading FAQs: Placing Orders",
-      "quote": "Orders for the premarket session can be placed from 7:00 a.m. to 9:28 a.m. ET. Orders in the after-hours session can be placed from 4:00 p.m. to 8:00 p.m. ET.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/trading/faqs-placing-orders"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: Extended Hours Trading: Pre-Market & After-Hours Trading",
-      "quote": "Pre-market session: 7:00 a.m. to 9:25 a.m.",
-      "tier": 2,
-      "url": "https://www.schwab.com/stocks/extended-hours-trading"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: Extended Hours Trading: Pre-Market & After-Hours Trading",
-      "quote": "After-hours session: 4:05 p.m. to 8:00 p.m.",
-      "tier": 2,
-      "url": "https://www.schwab.com/stocks/extended-hours-trading"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin",
-      "quote": "The duration of extended-hours trading sessions varies between markets and trading venues.",
-      "tier": 1,
-      "url": "https://www.sec.gov/oiea/investor-alerts-and-bulletins/extended-hours-trading-investor-bulletin"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "FINRA: Extended-Hours Trading: Know the Risks",
-      "quote": "Rules among brokerage firms about when and how customers can participate in extended-hours trading may vary.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/extended-hours-trading"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Stock market hours (Fidelity Learning Center)",
-      "quote": "Extended trading allows for buying and selling stocks before markets open and after markets close, but rules vary by brokerage firm.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/smart-money/stock-market-hours"
-     }
-    ],
-    "summary": "At Nasdaq, pre-market runs 4:00 to 9:30 a.m. ET and after hours runs 4:00 to 8:00 p.m. ET. Some brokers use different extended-hours times than the exchange. Fidelity's pre-market runs 7:00 to 9:28 a.m. ET and its after hours 4:00 to 8:00 p.m. ET. Schwab's pre-market session runs 7:00 to 9:25 a.m. ET. Schwab's after-hours session runs 4:05 to 8:00 p.m. ET. How long extended-hours sessions run differs from one market or venue to the next. Each broker sets its own rules for when and how you can trade in extended hours. You can trade before the open and after the close, but the rules depend on your broker."
-   },
-   "facts": {
-    "given": "Your broker's pre-market hours are set by the exchange, so they start at Nasdaq's 4:00 a.m. ET."
-   },
-   "lesson_line": "The exchange's hours are not your hours. Check what your broker allows.",
-   "simple": "False, brokers set their own hours, and Fidelity's and Schwab's pre-market sessions start at 7:00 a.m.",
-   "tier": "core",
-   "unit": "F1.05",
-   "why": "False. Nasdaq's own pre-market starts at 4:00 a.m. ET, but brokers set their own windows. Fidelity takes pre-market orders from 7:00 a.m. to 9:28 a.m. ET. Schwab's pre-market runs 7:00 to 9:25 a.m., and its after hours starts at 4:05 p.m. Check your own broker's hours."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.hours",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.05.json#q05",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Limit orders"
   },
   "difficulty": 1,
@@ -6147,7 +5569,7 @@
   "difficulty": 1,
   "id": "si_9ef9df26c751",
   "lesson_origin": "session",
-  "lesson_text": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET, six and a half hours. Cut that into 5-minute bars and you get 78. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars. Count more than 78 five-minute bars in a full day and your chart is showing extended hours.",
+  "lesson_text": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET. That is six and a half hours. An hour holds twelve 5-minute bars. Twelve bars an hour over six and a half hours is 78. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars. Count more than 78 five-minute bars in a full day and your chart is showing extended hours.",
   "module": "F1",
   "prompt_json": {
    "kind": "fill_numeric",
@@ -6187,9 +5609,16 @@
       "quote": "Despite the increasing amount of extended-hours trading activity, that activity is still dwarfed by the tens of millions of transactions that typically take place during regular trading hours.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/extended-hours-trading"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Nasdaq: U.S. Market Holidays & Trading Hours",
+      "quote": "For Nasdaq, pre-market trading hours are 4:00 am to 9:30 am, Eastern Time Zone. After hours runs from 4:00 pm to 8:00 pm, Eastern Time Zone.",
+      "tier": 1,
+      "url": "https://www.nasdaq.com/stock-market-trading-hours-for-nasdaq"
      }
     ],
-    "summary": "Regular trading hours for US stocks are 9:30 a.m. to 4:00 p.m. Eastern Time. FINRA, citing the SEC, puts regular trading hours for listed stocks at 9:30 a.m. to 4 p.m. ET. NYSE markets close early, at 1:00 p.m. ET, on the day after Thanksgiving: Friday, November 27, 2026. Extended-hours trading is growing but is still dwarfed by regular-hours trading."
+    "summary": "Regular trading hours for US stocks are 9:30 a.m. to 4:00 p.m. Eastern Time. FINRA, citing the SEC, puts regular trading hours for listed stocks at 9:30 a.m. to 4 p.m. ET. NYSE markets close early, at 1:00 p.m. ET, on the day after Thanksgiving: Friday, November 27, 2026. Extended-hours trading is growing but is still dwarfed by regular-hours trading. At Nasdaq, pre-market runs 4:00 to 9:30 a.m. ET and after hours runs 4:00 to 8:00 p.m. ET."
    },
    "facts": {
     "calc": {
@@ -6208,7 +5637,12 @@
    "simple": "78 bars, because the 9:30 to 4:00 session is six and a half hours, and each bar covers 5 minutes.",
    "tier": "core",
    "unit": "F1.05",
-   "why": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET, six and a half hours. Cut that into 5-minute bars and you get 78. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars."
+   "why": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET. That is six and a half hours. An hour holds twelve 5-minute bars. Twelve bars an hour over six and a half hours is 78. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars.",
+   "wrong": {
+    "192": "That counts 4:00 a.m. to 8:00 p.m. ET, sixteen hours. That window includes extended hours, not just the regular session.",
+    "72": "That treats the session as six hours. It is six and a half hours, because it runs 9:30 to 4:00.",
+    "84": "That counts seven hours, as if the session opened at 9:00. It opens at 9:30, so it is six and a half hours."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.hours",
@@ -6374,7 +5808,7 @@
   "difficulty": 2,
   "id": "si_8f19492f0944",
   "lesson_origin": "session",
-  "lesson_text": "News that came out after the close. Gaps come from buying or selling that builds while the regular session is closed, such as after a strong earnings report. The close stayed Tuesday's 4 p.m. price. Wednesday's open came from supply and demand at the open. The jump from $60 to $66 between them is the gap. A gap is often news the regular session never got to trade. Expect them around earnings.",
+  "lesson_text": "News that came out after the close. A stock that gaps on earnings is an earnings gapper. Tuesday's close stayed $60, the 4 p.m. price. Wednesday's open came from supply and demand at the open. The gap is the jump between them. $66 minus $60 is six dollars. Six dollars on a $60 close is ten percent. Buying built up overnight while the regular session was shut. A gap on earnings is an earnings gapper. The news came while the regular session was shut.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -6384,7 +5818,7 @@
     "Pre-market trades became the open price"
    ],
    "kind": "mcq",
-   "q": "What caused the gap at Wednesday's open?",
+   "q": "This earnings gapper opens Wednesday at $66. What caused the gap?",
    "story": "A stock closes at $60 on Tuesday. At 4:05 p.m. it reports earnings far above forecasts. On Wednesday it opens at $66.",
    "subject": "F1.05#q10"
   },
@@ -6439,18 +5873,32 @@
       "quote": "The Opening Cross sets the Nasdaq Official Opening Price (NOOP).",
       "tier": 1,
       "url": "https://nasdaqtrader.com/content/productsservices/trading/crosses/openclose_faqs.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "StockCharts ChartSchool: Gap Trading Strategies",
+      "quote": "A gap is a change in price levels between the close and open of two consecutive days.",
+      "tier": 2,
+      "url": "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/gap-trading-strategies"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: The owner's review notes (2026-11-12)",
+      "quote": "a gap on earnings is an earnings gapper.",
+      "tier": 3,
+      "url": "repo:docs/study/REVIEW_LEARNINGS.md"
      }
     ],
-    "summary": "Gaps come from buying or selling that builds while the market is closed, such as after a strong earnings report. A gap is a blank space on the chart where no shares traded, usually between one day's close and the next day's open. Companies may release important news and financial results outside regular trading hours. News released out of hours, on thin trading, can move a stock sharply in extended hours. The 4 p.m. price is the official close, whatever trades in extended hours. The next day's opening price comes from supply and demand at the open. Nasdaq's opening auction (the Opening Cross) sets the official opening price."
+    "summary": "Gaps come from buying or selling that builds while the market is closed, such as after a strong earnings report. A gap is a blank space on the chart where no shares traded, usually between one day's close and the next day's open. Companies may release important news and financial results outside regular trading hours. News released out of hours, on thin trading, can move a stock sharply in extended hours. The 4 p.m. price is the official close, whatever trades in extended hours. The next day's opening price comes from supply and demand at the open. Nasdaq's opening auction (the Opening Cross) sets the official opening price. A gap is measured from one day's close to the next day's open. Traders call a stock that gaps on an earnings report an earnings gapper."
    },
    "facts": {
-    "given": "What caused the gap at Wednesday's open? A stock closes at $60 on Tuesday. At 4:05 p.m. it reports earnings far above forecasts. On Wednesday it opens at $66. News that came out after the close The after-hours price became the close The exchange reset the price overnight Pre-market trades became the open price"
+    "given": "This earnings gapper opens Wednesday at $66. What caused the gap? A stock closes at $60 on Tuesday. At 4:05 p.m. it reports earnings far above forecasts. On Wednesday it opens at $66. News that came out after the close The after-hours price became the close The exchange reset the price overnight Pre-market trades became the open price"
    },
-   "lesson_line": "A gap is often news the regular session never got to trade. Expect them around earnings.",
+   "lesson_line": "A gap on earnings is an earnings gapper. The news came while the regular session was shut.",
    "simple": "News after the close drew in buyers overnight, so the stock opened well above Tuesday's close.",
    "tier": "core",
    "unit": "F1.05",
-   "why": "News that came out after the close. Gaps come from buying or selling that builds while the regular session is closed, such as after a strong earnings report. The close stayed Tuesday's 4 p.m. price. Wednesday's open came from supply and demand at the open. The jump from $60 to $66 between them is the gap.",
+   "why": "News that came out after the close. A stock that gaps on earnings is an earnings gapper. Tuesday's close stayed $60, the 4 p.m. price. Wednesday's open came from supply and demand at the open. The gap is the jump between them. $66 minus $60 is six dollars. Six dollars on a $60 close is ten percent. Buying built up overnight while the regular session was shut.",
    "wrong": {
     "Pre-market trades became the open price": "Pre-market trades don't set the open. FINRA says the open comes from supply and demand at the open.",
     "The after-hours price became the close": "The close stays Tuesday's 4 p.m. price. After-hours trades don't change it.",
@@ -6994,111 +6442,12 @@
  },
  {
   "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 3,
-  "id": "si_e36f91335a22",
-  "lesson_origin": "session",
-  "lesson_text": "False. Trades outside 9:30 a.m. to 4:00 p.m. carry the T sale condition and are not last-sale eligible. The UTP plan marks trades from 12:00 a.m. to 9:30 a.m. as Form T, so a 7:40 a.m. trade is one. In both consolidated data plans' tables, a T trade does not update the consolidated high, low or last price. It is still a real trade. It just does not count toward the consolidated high. A pre-market high is a real trade, but it doesn't set the day's consolidated high.",
-  "module": "F1",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "A trade at 7:40 a.m. can set a stock's consolidated high for the day.",
-   "subject": "F1.05#q17"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "A stock spikes in the pre-market, then never trades that high in the regular session. The spike is a real trade. It does not set the consolidated high, so the day's consolidated high can sit below it. Before you mark a level from that high, check whether your tools include extended-hours trades."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "CTA Plan (SIAC): CTA Extended Trading Hours: Frequently Asked Questions (v1.2, September 29, 2026)",
-      "quote": "Trades executed outside Regular Trading Hours (9:30 AM – 4:00 PM) will continue to use the 'T' sale condition and are not Last Sale eligible.",
-      "tier": 1,
-      "url": "https://www.ctaplan.com/publicdocs/ctaplan/CTA_Extended_Trading_Hours_FAQ.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "UTP Plan (Nasdaq UTP SIP): UTP Data Feed Services Specification, Version 4.1 (September 2026)",
-      "quote": "3.14.2 UTP Sale Condition Matrix Consolidated Processing Guidelines Market Center Processing Guidelines Modifier Condition Update High/Low Update Last Update High/Low Update Last Update Volume",
-      "tier": 1,
-      "url": "https://www.utpplan.com/DOC/UtpBinaryOutputSpec.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "UTP Plan (Nasdaq UTP SIP): UTP Data Feed Services Specification, Version 4.1 (September 2026)",
-      "quote": "T Form T No No No No Yes",
-      "tier": 1,
-      "url": "https://www.utpplan.com/DOC/UtpBinaryOutputSpec.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "UTP Plan (Nasdaq UTP SIP): UTP Data Feed Services Specification, Version 4.1 (September 2026)",
-      "quote": "The Form T (T) Sale Condition should be applied for the following: • Trades executed on trade day between 12:00 a.m. and 9:30 a.m. • Trades executed on trade day between 4:00:01 p.m. and 8:00 p.m.",
-      "tier": 1,
-      "url": "https://www.utpplan.com/DOC/UtpBinaryOutputSpec.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "CTA Plan (SIAC): CTS Pillar Multicast Output Binary Specification (January 29, 2026)",
-      "quote": "Denotes the sale condition associated with a trade. Also noted is the impact of Sale Conditions on the Open, Last, High and Low calculations both on a Consolidated and Participant basis.",
-      "tier": 1,
-      "url": "https://www.ctaplan.com/publicdocs/ctaplan/CTS_Pillar_Output_Specification.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "CTA Plan (SIAC): CTS Pillar Multicast Output Binary Specification (January 29, 2026)",
-      "quote": "T Extended Hours Trade NO NO NO NO NO YES",
-      "tier": 1,
-      "url": "https://www.ctaplan.com/publicdocs/ctaplan/CTS_Pillar_Output_Specification.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "CTA Plan (SIAC): CTS Pillar Multicast Output Binary Specification (January 29, 2026)",
-      "quote": "Extended Hours Trade Identifies a trade that was executed outside of regular primary market hours and is reported as an extended hours trade.",
-      "tier": 1,
-      "url": "https://www.ctaplan.com/publicdocs/ctaplan/CTS_Pillar_Output_Specification.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "NYSE: Extended-Hours Trading Frequently Asked Questions (v4.0, August 2026)",
-      "quote": "Trades executed during the Overnight, Early and Late Sessions will use the ‘T’ sale condition and will not be Last Sale eligible.",
-      "tier": 1,
-      "url": "https://www.nyse.com/publicdocs/nyse/NYSE_Extended_Hours_Trading_FAQ.pdf"
-     }
-    ],
-    "summary": "Trades outside 9:30 a.m. to 4:00 p.m. carry the 'T' condition and are not last-sale eligible, before and after the longer hours start. The UTP Plan's sale-condition table says, for each kind of trade, whether it updates the consolidated high/low, the last price and the volume. In that table a Form T trade updates volume only: not the high/low and not the last price. Form T marks trades from midnight to 9:30 a.m. and from just after 4:00 p.m. to 8:00 p.m. The CTA's trade feed lists how each sale condition affects the open, last, high and low. In the CTA table an extended-hours trade updates volume only, not the last, high or low. An 'extended hours trade' is one executed outside regular market hours. On NYSE Arca, trades outside the core session are flagged 'T' and do not count as the last sale."
-   },
-   "facts": {
-    "given": "A trade at 7:40 a.m. can set a stock's consolidated high for the day."
-   },
-   "lesson_line": "A pre-market high is a real trade, but it doesn't set the day's consolidated high.",
-   "simple": "False, a trade at 7:40 a.m. is outside regular hours, so it does not set the day's consolidated high.",
-   "tier": "expert",
-   "unit": "F1.05",
-   "why": "False. Trades outside 9:30 a.m. to 4:00 p.m. carry the T sale condition and are not last-sale eligible. The UTP plan marks trades from 12:00 a.m. to 9:30 a.m. as Form T, so a 7:40 a.m. trade is one. In both consolidated data plans' tables, a T trade does not update the consolidated high, low or last price. It is still a real trade. It just does not count toward the consolidated high."
-  },
-  "review_status": "draft",
-  "skill_id": "basics.hours",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F1/F1.05.json#q17",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Near $43, at the open"
   },
   "difficulty": 3,
   "id": "si_6ac402d84315",
   "lesson_origin": "session",
-  "lesson_text": "Near $43, at the open. Your broker runs stops in regular hours only, so nothing triggers after hours. At the open the stock trades at $43, below your $48 stop. The stop price is a trigger, not a promised price. It becomes a market order and fills as soon as possible at the current price. That can be far from the stop price. A stop can't catch an overnight gap. News can open the stock right through it.",
+  "lesson_text": "Near $43, at the open. Your broker runs stops in regular hours only, so nothing triggers after hours. At the open the stock trades at $43, below your $48 stop. A stop price is a trigger, not a promised price. Once hit, the stop becomes a market order and fills as soon as possible at the going price. Here that is about five dollars a share worse than the stop. A stop can't catch an overnight gap. News can open the stock right through it.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -7170,7 +6519,7 @@
    "simple": "Near $43 at the open, because the stock opened below your stop and the stop then sold at the going price.",
    "tier": "expert",
    "unit": "F1.05",
-   "why": "Near $43, at the open. Your broker runs stops in regular hours only, so nothing triggers after hours. At the open the stock trades at $43, below your $48 stop. The stop price is a trigger, not a promised price. It becomes a market order and fills as soon as possible at the current price. That can be far from the stop price.",
+   "why": "Near $43, at the open. Your broker runs stops in regular hours only, so nothing triggers after hours. At the open the stock trades at $43, below your $48 stop. A stop price is a trigger, not a promised price. Once hit, the stop becomes a market order and fills as soon as possible at the going price. Here that is about five dollars a share worse than the stop.",
    "wrong": {
     "At $48, your stop price": "The stop price is a trigger, not a promised fill. The stock opened below it.",
     "Near $42, in after hours": "Your broker doesn't run stops after hours, so nothing triggered until the regular session.",
@@ -7968,7 +7317,7 @@
   "difficulty": 1,
   "id": "si_00f5aca88b23",
   "lesson_origin": "session",
-  "lesson_text": "False. Price alone does not tell you how big a company is. FINRA's example: two stocks both trade at $50. One has 5 million shares outstanding, a $250 million company. The other has 5 billion, a $250 billion company. The share count matters most, so multiply the price by the shares outstanding. Never judge size by the share price. Multiply by the shares outstanding.",
+  "lesson_text": "False. Market cap is price times shares outstanding, so price alone cannot show size. FINRA's example: two stocks both trade at $50. One has 5 million shares: $50 x 5 million = $250 million, a small-cap. The other has 5 billion shares: $50 x 5 billion = $250 billion, a mega-cap. Same price, a thousand times the size. Always check the share count too. Never judge size by the share price. Multiply by the shares outstanding.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -8002,9 +7351,30 @@
       "quote": "That means Company A has a market cap of $250 million, making it a small-cap company, whereas Company B has a market cap of $250 billion,",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/market-cap"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Market Cap Explained (Investor Insights, September 30, 2022)",
+      "quote": "The delineation between each group can vary, but generally, you'll see them broken down like this: mega-cap: market value of $200 billion or more;",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/market-cap"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Market Cap Explained (Investor Insights, September 30, 2022)",
+      "quote": "small-cap: market value between $250 million and $2 billion; and micro-cap: market value of less than $250 million.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/market-cap"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "SEC, Investor.gov: Market Capitalization (glossary)",
+      "quote": "Market capitalization is the value of a corporation determined by multiplying the current public market price of one share of the corporation by the number of total outstanding shares.",
+      "tier": 1,
+      "url": "https://www.investor.gov/glossary/glossary_terms/market-capitalization"
      }
     ],
-    "summary": "Share price alone does not tell you how big a company is; the share count matters most. FINRA's example: two stocks at $50, one with 5 million shares and one with 5 billion. At the same $50 price, the first is a $250 million small-cap and the second a $250 billion company."
+    "summary": "Share price alone does not tell you how big a company is; the share count matters most. FINRA's example: two stocks at $50, one with 5 million shares and one with 5 billion. At the same $50 price, the first is a $250 million small-cap and the second a $250 billion company. Cap buckets are a convention and the lines vary; FINRA's usual mega-cap line is $200 billion or more. On FINRA's usual ranges, small-cap is $250 million to $2 billion and micro-cap is under $250 million. Market cap is the share price times the total number of shares outstanding."
    },
    "facts": {
     "given": "A higher share price means a bigger company."
@@ -8013,7 +7383,7 @@
    "simple": "False, because size is price times shares, so a high price on few shares can still be a small company.",
    "tier": "core",
    "unit": "F1.06",
-   "why": "False. Price alone does not tell you how big a company is. FINRA's example: two stocks both trade at $50. One has 5 million shares outstanding, a $250 million company. The other has 5 billion, a $250 billion company. The share count matters most, so multiply the price by the shares outstanding."
+   "why": "False. Market cap is price times shares outstanding, so price alone cannot show size. FINRA's example: two stocks both trade at $50. One has 5 million shares: $50 x 5 million = $250 million, a small-cap. The other has 5 billion shares: $50 x 5 billion = $250 billion, a mega-cap. Same price, a thousand times the size. Always check the share count too."
   },
   "review_status": "draft",
   "skill_id": "basics.float_cap",
@@ -9275,12 +8645,12 @@
  },
  {
   "answer_json": {
-   "answer": "False"
+   "answer": "True"
   },
   "difficulty": 3,
   "id": "si_fac18bbe362a",
   "lesson_origin": "session",
-  "lesson_text": "False. Russell indexes weight each stock by float-adjusted market cap: the closing price times the shares available to the public. The adjustment leaves out the part of a company that is not available to buy. Shares held by officers and directors are typically left out. So the insider-heavy company has a smaller float and gets less weight. Index weight follows the float. An insider-heavy company counts for less than its market cap suggests.",
+  "lesson_text": "True. The float is the shares the public can trade. Market cap counts every share outstanding, insiders included. A float-adjusted index uses price times the float only. When insiders hold most shares, the float is small. So the index weight is small too, even if market cap looks large. Index weight follows the float. An insider-heavy company counts for less than its market cap suggests.",
   "module": "F1",
   "prompt_json": {
    "choices": [
@@ -9288,7 +8658,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Two companies have the same market cap. Insiders hold most of one, almost none of the other. A float-adjusted index weights them the same.",
+   "q": "A float-adjusted index gives an insider-heavy company less weight than its market cap suggests.",
    "subject": "F1.06#q21"
   },
   "reveal_json": {
@@ -9324,18 +8694,32 @@
       "quote": "This typically means subtracting shares held by officers and directors of the company, those held by another publicly traded company, and by certain other entities.",
       "tier": 2,
       "url": "https://www.fidelity.com/learning-center/trading-investing/market-cap"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Nasdaq: Float (Nasdaq glossary)",
+      "quote": "Number of shares of a corporation that are outstanding and available for trading by the public, excluding insiders or restricted stock",
+      "tier": 1,
+      "url": "https://www.nasdaq.com/glossary/f/float"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "FINRA: Market Cap Explained (Investor Insights, September 30, 2022)",
+      "quote": "It’s the total value of a company's outstanding shares of stock, which include publicly traded shares plus restricted shares held by company officers and insiders.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/market-cap"
      }
     ],
-    "summary": "Russell indexes weight each stock by float-adjusted market cap: price times the shares available to the public. The float adjustment drops the part of a company that is not available to buy. Free-float market cap counts only freely tradable shares and is commonly used to weight indexes. Free-float cap typically leaves out shares held by officers, directors, other public companies and certain other holders."
+    "summary": "Russell indexes weight each stock by float-adjusted market cap: price times the shares available to the public. The float adjustment drops the part of a company that is not available to buy. Free-float market cap counts only freely tradable shares and is commonly used to weight indexes. Free-float cap typically leaves out shares held by officers, directors, other public companies and certain other holders. The float is the outstanding shares the public can trade, leaving out insiders' holdings and restricted stock. Market cap counts every outstanding share: the publicly traded ones plus the restricted shares officers and insiders hold."
    },
    "facts": {
-    "given": "Two companies have the same market cap. Insiders hold most of one, almost none of the other. A float-adjusted index weights them the same."
+    "given": "A float-adjusted index gives an insider-heavy company less weight than its market cap suggests."
    },
    "lesson_line": "Index weight follows the float. An insider-heavy company counts for less than its market cap suggests.",
-   "simple": "False, because the index counts only shares the public can buy, so the company insiders mostly own weighs less.",
+   "simple": "True, because the index counts only shares the public can buy, and insiders' shares are left out.",
    "tier": "expert",
    "unit": "F1.06",
-   "why": "False. Russell indexes weight each stock by float-adjusted market cap: the closing price times the shares available to the public. The adjustment leaves out the part of a company that is not available to buy. Shares held by officers and directors are typically left out. So the insider-heavy company has a smaller float and gets less weight."
+   "why": "True. The float is the shares the public can trade. Market cap counts every share outstanding, insiders included. A float-adjusted index uses price times the float only. When insiders hold most shares, the float is small. So the index weight is small too, even if market cap looks large."
   },
   "review_status": "draft",
   "skill_id": "basics.float_cap",
@@ -11193,11 +10577,11 @@
   "difficulty": 3,
   "id": "si_a6a9eb5beeef",
   "lesson_origin": "session",
-  "lesson_text": "1.82%. The fund drops when the index climbs from 100 to 110. The fall back to 100 is a smaller percent than the climb. The fund's gain on it also works on a smaller balance. Same start and finish, yet the fund is down 1.82%. On a calm 100, 101, 100 path, FINRA finds it loses only 0.02%. Bigger swings mean bigger drift. Same start, same finish. The bigger the swings in between, the more a daily-reset fund loses.",
+  "lesson_text": "1.82%. An inverse fund aims for the opposite of the index's move each day, then starts fresh the next day. Day 1: the index rises 10, from 100 to 110, so the fund falls 10%, from 100 to 90. Day 2: the index falls back to 100. That drop is 10 / 110 = 9.09% of 110, so the fund gains 9.09%. But the gain works on 90, not 100. Gaining 9.09% on 90 brings the fund to 98.18. That is a loss of 1.82% from 100. On a calm 100, 101, 100 path, FINRA finds a loss of only 0.02%. Bigger swings mean bigger drift. Same start, same finish. The bigger the swings in between, the more a daily-reset fund loses.",
   "module": "F1",
   "prompt_json": {
    "kind": "fill_numeric",
-   "q": "An inverse fund hits its daily target each day. The index closes at 100, then 110, then 100. What percent did the fund lose?",
+   "q": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose?",
    "subject": "F1.07#q22",
    "suffix": "%"
   },
@@ -11244,18 +10628,22 @@
       "a": 100,
       "b": 110,
       "c": 100,
-      "expr": "(1 - (1 - (b - a) / a) * (1 - (c - b) / b)) * 100"
+      "day1": 90,
+      "end": 98.18,
+      "expr": "(1 - (1 - (b - a) / a) * (1 - (c - b) / b)) * 100",
+      "fall": 10,
+      "gain": 9.09
      },
      "fn": "arith",
      "result": 1.82
     },
-    "given": "An inverse fund hits its daily target each day. The index closes at 100, then 110, then 100. What percent did the fund lose?"
+    "given": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose?"
    },
    "lesson_line": "Same start, same finish. The bigger the swings in between, the more a daily-reset fund loses.",
    "simple": "1.82%, because the fund loses on the way up, and its gain on the way back works on a smaller balance.",
    "tier": "expert",
    "unit": "F1.07",
-   "why": "1.82%. The fund drops when the index climbs from 100 to 110. The fall back to 100 is a smaller percent than the climb. The fund's gain on it also works on a smaller balance. Same start and finish, yet the fund is down 1.82%. On a calm 100, 101, 100 path, FINRA finds it loses only 0.02%. Bigger swings mean bigger drift."
+   "why": "1.82%. An inverse fund aims for the opposite of the index's move each day, then starts fresh the next day. Day 1: the index rises 10, from 100 to 110, so the fund falls 10%, from 100 to 90. Day 2: the index falls back to 100. That drop is 10 / 110 = 9.09% of 110, so the fund gains 9.09%. But the gain works on 90, not 100. Gaining 9.09% on 90 brings the fund to 98.18. That is a loss of 1.82% from 100. On a calm 100, 101, 100 path, FINRA finds a loss of only 0.02%. Bigger swings mean bigger drift."
   },
   "review_status": "draft",
   "skill_id": "basics.etfs",

@@ -238,6 +238,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The owner's review notes (2026-11-12)",
+   "url": "repo:docs/study/REVIEW_LEARNINGS.md",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -786,6 +794,12 @@
    "source": "s28",
    "quote": "A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).",
    "claim": "Our rule: a market filter, the app's market reading, decides when we trade."
+  },
+  {
+   "id": "h3",
+   "source": "h3",
+   "quote": "a strong setup is a name to track for relative strength until the market stabilizes",
+   "claim": "Our view: in a weak market, a strong setup is a name to track for relative strength until the market stabilizes."
   }
  ],
  "walkthroughs": [
@@ -1106,13 +1120,14 @@
     "mega"
    ],
    "answer": "small",
-   "why": "Small. IWM seeks to track the Russell 2000. FTSE Russell says that index measures the small-cap segment of the US market. It holds about 2,000 of the smallest stocks, picked by market cap and current index membership. It is not a mid-cap or large-cap index.",
+   "why": "Small. IWM seeks to track the Russell 2000. FTSE Russell says that index measures the small-cap segment of the US market. Market cap is the share price times all shares outstanding, so a small cap is a company with a small total value. The index holds about 2,000 of the smallest stocks. It is not a mid-cap or large-cap index.",
    "lesson_line": "IWM is your small-cap read. Small caps can swing harder and trade thinner than big names.",
    "facts": [
     "f59",
     "f61",
     "f72",
-    "f60"
+    "f60",
+    "f41"
    ],
    "simple": "Small. The Russell 2000 is an index of about 2,000 small US stocks, so IWM gives you a small-cap read.",
    "tier": "core",
@@ -1122,7 +1137,7 @@
      "three sources agree (iShares, FTSE Russell, Fidelity)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q09",
@@ -1392,16 +1407,16 @@
    "rung": 8,
    "format": "scenario",
    "story": "A stock you like just reported strong earnings. Its chart looks good. But SPY, QQQ and IWM have all fallen hard for two weeks.",
-   "q": "What does the weak market mean for this trade?",
+   "q": "How should you treat this setup while the market is weak?",
    "choices": [
-    "It's a headwind. Go slow or wait",
-    "Strong earnings make it safe to buy",
-    "Not much. One stock moves on its own",
-    "It's on sale. A good time to buy"
+    "Track it. Watch its relative strength",
+    "Buy it. Strong earnings make it safe",
+    "Ignore the market. Stocks move alone",
+    "Buy the dip. The market is on sale"
    ],
-   "answer": "It's a headwind. Go slow or wait",
-   "why": "It's a headwind, so go slow or wait. A stock's price moves on its own news and also on the market as a whole. When the whole market drops, it can pull down the stocks you hold. IBD's rule of thumb is that 3 of 4 stocks move with the general market. Strong earnings do not make a stock immune. At UCT, a market filter decides when we trade: the app's market reading.",
-   "lesson_line": "Check the market before the stock. Good news doesn't make a stock immune to a falling market.",
+   "answer": "Track it. Watch its relative strength",
+   "why": "Track it and watch its relative strength. Relative strength is how well a stock holds up while the market falls. A good setup that holds up while SPY, QQQ and IWM drop is a name to track until the market stabilizes. A stock's price moves on its own news and also on the market as a whole. When the whole market drops, it can pull down the stocks you hold. IBD's rule of thumb is that 3 of 4 stocks move with the general market. Strong earnings do not make a stock immune. At UCT, a market filter decides when we trade: the app's market reading.",
+   "lesson_line": "In a weak market, track the strong setup's relative strength. Act when the market stabilizes.",
    "facts": [
     "f27",
     "f28",
@@ -1409,14 +1424,15 @@
     "f31",
     "f32",
     "f34",
-    "h2"
+    "h2",
+    "h3"
    ],
    "wrong": {
-    "Strong earnings make it safe to buy": "Nothing makes it safe. A single stock's price also depends on what the whole market is doing.",
-    "Not much. One stock moves on its own": "Stocks don't trade alone. Market events move prices in ways the company can't control.",
-    "It's on sale. A good time to buy": "Buying in a correction is riskier. IBD says most stocks follow the market's downward trend."
+    "Buy it. Strong earnings make it safe": "Nothing makes it safe. A single stock's price also depends on what the whole market is doing.",
+    "Ignore the market. Stocks move alone": "Stocks don't trade alone. Market events move prices in ways the company can't control.",
+    "Buy the dip. The market is on sale": "Buying in a correction is riskier. IBD says most stocks follow the market's downward trend."
    },
-   "simple": "It's a headwind. A falling market drags most stocks down with it, even ones with good news.",
+   "simple": "Track it. A strong stock that holds up in a weak market is one to watch until the market stabilizes.",
    "deeper": {
     "trap": "Good news can make a falling market feel beside the point. IBD says the reverse: in a market downtrend, even the best stocks have a hard time moving higher. A drop in the whole market is not a sale on your stock. It is the wind you would be buying into."
    },
@@ -1427,7 +1443,7 @@
      "fixed before (stem reworded by the checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q17",
@@ -1478,17 +1494,17 @@
    "skill": "basics.shares",
    "rung": 9,
    "format": "scenario",
-   "story": "The evening news says the Nasdaq fell 2% today. You check QQQ. It fell 1.6%.",
-   "q": "Why don't the two numbers match?",
+   "story": "The evening news says the Nasdaq fell 2% today. You check QQQ and it fell 1.6%.",
+   "q": "What is the likeliest reason the two numbers differ?",
    "choices": [
-    "QQQ follows a different index",
-    "QQQ's fees ate the gap",
-    "QQQ stopped trading early",
+    "QQQ follows a different basket",
+    "QQQ's yearly fee ate the gap",
+    "QQQ stopped trading early today",
     "QQQ weights stocks by price"
    ],
-   "answer": "QQQ follows a different index",
-   "why": "QQQ follows a different index. \"The Nasdaq\" in the news often means the Nasdaq Composite, which includes all common-type stocks listed on Nasdaq. QQQ tracks the Nasdaq-100, just 100 of the largest non-financial Nasdaq companies. Two different baskets can move by different amounts on the same day. Fees cannot explain it: QQQ's total expense ratio is 0.18%.",
-   "lesson_line": "Know which index a headline means. The Nasdaq Composite is not QQQ.",
+   "answer": "QQQ follows a different basket",
+   "why": "QQQ follows a different basket. When the news says \"the Nasdaq\", it often means the Nasdaq Composite, which holds all common-type stocks listed on Nasdaq. QQQ tracks the Nasdaq-100, only 100 of the largest non-financial Nasdaq companies. Different baskets can move by different amounts on the same day. Fees do not explain it. QQQ's fee is 0.18% for a whole year. The gap here is 2 minus 1.6, which is bigger than that, and it came in one day.",
+   "lesson_line": "A headline's \"Nasdaq\" is often the Composite. QQQ follows the Nasdaq-100, so the two can differ.",
    "facts": [
     "f70",
     "f78",
@@ -1503,11 +1519,11 @@
     "f75"
    ],
    "wrong": {
-    "QQQ's fees ate the gap": "QQQ's total expense ratio is 0.18% a year. That can't explain a gap this size in one day.",
-    "QQQ stopped trading early": "ETF shares trade throughout the day on exchanges. The gap is in what each one tracks.",
-    "QQQ weights stocks by price": "The Nasdaq-100 uses a modified market cap weighting, not share price. The gap comes from tracking a different index."
+    "QQQ weights stocks by price": "The Nasdaq-100 uses a modified market cap weighting, not share price. The gap comes from tracking a different basket.",
+    "QQQ's yearly fee ate the gap": "QQQ's fee is 0.18% for a whole year. The gap here is 2 minus 1.6 in one day, which is bigger.",
+    "QQQ stopped trading early today": "ETF shares trade throughout the day on exchanges. The gap comes from what each one tracks."
    },
-   "simple": "QQQ follows a different index. The news often means the Nasdaq Composite, while QQQ tracks the smaller Nasdaq-100.",
+   "simple": "Likely they track two different sets of stocks. News often means the Nasdaq Composite, but QQQ follows the smaller Nasdaq-100.",
    "deeper": {
     "example": "On July 11, 2024, AP reported that the Nasdaq composite fell 2%. That headline number is the Composite, not QQQ's index. Before you compare a headline to your fund, check which index the headline names."
    },
@@ -1519,7 +1535,7 @@
      "fixed before (key reworded by the checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q19",
@@ -1584,10 +1600,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q02": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key from f11/f12; simple grounded in f11, f12, f46. Bank words are real confusions."
+   "notes": "cut in review1: see the resolver's notes"
   },
   "q03": {
    "status": "pass",
@@ -1608,10 +1624,10 @@
    "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q06": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review1: see the resolver's notes"
   },
   "q07": {
    "status": "pass",
@@ -1623,7 +1639,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f59/f61; simple follows f61 ('approximately 2,000'). Lesson line hedged as f60 is."
+   "notes": "Edit is only to the explanation: now defines market cap and small cap (f41 supports it), facts list gains f41. Right answer and wrong ones unchanged and clear. Kept because it sets up the owner-approved IWM question q09 and a trader acts on knowing IWM is the small-cap read. Skill basics.shares keeps many questions."
   },
   "q09": {
    "status": "pass",
@@ -1656,10 +1672,10 @@
    "notes": "Derived Into small caps first: Russell 2000 +3.6% vs S&P -0.9% and Nasdaq Composite -2%. Re-fetched AP (f79, f80, f81 verbatim) and CNBC (f82, f83, f84, f89 phrases present). f82 says the CPI reading sent rates lower and investors into small caps, which grounds the key and the higher-rates note; f83 grounds the big tech note. 'Altogether' wording matches what the facts support (f81 + f83). Key 15 chars, not longest; story names the Russell 2000, not small caps, so the key is not echoed. Simple and deeper stay within the why. q14 restates its own inputs, so q13 does not answer it; q15's breadth"
   },
   "q14": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Calc 3.6 - (-0.9) = 4.5 recomputed; inputs in the stem from f81/f79. 'One slip' wording fine; deeper no longer repeats why."
+   "notes": "cut in review1: see the resolver's notes"
   },
   "q15": {
    "status": "pass",
@@ -1671,7 +1687,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from f27/f28/f31/f34; consistent with rulebook B18/F65 (weak market: smaller, fewer, or cash). Punctuation tell gone; choices 32-36 chars. h2 quote matches B18 verbatim."
+   "notes": "Answers the owner's note: key is now 'Track it. Watch its relative strength', matching his rule (a strong setup is a name to track for relative strength until the market stabilizes). h3 quote is verbatim from REVIEW_LEARNINGS.md line 14. Relative strength is defined in the why in plain words. Wrong choices (buy it, ignore the market, buy the dip) are clearly wrong, each wrong note is supported by f27-f34. House flag set and h3 cited. Choices all in the same 'Verb it. Reason' pattern, 34-37 chars, so the key does not stand out."
   },
   "q17": {
    "status": "pass",
@@ -1682,10 +1698,9 @@
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Stem 'likeliest reason' and the 0.18%-a-year versus the one-day gap in the explanation answer his 'misleading' note. But the key 'They follow different baskets' is the only choice that does not start with 'QQQ', so it is the odd one out in wording. Also 'usually' in the lesson_line overclaims: fact f70 says the Composite is 'often' called the Nasdaq. Fix: key becomes 'QQQ follows a different basket', lesson_line says 'often', simple says 'often means'."
   },
   "q19": {
    "status": "pass",

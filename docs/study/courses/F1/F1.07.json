@@ -1509,7 +1509,7 @@
    "skill": "basics.etfs",
    "rung": 9,
    "format": "numeric",
-   "q": "An inverse fund hits its daily target each day. The index closes at 100, then 110, then 100. What percent did the fund lose?",
+   "q": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose?",
    "answer": 1.82,
    "suffix": "%",
    "calc": {
@@ -1518,10 +1518,14 @@
      "expr": "(1 - (1 - (b - a) / a) * (1 - (c - b) / b)) * 100",
      "a": 100,
      "b": 110,
-     "c": 100
+     "c": 100,
+     "fall": 10,
+     "day1": 90,
+     "gain": 9.09,
+     "end": 98.18
     }
    },
-   "why": "1.82%. The fund drops when the index climbs from 100 to 110. The fall back to 100 is a smaller percent than the climb. The fund's gain on it also works on a smaller balance. Same start and finish, yet the fund is down 1.82%. On a calm 100, 101, 100 path, FINRA finds it loses only 0.02%. Bigger swings mean bigger drift.",
+   "why": "1.82%. An inverse fund aims for the opposite of the index's move each day, then starts fresh the next day. Day 1: the index rises 10, from 100 to 110, so the fund falls 10%, from 100 to 90. Day 2: the index falls back to 100. That drop is 10 / 110 = 9.09% of 110, so the fund gains 9.09%. But the gain works on 90, not 100. Gaining 9.09% on 90 brings the fund to 98.18. That is a loss of 1.82% from 100. On a calm 100, 101, 100 path, FINRA finds a loss of only 0.02%. Bigger swings mean bigger drift.",
    "lesson_line": "Same start, same finish. The bigger the swings in between, the more a daily-reset fund loses.",
    "facts": [
     "f43",
@@ -1541,7 +1545,7 @@
      "fixed before (2026-11-09 checker: why named only one cause)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q23",
@@ -1747,8 +1751,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc: 0.9 x (1 + 10/110) = 0.98182, so a 1.82% loss, which matches f43 exactly. The new stem no longer states q05's key, and it keeps the assumption that the fund hits its daily target. 124 characters. The 0.02% comes from f43."
+   "fixed": true,
+   "notes": "Direction right: stem now defines an inverse fund, why walks the steps. Gaps: (1) the final step is skipped (it says the fund 'ends under $100' but never shows 90 x 1.0909 = 98.18, and learnings rule 3 wants math steps shown); (2) the writer's calc uses a rounded 9.09 input and an unused 'day1' arg, which is hacky and only lands on 1.82 by rounding, so the original exact a/b/c expression is restored; (3) 'daily reset' left undefined, so the why now says what the daily reset means. Answer 1.82 matches FINRA fact f43 (100, 110, 100 path, 1.82%). Sentences all <= 22 words; simple has no new numbe"
   },
   "q23": {
    "status": "pass",

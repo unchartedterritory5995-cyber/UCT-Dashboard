@@ -180,6 +180,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The owner's review notes (2026-11-12)",
+   "url": "repo:docs/study/REVIEW_LEARNINGS.md",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -644,6 +652,12 @@
    "source": "s21",
    "quote": "E57. Entries are market orders. (\"57, No i market order everything.\")",
    "claim": "Our rule: we enter trades with market orders."
+  },
+  {
+   "id": "f78",
+   "source": "h3",
+   "quote": "a gap on earnings is an earnings gapper.",
+   "claim": "Traders call a stock that gaps on an earnings report an earnings gapper."
   }
  ],
  "walkthroughs": [
@@ -927,13 +941,14 @@
      "bar_min": 5
     }
    },
-   "why": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET, six and a half hours. Cut that into 5-minute bars and you get 78. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars.",
+   "why": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET. That is six and a half hours. An hour holds twelve 5-minute bars. Twelve bars an hour over six and a half hours is 78. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars.",
    "lesson_line": "Count more than 78 five-minute bars in a full day and your chart is showing extended hours.",
    "facts": [
     "f1",
     "f11",
     "f39",
-    "f17"
+    "f17",
+    "f27"
    ],
    "simple": "78 bars, because the 9:30 to 4:00 session is six and a half hours, and each bar covers 5 minutes.",
    "deeper": {
@@ -946,7 +961,13 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1",
+   "choices": [],
+   "wrong": {
+    "72": "That treats the session as six hours. It is six and a half hours, because it runs 9:30 to 4:00.",
+    "84": "That counts seven hours, as if the session opened at 9:00. It opens at 9:30, so it is six and a half hours.",
+    "192": "That counts 4:00 a.m. to 8:00 p.m. ET, sixteen hours. That window includes extended hours, not just the regular session."
+   }
   },
   {
    "key": "q08",
@@ -1027,7 +1048,7 @@
    "rung": 4,
    "format": "scenario",
    "story": "A stock closes at $60 on Tuesday. At 4:05 p.m. it reports earnings far above forecasts. On Wednesday it opens at $66.",
-   "q": "What caused the gap at Wednesday's open?",
+   "q": "This earnings gapper opens Wednesday at $66. What caused the gap?",
    "choices": [
     "News that came out after the close",
     "The after-hours price became the close",
@@ -1035,8 +1056,8 @@
     "Pre-market trades became the open price"
    ],
    "answer": "News that came out after the close",
-   "why": "News that came out after the close. Gaps come from buying or selling that builds while the regular session is closed, such as after a strong earnings report. The close stayed Tuesday's 4 p.m. price. Wednesday's open came from supply and demand at the open. The jump from $60 to $66 between them is the gap.",
-   "lesson_line": "A gap is often news the regular session never got to trade. Expect them around earnings.",
+   "why": "News that came out after the close. A stock that gaps on earnings is an earnings gapper. Tuesday's close stayed $60, the 4 p.m. price. Wednesday's open came from supply and demand at the open. The gap is the jump between them. $66 minus $60 is six dollars. Six dollars on a $60 close is ten percent. Buying built up overnight while the regular session was shut.",
+   "lesson_line": "A gap on earnings is an earnings gapper. The news came while the regular session was shut.",
    "facts": [
     "f72",
     "f71",
@@ -1044,7 +1065,9 @@
     "f7",
     "f24",
     "f25",
-    "f34"
+    "f34",
+    "f73",
+    "f78"
    ],
    "wrong": {
     "The after-hours price became the close": "The close stays Tuesday's 4 p.m. price. After-hours trades don't change it.",
@@ -1059,7 +1082,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q11",
@@ -1323,7 +1346,7 @@
     "Nowhere, the gap skipped it"
    ],
    "answer": "Near $43, at the open",
-   "why": "Near $43, at the open. Your broker runs stops in regular hours only, so nothing triggers after hours. At the open the stock trades at $43, below your $48 stop. The stop price is a trigger, not a promised price. It becomes a market order and fills as soon as possible at the current price. That can be far from the stop price.",
+   "why": "Near $43, at the open. Your broker runs stops in regular hours only, so nothing triggers after hours. At the open the stock trades at $43, below your $48 stop. A stop price is a trigger, not a promised price. Once hit, the stop becomes a market order and fills as soon as possible at the going price. Here that is about five dollars a share worse than the stop.",
    "lesson_line": "A stop can't catch an overnight gap. News can open the stock right through it.",
    "facts": [
     "f52",
@@ -1350,7 +1373,7 @@
      "touches the owner's gap rule B20 and real-stop rule D41 (owner flag)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review1"
   },
   {
    "key": "q19",
@@ -1487,16 +1510,16 @@
    "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q04": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review1: see the resolver's notes"
   },
   "q05": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Solved cold: False. f26 and f61 say each broker sets its own extended-hours rules, f28 says certain brokers use different times, and f57/f64 put Fidelity and Schwab at 7:00 a.m. The statement is now a causal claim ('set by the exchange'), not an absolute keyed False. Every number is in a quote (4:00 a.m. f27; 7:00, 9:28 f57; 7:00, 9:25 f64; 4:05 f65). The Dec 6, 2026 overnight session does not move Nasdaq's 4:00 a.m. pre-market start (f33 adds 9 p.m. to 4 a.m.), and the risk field records it."
+   "notes": "cut in review1: see the resolver's notes"
   },
   "q06": {
    "status": "pass",
@@ -1506,9 +1529,9 @@
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The upgrade tried format mcq, but format cannot change (apply_upgrade ignores it), so q07 stays numeric: the string answer '78' and the unused choices were inconsistent with the numeric calc key. Restored the numeric answer 78 and cleared the dead choices; the mistake-built notes (72, 84, 192) stay in wrong and the why shows the steps (6.5 h x 12 bars). Facts f1,f11,f39,f17,f27 support it."
   },
   "q08": {
    "status": "pass",
@@ -1526,7 +1549,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold from f72/f24/f25: news after the close. The changed note ('Pre-market trades don't set the open... supply and demand at the open') rests on FINRA f25 and no longer names Nasdaq's Opening Cross. It is also consistent with the CTA table (f48: a T trade does not update the open). The choices are 34 to 39 characters, the key is not the longest, and no second answer holds up."
+   "notes": "Answers 'Earnings gapper': q names it, why defines it and shows the gap math (66-60=6, 6/60=10%). House fact f78 quotes REVIEW_LEARNINGS.md word for word (checked, including the final period) with source h3. Answer and distractors unchanged and right."
   },
   "q11": {
    "status": "pass",
@@ -1566,16 +1589,16 @@
    "notes": "upgraded wave6; awaiting cold re-read"
   },
   "q17": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "cut in review1: see the resolver's notes"
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold from the story's broker rule plus f52/f56/f53: near $43 at the open. Every number comes from the story. The story is bad company news (f6), not a report held through earnings, so B22 is not touched. The question asks what the order does, not what UCT does. The trap ends on f53 and does not endorse the open fill as our handling. Still standing as an owner flag: B20 (the first 30-minute low is the new stop) against a resting D41 broker stop, which would fire at the open before that bar forms. The lesson does not yet say how UCT handles a gap through the stop. It is not a key error."
+   "notes": "Why now shows the $48 stop vs $43 open (about five dollars worse) and defines the stop as a trigger, rule 3. Answer right, supported by f52,f53,f56,f66."
   },
   "q19": {
    "status": "pass",
