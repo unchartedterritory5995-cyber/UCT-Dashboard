@@ -34,6 +34,9 @@ import { withDerivedColumns } from './derivedColumns'
 // the one cell of a cached envelope that moves with price, recomputed where the
 // envelope is aligned. The module imports nothing of this one.
 import { withLiveTail, benchmarkTailFor, subscribeBenchmarkTails, registerBenchmarkTailRequest } from './liveTail'
+// ⭐ 2026-11-12 — a declared `rescale` (`rescale.js`): the drawn columns multiplied
+// by one factor per envelope so the line reads like a rating. Presentation only.
+import { rescaleOf, rescaleChoice, rescaleFactor, withRescale, withRescaleScalars } from './rescale'
 
 /** The ONE path every server-lane definition is fetched through. */
 export const SERVER_COLUMNS_PATH = '/api/signature/columns'
@@ -523,7 +526,36 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
     timeKey: barTimeKey,
     tail: (benchSym, tf) => benchmarkTailFor(benchSym, tf),
   })
-  return withDerivedColumns(def, live, inputs)
+  // ⭐ 2026-11-12 — a declared `rescale` multiplies the drawn columns by ONE factor,
+  // read off the envelope's own cells (`rescaleFactor`), AFTER the live tail: the
+  // forming bar's raw `close / benchClose` is scaled by the same k as the history,
+  // so it moves with price on the rated scale. Before `derive`, so a glyph built
+  // from the line rides the scaled line. Off (the declared default), identity.
+  const scaled = withRescale(def, live, rescaleFactorFor(def, parsed, inputs, ctx.tf))
+  return withDerivedColumns(def, scaled, inputs)
+}
+
+// One factor per (envelope, choice, timeframe): `scalarsFor` and the compute ask
+// for it on every paint, and the readout's memo keys on the scalars' identity.
+const _rescaleMemo = new WeakMap()   // parsed -> Map(`choice|tf` -> {factor, scalars})
+
+function rescaleEntry(def, parsed, inputs, tf) {
+  if (!rescaleOf(def) || !parsed || typeof parsed !== 'object') return null
+  const memoKey = `${String(rescaleChoice(def, inputs))}|${String(tf == null ? 'D' : tf).toUpperCase()}`
+  let byKey = _rescaleMemo.get(parsed)
+  if (!byKey) { byKey = new Map(); _rescaleMemo.set(parsed, byKey) }
+  let hit = byKey.get(memoKey)
+  if (!hit) {
+    const factor = rescaleFactor(def, parsed, inputs, tf, barTimeKey)
+    hit = { factor, scalars: withRescaleScalars(def, parsed.payload || null, factor) }
+    byKey.set(memoKey, hit)
+  }
+  return hit
+}
+
+function rescaleFactorFor(def, parsed, inputs, tf) {
+  const e = rescaleEntry(def, parsed, inputs, tf)
+  return e ? e.factor : null
 }
 
 /**
@@ -539,6 +571,12 @@ export function scalarsFor(def, inputs, ctx) {
   if (!parsed) return null
   // Same rule as the columns: what the server sent is what the readout reads.
   // A v1 server sends no payload, so this is simply null there.
+  // ⭐ 2026-11-12 — plus, for a definition declaring `rescale` with the scale on,
+  // the scale's state under `rescale` (`rescale.withRescaleScalars`): the readout
+  // says "Scaled to 6M: 90 on Nov 11" or why the line is drawn unscaled. The same
+  // object every paint (memoised per envelope), the payload itself while off.
+  const e = rescaleEntry(def, parsed, inputs, ctx.tf)
+  if (e) return e.scalars || null
   return parsed.payload || null
 }
 
