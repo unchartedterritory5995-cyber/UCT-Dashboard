@@ -13,6 +13,7 @@
   border-radius: 3px;
   background: var(--chart-panel-bg-low, rgba(14, 15, 13, 0.78));
   border: 1px solid var(--chart-panel-border-low, rgba(138, 133, 116, 0.35));
+  border-left-width: 3px;  /* the plot's colour (inline `borderLeftColor`), 2026-11-13 */
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
