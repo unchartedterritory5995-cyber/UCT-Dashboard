@@ -596,6 +596,25 @@ function _hydrateWhenSettled(sym, tf) {
   }, hold))
 }
 
+/**
+ * A row the member is about to reach: what this browser last had for it, read NOW.
+ *
+ * ⚰️ The store was read when a chart ARRIVED on a symbol, so its columns reached the chart 0.1
+ * to 0.2 s after the candles (the read is asynchronous, and it finished behind the flip's own
+ * work), and after the hold when the member had been racing. Measured on production
+ * 2026-11-13 with the pod answering in 7 to 23 s: the store saved every chart, 117 ms late on
+ * 21 of 24. Read when the row is ANNOUNCED, the columns are in memory before the member gets
+ * there and the first paint draws them, whatever the server is doing.
+ *
+ * Local disk, no request: it is not held back while a chart is racing (the newest rows are
+ * the ones about to be shown), and each (symbol, timeframe) is read once per page load. A
+ * page that draws no server-lane definition reads nothing.
+ */
+export function readAhead(sym, tf) {
+  if (!_everAsked || typeof sym !== 'string' || !sym) return
+  _hydrate(sym, String(tf == null ? 'D' : tf))
+}
+
 /** Test seam + a symbol/timeframe change escape hatch. */
 export function clearServerColumns() {
   _cache.clear()
@@ -1075,6 +1094,12 @@ function _ownSettled() {
 export function chartsNeedTheLane() {
   const now = Date.now()
   if (_ownOut > 0 && now - _ownSentAt < OWN_PRIORITY_MS) return true
+  // ⭐ ...or is about to be (2026-11-13). An own ask HELD for a chart that just stopped counts
+  // from the moment it is held, not from the moment it is sent. Measured on production: the
+  // landing chart stopped counting as flying after 0.35 s, its ask left after 0.49 s, and in
+  // between the pre-load sent three cold requests that the ask then queued behind for 3.0 s.
+  // (A hold is at most `SETTLE_MAX_MS`, and ends by sending or by dropping: it cannot stick.)
+  if (_held.size > 0) return true
   // (flying lasts until the chart has rested for a whole step at that threshold)
   const fly = flyingMs(now)
   const rest = Math.max(RAPID_MS, fly)
