@@ -7,22 +7,32 @@ import { AUTH, installFetch, Providers } from '../a11y/fixtures'
 import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { telemetryBodies, expectNoContent } from '../lib/testing/telemetryFetch'
 import NotebookTab from './NotebookTab'
+import { useNavigate } from 'react-router-dom'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { TOUR_NAV, __resetLinkOpenedForTests, documentNav } from '../lib/notebookUsage'
 
 const LAYOUT_KEY = 'uct.notebook.list.layout'
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 afterEach(() => {
   cleanup()
+  __resetLinkOpenedForTests()
+  vi.restoreAllMocks()
   __resetNotebookFlags()
   try { window.localStorage.removeItem(LAYOUT_KEY) } catch { /* private mode */ }
   vi.clearAllMocks()
 })
 
 let fetchSpy
+// The router's navigate, from inside the tree (an in-app link, the walkthrough's start, Back).
+let nav = null
+function NavProbe() { nav = useNavigate(); return null }
 async function renderTab(route = '/journal/notebook?view=all', extra = []) {
   fetchSpy = installFetch([[/mapping-offer$/, { offer: null }], ...extra])
-  render(<Providers auth={AUTH} route={route}><NotebookTab /></Providers>)
+  render(<Providers auth={AUTH} route={route}><NavProbe /><NotebookTab /></Providers>)
   await settle()
 }
+const go = async (...args) => { act(() => { nav(...args) }); await settle() }
 const usage = (event) => telemetryBodies(fetchSpy).filter((b) => b.event === event)
 const bar = () => screen.getByRole('toolbar', { name: 'Notes list tools' })
 const openViewMenu = () => {
@@ -58,10 +68,41 @@ describe('the View menu', () => {
   })
 })
 
-describe('a ?view= link', () => {
-  it('opening ?view=board sends one view_used {board, link}', async () => {
+describe('a ?view= link (fix round 1, I2: only a link the member followed)', () => {
+  it('a page first loaded by a followed link (?view=board) sends one view_used {board, link}', async () => {
+    vi.spyOn(documentNav, 'type').mockReturnValue('navigate')
     await renderTab('/journal/notebook?view=board')
     expect(usage('view_used')).toEqual([{ event: 'view_used', props: { mode: 'board', via: 'link' } }])
+  })
+
+  it('a reload of that address sends none', async () => {
+    vi.spyOn(documentNav, 'type').mockReturnValue('reload')
+    await renderTab('/journal/notebook?view=board')
+    expect(usage('view_used')).toEqual([])
+  })
+
+  it("a real in-app link (the task reminder notice's ?view=tasks) sends one", async () => {
+    await renderTab()
+    await go('/journal/notebook?view=tasks')
+    expect(usage('view_used')).toEqual([{ event: 'view_used', props: { mode: 'tasks', via: 'link' } }])
+  })
+
+  it("the Tasks walkthrough's own start navigation sends none, and the engine marks it", async () => {
+    await renderTab()
+    await go('/journal/notebook?view=tasks', { state: { [TOUR_NAV]: true } })
+    expect(usage('view_used')).toEqual([])
+    const engine = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx'), 'utf8')
+    expect(engine).toContain('navigate(r.path, { state: { ...(stripTourState(location.state) || {}), [TOUR_NAV]: true } })')
+  })
+
+  it('Back to a view address sends none', async () => {
+    await renderTab()
+    await go('/journal/notebook?view=board')
+    await go('/journal/notebook?view=table')
+    expect(usage('view_used')).toHaveLength(2)                // control: the two links counted
+    await go(-1)
+    expect(screen.getByRole('button', { name: /^View: Board/ })).toBeTruthy()   // Back did reach the board
+    expect(usage('view_used')).toHaveLength(2)
   })
 })
 

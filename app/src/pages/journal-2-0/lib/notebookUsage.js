@@ -3,6 +3,30 @@
 import { useEffect } from 'react'
 import { EVENT_SCHEMAS, NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
+// ── view_used via 'link': a link the member followed ─────────────────────────
+/** The router state key the walkthrough engine puts on the navigation that starts a tour (GenericTourEngine). */
+export const TOUR_NAV = 'tourNav'
+let firstEntrySeen = false
+/** The browser's own word for how the document was loaded ('navigate', 'reload', 'back_forward'), or null. */
+export const documentNav = {
+  type: () => {
+    try { return globalThis.performance?.getEntriesByType?.('navigation')?.[0]?.type || null } catch { return null }
+  },
+}
+/** Did the member open this address by a link? An in-app PUSH that the walkthrough engine did not make, or, once per
+ *  document, the first entry (POP) when the browser loaded the page by a followed or typed link. Never Back or
+ *  Forward, a reload, a REPLACE, or a remount on the same address. */
+export function linkOpened(navigationType, state) {
+  const first = !firstEntrySeen
+  firstEntrySeen = true
+  if (navigationType === 'PUSH') return !(state && state[TOUR_NAV])
+  if (navigationType !== 'POP' || !first) return false
+  const idx = globalThis.history?.state?.idx
+  return (idx === 0 || idx === undefined) && documentNav.type() === 'navigate'
+}
+/** Tests only: a fresh document. */
+export const __resetLinkOpenedForTests = () => { firstEntrySeen = false }
+
 /** `notebook_route_opened`: once per mount of one of the Notebook's side routes (off while `on` is false). */
 export function useRouteOpened(route, on = true) {
   useEffect(() => {

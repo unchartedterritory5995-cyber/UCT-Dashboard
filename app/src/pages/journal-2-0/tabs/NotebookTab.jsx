@@ -12,7 +12,7 @@ import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../lib/notebookTelemetry'
-import { kindStart, templateFamily } from '../lib/notebookUsage'
+import { kindStart, linkOpened, templateFamily } from '../lib/notebookUsage'
 import whenIdle from '../lib/whenIdle'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
@@ -1041,11 +1041,16 @@ export default function NotebookTab() {
   // graph/board/calendar URL would land on Research Home.
   // Follow-up A: the mode the View menu last wrote to the address. A `?view=` this tab did not write is a link (or
   // a reload of one), counted once per change of the address as `view_used` via 'link'.
+  // Fix round 1 (I2): only a link the MEMBER followed counts: an in-app PUSH the walkthrough engine did not make, or
+  // the page's first load when the browser says it was a followed or typed link (`linkOpened`, lib/notebookUsage.js).
+  // Back, Forward, a reload, a remount on the address and the menu's own replace never count.
   const viewWrittenRef = useRef(null)
   useEffect(() => {
     if (!VIEW_MODES.some((m) => m.id === viewParam)) return
     if (viewWrittenRef.current === viewParam) viewWrittenRef.current = null
-    else trackNotebookEvent(NOTEBOOK_EVENTS.VIEW_USED, { mode: viewParam, via: 'link' })
+    else if (linkOpened(navigationType, location.state)) {
+      trackNotebookEvent(NOTEBOOK_EVENTS.VIEW_USED, { mode: viewParam, via: 'link' })
+    }
     setViewMode(viewParam)
     setActiveView(null)
   }, [viewParam])

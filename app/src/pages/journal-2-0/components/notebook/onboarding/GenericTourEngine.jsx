@@ -61,6 +61,7 @@ import { registerShortcuts } from '../../../../command/shortcutRegistry'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
 import PoliteStatus from '../PoliteStatus'
+import { TOUR_NAV } from '../../../lib/notebookUsage'
 
 export { atStart }
 
@@ -226,7 +227,9 @@ export default function GenericTourEngine({
         // pathname), and this engine with it: carry the request so the new gate goes on
         // with this tour instead of dropping it silently (W14-Q2: trade starts never opened).
         if (new URL(r.path, 'http://tour.invalid').pathname !== location.pathname) carryRegistryTourOpen(entry.id)
-        navigate(r.path, { state: stripTourState(location.state) })
+        // Follow-up A fix round 1 (I2): marked as the walkthrough's own move, so the Notebook does not count it as a
+        // link the member followed (`view_used`, lib/notebookUsage.js `linkOpened`).
+        navigate(r.path, { state: { ...(stripTourState(location.state) || {}), [TOUR_NAV]: true } })
       }
       setPhase('waiting')
     })
