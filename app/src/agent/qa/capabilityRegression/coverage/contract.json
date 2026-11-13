@@ -717,6 +717,19 @@
    ],
    "fast": true
   },
+  "compare.openView": {
+   "domain": "compare",
+   "group": "comparePanel",
+   "target": "comparePanel",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "definition.delete": {
    "domain": "definition",
    "group": "definitions",

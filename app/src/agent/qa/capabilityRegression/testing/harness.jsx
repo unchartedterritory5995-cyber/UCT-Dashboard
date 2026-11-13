@@ -494,6 +494,15 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
       },
       widgets: () => mounted.board.state.widgets,
     }
+    // Tools → Compare Symbols (compare.openView): ChartsWorkspace's compare state answering the `uct:compare-open` detail as the
+    // workspace (opens a closed panel on the detail's tab) and the open panel (switches its tab) do; the panel's own close
+    st.compare = { open: false, tab: null, intent: null }
+    const cmp = st.compare
+    mounted.h.compare = {
+      read: () => ({ here: true, open: cmp.open, tab: cmp.open ? cmp.tab : null, intent: cmp.open ? cmp.intent : null, hasChart: true, scaleLocked: false }),
+      open: (d) => { cmp.intent = d; if (!cmp.open) { cmp.open = true; cmp.tab = d?.tab === 'rotation' ? 'rotation' : 'overlay' } else if (d?.tab === 'rotation' || d?.tab === 'overlay') cmp.tab = d.tab; return true },
+      close: () => { cmp.open = false; cmp.tab = null; cmp.intent = null; return true },
+    }
   }
   if (extra.drawings) {
     for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)      // the store is module-level: start empty

@@ -73,6 +73,7 @@ _DOMAIN_OF = {
     "chartMenu": "chart",                                 # the chart's right-click menu: Ask AI about its stock, watermark Reset (#1106)
     "board": "board", "widget": "board", "app": "board", "settings": "board", "guide": "board", "agent": "board",
     "periodSort": "board",                                # C3-205..207: Tools → Custom-Period Sort (a workspace tool)
+    "compare": "board",                                   # Tools → Compare Symbols: the panel's Rotation / Overlay view (a workspace tool)
     "watchlist": "watchlist", "layout": "layout",
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",

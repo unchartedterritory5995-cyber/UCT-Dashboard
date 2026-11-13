@@ -28,7 +28,9 @@ _INJECTION = re.compile(
     r"|\bto\s+the\s+(ai|agent|assistant|model|llm)\s+reading\b"
     r"|\b(call|use|run|invoke|execute|trigger)\b[^.\n]{0,30}?\b[a-z][a-zA-Z]{2,}"
     r"\.(?!(?:com|net|org|io|co|ai|gov|edu|us|uk|ca|app|dev|me|tv|ly)\b)[a-z][a-zA-Z]{2,}\b(?![/.])"
-    r"|\b(watchlist|layout|alert|chart|chartSetup|chartGrid|screener|indicator|indicatorAlert|indicatorStyle|indicatorCopy"
+    # Compare panel view (Tools → Compare Symbols): the compare domain (compare.openView as a bare name; its verb "open" is
+    # already withheld); stricter only
+    r"|\b(watchlist|layout|alert|chart|compare|chartSetup|chartGrid|screener|indicator|indicatorAlert|indicatorStyle|indicatorCopy"
     # #1082 Custom-Period Sort: the periodSort domain (periodSort.run / periodSort.dock as bare names); stricter only
     # #1106 right-click parity: the chartMenu domain (chartMenu.askAi / chartMenu.resetWatermark as bare names); stricter only
     r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research|multiChart|periodSort|chartMenu)"

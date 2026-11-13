@@ -230,6 +230,9 @@ export function checkExpect(ctx, e, label) {
   if ('settingsOpen' in e) expect(!!ctx.st.settingsOpen?.[chartsOf(board)[0]?.id], `${label}: Chart Settings open`).toBe(e.settingsOpen)
   // family C: the first chart's hand-placed watermark as the chart reads it back (null = Reset to center); the Ask AI routes opened
   if ('watermarkPos' in e) expect(h.charts.read(chartsOf(board)[0]?.id)?.watermarkPos ?? null, `${label}: the watermark position`).toEqual(e.watermarkPos)
+  // compare.openView: the Compare panel open or closed and the tab it shows; `comparePick` the last detail's stock / group
+  if ('comparePanel' in e) expect({ open: !!ctx.st.compare?.open, tab: ctx.st.compare?.open ? ctx.st.compare.tab : null }, `${label}: the Compare panel`).toEqual(e.comparePanel)
+  if ('comparePick' in e) expect({ sym: ctx.st.compare?.intent?.sym ?? null, group: ctx.st.compare?.intent?.group ?? null }, `${label}: the rotation map's pick`).toEqual(e.comparePick)
   if ('askAiOpened' in e) expect(ctx.st.askAi || [], `${label}: Ask AI opened`).toEqual(e.askAiOpened)
   // is any moving average on the first chart showing (the same answer Ctrl+M reads)
   if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)
