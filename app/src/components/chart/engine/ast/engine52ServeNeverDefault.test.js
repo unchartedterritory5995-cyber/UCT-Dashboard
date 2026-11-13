@@ -1,93 +1,101 @@
 // app/src/components/chart/engine/ast/engine52ServeNeverDefault.test.js
 //
 // ⭐⭐ ENGINE 52 — SERVE, NEVER DEFAULT. Rails for the drawing lane's slice:
-//   1. a v6 INT text size (typographic points) is served as that number and drawn on the
-//      words' scale (`objectCanvas.js::textSizePx`, the reference's word ↔ point table);
-//   2. a colour / width / count / tooltip fixed before bar 0 is read by the static reader
-//      (numbers, C44 colours, C46 gradient, the script's own types, `str.*`, a bounded
-//      helper loop); one it cannot read WITHHOLDS its drawing by name
-//      (`pine:prop-unreadable`), never drawn at the renderer's default;
-//   3. the objects-v2 grader never grades a point size as a word.
+//   1. a v6 INT text size is served only where the reference EQUATES it with a `size.*`
+//      word (drawn exactly as that word); any other int is withheld by name in both lanes;
+//   2. a colour / width / tooltip fixed before bar 0 is read by the static reader; one it
+//      cannot read WITHHOLDS its drawing by name (`pine:prop-unreadable`), never a default;
+//   3. an object or list a script can change by other means than `name :=` (a field
+//      assignment, a method, an alias, an argument, `array.set`) is never read at its seed;
+//   4. the objects-v2 grader never grades a point size as a word.
 // Evidence: docs/pine/evidence/2026-11-12-engine52-serve-never-default/EVIDENCE.md
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import { translatePine } from './pine.js'
-import { textSizePx, pointSizePx, TEXT_SIZE_PX, POINT_SIZE_ANCHORS } from '../objectCanvas.js'
+import { textSizePx, TEXT_SIZE_PX, POINT_SIZE_ANCHORS } from '../objectCanvas.js'
 import { ENUM_DROPS } from '../enumNaRule.js'
 import { V2_NOT_GRADED } from '../../../../../../tools/vendor_harness/compare.mjs'
 
-const HEAD = "//@version=6\nindicator('x', overlay=true)\n"
-const tr = (body, opts = {}) => translatePine(HEAD + body, { strict: false, objects: true, ...opts })
+const NL = String.fromCharCode(10)
+const head = (v) => `//@version=${v}${NL}indicator('x', overlay=true)${NL}`
+const tr = (body, v = 6) => translatePine(head(v) + body, { strict: false, objects: true })
+const lines = (...l) => l.join(NL)
 const opsOf = (t) => ((t.objects || {}).ops || [])
 const firstOf = (t, k, family) => opsOf(t).find((o) => o.k === k && (!family || o.family === family))
 const diag = (t) => t.objectDiagnostics || {}
+const drops = (t) => diag(t).dropReasons || {}
+const TABLE = 'var tb = table.new(position.top_right, 1, 1)'
+const cellWith = (prop, expr, pre = []) => tr(lines(...pre, TABLE, 'if barstate.islast', `    table.cell(tb, 0, 0, 'a', ${prop} = ${expr})`))
+const LIT = (hex) => ({ v: 'color', node: { c: 'lit', hex } })
 
-describe('1. v6 integer point text sizes are SERVED', () => {
-  it('a literal, an input.int and a name bound to one are carried as the number (label, box, cell)', () => {
-    const t = tr([
-      'pt = input.int(13)',
-      'var tb = table.new(position.top_right, 1, 1)',
+describe('1. v6 integer point text sizes', () => {
+  it('an anchor int (literal, input.int, a name bound to one) is served as the number', () => {
+    const t = tr(lines(
+      'pt = input.int(14)',
+      TABLE,
       'if barstate.islast',
       "    table.cell(tb, 0, 0, 'a', text_size = pt)",
-      "label.new(bar_index, close, 'x', size = 14)",
-      "box.new(bar_index, high, bar_index + 1, low, text = 'b', text_size = 9)",
-    ].join('\n'))
-    expect(firstOf(t, 'cell').props.text_size).toEqual({ v: 'const', value: 13 })
-    expect(firstOf(t, 'create', 'label').props.size).toEqual({ v: 'const', value: 14 })
-    expect(firstOf(t, 'create', 'box').props.text_size).toEqual({ v: 'const', value: 9 })
-    expect(diag(t).dropReasons && diag(t).dropReasons['enum:points']).toBeUndefined()
+      "label.new(bar_index, close, 'x', size = 18)",
+      "box.new(bar_index, high, bar_index + 1, low, text = 'b', text_size = 8)",
+    ))
+    expect(firstOf(t, 'cell').props.text_size).toEqual({ v: 'const', value: 14 })
+    expect(firstOf(t, 'create', 'label').props.size).toEqual({ v: 'const', value: 18 })
+    expect(firstOf(t, 'create', 'box').props.text_size).toEqual({ v: 'const', value: 8 })
   })
 
-  it('an int equal to a word\'s stated size is drawn EXACTLY as that word (reference table)', () => {
+  it('a NON-anchor int is withheld by name (pine:text-size-points-unwitnessed), label and cell', () => {
+    const l = tr("label.new(bar_index, close, 'x', size = 13)")
+    expect(firstOf(l, 'create', 'label')).toBeUndefined()
+    expect(drops(l)[ENUM_DROPS.pointsUnwitnessed.drop]).toBe(1)
+    // 12 is a LABEL anchor (normal) but not a table one (tables: normal is 14)
+    const c = cellWith('text_size', '12')
+    expect(firstOf(c, 'cell')).toBeUndefined()
+    expect(drops(c)[ENUM_DROPS.pointsUnwitnessed.drop]).toBe(1)
+  })
+
+  it('an anchor int is drawn EXACTLY as its word, per family; the tables are not crossed', () => {
     for (const w of ['tiny', 'small', 'normal', 'large', 'huge']) {
-      expect(textSizePx(POINT_SIZE_ANCHORS.label[w], 'label')).toBeCloseTo(TEXT_SIZE_PX[w], 9)
-      expect(textSizePx(POINT_SIZE_ANCHORS.boxTable[w], 'boxTable')).toBeCloseTo(TEXT_SIZE_PX[w], 9)
+      expect(textSizePx(POINT_SIZE_ANCHORS.label[w], 'label')).toBe(TEXT_SIZE_PX[w])
+      expect(textSizePx(POINT_SIZE_ANCHORS.boxTable[w], 'boxTable')).toBe(TEXT_SIZE_PX[w])
     }
-    // the two tables are not crossed: 14 points is `normal` in a table, past it on a label
-    expect(textSizePx(14, 'boxTable')).toBe(TEXT_SIZE_PX.normal)
-    expect(textSizePx(14, 'label')).toBeGreaterThan(TEXT_SIZE_PX.normal)
-  })
-
-  it('between anchors it is linear, past `huge` proportional, 0 is auto; words unchanged', () => {
-    expect(pointSizePx(11, 'boxTable')).toBeCloseTo((TEXT_SIZE_PX.small + TEXT_SIZE_PX.normal) / 2 - 0.5 * (TEXT_SIZE_PX.normal - TEXT_SIZE_PX.small) / 2, 9)
-    expect(pointSizePx(48, 'label')).toBeCloseTo(TEXT_SIZE_PX.huge * 2, 9)
     expect(textSizePx(0, 'label')).toBe(TEXT_SIZE_PX.auto)
+    expect(textSizePx(14, 'boxTable')).toBe(TEXT_SIZE_PX.normal)
+    expect(textSizePx(18, 'label')).toBe(TEXT_SIZE_PX.large)
     expect(textSizePx('large', 'label')).toBe(TEXT_SIZE_PX.large)
-    const ladder = [1, 5, 8, 9, 10, 12, 14, 17, 20, 30, 36, 50].map((p) => pointSizePx(p, 'boxTable'))
-    for (let i = 1; i < ladder.length; i += 1) expect(ladder[i]).toBeGreaterThan(ladder[i - 1])
   })
 
-  it('the v2 grader never grades a point size as a word', () => {
+  it('the v2 grader never grades a point size as a word', async () => {
     expect(V2_NOT_GRADED.has('pointSize')).toBe(true)
+    const { fieldRow } = await import('../__tests__/vendorHarness/objectRecords.js')
+    const spec = { field: 'text_size', vendor: 'ts', ours: 'text_size', kind: 'enum', codes: { normal: 'normal', small: 'small' }, default: 'auto' }
+    const ctx = { D: {}, ourFamily: 'table' }
+    expect(fieldRow(spec, ctx, { ts: 'normal' }, { text_size: 14 }).state).toBe('pointSize')
+    expect(fieldRow(spec, ctx, { ts: 'normal' }, { text_size: 'normal' }).state).toBe('agree')
+    expect(fieldRow(spec, ctx, { ts: 'normal' }, { text_size: 'small' }).state).toBe('differ')
   })
 })
 
-describe('2. a value fixed before bar 0 is SERVED by the static reader', () => {
+describe('2. a value fixed before bar 0 is SERVED', () => {
   it('a `var` transparency inside an input.color default (ict-killzones) is that colour', () => {
-    const t = tr([
-      'var dt = 60',
-      'c1 = input.color(color.new(color.blue, dt))',
-      'var tb = table.new(position.top_right, 1, 1)',
-      'if barstate.islast',
-      "    table.cell(tb, 0, 0, 'a', bgcolor = c1)",
-    ].join('\n'))
-    expect(firstOf(t, 'cell').props.bgcolor).toEqual({ v: 'color', node: { c: 'lit', hex: '#2962FF66' } })
+    const t = cellWith('bgcolor', 'c1', ['var dt = 60', 'c1 = input.color(color.new(color.blue, dt))'])
+    expect(firstOf(t, 'cell').props.bgcolor).toEqual(LIT('#2962FF66'))
   })
 
-  it('color.rgb with a transparency, and color.from_gradient over constants (C44, C46)', () => {
-    const t = tr([
-      'lo = 0',
-      'g = color.from_gradient(5, lo, 10, color.rgb(0, 0, 0), color.rgb(255, 255, 255))',
-      "label.new(bar_index, close, 'x', textcolor = color.rgb(10, 20, 30, 50), color = g)",
-    ].join('\n'))
-    const p = firstOf(t, 'create', 'label').props
-    expect(p.textcolor).toEqual({ v: 'color', node: { c: 'lit', hex: '#0A141E80' } })
-    // the gradient keeps the colour reader's own node (`{c:'grad'}`, the runtime's measured
-    // blend), which answers first; the static reader is asked only when nothing else read it
-    expect(['grad', 'lit']).toContain(p.color.node.c)
+  it('color.rgb with a transparency (C44), and v4 `input(type = input.integer)`', () => {
+    const t = tr("label.new(bar_index, close, 'x', textcolor = color.rgb(10, 20, 30, 50))")
+    expect(firstOf(t, 'create', 'label').props.textcolor).toEqual(LIT('#0A141E80'))
+    const v4 = translatePine(lines('//@version=4', "study('x', overlay=true)",
+      'tr = input(title="t", type=input.integer, defval=95)',
+      'if barstate.islast',
+      '    box.new(bar_index, high, bar_index + 1, low, bgcolor=color.new(color.black, tr))'), { strict: false, objects: true })
+    // served (the box is drawn with its colour), never withheld for an unread v4 int input
+    expect(firstOf(v4, 'create', 'box').props.bgcolor).toBeDefined()
+    expect(drops(v4)[ENUM_DROPS.value.drop] || 0).toBe(0)
   })
 
   it('a field of the script\'s own type, built by a helper over an input (multicator-table)', () => {
-    const t = tr([
+    const t = tr(lines(
       'type TP',
       '    color frame',
       '    color bull',
@@ -100,126 +108,173 @@ describe('2. a value fixed before bar 0 is SERVED by the static reader', () => {
       'var tb = table.new(position.top_right, 1, 1, border_color = theme.frame)',
       'if barstate.islast',
       "    table.cell(tb, 0, 0, 'a', bgcolor = close > open ? theme.bull : theme.frame)",
-    ].join('\n'))
-    expect(firstOf(t, 'create', 'table').props.border_color).toEqual({ v: 'color', node: { c: 'lit', hex: '#00f3ffCC' } })
-    const bg = firstOf(t, 'cell').props.bgcolor.node
-    expect(bg.c).toBe('if')
-    expect(bg.then).toEqual({ c: 'lit', hex: '#00ff9cA6' })
+    ))
+    expect(firstOf(t, 'create', 'table').props.border_color).toEqual(LIT('#00f3ffCC'))
+    expect(firstOf(t, 'cell').props.bgcolor.node.then).toEqual({ c: 'lit', hex: '#00ff9cA6' })
   })
 
-  it('str.* over an input and a bounded helper loop fold to a text; a spelled word is NOT an enum (C47)', () => {
-    const t = tr([
-      'tablePos = input.string("Middle Right", "Table Location ")',
-      'tableSiz = input.string("Tiny", "")',
-      'locNsze(x) =>',
-      '    y   = str.split(str.lower(x), " ")',
-      '    out = ""',
-      '    for i = 0 to array.size(y) - 1',
-      '        out := out + array.get(y, i)',
-      '        if i != array.size(y) - 1',
-      '            out := out + "_"',
-      '    out',
-      'var tbl = table.new(locNsze(tablePos), 2, 3)',
-      'if barstate.islast',
-      '    table.cell(tbl, 0, 0, text = "a", text_size = locNsze(tableSiz), tooltip = str.upper(str.replace_all(tablePos, " ", "-")))',
-    ].join('\n'))
-    // the helper's string (`middle_right`) spells a position, which no capture witnesses in an
-    // enum slot: the table is withheld by name, never drawn in a default corner
-    expect(firstOf(t, 'create', 'table')).toBeUndefined()
-    expect(diag(t).dropReasons['enum:unreadable']).toBe(2) // the table's position and the cell's size
-    // …while the same fold serves a TEXT (a tooltip is the string itself)
-    const t2 = tr([
-      'tablePos = input.string("Middle Right", "Table Location ")',
-      'locNsze(x) =>',
-      '    y   = str.split(str.lower(x), " ")',
-      '    out = ""',
-      '    for i = 0 to array.size(y) - 1',
-      '        out := out + array.get(y, i)',
-      '        if i != array.size(y) - 1',
-      '            out := out + "_"',
-      '    out',
-      'var tbl = table.new(position.top_right, 1, 1)',
-      'if barstate.islast',
-      '    table.cell(tbl, 0, 0, text = "a", tooltip = str.upper(str.replace_all(tablePos, " ", "-")) + "|" + locNsze(tablePos))',
-    ].join('\n'))
-    expect(firstOf(t2, 'cell').props.tooltip).toEqual({ v: 'text', node: { t: 'lit', s: 'MIDDLE-RIGHT|middle_right' } })
-  })
-
-  it('a folded string that is not a word of the slot is NOT served as one', () => {
-    const t = tr([
-      'p = str.lower("SOLID")',
-      'var tbl = table.new(p, 1, 1)',
-      'if barstate.islast',
-      '    table.cell(tbl, 0, 0, "a")',
-    ].join('\n'))
-    const pos = firstOf(t, 'create', 'table') && firstOf(t, 'create', 'table').props.position
-    expect(pos).not.toEqual({ v: 'text', node: { t: 'lit', s: 'solid' } })
-  })
-
-  it('a default reassigned in an `if` is followed like the text reader follows it', () => {
-    const t = tr([
-      'var tb = table.new(position.top_right, 1, 1)',
-      'if barstate.islast',
+  it('a default reassigned in an `if` is followed like the text reader follows it (the value)', () => {
+    const t = tr(lines(TABLE, 'if barstate.islast',
       '    color c = color.gray',
       '    if close > open',
       '        c := color.green',
-      "    table.cell(tb, 0, 0, 'a', text_color = c)",
-    ].join('\n'))
+      "    table.cell(tb, 0, 0, 'a', text_color = c)"))
+    const c = firstOf(t, 'cell').props.text_color.node
+    // the per-bar choice, both arms served by value
+    const leaves = JSON.stringify(c)
+    expect(leaves).toContain('"hex":"#4CAF50"')
+    expect(leaves).toContain('"hex":"#787B86"')
+  })
+
+  it('a choice on a block local inside that binding reads its test in the binding\'s scope', () => {
+    const t = tr(lines(TABLE, 'if barstate.islast',
+      '    color c = color.white',
+      '    if close > 0',
+      '        m = math.abs(close - open)',
+      '        c := m <= 7 ? color.white : color.red',
+      "    table.cell(tb, 0, 0, 'a', text_color = c)"))
     const cell = firstOf(t, 'cell')
     expect(cell).toBeDefined()
-    expect(cell.props.text_color.v).toBe('color')
+    expect(JSON.stringify(cell.props.text_color.node)).toContain('"hex":"#F23645"')
+  })
+
+  it('str.* and a bounded helper loop fold to a TEXT; a spelled word is NOT an enum (C47)', () => {
+    const helper = [
+      'tablePos = input.string("Middle Right", "Table Location ")',
+      'locNsze(x) =>',
+      '    y   = str.split(str.lower(x), " ")',
+      '    out = ""',
+      '    for i = 0 to array.size(y) - 1',
+      '        out := out + array.get(y, i)',
+      '        if i != array.size(y) - 1',
+      '            out := out + "_"',
+      '    out',
+    ]
+    const t = tr(lines(...helper, 'var tbl = table.new(locNsze(tablePos), 2, 3)', 'if barstate.islast', '    table.cell(tbl, 0, 0, "a")'))
+    expect(firstOf(t, 'create', 'table')).toBeUndefined()
+    expect(drops(t)['enum:unreadable']).toBe(1)
+    const t2 = cellWith('tooltip', 'str.upper(str.replace_all(tablePos, " ", "-")) + "|" + locNsze(tablePos)', helper)
+    expect(firstOf(t2, 'cell').props.tooltip).toEqual({ v: 'text', node: { t: 'lit', s: 'MIDDLE-RIGHT|middle_right' } })
   })
 })
 
-describe('3. a property this door cannot read WITHHOLDS its drawing, never a default', () => {
-  it('a cell colour chosen on the chart theme brightness (no reader follows it): the cell is withheld by name', () => {
-    const t = tr([
-      'var tb = table.new(position.top_right, 1, 1)',
-      'isDark = color.r(chart.bg_color) < 128',
-      'if barstate.islast',
-      "    table.cell(tb, 0, 0, 'a', bgcolor = isDark ? #FFFFFF : #000000)",
-    ].join('\n'))
+describe('3. guards of the static reader (each refuses what it cannot prove)', () => {
+  const tip = (expr, pre = []) => {
+    const c = firstOf(cellWith('tooltip', expr, pre), 'cell')
+    return c ? c.props.tooltip : undefined
+  }
+  it('division follows the reference: v6 int/int keeps the fraction, v5 truncates', () => {
+    // read where only the static reader reaches: an enum slot chosen by a switch on a number
+    const at = (v, num) => {
+      const t = translatePine(head(v) + lines('sz(n) =>', '    switch n', '        6 => size.small', '        7 => size.large', '        => size.huge',
+        `label.new(bar_index, close, 'x', size = sz(${num} / 2 * 2))`), { strict: false, objects: true })
+      const l = firstOf(t, 'create', 'label')
+      return l ? l.props.size : undefined
+    }
+    const word = (w) => ({ v: 'text', node: { t: 'lit', s: w } })
+    expect(at(6, '7')).toEqual(word('large')) // 3.5 * 2 = 7
+    expect(at(5, '7')).toEqual(word('small')) // 3 * 2 = 6
+    expect(at(5, '7.0')).toEqual(word('large')) // a float divides as floats
+  })
+
+  it('a helper loop past its pass cap is not folded', () => {
+    const pre = ['f(n) =>', '    s = 0', '    for i = 0 to n', '        s := s + 1', '    str.tostring(s)']
+    expect(tip('f(10)', pre)).toEqual({ v: 'text', node: { t: 'lit', s: '11' } })
+    expect(tip('f(5000)', pre)).toBeUndefined()
+  })
+
+  it('a loop whose body moves its own bound is not folded (v6 re-reads the bound)', () => {
+    const pre = ['g(n0) =>', '    n = n0', '    s = 0', '    for i = 0 to n', '        n := 1', '        s := s + 1', '    str.tostring(s)']
+    expect(tip('g(5)', pre)).toBeUndefined()
+  })
+
+  it('str.split with an empty piece, and an overlapping replace target, are not folded', () => {
+    expect(tip('array.get(str.split("a  b", " "), 0)')).toBeUndefined()
+    expect(tip('array.get(str.split("a b", " "), 1)')).toEqual({ v: 'text', node: { t: 'lit', s: 'b' } })
+    expect(tip('str.replace_all("aaa", "aa", "x")')).toBeUndefined()
+    expect(tip('str.replace("abab", "ab", "x", 1)')).toEqual({ v: 'text', node: { t: 'lit', s: 'abx' } })
+  })
+
+  // ⛔⛔ review B1 — an object whose FIELD can be written is never read at its seed
+  const TP = ['type TP', '    color frame']
+  const mutatedCases = {
+    'a field assignment': [...TP, 'theme = TP.new(color.red)', 'if close > open', '    theme.frame := color.green'],
+    'the same on a `var`': [...TP, 'var theme = TP.new(color.red)', 'if close > open', '    theme.frame := color.green'],
+    'through an alias': [...TP, 'theme = TP.new(color.red)', 'alias = theme', 'if close > open', '    alias.frame := color.green'],
+    'passed to a helper that writes it': [...TP, 'theme = TP.new(color.red)', 'f(TP t) =>', '    t.frame := color.green', 'if close > open', '    f(theme)'],
+    'a method that writes it': [...TP, 'method paint(TP t) =>', '    t.frame := color.green', 'theme = TP.new(color.red)', 'if close > open', '    theme.paint()'],
+  }
+  for (const [what, pre] of Object.entries(mutatedCases)) {
+    it(`a UDT field is not read at its seed when the value can change: ${what}`, () => {
+      const c = firstOf(cellWith('bgcolor', 'theme.frame', pre), 'cell')
+      const bg = c && c.props.bgcolor
+      expect(bg && bg.node && bg.node.c === 'lit' && bg.node.hex === '#F23645').toBeFalsy()
+    })
+  }
+  it('control: an untouched UDT value is still read', () => {
+    const c = firstOf(cellWith('bgcolor', 'theme.frame', [...TP, 'theme = TP.new(color.red)']), 'cell')
+    expect(c.props.bgcolor).toEqual(LIT('#F23645'))
+  })
+
+  // ⛔⛔ review B2 — a list folded from str.split is never read after a mutation
+  const SPLIT = 'parts = str.split("a b c", " ")'
+  const listCases = {
+    'array.set': [SPLIT, 'array.set(parts, 0, "z")'],
+    'array.push': [SPLIT, 'array.push(parts, "d")'],
+    'the method push': [SPLIT, 'parts.push("d")'],
+    'the method reverse': [SPLIT, 'parts.reverse()'],
+    'a helper that mutates its parameter': [SPLIT, 'h(a) =>', '    array.push(a, "d")', 'h(parts)'],
+  }
+  for (const [what, pre] of Object.entries(listCases)) {
+    it(`a str.split list is not read after ${what}`, () => {
+      expect(tip('array.get(parts, 0) + str.tostring(array.size(parts))', pre)).toBeUndefined()
+    })
+  }
+  it('control: an untouched str.split list is read', () => {
+    expect(tip('array.get(parts, 0) + str.tostring(array.size(parts))', [SPLIT])).toEqual({ v: 'text', node: { t: 'lit', s: 'a3' } })
+  })
+
+  it('elliot-wave-detector-pro: the info panel never shows `confirmedCtx` at its seed', () => {
+    const src = fs.readFileSync(path.resolve(__dirname, '../../../../../../corpus/committed/elliot-wave-detector-pro__ce1cc9553e.pine'), 'utf8')
+    const t = translatePine(src, { strict: false, objects: true })
+    const texts = JSON.stringify(opsOf(t).filter((o) => o.k === 'cell').map((o) => o.props.text))
+    for (const seed of ['"s":"NONE"', '"s":"unknown"']) expect(texts).not.toContain(seed)
+  })
+})
+
+describe('4. a property this door cannot read WITHHOLDS its drawing, never a default', () => {
+  const THEME = 'isDark = color.r(chart.bg_color) < 128'
+  it('a cell colour chosen on the chart theme brightness: the cell is withheld by name', () => {
+    const t = cellWith('bgcolor', 'isDark ? #FFFFFF : #000000', [THEME])
     expect(firstOf(t, 'cell')).toBeUndefined()
-    expect(diag(t).dropReasons[ENUM_DROPS.value.drop]).toBe(1)
+    expect(drops(t)[ENUM_DROPS.value.drop]).toBe(1)
     expect((diag(t).withheldPropNames || []).some((e) => e.startsWith('cell.bgcolor@'))).toBe(true)
     expect(diag(t).droppedPropNames || []).toEqual([])
   })
 
-  it('a create whose colour cannot be read is withheld (create:… counted as prop:unreadable)', () => {
-    const t = tr([
-      'isDark = color.r(chart.bg_color) < 128',
-      "label.new(bar_index, close, 'x', textcolor = isDark ? #FFFFFF : #000000)",
-    ].join('\n'))
+  it('a create whose colour cannot be read is withheld (prop:unreadable)', () => {
+    const t = tr(lines(THEME, "label.new(bar_index, close, 'x', textcolor = isDark ? #FFFFFF : #000000)"))
     expect(firstOf(t, 'create', 'label')).toBeUndefined()
-    expect(diag(t).dropReasons[ENUM_DROPS.value.drop]).toBe(1)
+    expect(drops(t)[ENUM_DROPS.value.drop]).toBe(1)
     expect((diag(t).createDropWhy || []).some((w) => w.includes(ENUM_DROPS.value.guard))).toBe(true)
   })
 
-  it('a cell patch whose colour cannot be read withholds its TABLE (contentLost), never keeps the old colour', () => {
-    const t = tr([
-      'var tb = table.new(position.top_right, 1, 1)',
-      'isDark = color.r(chart.bg_color) < 128',
-      'if barstate.islast',
-      "    table.cell(tb, 0, 0, 'a', bgcolor = color.blue)",
-      '    table.cell_set_bgcolor(tb, 0, 0, isDark ? #FFFFFF : #000000)',
-    ].join('\n'))
+  it('a cell patch whose colour cannot be read withholds its TABLE (contentLost)', () => {
+    const t = tr(lines(TABLE, THEME, 'if barstate.islast', "    table.cell(tb, 0, 0, 'a', bgcolor = color.blue)",
+      '    table.cell_set_bgcolor(tb, 0, 0, isDark ? #FFFFFF : #000000)'))
     expect(opsOf(t).some((o) => o.k === 'cellpatch')).toBe(false)
-    expect(diag(t).dropReasons[ENUM_DROPS.value.drop]).toBe(1)
+    expect(drops(t)[ENUM_DROPS.value.drop]).toBe(1)
   })
 
-  it('the withhold reason is one entry of the shared table', () => {
-    expect(ENUM_DROPS.value).toEqual({ guard: 'pine:prop-unreadable', drop: 'prop:unreadable', sentence: expect.any(String) })
-  })
-})
-
-describe('4. the objects-v2 grader, field by field', () => {
-  it('an int text size is `pointSize` (not graded); a word is still graded', async () => {
-    const { fieldRow } = await import('../__tests__/vendorHarness/objectRecords.js')
-    const spec = { field: 'text_size', vendor: 'ts', ours: 'text_size', kind: 'enum', codes: { normal: 'normal', small: 'small' }, default: 'auto' }
-    const ctx = { D: {}, ourFamily: 'table' }
-    expect(fieldRow(spec, ctx, { ts: 'normal' }, { text_size: 11 }).state).toBe('pointSize')
-    expect(fieldRow(spec, ctx, { ts: 'normal' }, { text_size: 'normal' }).state).toBe('agree')
-    expect(fieldRow(spec, ctx, { ts: 'normal' }, { text_size: 'small' }).state).toBe('differ')
+  it('review B3: an unreadable table COUNT paints nothing and is ignored; with a merge it withholds', () => {
+    const base = ['m = matrix.new<float>(2, 3, 0)', 'var tb = table.new(position.top_right, matrix.columns(m), 2)', 'if barstate.islast', '    table.cell(tb, 0, 0, "a")']
+    const t = tr(lines(...base))
+    expect(firstOf(t, 'create', 'table')).toBeDefined()
+    expect(firstOf(t, 'create', 'table').props.columns).toBeUndefined()
+    expect(diag(t).inertTableCounts).toBe(1)
+    const merged = tr(lines(...base, '    table.merge_cells(tb, 0, 0, 1, 0)'))
+    expect(firstOf(merged, 'create', 'table')).toBeUndefined()
+    expect(drops(merged)[ENUM_DROPS.value.drop]).toBe(1)
   })
 })
 

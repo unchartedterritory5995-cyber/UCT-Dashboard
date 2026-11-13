@@ -71,45 +71,24 @@ export const LABEL_ANCHOR = Object.freeze({
   *  adapter reads the SAME vocabulary — a `size = size.small` label on the
   *  canvas and a `text_size = size.small` cell in the table must mean one
   *  number, and two private copies is how they stop meaning one number. */
+import { POINT_SIZE_ANCHORS, pointSizeWord } from './objectPointSizes.js'
+
 export const TEXT_SIZE_PX = Object.freeze({
   tiny: 8, small: 10, normal: 12, large: 16, huge: 22, auto: 12,
 })
 
-/** ⭐⭐ ENGINE 52 — PINE v6's INTEGER TEXT SIZE, IN TYPOGRAPHIC POINTS, ON THIS CHART'S SCALE.
- *
- *  The Pine v6 reference states each `size.*` word's numeric size, and states TWO tables
- *  (`docs/pine/pine-presentation-spec.md` 4.3.1 and C115, verbatim from the reference):
- *    · labels (`size`):                      auto 0, tiny ~7, small ~10, normal 12, large 18, huge 24
- *    · boxes and tables (`text_size`):       auto 0, tiny 8,  small 10,  normal 14, large 20, huge 36
- *  An int and the word it equals are the SAME size by that statement, so an int is drawn on
- *  the scale this chart already draws the words at (`TEXT_SIZE_PX` / `SHAPE_PX`): at an
- *  anchor, exactly the word's pixels; between two, linear between them; past `huge`, in
- *  proportion to `huge`. 0 is `size.auto`.
- *  ⛔ NO CAPTURE WITNESSES HOW MANY PIXELS TradingView draws a point size (none records a
- *  font size; `ts` / `sz` are words in every capture), so the objects-v2 grader marks an
- *  int size UNGRADED (`tools/vendor_harness/compare.mjs`), never graded as a word. */
-export const POINT_SIZE_ANCHORS = Object.freeze({
-  label: Object.freeze({ tiny: 7, small: 10, normal: 12, large: 18, huge: 24 }),
-  boxTable: Object.freeze({ tiny: 8, small: 10, normal: 14, large: 20, huge: 36 }),
-})
-const SIZE_WORDS = ['tiny', 'small', 'normal', 'large', 'huge']
-/** A point size → pixels on the scale of `table` (a word → px map), by the anchors of `kind`. */
-export function pointSizePx(pt, kind = 'label', table = TEXT_SIZE_PX) {
-  const anchors = POINT_SIZE_ANCHORS[kind] || POINT_SIZE_ANCHORS.label
-  if (typeof pt !== 'number' || !Number.isFinite(pt) || pt <= 0) return table.auto
-  const pts = SIZE_WORDS.map((w) => anchors[w])
-  const pxs = SIZE_WORDS.map((w) => table[w])
-  if (pt <= pts[0]) return (pxs[0] * pt) / pts[0]
-  for (let i = 1; i < pts.length; i += 1) {
-    if (pt <= pts[i]) return pxs[i - 1] + ((pxs[i] - pxs[i - 1]) * (pt - pts[i - 1])) / (pts[i] - pts[i - 1])
-  }
-  return (pxs[pxs.length - 1] * pt) / pts[pts.length - 1]
-}
-/** A drawing's text size (a `size.*` word, or a v6 int in points) → pixels. */
+/** ⭐⭐ ENGINE 52 — a drawing's text size: a `size.*` word, or a v6 int in points that the
+ *  reference equates with a word (`objectPointSizes.js`), drawn exactly as that word. Both lanes
+ *  withhold any other int by name, so none reaches here; were one to, it is the word table's
+ *  `normal` only because nothing else is witnessed (and a rail pins that both lanes withhold). */
 export function textSizePx(size, kind = 'label', table = TEXT_SIZE_PX) {
-  if (typeof size === 'number') return pointSizePx(size, kind, table)
+  if (typeof size === 'number') {
+    const w = pointSizeWord(size, kind)
+    return w ? table[w] : table.normal
+  }
   return table[size] || table.normal
 }
+export { POINT_SIZE_ANCHORS }
 const LABEL_FONT_PX = TEXT_SIZE_PX
 /** ⭐ P2 — a label's or a box's `text_formatting` → the canvas font's style/weight
  *  prefix (two independent axes, as `objectTableDom.js` reads a cell's). */

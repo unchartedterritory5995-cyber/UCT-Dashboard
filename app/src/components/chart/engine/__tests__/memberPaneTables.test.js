@@ -78,8 +78,10 @@ const paneDef = () => {
 function drawn(symbol = SYMBOL) {
   const built = paneDef()
   const reader = objectReaderFor(built.definition, BARS, { inputs: undefined, tf: 'D', symbol })
+  // ⭐ Engine 52 (review M6): `readUnknown` as production passes it (`binder.js`), so a tree
+  // that failed at bind HOLDS what reads it here too, never drawn off an unknown value.
   const run = reader && evaluateObjects(reader.program, {
-    barCount: N, readNode: reader.readNode, readTime: (i) => BARS[i].t,
+    barCount: N, readNode: reader.readNode, readUnknown: reader.readUnknown, readTime: (i) => BARS[i].t,
   })
   const state = run && toRenderState(run.live, { bars: BARS })
   const root = doc.createElement('div')
@@ -329,5 +331,33 @@ describe('⭐⭐ v2 reads at every depth the product reaches', () => {
     expect(r.refusals[0]).toHaveProperty('node')
     expect(r.refusals[0].guard).toMatch(/^(budget|interpret|resolve):/)
     expect(r.refusals[0].message.length).toBeGreaterThan(10)
+  })
+})
+
+// ⭐⭐ Engine 52 (review M6) — A TREE THAT FAILS AT BIND HOLDS THE TABLE IT POSITIONS. The
+// reviewer's repro: a table whose position is a choice on a condition whose tree exceeds the
+// object reader's lookback budget (`ta.highest(volume[1], 2000)`). Without `readUnknown` the
+// runtime read the failed condition as false and drew the table on its `else` arm.
+describe('engine 52 — a failed condition never positions a drawn table', () => {
+  it('the table is held, never drawn in the else corner', () => {
+    const src = [
+      '//@version=6',
+      'indicator("r", overlay = false)',
+      'plot(close)',
+      'big = volume > ta.highest(volume[1], 2000)',
+      'pos = big ? position.top_center : position.top_right',
+      'if barstate.islast',
+      '    var table t = table.new(pos, 1, 1)',
+      '    table.cell(t, 0, 0, "x")',
+    ].join(String.fromCharCode(10))
+    const built = memberPaneDefinition({ source: src, id: 'u_e52', name: 'e52' })
+    expect(built.ok, built.reason || '').toBe(true)
+    const reader = objectReaderFor(built.definition, BARS, { inputs: undefined, tf: 'D', symbol: SYMBOL })
+    expect(reader.failed.length).toBeGreaterThan(0)
+    const run = evaluateObjects(reader.program, {
+      barCount: N, readNode: reader.readNode, readUnknown: reader.readUnknown, readTime: (i) => BARS[i].t,
+    })
+    const state = toRenderState(run.live, { bars: BARS })
+    expect((state.tables || []).filter((tb) => tb.position === 'top_right')).toEqual([])
   })
 })

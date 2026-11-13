@@ -198,20 +198,26 @@ describe('M3 · an unreadable setter or cell patch withholds its object by name'
 // ⭐⭐ ENGINE 52 — m4 IS NOW SERVED: an int point size fixed before bar 0 is carried as that
 // number and drawn on the words' scale (`engine52ServeNeverDefault.test.js`); these rails
 // pin the program side. (Engine 51 withheld it as `enum:points`: the renderers had no int.)
-describe('m4 · an integer point size is SERVED (engine 52)', () => {
-  for (const [what, body] of [
-    ['label size = 11', 'if barstate.islast\n    label.new(bar_index, close, "x", size = 11)\n'],
-    ['cell text_size = input.int(12)', 'var table t = table.new(position.top_right, 1, 1)\nif barstate.islast\n    table.cell(t, 0, 0, "x", text_size = input.int(12))\n'],
-    ['cell text_size through a name', 'pts = input.int(14, "points")\nvar table t = table.new(position.top_right, 1, 1)\nif barstate.islast\n    table.cell(t, 0, 0, "x", text_size = pts)\n'],
+// ⭐ (review of #1164, M5) only an int the reference EQUATES with a word is served; any other
+// int's pixels are unwitnessed, so it is withheld by name (`pine:text-size-points-unwitnessed`).
+describe('m4 · an integer point size: served at the reference anchors only (engine 52)', () => {
+  for (const [what, body, served] of [
+    ['label size = 11 (no word): withheld', 'if barstate.islast\n    label.new(bar_index, close, "x", size = 11)\n', false],
+    ['cell text_size = input.int(12) (a label anchor, not a table one): withheld', 'var table t = table.new(position.top_right, 1, 1)\nif barstate.islast\n    table.cell(t, 0, 0, "x", text_size = input.int(12))\n', false],
+    ['cell text_size through a name = 14 (the table `normal`): served', 'pts = input.int(14, "points")\nvar table t = table.new(position.top_right, 1, 1)\nif barstate.islast\n    table.cell(t, 0, 0, "x", text_size = pts)\n', true],
   ]) {
     it(what, () => {
       const t = T(body)
       expect(drops(t)[ENUM_DROPS.points.drop] || 0).toBe(0)
       const drawn = opsOf(t, 'cell').concat(opsOf(t, 'create').filter((o) => o.family === 'label'))
+      if (!served) {
+        expect(drawn).toHaveLength(0)
+        expect(drops(t)[ENUM_DROPS.pointsUnwitnessed.drop]).toBe(1)
+        return
+      }
       expect(drawn).toHaveLength(1)
       const p = drawn[0].props
-      expect((p.size || p.text_size).v).toBe('const')
-      expect(typeof (p.size || p.text_size).value).toBe('number')
+      expect(p.size || p.text_size).toEqual({ v: 'const', value: 14 })
     })
   }
   it('control: size.large is served', () => {

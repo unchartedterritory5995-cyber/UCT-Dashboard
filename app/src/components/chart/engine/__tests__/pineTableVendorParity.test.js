@@ -103,8 +103,9 @@ const DRAWN = new Map()
 function drawnUncached(source, bars, symbol) {
   const built = paneDef(source)
   const reader = objectReaderFor(built.definition, bars, { inputs: undefined, tf: 'D', symbol })
+  // ⭐ Engine 52 (review M6): `readUnknown` as production passes it (`binder.js`)
   const run = evaluateObjects(reader.program, {
-    barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,
+    barCount: bars.length, readNode: reader.readNode, readUnknown: reader.readUnknown, readTime: (i) => bars[i].t,
   })
   const state = toRenderState(run.live, { bars })
   const root = doc.createElement('div')

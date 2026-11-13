@@ -28,7 +28,8 @@
 import { POOL_LIMITS, resolveCapacity, collectsAbove } from '../objectPool.js'
 import { packedToObjectHex } from './colours.js'
 import { objectHandle, isDrawingHandle } from './handles.js'
-import { ENUM_NA_SENTENCE } from '../enumNaRule.js'
+import { ENUM_NA_SENTENCE, ENUM_DROPS } from '../enumNaRule.js'
+import { pointSizeWord } from '../objectPointSizes.js'
 import { writeCell, spanned, CELL_WRITE, MERGED_HEAD_REWRITE, MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells.js'
 
 /** Pine's absent colour (`color = na`): fully transparent — the host lane's
@@ -376,7 +377,13 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         // ⭐⭐ ENGINE 52 — Pine v6's INTEGER text size, in typographic points (`text_size = 11`):
         // carried as that number, as the host lane carries it; the renderers size it
         // (`objectCanvas.js::textSizePx`, the reference's word ↔ point table). 0 is `size.auto`.
-        if ((prop === 'size' || prop === 'text_size') && isNum(raw) && Number.isFinite(raw) && raw >= 0) return raw
+        // Only a size the reference equates with a word (`objectPointSizes.js`); any other int
+        // is withheld by name, as the host lane withholds it.
+        if ((prop === 'size' || prop === 'text_size') && isNum(raw) && Number.isFinite(raw)) {
+          if (pointSizeWord(raw, prop === 'size' ? 'label' : 'boxTable') !== null) return raw
+          withhold(fam, ENUM_DROPS.pointsUnwitnessed.sentence)
+          return undefined
+        }
         if (typeof raw !== 'string') throw new ObjectRunError(`\`${name}\`: \`${prop}\` takes a constant`)
         return raw.replace(/^(position|xloc|yloc|extend|size|text)\./, '')
       }

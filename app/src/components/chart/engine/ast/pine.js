@@ -138,6 +138,7 @@ import {
 import { wholeTransparency, unpackColor } from '../colorInt.js'
 import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR, fromGradient, packedToObjectHex } from '../runtime/colours.js'
 import { THEME_NAMES } from '../objectTheme.js'
+import { POINT_SIZE_ANCHORS } from '../objectPointSizes.js'
 import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -19266,18 +19267,28 @@ const STATIC_NUM_OPS = new Set(['+', '-', '*', '/', '<', '>', '<=', '>='])
 /** One key per static value, so `==` compares a value with its own kind only. */
 const staticKey = (v) => ('s' in v ? `s:${v.s}` : 'w' in v ? `w:${v.w}` : 'n' in v ? `n:${v.n}`
   : 'hex' in v ? `hex:${String(v.hex).toUpperCase()}` : 'arr' in v ? 'arr' : 'obj' in v ? 'obj' : `b:${v.b}`)
-function staticBinary(op, l, r) {
+function staticBinary(op, l, r, version = null) {
   if ('s' in l && 's' in r) return op === '+' ? { s: l.s + r.s } : null
   if (!('n' in l) || !('n' in r)) return null
   const a = l.n
   const b = r.n
+  const ints = l.i === true && r.i === true
+  const kind = (n) => (ints ? { n, i: true } : l.i === false || r.i === false ? { n, i: false } : { n })
   switch (op) {
-    case '+': return { n: a + b }
-    case '-': return { n: a - b }
-    case '*': return { n: a * b }
-    // ⛔ Pine divides two ints as ints and two floats as floats, and a literal's token
-    // does not say which this is: folded only where both readings agree (exact).
-    case '/': return b !== 0 && Number.isInteger(a / b) ? { n: a / b } : null
+    case '+': return kind(a + b)
+    case '-': return kind(a - b)
+    case '*': return kind(a * b)
+    // ⭐ Division, by the reference (`docs/pine/pine-version-evolution.md` row 47,
+    // `pine-presentation-spec.md`): from v6 two ints divide with the fraction (`5 / 2` is
+    // 2.5); before v6 two ints truncate (2). A float on either side divides as floats.
+    // ⛔ Where neither the version nor both kinds are known, only an exact quotient folds.
+    case '/': {
+      if (b === 0) return null
+      if (l.i === false || r.i === false) return { n: a / b, i: false }
+      if (ints && Number.isInteger(version) && version >= 6) return { n: a / b, i: false }
+      if (ints && Number.isInteger(version) && version < 6) return { n: Math.trunc(a / b), i: true }
+      return Number.isInteger(a / b) ? { n: a / b } : null
+    }
     case '<': return { b: a < b }
     case '>': return { b: a > b }
     case '<=': return { b: a <= b }
@@ -19285,6 +19296,8 @@ function staticBinary(op, l, r) {
     default: return null
   }
 }
+/** A string one occurrence of which can overlap the next (a prefix that is also a suffix). */
+const selfOverlaps = (t) => { for (let k = 1; k < t.length; k += 1) if (t.slice(0, k) === t.slice(t.length - k)) return true; return false }
 function staticBuiltin(name, v) {
   const S = (i) => (v[i] && 's' in v[i] ? v[i].s : null)
   const N = (i) => (v[i] && 'n' in v[i] ? v[i].n : null)
@@ -19320,10 +19333,12 @@ function staticBuiltin(name, v) {
     case 'str.startswith': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).startsWith(S(1)) } : null
     case 'str.endswith': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).endsWith(S(1)) } : null
     case 'str.replace_all':
-      return v.length === 3 && [0, 1, 2].every((i) => S(i) !== null) && S(1) !== '' ? { s: S(0).split(S(1)).join(S(2)) } : null
+      return v.length === 3 && [0, 1, 2].every((i) => S(i) !== null) && S(1) !== '' && !selfOverlaps(S(1)) ? { s: S(0).split(S(1)).join(S(2)) } : null
     case 'str.replace': {
       // Pine: the `occurrence`-th (0-based, default 0) occurrence of `target`
-      if (v.length < 3 || v.length > 4 || ![0, 1, 2].every((i) => S(i) !== null) || S(1) === '') return null
+      // ⛔ a target that can overlap itself (`aa` in `aaa`): which occurrences Pine counts is
+      // not stated, so it is not folded
+      if (v.length < 3 || v.length > 4 || ![0, 1, 2].every((i) => S(i) !== null) || S(1) === '' || selfOverlaps(S(1))) return null
       const nth = v.length === 4 ? N(3) : 0
       if (nth === null || !Number.isInteger(nth) || nth < 0) return null
       let at = -1
@@ -19353,6 +19368,11 @@ function staticBuiltin(name, v) {
     default: return null
   }
 }
+/** The int sizes the reference equates with a `size.*` word, per family (0 is `size.auto`). */
+const POINT_SIZE_ANCHOR_SET = Object.freeze({
+  label: new Set([0, ...Object.values(POINT_SIZE_ANCHORS.label)]),
+  boxTable: new Set([0, ...Object.values(POINT_SIZE_ANCHORS.boxTable)]),
+})
 /** ⛔ A helper body run before bar 0 stops after this many loop passes in all. */
 const STATIC_HELPER_MAX_PASSES = 1000
 
@@ -21968,11 +21988,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           const s = by < 0 ? { n: a && b && b.n < a.n ? -1 : 1 } : ev(h.slice(by + 1))
           if (!a || !b || !s || !('n' in a) || !('n' in b) || !('n' in s) || !s.n) return false
           if (!Number.isInteger(a.n) || !Number.isInteger(b.n) || !Number.isInteger(s.n)) return false
+          // ⭐ v6 re-evaluates the `to` bound before every pass (v6 migration guide, "Dynamic
+          // `for` loop boundaries"); earlier versions evaluate it once. A body that MOVES the
+          // bound would answer differently in the two, so it is not folded.
+          const toToks = h.slice(to + 1, by < 0 ? h.length : by)
           for (let i = a.n; s.n > 0 ? i <= b.n : i >= b.n; i += s.n) {
             passes += 1
             if (passes > STATIC_HELPER_MAX_PASSES) return false
             vals.set(h[1].value, { n: i })
             if (!run(sub)) return false
+            const again = ev(toToks)
+            if (!again || !('n' in again) || again.n !== b.n) return false
           }
           prevIf = null
           last = null
@@ -22021,7 +22047,58 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     return run(def.body) ? last : null
   }
+  /** ⛔⛔ Engine 52 (review B1/B2) — the names whose VALUE can change through something
+   *  other than `name :=`: a field assignment (`theme.frame := …`), a method call
+   *  (`parts.push(…)`, `ctx.update()`), or the value escaping as a bare name (an alias
+   *  `a = theme`, an argument `f(theme)`, `array.set(parts, …)`). Only `x.field` reads,
+   *  `x.get(…)` / `x.size()` and `array.get(x, …)` / `array.size(x)` keep a name out, plus
+   *  its one `=` declaration. The static reader never answers an object or a list for a
+   *  name listed here (elliot-wave-detector-pro's `confirmedCtx`, whose fields its detector
+   *  writes, was served at its seed before this). */
+  const staticEscapes = (() => {
+    const bad = new Set()
+    const decls = new Map()
+    const ASSIGN = new Set([':=', '+=', '-=', '*=', '/=', '%=', '='])
+    const READS = new Set(['array.get', 'array.size'])
+    const walk = (list) => {
+      for (const st of list || []) {
+        const h = st.header || []
+        for (let i = 0; i < h.length; i += 1) {
+          const t = h[i]
+          if (!t || t.kind !== 'ident') continue
+          const v = String(t.value)
+          const dot = v.indexOf('.')
+          const root = dot > 0 ? v.slice(0, dot) : v
+          const next = h[i + 1]
+          const prev = h[i - 1]
+          const prev2 = h[i - 2]
+          if (dot > 0) {
+            const rest = v.slice(dot + 1)
+            if (next && isPunct(next, '(')) { if (rest !== 'get' && rest !== 'size') bad.add(root) } else if (next && next.kind === 'punct' && ASSIGN.has(next.value)) bad.add(root)
+            continue
+          }
+          if (next && next.kind === 'punct' && ASSIGN.has(next.value)) {
+            decls.set(root, (decls.get(root) || 0) + 1)
+            if (decls.get(root) > 1 || next.value !== '=') bad.add(root)
+            continue
+          }
+          if (prev && isPunct(prev, '(') && prev2 && prev2.kind === 'ident' && READS.has(prev2.value)) continue
+          bad.add(root)
+        }
+        if ((st.sub || []).length) walk(st.sub)
+      }
+    }
+    walk(stmts)
+    return bad
+  })()
   const staticEnumValue = (node, scope, frame = null, depth = 0) => {
+    const v = staticEnumValueRaw(node, scope, frame, depth)
+    // ⛔ an object or a list read through a NAME something else can change is not its seed
+    if (v && ('obj' in v || 'arr' in v) && node && node.type === 'name'
+      && !(frame && frame.vals && frame.vals.has(node.name)) && staticEscapes.has(node.name)) return null
+    return v
+  }
+  const staticEnumValueRaw = (node, scope, frame = null, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 24) return null
     // ⭐ Engine 52 — a helper body's own locals and arguments (`staticHelperBody`)
     if (frame && frame.vals && node.type === 'name' && frame.vals.has(node.name)) return frame.vals.get(node.name)
@@ -22035,7 +22112,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (node.type === 'number' && node.tok && (node.tok.value === 'true' || node.tok.value === 'false')) return { b: node.tok.value === 'true' }
     // ⭐⭐ ENGINE 52 — the same reader, for a NUMBER and a COLOUR fixed before bar 0
     // (`staticPropValue` below: a colour, a width, a point size, a row count).
-    if (node.type === 'number') return Number.isFinite(Number(node.value)) ? { n: Number(node.value) } : null
+    // `i`: the literal is an INT (its token has no point or exponent) — Pine divides two ints
+    // as ints before v6 and as floats from v6 (`staticBinary`)
+    if (node.type === 'number') {
+      if (!Number.isFinite(Number(node.value))) return null
+      // the token's own spelling (`raw`: `7.0` and `7` both lex to the value 7)
+      const raw = node.tok && node.tok.raw !== undefined ? String(node.tok.raw) : null
+      return raw === null ? { n: Number(node.value) } : { n: Number(node.value), i: /^[0-9]+$/.test(raw) }
+    }
     if (node.type === 'colour') return /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(String(node.value)) ? { hex: String(node.value) } : null
     if (node.type === 'name') {
       if (node.name === 'true' || node.name === 'false') return { b: node.name === 'true' }
@@ -22124,7 +22208,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const first = args.find((a) => a && !a.name)
         const dv = named ? named.value : first ? first.value : null
         const v = dv ? staticEnumValue(dv, scope, frame, depth + 1) : null
-        return v && STATIC_INPUT_KIND[node.name] in v ? v : null
+        if (!v || !(STATIC_INPUT_KIND[node.name] in v)) return null
+        // an int input is an int; a float input a float (`staticBinary`'s division rule)
+        if ('n' in v && (node.name === 'input.int' || node.name === 'input.integer')) return Number.isInteger(v.n) ? { n: v.n, i: true } : null
+        if ('n' in v && node.name === 'input.float') return { n: v.n, i: false }
+        return v
       }
       // ⭐⭐ Engine 52 — `T.new(…)` of the script's own type: its fields, by position or name
       if (typeof node.name === 'string' && node.name.endsWith('.new') && scriptTypes.has(node.name.slice(0, -4))) {
@@ -22189,7 +22277,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     if (node.type === 'unary' && (node.op === '-' || node.op === '+')) {
       const v = staticEnumValue(node.arg, scope, frame, depth + 1)
-      return v && 'n' in v ? { n: node.op === '-' ? -v.n : v.n } : null
+      return v && 'n' in v ? { ...v, n: node.op === '-' ? -v.n : v.n } : null
     }
     if (node.type === 'binary') {
       const l = staticEnumValue(node.left, scope, frame, depth + 1)
@@ -22197,7 +22285,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐ Engine 52 — arithmetic and order over numbers, `+` over strings
       if (STATIC_NUM_OPS.has(node.op)) {
         const r = staticEnumValue(node.right, scope, frame, depth + 1)
-        return r ? staticBinary(node.op, l, r) : null
+        let version = null
+        try { version = activePaletteVersion() } catch { version = null }
+        return r ? staticBinary(node.op, l, r, version) : null
       }
       if (node.op === 'and' || node.op === 'or') {
         if (typeof l.b !== 'boolean') return null
@@ -22689,12 +22779,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (slot === 'text_size' || slot === 'size') {
         const pt = staticPropValue(node, scopeEnv)
         if (pt && 'n' in pt) {
-          if (pt.n >= 0 && Number.isFinite(pt.n)) {
+          // ⛔ Engine 52 (review M5) — only a size the reference EQUATES with a word is served
+          // (`POINT_SIZE_ANCHORS`: labels 0/7/10/12/18/24, boxes and cells 0/8/10/14/20/36);
+          // any other int's pixels are unwitnessed, so it is withheld by name.
+          const anchors = POINT_SIZE_ANCHOR_SET[slot === 'size' ? 'label' : 'boxTable']
+          if (Number.isFinite(pt.n) && anchors.has(pt.n)) {
             diagnostics.textSizePointsServed = (diagnostics.textSizePointsServed || 0) + 1
             return { v: 'const', value: pt.n }
           }
-          enumNaDrop = 'unreadable'
-          diagnostics.enumUnreadable = (diagnostics.enumUnreadable || 0) + 1
+          enumNaDrop = 'pointsUnwitnessed'
+          diagnostics.textSizePointsUnwitnessed = (diagnostics.textSizePointsUnwitnessed || 0) + 1
           return null
         }
         if (pointSizeNode(node, scopeEnv)) {
@@ -24764,6 +24858,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
               : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null)
             bad = true
             break
+          }
+          // ⭐ Engine 52 (review B3) — a table's `columns` / `rows` paint nothing: the layout
+          // sizes by its cells (`objectCanvas.js::layoutTables`). The runtime reads them only to
+          // bound a merge (`objectRuntime.js`, TradingView's out-of-range error), so an
+          // unreadable count is IGNORED unless the script merges cells, where it withholds.
+          if (op.family === 'table' && (k === 'columns' || k === 'rows') && !/merge_cells/.test(String(source || ''))) {
+            diagnostics.inertTableCounts = (diagnostics.inertTableCounts || 0) + 1
+            continue
           }
           // ⛔⛔ ENGINE 52 — A PROPERTY THIS DOOR CANNOT READ WITHHOLDS ITS DRAWING BY NAME
           // (`ENUM_DROPS.value`, `pine:prop-unreadable`). It used to be dropped, so the

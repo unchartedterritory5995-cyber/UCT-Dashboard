@@ -160,14 +160,22 @@ describe('RT5 — a comma line of statements is split, as the host lane splits i
 })
 
 
-// ⭐⭐ ENGINE 52 — Pine v6's INT text size (typographic points) is carried by the runtime
-// lane as that number, as the host lane carries it (`objectStore.js` `propValue`).
+// ⭐⭐ ENGINE 52 — Pine v6's INT text size (typographic points) in the runtime lane: a size the
+// reference equates with a word is carried as that number (`objectStore.js` `propValue`); any
+// other int withholds its family by name, as the host lane withholds the drawing.
 describe('engine 52 — an integer point size in the runtime lane', () => {
-  it('label size = 14 and a cell text_size = 11 are carried as numbers, never refused', () => {
-    const { fin } = run('if barstate.islast\n    label.new(bar_index, close, "x", size = 14)\n')
+  const NL = String.fromCharCode(10)
+  it('label size = 18 (the reference "large") is carried as the number', () => {
+    const { fin } = run(`if barstate.islast${NL}    label.new(bar_index, close, "x", size = 18)${NL}`)
     expect(fin.status).toBe('ok')
     const labels = ofFamily(fin, 'label')
     expect(labels).toHaveLength(1)
-    expect(labels[0].props.size).toBe(14)
+    expect(labels[0].props.size).toBe(18)
+  })
+  it('label size = 13 (no word) is withheld, never drawn at a guessed size', () => {
+    const { fin } = run(`if barstate.islast${NL}    label.new(bar_index, close, "x", size = 13)${NL}`)
+    const labels = ofFamily(fin, 'label')
+    expect(labels.some((l) => l.props.size === 13)).toBe(false)
+    expect(JSON.stringify(fin)).toContain('not one of the sizes the Pine reference equates')
   })
 })
