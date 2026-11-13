@@ -2219,7 +2219,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         continuity: { text, askedFor: askedFor0, at: askedAtRef.current, groups: askedGroupsRef.current, pq: pendingQuestionRef.current, qid: qOpen?.id || null } }
       const q = continueQuestion(askedFor0)
       push({ role: 'question', text: q, choices: [...CONTINUE_CHOICES, { label: 'Cancel', cancel: true }], local: true })
-      record({ member: text, outcome: q, outcomeData: { kind: 'clarify-target' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+      record({ member: text, outcome: q, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
       releaseLock()
       turnEnd()
       return
