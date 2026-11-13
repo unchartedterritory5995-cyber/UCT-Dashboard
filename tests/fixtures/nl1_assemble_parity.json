@@ -177,6 +177,7 @@
   "indicatorTemplate.apply": "chartSetup",
   "indicatorTemplate.save": "chartSetup",
   "indicatorTemplate.delete": "chartSetup",
+  "volumeProfile.set": "volumeProfile",
   "definition.search": "definitions",
   "definition.describe": "definitions",
   "definition.duplicate": "definitions",
@@ -243,6 +244,10 @@
   {
    "id": "definitions",
    "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+  },
+  {
+   "id": "volumeProfile",
+   "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
   },
   {
    "id": "drawingOps",
@@ -422,6 +427,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
      },
      {
       "id": "drawingOps",
@@ -619,6 +628,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
      },
      {
       "id": "drawingOps",
@@ -830,6 +843,10 @@
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+     },
+     {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
      },
      {
       "id": "drawingOps",
@@ -1053,6 +1070,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -1246,6 +1267,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -1347,6 +1372,7 @@
     "indicators",
     "indicatorSetup",
     "definitions",
+    "volumeProfile",
     "drawingOps",
     "drawingTools",
     "drawings",
@@ -1538,6 +1564,7 @@
     "indicatorTemplate.apply",
     "indicatorTemplate.save",
     "indicatorTemplate.delete",
+    "volumeProfile.set",
     "definition.search",
     "definition.describe",
     "definition.duplicate",

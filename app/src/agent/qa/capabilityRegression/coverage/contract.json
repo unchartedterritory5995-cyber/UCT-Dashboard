@@ -2164,6 +2164,19 @@
    ],
    "fast": true
   },
+  "volumeProfile.set": {
+   "domain": "volumeProfile",
+   "group": "volumeProfile",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "watchlist.add": {
    "domain": "watchlist",
    "group": "lists",

@@ -75,6 +75,7 @@ _DOMAIN_OF = {
     "periodSort": "board",                                # C3-205..207: Tools → Custom-Period Sort (a workspace tool)
     "watchlist": "watchlist", "layout": "layout",
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
+    "volumeProfile": "indicator",                       # a chart's Volume Profile overlay (Chart Settings → Indicators; the carved-out key)
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
     "playbook": "data",                                   # KN-1 knowledge capabilities
