@@ -145,6 +145,10 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     requests: (built.ir.requests || []).length,
     // ⭐ RT5 — how many drawing operations the build lowered (0 unless asked).
     objectOps: (program.objectOps || []).length,
+    // ⭐⭐ ENGINE 54 — each drawing-making op's source call and family (`objectSiteKey`), so the
+    // member door can prove every host create site has the same call in the run.
+    objectSites: (program.objectOps || []).filter((o) => typeof o.site === 'string')
+      .map((o) => ({ site: o.site, fn: o.fn })),
     // ⭐⭐ W9-T11 — the program holds a strategy broker (only when the broker gate is on:
     // `buildRuntimeIr` retries into broker mode only then), so the member door stamps the
     // document `STRATEGY_WINDOW_HISTORY`.

@@ -1,5 +1,5 @@
 {
- "_readme": "ENGINE 53 -- compute.runtimeObjects (a host document's run half): ONE rule set, client (defSchema.runtimeObjectsErrors) and server (presentation_schema._check_runtime_objects). Both suites read this file: app/src/components/chart/engine/__tests__/runtimeObjectsSchemaParity.test.js and tests/test_runtime_objects_schema_parity.py. Each case: the compute kind, the declared plot keys, the runtimeObjects value, and the error paths both sides must report (empty = valid).",
+ "_readme": "ENGINE 53 -- compute.runtimeObjects (a host document's run half): ONE rule set, client (defSchema.runtimeObjectsErrors) and server (presentation_schema._check_runtime_objects). Both suites read this file: app/src/components/chart/engine/__tests__/runtimeObjectsSchemaParity.test.js and tests/test_runtime_objects_schema_parity.py. Each case: the compute kind, the declared plot keys, the runtimeObjects value, and the error paths both sides must report (empty = valid). ENGINE 54 adds sites (a create site -> its source call) and the program stamps.",
  "cases": [
   {"name": "valid, stamped", "kind": "ast", "plots": ["value", "out2"],
    "runtimeObjects": {"source": "//@version=5\nindicator('x')\nplot(close)\n", "outputs": {"value": 0, "out2": 2},
@@ -34,6 +34,16 @@
   {"name": "beside run-read colours of ANOTHER script", "kind": "ast", "plots": ["value"],
    "runtimeColours": {"source": "y", "at": [{"line": 3, "column": 1, "node": {}, "kind": "colour"}], "keys": ["rtcolour1"]},
    "runtimeObjects": {"source": "x", "outputs": {}}, "paths": ["compute.runtimeObjects.source"]},
-  {"name": "an index past the signature", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {"value": 3}, "runtimeOutputSignature": ["plot"]}, "paths": ["compute.runtimeObjects.outputs.value"]}
+  {"name": "an index past the signature", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {"value": 3}, "runtimeOutputSignature": ["plot"]}, "paths": ["compute.runtimeObjects.outputs.value"]},
+  {"name": "engine 54: valid, sites and program stamps", "kind": "ast", "plots": ["value"],
+   "runtimeObjects": {"source": "x", "outputs": {}, "sites": {"s1": "8:5", "s12": "11:13"}, "programSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "programGraphSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}, "paths": []},
+  {"name": "engine 54: sites not an object", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "sites": ["s1"]}, "paths": ["compute.runtimeObjects.sites"]},
+  {"name": "engine 54: a site id that is not s<n>", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "sites": {"site1": "8:5"}}, "paths": ["compute.runtimeObjects.sites.site1"]},
+  {"name": "engine 54: a source call that is not line:column", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "sites": {"s1": "8"}}, "paths": ["compute.runtimeObjects.sites.s1"]},
+  {"name": "engine 54: a source call that is a number", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "sites": {"s1": 8}}, "paths": ["compute.runtimeObjects.sites.s1"]},
+  {"name": "engine 54: a source call with a trailing newline", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "sites": {"s1": "8:5\n"}}, "paths": ["compute.runtimeObjects.sites.s1"]},
+  {"name": "engine 54: a program stamp in upper case", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "programSha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}, "paths": ["compute.runtimeObjects.programSha256"]},
+  {"name": "engine 54: a short graph stamp", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "programGraphSha256": "ab"}, "paths": ["compute.runtimeObjects.programGraphSha256"]},
+  {"name": "engine 54: a program stamp that is not a string", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "programSha256": null}, "paths": ["compute.runtimeObjects.programSha256"]}
  ]
 }

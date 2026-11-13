@@ -3891,7 +3891,7 @@ function validateRuntimeColours(compute, plotKeyIndex, errors) {
 /** ⭐⭐ ENGINE 53 — the fields `compute.runtimeObjects` may carry. CLOSED: anything else is
  *  refused, so a hand-posted document cannot smuggle a field a later reader would trust. */
 export const RUNTIME_OBJECTS_FIELDS = Object.freeze(['source', 'outputs', 'runtimeLanguage', 'runtimeFrontend',
-  'runtimeIr', 'runtimeOutputSignature'])
+  'runtimeIr', 'runtimeOutputSignature', 'sites', 'programSha256', 'programGraphSha256'])
 
 /** ⭐⭐ ENGINE 53 — `compute.runtimeObjects = { source, outputs, ...runtimeVersionStamp }`:
  *  the RUN HALF of a host document whose object program lost drawings
@@ -3904,6 +3904,10 @@ export const RUNTIME_OBJECTS_FIELDS = Object.freeze(['source', 'outputs', 'runti
  *    · the version stamp, when present: `runtimeLanguage` a non-empty string,
  *      `runtimeFrontend` / `runtimeIr` positive whole numbers, `runtimeOutputSignature` an
  *      array of strings that names every mapped index;
+ *    · ⭐ ENGINE 54 — `sites`, when present: an object mapping a host create site id (`s<n>`) to
+ *      the source call both lanes name it by (`<line>:<column>`, `objectProgram.objectSiteKey`);
+ *      `programSha256` / `programGraphSha256`, when present: 64 lowercase hex
+ *      (`runHalfProgram.js`; the bind refuses a run half whose stamp is absent or wrong);
  *    · no other field.
  *  @param {object} compute  the definition's `compute`
  *  @param {Set<string>|Map<string, any>} plotKeys the declared plot keys
@@ -3945,6 +3949,21 @@ export function runtimeObjectsErrors(compute, plotKeys) {
   }
   for (const f of ['runtimeFrontend', 'runtimeIr']) {
     if (ro[f] !== undefined && !(Number.isInteger(ro[f]) && ro[f] >= 1)) errors.push(`${at}.${f}: expected a positive whole number, got ${fmt(ro[f])}`)
+  }
+  if (ro.sites !== undefined) {
+    if (!isPlainObject(ro.sites)) {
+      errors.push(`${at}.sites: expected an object mapping a create site to its source call, got ${fmt(ro.sites)}`)
+    } else {
+      for (const [k, v] of Object.entries(ro.sites)) {
+        if (!/^s\d+$/.test(k)) errors.push(`${at}.sites.${k}: a create site is named s<n>`)
+        if (typeof v !== 'string' || !/^\d+:\d+$/.test(v)) errors.push(`${at}.sites.${k}: expected a source call <line>:<column>, got ${fmt(v)}`)
+      }
+    }
+  }
+  for (const f of ['programSha256', 'programGraphSha256']) {
+    if (ro[f] !== undefined && !(typeof ro[f] === 'string' && /^[0-9a-f]{64}$/.test(ro[f]))) {
+      errors.push(`${at}.${f}: expected 64 lowercase hex, got ${fmt(ro[f])}`)
+    }
   }
   const sig = ro.runtimeOutputSignature
   if (sig !== undefined) {

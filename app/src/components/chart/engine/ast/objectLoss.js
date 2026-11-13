@@ -738,8 +738,8 @@ export const RUN_HALF_WHY_KEY = '+run'
 
 /** Said on the document's drawing note when it carries a run half. */
 export const RUN_HALF_DRAWING_SENTENCE = 'Where this chart can run the script bar by bar the way TradingView '
-  + "does (at the script's own settings, with every plot agreeing with that run), its drawings are made by "
-  + 'that run instead, complete.'
+  + "does (at the script's own settings, with every plot and every drawing this chart makes agreeing with "
+  + 'that run), its drawings are made by that run instead, complete.'
 
 const RUN_HALF_WHY = Object.freeze({
   'pane:not-built': "running scripts bar by bar isn't part of this version of the app",
@@ -757,6 +757,16 @@ const RUN_HALF_WHY = Object.freeze({
     + 'here, so its drawings are not taken from that run',
   'run-half:family-withheld': 'running it bar by bar holds back a kind of drawing this chart already draws',
   'run-half:source-unbound': "the drawings it carries were not made from this indicator's own script",
+  // ⭐⭐ ENGINE 54 — the object rail, the program binding, and the rail not being loaded
+  'run-half:object-rail': 'running it bar by bar draws one of the drawings this chart already shows '
+    + 'differently, so its drawings are not taken from that run',
+  'run-half:host-object-withheld': "running it bar by bar doesn't make one of the drawings this chart already "
+    + 'shows, so its drawings are not taken from that run',
+  'run-half:no-comparable-objects': "none of the drawings this chart makes can be checked against running it "
+    + "bar by bar, and that run hasn't been checked against TradingView for this script",
+  'run-half:program-unbound': "the indicator's plots and drawings have changed since it was set up to run bar "
+    + 'by bar',
+  'run-half:rail-not-loaded': 'the part of the app that checks those drawings is not loaded',
   'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is not loaded',
   'runtime:load-failed': 'the part of the app that runs scripts bar by bar could not be loaded in this tab',
   'runtime:request': 'the script reads another symbol or timeframe, which this chart cannot hand that run',

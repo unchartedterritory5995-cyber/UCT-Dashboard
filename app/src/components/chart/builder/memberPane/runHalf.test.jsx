@@ -32,8 +32,10 @@ import {
 import { resetObjectRenderDrops } from '../../engine/objectRenderNotice'
 import AttachedPineDisclosures from '../../pane/AttachedPineDisclosures'
 import { RUN_HALF_SOURCE_STAMP } from './memberPaneDefinition'
+import { setRunHalfObjectEvidence } from '../../engine/runHalfRailSeam'
 import { storedBytesOf } from './storedBytes'
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
+import { runHalfProgramDigest, RUN_HALF_PROGRAM_STAMP } from '../../engine/runHalfProgram'
 
 const LF = String.fromCharCode(10)
 const SRC = ['//@version=5', 'indicator("run half", overlay = true)', 'len = input.int(5, "len")',
@@ -236,10 +238,13 @@ describe('⛔ the door\'s other gates (review 2: X2, X3, X4, X8)', () => {
 
 describe('⛔ the bind\'s other gates (review 2: X5, X7)', () => {
   /** a lane answering with the host's own columns (so only the gate under test can refuse) */
-  const hostEcho = (hostCols, tamper = null) => () => {
+  // ⭐ ENGINE 54 — with the RUN's own drawings, so the object rail holds and only the gate
+  // under test can refuse
+  const hostEcho = (hostCols, tamper = null) => (d, bars) => {
     const out = { value: Float64Array.from(hostCols.value), out2: Float64Array.from(hostCols.out2) }
     if (tamper) tamper(out)
-    Object.defineProperty(out, RUNTIME_OBJECTS_KEY, { value: { status: 'ok', live: [], withheld: {} }, enumerable: false })
+    const real = runtimeColumnsFor(d, bars, {}, CTX)[RUNTIME_OBJECTS_KEY]
+    Object.defineProperty(out, RUNTIME_OBJECTS_KEY, { value: real, enumerable: false })
     return out
   }
 
@@ -273,7 +278,17 @@ describe('⛔ the bind\'s other gates (review 2: X5, X7)', () => {
 describe('⛔ a refused run half over a host picture with no drawings still says why (review 3)', () => {
   // the original fixture: the host program loses EVERY drawing (`definition.objects` is null)
   const SRC0 = SRC.replace(`${LF}    line.new(bar_index - 1, low, bar_index, high)`, '')
+  it('⭐ ENGINE 54 — nothing the host draws to compare: refused (no comparable object), the sentence said', () => {
+    const d = door(SRC0)
+    expect(d.runHalf, JSON.stringify(d.runHalfDeclined)).toBeTruthy()
+    expect(runHalfOf(bind(install(d.definition)))).toEqual({ state: 'refused', code: 'run-half:no-comparable-objects' })
+  })
   it('the member reads the refusal sentence, and a layer the run drew before is emptied', () => {
+    // ⭐ ENGINE 54 — a run half with nothing comparable is refused (above); the Part 2 hook
+    // admits it on recorded evidence, which is what lets this chart draw the run's labels first
+    setRunHalfObjectEvidence([{ sha256: runtimeSourceHash(SRC0), captures: [
+      { capture: 'a', verdict: 'MATCH', objectsV2: true, runtimeOn: true },
+      { capture: 'b', verdict: 'MATCH', objectsV2: true, runtimeOn: true }] }])
     const d = door(SRC0)
     expect(d.runHalf, JSON.stringify(d.runHalfDeclined)).toBeTruthy()
     expect(d.definition.objects).toBeFalsy()
@@ -299,6 +314,7 @@ describe('⛔ a refused run half over a host picture with no drawings still says
     expect(t).toContain(runHalfRefusedSentence('pane:not-graded'))
     expect(t).not.toMatch(GUARD_TOKEN)
     binder.teardown()
+    setRunHalfObjectEvidence([])
   })
 })
 
@@ -364,6 +380,8 @@ describe('⭐⭐ the bind draws the run\'s drawings only where every gate passes
     const swapped = JSON.parse(JSON.stringify(minted))
     swapped.id = `${minted.id}x`
     swapped.compute.runtimeObjects.outputs = { value: out2, out2: value }
+    // ⭐ ENGINE 54 — re-stamped, so the program binding holds and the column rail is what refuses
+    swapped.compute.runtimeObjects[RUN_HALF_PROGRAM_STAMP] = runHalfProgramDigest(swapped)
     const def = install(swapped)
     expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: registry.RUN_HALF_COLUMN_RAIL })
     expect(runtimeObjectsOf(bind(def))).toBe(null)
@@ -376,10 +394,13 @@ describe('⭐⭐ the bind draws the run\'s drawings only where every gate passes
   })
 
   describe('a run this lane cannot serve', () => {
+    // ⭐ ENGINE 54 — a payload function receives the run's real drawings (`live`), so a control
+    // that keeps them passes the object rail
     const fake = (payload) => (def, bars) => {
       const out = runtimeColumnsFor(def, bars, {}, CTX)
       const res = { ...out }
-      if (payload !== undefined) Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false })
+      const p = typeof payload === 'function' ? payload(out[RUNTIME_OBJECTS_KEY].live) : payload
+      if (p !== undefined) Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: p, enumerable: false })
       return res
     }
     it('pending: a run in flight (no drawings attached yet)', () => {
@@ -392,7 +413,7 @@ describe('⭐⭐ the bind draws the run\'s drawings only where every gate passes
       const def = install(door().definition)
       registry.registerRuntimeLane(fake({ status: 'ok', live: [], withheld: { line: 'not measured' } }))
       expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'run-half:family-withheld' })
-      registry.registerRuntimeLane(fake({ status: 'ok', live: [], withheld: { box: 'not measured' } }))
+      registry.registerRuntimeLane(fake((live) => ({ status: 'ok', live, withheld: { box: 'not measured' } })))
       expect(runHalfOf(bind(def)).state, 'CONTROL: a family the host does not draw').toBe('served')
     })
     it('⛔ drawings withheld whole, or a run that stopped: refused', () => {

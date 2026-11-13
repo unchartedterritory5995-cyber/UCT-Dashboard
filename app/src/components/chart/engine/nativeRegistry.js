@@ -166,6 +166,10 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from './runtimeKill'
+// ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
+import { runHalfProgramBound } from './runHalfProgram.js'
+import { registeredRunHalfObjectRail } from './runHalfRailSeam.js'
+import { noteRunHalfAnswer } from './runHalfTelemetry.js'
 import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
@@ -3320,6 +3324,15 @@ function servedRunStamp(def) {
  *  drawings are not drawn and the host picture stays. */
 export const RUN_HALF_COLUMN_RAIL = 'run-half:column-rail'
 
+/** ⭐⭐ ENGINE 54 — the document's trees and object program are not the ones its door stamped
+ *  (`runHalfProgram.js`): the run half is not drawn beside a program it was not minted for. */
+export const RUN_HALF_PROGRAM_UNBOUND = 'run-half:program-unbound'
+/** ⭐⭐ ENGINE 54 — the object rail (`runHalfObjectRail.js`) is not registered in this bundle:
+ *  a rail that cannot run is a refusal, never a pass. */
+export const RUN_HALF_RAIL_NOT_LOADED = 'run-half:rail-not-loaded'
+/** ⭐⭐ ENGINE 54 — the object rail's own default code (its others ride its answer). */
+export const RUN_HALF_OBJECT_RAIL = 'run-half:object-rail'
+
 /** Two column values agree: both `na`, or equal to 1e-9 of their size (the runtime lane's
  *  own rule, `runtimeColumns.js::sameValue`, restated as a value comparison: this module
  *  must not import the lane). */
@@ -3419,7 +3432,11 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   if (!ctx) return out
   const ro = def.compute.runtimeObjects
   const res = copyColumns(out)
-  const refused = (code) => withRunHalfState(res, { state: 'refused', code })
+  // ⭐⭐ ENGINE 54 — every answer is noted for the refusal telemetry (`runHalfTelemetry.js`:
+  // a code per document session, a hash-prefixed beacon; never the source)
+  const src = ro && typeof ro.source === 'string' ? ro.source : null
+  const refused = (code) => { noteRunHalfAnswer(def, src, code); return withRunHalfState(res, { state: 'refused', code }) }
+  const answered = (state, code) => { noteRunHalfAnswer(def, src, null); return withRunHalfState(res, { state, code }) }
   if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
     return refused('run-half:malformed')
   }
@@ -3432,6 +3449,10 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   const own = def.meta && typeof def.meta[RUN_HALF_SOURCE_STAMP_KEY] === 'string'
     ? def.meta[RUN_HALF_SOURCE_STAMP_KEY].toLowerCase() : null
   if (!own || runHalfSourceHashOf(ro) !== own) return refused('run-half:source-unbound')
+  // ⛔⛔ ENGINE 54 — AND BESIDE THE PROGRAM IT WAS MINTED FOR: the door's digest of the trees, the
+  // object program, the output map and the site map, re-derived from this document
+  // (`runHalfProgram.js`). An edited tree or object program, kept under the old stamp, is refused.
+  if (!runHalfProgramBound(def)) return refused(RUN_HALF_PROGRAM_UNBOUND)
   const stamp = servedRunStamp(def)
   if (!runtimePaneBuilt()) return refused('pane:not-built')
   if (!runtimePanePermitted()) return refused('pane:not-permitted')
@@ -3442,7 +3463,7 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   if (!runtimeColoursAtDefaults(def, inputs)) return refused('runtime:member-inputs')
   if (!_runtimeLane) {
     if (_runtimeLoadFailed !== null) return refused(RUNTIME_LOAD_FAILED_GUARD)
-    if (loadRuntimeLane()) return withRunHalfState(res, { state: 'pending', code: 'runtime:not-loaded' })
+    if (loadRuntimeLane()) return answered('pending', 'runtime:not-loaded')
     return refused('runtime:not-loaded')
   }
   let cols
@@ -3454,7 +3475,7 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
   // ⛔ A run that owns its drawings always attaches them when it finishes
   // (`runtimeColumns.js`): nothing attached is a run still in flight.
-  if (!payload || typeof payload !== 'object') return withRunHalfState(res, { state: 'pending', code: 'runtime:in-flight' })
+  if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
   if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
   if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
   const hostFams = hostObjectFamilies(def.objects)
@@ -3473,8 +3494,21 @@ function withRunHalf(def, out, bars, inputs, ctx) {
       if (!sameColumnValue(host[i], run[i])) return refused(RUN_HALF_COLUMN_RAIL)
     }
   }
+  // ⛔⛔ ENGINE 54 — THE OBJECT RAIL (`runHalfObjectRail.js`): the run's drawings at every
+  // create site the host draws must BE the host's, object for object, on these bars. With no
+  // plot mapped the column rail above compared nothing; this one never compares nothing (no
+  // comparable object is its own refusal, `run-half:no-comparable-objects`).
+  const rail = registeredRunHalfObjectRail()
+  if (!rail) return refused(RUN_HALF_RAIL_NOT_LOADED)
+  let verdict
+  try {
+    verdict = rail({ def, bars, inputs, ctx, payload, from })
+  } catch {
+    verdict = null
+  }
+  if (!verdict || verdict.ok !== true) return refused((verdict && verdict.code) || RUN_HALF_OBJECT_RAIL)
   Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
-  return withRunHalfState(res, { state: 'served', code: null })
+  return answered('served', null)
 }
 
 /** ⭐ ENGINE 53 — what a run half's gates read that can change under an unchanged
