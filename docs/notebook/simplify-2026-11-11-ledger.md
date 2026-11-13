@@ -519,3 +519,28 @@ Walker, door-table and Python-test strings this group invalidates (Task 4):
 Existing tests changed: `sampleNotebook.hold.test.js` ("several held notes (unsent and blocked)" became "several unsent notes"; the blocked cases are new).
 
 First-open bytes after the build: 2,258,202 B of 2,260,793 B (PASS); group 3 +190 B. Task 3 in all: +54 B over the base's 2,258,148 B, 2,591 B of room left.
+
+## Pass 2, Task 4 (2026-11-13): instruments, the acceptance walk and evidence, base `ae44ec5f2d`
+
+Report: `.superpowers/sdd/2026-11-12-notebook-simplify-2/task-4-report.md`. Walk record: `docs/notebook/fin-walk.md` section 10, `docs/notebook/evidence/fin-walk/d84aa2d949/` (full c2) and `703a85d816-rerun/`, door audit `docs/notebook/evidence/door-audit-20261113T083108Z/`. Screenshots: `docs/notebook/evidence/simplify-2/` (`index.json` maps each spec row to its after shot and its before: a pass 1 evidence shot where the same screen exists, else one line).
+
+Product (found by the walk; focused rail and red proof):
+- C6 `tabs/NotebookTab.module.css`: at 390 "Remove sample notebook" still wrapped to two lines (the ⋯ menu sat at the menu engine's 200 px floor). The phone row-end menu (`.newWrap [role="menu"]`) now takes `width: max-content` (211 px measured, one line, inside the window; NewNoteMenu's max-width still caps it). Undo: drop the declaration. Rail: `NotebookTab.toolbarFits.test.js`.
+
+Instruments re-pointed (every string the Task 1 to 3 sections listed; none deleted, skipped or turned into INFO):
+- Fin walk: reviews through "+ New" arrow > "Draft a review" > the review by name; the New menu and phone More expect the one row and read its second view; phone sample row "Remove sample notebook" (one line); a BLOCKED sample hold recorded; "Update template", "Trade journal tools"; c3's review path.
+- Proof walk, NVDA pass, w13q, wave N e2e, flags-off parity (+ its test): "Ask about this note"; proof walk, NVDA pass, wave 6, 7, 10b: Graph and Timeline through View > More views; proof walk and wave 8: Export waits for the More panel's second view (and skips its Back row). Door table rows 59/60 prose.
+- `tools/notebook_personal_api_walk.py` accepts `note_daily.LEGACY_DAILY_FOLDER_NAMES` beside `DAILY_FOLDER_NAME` (imported); tests added (legacy root "Daily" appends; trimmed or nested look-alikes do not). Not run against production.
+- blocks.prep-pack (`703a85d816`): reads what a gap that fills itself says since master S9 (FILLING_WORDS, no Captured line while filling) and S17's names ask; a non-retryable gap keeps the old read. Found by the full run (about 3 AM ET).
+- New fin walk doors for the review's browser checks: `discover.daily-brief` (B1, B4, B5, check e), `discover.more-views` (C1, check f), `discover.note-second-views` (C3, check d), `discover.second-view-390` (check g), `discover.plus-ask-390` (A8, check a), `discover.insert-palette` (C4), and the C5 read in `first run`.
+
+Recorded facts:
+- At 390 the note's "Aa" is the Format row's toggle (font and size are native selects in the row); the Aa menu and its Font second view are desktop only.
+- The empty list's line still says "Start from a template, or a blank page." while C5 hides the inline grid under the Get started card (the card's "Start a note from a template" and "+ New"'s arrow are the doors). Copy, owner call.
+
+Results:
+- Full c2 run, tip `d84aa2d949` (product as of `cbb10afc94`), empty data root: 332 steps, 308 PASS, 6 FAIL, 11 INFO, 7 NOT RUN. The 6 FAIL: blocks.prep-pack x3 (INSTRUMENT, re-pointed and re-run PASS x3) and smart.screenshot-tag x3 (configuration: no OCR in c2). Zero PASS -> FAIL that is PRODUCT against `13f1b01f5e` + `7e849c6740-rewalk`.
+- Door audit, both widths: EASY 7, OK 12, HARD 11, HIDDEN 0, exit 0 (same counts as pass 1). No door went from EASY or OK to HARD, so no new ruling is needed.
+- First-open bytes after the C6 fix: 2,258,225 B of 2,260,793 B (PASS).
+
+Existing tests changed, and why: `tests/test_notebook_personal_api_walk.py` (legacy-folder cases; the restated-name rail now covers both names), `tests/test_notebook_w14_flagsoff_parity_expected.py` (the A6 entry's new name).

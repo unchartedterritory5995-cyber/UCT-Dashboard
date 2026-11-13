@@ -564,3 +564,68 @@ Rows not PASS, all classified INSTRUMENT (none is a product change of this branc
 Door audit, rows touched (`evidence/door-audit-20261113T023016Z/`, tip `7e849c6740`): 23 EASY, 26 EASY and OK, 34 OK,
 54 OK (was EASY: at 390 the capped phone menu needs a scroll to its last row), 56 EASY, 63 HARD (reasoned; the reason now
 says the template walkthroughs start on the phone row). Control: all six behaved. Exit 0.
+
+## 10. Notebook simplify, pass 2 (2026-11-13, c2 on `d84aa2d949`)
+
+Branch `feat/notebook-simplify-2`. Pass 2 gave each thing one name (spec A), made the Daily brief show only what it has
+and never make a note by being opened (B), and moved Graph and Timeline, the reviews, the export formats and the
+palette's market snapshots one press deeper (C). The walkers were re-pointed first (`c0b0029b00`, `d84aa2d949`); one
+product fix came out of the walk (`cbb10afc94`, C6: the phone ⋯ menu is as wide as its longest row, so "Remove sample
+notebook" is one line). This is the first full c2 record since `13f1b01f5e` (pass 1 shipped on that run plus the
+targeted re-walk `7e849c6740-rewalk`).
+
+Raw record: `evidence/fin-walk/d84aa2d949/c2/` (paths redacted to `<temp>` / `<home>`; members are synthetic `@local.dev`
+sandbox accounts; `sandbox-c2.log` thinned for size: each repeat of an already-printed Python warning dropped, the first
+kept, a header line says how many). One sandbox boot, port 8132, an empty data dir, tip `d84aa2d949` (product code as of
+`cbb10afc94`). Integrity: pre-boot, post-boot and post-prewarm CLEAN; the shutdown checkpoint is missing (stop FORCED
+after 120 s without a graceful exit), as in `13f1b01f5e`.
+
+| run | tip | steps | PASS | FAIL | INFO | NOT RUN |
+|---|---|---|---|---|---|---|
+| pass 1 final | `13f1b01f5e` | 316 | 282 | 16 | 11 | 7 |
+| **pass 2 full** | **`d84aa2d949`** | **332** | **308** | **6** | **11** | **7** |
+
+### 10.1 Rows not PASS
+
+| step | width | `13f1b01f5e` | now | class | why |
+|---|---|---|---|---|---|
+| blocks.prep-pack | 1280, 820, 390 | PASS | FAIL | INSTRUMENT | the run reached the earnings part at about 3 AM ET and froze the retryable gap `no_earnings_yet`; since master S9 such a gap says its "filling" words and holds back its Captured line while it fills itself, and the walk waited for the server's `detail` and a Captured line. Re-pointed (`703a85d816`) to read the words the block draws for each gap (filling, S17's names ask, others' `detail`); re-run on a held sandbox, PASS x3 twice (`evidence/fin-walk/703a85d816-rerun/`: once on a member with no names, once with names and no gap; the filling words themselves did not recur). The blocks are unchanged on this branch. |
+| smart.screenshot-tag | 1280, 820, 390 | FAIL | FAIL | INSTRUMENT (configuration) | c2 leaves `J2_OCR_ENABLED` unset: a pasted screenshot has no text, so no chip. |
+
+INFO (11) and NOT RUN (7) rows are the same rows as in `13f1b01f5e` (NO KEY x6; five passed setups: the member has fewer).
+No row that passed in `13f1b01f5e` or the re-walk fails here because of a product change. Six rows of `13f1b01f5e` have
+no row of the same name because this work renamed them; each passes under its new name (first run x3, the New menu
+row, the 390 sample control, discover.coverage over 21 door features).
+
+### 10.2 What the review asked a real browser to settle (all PASS)
+
+- (a) 390, from an open note: "+" > "Ask your Notebook" lands on `/journal/notebook?view=all` with Ask open and focus in
+  its field ("What have I written about…"); closing Ask puts focus on "Add to your notebook" (`discover.plus-ask-390`).
+- (b) `earnings-prep` and `passed-setups` open on the Daily brief (`?view=today`, step one) at 1280, 820 and 390.
+- (c) The Reviews walkthrough: 4 of 4 steps at 1280, 820 and 390.
+- (d) A cold press on the note's More > Export 4.1 s after a page load, with the formats' chunk held back for 2 s after
+  the press: the menu came when the chunk landed (Back and the six formats); the press was not lost.
+- (e) The Daily brief for a member with nothing, its read held: header and one skeleton; when the read landed the
+  heading and date line kept their place and height (the date line only gained words), the button's room was the same
+  box, and the quiet line took the skeleton's top (180.2 px). Screenshots `c2-1280-discover.daily-brief-first-paint.png`
+  and `-after-read.png` in the raw record's `shots/`. Opening the brief made no note and no folder; "Start today's note"
+  made today's note in "Daily notes"; back on the brief it read "Open today's note".
+- (f) A saved view of type Graph opens the graph; `?view=graph` and `?view=timeline` open their views; in the View menu
+  both sit under "More views" only.
+- (g) At 390 every second view sits inside the window with its last row above the floating "+" (top 772 px): View > More
+  views (menu bottom 340), More > Draft a review (434), the note's More > Export (677). "Aa > Font" has no second view on
+  a phone: "Aa" there toggles the format row, whose font is the native select "Font family" (inside the window, 233 to
+  277 px). New > Draft a review is desktop-only (the New menu is not drawn on a phone; its phone door is More).
+
+Also walked and green in the full run: the three reviews through "+ New" arrow > "Draft a review" (daily and weekly
+anchors on their rows), the phone More's one row (one line after `cbb10afc94`), the Insert palette's "Show all" (the
+market group appears, focus on its first row), the empty list with no template grid under the Get started card (C5),
+"Update template to vN?", "Trade journal tools", "Choose a template", and sample removal in one press.
+
+### 10.3 Door audit (`evidence/door-audit-20261113T083108Z/`, tip `703a85d816`)
+
+`--self-check` holds (17 verdict cases, 13 exit cases). A sandbox booted through `--serve` from an empty data dir
+(integrity CLEAN at every checkpoint, graceful stop). Both widths, realistic state: EASY 7, OK 12, HARD 11, HIDDEN 0,
+exit 0; the control behaved at both widths. Same counts as pass 1 (`door-audit-20261112T211834Z`). Against that audit no
+door went from EASY or OK to HARD; row 41's card is EASY at 1280 (was OK), row 54 is EASY at 390 again (was OK in the
+pass 1 re-walk), row 65's settled 390 reading went HARD -> OK.
