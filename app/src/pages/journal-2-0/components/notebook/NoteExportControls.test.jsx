@@ -56,12 +56,18 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks() })
 
 const trigger = () => screen.getByRole('button', { name: /^export/i })
+// Notebook simplify, Task 4: PNG and Print are the Export menu's first two items, above the four formats.
+const SCREEN_ITEMS = ['PNG', 'Print']
+const pressItem = (name) => {
+  if (!screen.queryByRole('menu')) fireEvent.click(trigger())
+  fireEvent.click(screen.getByRole('menuitem', { name }))
+}
 
 describe('the Export menu button', () => {
-  it('is a closed menu button beside PNG and Print', () => {
+  it('is a closed menu button, with PNG and Print inside it rather than beside it', () => {
     render(<Host />)
-    expect(screen.getByRole('button', { name: 'PNG' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Print' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'PNG' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Print' })).toBeNull()
     expect(trigger()).toHaveAttribute('aria-haspopup', 'menu')
     expect(trigger()).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('menu')).toBeNull()
@@ -69,18 +75,22 @@ describe('the Export menu button', () => {
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
   })
 
-  it('opens onto four formats, each named by its label and described by what it keeps', () => {
+  it('opens onto PNG, Print and four formats, each named by its label and described by what it keeps', () => {
     render(<Host />)
     fireEvent.click(trigger())
     expect(trigger()).toHaveAttribute('aria-expanded', 'true')
     const menu = screen.getByRole('menu', { name: 'Export this note as' })
     expect(trigger()).toHaveAttribute('aria-controls', menu.id)
     const items = screen.getAllByRole('menuitem')
-    expect(items.map((i) => i.getAttribute('aria-label'))).toEqual(['Markdown', 'Web page (HTML)', 'JSON', 'Word (.docx)'])
+    expect(items.map((i) => i.getAttribute('aria-label'))).toEqual(
+      [...SCREEN_ITEMS, 'Markdown', 'Web page (HTML)', 'JSON', 'Word (.docx)'])
     // The description a screen reader announces is the rendered "keeps" sentence.
     for (const [i, f] of EXPORT_FORMATS.entries()) {
-      const describedBy = document.getElementById(items[i].getAttribute('aria-describedby'))
+      const describedBy = document.getElementById(items[SCREEN_ITEMS.length + i].getAttribute('aria-describedby'))
       expect(describedBy.textContent).toBe(f.keeps)
+    }
+    for (const item of items.slice(0, SCREEN_ITEMS.length)) {
+      expect(document.getElementById(item.getAttribute('aria-describedby')).textContent).not.toBe('')
     }
     // Focus lands on the first item.
     expect(document.activeElement).toBe(items[0])
@@ -94,11 +104,11 @@ describe('the Export menu button', () => {
     fireEvent.keyDown(menu, { key: 'ArrowDown' })
     expect(document.activeElement).toBe(items[1])
     fireEvent.keyDown(menu, { key: 'End' })
-    expect(document.activeElement).toBe(items[3])
+    expect(document.activeElement).toBe(items[items.length - 1])
     fireEvent.keyDown(menu, { key: 'ArrowDown' })
     expect(document.activeElement).toBe(items[0])
     fireEvent.keyDown(menu, { key: 'ArrowUp' })
-    expect(document.activeElement).toBe(items[3])
+    expect(document.activeElement).toBe(items[items.length - 1])
     fireEvent.keyDown(menu, { key: 'Home' })
     expect(document.activeElement).toBe(items[0])
   })
@@ -194,9 +204,9 @@ describe('each format downloads through the format route', () => {
     fireEvent.click(trigger())
     fireEvent.click(screen.getByRole('menuitem', { name: 'JSON' }))
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('preparing…'))
-    // ONE busy guard for all doors: the trigger and PNG are disabled mid-export.
+    // ONE busy guard for all doors: the trigger is disabled mid-export, so PNG and Print (inside it) wait too.
     expect(trigger()).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'PNG' })).toBeDisabled()
+    expect(screen.queryByRole('menu')).toBeNull()
     await act(async () => { release(fileResponse('attachment; filename="Plan.json"')) })
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('downloaded'))
     expect(trigger()).not.toBeDisabled()
@@ -268,7 +278,7 @@ describe("the editor's pending edits are sent before the file is built (M-9)", (
   it('PNG reads the note on screen, so it asks nothing first', async () => {
     const onBeforeExport = vi.fn(async () => false)
     render(<Host onBeforeExport={onBeforeExport} />)
-    fireEvent.click(screen.getByRole('button', { name: 'PNG' }))
+    pressItem('PNG')
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('PNG saved'))
     expect(onBeforeExport).not.toHaveBeenCalled()
   })
@@ -285,7 +295,7 @@ describe('a refused PNG shows its OWN reason, not the generic failure message', 
       reason: 'This note is too long for one PNG image. Try Print or the Export menu instead.',
     })
     render(<Host />)
-    fireEvent.click(screen.getByRole('button', { name: 'PNG' }))
+    pressItem('PNG')
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent)
       .toBe('This note is too long for one PNG image. Try Print or the Export menu instead.'))
   })
@@ -293,7 +303,7 @@ describe('a refused PNG shows its OWN reason, not the generic failure message', 
   it('falls back to "export failed" when the guard gives no reason', async () => {
     exportNoteAsPng.mockResolvedValueOnce({ ok: false })
     render(<Host />)
-    fireEvent.click(screen.getByRole('button', { name: 'PNG' }))
+    pressItem('PNG')
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('export failed'))
   })
 })
@@ -325,19 +335,19 @@ describe('focus comes back to the button that made the file (M-1)', () => {
     expect(document.activeElement).toBe(trigger())
   })
 
-  it('PNG: back on PNG once the image is saved', async () => {
+  // Notebook simplify, Task 4: PNG is an item of the Export menu, which closes when it is picked, so the button
+  // that made the image -- and takes focus back -- is Export.
+  it('PNG: back on the Export button once the image is saved', async () => {
     let release
     exportNoteAsPng.mockImplementationOnce(() => new Promise((r) => { release = r }))
     render(<Host />)
-    const png = screen.getByRole('button', { name: 'PNG' })
-    png.focus()
-    fireEvent.click(png)
-    await waitFor(() => expect(png).toBeDisabled())
+    pressItem('PNG')
+    await waitFor(() => expect(trigger()).toBeDisabled())
     dropFocusToBody()
     expect(document.activeElement).toBe(document.body)
     await act(async () => { release({ ok: true }) })
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('PNG saved'))
-    expect(document.activeElement).toBe(png)
+    expect(document.activeElement).toBe(trigger())
   })
 
   it('a member who moved on meanwhile keeps their place', async () => {
@@ -371,9 +381,9 @@ describe('export_used — the door says a note left as a file, and nothing about
 
   it('PNG and Print count too; a refused export sends nothing', async () => {
     render(<Host />)
-    fireEvent.click(screen.getByRole('button', { name: 'PNG' }))
+    pressItem('PNG')
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('PNG saved'))
-    fireEvent.click(screen.getByRole('button', { name: 'Print' }))
+    pressItem('Print')
     // Tier 1a bytes: the print module is fetched on the press, so the call lands a tick later.
     await waitFor(() => expect(printNote).toHaveBeenCalled())
     await waitFor(() => expect(telemetryBodies(global.fetch).map((b) => b.props.format)).toEqual(['png', 'print']))
@@ -412,7 +422,9 @@ describe('NoteExportControls: the palette door opens the Export menu (lane KEYS3
     expect(took).toBe(true)
     expect(panel.hidden).toBe(false)
     const items = await screen.findAllByRole('menuitem')
-    expect(items).toHaveLength(EXPORT_FORMATS.length)
+    // Notebook simplify, Task 4: PNG and Print first, then the formats; focus is on the first item, where pressing
+    // Export puts it.
+    expect(items).toHaveLength(SCREEN_ITEMS.length + EXPORT_FORMATS.length)
     await waitFor(() => expect(document.activeElement).toBe(items[0]))
   })
 

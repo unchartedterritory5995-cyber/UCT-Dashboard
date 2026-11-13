@@ -34,7 +34,8 @@ export const TOURS = [
     flag: 'notebook_review_drafts_enabled',
     title: 'Reviews that write themselves',
     replayable: true,
-    start: '/journal/notebook?view=home',
+    // go-live wave 1: the notes list's New menu "Reviews" group (on a phone, ⋯ carries it)
+    start: '/journal/notebook?view=all',
     load: steps(() => import('./reviewDrafts.steps')),
   },
   {

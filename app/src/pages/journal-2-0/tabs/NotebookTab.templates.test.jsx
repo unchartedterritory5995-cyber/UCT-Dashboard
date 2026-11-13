@@ -40,7 +40,6 @@ vi.mock('../components/notebook/NoteEditorPage', async () => {
 })
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 vi.mock('../lib/offline/useDurableNote', async (importOriginal) => ({
   ...(await importOriginal()),

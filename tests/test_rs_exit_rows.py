@@ -63,8 +63,10 @@ def test_the_row_copy_names_the_three_warnings_in_plain_english_and_never_says_s
 
 def test_the_resolver_keeps_zero_clamps_the_top_and_drops_what_the_row_does_not_declare(split_rows):
     out = rd.resolve_inputs("rsExit", {"fastLength": 999, "slowLength": 0, "lineColor": "#fff", "view": "rating"})
-    assert out == {"benchmark": "SPY", "customBenchmark": "", "fastLength": 400, "slowLength": 0}
-    assert rd.resolve_inputs("rsExit", {}) == {"benchmark": "SPY", "customBenchmark": "", "fastLength": 0, "slowLength": 0}
+    assert out == {"benchmark": "SPY", "customBenchmark": "", "sectorBenchmark": "XLK", "themeBenchmark": "",
+                   "fastLength": 400, "slowLength": 0}
+    assert rd.resolve_inputs("rsExit", {}) == {"benchmark": "SPY", "customBenchmark": "", "sectorBenchmark": "XLK",
+                                               "themeBenchmark": "", "fastLength": 0, "slowLength": 0}
 
 
 # ── the lengths: zero is auto, per timeframe ─────────────────────────────────

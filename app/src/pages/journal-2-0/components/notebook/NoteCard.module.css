@@ -113,7 +113,8 @@
   display: flex;
   min-width: 0;
 }
-.selectWrap > .card {
+.selectWrap > .card,
+.selectWrap > .row {
   flex: 1;
   min-width: 0;
   padding-left: 40px;
@@ -153,6 +154,17 @@
   border-color: var(--ut-gold);
   box-shadow: 0 0 0 1px var(--ut-gold);
 }
+/* Notebook simplify, Task 3: in a ROW the tick box is not drawn until it is wanted -- the row is hovered, something
+   in it has keyboard focus, it is selected, or anything in the list is selected (`.selectingAny`, so a selection in
+   progress shows every box). It keeps its space (the row's left padding), so the title never moves. The touch tier
+   below always shows it: there is no hover there. Cards keep the rules above, unchanged. */
+.selectRow .selectBox { opacity: 0; }
+.selectRow:hover .selectBox,
+.selectRow:focus-within .selectBox,
+.selectRow.selectWrapOn .selectBox,
+.selectRow.selectingAny .selectBox { opacity: 1; }
+/* Go-live wave 1 (D5): a selected row's tint is the list's (NotebookTab.module.css, `.rows > [data-note-row]`), on the
+   accent token, so the hover rule there cannot paint over it. */
 
 /* Touch tier (phone AND tablet): the whole box is a 44px finger target and
    it is never dimmed — there is no hover to reveal it. */
@@ -174,7 +186,9 @@
     width: 24px;
     height: 24px;
   }
-  .selectWrap > .card { padding-left: 48px; }
+  .selectWrap > .card,
+  .selectWrap > .row { padding-left: 48px; }
+  .selectRow .selectBox { opacity: 1; }
 }
 
 /* Wave 6 archive — an archived note still OPENS (archive is not trash), so its
@@ -204,6 +218,14 @@
 .shelfBtn:hover {
   background: rgba(220, 187, 94, 0.18);
 }
+/* Notebook simplify, Task 3: in a row, Unarchive sits at the row's end rather than under it. */
+.shelfRow {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.shelfRow > .row { flex: 1; min-width: 0; }
+.shelfRow > .shelfBtn { align-self: center; margin-right: 12px; }
 @media (max-width: 1024px) {
   .shelfBtn { min-height: var(--tap-min); }
   .selectWrap > .shelfWrap { padding-left: 48px; }
@@ -212,4 +234,72 @@
 /* Wave 11 (lane 11B): formula + rollup values on the card. */
 .computed {
   margin-top: 4px;
+}
+
+/* Notebook simplify, Task 3 (2026-11-11): the notes list's default, one note per ROW. No border, no background, no
+   lift on hover: the list draws a hairline between rows and the row highlight (NotebookTab.module.css, `.rows`), so the
+   highlight covers the tick box too. Line one is the title, line two the quiet meta line. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 12px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.row:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+}
+.row[data-trashed='true'] { cursor: default; }
+.row .restoreBtn { align-self: center; margin-top: 0; }
+.rowBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rowTitle {
+  display: block;
+  font-size: var(--text-xl); /* 16px, on every tier (the phone comfort scale lifts only xs..md) */
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rowMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+.rowMeta > * { flex: 0 0 auto; }
+.rowDate { color: var(--text-muted); }
+.rowTicker {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.rowTag { color: var(--text-muted); }
+.rowSubtitle {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

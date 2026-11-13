@@ -11,7 +11,9 @@ import { primeServerDefinitions, clearServerDefinitions, __setServerDefinitionsF
 import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 
 const RS = nativeRegistry.getDefinition('rsLine')
-const PHASE3 = ['view', 'customBenchmark', 'rrgRatioLength', 'rrgMomentumLength', 'clenowWindow',
+// 2026-11-12: the picked sector and theme are v4-row keys too, and their options v4-only.
+const V4_ONLY_BENCHMARKS = ['SECTOR_PICK', 'THEME', 'THEME_PICK', 'CUSTOM']
+const PHASE3 = ['view', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'rrgRatioLength', 'rrgMomentumLength', 'clenowWindow',
   'clenowGapPct', 'atrLength', 'varsLookback', 'anchorDate']
 const optionValues = (key) => RS.inputs.find((i) => i.key === key).options.map((o) => (Array.isArray(o) ? o[0] : o.value))
 const body = (on) => ({
@@ -20,7 +22,7 @@ const body = (on) => ({
     schemaVersion: 1, id: 'rsLine', version: on ? 4 : 3, compute: { kind: 'server', fn: 'rsLine', rev: on ? 4 : 3 },
     inputs: RS.meta.serverInputs.filter((k) => on || !PHASE3.includes(k)).map((key) => ({
       key, type: 'x', default: null,
-      ...(key === 'benchmark' ? { options: optionValues('benchmark').filter((v) => on || v !== 'CUSTOM') } : {}),
+      ...(key === 'benchmark' ? { options: optionValues('benchmark').filter((v) => on || !V4_ONLY_BENCHMARKS.includes(v)) } : {}),
       ...(key === 'view' ? { options: optionValues('view') } : {}),
     })),
     columns: ['rsLine'],

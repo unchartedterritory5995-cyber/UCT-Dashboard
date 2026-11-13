@@ -5,8 +5,10 @@
 // subtitle, tags, evidence, four property rows, a review line and a changelog between the
 // title and the body, and the first body line sat ~300 px down the page.
 //
-// It READS like metadata: `#thesis · NVDA · Technology · 4 properties · Not reviewed`, then a
-// `Details` toggle. Only the parts that have a value are said; a note with nothing set shows
+// It READS like metadata: the folder, then `#thesis · #semis · NVDA`, then a `Details` toggle.
+// Notebook simplify, Task 4: up to three tags and the ticker only -- the sector, the property count and
+// the review state are no longer said here; each stays inside Details. Linked-trade chips stay on the
+// line (they ride in `lead`, beside the folder). Only the parts that have a value are said; a note with nothing set shows
 // just a quiet `Add details`. The toggle is a real button that names what it controls
 // (`aria-controls`) and says whether it is open (`aria-expanded`); the controls it reveals are
 // the editor's own, unchanged, kept MOUNTED while hidden (NoteEditorPage owns that region).

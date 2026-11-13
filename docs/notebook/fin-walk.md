@@ -456,3 +456,111 @@ all four checkpoints).
 
 Through our server's ask door as the member, at one width (the door has no width). The citation
 is `Image, p.1`, marked `page_only`. Not walked: the document's own sheet in the browser.
+
+## 9. Notebook simplify, go-live wave 2 (2026-11-12, c2 on `13f1b01f5e`)
+
+Branch `feat/notebook-simplify`. The Notebook's layout changed on this branch (the notes list is the landing,
+Research home and its Learn menu are gone, the Daily brief is `?view=today`), so the walk, the door audit and
+the older walkers were first re-pointed at the doors a member uses now (`6ab326bc63`, `5b2c5b4f1d`,
+`13f1b01f5e`), then run. Product fixes found by the walk: `c2198187f0` (the base tour waits for the 60-second
+first run, S16) and `19b4647f94` (the first run's "Skip" is 44 px wide on the touch tier).
+
+Raw record: `evidence/fin-walk/13f1b01f5e/c2/` (local paths redacted to `<temp>` / `<home>`; members are
+synthetic `@local.dev` sandbox accounts). One sandbox boot, port 8132, an empty data dir, tip `13f1b01f5e`
+(product code as of `19b4647f94`). Integrity line: pre-boot, post-boot and post-prewarm CLEAN; the shutdown
+checkpoint is missing (the sandbox was stopped FORCED after 120 s without a graceful exit), recorded as is.
+
+| run | tip | steps | PASS | FAIL | INFO | NOT RUN |
+|---|---|---|---|---|---|---|
+| before (the old walker on the new layout; not committed) | `2c306762b6` | 272 | 137 | 109 | 10 | 16 |
+| after (re-pointed walker, final) | `13f1b01f5e` | 316 | 282 | 16 | 11 | 7 |
+
+Compared with the last fully green c2 record (`evidence/fin-walk/e1b1540e22/`, 256 steps, 2 FAIL): no row that
+passed there fails here because of a change this branch made to the product.
+
+### 9.1 The 16 FAIL rows
+
+| step | width | was (e1b1540e22) | now | class | what was done / why it stays |
+|---|---|---|---|---|---|
+| template gallery: insert a UCT pick | 1280 | PASS | FAIL | INSTRUMENT | master S7 renamed the gallery's words (Use, Template library); the door, heading and Preview were re-pointed, the "added to Your templates" read still misses. Not this branch's code. |
+| tour: template-gallery | 390 | n/a | FAIL | PRODUCT, pre-existing | the tour's first step is the list's "+ New" arrow, which a phone does not draw (master S12 hid it); nothing opens. Needs phone-tier steps (copy/design call): Concerns. |
+| tour: style-library | 390 | n/a | FAIL | PRODUCT, pre-existing | same cause as above. |
+| styles.slash-style | 1280 | PASS | FAIL | INSTRUMENT (suspected) | the step waits for a dialog named "Choose a journal style"; S7 renamed the styles vocabulary to templates. Not re-pointed: not verified in time. |
+| blocks.sizing | 1280 | PASS | FAIL | not this branch | the trader blocks are unchanged on this branch (`lib/blocks`, `components/notebook/blocks`); master-era. |
+| blocks.switch-off-renders | 1280 | PASS | FAIL | not this branch | as above. |
+| smart.screenshot-tag | 1280, 820, 390 | n/a | FAIL | INSTRUMENT (configuration) | the c2 sandbox leaves `J2_OCR_ENABLED` unset, so a pasted screenshot gets no text and no chip is offered. |
+| remove sample: More > Remove the sample notebook (and 6 rows that depend on it) | 1280 | PASS (old strip) | FAIL | PRODUCT, unsettled | the press showed the designed hold: `The sample was not removed: "Trade plan: example -- AAPL pullback" is still syncing — try again in a moment.` The same step passed in one press on the previous full run of the same product code (`5b2c5b4f1d`, 14 FAIL, removal PASS). Whether a write the walk made on that note stayed pending too long was not settled: Concerns. |
+
+NOT RUN (7): writing help, Ask, AI actions, meaning search, dictation, the Compass quote (NO KEY); five passed
+setups and Show all (the member had fewer).
+
+### 9.2 Walkthroughs (Help > Walkthroughs, real browser; the card's count / steps shown / declared at that width)
+
+| tour | 1280 | 820 | 390 |
+|---|---|---|---|
+| voice-notes | 3, 3/3 | 3, 3/3 | 2, 2/2 |
+| review-drafts | 4, 4/4 | 4, 4/4 | 2, 2/2 |
+| earnings-prep | 3, 3/4 | 1, 1/4 | 3, 3/4 |
+| passed-setups | 2, 2/3 | 2, 2/3 | 2, 2/3 |
+| writing-help | 5, 5/5 | 4, 4/4 | 4, 4/4 |
+| template-gallery, style-library | 4, 1/4 | 4, 1/4 | does not open |
+
+The base tour (from the Get started item, 1280): Folders and tags, Search, New note, Views, Import; it ticks its
+item, the tick survives a reload. Every other replayable tour passed at all three widths. The 60-second first run
+and the base tour were never on screen together (checked at 1280, 820 and 390).
+
+### 9.3 Door audit (`evidence/door-audit-20261112T211834Z/`, tip `19b4647f94`)
+
+Both widths, graded on the realistic state: EASY 7, OK 12, HARD 11, HIDDEN 0; every HARD row carries a written
+HARD reason; exit 0. The positive control behaved at both widths. The doors that are HARD now and were EASY or
+OK before are listed, with their rulings, in `simplify-2026-11-11-ledger.md` (Go-live wave 2).
+
+### 9.4 Addendum, 2026-11-13: final fix re-walk (`7e849c6740`, product as of `5318b83424`)
+
+The committed full record is still `13f1b01f5e` plus these re-runs. No full c2 run was made at this head: the steps
+the final fix's product changes can touch were re-walked with `--attach --only` on ONE held c2 sandbox (an empty data
+dir, port 8132, tip `7e849c6740`). Raw records, one per attach run: `evidence/fin-walk/7e849c6740-rewalk/c2/`
+(`walk-prev-*.json` are runs 1 to 5 in order, `walk.json` is run 6; paths redacted to `<temp>` / `<home>`; members are
+synthetic `@local.dev` accounts). Runs 2 to 6 also carried the gallery "Use" re-point from the working tree; it is
+committed as `7e99c6fdbd` (their `tool_tree` reads `7e849c6740`). Sandbox integrity: pre-boot, post-boot, post-prewarm CLEAN; at shutdown the shared
+root's `bars.db` had changed (modified 20:30 local, the minute the box's 8:30 PM scheduled jobs ran; nothing in this
+run is known to write it; recorded as is, see the part 2 report).
+
+| run | steps | rows | PASS | FAIL | INFO |
+|---|---|---|---|---|---|
+| 1 | firstrun, sample, examples, checklist, gallery, vplaybook, playbook | 28 | 25 | 2 | 1 |
+| 2 | gallery, styles, blocks | 37 | 33 | 3 | 1 |
+| 3 | tours1280, tours820, tours390 | 70 | 68 | 2 | 0 |
+| 4 | discover, remove | 36 | 29 | 3 | 4 |
+| 5 | chartplan, positions, discover | 34 | 31 | 0 | 3 |
+| 6 | trades, resurface, earnings, playbook, blocks (an attempt to give state-dependent rows their state) | 32 | 21 | 9 | 2 |
+
+What the re-walk shows:
+- Sample removal (C1): the walk now waits for the AAPL plan note's save to land before leaving it (two new rows, both
+  PASS: "Saved", nothing in flight). The seven remove-sample rows PASS in one press, about an hour after the sample was
+  added; no hold appeared.
+- First run (C4): at 1280, 820 and 390 the empty list's one sample door is the Get started card's row; the standalone
+  "Add a sample notebook" is not drawn beside it (PASS x3).
+- C2: the Get started card's "Start a note from a template" opens the New note sheet (PASS). C3: at 390 with the
+  sample active the More menu is held inside the window above the "+" (menu bottom 764, "+" top 772), all 13 rows can
+  be brought into view uncovered, and Remove the sample notebook works in one press (PASS x2).
+- A1: the Template gallery and Template library walkthroughs open and run at 390 (5 declared steps; 4 at 1280 and 820).
+- A2: gallery insert PASS (the library card's "Use" makes the note in one press since master S9), `/style` PASS
+  (the chooser is "Choose a template"). A3: blocks.sizing PASS, blocks.switch-off-renders PASS (both INSTRUMENT: master
+  `9449b525d9` made a saved account size the member's own; master S7 renamed the idle sentence's switch to Templates).
+- AI and find doors (one-ask, search-in-place, phone-toolbar-inside), the Daily brief's setups card: PASS (run 5).
+
+Rows not PASS, all classified INSTRUMENT (none is a product change of this branch):
+
+| step | width | 13f1b01f5e | here | why |
+|---|---|---|---|---|
+| template gallery: insert | 1280 | FAIL | FAIL run 1, PASS run 2 | re-pointed between the runs (see above) |
+| my playbook | 1280 | PASS | FAIL run 1 | attach state: the member had no trades yet, so Insights drew only its empty state |
+| tour: note-resurfaces explainer | 820, 390 | INFO | FAIL | attach state: shown once per member; the full run sees it first in `resurface` |
+| blocks.prep-pack | 1280, 820, 390 | PASS | FAIL runs 2 and 6 | attach state (no earnings list yet: a retryable gap) plus a walker read older than master S9/S17: it expects the gap's server `detail` and a Captured line, the block shows its "filling" words instead. Not re-pointed. |
+| discover.one-ask, phone-toolbar-inside, setups-card | 1280 / 390 | PASS | FAIL run 4, PASS run 5 | attach state: their notes come from `chartplan` and `positions` |
+| run 6's nine | various | PASS | FAIL | out-of-order re-runs on an already-changed member (the sample had been removed, rules and windows already existed) |
+
+Door audit, rows touched (`evidence/door-audit-20261113T023016Z/`, tip `7e849c6740`): 23 EASY, 26 EASY and OK, 34 OK,
+54 OK (was EASY: at 390 the capped phone menu needs a scroll to its last row), 56 EASY, 63 HARD (reasoned; the reason now
+says the template walkthroughs start on the phone row). Control: all six behaved. Exit 0.

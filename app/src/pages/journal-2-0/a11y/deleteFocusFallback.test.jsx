@@ -15,11 +15,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useNavigate } from 'react-router-dom'
 import { installFetch, latchWave8Flags, Providers, NOTES, FOLDERS } from './fixtures'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NotebookTab from '../tabs/NotebookTab'
+import { chooseSavedView, pressSavedViewAction, savedViewsGroup } from '../tabs/__tests__/toolbarDoors'
 
 const settle = (ms = 30) => act(async () => { await new Promise((r) => setTimeout(r, ms)) })
+
+/** Go-live wave 1 (D8): a way off the list that takes no focus (the test presses it with a bare .click()). */
+function GoToBrief() {
+  const navigate = useNavigate()
+  return <span data-testid="go-to-brief" onClick={() => navigate('/journal/notebook?view=today')} />
+}
 
 /** A faked network that REMEMBERS a delete: the DELETE itself (not the reading of its answer --
  *  a saved-view delete never reads it) removes the folder or view from later GETs. */
@@ -97,29 +105,72 @@ describe('folder delete (FolderSidebar) -- focus goes to the neighbouring folder
   })
 })
 
-describe('saved-view delete (NotebookTab) -- focus goes to the neighbouring view, else the heading', () => {
+// Notebook simplify, Task 2 (2026-11-11): the saved views are the View menu's "Saved views" group now. Its Delete hands
+// focus to the menu's "View" button before the confirm opens, so the confirm gives focus back THERE; when the delete
+// takes the list (and its toolbar) away the fallback is the pane's heading (since Task 5 the view in use no longer
+// does: its delete lands on the bare Notebook, which is the list). ⚰️ The old rail
+// here pinned the neighbouring view ROW of the folders panel, which no longer lists saved views.
+describe('saved-view delete (NotebookTab, from the View menu) -- focus goes back to the View button, else the heading', () => {
   async function renderTab(views) {
     installStatefulFetch({ views })
     render(<Providers route="/journal/notebook?view=all"><NotebookTab /></Providers>)
     await screen.findAllByText('Theses')
-    await screen.findByTitle(views[0].name)
+    await settle()
+  }
+  async function confirmViewDelete(user, name) {
+    await pressSavedViewAction('Delete', name)
+    const dialog = await screen.findByRole('dialog', { name: `Delete view "${name}"?` })
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await settle()
   }
 
-  it('deleting a view lands on the NEXT view row, not <body>', async () => {
+  it('deleting a view not in use lands on the View menu button, not <body>, and the view is gone', async () => {
     const user = userEvent.setup()
     await renderTab(TWO_VIEWS)
-    await confirmDelete(user, 'Delete Active theses', 'Delete view "Active theses"?')
+    await confirmViewDelete(user, 'Active theses')
     expect(document.activeElement).not.toBe(document.body)
-    expect(document.activeElement.getAttribute('data-saved-view-row')).toBe('v2')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^View:/ }))
+    // the invoker's row really went: the rail would otherwise prove nothing
+    const group = await savedViewsGroup()
+    await waitFor(() => expect(within(group).queryByRole('menuitemradio', { name: 'Active theses' })).toBeNull())
+    expect(within(group).getByRole('menuitemradio', { name: 'Watching' })).toBeTruthy()
   })
 
-  it('deleting the only view lands on the pane heading', async () => {
+  // Notebook simplify, Task 5: deleting the view in use lands on the bare Notebook, which IS the list now (it used to
+  // be the member's landing, a home without the toolbar, so focus fell back to the pane heading). The toolbar stays,
+  // so focus goes back to the View button like any other delete.
+  // Go-live wave 1 (D8): the HEADING branch, restored. The View button is the confirm's invoker; when it is gone at
+  // close (here: the member left the list for the Daily brief while the confirm, mounted above the page's branches,
+  // was open -- the brief draws no list toolbar), focus falls back to the pane's heading, never <body>.
+  it('when the View button is gone by the time the confirm closes, focus lands on the pane heading', async () => {
+    const user = userEvent.setup()
+    installStatefulFetch({ views: TWO_VIEWS })
+    render(<Providers route="/journal/notebook?view=all"><NotebookTab /><GoToBrief /></Providers>)
+    await screen.findAllByText('Theses')
+    await settle()
+    await pressSavedViewAction('Delete', 'Watching')
+    const dialog = await screen.findByRole('dialog', { name: 'Delete view "Watching"?' })
+    // leave the list without moving focus (a press, not a click that focuses)
+    act(() => { screen.getByTestId('go-to-brief').click() })
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^View:/ })).toBeNull())
+    expect(screen.getByRole('dialog', { name: 'Delete view "Watching"?' })).toBe(dialog)
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await settle()
+    const heading = screen.getByRole('heading', { level: 2, name: 'Daily brief' })
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toBe(heading)
+  })
+
+  it('deleting the view IN USE leaves All notes on screen, and lands on the View menu button', async () => {
     const user = userEvent.setup()
     await renderTab([TWO_VIEWS[0]])
-    await confirmDelete(user, 'Delete Active theses', 'Delete view "Active theses"?')
+    await chooseSavedView('Active theses')
+    await settle()
+    await confirmViewDelete(user, 'Active theses')
+    expect(screen.getByRole('heading', { level: 2, name: 'All notes' })).toBeTruthy()
     expect(document.activeElement).not.toBe(document.body)
-    expect(document.activeElement.tagName).toBe('H2')
-    expect(document.getElementById('notebook-pane').contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^View:/ }))
   })
 })

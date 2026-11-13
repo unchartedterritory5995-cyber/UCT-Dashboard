@@ -222,13 +222,18 @@ def test_industry_composite_is_equal_weight_and_falls_back_when_the_group_is_tin
     monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Technology", "industry": "Semiconductors"})
     monkeypatch.setattr(rb, "_members_of", lambda ind: ["AMD", "NVDA", "AVGO"])
     store = {"AMD": _bars([10, 11, 12]), "NVDA": _bars([100, 100, 100]), "AVGO": _bars([50, 55, 50]), "XLK": _bars([1])}
-    out = rb.resolve_benchmark("NVDA", "INDUSTRY", "D", 10, _fetcher(store))
+    # 2026-11-12: charted from OUTSIDE the group (QCOM), so all three members
+    # carry the composite; a member's own chart leaves itself out (below).
+    out = rb.resolve_benchmark("QCOM", "INDUSTRY", "D", 10, _fetcher(store))
     assert out["resolved"] == "INDUSTRY:Semiconductors" and out["fallback"] is None
     comp = out["bars"]
     assert [b["t"] for b in comp] == [1000, 1001, 1002]
     assert comp[0]["c"] == pytest.approx(100.0)
     # bar 2: AMD 110, NVDA 100, AVGO 110 → mean 106.667
     assert comp[1]["c"] == pytest.approx((110 + 100 + 110) / 3)
+    # ⭐ 2026-11-12: NVDA's own chart leaves NVDA out, and two members are under the floor.
+    out = rb.resolve_benchmark("NVDA", "INDUSTRY", "D", 10, _fetcher(store))
+    assert out["resolved"] == "XLK" and out["fallback"] == "industry group too small"
 
     monkeypatch.setattr(rb, "_members_of", lambda ind: ["NVDA"])
     out = rb.resolve_benchmark("NVDA", "INDUSTRY", "D", 10, _fetcher(store))
@@ -464,11 +469,11 @@ def test_industry_composite_counts_only_members_that_have_bars(monkeypatch):
     monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Technology", "industry": "Semiconductors"})
     monkeypatch.setattr(rb, "_members_of", lambda ind: ["AAAA", "AMD", "NVDA", "AVGO", "ZZZZ"])
     store = {"AMD": _bars([10, 11]), "NVDA": _bars([100, 100]), "AVGO": _bars([50, 55]), "XLK": _bars([1])}
-    out = rb.resolve_benchmark("NVDA", "INDUSTRY", "D", 10, _fetcher(store))
+    out = rb.resolve_benchmark("INTC", "INDUSTRY", "D", 10, _fetcher(store))
     assert out["resolved"] == "INDUSTRY:Semiconductors"
     assert out["label"].endswith("(equal-weight, 3 names)"), out["label"]
     monkeypatch.setattr(rb, "_members_of", lambda ind: ["AAAA", "AMD", "ZZZZ"])
-    out = rb.resolve_benchmark("NVDA", "INDUSTRY", "D", 10, _fetcher(store))
+    out = rb.resolve_benchmark("INTC", "INDUSTRY", "D", 10, _fetcher(store))
     assert out["resolved"] == "XLK" and out["fallback"] == "industry group too small"
 
 
@@ -485,7 +490,7 @@ def test_industry_composite_takes_the_names_with_bars_not_the_alphabet_first_six
     store = {m: _bars([100 + i, 101 + i, 103 + i]) for i, m in enumerate(last10)}
     store["XLV"] = _bars([1, 1, 1])
     fetch = _fetcher(store)
-    out = rb.resolve_benchmark("Z03", "INDUSTRY", "D", 10, fetch)
+    out = rb.resolve_benchmark("BIIB", "INDUSTRY", "D", 10, fetch)    # charted from outside the group
     assert out["resolved"] == "INDUSTRY:Biotechnology" and out["fallback"] is None
     assert out["label"] == "Biotechnology (equal-weight, 10 names)"
     assert [b["t"] for b in out["bars"]] == [1000, 1001, 1002]
@@ -539,8 +544,15 @@ def test_the_two_python_benchmark_vocabularies_are_one_set():
 def test_the_v4_menu_is_the_v3_menu_plus_custom_by_name():
     """Unit 3-05 / D4: CUSTOM is added by NAME to the v4 menu only; the shared
     list (and so the alert lane's) never grows it."""
-    assert rd.RS_LINE_BENCHMARKS_V4 == rd.RS_LINE_BENCHMARKS + ("CUSTOM",)
+    # 2026-11-12: the v4 menu is the v3 vocabulary plus the four CHOICE benchmarks
+    # (Pick a sector, Theme (auto), Pick a theme, Your symbol), in the new menu order.
+    assert rd.RS_LINE_BENCHMARKS_V4 == ("SPY", "RSP", "QQQ", "IWM", "SECTOR", "SECTOR_PICK", "INDUSTRY",
+                                        "THEME", "THEME_PICK", "CUSTOM")
+    assert set(rd.RS_LINE_BENCHMARKS_V4) == set(rd.RS_LINE_BENCHMARKS) | set(rb.CHOICE_BENCHMARKS)
+    assert rd.RS_LINE_BENCHMARKS == ("SPY", "RSP", "SECTOR", "QQQ", "IWM", "INDUSTRY"), "the v3 menu is unmoved"
     assert rb.CUSTOM_BENCHMARK == "CUSTOM"
+    for b in rb.CHOICE_BENCHMARKS:
+        assert b not in rb.LITERAL_BENCHMARKS + rb.AUTO_BENCHMARKS, b
     assert "CUSTOM" not in rd.RS_LINE_BENCHMARKS
     assert "CUSTOM" not in rb.LITERAL_BENCHMARKS + rb.AUTO_BENCHMARKS
     assert rd._rs_line_row(True, True)["inputs"][0]["options"] == list(rd.RS_LINE_BENCHMARKS_V4)
@@ -608,8 +620,10 @@ def test_the_js_server_inputs_are_the_v4_row_keys():
     js = re.findall(r"'([A-Za-z]+)'", block)
     py = [i["key"] for i in rd._rs_line_row(True, True)["inputs"]]
     assert sorted(js) == sorted(py), (js, py)
-    assert js[-9:] == py[-9:] == ["view", "customBenchmark", "rrgRatioLength", "rrgMomentumLength",
-                                  "clenowWindow", "clenowGapPct", "atrLength", "varsLookback", "anchorDate"]
+    # 2026-11-12: the picked sector and theme follow the custom ticker
+    assert js[-11:] == py[-11:] == ["view", "customBenchmark", "sectorBenchmark", "themeBenchmark",
+                                    "rrgRatioLength", "rrgMomentumLength", "clenowWindow", "clenowGapPct",
+                                    "atrLength", "varsLookback", "anchorDate"]
 
 
 def test_columns_route_422s_an_unknown_benchmark(client, monkeypatch, v2_row):  # noqa: F811
@@ -637,8 +651,15 @@ def _js_rs_line_inputs() -> dict:
     import pathlib
     import re
     src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
+    src = src.replace("\r\n", "\n")
     body = src.split("const RS_LINE_V5_RAW = {", 1)[1]
     block = body.split("\n  inputs: [", 1)[1].split("\n  plots: [", 1)[0]
+    # ⭐ 2026-11-12: the benchmark family is ONE shared declaration
+    # (`rsSplitBenchmarkInputs`), spread into the definition. Its entries are read
+    # from the helper itself, re-indented to the definition's entry grammar.
+    if "...rsSplitBenchmarkInputs()" in block:
+        helper = src.split("const rsSplitBenchmarkInputs = () => ([", 1)[1].split("\n])", 1)[0]
+        block = helper.replace("\n  {", "\n    {") + "\n" + block
     # Prose is not a field: drop comment lines and tooltip strings before any
     # `default:` / `min:` / `max:` is read, so a sentence can never masquerade.
     block = "\n".join(line for line in block.split("\n") if not line.lstrip().startswith("//"))
@@ -663,7 +684,7 @@ def _js_rs_line_inputs() -> dict:
             if m:
                 spec[bound] = float(m.group(1))
         if spec["type"] == "enum":
-            spec["options"] = re.findall(r"\['([A-Za-z]+)',", entry)
+            spec["options"] = re.findall(r"\['([A-Za-z_]+)',", entry)
         if spec["type"] == "string":
             pat = re.search(r"\bpattern:\s*'((?:[^'\\]|\\.)*)'", entry)
             if pat:
@@ -1309,7 +1330,8 @@ def test_the_readout_source_parser_reads_the_rows_it_claims_to():
     by_key = {}
     for key, field, src in sources:
         by_key.setdefault(key, {})[field] = src
-    assert by_key["benchmark"]["source"] == "scalar:benchmark.resolved"
+    # 2026-11-12: the chip prints the plain name (`XLK`, `Semiconductors`, a theme), never `THEME:<id>`
+    assert by_key["benchmark"]["source"] == "scalar:benchmark.name"
     assert by_key["rating"]["source"] == "scalar:rating.ibd"
     # the card's Note row and the glance row's second line read the server's
     # sentence (2026-11-07), never the raw fallback code

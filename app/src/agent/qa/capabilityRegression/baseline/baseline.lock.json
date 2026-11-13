@@ -4377,6 +4377,66 @@
     }
    }
   },
+  "chartFeatures.companyPanel": {
+   "digest": "6f6b2385593a9cb0",
+   "phrasings": {
+    "add the company panel and open news": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the company info panel on the news tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the profile panel on news": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartFeatures.companyPanel.remove": {
+   "digest": "91654df96a810986",
+   "phrasings": {
+    "remove the company panel from this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "take the company info off the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the company panel": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartFeatures.earningsStrip": {
+   "digest": "b3ebdae1e5c5b176",
+   "phrasings": {
+    "show the earnings strip on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the fundamentals strip": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the earnings strip under the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.stepBars": {
    "digest": "f1ef323ce91ffc4b",
    "phrasings": {

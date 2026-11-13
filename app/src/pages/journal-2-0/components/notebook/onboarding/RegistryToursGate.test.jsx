@@ -19,6 +19,7 @@ import {
   REGISTRY_TOUR_CLOSED_EVENT, getRegistryTourWanted, hasPendingRegistryTourOpen, openRegistryTour, __resetRegistryTourControl,
 } from './tourRegistryControl'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
+import { setFirstRunPending, setFirstRunShowing } from '../../../lib/firstRun'
 
 const BORROWED_FLAG = 'notebook_template_gallery_enabled'
 const TOUR_A = { id: 'w14-0-tour-a', flag: BORROWED_FLAG, title: 'Tour A', replayable: true }
@@ -60,13 +61,40 @@ beforeEach(() => {
 afterEach(() => {
   __resetNotebookFlags()
   __resetRegistryTourControl()
+  act(() => { setFirstRunShowing(false); setFirstRunPending(false) })
   vi.restoreAllMocks()
 })
 
-describe('the failure notice points at Learn, where the walkthroughs start', () => {
-  it('says Learn, not Help', () => {
-    expect(TOUR_FAILED_NOTICE).toMatch(/start it again from Learn\.$/)
-    expect(TOUR_FAILED_NOTICE).not.toMatch(/Help/)
+// Final fix (C5): a walkthrough asked for from Help by a brand-new member could open over the 60-second first run.
+describe('never over the 60-second first run (the base tour hold, C5)', () => {
+  it.each([
+    ['on screen', setFirstRunShowing],
+    ['due on the notes list, or not decided yet', setFirstRunPending],
+  ])('first run %s: the asked-for walkthrough waits, still wanted, and opens after it', async (_what, set) => {
+    const Gate = makeRegistryToursGate(engineLoader(), 0)
+    render(<Page Gate={Gate} tours={[TOUR_A]} />)
+    act(() => { set(true) })
+    act(() => { openRegistryTour('w14-0-tour-a') })
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(screen.queryByText('Tour A is open')).toBeNull()
+    act(() => { set(false) })
+    expect(await screen.findByText('Tour A is open')).toBeInTheDocument()
+  })
+
+  it('CONTROL: with no first run in the way it opens at once', async () => {
+    const Gate = makeRegistryToursGate(engineLoader(), 0)
+    render(<Page Gate={Gate} tours={[TOUR_A]} />)
+    act(() => { openRegistryTour('w14-0-tour-a') })
+    expect(await screen.findByText('Tour A is open')).toBeInTheDocument()
+  })
+})
+
+// Fix round 1 (4h): the Learn menu was deleted in go-live wave 1; the walkthroughs start from the Support page's
+// "Walkthroughs" section, named in that page's own words.
+describe('the failure notice points at Walkthroughs on the Support page, where the walkthroughs start', () => {
+  it('names the Support page section, never the deleted Learn menu', () => {
+    expect(TOUR_FAILED_NOTICE).toMatch(/start it again from Walkthroughs on the Support page\.$/)
+    expect(TOUR_FAILED_NOTICE).not.toMatch(/Learn/)
   })
 })
 

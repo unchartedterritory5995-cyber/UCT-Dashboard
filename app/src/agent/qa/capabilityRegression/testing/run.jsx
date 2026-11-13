@@ -16,6 +16,7 @@ import { _resetScreenerCache } from '../../../capabilities/screener'
 import { looksLikeFormula } from '../../../capabilities/indicatorAuthoring'
 import { listDrafts } from '../../../../components/chart/builder/agentAuthoring'
 import { readFavoriteTools } from '../../../../components/chart/drawToolFavorites'
+import { normalizeDock } from '../../../../pages/charts/widgets/chartDock'
 
 /** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
 export function hueFamily(hex) {
@@ -233,6 +234,8 @@ export function checkExpect(ctx, e, label) {
   // compare.openView: the Compare panel open or closed and the tab it shows; `comparePick` the last detail's stock / group
   if ('comparePanel' in e) expect({ open: !!ctx.st.compare?.open, tab: ctx.st.compare?.open ? ctx.st.compare.tab : null }, `${label}: the Compare panel`).toEqual(e.comparePanel)
   if ('comparePick' in e) expect({ sym: ctx.st.compare?.intent?.sym ?? null, group: ctx.st.compare?.intent?.group ?? null }, `${label}: the rotation map's pick`).toEqual(e.comparePick)
+  // chartFeatures: the first chart's dock as ChartWidget reads it (normalizeDock of opts.dock); only the fields named
+  if (e.dock) { const d = normalizeDock(chartsOf(board)[0]?.opts?.dock); for (const [k, v] of Object.entries(e.dock)) expect(d[k], `${label}: the chart's dock ${k}`).toEqual(v) }
   if ('askAiOpened' in e) expect(ctx.st.askAi || [], `${label}: Ask AI opened`).toEqual(e.askAiOpened)
   // is any moving average on the first chart showing (the same answer Ctrl+M reads)
   if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)

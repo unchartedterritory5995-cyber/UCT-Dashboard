@@ -1,7 +1,7 @@
 // @vitest-environment node
-// P0.1 fix round 1: at <=640px Home's header row wraps and the split button lands on the second
-// row at the LEFT, so a menu anchored `right: 0` (min-width 200px) would run off the left edge.
-// On a phone the menu hangs from the button's left edge and stays inside the viewport.
+// P0.1 fix round 1: on a phone a menu anchored `right: 0` (min-width 200px) under a trigger at the LEFT of a row
+// would run off the left edge, so the engine's menu hangs from its trigger's left edge and stays inside the viewport.
+// (It was written for Research Home's split button, deleted in go-live wave 1; the rule is the shared engine's.)
 import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 const css = readFileSync(new URL('./NewNoteMenu.module.css', import.meta.url), 'utf8')

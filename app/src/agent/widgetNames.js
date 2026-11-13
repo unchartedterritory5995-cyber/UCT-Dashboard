@@ -83,9 +83,21 @@ export function widgetNamesOf(type, surfaceWord = () => false) {
   MEMO.set(type, names)
   return names
 }
+// ── chartFeatures (AUDIT #1167): a chart's Company Info panel has tabs named News / Earnings / Ownership / Overview / Financials
+// (and the legacy Valuation). In a message that names THAT panel ("show the company info panel on the news tab"), those words are
+// the panel's tabs, not the News / Earnings widgets' names: they are blanked (positions kept) before a widget name is read, so
+// neither the name nor the control-word gate below sees them. "… and the news widget" (the tab word right before widget / feed)
+// still names the widget; a message with no company-panel words is read exactly as before.
+const COMPANY_PANEL_NAMED = /\bcompany\s+(?:info(?:rmation)?|panel|profile|intelligence|sidebar|side\s*panel)\b|\b(?:profile|info)\s+(?:side\s*)?panel\b/i
+const PANEL_TAB_WORDS = new Set([...COMPANY_TABS.map(t => t.key), 'valuation'].flatMap(nameWords))
+const WIDGET_NOUNS = new Set(['widget', 'feed'])
+export function panelTabsBlanked(message, words = nameWords(message)) {
+  if (!COMPANY_PANEL_NAMED.test(String(message || ''))) return words
+  return words.map((w, i) => (PANEL_TAB_WORDS.has(w) && !WIDGET_NOUNS.has(words[i + 1]) ? '·' : w))
+}
 /** The types on the board, with controls, that the message names. */
 export function namedWidgetTypes(message, types, surfaceWord) {
-  const words = nameWords(message)
+  const words = panelTabsBlanked(message)
   return [...new Set(types)].filter(t => widgetControls(t).length && widgetNamesOf(t, surfaceWord).some(n => saysName(words, n)))
 }
 

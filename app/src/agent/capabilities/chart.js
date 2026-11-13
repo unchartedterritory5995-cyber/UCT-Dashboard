@@ -50,6 +50,7 @@ import { whenVisible } from '../frames'
 // C1-178: as app.js NAV_DELAY_MS — the receipt is on screen before Ask AI leaves Charts
 const ASK_AI_DELAY_MS = 900
 import { readFavoriteTools, writeFavoriteTools } from '../../components/chart/drawToolFavorites'
+import { normalizeDock } from '../../pages/charts/widgets/chartDock'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -366,7 +367,10 @@ export const chartKind = {
     // C1-127: the chart's own Chart Settings door — may it open here (absent = no door: false), and is it open now
     canOpenSettings: snap.canOpenSettings === true, settingsOpen: !!snap.settingsOpen, openSettings: null,
     // C1-178: the right-click "Ask AI about {sym}" door (absent = none)
-    canAskAi: snap.canAskAi === true, askAi: null }),
+    canAskAi: snap.canAskAi === true, askAi: null,
+    // chartFeatures.*: the widget's Company Info panel / Earnings Strip as ChartWidget's normalizeDock reads them (null = this
+    // chart has no dock here: a Multi Chart cell, a pop-out); `dockTabs` = the chart tabs that share it (it is per WIDGET)
+    canDock: snap.canDock === true, dock: snap.canDock === true ? normalizeDock(snap.dock) : null, dockTabs: snap.dockTabs || 1 }),
   patch(before, after) {
     const p = {}
     if (after.cs !== before.cs) p.settings = after.cs
@@ -380,6 +384,8 @@ export const chartKind = {
     if (after.viewDo != null) p.viewDo = after.viewDo
     if (after.openSettings === true) p.openSettings = true
     if (after.askAi === true) p.askAi = true
+    // chartFeatures.*: a dock the product's transforms changed (they hand back the SAME object when nothing changes)
+    if (after.dock !== before.dock) p.dock = after.dock
     return Object.keys(p).length ? p : null
   },
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
@@ -441,6 +447,8 @@ export const chartKind = {
     if ('favoriteTools' in patch && !sameJson(snap.favoriteTools, patch.favoriteTools)) return false
     if ('viewDo' in patch && !viewDone(snap.view, patch.viewDo)) return false
     if ('openSettings' in patch && !snap.settingsOpen) return false
+    // chartFeatures.*: the widget's opts.dock read back exactly as written (an Undo's null = the key gone)
+    if ('dock' in patch && !sameJson(snap.dock ?? null, patch.dock ?? null)) return false
     // C1-178: leaving the page happens after the receipt (app.open's rule): there is nothing on the chart to read back
     return true
   },
@@ -462,6 +470,9 @@ export const chartKind = {
     if ('watermarkPos' in item.patch) p.watermarkPos = item.before.watermarkPos ?? null
     if ('volPanePref' in item.patch) p.volPanePref = item.before.volPanePref ?? null
     if ('favoriteTools' in item.patch) p.favoriteTools = item.before.favoriteTools || []
+    // chartFeatures.*: the RAW opts.dock snapshot before (a removed panel's own width, the strip's height, its tab) — never a
+    // transform's inverse: addFeature lands at the default width, so only the snapshot is exact
+    if ('dock' in item.patch) p.dock = item.before.dock ?? null
     // A range goes back to the window and the view lock it replaced (never read = no Undo, and `undoNote` says so).
     // A reset has no way back: it also drops a dragged price scale, which nothing reads back (undo: 'none').
     if ('viewDo' in item.patch) {
@@ -501,6 +512,8 @@ export const chartKind = {
     ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
     // a ★ Undo is stale once the member starred or unstarred a tool themselves
     ...('favoriteTools' in (item?.patch || {}) ? [snap.favoriteTools || []] : []),
+    // a panel / strip Undo is stale once the member changed the dock themselves (Add to Chart, the chevron, a tab, a drag)
+    ...('dock' in (item?.patch || {}) ? [snap.dock ?? null] : []),
     // a range's Undo is stale once the member panned or zoomed off it
     // a step's Undo is stale once the member moved the window themselves (pan, zoom, another step)
     ...('viewDo' in (item?.patch || {}) ? [viewFp(snap, item.patch.viewDo.op)] : [])]),

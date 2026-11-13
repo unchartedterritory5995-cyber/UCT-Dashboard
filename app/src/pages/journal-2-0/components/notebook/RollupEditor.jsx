@@ -102,11 +102,6 @@ export default function RollupEditor({ value, onChange, defs, savedViews = [], s
   )
 }
 
-/** Is a rollup config complete enough to send? (The server re-checks everything.) */
-export function rollupReady(cfg) {
-  if (!cfg?.source || !cfg?.aggregate) return false
-  if (cfg.source === 'saved_view' && !cfg.savedViewId) return false
-  if (cfg.aggregate === 'count') return true
-  if (cfg.source === 'trades') return Boolean(cfg.tradeField) && (cfg.tradeField !== 'result' || Boolean(cfg.optionId))
-  return Boolean(cfg.propertyId)
-}
+// `rollupReady` lives in lib/formula/computed.js (go-live wave 1, fix round 2), so the properties panel can disable
+// Save without fetching this editor's chunk; re-exported here for its existing readers.
+export { rollupReady } from '../../lib/formula/computed'

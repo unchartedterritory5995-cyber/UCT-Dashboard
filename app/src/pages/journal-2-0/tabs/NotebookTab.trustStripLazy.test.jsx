@@ -50,7 +50,6 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({
 vi.mock('../components/notebook/NoteBoardView', () => ({ default: () => <div data-testid="note-board" /> }))
 vi.mock('../components/notebook/NoteGraphView', () => ({ default: () => <div data-testid="note-graph" /> }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 // R23-N6: the hub's own answer to "could the joystick be in the corner here?"
 let hubEligible = false
 vi.mock('../../../hub/useHubActive', async (importOriginal) => ({
