@@ -20,7 +20,7 @@ import * as registry from '../components/chart/engine/nativeRegistry'
 import { astHash } from '../components/chart/engine/ast/parse'
 import * as mpd from '../components/chart/builder/memberPane/memberPaneDefinition'
 import {
-  __resetSavedScriptUpgrade, __setTranslatorForTests, needsScriptForUpgrade,
+  __resetSavedScriptUpgrade, __setTranslatorForTests, needsScriptForUpgrade, UPGRADE_NOTIFY_COALESCE_MS,
 } from '../components/chart/builder/memberPane/savedScriptUpgrade'
 import { SCRIPT_ENGINE_VERSION, withEngineStamp, engineStampOf } from '../components/chart/engine/scriptEngineVersion'
 
@@ -43,7 +43,8 @@ function stale(id, { plant = true } = {}) {
   return { ...d, compute: { ...d.compute, ast: wrong, fn: astHash(wrong), source: String(d.compute.source).split('14').join('99') } }
 }
 const rowOf = (definition, extra = {}) => ({ def_id: definition.id, version: 4, rev: 1, definition, ...extra })
-const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 0)) }) }
+// Past the landing-notify coalescing window (`UPGRADE_NOTIFY_COALESCE_MS`).
+const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, UPGRADE_NOTIFY_COALESCE_MS + 5)) }) }
 
 let fetchSpy
 beforeEach(() => {
