@@ -3,6 +3,7 @@
 // receipt / proposal / refusal by its structure. Never an exact string of prose.
 import { anyAverageOn } from '../../../../components/chart/averageVisibility'
 import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import { readUctIntelligence } from '../../../../components/chart/uctIntelligence'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
@@ -16,7 +17,6 @@ import { _resetScreenerCache } from '../../../capabilities/screener'
 import { looksLikeFormula } from '../../../capabilities/indicatorAuthoring'
 import { listDrafts } from '../../../../components/chart/builder/agentAuthoring'
 import { readFavoriteTools } from '../../../../components/chart/drawToolFavorites'
-import { readUctIntelligence } from '../../../../components/chart/uctIntelligence'
 
 /** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
 export function hueFamily(hex) {
