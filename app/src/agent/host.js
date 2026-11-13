@@ -147,6 +147,9 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
           cell: { x: e.w.x, y: e.w.y, w: e.w.w, h: e.w.h },
           ...(sel != null && e.r.chartId === sel ? { selected: true } : {}),
           view: e.api.agent.view?.() || null,
+          // uctIntelligence.set: the UCT Intelligence row / panel gates ({ available, known, availability }; null = not
+          // published yet). Absent when the adapter has none (a Multi Chart cell has no pattern layer): refused there.
+          ...(typeof e.api.agent.uctIntelligence === 'function' ? { uctIntel: e.api.agent.uctIntelligence() ?? null } : {}),
           // the exact symbol string StockChart keys its drawings by (useChartDrawings(sym))
           drawSym: e.api.agent.drawSym?.() || e.r.symbol,
           // ⭐ C1-127: the chart's own Chart Settings door (ChartWidget adapter → ChartPane): may it open here, and is it

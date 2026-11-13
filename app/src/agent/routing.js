@@ -254,6 +254,21 @@ export const GROUPS = [
       /\bdraw(?:ing)?\s+on\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
       /\b(?:rename|delete|remove|erase)\s+(?:my|the|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
       /\b(?:new|another|create|make|start)\s+(?:(?:me|a|an|another|new)\s+)*(?:drawing\s+)?boards?\b/, /\bdrawing\s+boards?\b/] },
+  // Charts family (2026-11-12): the UCT Intelligence chart INDICATOR (uctIntelligence.set), its OWN words-only group (as chartMenu):
+  // never a filler, so no existing group and no unrecognised request changes. The words name the indicator, or one of its panel's
+  // switches with its own label (auto patterns, pattern labels, candlestick patterns, the setups / caution / S&R layer) or a toggle
+  // verb on it. ⛔ "Modify / create / build an indicator WITH UCT Intelligence" is indicator AUTHORING (indicatorAuthoring.js, the
+  // guide's 'modify' / 'create'): an authoring verb, "with / using UCT Intelligence" or a new / custom indicator never selects
+  // this group. A bare "patterns" / "setups" / "labels" / "support" (a question, a scan, price labels, a drawn level) is not enough.
+  { id: 'uctIntelligence', title: 'The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)',
+    domains: ['uctIntelligence'], fillLast: true, wordsOnly: true,
+    words: [
+      /^(?!.*\b(?:modify|modif(?:ied|ying)|create|creating|build|building|write|writing|draft|drafting|edit|editing|author(?:ing)?|generate|design)\b)(?!.*\b(?:with|using|via|through|ask|asking) (?:the )?uct[\s-]?intel)(?!.*\b(?:new|own|custom) (?:\w+ )?indicators?\b).*\buct[\s-]?intel(?:ligence)?\b/,
+      /\bauto(?:matic)?[\s-]?(?:chart )?patterns?\b|\bpattern (?:labels?|numbers|overlay|layer|drawings?)\b|\b(?:chart )?patterns? (?:button|overlay|layer|toggle)\b/,
+      /^(?!.*\b(?:recognition|chart iq)\b).*\b(?:turn|switch|toggle)\s+(?:on\s+|off\s+)?(?:the\s+|my\s+)?(?:chart\s+)?patterns\b|\bhide\s+(?:the\s+)?(?:chart\s+)?patterns\b/,
+      /\b(?:turn|switch|toggle|show|hide|enable|disable)\b.*\bcandlestick patterns?\b|\bcandlestick (?:pattern )?(?:markers|layer)\b/,
+      /\b(?:turn|switch|toggle|enable|disable)\s+(?:on\s+|off\s+)?(?:the\s+|my\s+)?(?:confirmed\s+)?(?:setups|caution)\b|\b(?:setups?|caution|support\s*(?:&|and|\/)\s*resistance|s\/r) (?:layer|lines|toggle)\b|\bcaution setups?\b/,
+      /\b(?:turn|switch|toggle|enable|disable)\b.*\bsupport\s*(?:&|and|\/)\s*resistance\b/] },
   { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
