@@ -16,6 +16,8 @@
 // conversation, so the model's next turn remembers what UCT DID.
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
+import { chartRailRefusal, RAIL_MARK } from './chartRail'
+import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { useCreateIndicatorAccess } from '../components/chart/builder/studio/createIndicatorFlag'
@@ -764,6 +766,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // P2-B: the member's words the model's open question is ABOUT ("make the right chart cleaner" → "Hide volume"):
   // an answer is read with them when deciding which charts the member named. Kept for the very next message only.
   const askedForRef = useRef(null)
+  const askedAtRef = useRef(0)              // hotfix 11-13: when the model's open question was asked (pendingTask QUESTION_TTL_MS)
+  // ⛔ CHART RAIL (hotfix 11-13, chartRail.js): this turn's words — the message, plus the request an answered question carried
+  const railWordsRef = useRef('')
+  const resumeRef = useRef(null)            // pendingTask: restores (yes) or withdraws (no) a held reply's pending task
+  const railOf = (plan, mode) => chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
   if (!memoryRef.current) memoryRef.current = createMemory()
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
@@ -997,7 +1004,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         let dp
         try {
           const dp0 = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
-          const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) : null
+          const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) || railOf(dp0, 'apply') : null
           dp = shut ? { ok: false, refusals: [{ reason: shut }] } : dp0
         } catch { dp = { ok: false, refusals: [{ reason: 'I could not check that step.' }] } }
         if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
@@ -1171,7 +1178,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const one = planOps(collectTargets(host, kindsOf([o])), [o], await prepareOps([o]), capCtx)
         if (one.ok) binds.push(approvalBinding(one, host))
         const guard = one.ok ? protectionRefusal(host, one, one.normalizedOps || [o]) : null   // W1.1 review NB-3: normalized
-        const why = !one.ok ? refusalText(one.refusals) : (guard ? `I didn't change anything: ${guard}` : null)
+        // ⛔ CHART RAIL (hotfix 11-13): each chart's plan, before anything is proposed or written
+        const railed = one.ok && !guard ? railOf(one, suggested === 'approved' ? 'approved' : decideMode(suggested, one)) : null
+        const why = !one.ok ? refusalText(one.refusals) : (guard ? `I didn't change anything: ${guard}` : railed)
         if (why) {
           refusalPush(why)
           record({ member, outcome: why, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
@@ -1232,6 +1241,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
             if (!pp.ok) return { text: refusalText(pp.refusals) }
             const g = protectionRefusal(host, pp, pp.normalizedOps || part.ops)
             if (g) return { text: `I didn't change anything: ${g}` }
+            const rg = railOf(pp, 'apply')
+            if (rg) return { text: rg }
             if (decideMode('apply', pp) !== 'apply') return 'needs-approval'
             pre.push({ ...part, lines: pp.lines.length ? pp.lines : pp.noops })
           }
@@ -1260,6 +1271,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const text = `I didn't change anything: ${guarded}`
       refusalPush(text)
       record({ member, outcome: text, outcomeData: { kind: 'refused-protected', actions }, telemetry: { path, refused: true, actions, voice } })
+      return
+    }
+    // ⛔ CHART RAIL (hotfix 2026-11-13, agent/chartRail.js): no change may re-symbol, remove or switch away a chart the member
+    // named as kept, change existing charts when the words asked for MORE charts, remove a chart at once unasked, or leave a
+    // grid shape asked for in words with fewer charts — on every path (instant, model, approved), before anything is written
+    const railed = railOf(plan, suggested === 'approved' ? 'approved' : decideMode(suggested, plan))
+    if (railed) {
+      mark(RAIL_MARK, 'refused')
+      refusalPush(railed)
+      record({ member, outcome: railed, outcomeData: { kind: 'refused', actions, reason: RAIL_MARK }, telemetry: { path, refused: true, actions, voice } })
       return
     }
     // ⛔ F6: a sealed approval runs only if the plan still reads EXACTLY as the card the member approved
@@ -2140,7 +2161,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // v2-readiness-2: a v2 agent.undo step runs the receipt's own Undo (steps.js runUndoStep)
     doUndo, undoTurn, undoRef })
 
-  const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
+  const send = useCallback(async (raw, { voice = false, answering = false, asNew = false, echo = true } = {}) => {
     let text = String(raw || '').trim()       // NLM-1 D2/D3 may read it as its explicit form (below; dark)
     if (!text || lockRef.current) return
     lockRef.current = true
@@ -2149,19 +2170,60 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     endForNewRequest()
     turnStart('send')
     saidRef.current = text
-    const askedFor0 = askedForRef.current
-    // review #771 delta H1/L3: this message ANSWERS the model's open question (a choice, or a short reply) — else it is routed fresh
-    // review gaps-5: an unclear reply is an ANSWER — it keeps carrying the original request (only a set-aside one is fresh)
-    const carryAsked = !!askedFor0 && (answering || !isNewRequest(text, lastQuestionRef.current))
+    // ⛔ PENDING TASK: "yes" / "no" typed to "Is that your answer to my question about …?" — exactly as the two choices
+    const held = !answering && !asNew ? pendingRef.current?.continuity : null
+    if (held && /^(?:yes|yeah|yep|yup|y|continue|correct)\b|^(?:no|nope|nah|n)\b/i.test(text)) {
+      pendingRef.current = null
+      if (echo) push({ role: 'member', text, voice })
+      const r = resumeRef.current(held, !/^(?:no|nope|nah|n)\b/i.test(text))
+      answering = !!r.answering
+      asNew = !!r.asNew
+      echo = false
+      text = held.text
+      saidRef.current = text
+    }
+    let askedFor0 = askedForRef.current
+    // ⛔ PENDING TASK (hotfix 2026-11-13, agent/pendingTask.js): the model's open question expires (QUESTION_TTL_MS) —
+    // withdrawn, and the reply is read on its own (the chart rail still guards whatever it plans)
+    if (askedFor0 && !answering && Date.now() - (askedAtRef.current || 0) > QUESTION_TTL_MS) {
+      const old = lastQuestionRef.current
+      if (old?.id && !old.local) { patchItem(old.id, { status: 'withdrawn' }); lastQuestionRef.current = null }
+      pendingQuestionRef.current = null
+      askedGroupsRef.current = null
+      askedForRef.current = null
+      askedFor0 = null
+    }
     // ⭐ LT-5 / LT-6 (live 2026-11-03: "trendline on nvda from 2031-01-01 to today" typed while UCT still waited on its
     // October-lows question was answered ABOUT October): a message that is not an answer to the open question is a NEW
     // request. The question is WITHDRAWN (its choices go), nothing of it is carried (words, groups, a held plan), and the
     // model is told it was set aside — never merged into the new request.
     const qOpen = lastQuestionRef.current
     const localOpen = pendingRef.current?.kind === 'target'
-    const setAside = !answering && (!!askedFor0 || localOpen) && isNewRequest(text, qOpen)
+    // ⛔ hotfix 2026-11-13 (live: "Add AAPL and MSFT as the other two charts" answering "which two tickers?" was set aside and run
+    // ALONE): a reply that points back at the pending task, or gives the tickers the question asked for, ANSWERS it; one that
+    // could fill the task or replace charts is ASKED about (never run alone) — pendingTask.replyRelation
+    const relation = answering ? 'answer' : asNew ? 'new' : (askedFor0 || localOpen) ? replyRelation(text, qOpen, askedFor0, isNewRequest) : 'answer'
+    // review #771 delta H1/L3: this message ANSWERS the model's open question (a choice, or a short reply) — else it is routed fresh
+    // review gaps-5: an unclear reply is an ANSWER — it keeps carrying the original request (only a set-aside one is fresh)
+    const carryAsked = !!askedFor0 && relation === 'answer'
+    // the reply CONTINUES the model's pending task: it goes to the model with the question, never through the instant readers
+    const continuing = carryAsked && !answering
+    const setAside = (!!askedFor0 || localOpen || asNew) && relation === 'new'
     const askedFor = setAside ? null : askedFor0
     askedForRef.current = null
+    railWordsRef.current = [carryAsked ? askedFor0 : null, text].filter(Boolean).join(' . ')
+    if (relation === 'unclear') {
+      // asked, never guessed: the reply and the pending task are both held; nothing runs until the member picks
+      if (echo) push({ role: 'member', text, voice })
+      pendingRef.current = { kind: 'target', ops: [], path: 'fast', member: text, voice, epoch: epochOf(host),
+        continuity: { text, askedFor: askedFor0, at: askedAtRef.current, groups: askedGroupsRef.current, pq: pendingQuestionRef.current, qid: qOpen?.id || null } }
+      const q = continueQuestion(askedFor0)
+      push({ role: 'question', text: q, choices: [...CONTINUE_CHOICES, { label: 'Cancel', cancel: true }], local: true })
+      record({ member: text, outcome: q, outcomeData: { kind: 'clarify-target' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+      releaseLock()
+      turnEnd()
+      return
+    }
     if (setAside) {
       if (localOpen) pendingRef.current = null
       pendingQuestionRef.current = null
@@ -2170,7 +2232,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       lastQuestionRef.current = null
       questionSetAsideRef.current = true
     }
-    push({ role: 'member', text, voice })
+    if (echo) push({ role: 'member', text, voice })
     setBusy(true)
     // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
     memoryRef.current.beginTurn()
@@ -2182,7 +2244,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // tracker); only when no reader reads it as typed, and only when a reader reads the explicit form. Everything after
       // (readers, planner, policy, runtime, receipts, grouped Undo) is unchanged. The transcript keeps the member's words.
       if (routingV2Active()) {
-        if (!answering && !pendingRef.current) {
+        if (!answering && !continuing && !pendingRef.current) {
           // D2/D3.1: "make the first one weekly" right after a request that CREATED several charts — counted among them
           const ord = rescopeOrdinal(text, { host, order: createdRef.current?.refs || [] })
           if (ord?.ops) {
@@ -2280,7 +2342,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // GATE C: the member CORRECTING the Agent ("no, I meant the weekly", "not that one") — kept as context
       // for the model (session memory → conversation_memory.recent_corrections); never acted on by itself
       if (CORRECTION.test(text)) memoryRef.current.noteCorrection(text)
-      const memRef = (answering || pendingRef.current || peekAuthoringIntent()) ? null
+      const memRef = (answering || continuing || pendingRef.current || peekAuthoringIntent()) ? null
         : resolveReference(text, { host, memory: memoryRef.current, epoch: epochNow })
       if (memRef?.kind === 'say') {
         push({ role: 'agent', text: memRef.text })
@@ -2290,7 +2352,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ PHASE 2 — DO IT FOR ME: "now do it for me" right after a walkthrough runs that feature's EXISTING capability
       // on the chart it showed (agent/capabilities/guide.doItForMe) — asked first when a value is needed (which
       // timeframe?), then planned, checked, receipted and undoable like any other request. Never with a proposal waiting.
-      const guideDo = answering || memRef || pendingRef.current ? null : doItForMe(text, host)
+      const guideDo = answering || continuing || memRef || pendingRef.current ? null : doItForMe(text, host)
       if (guideDo?.say) {
         push({ role: 'agent', text: guideDo.say })
         record({ member: text, outcome: guideDo.say, outcomeData: { kind: 'guide-do-say' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
@@ -2306,7 +2368,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ PHASE 3: "actually, change the second chart instead" — my last change, moved: the existing Undo FIRST (it refuses
       // when the change is protected, on another board or changed since — then nothing else runs), then the same change
       // on the chart now named (references.retargetCorrection)
-      const moveTo = answering || memRef || pendingRef.current ? null
+      const moveTo = answering || continuing || memRef || pendingRef.current ? null
         : retargetCorrection(text, { host, memory: memoryRef.current, epoch: epochNow, undoStack: undoRef.current })
       if (moveTo?.say) {
         push({ role: 'agent', text: moveTo.say })
@@ -2322,7 +2384,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ Charts operator P1: whole sentences that name SEVERAL charts — "NVDA on the left and AMD on the right",
       // "show NVDA and AMD side by side", "make the left chart look like the right one" (agent/multiChart.js). The
       // same registry ops through the same execute; anything it can't read with certainty goes on as before.
-      const multi0 = (answering || memRef || pendingRef.current?.kind === 'target' || peekAuthoringIntent()) ? null : multiChartPlan(text, { host })
+      const multi0 = (answering || continuing || memRef || pendingRef.current?.kind === 'target' || peekAuthoringIntent()) ? null : multiChartPlan(text, { host })
       const multi = multi0?.kind === 'ops' && !(await typedSymbolsKnown(multi0.ops, text)) ? null : multi0
       if (multi?.kind === 'say') {
         push({ role: 'agent', text: multi.text })
@@ -2361,7 +2423,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         record({ member: text, outcome: t, outcomeData: { kind: 'refused-protected', actions: ['layout.rename'] }, telemetry: { path: 'fast', refused: true, voice } })
         return
       }
-      const followable = !answering && !memRef && !pendingRef.current && !peekAuthoringIntent()
+      const followable = !answering && !continuing && !memRef && !pendingRef.current && !peekAuthoringIntent()
       const followFirst = followable && FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null
       // "put a 20 EMA on it" with several charts and no click: `it` = the chart this conversation last changed
       // ⭐ W2 (context across turns): "make that one weekly", "add the 50 SMA to the new one" right after a chart was CREATED
@@ -2372,7 +2434,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const memNow = withSubject(memoryRef.current, subj.subject)
       // "the one I just changed" names a cell outright, so a clicked chart does not outrank it here (it does outrank a bare "it")
       const subjHost = subj.changed ? { ...host, charts: { ...host.charts, selected: () => null } } : host
-      const fast0 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(refText, { host }), refText, { host: subjHost, memory: memNow, epoch: epochNow }), { host, memory: memNow, epoch: epochNow })
+      const fast00 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(refText, { host }), refText, { host: subjHost, memory: memNow, epoch: epochNow }), { host, memory: memNow, epoch: epochNow })
+      // hotfix 11-13: an answer to the model's question is the model's — only Undo / confirm / cancel stay instant
+      const fast0 = continuing && fast00 && !['undo', 'confirm', 'subset', 'dismiss'].includes(fast00.kind) ? null : fast00
       const follow = followFirst || (followable && !fast0 && !FOLLOW_CUES.test(text) ? resolveFollowUp(text, { host, memory: memoryRef.current, epoch: epochNow }) : null)
       if (follow?.kind === 'say') {
         push({ role: 'agent', text: follow.text })
@@ -2591,7 +2655,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
 
       // ⛔ F2b: "save it" with indicator drafts open but none selected — ask what to save (no model call)
-      const ref = answering ? null : saveReferent(host, text)
+      const ref = answering || continuing ? null : saveReferent(host, text)
       if (ref && ref.kind === 'ask') {
         push({ role: 'question', text: ref.text, choices: ref.choices, local: true })
         record({ member: text, outcome: ref.text, outcomeData: { kind: 'clarify-save-target' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
@@ -2602,7 +2666,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ PHASE 3 acceptance (live 2026-10-31): a WHOLE workspace typed while an earlier card is still waiting is a new
       // request, not an answer to that card — it is read here (the card is set aside, nothing from it applied) instead of
       // going to the model with the card as context. Anything else typed over a card goes on exactly as before.
-      const overCard = !followable && !fast && !answering && !memRef && !peekAuthoringIntent() && pendingRef.current?.kind === 'proposal'
+      const overCard = !followable && !fast && !answering && !continuing && !memRef && !peekAuthoringIntent() && pendingRef.current?.kind === 'proposal'
       // (words naming the one just changed are read by the gate below, which knows no clicked chart answers them; a step here would not)
       const compound0 = (followable || overCard) && !fast && !subj.changed ? planCompound(text, { host }) : null
       const compound = overCard && !(compound0?.steps?.[0]?.kind === 'grid' && isWorkspaceRequest(compound0.steps[0].text)) ? null : compound0
@@ -2835,7 +2899,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       // the member's words this question is about stay with it, for the answer (screenUnnamedTargets)
-      if (env.disposition === 'clarify') askedForRef.current = [askedFor, text].filter(Boolean).join(' ')
+      if (env.disposition === 'clarify') { askedForRef.current = [askedFor, text].filter(Boolean).join(' '); askedAtRef.current = Date.now() }
       if (env.disposition === 'clarify' && nl1) {
         // NL-1: choices carry the context ref they stand for; kept (as real refs) for the next message, so
         // a click on a choice — or "the right one", "2", "AMD" typed — is read against them
@@ -3203,6 +3267,30 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
   }, [push, gridMode, host, record, doUndo, undoTurn, approve, dismiss, execute, runCompound, setConversationId, patchItem, capCtx, streamLine, releaseLock])
 
+  // ⛔ PENDING TASK (hotfix 2026-11-13, pendingTask.js): the member's pick on "Is that your answer to my question about …?" —
+  // Yes: the held reply goes to the model AS THE ANSWER (the pending task restored: its words, groups, NL-1 question);
+  // No: it is a new request (the old question withdrawn, the model told it was set aside). Nothing ran before the pick.
+  const pickContinuation = useCallback(async (ref, label) => {
+    const p = pendingRef.current
+    if (lockRef.current || !p?.continuity) return
+    pendingRef.current = null
+    push({ role: 'member', text: label })
+    return await send(p.continuity.text, { ...resumeOf(p.continuity, ref === 'pending:continue'), echo: false })
+  }, [send, push])
+  // restores the pending task for a "yes" (its words, groups, NL-1 question) or withdraws it for a "no"
+  const resumeOf = (c, yes) => {
+    if (yes) {
+      askedForRef.current = c.askedFor
+      askedAtRef.current = Date.now()
+      askedGroupsRef.current = c.groups || null
+      pendingQuestionRef.current = c.pq || null
+      return { answering: true }
+    }
+    if (c.qid) patchItem(c.qid, { status: 'withdrawn' })
+    return { asNew: true }
+  }
+  resumeRef.current = resumeOf
+
   // ⭐ INDICATORS ⇄ AGENT — the chart's Create Indicator / Modify door opened the Agent on a chart:
   // ask the question and hold ONE intent (indicatorEntry.js). No model call; the member's answer is
   // what runs. Create offers the existing builder's doors beside it.
@@ -3300,7 +3388,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     items, busy, activity, restoring, conversationId, send, newChat, openConversation,
     undo: exclusive((undoId) => doUndo(undoId, { member: null })),
     approve: exclusive(() => approve(null, { member: null })), dismiss: () => { if (!lockRef.current) dismiss({ member: null }) },
-    chooseTarget: exclusive(chooseTarget), canUndo, openChart: exclusive(openChart),
+    chooseTarget: (ref, label) => (String(ref || '').startsWith('pending:') ? pickContinuation(ref, label) : exclusive(chooseTarget)(ref, label)), canUndo, openChart: exclusive(openChart),
     prompt, openDoor,
     hasPending: !!pendingRef.current,
   }
