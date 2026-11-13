@@ -29,7 +29,7 @@ import {
 } from './durableWriter'
 import {
   getMeta, getNote, listOutbox, offlineStorageAvailable, openNotebookDb, putMeta, putNoteWithIntent,
-  storagePosture,
+  putNoteWithIntentIf, storagePosture,
 } from './notebookDb'
 import {
   markerFor, holdSessionLock, markerKeyFor, landedKeyFor, withLanded,
@@ -38,7 +38,7 @@ import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
   editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
-  editorLineageStamp, editorLineageSupersedes, swapCaptureSpills, dropsMergedBlocks,
+  editorLineageStamp, editorLineageSupersedes, swapCaptureSpills, dropsMergedBlocks, offerCarries,
 } from './recoverLocalState'
 import { copyEntryFor } from './noteCopy'
 import { refusedCopiesOf } from './refusedCopy'
@@ -881,15 +881,52 @@ export function useDurableNote({
    * holds (and every entry queued for the note too) is settled clean, so "Open it so it can
    * finish saving" is true. The drain's `settleIfServerHolds`, never a second comparison;
    * no network. Never throws.
-   * @returns true only when it settled
+   * ⛔ Fix round 1: the caller passes a copy THIS mount saw arrive from the network, never a
+   * cached one (`NoteEditorPage`), and the helper refuses a proof older than the words' base.
+   * @returns true when the store holds nothing unsent for the note afterwards
    */
   const settleProvenEqual = useCallback(async (server) => {
     if (!supported || !server) return false
     try {
       const db = await connect(accountId)
-      const settled = (await settleIfServerHolds(db, noteId, server, server.updatedAt)) === 'settled'
-      if (settled) setHeld(false)
-      return settled
+      const how = await settleIfServerHolds(db, noteId, server, server.updatedAt)
+      const done = how === 'settled' || how === 'clean'   // 'clean': another tab's drain got there first
+      if (done) setHeld(false)
+      return done
+    } catch { return false }
+  }, [supported, accountId, noteId, connect])
+
+  /**
+   * ⭐ Follow-up D, fix round 1 (Discard): the recovery banner's Discard removes the device's
+   * copy of EXACTLY the offered words. ONE readwrite transaction: only while the record, and every
+   * entry queued for the note, holds the offered words or words the offered
+   * copy carries (`offerCarries`), the record becomes `server` clean and the entries go (no record
+   * at all, a crash draft alone: the same clean write the old path made). Anything else (words
+   * typed or written since the offer, an entry that differs) is refused and the caller keeps the
+   * old path. ⛔ `persist`'s fix 6 is untouched:
+   * this is the one writer that may drop words, and only the ones the member chose to drop.
+   * Never throws; the landed ring is not touched.
+   * @returns true when it discarded
+   */
+  const discardOffered = useCallback(async ({ offered, server }) => {
+    const base = usableBaseline(server?.updatedAt)
+    if (!supported || !offered || !base) return false
+    try {
+      const db = await connect(accountId)
+      const done = await putNoteWithIntentIf(db, noteId, (rec, queued) => {
+        if (![rec, ...queued.map((e) => e?.patch)].filter(Boolean).every((w) => offerCarries(offered, w))) return null
+        return {
+          record: {
+            noteId, title: server.title ?? '', subtitle: server.subtitle ?? '', bodyJson: server.bodyJson ?? null,
+            baseUpdatedAt: base,
+            generation: rec?.generation ?? 0,
+            sessionId: SESSION_ID, localSavedAt: Date.now(), dirty: 0, serverBase: null,
+          },
+          intent: null,
+        }
+      })
+      if (done) setHeld(false)
+      return done
     } catch { return false }
   }, [supported, accountId, noteId, connect])
 
@@ -913,6 +950,6 @@ export function useDurableNote({
 
   return {
     supported, status, unsynced, held, error, persisted, schedule, markSynced, flush, recover, withCopyStore,
-    settleProvenEqual,
+    settleProvenEqual, discardOffered,
   }
 }

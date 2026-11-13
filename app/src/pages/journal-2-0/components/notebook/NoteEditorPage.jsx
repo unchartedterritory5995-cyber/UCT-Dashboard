@@ -955,6 +955,13 @@ export default function NoteEditorPage({
   ownsDocumentTitle = false,
 }) {
   const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
+  // ⭐ Follow-up D, fix round 1: did THIS mount see the note arrive from the network? Only a mount
+  // that saw the read loading (no cached copy) may treat `note` as proof for the settle on open; a
+  // cached copy can be older than the words on this device. Keyed by note id for a reused instance.
+  const fromNetworkRef = useRef(null)
+  if (fromNetworkRef.current?.id !== noteId) fromNetworkRef.current = { id: noteId, yes: Boolean(isLoading) && !note }
+  // A save landed in this mount: from then on "Saved" follows the old rule even if the store never answered.
+  const [savedHere, setSavedHere] = useState(false)
   // Diagnostic only -- never surfaced to the member (see the !note render
   // branch below for why raw fetch-error text doesn't belong in that UI).
   useEffect(() => {
@@ -1713,7 +1720,7 @@ export default function NoteEditorPage({
       if (raw) { try { localStorage.removeItem(DRAFT_KEY(note.id)) } catch { /* private mode */ } }
       // ⭐ Follow-up D (F2): a dirty record equal to this copy is a save that landed unseen;
       // settle it (proof taken inside the store's transaction) before the decision is shown.
-      if (decision?.settle) await durableRef.current.settleProvenEqual(note)
+      if (decision?.settle && fromNetworkRef.current?.yes) await durableRef.current.settleProvenEqual(note)
       if (cancelled) return
       setPendingDraft(null)
       setRecovery(null)
@@ -2078,6 +2085,7 @@ export default function NoteEditorPage({
         updatedAt: lastSavedRef.current.updatedAt,
       })
       setSaveStatus('saved')
+      setSavedHere(true)
       setSaveErrorMsg('')
       clearDraftLocally()
     } catch (e) {
@@ -2158,7 +2166,17 @@ export default function NoteEditorPage({
       subtitle: note?.subtitle || '',
       bodyJson: note?.bodyJson ?? null,
     }
-    durableRef.current.markSynced({ acked: server, current: server, updatedAt: note?.updatedAt || null })
+    // ⭐ Follow-up D, fix round 1: the device's copy of EXACTLY the offered words goes, content-checked in one
+    // transaction, written over with the server copy this editor last knew. ⚰️ `markSynced` alone could not drop
+    // them: fix 6 keeps a dirty record's words, so the drain later wrote the discarded words into the note.
+    // Refused (newer words, a differing entry, a crash draft alone) ⇒ the old path, unchanged.
+    const offered = pendingDraft ? { title: pendingDraft.title, subtitle: pendingDraft.subtitle, bodyJson: pendingDraft.bodyJson } : null
+    const known = lastSavedRef.current
+    durableRef.current.discardOffered({ offered, server: known }).then((done) => {
+      if (!done) durableRef.current.markSynced({ acked: server, current: server, updatedAt: note?.updatedAt || null })
+      // Words typed here while the banner was up were kept out of the record by fix 6; now it is clean, capture them.
+      else if (editedSinceHydrationRef.current) { const snap = captureLocalState(); if (snap) durableRef.current.schedule(snap) }
+    })
     setPendingDraft(null)
     setRecovery(null)
   }
@@ -3628,9 +3646,9 @@ export default function NoteEditorPage({
     <span className={className} role="status" aria-live="polite" data-save-indicator="">
       {indicatorOn ? saveIndicatorWords({
         status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
-        offline: isOffline, blocked: noteIsBlocked, held: Boolean(durable.held),
-        // Follow-up D (F3): nothing is claimed until the device's recovery decision for this note is made.
-        loading: isLoading || !note || recoveryDecidedFor !== note.id,
+        offline: isOffline, blocked: noteIsBlocked, held: Boolean(durable.held), loading: isLoading || !note,
+        // Follow-up D (F3, fix round 1): no saved claim until the device has answered for this note or a save landed.
+        decided: recoveryDecidedFor === note.id || savedHere,
       }) : ''}
     </span>
   )
@@ -4368,6 +4386,7 @@ export default function NoteEditorPage({
       })
       conflictRetriedRef.current = false
       setSaveStatus('saved')
+      setSavedHere(true)
       setSaveErrorMsg('')
       retryAttemptsRef.current = 0
       // The embeds this save just persisted are safe — consume their inbox rows.

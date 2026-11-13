@@ -56,7 +56,8 @@ export const RETRY_INTERVAL_MS = 60000
  * the wrong direction on every axis.
  */
 export async function serverCopyIsOursDefault(entry, { landedRevisions = null } = {}) {
-  const res = await fetch(`/api/j2/notes/${entry.noteId}`, { credentials: 'include' })
+  // ⭐ Follow-up D: `no-store` — a record's clean mark can rest on this read, so it must be the server's answer.
+  const res = await fetch(`/api/j2/notes/${entry.noteId}`, { credentials: 'include', cache: 'no-store' })
   if (!res.ok) {
     const err = new Error(`${res.status}`)
     err.status = res.status

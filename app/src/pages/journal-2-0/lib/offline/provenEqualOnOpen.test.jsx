@@ -17,7 +17,8 @@ import { createFakeDb, createFakeIndexedDbFactory, settleIdb } from './__fixture
 import { __resetNotebookConnections, connectNotebookDb, useDurableNote } from './useDurableNote'
 import { DURABLE } from './durableWriter'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
-import { dbNameFor } from './notebookDb'
+import { dbNameFor, putNoteWithIntent } from './notebookDb'
+import { drainOutbox } from './outboxDrain'
 import { noteHasUnsentWork } from './noteHasUnsentWork'
 import { SAVED_WORDS, SAVING_WORDS, offlineKept, saveIndicatorWords, unsyncedLabel } from './unsyncedCopy'
 
@@ -35,12 +36,30 @@ const SERVER = {
   id: 'n1', title: 'Thesis', subtitle: '', folderId: null, ticker: null, tags: [],
   heroImageUrl: null, isFavorite: false, bodyJson: SAVED, updatedAt: T1,
 }
-const update = vi.fn(async () => { throw new Error('nobody typed: nothing may be sent') })
-vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: SERVER, isLoading: false, error: null, update, refresh: vi.fn() }),
-  recordNoteOpened: vi.fn(),
-  setNoteFavorite: vi.fn(),
-}))
+// Fix round 1: `update` refuses (nobody typed) unless a case installs `accept`; `LOAD` says whether the
+// mount's note read was a CACHE hit (the copy at once, no loading) or a network read (loading, then the copy).
+let accept = null
+const update = vi.fn(async (patch) => {
+  if (!accept) throw new Error('nobody typed: nothing may be sent')
+  return accept(patch)
+})
+let LOAD = { cached: false, note: null }
+vi.mock('../../hooks/useJ2Notes', async () => {
+  const React = await import('react')
+  return {
+    useJ2Note: () => {
+      const [n, setN] = React.useState(() => (LOAD.cached ? (LOAD.note || SERVER) : null))
+      React.useEffect(() => {
+        if (n) return undefined
+        const t = setTimeout(() => setN(LOAD.note || SERVER), 0)
+        return () => clearTimeout(t)
+      }, [n])
+      return { note: n, isLoading: !n, error: null, update, refresh: vi.fn() }
+    },
+    recordNoteOpened: vi.fn(),
+    setNoteFavorite: vi.fn(),
+  }
+})
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u42', role: 'member' } }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 
@@ -51,6 +70,8 @@ beforeEach(() => {
   localStorage.clear()
   localStorage.setItem(OFFLINE_FLAG_KEY, '1')
   update.mockClear()
+  accept = null
+  LOAD = { cached: false, note: null }
   __resetNotebookConnections()
   factory = createFakeIndexedDbFactory()
   globalThis.indexedDB = factory
@@ -70,14 +91,16 @@ const queue = () => store().dump('outbox')
 const unsent = () => noteHasUnsentWork('n1', { accountId: 'u42', connect: connectNotebookDb })
 
 /** What the device holds after the unseen landing: a dirty record (+ entries) on T0. */
-async function leftOnDevice({ body = SAVED, entries = [SAVED] } = {}) {
+const RING = ['2026-11-13T09:00:00.000000+00:00']
+async function leftOnDevice({ body = SAVED, entries = [SAVED], withServerBase = true } = {}) {
   factory.open(ACCOUNT_DB)
   await act(async () => { await settleIdb(2) })
   store().seed('notes', {
     noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: body, dirty: 1, generation: 4,
     sessionId: 'gone', localSavedAt: 1000, baseUpdatedAt: T0,
-    serverBase: { title: 'Thesis', subtitle: '', bodyJson: doc(para('before')), updatedAt: T0 },
+    ...(withServerBase ? { serverBase: { title: 'Thesis', subtitle: '', bodyJson: doc(para('before')), updatedAt: T0 } } : {}),
   })
+  store().seed('meta', { name: 'landed:n1', value: RING })
   entries.forEach((b, i) => store().seed('outbox', {
     mutationId: i === 0 ? 'note:n1' : `legacy${i}:n1`, noteId: 'n1', kind: 'note-update',
     patch: { title: 'Thesis', subtitle: '', bodyJson: b }, baseUpdatedAt: T0, generation: 4, sessionId: 'gone', queuedAt: 1000,
@@ -85,6 +108,16 @@ async function leftOnDevice({ body = SAVED, entries = [SAVED] } = {}) {
 }
 
 const indicator = () => document.querySelector('[data-save-indicator]')
+const ring = () => store().dump('meta').find((m) => m.name === 'landed:n1')?.value ?? null
+async function typeInBody(text) {
+  const dom = await waitFor(() => {
+    const el = document.querySelector('.ProseMirror')
+    if (!el?.editor) throw new Error('editor not mounted')
+    return el
+  })
+  await act(async () => { dom.editor.chain().focus('end').insertContent(text).run(); await settleIdb(2) })
+  expect(dom.editor.getText()).toContain(text.trim())
+}
 
 async function openTheNote() {
   const mod = await import('../../components/notebook/NoteEditorPage')
@@ -110,6 +143,7 @@ describe('⭐ F2 (d): a dirty record equal to the server is settled on open', ()
     expect(queue()).toEqual([])
     expect(await unsent()).toEqual({ unsent: false, why: null })
     expect(screen.queryByText(/Unsaved changes from a previous session/)).toBeNull()
+    expect(ring()).toEqual(RING)   // identical content never enters the landed ring
   })
 
   it('with no entry left (the drain already removed it): still settled', async () => {
@@ -204,9 +238,58 @@ describe('⭐ F3 (f): the label claims nothing before the device answers, then s
     await look(4)
     expect(indicator().textContent).toBe(unsyncedLabel(null))
     expect(said).not.toContain(SAVED_WORDS)
-    // Discard writes through this mount's writer: from its commit on, `unsynced` speaks, as before follow-up D
+    // Discard (fix round 1, section 4) removes the offered words from the store: the record is the server copy,
+    // clean, nothing queued, so "Saved" is now true
     await act(async () => { screen.getByRole('button', { name: 'Discard' }).click(); await settleIdb(6) })
     await look(4)
+    expect(record()).toMatchObject({ dirty: 0, baseUpdatedAt: T1, bodyJson: SAVED })
+    expect(queue()).toEqual([])
+    expect(indicator().textContent).toBe(SAVED_WORDS)
+  })
+
+  it('typing over the banner commits a write of this page: from then on `unsynced` speaks, not `held`', async () => {
+    await leftOnDevice({ body: OTHER, entries: [] })
+    accept = (patch) => ({ ...SERVER, ...patch, updatedAt: '2026-11-13T10:00:30.000000+00:00' })
+    await openTheNote()
+    await screen.findByText(/Unsaved changes from a previous session/)
+    await look(2)
+    expect(indicator().textContent).toBe(unsyncedLabel(null))
+    await typeInBody(' typed over the banner')
+    await look(8)
+    expect(update).toHaveBeenCalled()
+    expect(indicator().textContent).toBe(SAVED_WORDS)
+  })
+
+  it('3b: another tab\'s drain settled the note while recovery read it: "Saved", never "waiting to sync" over a clean store', async () => {
+    await leftOnDevice()
+    const release = holdRecovery()
+    await openTheNote()
+    await look(2)
+    await act(async () => {
+      await putNoteWithIntent(await connectNotebookDb('u42'), {
+        noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: SAVED, dirty: 0, baseUpdatedAt: T1,
+      }, null)
+      await settleIdb(4)
+    })
+    await act(async () => { release(); await settleIdb(6) })
+    await look(4)
+    expect(record()).toMatchObject({ dirty: 0 })
+    expect(queue()).toEqual([])
+    expect(indicator().textContent).toBe(SAVED_WORDS)
+  })
+
+  it('3a: typing before the device answers shows "Saving…"; a store that never answers still says "Saved" after a landed save', async () => {
+    factory.open(ACCOUNT_DB)
+    await act(async () => { await settleIdb(2) })
+    holdRecovery()   // never released
+    accept = (patch) => ({ ...SERVER, ...patch, updatedAt: '2026-11-13T10:00:30.000000+00:00' })
+    await openTheNote()
+    await look(2)
+    expect(indicator().textContent).toBe('')
+    await typeInBody(' typed before the device answered')
+    expect(indicator().textContent).toBe(SAVING_WORDS)
+    await look(8)
+    expect(update).toHaveBeenCalled()
     expect(indicator().textContent).toBe(SAVED_WORDS)
   })
 
@@ -308,6 +391,124 @@ describe('⭐ F4 (g): pagehide and a hidden tab flush the pending durable write,
     expect(remW).toHaveBeenCalledWith('pagehide', onVis)
     expect(remD).toHaveBeenCalledWith('visibilitychange', onVis)
     for (const s of [addW, remW, addD, remD]) s.mockRestore()
+  })
+})
+
+describe('⛔ fix round 1, section 1: a cached or older copy is never proof', () => {
+  const TA = '2026-11-13T09:59:00.000000+00:00'   // older than the record's base T0
+
+  it('an in-app reopen served from the cache leaves the record and its entry untouched (the drain decides later)', async () => {
+    await leftOnDevice()
+    LOAD = { cached: true, note: { ...SERVER, updatedAt: TA } }
+    await openTheNote()
+    await sit()
+    expect(record()).toMatchObject({ dirty: 1, baseUpdatedAt: T0, bodyJson: SAVED })
+    expect(queue()).toHaveLength(1)
+    expect(indicator().textContent).toBe(unsyncedLabel(null))
+    expect(ring()).toEqual(RING)
+  })
+
+  it('the same words from the cache at the CURRENT revision: still not proof, still untouched', async () => {
+    await leftOnDevice()
+    LOAD = { cached: true, note: SERVER }
+    await openTheNote()
+    await sit()
+    expect(record()).toMatchObject({ dirty: 1, baseUpdatedAt: T0 })
+    expect(queue()).toHaveLength(1)
+  })
+
+  it('a network copy whose revision is OLDER than the words\' base proves nothing: untouched', async () => {
+    await leftOnDevice()
+    LOAD = { cached: false, note: { ...SERVER, updatedAt: TA } }
+    await openTheNote()
+    await sit()
+    expect(record()).toMatchObject({ dirty: 1, baseUpdatedAt: T0 })
+    expect(queue()).toHaveLength(1)
+  })
+})
+
+describe('⭐ fix round 1, section 4: Discard on the recovery banner removes exactly the offered words', () => {
+  const NEWER = doc(para('words written after the offer'))
+  const banner = () => screen.findByText(/Unsaved changes from a previous session/)
+  const discard = async () => {
+    await act(async () => { screen.getByRole('button', { name: 'Discard' }).click(); await settleIdb(6) })
+    await sit(2)
+  }
+
+  it('a dirty record and its entry holding the offered words: server copy clean, nothing queued, the drain sends nothing', async () => {
+    // no last-known server copy ⇒ the queued words are offered, not adopted
+    await leftOnDevice({ body: OTHER, entries: [OTHER], withServerBase: false })
+    await openTheNote()
+    await banner()
+    await discard()
+    expect(record()).toMatchObject({ dirty: 0, baseUpdatedAt: T1, bodyJson: SAVED, serverBase: null })
+    expect(queue()).toEqual([])
+    const send = vi.fn(); const fork = vi.fn()
+    expect(await drainOutbox(await connectNotebookDb('u42'), { send, fork })).toEqual([])
+    expect(send).not.toHaveBeenCalled()
+    expect(fork).not.toHaveBeenCalled()
+    expect(ring()).toEqual(RING)
+    expect((await unsent()).unsent).toBe(false)
+  })
+
+  it('newer words reached the store after the offer: refused, the newer words and their entry intact', async () => {
+    await leftOnDevice({ body: OTHER, entries: [OTHER], withServerBase: false })
+    await openTheNote()
+    await banner()
+    await act(async () => {
+      await putNoteWithIntent(await connectNotebookDb('u42'), {
+        noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: NEWER, dirty: 1, generation: 9, baseUpdatedAt: T0,
+      }, {
+        mutationId: 'note:n1', noteId: 'n1', kind: 'note-update', patch: { title: 'Thesis', subtitle: '', bodyJson: NEWER },
+        baseUpdatedAt: T0, generation: 9, queuedAt: 9,
+      })
+      await settleIdb(4)
+    })
+    await discard()
+    expect(record()).toMatchObject({ dirty: 1, bodyJson: NEWER })
+    expect(queue().map((e) => e.patch.bodyJson)).toEqual([NEWER])
+    expect(ring()).toEqual(RING)
+  })
+
+  it('a second queued entry holding other words: refused, every entry intact', async () => {
+    await leftOnDevice({ body: OTHER, entries: [OTHER, NEWER], withServerBase: false })
+    await openTheNote()
+    await banner()
+    await discard()
+    expect(record()).toMatchObject({ dirty: 1 })
+    expect(JSON.stringify(queue().map((e) => e.patch.bodyJson))).toContain('words written after the offer')
+    expect(ring()).toEqual(RING)
+  })
+
+  it('the member typed while the banner was up: the offered words go, the typed words are in the record and queued', async () => {
+    await leftOnDevice({ body: OTHER, entries: [OTHER], withServerBase: false })
+    await openTheNote()
+    await banner()
+    await typeInBody(' typed while the banner was up')
+    await sit(1)   // the keystroke's own durable write commits first: fix 6 keeps the offered words in the record
+    expect(JSON.stringify(record().bodyJson)).not.toContain('typed while the banner was up')
+    await discard()
+    await sit(2)
+    const words = JSON.stringify(record().bodyJson)
+    expect(words).toContain('typed while the banner was up')
+    expect(words).not.toContain('words the server never received')
+    expect(JSON.stringify(queue().map((e) => e.patch.bodyJson))).toContain('typed while the banner was up')
+    expect(JSON.stringify(queue())).not.toContain('words the server never received')
+    expect(ring()).toEqual(RING)
+  })
+
+  it('a crash draft alone: unchanged, the draft is cleared and the store holds the server copy, nothing queued', async () => {
+    factory.open(ACCOUNT_DB)
+    await act(async () => { await settleIdb(2) })
+    store().seed('meta', { name: 'landed:n1', value: RING })
+    localStorage.setItem('uct.j2.notedraft.n1', JSON.stringify({ title: 'Thesis', subtitle: '', bodyJson: OTHER, savedAt: 5 }))
+    await openTheNote()
+    await banner()
+    await discard()
+    expect(localStorage.getItem('uct.j2.notedraft.n1')).toBeNull()
+    expect(record()?.dirty ?? 0).toBe(0)
+    expect(queue()).toEqual([])
+    expect(ring()).toEqual(RING)
   })
 })
 

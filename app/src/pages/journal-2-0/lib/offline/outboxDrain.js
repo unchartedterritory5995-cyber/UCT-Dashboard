@@ -195,19 +195,25 @@ function settleForkedIfUnmoved(db, noteId, serverNote, usable, forked) {
  *   'cleared'  otherwise `clear`, the entry the caller proved delivered, is removed, and only
  *              while it still holds exactly `serverCopy`: an entry rewritten since then is
  *              newer words and stays (the owner's invariant)
+ *   'clean'    nothing to do: the record is not dirty and nothing is queued for the note
+ *              (another tab's drain got there first)
  *   null       nothing written
- * ⛔ No usable revision ⇒ never settled. ⛔ The landed ring is NOT touched: identical content
- * is not proof that THIS browser wrote the revision.
+ * ⛔ No usable revision ⇒ never settled. ⛔ Fix round 1: a proof OLDER than the base the
+ * record's words were written on proves nothing (a cached copy, read before those words'
+ * base existed) ⇒ never settled. ⛔ The landed ring is NOT touched: identical content is not
+ * proof that THIS browser wrote the revision.
  */
 export async function settleIfServerHolds(db, noteId, serverCopy, serverUpdatedAt, { clear = null } = {}) {
   const base = usableBaseline(serverUpdatedAt)
   const holds = (o) => sameAuthoredContent(o, serverCopy)
   let outcome = null
   await putNoteWithIntentIf(db, noteId, (rec, queued) => {
-    if (base && rec?.dirty && holds(rec) && queued.every((e) => holds(e?.patch))) {
+    if (base && rec?.dirty && !isSupersededBaseline(base, rec.baseUpdatedAt) && holds(rec)
+        && queued.every((e) => holds(e?.patch))) {
       outcome = 'settled'
       return { record: { ...rec, dirty: 0, baseUpdatedAt: base, serverBase: null }, intent: null }
     }
+    if (!rec?.dirty && !queued.length) { outcome = 'clean'; return null }
     if (!queued.some((e) => e?.mutationId === clear && holds(e.patch))) return null
     outcome = 'cleared'
     return { clear: [clear] }
@@ -220,7 +226,7 @@ async function supersedeIdentical(db, entry, mine, reason) {
   const how = await settleIfServerHolds(db, entry.noteId, entry.patch, mine.serverUpdatedAt, { clear: entry.mutationId })
   const out = { mutationId: entry.mutationId, noteId: entry.noteId }
   // Neither: the entry changed (or went) while the server was asked. Nothing removed; the next drain decides.
-  if (!how) return { ...out, outcome: SKIPPED, reason: 'the entry changed while the server was asked; kept' }
+  if (how !== 'settled' && how !== 'cleared') return { ...out, outcome: SKIPPED, reason: 'the entry changed while the server was asked; kept' }
   return { ...out, outcome: SUPERSEDED, reason: how === 'settled' ? `${reason}; the record is settled` : reason }
 }
 

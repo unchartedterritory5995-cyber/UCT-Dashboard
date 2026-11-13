@@ -88,10 +88,10 @@ export function offlineKept(persisted) {
   return persisted === true ? 'Offline · saved on this device' : 'Offline · saved in this browser'
 }
 // Follow-up D (F3): `held` is the device's store, read on open, holding this note's unsent work (a dirty record or a
-// queued entry). Online, "Saved" is then not claimed; the queue's own words are. `loading` covers the time before the
-// store has answered at all.
+// queued entry). Online, "Saved" is then not claimed; the queue's own words are. `decided` (fix round 1): the device has
+// answered for this note, or a save landed here; until then only "Saving…" may be said, never a saved claim.
 export function saveIndicatorWords({ status, unsynced = false, persisted = false, offline = false, blocked = false,
-  loading = false, held = false } = {}) {
+  loading = false, held = false, decided = true } = {}) {
   if (loading || blocked || status === 'conflict' || status === 'refused') return ''
   // Fix round 1 (Tier 1a): an edit still inside the durable debounce is not yet kept anywhere -- "Saving…", even offline.
   if (status === 'dirty') return SAVING_WORDS
@@ -102,9 +102,10 @@ export function saveIndicatorWords({ status, unsynced = false, persisted = false
     if (status === 'error' || status === 'reconnecting') return ''
     // A write on its way but not yet in the outbox is never claimed as saved.
     if (status === 'saving') return SAVING_WORDS
-    return offlineKept(persisted)
+    return decided ? offlineKept(persisted) : ''
   }
   if (status === 'error' || status === 'reconnecting') return ''
   if (status === 'saving' || status === 'dirty') return SAVING_WORDS
+  if (!decided) return ''
   return held ? unsyncedLabel(persisted) : SAVED_WORDS
 }

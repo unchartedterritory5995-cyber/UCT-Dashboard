@@ -161,6 +161,31 @@ describe('⭐ F1 (c): the store moved between the drain\'s read and its transact
     expect(left[0].patch).toEqual(words(NEWER))
   })
 
+  it('fix round 1: a proof OLDER than the base the record\'s words were written on settles nothing, in the drain too', async () => {
+    await landedUnseen()
+    const OLDER = '2026-11-13T09:59:00.000000+00:00'
+    expect(await settleIfServerHolds(db, 'n1', words(), OLDER)).toBe(null)
+    await settleIdb(4)
+    expect(await getNote(db, 'n1')).toMatchObject({ dirty: 1, baseUpdatedAt: S0 })
+    expect(await listOutbox(db)).toHaveLength(1)
+    await drainOutbox(db, { send: vi.fn(), fork: vi.fn(), holders: new Set(), serverCopyIsOurs: identicalAt(OLDER) })
+    await settleIdb(4)
+    expect(await getNote(db, 'n1')).toMatchObject({ dirty: 1, baseUpdatedAt: S0 })   // the proven entry still goes, as before
+  })
+
+  it('fix round 1: a clean record with nothing queued answers "clean" and writes nothing', async () => {
+    await putNoteWithIntent(db, { noteId: 'n1', ...words(), baseUpdatedAt: S1, dirty: 0 }, null)
+    await settleIdb(4)
+    expect(await settleIfServerHolds(db, 'n1', words('anything'), S1)).toBe('clean')
+    expect(await getNote(db, 'n1')).toMatchObject({ dirty: 0, ...words() })
+  })
+
+  it('fix round 1: the drain\'s proof read asks the server, never the HTTP cache', async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ note: { id: 'n1', ...words(), updatedAt: S1 } }) }))
+    await serverCopyIsOursDefault({ noteId: 'n1', patch: words() })
+    expect(globalThis.fetch.mock.calls[0][1]).toMatchObject({ cache: 'no-store', credentials: 'include' })
+  })
+
   it('the helper itself: a record that is not dirty, or not equal, is never written clean', async () => {
     await landedUnseen()
     expect(await settleIfServerHolds(db, 'n1', words('something else'), S1)).toBe(null)
