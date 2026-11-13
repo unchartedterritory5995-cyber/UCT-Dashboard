@@ -163,18 +163,33 @@ describe('3. guards of the static reader (each refuses what it cannot prove)', (
     const c = firstOf(cellWith('tooltip', expr, pre), 'cell')
     return c ? c.props.tooltip : undefined
   }
-  it('division follows the reference: v6 int/int keeps the fraction, v5 truncates', () => {
-    // read where only the static reader reaches: an enum slot chosen by a switch on a number
-    const at = (v, num) => {
-      const t = translatePine(head(v) + lines('sz(n) =>', '    switch n', '        6 => size.small', '        7 => size.large', '        => size.huge',
-        `label.new(bar_index, close, 'x', size = sz(${num} / 2 * 2))`), { strict: false, objects: true })
-      const l = firstOf(t, 'create', 'label')
-      return l ? l.props.size : undefined
-    }
-    const word = (w) => ({ v: 'text', node: { t: 'lit', s: w } })
-    expect(at(6, '7')).toEqual(word('large')) // 3.5 * 2 = 7
-    expect(at(5, '7')).toEqual(word('small')) // 3 * 2 = 6
-    expect(at(5, '7.0')).toEqual(word('large')) // a float divides as floats
+  // ⭐ Division, by the engine's ONE rule (F1, `vw-int-div-assign`): before v6 Pine truncates
+  // exactly when BOTH operands are `const int`; an input, a `var`, a `simple` or a `float`
+  // declaration keeps the fraction (D01/D04: `input.int(28) / 100` is 0.28). Read where only
+  // the static reader reaches: an enum slot chosen by a switch on `k / 2 * 2`.
+  const div = (v, decl, expr = 'k / 2 * 2') => {
+    const hd = v >= 5 ? head(v) : `//@version=${v}${NL}study('x', overlay=true)${NL}`
+    const t = translatePine(hd + lines(...(decl ? [decl] : []), 'sz(n) =>', '    switch n',
+      '        6 => size.tiny', '        7 => size.small', '        8 => size.normal', '        9 => size.large', '        => size.huge',
+      `label.new(bar_index, close, 'x', size = sz(${expr}))`), { strict: false, objects: true })
+    const l = firstOf(t, 'create', 'label')
+    return l && l.props.size && l.props.size.node ? l.props.size.node.s : undefined
+  }
+  it('division keeps the fraction for every operand that is not `const int` (pre-v6)', () => {
+    expect(div(4, 'k = input(7)')).toBe('small') // 3.5 * 2 = 7, TradingView 3.5
+    expect(div(5, 'k = input.int(7)')).toBe('small')
+    expect(div(5, 'k = input.int(9)')).toBe('large') // 4.5 * 2 = 9, never 8
+    expect(div(5, 'var k = 7')).toBe('small')
+    expect(div(5, 'float k = 7')).toBe('small')
+    expect(div(5, 'simple int k = 7')).toBe('small')
+  })
+  it('controls: const int / const int truncates before v6, never from v6; a float divides as floats', () => {
+    expect(div(5, 'int k = 7')).toBe('tiny') // 3 * 2 = 6
+    expect(div(4, 'int k = 7')).toBe('tiny')
+    expect(div(5, null, '7 / 2 * 2')).toBe('tiny')
+    expect(div(6, null, '7 / 2 * 2')).toBe('small')
+    expect(div(6, 'int k = 7')).toBe('small')
+    expect(div(5, null, '7.0 / 2 * 2')).toBe('small')
   })
 
   it('a helper loop past its pass cap is not folded', () => {
@@ -203,6 +218,9 @@ describe('3. guards of the static reader (each refuses what it cannot prove)', (
     'through an alias': [...TP, 'theme = TP.new(color.red)', 'alias = theme', 'if close > open', '    alias.frame := color.green'],
     'passed to a helper that writes it': [...TP, 'theme = TP.new(color.red)', 'f(TP t) =>', '    t.frame := color.green', 'if close > open', '    f(theme)'],
     'a method that writes it': [...TP, 'method paint(TP t) =>', '    t.frame := color.green', 'theme = TP.new(color.red)', 'if close > open', '    theme.paint()'],
+    // re-review N7 / N10: a user method NAMED get / size is a call like any other
+    'a user method named get (N7)': [...TP, 'method get(TP t) =>', '    t.frame := color.green', '    t.frame', 'theme = TP.new(color.red)', 'if close > open', '    x = theme.get()'],
+    'a user method named size (N10)': [...TP, 'method size(TP t) =>', '    t.frame := color.green', '    t.frame', 'theme = TP.new(color.red)', 'if close > open', '    x = theme.size()'],
   }
   for (const [what, pre] of Object.entries(mutatedCases)) {
     it(`a UDT field is not read at its seed when the value can change: ${what}`, () => {
@@ -214,6 +232,30 @@ describe('3. guards of the static reader (each refuses what it cannot prove)', (
   it('control: an untouched UDT value is still read', () => {
     const c = firstOf(cellWith('bgcolor', 'theme.frame', [...TP, 'theme = TP.new(color.red)']), 'cell')
     expect(c.props.bgcolor).toEqual(LIT('#F23645'))
+  })
+
+  // re-review N8 / N9 / N4 — a NESTED object: Pine objects are references, so a field that
+  // yields an object can be aliased or passed, and a deep field assigned
+  const NEST = [...TP, 'type O', '    TP inner', 'outer = O.new(TP.new(color.red))']
+  const nestedCases = {
+    'an alias through a field read (N8)': [...NEST, 'inner = outer.inner', 'if close > open', '    inner.frame := color.green'],
+    'a field passed as an argument (N9)': [...NEST, 'f(TP t) =>', '    t.frame := color.green', 'if close > open', '    f(outer.inner)'],
+    'a deep field assignment (N4)': [...NEST, 'if close > open', '    outer.inner.frame := color.green'],
+  }
+  for (const [what, pre] of Object.entries(nestedCases)) {
+    it(`a nested UDT field is not read at its seed: ${what}`, () => {
+      const c = firstOf(cellWith('bgcolor', 'outer.inner.frame', pre), 'cell')
+      const bg = c && c.props.bgcolor
+      expect(bg && bg.node && bg.node.c === 'lit' && bg.node.hex === '#F23645').toBeFalsy()
+    })
+  }
+  it('control: an untouched nested value is read through its primitive leaf', () => {
+    const c = firstOf(cellWith('bgcolor', 'outer.inner.frame', NEST), 'cell')
+    expect(c.props.bgcolor).toEqual(LIT('#F23645'))
+  })
+  it('a self-overlapping str.replace target is not folded (G6)', () => {
+    expect(tip('str.replace("aaa", "aa", "x")')).toBeUndefined()
+    expect(tip('str.replace("aab", "ab", "x")')).toEqual({ v: 'text', node: { t: 'lit', s: 'ax' } })
   })
 
   // ⛔⛔ review B2 — a list folded from str.split is never read after a mutation
@@ -275,6 +317,9 @@ describe('4. a property this door cannot read WITHHOLDS its drawing, never a def
     const merged = tr(lines(...base, '    table.merge_cells(tb, 0, 0, 1, 0)'))
     expect(firstOf(merged, 'create', 'table')).toBeUndefined()
     expect(drops(merged)[ENUM_DROPS.value.drop]).toBe(1)
+    // a COMMENT that names merge_cells is not a call: the count stays inert
+    const commented = tr(lines(...base, '// table.merge_cells(tb, 0, 0, 1, 0) is not used here'))
+    expect(firstOf(commented, 'create', 'table')).toBeDefined()
   })
 })
 

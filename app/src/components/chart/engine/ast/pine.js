@@ -19267,26 +19267,23 @@ const STATIC_NUM_OPS = new Set(['+', '-', '*', '/', '<', '>', '<=', '>='])
 /** One key per static value, so `==` compares a value with its own kind only. */
 const staticKey = (v) => ('s' in v ? `s:${v.s}` : 'w' in v ? `w:${v.w}` : 'n' in v ? `n:${v.n}`
   : 'hex' in v ? `hex:${String(v.hex).toUpperCase()}` : 'arr' in v ? 'arr' : 'obj' in v ? 'obj' : `b:${v.b}`)
-function staticBinary(op, l, r, version = null) {
+function staticBinary(op, l, r, truncate = null) {
   if ('s' in l && 's' in r) return op === '+' ? { s: l.s + r.s } : null
   if (!('n' in l) || !('n' in r)) return null
   const a = l.n
   const b = r.n
-  const ints = l.i === true && r.i === true
-  const kind = (n) => (ints ? { n, i: true } : l.i === false || r.i === false ? { n, i: false } : { n })
   switch (op) {
-    case '+': return kind(a + b)
-    case '-': return kind(a - b)
-    case '*': return kind(a * b)
-    // ⭐ Division, by the reference (`docs/pine/pine-version-evolution.md` row 47,
-    // `pine-presentation-spec.md`): from v6 two ints divide with the fraction (`5 / 2` is
-    // 2.5); before v6 two ints truncate (2). A float on either side divides as floats.
-    // ⛔ Where neither the version nor both kinds are known, only an exact quotient folds.
+    case '+': return { n: a + b }
+    case '-': return { n: a - b }
+    case '*': return { n: a * b }
+    // ⭐ Division: whether Pine truncates is the caller's to say, by the engine's ONE rule
+    // (`constIntDivisionTruncates` + `pineConstIntValue`, F1, witnessed `vw-int-div-assign`):
+    // before v6 exactly when BOTH operands are `const int`, never from v6. `null` (not
+    // settled) folds only an exact quotient, where both readings agree.
     case '/': {
       if (b === 0) return null
-      if (l.i === false || r.i === false) return { n: a / b, i: false }
-      if (ints && Number.isInteger(version) && version >= 6) return { n: a / b, i: false }
-      if (ints && Number.isInteger(version) && version < 6) return { n: Math.trunc(a / b), i: true }
+      if (truncate === true) return { n: Math.trunc(a / b) }
+      if (truncate === false) return { n: a / b }
       return Number.isInteger(a / b) ? { n: a / b } : null
     }
     case '<': return { b: a < b }
@@ -22047,55 +22044,127 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     return run(def.body) ? last : null
   }
-  /** ⛔⛔ Engine 52 (review B1/B2) — the names whose VALUE can change through something
-   *  other than `name :=`: a field assignment (`theme.frame := …`), a method call
-   *  (`parts.push(…)`, `ctx.update()`), or the value escaping as a bare name (an alias
-   *  `a = theme`, an argument `f(theme)`, `array.set(parts, …)`). Only `x.field` reads,
-   *  `x.get(…)` / `x.size()` and `array.get(x, …)` / `array.size(x)` keep a name out, plus
-   *  its one `=` declaration. The static reader never answers an object or a list for a
-   *  name listed here (elliot-wave-detector-pro's `confirmedCtx`, whose fields its detector
-   *  writes, was served at its seed before this). */
-  const staticEscapes = (() => {
-    const bad = new Set()
-    const decls = new Map()
+  /** ⛔⛔ Engine 52 (re-review of #1164, B1) — AN ALLOWLIST, NOT AN ENUMERATION OF ESCAPES.
+   *  The static reader answers an object (`{obj}`) or a list (`{arr}`) through a name only
+   *  when EVERY occurrence of that name in the script is one of:
+   *    (a) its single `=` declaration;
+   *    (b) a pure read `name.f1…fn` whose last field is declared PRIMITIVE (int, float, bool,
+   *        string, color) in the script's types and by no type as anything else, and that is
+   *        not followed by an assignment, `(` or `[` (a method form `name.m(` is a call);
+   *    (c) a list read by the builtin `array.get(name, …)` / `array.size(name)`, or the
+   *        method forms `name.get(…)` / `name.size()` ONLY when the script declares no
+   *        function or method of its own named `get` / `size`.
+   *  Anything else is an escape: a sub-chain that yields an object (`inner = outer.inner`,
+   *  `f(outer.inner)` — Pine objects are references), a pass, an alias, a reassignment, a
+   *  field assignment at any depth, any method call. ⚰️ The enumeration this replaces
+   *  missed a user method named `get`, an alias through a field read, and a field passed as
+   *  an argument (re-review N7-N10), and elliot-wave-detector-pro's `confirmedCtx` before
+   *  that. */
+  /** The script CALLS `table.merge_cells` (or the method form `t.merge_cells(`): read off the
+   *  token stream, where comments are already gone, never off the raw source text. */
+  const scriptMergesCells = (() => {
+    const seen = (list) => (list || []).some((st) => (st.header || []).some((t, i, h) => t && t.kind === 'ident'
+      && /(^|\.)merge_cells$/.test(String(t.value)) && h[i + 1] && isPunct(h[i + 1], '(')) || seen(st.sub))
+    return seen(stmts)
+  })()
+  const staticReadOnlyRoots = (() => {
+    const PRIM = new Set(['int', 'float', 'bool', 'string', 'color'])
+    const QUAL = new Set(['series', 'simple', 'const', 'varip', 'var'])
+    // field name → the kinds it is declared as across the script's types
+    const fieldKinds = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (h.length < 2 || h[0].kind !== 'ident' || h[0].value !== 'type' || h[1].kind !== 'ident') continue
+      const lines = []
+      for (let i = 2; i < h.length; i += 1) {
+        if (h[i].line !== h[i - 1].line || i === 2) lines.push([])
+        lines[lines.length - 1].push(h[i])
+      }
+      for (const mh of [...lines, ...(st.sub || []).map((m) => m.header || [])]) {
+        const eq = mh.findIndex((t) => isPunct(t, '='))
+        const end = eq < 0 ? mh.length : eq
+        const nameTok = mh[end - 1]
+        if (!nameTok || nameTok.kind !== 'ident') continue
+        const typeToks = mh.slice(0, end - 1).filter((t) => !(t.kind === 'ident' && QUAL.has(t.value)))
+        const prim = typeToks.length === 1 && typeToks[0].kind === 'ident' && PRIM.has(typeToks[0].value)
+        const set = fieldKinds.get(nameTok.value) || new Set()
+        set.add(prim ? 'prim' : 'object')
+        fieldKinds.set(nameTok.value, set)
+      }
+    }
+    const primField = (f) => { const k = fieldKinds.get(f); return !!k && k.size === 1 && k.has('prim') }
+    // a function or method of the script's own named get / size (a bare `get(` / `size(`)
+    let userGetSize = false
     const ASSIGN = new Set([':=', '+=', '-=', '*=', '/=', '%=', '='])
     const READS = new Set(['array.get', 'array.size'])
+    const occ = []
     const walk = (list) => {
       for (const st of list || []) {
         const h = st.header || []
         for (let i = 0; i < h.length; i += 1) {
           const t = h[i]
           if (!t || t.kind !== 'ident') continue
-          const v = String(t.value)
-          const dot = v.indexOf('.')
-          const root = dot > 0 ? v.slice(0, dot) : v
-          const next = h[i + 1]
-          const prev = h[i - 1]
-          const prev2 = h[i - 2]
-          if (dot > 0) {
-            const rest = v.slice(dot + 1)
-            if (next && isPunct(next, '(')) { if (rest !== 'get' && rest !== 'size') bad.add(root) } else if (next && next.kind === 'punct' && ASSIGN.has(next.value)) bad.add(root)
-            continue
-          }
-          if (next && next.kind === 'punct' && ASSIGN.has(next.value)) {
-            decls.set(root, (decls.get(root) || 0) + 1)
-            if (decls.get(root) > 1 || next.value !== '=') bad.add(root)
-            continue
-          }
-          if (prev && isPunct(prev, '(') && prev2 && prev2.kind === 'ident' && READS.has(prev2.value)) continue
-          bad.add(root)
+          if ((t.value === 'get' || t.value === 'size') && h[i + 1] && isPunct(h[i + 1], '(')) userGetSize = true
+          occ.push({ v: String(t.value), next: h[i + 1], prev: h[i - 1], prev2: h[i - 2] })
         }
         if ((st.sub || []).length) walk(st.sub)
       }
     }
     walk(stmts)
-    return bad
+    const bad = new Set()
+    const decls = new Map()
+    for (const { v, next, prev, prev2 } of occ) {
+      const dot = v.indexOf('.')
+      const root = dot > 0 ? v.slice(0, dot) : v
+      const nextIs = (x) => next && next.kind === 'punct' && next.value === x
+      const assigned = next && next.kind === 'punct' && ASSIGN.has(next.value)
+      if (dot > 0) {
+        const chain = v.slice(dot + 1).split('.')
+        const last = chain[chain.length - 1]
+        if (nextIs('(')) {
+          if (!((last === 'get' || last === 'size') && chain.length === 1 && !userGetSize)) bad.add(root)
+          continue
+        }
+        if (assigned || nextIs('[') || !primField(last)) bad.add(root)
+        continue
+      }
+      if (assigned) {
+        decls.set(root, (decls.get(root) || 0) + 1)
+        if (decls.get(root) > 1 || next.value !== '=') bad.add(root)
+        continue
+      }
+      if (prev && isPunct(prev, '(') && prev2 && prev2.kind === 'ident' && READS.has(prev2.value)) continue
+      bad.add(root)
+    }
+    return { escapes: (name) => bad.has(name) }
   })()
+  /** ⭐ Does Pine truncate this `/`? The engine's one rule (F1): before v6, exactly when BOTH
+   *  operands are `const int` (`pineConstIntValue`, which follows bindings and the script's
+   *  declaration words: a `var`, `simple`, `float`, `input.*` is not `const int`). A helper's
+   *  own local or parameter is not a binding that rule can follow, so a quotient over one is
+   *  left unsettled (`null`: only an exact quotient folds). */
+  const staticTruncates = (node, scope, frame) => {
+    let version = null
+    try { version = activePaletteVersion() } catch { version = null }
+    if (!constIntDivisionTruncates(version)) return false
+    const names = []
+    const walk = (n, d = 0) => {
+      if (!n || typeof n !== 'object' || d > 32) return
+      if (n.type === 'name') names.push(n.name)
+      for (const k of ['left', 'right', 'arg', 'test', 'yes', 'no']) walk(n[k], d + 1)
+      for (const a of n.args || []) walk(a && a.value !== undefined ? a.value : a, d + 1)
+    }
+    walk(node)
+    if (frame && (frame.vals || frame.params) && names.some((x) => (frame.vals && frame.vals.has(x)) || (frame.params && frame.params.includes(x)))) return null
+    const lookup = (name) => (scope && typeof scope.get === 'function' ? scope.get(name) : undefined)
+    const ctx = { version, declWords: DECL_WORDS_SINK }
+    return pineConstIntValue(node.left, lookup, ctx) !== null && pineConstIntValue(node.right, lookup, ctx) !== null
+  }
   const staticEnumValue = (node, scope, frame = null, depth = 0) => {
     const v = staticEnumValueRaw(node, scope, frame, depth)
     // ⛔ an object or a list read through a NAME something else can change is not its seed
     if (v && ('obj' in v || 'arr' in v) && node && node.type === 'name'
-      && !(frame && frame.vals && frame.vals.has(node.name)) && staticEscapes.has(node.name)) return null
+      && !(frame && frame.vals && frame.vals.has(node.name)) && staticReadOnlyRoots.escapes(node.name)) return null
     return v
   }
   const staticEnumValueRaw = (node, scope, frame = null, depth = 0) => {
@@ -22112,14 +22181,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (node.type === 'number' && node.tok && (node.tok.value === 'true' || node.tok.value === 'false')) return { b: node.tok.value === 'true' }
     // ⭐⭐ ENGINE 52 — the same reader, for a NUMBER and a COLOUR fixed before bar 0
     // (`staticPropValue` below: a colour, a width, a point size, a row count).
-    // `i`: the literal is an INT (its token has no point or exponent) — Pine divides two ints
-    // as ints before v6 and as floats from v6 (`staticBinary`)
-    if (node.type === 'number') {
-      if (!Number.isFinite(Number(node.value))) return null
-      // the token's own spelling (`raw`: `7.0` and `7` both lex to the value 7)
-      const raw = node.tok && node.tok.raw !== undefined ? String(node.tok.raw) : null
-      return raw === null ? { n: Number(node.value) } : { n: Number(node.value), i: /^[0-9]+$/.test(raw) }
-    }
+    if (node.type === 'number') return Number.isFinite(Number(node.value)) ? { n: Number(node.value) } : null
     if (node.type === 'colour') return /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(String(node.value)) ? { hex: String(node.value) } : null
     if (node.type === 'name') {
       if (node.name === 'true' || node.name === 'false') return { b: node.name === 'true' }
@@ -22208,11 +22270,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const first = args.find((a) => a && !a.name)
         const dv = named ? named.value : first ? first.value : null
         const v = dv ? staticEnumValue(dv, scope, frame, depth + 1) : null
-        if (!v || !(STATIC_INPUT_KIND[node.name] in v)) return null
-        // an int input is an int; a float input a float (`staticBinary`'s division rule)
-        if ('n' in v && (node.name === 'input.int' || node.name === 'input.integer')) return Number.isInteger(v.n) ? { n: v.n, i: true } : null
-        if ('n' in v && node.name === 'input.float') return { n: v.n, i: false }
-        return v
+        return v && STATIC_INPUT_KIND[node.name] in v ? v : null
       }
       // ⭐⭐ Engine 52 — `T.new(…)` of the script's own type: its fields, by position or name
       if (typeof node.name === 'string' && node.name.endsWith('.new') && scriptTypes.has(node.name.slice(0, -4))) {
@@ -22277,7 +22335,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     if (node.type === 'unary' && (node.op === '-' || node.op === '+')) {
       const v = staticEnumValue(node.arg, scope, frame, depth + 1)
-      return v && 'n' in v ? { ...v, n: node.op === '-' ? -v.n : v.n } : null
+      return v && 'n' in v ? { n: node.op === '-' ? -v.n : v.n } : null
     }
     if (node.type === 'binary') {
       const l = staticEnumValue(node.left, scope, frame, depth + 1)
@@ -22285,9 +22343,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐ Engine 52 — arithmetic and order over numbers, `+` over strings
       if (STATIC_NUM_OPS.has(node.op)) {
         const r = staticEnumValue(node.right, scope, frame, depth + 1)
-        let version = null
-        try { version = activePaletteVersion() } catch { version = null }
-        return r ? staticBinary(node.op, l, r, version) : null
+        if (!r) return null
+        return staticBinary(node.op, l, r, node.op === '/' ? staticTruncates(node, scope, frame) : null)
       }
       if (node.op === 'and' || node.op === 'or') {
         if (typeof l.b !== 'boolean') return null
@@ -24863,7 +24920,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           // sizes by its cells (`objectCanvas.js::layoutTables`). The runtime reads them only to
           // bound a merge (`objectRuntime.js`, TradingView's out-of-range error), so an
           // unreadable count is IGNORED unless the script merges cells, where it withholds.
-          if (op.family === 'table' && (k === 'columns' || k === 'rows') && !/merge_cells/.test(String(source || ''))) {
+          if (op.family === 'table' && (k === 'columns' || k === 'rows') && !scriptMergesCells) {
             diagnostics.inertTableCounts = (diagnostics.inertTableCounts || 0) + 1
             continue
           }
