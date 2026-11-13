@@ -2048,8 +2048,11 @@ export default function NotebookTab() {
   // Fix round 1 (review finding 10): only a note the Use NAMED skips the title; an untitled one (a members' gallery
   // template made without a name) opens in its title, as every picked note did before.
   // Follow-up A: a note landed from the Template library counts as `template_started` (library).
-  const landTemplateNote = (created) => {
-    if (created?.id) trackNotebookEvent(NOTEBOOK_EVENTS.TEMPLATE_STARTED, { source: 'library', family: 'custom' })
+  // Fix round 1 (M3): with the library row's catalogue family when it has one (TemplateDetailSheet passes it).
+  const landTemplateNote = (created, meta) => {
+    if (created?.id) {
+      trackNotebookEvent(NOTEBOOK_EVENTS.TEMPLATE_STARTED, { source: 'library', family: templateFamily(meta?.family) })
+    }
     return landPickedNote(created, typeof created?.title === 'string' && created.title.trim() ? { to: 'field' } : {})
   }
   const landCreatedNote = (created, openOptions) => {

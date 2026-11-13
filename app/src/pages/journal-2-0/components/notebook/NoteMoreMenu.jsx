@@ -58,7 +58,12 @@ export const MORE_NOTE_ACTIONS = 'More note actions'
  *  Open-beside search) carries none and counts nothing. */
 function countRow(e) {
   const row = e.target?.closest?.('[data-row]')
-  if (row && e.currentTarget.contains(row)) trackMenuRow('note_more', row.getAttribute('data-row'))
+  if (!row || !e.currentTarget.contains(row)) return
+  // Fix round 1 (M2): only a press that does something. A row that is busy (`aria-disabled`, Lock or Archive while one
+  // runs) does nothing, and a row pressed to CLOSE what it opened (Export's formats, the Open-beside search, the
+  // outline: `aria-expanded="true"` as the press lands) is not a use of it.
+  if (row.getAttribute('aria-disabled') === 'true' || row.getAttribute('aria-expanded') === 'true') return
+  trackMenuRow('note_more', row.getAttribute('data-row'))
 }
 
 /** Lane KEYS3: lets an action INSIDE the panel open the panel it lives in (the Export menu,

@@ -233,6 +233,15 @@ function pinnedFamily(seedKey) {
   return null
 }
 
+/** Follow-up A fix round 1 (M3): the ONE family chip a library row belongs to (its override's, else its group's), or
+ *  null. The same two parts `familyKeeps` reads, so the count and the chip can never disagree. */
+export function familyOf(row) {
+  const pinned = pinnedFamily(row?.seedKey)
+  if (pinned) return pinned
+  for (const [family, groups] of Object.entries(FAMILY_GROUPS)) if (groups.includes(row?.group)) return family
+  return null
+}
+
 /** Does a library row pass a family chip (a FAMILIES key)? Its override's chip, else its library group's. */
 export function familyKeeps(family, row) {
   const pinned = pinnedFamily(row?.seedKey)

@@ -179,6 +179,10 @@ describe('using a Template library template (wave 11, walk D1)', () => {
     expect(screen.getByTestId('note-editor')).toHaveAttribute('data-open-focus', 'field')
     await waitFor(() => expect(newNoteSheet()).toBeNull())
     expect(calls.filter((c) => c.url.endsWith('/use-template'))).toHaveLength(1)
+    // Follow-up A fix round 1 (M3): one template_started, a library template, with its catalogue family (the
+    // night-before group is "rituals"), never its title.
+    expect(calls.filter((c) => c.url === '/api/j2/telemetry' && c.body?.event === 'template_started').map((c) => c.body))
+      .toEqual([{ event: 'template_started', props: { source: 'library', family: 'rituals' } }])
   })
 
   it("m-1: focus ENDS in the new note's first field, with no inert ancestor (the detail sheet released the page first)", async () => {
