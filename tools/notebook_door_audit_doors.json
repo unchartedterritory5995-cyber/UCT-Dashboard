@@ -801,7 +801,7 @@
     },
     "reason": {
       "verdict": "HARD",
-      "text": "Go-live wave 2, by ruling: on a phone the list's \"+ New\" group is not drawn (S12) and Research home's New note caret was retired with it (simplify Task 5), so the phone's door is the More menu's New from a template; the template sheet it opens keeps the note kinds above its search, and the measured Daily prep button sat outside the sheet's first screen (3 presses, one scroll). 1280: OK (3 presses). Recorded in the ledger, Go-live wave 2. Owner call: accept, or open the kind picker from the phone row."
+      "text": "Go-live wave 2, by ruling: on a phone the list's \"+ New\" group is not drawn (S12) and Research home's New note caret was retired with it (simplify Task 5), so the phone's door is the More menu's New from a template; the template sheet it opens keeps the note kinds above its search, and the measured Daily prep button sat outside the sheet's first screen (3 presses, one scroll). 1280: OK (3 presses). Recorded in the ledger, Go-live wave 2. Final fix (A1): the phone row now carries a literal walkthrough anchor (data-tour=\"new-from-template-phone\") and the Template gallery and Template library walkthroughs start on it at 390 (More notebook actions, then New from a template), so a phone member is walked to this door; the presses and the scroll to Daily prep are unchanged. Owner call: accept, or open the kind picker from the phone row."
     }
   },
   {
