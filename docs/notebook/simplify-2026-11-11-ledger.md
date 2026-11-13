@@ -333,3 +333,20 @@ Pre-existing tests changed and why: `tours/b4Styles.test.jsx` and `tours/b4Style
 
 Left for part 2 (instruments): the 390 walks for A1 / C2 / C3, the C1 walker wait and seven rows and the by-hand reproduction, A2, A3, section E, and the walker / door-table words listed in the part 1 report.
 
+## Final fix, part 2 (instruments and close-out), base `57dded41f4`
+
+Report: `.superpowers/sdd/2026-11-11-notebook-simplify/final-fix-2-report.md`. Evidence: `docs/notebook/evidence/fin-walk/7e849c6740-rewalk/` and `docs/notebook/evidence/door-audit-20261113T023016Z/`; summary in `docs/notebook/fin-walk.md` section 9.4.
+
+Product (the coordinator's three residuals from the part 1 re-review, each with a focused vitest and a red proof):
+- R1: the sample removal's held-title reads give up after 3 s (aborted and raced), so one hung read cannot keep "Removing..." up; "A note" then.
+- R2: the find stand-in's icons use the toolbar icon size (16); `styles/notebookTokens.lint.test.js` is green again (the stand-in file is this branch's).
+- R3: "Remove the sample notebook" sits right after Export at every width, so a desktop More menu never opens with focus on the destructive row (desktop order: Export, Remove the sample notebook, My tools, Manage templates; keyboard and click both land on Export). On a phone it is reachable by scrolling inside the capped menu (walked at 390).
+
+First-open bytes after the build: 2,256,355 B of 2,260,793 B (PASS).
+
+Instruments: the walker and door-audit words part 1 listed (one sample door on the empty list; "Today's note"; the new hold words; "+ New"), the C1 save-wait (the walk leaves the AAPL note only once its save has landed), new walk cases for C2 (Get started template row opens the New note sheet) and C3 (390, sample active: the More menu inside the window above the "+", every row reachable, removal works), A2 (gallery Use, /style chooser title) and A3 (sizing on a member whose size was never saved; the Templates idle sentence). A2 and A3 rows were INSTRUMENT: master S7/S9 wording and master `9449b525d9` (a saved account size is the member's own whatever its value).
+
+Door audit, rows touched re-measured (23, 26 x2, 34, 54, 56, 63): row 54 (More > Manage templates) is OK at 390 where it was EASY: the phone menu is now capped above the "+" (C3) and, with the sample active, its last row needs a scroll inside the menu. Not HARD, so no ruling needed; recorded here. Row 63's HARD reason now notes that the template walkthroughs start on the phone row (A1).
+
+Recorded, not fixed (master-era, offline layer): the by-hand C1 reproduction held the removal with the new sentence; following the sentence let the removal through, but the words typed before the aborted save never reached the server (Concerns in the report).
+
