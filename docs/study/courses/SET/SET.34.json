@@ -1367,11 +1367,11 @@
    "key": "q22",
    "skill": "setup.go_signal",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "go.stop_width",
-   "q": "Entry 37.18. The session low is 36.15 and the stop sits 3 cents under it. How far below the entry, in percent, to two decimals?",
-   "answer": 2.85,
-   "why": "2.85%. The stop sits 3 cents under the 36.15 session low. Measured from the 37.18 entry, that distance is 2.85%. A stop within about 3% fits. Past about 3%, we size down or skip.",
+   "q": "Entry 37.18. The session low is 36.15 and the stop sits 3 cents under it. How far below the entry is the stop?",
+   "answer": "2.85%",
+   "why": "2.85%. The stop sits 3 cents under the 36.15 low. The gap is the entry minus that stop. Divide by the entry, 37.18, and show it as a percent. A stop within about 3% fits. Past about 3%, we size down or skip.",
    "lesson_line": "Measure the stop in percent before you size it.",
    "facts": [
     "g08",
@@ -1404,17 +1404,28 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "2.77%",
+    "2.85%",
+    "1.06%",
+    "28.51%"
+   ],
+   "wrong": {
+    "2.77%": "Used the session low as the stop. The stop sits 3 cents under it.",
+    "1.06%": "Read the dollar gap as a percent. Divide it by the entry first.",
+    "28.51%": "Slipped the decimal point one place right."
+   }
   },
   {
    "key": "q23",
    "skill": "setup.go_signal",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "go.no_chase",
-   "q": "Prior close 168.84. The reclaim candle closes at 169.79. How far over the prior close, in percent, to one decimal?",
-   "answer": 0.6,
-   "why": "0.6%. Measure from the prior close, 168.84, because it is the buy point. The reclaim close of 169.79 is about 0.6% above it. Never buy more than 4% above the buy point. At 0.6% the chase rule does not block the buy. Chasing costs size, not risk.",
+   "q": "Prior close 168.84. The reclaim candle closes at 169.79. How far over the prior close is that?",
+   "answer": "0.6%",
+   "why": "0.6%. Measure from the prior close, 168.84, because it is the buy point. The gap is 169.79 minus 168.84. Divide by 168.84 and show it as a percent: about 0.6%. Never buy more than 4% above the buy point. At 0.6% the chase rule does not block the buy. Chasing costs size, not risk.",
    "lesson_line": "Check the distance from the prior close before you buy.",
    "facts": [
     "g16",
@@ -1440,17 +1451,28 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "1.0%",
+    "5.6%",
+    "100.6%",
+    "0.6%"
+   ],
+   "wrong": {
+    "1.0%": "Read the dollar gap as a percent. Divide it by the prior close first.",
+    "5.6%": "Slipped the decimal point one place right.",
+    "100.6%": "Divided the close by the prior close and forgot to subtract 1."
+   }
   },
   {
    "key": "q24",
    "skill": "setup.go_signal",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "go.trim_1",
    "q": "Bought at 336.42 with the stop at 331.63. One R is the gap between them. Where is 3R?",
-   "answer": 350.79,
-   "why": "350.79. One R is the fill minus the stop, 336.42 minus 331.63. Three R is the fill plus three of those. It is a marker, not a fixed sell level.",
+   "answer": "$350.79",
+   "why": "350.79. One R is the fill minus the stop: 336.42 minus 331.63. Three R is three of those added to the fill. It is a marker, not a fixed sell level.",
    "lesson_line": "Know your 3R before the open. It is a marker, not an automatic sell.",
    "facts": [
     "r21",
@@ -1476,7 +1498,18 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$322.05",
+    "$346.00",
+    "$350.79",
+    "$339.42"
+   ],
+   "wrong": {
+    "$346.00": "Added three R to the stop instead of to the fill.",
+    "$322.05": "Subtracted three R. A long's target sits above the fill.",
+    "$339.42": "Added 3 dollars, not three R. R is the fill minus the stop."
+   }
   },
   {
    "key": "q25",
@@ -1837,11 +1870,11 @@
    "key": "q34",
    "skill": "setup.go_signal",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "go.stop_width",
    "q": "Account 100,000, risk 0.25%. Buy 336.42, stop 331.63. How many shares does the stop allow?",
-   "answer": 52,
-   "why": "52 shares. Risk is 0.25% of 100,000. Divide it by the distance from the 336.42 buy to the 331.63 stop, then round down to 52. The size is the smaller of the risk size and the position cap. The cap is 40% of the account, and 52 shares are well under it.",
+   "answer": "52 shares",
+   "why": "52 shares. The risk dollars are 100,000 x 0.25%. The stop distance is 336.42 minus 331.63. Divide the risk dollars by the stop distance, then round down to 52. The size is the smaller of the risk size and the position cap. The cap is 40% of the account, and 52 shares are well under it.",
    "lesson_line": "The stop sets the size. Not the other way round.",
    "facts": [
     "h03",
@@ -1870,7 +1903,18 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "208 shares",
+    "118 shares",
+    "52 shares",
+    "5,219 shares"
+   ],
+   "wrong": {
+    "208 shares": "Risked four times too much. Use the 0.25% the question gives.",
+    "118 shares": "That is the 40% position cap size. The risk size is smaller, so it wins.",
+    "5,219 shares": "Forgot to turn the 0.25% into a decimal."
+   }
   },
   {
    "key": "q35",
@@ -2172,11 +2216,11 @@
    "key": "q43",
    "skill": "setup.go_signal",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "go.trim_1",
    "q": "Bought at 26.43, stop 25.66. One R is the gap between them. The stock trades to 28.74. How many R is that?",
-   "answer": 3.0,
-   "why": "3R. One R is the fill minus the stop, 26.43 minus 25.66. The move from 26.43 to 28.74 is exactly three of those. 3R is a marker, not a fixed sell. VIAV got there in 3 days.",
+   "answer": "3.0R",
+   "why": "3R. One R is the fill minus the stop: 26.43 minus 25.66. The gain is 28.74 minus 26.43. That gain is exactly three of those. 3R is a marker, not a fixed sell. VIAV got there in 3 days.",
    "lesson_line": "Count in R. Three R is a marker, not an automatic sell.",
    "facts": [
     "r21",
@@ -2202,7 +2246,18 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "4.0R",
+    "3.0R",
+    "8.7R",
+    "0.3R"
+   ],
+   "wrong": {
+    "4.0R": "Measured the gain from the stop instead of from the fill.",
+    "8.7R": "Used the percent gain and called it R. R is gain over the stop distance.",
+    "0.3R": "Inverted it: R divided by the gain instead of gain divided by R."
+   }
   },
   {
    "key": "q44",
@@ -2900,11 +2955,11 @@
    "key": "q61",
    "skill": "setup.go_signal",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "go.position_adv",
    "q": "The stock's average daily volume is 400,000 shares. What is the most you may own?",
-   "answer": 4000,
-   "why": "4,000 shares. Never own more than 1% of a stock's average daily volume. One percent of 400,000 is 4,000. The limit ties your size to what the stock trades. Illiquid stocks are not even watched.",
+   "answer": "4,000 shares",
+   "why": "4,000 shares. Never own more than 1% of a stock's average daily volume. One percent of 400,000 is 400,000 x 0.01, which is 4,000. The limit ties your size to what the stock trades. Illiquid stocks are not even watched.",
    "lesson_line": "One percent of daily volume is the ceiling.",
    "facts": [
     "h19"
@@ -2928,7 +2983,18 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "40,000 shares",
+    "20,000 shares",
+    "400 shares",
+    "4,000 shares"
+   ],
+   "wrong": {
+    "40,000 shares": "Took ten times too much. Slipped the decimal point.",
+    "20,000 shares": "Used a looser limit. Our rule is 1% of average daily volume.",
+    "400 shares": "Took a tenth of the right amount. Slipped the decimal point."
+   }
   },
   {
    "key": "q62",
@@ -3125,10 +3191,10 @@
    "key": "q68",
    "skill": "setup.go_signal",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "go.liquidity",
-   "q": "A stock trades 600,000 shares a day on average, at about 24 dollars. How many million dollars trade a day?",
-   "answer": 14.4,
+   "q": "A stock trades 600,000 shares a day on average, at about 24 dollars. How many dollars trade a day?",
+   "answer": "$14.4 million",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3139,7 +3205,7 @@
     "round": 1
    },
    "suffix": "million",
-   "why": "14.4 million. Dollars traded a day is shares times price, 600,000 times 24. We trade only stocks at $10 or more that trade at least $20 million a day. This one has the price but not the dollar volume, so it fails.",
+   "why": "14.4 million. The dollars traded a day are shares times price: 600,000 x 24. We trade only stocks at $10 or more that trade at least $20 million a day. This one has the price but not the dollar volume, so it fails.",
    "lesson_line": "Dollar volume is shares times price. Under $20 million a day, pass.",
    "facts": [
     "h09"
@@ -3155,7 +3221,18 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "$1.4 million",
+    "$144 million",
+    "$0.6 million",
+    "$14.4 million"
+   ],
+   "wrong": {
+    "$144 million": "Slipped the decimal point one place right.",
+    "$0.6 million": "Forgot to multiply by the price. That is just the share count.",
+    "$1.4 million": "Slipped the decimal point one place left."
+   }
   },
   {
    "key": "q69",
@@ -3251,10 +3328,10 @@
    "key": "q72",
    "skill": "setup.go_signal",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "go.breakeven",
    "q": "Bought at 24.48, stop 24.01. One R is the gap between them. At what price does our breakeven window open?",
-   "answer": 25.42,
+   "answer": "$25.42",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3265,7 +3342,7 @@
     "round": 2
    },
    "prefix": "$",
-   "why": "25.42. One R is the fill minus the stop, 24.48 minus 24.01. Two R is the fill plus two of those. The breakeven move runs from 2R to 5R, ideally. It is a window, not a trigger you must hit at once.",
+   "why": "25.42. One R is the fill minus the stop: 24.48 minus 24.01. Two R is two of those added to the fill. The breakeven move runs from 2R to 5R, ideally. It is a window, not a trigger you must hit at once.",
    "lesson_line": "Breakeven starts at 2R and runs to 5R.",
    "facts": [
     "h05",
@@ -3281,7 +3358,18 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "$24.95",
+    "$25.89",
+    "$25.42",
+    "$26.48"
+   ],
+   "wrong": {
+    "$24.95": "Added two R to the stop instead of to the fill.",
+    "$25.89": "Added one R too many. The window opens at the second R.",
+    "$26.48": "Added 2 dollars, not two R. R is the fill minus the stop."
+   }
   },
   {
    "key": "q73",
@@ -3327,10 +3415,10 @@
    "key": "q74",
    "skill": "setup.go_signal",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "go.trim_2",
    "q": "Bought at 26.43, stop 25.66. One R is the gap between them. Where is 5R, the low end of the 5 to 10R sell zone?",
-   "answer": 30.28,
+   "answer": "$30.28",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3341,7 +3429,7 @@
     "round": 2
    },
    "prefix": "$",
-   "why": "30.28. One R is the fill minus the stop, 26.43 minus 25.66. Five R is the fill plus five of those. Selling at about 5 to 10R is often best. The first sell is still a judgment.",
+   "why": "30.28. One R is the fill minus the stop: 26.43 minus 25.66. Five R is five of those added to the fill. Selling at about 5 to 10R is often best. The first sell is still a judgment.",
    "lesson_line": "Know your 5R before the open. It starts the zone where selling is often best.",
    "facts": [
     "r22",
@@ -3358,7 +3446,18 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$29.51",
+    "$30.28",
+    "$34.13",
+    "$31.43"
+   ],
+   "wrong": {
+    "$29.51": "Added five R to the stop instead of to the fill.",
+    "$34.13": "That is 10R, the top of the zone. The question asks for the low end.",
+    "$31.43": "Added 5 dollars, not five R. R is the fill minus the stop."
+   }
   },
   {
    "key": "q75",
@@ -3639,19 +3738,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: stop 36.12, (37.18-36.12)/37.18 = 2.851% = 2.85. Deeper numbers match d02/d04."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 0.95/168.84 = 0.563% = 0.6. 4% rule from g16/h11."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q25": {
    "status": "pass",
@@ -3712,7 +3811,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed floor(250/4.79) = 52; 40% cap (h30) far above ~17.5%."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q35": {
    "status": "cut",
@@ -3767,7 +3866,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q44": {
    "status": "cut",
@@ -3877,7 +3976,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1% of 400,000 = 4,000 (h19)."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q62": {
    "status": "cut",
@@ -3920,7 +4019,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "600,000 x 24 = 14.4 million; under the 20 million floor, price floor met (h09)."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q69": {
    "status": "pass",
@@ -3944,7 +4043,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 24.48 + 2 x 0.47 = 25.42; B19 window 2R to 5R."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q73": {
    "status": "pass",
@@ -3956,7 +4055,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q75": {
    "status": "pass",

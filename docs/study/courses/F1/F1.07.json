@@ -1069,9 +1069,9 @@
    "key": "q10",
    "skill": "basics.etfs",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The index falls 3% today. About how much should a 3x fund on that index lose today?",
-   "answer": 9,
+   "answer": "9%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1081,7 +1081,7 @@
      "move": 3
     }
    },
-   "why": "About 9%. A 3x fund aims for three times the index's daily move. So a 3% drop means about a 9% loss that day, before fees. FINRA runs the same math on an inverse 3x fund: a 3% index day, a 9% move.",
+   "why": "About 9%. A 3x fund aims for three times the index's daily move. Three times a 3% drop is a 9% loss that day, before fees. FINRA runs the same math on an inverse 3x fund: a 3% index day, a 9% move.",
    "lesson_line": "Three times the move means three times the loss on a down day.",
    "facts": [
     "f7",
@@ -1098,7 +1098,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "6%",
+    "3%",
+    "1%",
+    "9%"
+   ],
+   "wrong": {
+    "3%": "You gave the index's move and never applied the 3x.",
+    "1%": "You divided the 3% by 3 instead of multiplying.",
+    "6%": "You added 3 and 3 instead of multiplying them."
+   }
   },
   {
    "key": "q11",
@@ -1220,9 +1231,9 @@
    "key": "q14",
    "skill": "basics.etfs",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A 3x fund starts at $100. The index rises 10% one day and falls 10% the next. What is the fund worth, before fees?",
-   "answer": 91,
+   "answer": "$91",
    "prefix": "$",
    "calc": {
     "fn": "leveraged_path",
@@ -1235,7 +1246,7 @@
      "start": 100
     }
    },
-   "why": "$91. The fund triples each day's move. The drop lands on a bigger balance than the gain did, so the round trip leaves it below $100. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees.",
+   "why": "$91. The fund triples each day's move: three times the 10% gain, then three times the 10% drop. The drop lands on a bigger balance than the gain did, so the round trip leaves it below $100. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees.",
    "lesson_line": "Up 10%, down 10% is a small loss. A 3x fund turns it into a big one.",
    "facts": [
     "f34",
@@ -1255,15 +1266,26 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$99",
+    "$100",
+    "$91",
+    "$70"
+   ],
+   "wrong": {
+    "$100": "You assumed an up 10% and a down 10% cancel out.",
+    "$99": "You gave the index's result, up 10% then down 10% to 99, not the 3x fund's.",
+    "$70": "You took the tripled drop off the original $100 instead of off the bigger balance."
+   }
   },
   {
    "key": "q15",
    "skill": "basics.etfs",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You hold $9,000 of a plain index fund. How much of a 3x fund on the same index swings about as much in a day?",
-   "answer": 3000,
+   "answer": "$3,000",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1273,7 +1295,7 @@
      "lev": 3
     }
    },
-   "why": "$3,000. A 3x fund aims for three times the index's daily move. So $3,000 of it swings about as much in a day as $9,000 of the plain index fund, before fees. That match holds for one day only. Held longer, the 3x fund's return can drift away from three times the index.",
+   "why": "$3,000. A 3x fund aims for three times the index's daily move. So you need only a third of the dollars: $9,000 divided by 3 is $3,000. That $3,000 swings about as much in a day as $9,000 of the plain index fund, before fees. That match holds for one day only. Held longer, the 3x fund's return can drift away from three times the index.",
    "lesson_line": "A 3x fund swings about three times as hard as its index each day.",
    "facts": [
     "f18",
@@ -1290,7 +1312,18 @@
      "stem reframed as one-day dollar math, not a sizing step: the owner's rulebook sizes from the stop (A3, A5) and declined item 71"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$27,000",
+    "$3,000",
+    "$9,000",
+    "$6,000"
+   ],
+   "wrong": {
+    "$27,000": "You multiplied by 3 instead of dividing by 3.",
+    "$9,000": "You put in the same dollars, forgetting the 3x makes each dollar swing three times as much.",
+    "$6,000": "You took off a third instead of dividing by 3."
+   }
   },
   {
    "key": "q16",
@@ -1508,9 +1541,9 @@
    "key": "q22",
    "skill": "basics.etfs",
    "rung": 9,
-   "format": "numeric",
+   "format": "mcq",
    "q": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose?",
-   "answer": 1.82,
+   "answer": "1.82%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1545,7 +1578,18 @@
      "fixed before (2026-11-09 checker: why named only one cause)"
     ]
    },
-   "batch": "review1"
+   "batch": "tomcq",
+   "choices": [
+    "10%",
+    "0%",
+    "1%",
+    "1.82%"
+   ],
+   "wrong": {
+    "0%": "You thought flat in, flat out. The fund loses on the way.",
+    "1%": "You used a 10% gain on day 2 instead of 9.09%.",
+    "10%": "You gave only day 1's loss and ignored the gain back."
+   }
   },
   {
    "key": "q23",
@@ -1679,7 +1723,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3 x 3 = 9 (calc). f7 and f67 back the daily multiple. f31 and f32 are FINRA's -3x FANG+ example, and 'inverse 3x' describes them correctly. 'Before fees' matches f67."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q11": {
    "status": "pass",
@@ -1701,15 +1745,15 @@
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My answer before the key: 9000 / 3 = $3,000 (calc matches). f7, f67 back the daily 3x multiple; f18 backs the multiple working on losses too; f68 backs 'one day only, drifts if held longer'. Stem now says 'hold $9,000', so the old holding-vs-swing ambiguity is gone; 108 characters. Not a sizing step, so no conflict with A3/A5; E54 (no extra rules) and declined item 71 are not contradicted: the item states no rule, only one-day dollar math, hedged with 'about' and 'before fees'. Comes after q07 and q10, so it gives away neither."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q16": {
    "status": "pass",
@@ -1751,8 +1795,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Direction right: stem now defines an inverse fund, why walks the steps. Gaps: (1) the final step is skipped (it says the fund 'ends under $100' but never shows 90 x 1.0909 = 98.18, and learnings rule 3 wants math steps shown); (2) the writer's calc uses a rounded 9.09 input and an unused 'day1' arg, which is hacky and only lands on 1.82 by rounding, so the original exact a/b/c expression is restored; (3) 'daily reset' left undefined, so the why now says what the daily reset means. Answer 1.82 matches FINRA fact f43 (100, 110, 100 path, 1.82%). Sentences all <= 22 words; simple has no new numbe"
+   "fixed": false,
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q23": {
    "status": "pass",

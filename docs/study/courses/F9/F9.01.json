@@ -680,9 +680,9 @@
    "key": "q06",
    "skill": "risk.per_trade",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your account is $60,000. You risk 1% on a trade. How many dollars are at risk?",
-   "answer": 600,
+   "answer": "$600",
    "calc": {
     "fn": "arith",
     "args": {
@@ -709,7 +709,18 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$6,000",
+    "$60,600",
+    "$60,000",
+    "$600"
+   ],
+   "wrong": {
+    "$6,000": "Took ten times the real risk percent.",
+    "$60,000": "Counted the whole account as at risk.",
+    "$60,600": "Added 1% to the account instead of taking 1% of it."
+   }
   },
   {
    "key": "q07",
@@ -756,10 +767,10 @@
    "key": "q08",
    "skill": "risk.per_trade",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
-   "q": "Your account is $80,000. What is our absolute ceiling on one trade's risk, in dollars?",
-   "answer": 1600,
+   "q": "Your account is $80,000. What is our absolute ceiling on one trade's risk?",
+   "answer": "$1,600",
    "calc": {
     "fn": "arith",
     "args": {
@@ -786,15 +797,26 @@
      "rests on the owner's rulebook (A1)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$800",
+    "$1,200",
+    "$16,000",
+    "$1,600"
+   ],
+   "wrong": {
+    "$800": "Used 1%, the normal risk, not the 2% ceiling.",
+    "$1,200": "Used 1.5%, the most any setup grade uses.",
+    "$16,000": "Decimal slip."
+   }
   },
   {
    "key": "q09",
    "skill": "risk.per_trade",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your account is $150,000. If this trade hits its stop, you lose $750. What percent of the account is at risk?",
-   "answer": 0.5,
+   "answer": "0.5%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -803,7 +825,7 @@
      "account": 150000
     }
    },
-   "suffix": "%",
+   "suffix": "",
    "why": "0.5%. Divide the $750 you lose at the stop by the $150,000 account, and you get 0.5%. It's the same rate Schwab's active-trader example risks. Any plan checks the same way: dollar loss at the stop over the account.",
    "lesson_line": "To check any plan, divide the dollar loss at the stop by the account.",
    "facts": [
@@ -818,7 +840,18 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "50%",
+    "200%",
+    "0.5%",
+    "5%"
+   ],
+   "wrong": {
+    "5%": "Decimal slip.",
+    "200%": "Divided the account by the loss.",
+    "50%": "Compared the loss to a one-percent slice of the account, not the whole account."
+   }
   },
   {
    "key": "q10",
@@ -929,9 +962,9 @@
    "key": "q13",
    "skill": "risk.per_trade",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You started at $50,000 risking 1%, or $500. Losses took the account to $46,000. At 1%, what's your dollar risk now?",
-   "answer": 460,
+   "answer": "$460",
    "calc": {
     "fn": "arith",
     "args": {
@@ -941,7 +974,7 @@
     }
    },
    "prefix": "$",
-   "why": "$460. 1% of $46,000 is $460. With a fixed percent, you size from the account's latest value, not the one you started with. The dollars come down with the account. Our rule: recalculate the account weekly or monthly, and size every trade from that value.",
+   "why": "$460. With a fixed percent, you size from the account's latest value. 1% of $46,000 is $460. The dollars come down with the account. Our rule: recalculate the account weekly or monthly, and size every trade from that value.",
    "lesson_line": "With a fixed percent, size from the account's latest value, not the one you started with.",
    "facts": [
     "f34",
@@ -959,15 +992,26 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$500",
+    "$460",
+    "$4,600",
+    "$40"
+   ],
+   "wrong": {
+    "$500": "Sized from the starting account, not the latest value.",
+    "$4,600": "Decimal slip.",
+    "$40": "Took 1% of the dollar loss, not of the account."
+   }
   },
   {
    "key": "q14",
    "skill": "risk.per_trade",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Account $50,000. You risk a flat $5,000 a trade, 10% of the account. You lose 8 in a row. What percent of the account is gone?",
-   "answer": 80,
+   "answer": "80%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -977,7 +1021,7 @@
      "account": 50000
     }
    },
-   "suffix": "%",
+   "suffix": "",
    "why": "80%. Eight losses at $5,000 each, against a $50,000 account, is 80% gone. At 10% a trade, one losing streak nearly ends the account. Losing streaks happen to good traders too. Blown-up accounts come from sizes that were too big, huge price moves, or both.",
    "lesson_line": "Big risk per trade turns one losing streak into the end of the account.",
    "facts": [
@@ -998,7 +1042,18 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "10%",
+    "80%",
+    "8%",
+    "800%"
+   ],
+   "wrong": {
+    "10%": "Counted only one trade's share.",
+    "8%": "Counted the eight trades as eight percent.",
+    "800%": "Decimal slip the other way."
+   }
   },
   {
    "key": "q15",
@@ -1397,8 +1452,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 60000*1/100=600. Why grounded in f29/f33/f44; 'larger' claim gone."
+   "fixed": true,
+   "notes": "Tell: three of four choices were power-of-ten slips with the answer in the middle. Swapped $60 for a real mistake."
   },
   "q07": {
    "status": "pass",
@@ -1410,14 +1465,14 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Re-asked as 'our absolute ceiling ... in dollars' so the 1.5% grade top is no longer a second answer. Calc 80000*2/100=1600; h3 'absolute ceiling'."
+   "fixed": true,
+   "notes": "Tell: the answer was the largest choice. Replaced $160 with a larger decimal slip."
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Tell: 0.05/0.5/5 power-of-ten ladder with the answer in the middle. Replaced 0.05% with a real misread."
   },
   "q10": {
    "status": "pass",
@@ -1441,13 +1496,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 46000*1/100=460. 'Latest value' + D43 (h6) correct. The 8% drawdown (50k to 46k) touches only the A8 position cap, not the risk percent the question fixes at 1%."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Deeper counter now only f02+f03 numbers; uncomputed 'a quarter as bad' gone. Calc 5000*8/50000*100=80."
+   "fixed": true,
+   "notes": "Note for 800% was wrong (double 100 gives 8000%)."
   },
   "q15": {
    "status": "pass",

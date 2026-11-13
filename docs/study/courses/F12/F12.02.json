@@ -1106,9 +1106,9 @@
    "key": "q09",
    "skill": "process.routine",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "S&P 500 futures were at 6,000 at 4:00 p.m. yesterday. At 8:45 a.m. today they're at 5,940. How far down are they, in percent?",
-   "answer": 1,
+   "answer": "1%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1118,7 +1118,7 @@
     }
    },
    "suffix": "%",
-   "why": "1%. Take the drop, 6,000 minus 5,940, and divide it by the starting level of 6,000. Percent change is always measured from where you started, here yesterday's 4:00 p.m. level. One ES future tracks the 500 stocks, so the drop hints at a weaker open. SPY and the biggest index stocks tend to move with the futures, but premarket prices may not hold.",
+   "why": "The drop is 6,000 minus 5,940, or 60 points. Divide it by the starting level of 6,000 to get 1%. Percent change is always measured from where you started, here yesterday's 4:00 p.m. level. One ES future tracks the 500 stocks, so the drop hints at a weaker open. SPY and the biggest index stocks tend to move with the futures, but premarket prices may not hold.",
    "lesson_line": "Read futures in percent, not points. Points mean little until you size them against the level.",
    "facts": [
     "fc1",
@@ -1137,7 +1137,18 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "60%",
+    "10%",
+    "0.1%",
+    "1%"
+   ],
+   "wrong": {
+    "60%": "Read the 60-point drop as 60%. Divide it by the starting level.",
+    "0.1%": "A decimal slip: ten times too small.",
+    "10%": "A decimal slip: ten times too big."
+   }
   },
   {
    "key": "q10",
@@ -1771,9 +1782,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 1.0. Choices acceptable (60 = points read as percent, 0.1 and 10 slips). Why skipped the 60-point step; added."
   },
   "q10": {
    "status": "pass",

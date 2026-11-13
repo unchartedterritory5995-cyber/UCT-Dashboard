@@ -921,9 +921,9 @@
   {
    "key": "q13",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Schwab's sample exit: price falls 3% below a recent support level. Support is $50. At what price do you get out?",
-   "answer": 48.5,
+   "answer": "$48.50",
    "calc": {
     "fn": "arith",
     "args": {
@@ -933,7 +933,7 @@
     }
    },
    "prefix": "$",
-   "why": "$48.50. That's 3% below the $50 support. It is Schwab's sample exit, not a rule we teach. Investopedia says to build stop prices into your plan so every trade has exact exit points. Written as a price, there's nothing left to work out when it hits.",
+   "why": "Take 3% off the $50 support to get $48.50. It is Schwab's sample exit, not a rule we teach. Investopedia says to build stop prices into your plan so every trade has exact exit points. Written as a price, there's nothing left to work out when it hits.",
    "lesson_line": "Turn every exit rule into a price before you buy.",
    "facts": [
     "f15",
@@ -948,7 +948,18 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$51.50",
+    "$47.00",
+    "$49.85",
+    "$48.50"
+   ],
+   "wrong": {
+    "$51.50": "Went 3% above support. An exit below support sits under it.",
+    "$47.00": "Took a flat $3.00 off, not 3% of $50.",
+    "$49.85": "A decimal slip: that is a tenth of the 3% drop."
+   }
   },
   {
    "key": "q14",
@@ -1410,9 +1421,9 @@
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "50 x 0.97 = 48.50. 51.50 wrong side, 47 flat $3, 49.85 slip (0.3%). Why is short and clear."
   },
   "q14": {
    "status": "pass",

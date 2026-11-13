@@ -1094,9 +1094,9 @@
    "key": "q09",
    "skill": "history.long_bear",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The Nasdaq closed at 5,048.62 in March 2000 and 1,114.11 in October 2002. How far did it fall, to the nearest whole percent?",
-   "answer": 78,
+   "answer": "78%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -1105,8 +1105,8 @@
     },
     "round": 0
    },
-   "suffix": "%",
-   "why": "78%. Subtract the low close from the peak close, then divide by the peak, 5,048.62. Always measure a drawdown from the peak. Measured from the low, the same move is a much bigger number: the gain needed to get back.",
+   "suffix": "",
+   "why": "78%. Subtract the low close, 1,114.11, from the peak close, then divide by the peak, 5,048.62. Always measure a drawdown from the peak. Divided by the low, the same move reads 353%, the gain needed to get back.",
    "lesson_line": "Measure a drawdown from the peak. This one took nearly four-fifths of the index.",
    "facts": [
     "f02",
@@ -1122,7 +1122,18 @@
      "computed key (drawdown_pct)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "22%",
+    "7.8%",
+    "353%",
+    "78%"
+   ],
+   "wrong": {
+    "22%": "Gave what is left, not the fall.",
+    "353%": "Divided the drop by the low, not the peak.",
+    "7.8%": "Decimal slip."
+   }
   },
   {
    "key": "q10",
@@ -1171,9 +1182,9 @@
    "key": "q11",
    "skill": "history.long_bear",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The Nasdaq closed at 1,638.80 on April 4, 2001 and 2,313.85 on May 22, 2001. How big was that rally, to the nearest percent?",
-   "answer": 41,
+   "answer": "41%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1182,8 +1193,8 @@
     },
     "round": 0
    },
-   "suffix": "%",
-   "why": "41%. Divide the May 22 close, 2,313.85, by the April 4 close, 1,638.80, and subtract 1. The Fed's own report puts the rally at almost 40% from April to the end of May. It still failed. On September 21, 2001 the Nasdaq closed at 1,423.19, below the April low.",
+   "suffix": "",
+   "why": "41%. Subtract the April 4 close, 1,638.80, from the May 22 close, 2,313.85. Divide that gain by the April close. The rally still failed. On September 21, 2001 the Nasdaq closed at 1,423.19, below the April low.",
    "lesson_line": "Even a 41% rally can be a bear market rally. Size alone proves nothing.",
    "facts": [
     "f07",
@@ -1205,15 +1216,26 @@
      "computed key (pct_change)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "29%",
+    "141%",
+    "4.1%",
+    "41%"
+   ],
+   "wrong": {
+    "29%": "Divided the gain by the May close, not the April start.",
+    "141%": "Stopped at the ratio and forgot to subtract one.",
+    "4.1%": "Decimal slip."
+   }
   },
   {
    "key": "q12",
    "skill": "history.long_bear",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "An index falls 78%. What gain does it need just to get back to its old high, to the nearest percent?",
-   "answer": 355,
+   "answer": "355%",
    "calc": {
     "fn": "gain_to_recover",
     "args": {
@@ -1221,8 +1243,8 @@
     },
     "round": 0
    },
-   "suffix": "%",
-   "why": "355%. The gain needed is the old high divided by what is left after the loss, minus one. It grows much faster than the loss. The Nasdaq closed at 5,048.62 in March 2000 and 1,114.11 in October 2002. It did not close above that March 2000 peak until April 23, 2015.",
+   "suffix": "",
+   "why": "355%. After a 78% loss, 22% is left. Divide the old high by what is left, then subtract one. The Nasdaq did not close above its March 2000 peak until April 23, 2015.",
    "lesson_line": "Deep losses take years to repair. Keep your own losses small.",
    "facts": [
     "f02",
@@ -1230,7 +1252,7 @@
     "f26",
     "f27"
    ],
-   "simple": "It needs about a 355% gain, because after a 78% loss only a small part of the value is left to grow.",
+   "simple": "It needs about 355%, because after a 78% loss only 22% is left to grow.",
    "deeper": {
     "example": "The Nasdaq closed at 5,048.62 on March 10, 2000 and at 1,114.11 on October 9, 2002. To get back, the index had to more than quadruple. On April 22, 2015 it was still below the old peak, at 5,035.17. The next day it closed at 5,056.06, its first close above the 2000 high."
    },
@@ -1243,7 +1265,18 @@
      "fixed before: f84's April 24, 2015 date was removed"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "78%",
+    "455%",
+    "355%",
+    "22%"
+   ],
+   "wrong": {
+    "78%": "Assumed the gain needed equals the loss.",
+    "455%": "Divided the old high by what is left but forgot to subtract one.",
+    "22%": "Gave what is left after the loss."
+   }
   },
   {
    "key": "q13",
@@ -1382,9 +1415,9 @@
    "key": "q17",
    "skill": "history.long_bear",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Dec. 1, 2008: the NBER calls a recession. The Nasdaq closes at 1,398.07, off a 2,859.12 peak. How far down, to the nearest percent?",
-   "answer": 51,
+   "answer": "51%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -1393,7 +1426,7 @@
     },
     "round": 0
    },
-   "suffix": "%",
+   "suffix": "",
    "why": "51%. Subtract 1,398.07 from the 2,859.12 peak, then divide by the peak. The NBER, which dates US recessions, made its call on December 1, 2008. It dated the start to December 2007, a year earlier. By then the Nasdaq was already about half below its October 31, 2007 high.",
    "lesson_line": "Official calls come late. Price had already done the talking.",
    "facts": [
@@ -1416,7 +1449,18 @@
      "computed key (drawdown_pct)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "105%",
+    "51%",
+    "49%",
+    "5.1%"
+   ],
+   "wrong": {
+    "105%": "Divided the drop by the low, not the peak.",
+    "5.1%": "Decimal slip.",
+    "49%": "Gave what is left, not the fall."
+   }
   },
   {
    "key": "q18",
@@ -1749,9 +1793,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q10": {
    "status": "pass",
@@ -1763,13 +1807,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc check: (2313.85 / 1638.80 - 1) gives 41%. The deeper trap is grounded in f66, f06 and f08, and the ungrounded 'felt like a new bull market' clause is gone. The Fed's 'almost 40%' (f35) runs to the end of May, not to May 22, so it is consistent with the calc."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc check: 1 / 0.22 - 1 gives 355%. The why gives the quoted closes (f02, f11) and the April 23, 2015 recovery (f27). 'More than quadruple' follows from the calc. q12 builds on q09's 78% and plays at a later rung (5 after 4), so it was judged a build-up, not a leak."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q13": {
    "status": "pass",
@@ -1803,9 +1847,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q18": {
    "status": "pass",

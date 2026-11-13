@@ -1542,10 +1542,10 @@
    "key": "q06",
    "skill": "vocab.fund_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "EPS",
    "q": "A company earns $50 million in net income. It has 20 million shares outstanding. What is its EPS?",
-   "answer": 2.5,
+   "answer": "$2.50",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1555,7 +1555,7 @@
     }
    },
    "prefix": "$",
-   "why": "$2.50. EPS is net income divided by shares outstanding: $50 million over 20 million shares. Both figures are in millions, so the millions cancel and the answer is dollars per share.",
+   "why": "$2.50. EPS is net income divided by shares outstanding. $50 million over 20 million shares is 2.5. The millions cancel, so the answer is $2.50 a share.",
    "lesson_line": "EPS is net income divided by shares. Same profit spread over fewer shares means a higher EPS.",
    "facts": [
     "f10",
@@ -1569,7 +1569,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$0.40",
+    "$70.00",
+    "$25.00",
+    "$2.50"
+   ],
+   "wrong": {
+    "$0.40": "Divided the shares by the income, upside down.",
+    "$25.00": "Slipped a decimal place.",
+    "$70.00": "Added income and shares instead of dividing."
+   }
   },
   {
    "key": "q07",
@@ -1693,10 +1704,10 @@
    "key": "q10",
    "skill": "vocab.fund_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Gross margin",
    "q": "Revenue is $835,000. Gross profit is $585,000. What is the gross margin, to one decimal place?",
-   "answer": 70.1,
+   "answer": "70.1%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1707,7 +1718,7 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "70.1%. Gross margin is gross profit divided by revenue: $585,000 over $835,000, times 100, rounded to one decimal. These are the SEC's own example numbers. Put gross profit on top, not operating income or net income, or you get a different margin.",
+   "why": "70.1%. Gross margin is gross profit divided by revenue. $585,000 divided by $835,000, then times 100, is 70.1%. These are the SEC's own example numbers. Put gross profit on top, not operating income or net income, or you get a different margin.",
    "lesson_line": "A margin is a profit divided by revenue. Know which profit you're using.",
    "facts": [
     "f16",
@@ -1723,7 +1734,18 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "29.9%",
+    "142.7%",
+    "7.0%",
+    "70.1%"
+   ],
+   "wrong": {
+    "29.9%": "Gave the share of revenue that went to costs.",
+    "142.7%": "Put revenue over gross profit, upside down.",
+    "7.0%": "Slipped a decimal place."
+   }
   },
   {
    "key": "q11",
@@ -1808,10 +1830,10 @@
    "key": "q13",
    "skill": "vocab.fund_terms",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Operating margin",
    "q": "NVIDIA, Q3 fiscal 2026: revenue $57,006 million, operating income $36,010 million. What is the operating margin, to one decimal?",
-   "answer": 63.2,
+   "answer": "63.2%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1822,7 +1844,7 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "63.2%. Operating margin is operating income divided by revenue: $36,010 million over $57,006 million, times 100, rounded to one decimal. Both rows come from the same quarter's table in NVIDIA's own release.",
+   "why": "63.2%. Operating margin is operating income divided by revenue. $36,010 million divided by $57,006 million, then times 100, is 63.2%. Both rows come from the same quarter's table in NVIDIA's own release.",
    "lesson_line": "Work the margin out yourself from the release. It takes seconds, and then you know the number.",
    "facts": [
     "f73",
@@ -1842,7 +1864,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "158.3%",
+    "36.8%",
+    "63.2%",
+    "6.3%"
+   ],
+   "wrong": {
+    "36.8%": "Gave the share of sales that went to operating costs.",
+    "158.3%": "Put revenue over operating income, upside down.",
+    "6.3%": "Slipped a decimal place."
+   }
   },
   {
    "key": "q14",
@@ -2261,10 +2294,10 @@
    "key": "q25",
    "skill": "vocab.fund_terms",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Earnings surprise",
    "q": "NVIDIA's adjusted EPS was $1.30. The estimate was $1.25. What was the EPS surprise, in percent?",
-   "answer": 4,
+   "answer": "4%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2275,7 +2308,7 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "4%. Zacks measures EPS surprise as actual minus consensus, divided by the absolute value of the consensus, times 100. Here that is ($1.30 minus $1.25) over $1.25, times 100. The estimate is positive, so the absolute value changes nothing.",
+   "why": "4%. Zacks measures EPS surprise as actual minus consensus, over the consensus, times 100. The gap is $1.30 less $1.25. Divide that gap by $1.25, then times 100, and you get 4%.",
    "lesson_line": "Surprise percent is actual minus estimate, over the estimate. A tiny estimate can make a small beat look huge.",
    "facts": [
     "f140",
@@ -2292,7 +2325,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "5%",
+    "4%",
+    "104%",
+    "0.4%"
+   ],
+   "wrong": {
+    "5%": "Read the 5-cent gap as a percent.",
+    "104%": "Divided actual by the estimate and forgot to subtract.",
+    "0.4%": "Slipped a decimal place."
+   }
   },
   {
    "key": "q26",
@@ -2839,10 +2883,10 @@
    "key": "q39",
    "skill": "vocab.fund_terms",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Year over year (YoY)",
    "q": "NVIDIA operating income: $36,010 million in Q3 fiscal 2026, $21,869 million in Q3 fiscal 2025. YoY growth, to the nearest whole percent?",
-   "answer": 65,
+   "answer": "65%",
    "calc": {
     "fn": "yoy_growth",
     "args": {
@@ -2852,7 +2896,7 @@
     "round": 0
    },
    "suffix": "%",
-   "why": "65%. Year-over-year growth is the new number minus the old one, divided by the old one. Here that is ($36,010 million minus $21,869 million) over $21,869 million, as a percent, rounded to a whole number. Both numbers sit on the same row of NVIDIA's table: Q3 fiscal 2026 against Q3 fiscal 2025.",
+   "why": "65%. Year-over-year growth is the new number minus the old one, divided by the old one. The rise is $36,010 million less $21,869 million. Divide the rise by $21,869 million, then show it as a percent: 65% rounded. Both numbers sit on the same row of NVIDIA's table: Q3 fiscal 2026 against Q3 fiscal 2025.",
    "lesson_line": "Growth is new minus old, divided by old. It takes seconds to check the release.",
    "facts": [
     "f74",
@@ -2872,7 +2916,18 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "39%",
+    "165%",
+    "65%",
+    "6.5%"
+   ],
+   "wrong": {
+    "39%": "Divided by the new number instead of the old base.",
+    "165%": "Divided new by old and never took off the base.",
+    "6.5%": "Slipped a decimal place."
+   }
   },
   {
    "key": "q40",
@@ -3252,10 +3307,10 @@
    "key": "q50",
    "skill": "vocab.fund_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Market cap",
-   "q": "A stock trades at $25. It has 80 million shares outstanding and a float of 50 million. What is its market cap, in billions?",
-   "answer": 2,
+   "q": "A stock trades at $25. It has 80 million shares outstanding and a float of 50 million. What is its market cap?",
+   "answer": "$2 billion",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3266,7 +3321,7 @@
    },
    "prefix": "$",
    "suffix": "billion",
-   "why": "$2 billion. Market cap is the current share price times the total shares outstanding: $25 times 80 million shares. The 50 million float is the part free for public trading, and it does not change market cap. Nasdaq calls market cap a measure of corporate size.",
+   "why": "$2 billion. Market cap is the current share price times the total shares outstanding. $25 times 80 million shares is $2 billion. The 50 million float is the part free for public trading, and it does not change market cap. Nasdaq calls market cap a measure of corporate size.",
    "lesson_line": "Market cap uses all the shares outstanding, not just the float.",
    "facts": [
     "f42",
@@ -3286,7 +3341,18 @@
      "fixed before (rebuilt from a fill)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$3.2 billion",
+    "$2 billion",
+    "$1.25 billion",
+    "$20 billion"
+   ],
+   "wrong": {
+    "$3.2 billion": "Divided the shares by the price instead of multiplying.",
+    "$1.25 billion": "Used the 50 million float instead of all shares.",
+    "$20 billion": "Slipped a decimal place."
+   }
   },
   {
    "key": "q51",
@@ -3330,10 +3396,10 @@
    "key": "q52",
    "skill": "vocab.fund_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Float",
-   "q": "A company has 100 million shares outstanding. Insiders hold 30 million restricted shares. Roughly how many shares float, in millions?",
-   "answer": 70,
+   "q": "A company has 100 million shares outstanding. Insiders hold 30 million restricted shares. Roughly how many shares float?",
+   "answer": "70 million",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3358,7 +3424,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "30 million",
+    "100 million",
+    "70 million",
+    "130 million"
+   ],
+   "wrong": {
+    "30 million": "Gave the restricted shares, not what is left.",
+    "100 million": "Called every outstanding share float.",
+    "130 million": "Added the restricted shares instead of subtracting."
+   }
   },
   {
    "key": "q53",
@@ -3471,10 +3548,10 @@
    "key": "q56",
    "skill": "vocab.fund_terms",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Expected move",
    "q": "A stock at $216.88 has an expected move of $16.74 either way. What is that as a percent of the price, to one decimal?",
-   "answer": 7.7,
+   "answer": "7.7%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3485,7 +3562,7 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "7.7%. Divide the expected move by the price: $16.74 over $216.88, times 100, rounded to one decimal. Schwab uses this example and calls it a potential 7.7% move. The expected move sets neither the size nor the direction of the real move. The actual move can be bigger, smaller or nothing.",
+   "why": "7.7%. Divide the expected move by the price. $16.74 over $216.88, times 100, is 7.7%. Schwab uses this example and calls it a potential 7.7% move. The expected move sets neither the size nor the direction of the real move. The actual move can be bigger, smaller or nothing.",
    "lesson_line": "Turn the expected move into a percent. It's a priced size, not a promise, and it has no direction.",
    "facts": [
     "f107",
@@ -3503,7 +3580,18 @@
      "Schwab page refused the fetch on 2026-11-12 (unreachable), quotes not re-confirmed"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "15.4%",
+    "7.7%",
+    "8.4%",
+    "0.8%"
+   ],
+   "wrong": {
+    "15.4%": "Doubled it because the move goes both ways.",
+    "0.8%": "Slipped a decimal place.",
+    "8.4%": "Divided by the low end of the range instead of the price."
+   }
   },
   {
    "key": "q57",
@@ -3850,9 +3938,9 @@
   },
   "q06": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 2.5 matches; wrongs real. Why did not state the quotient; added."
   },
   "q07": {
    "status": "pass",
@@ -3874,9 +3962,9 @@
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 70.1 matches (585/835). Wrongs real (29.9 = 100-70.1, 142.7 = inverted, 7.0 decimal). Why added the 0.701 step."
   },
   "q11": {
    "status": "pass",
@@ -3894,8 +3982,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "36010/57006*100 = 63.17, rounds to 63.2; matches calc. Why no longer says GAAP. Deeper's 73.4% from f75."
+   "fixed": true,
+   "notes": "Calc 63.2 matches. Wrongs real (36.8, 158.3 inverted, 6.3 decimal). Why added the 0.632 step."
   },
   "q14": {
    "status": "pass",
@@ -3967,8 +4055,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(1.30-1.25)/1.25*100 = 4.0; matches calc. Deeper split and grounded in f140's formula."
+   "fixed": true,
+   "notes": "Calc 4.0 matches ((1.30-1.25)/1.25). Wrongs real (5 = cents as percent, 104 = actual/estimate, 0.4 decimal). Why added the $0.05 and 0.04 steps."
   },
   "q26": {
    "status": "pass",
@@ -4053,8 +4141,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed: (36010-21869)/21869 = 64.66%, rounds to 65. Re-read the NVIDIA 8-K today: the operating income row prints '$36,010 $28,440 $21,869 27 % 65 %' under 'Q3 FY26 Q2 FY26 Q3 FY25 Q/Q Y/Y', so the key matches the company's own Y/Y column. Question 136 chars."
+   "fixed": true,
+   "notes": "Calc 65 matches (14141/21869 = 64.7). Wrongs real (39 = over new, 165 = new/old, 6.5 decimal). Why added the rise and the ratio."
   },
   "q40": {
    "status": "pass",
@@ -4120,8 +4208,8 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "25 x 80M = $2B; matches calc. f128 now backs 'restricted shares' in the deeper."
+   "fixed": true,
+   "notes": "Calc 2 matches. Wrongs real (3.2 = 80/25, 1.25 = float, 20 decimal). Why added the product step."
   },
   "q51": {
    "status": "pass",
@@ -4134,7 +4222,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "100 - 30 = 70; matches calc. 'Float figures can differ by source' is backed by f128/f57/f26."
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q53": {
    "status": "pass",
@@ -4157,8 +4245,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "16.74/216.88*100 = 7.72, rounds to 7.7; matches calc and f108. The lesson line no longer points to the stop-vs-expected-move hold test that B22 replaced; 'not a promise' is backed by f104."
+   "fixed": true,
+   "notes": "Calc 7.7 matches. 13.0% was the inverted ratio 12.96 misread as a percent (not a real answer); replaced with 8.4% (divided by the low end of the range, 16.74/200.14). Why added the 0.077 step."
   },
   "q57": {
    "status": "pass",

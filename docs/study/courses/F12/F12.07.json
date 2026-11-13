@@ -1382,9 +1382,9 @@
    "key": "q13",
    "skill": "process.mistakes",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You hold 200 shares bought at $50, stop $48. You lower the stop to $46. What's your risk from entry now?",
-   "answer": 800,
+   "answer": "$800",
    "prefix": "$",
    "calc": {
     "fn": "risk_dollars",
@@ -1394,7 +1394,7 @@
      "stop": 46
     }
    },
-   "why": "$800. Risk from entry is the shares times the distance from entry to stop: 200 shares times the drop from $50 to $46. The $48 stop risked half that. Lowering the stop doubled the risk without buying a single new share. Our stop only moves up, never down or wider.",
+   "why": "$800. Risk from entry is the shares times the distance from entry to stop. That is 200 shares times the drop from $50 to $46, which is $800. The old $48 stop risked $400, half as much. Lowering the stop doubled the risk without buying a single new share. Our stop only moves up, never down or wider.",
    "lesson_line": "Every dollar you lower the stop adds a dollar of risk on every share.",
    "facts": [
     "f33",
@@ -1412,7 +1412,18 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$1,200",
+    "$400",
+    "$9,200",
+    "$800"
+   ],
+   "wrong": {
+    "$400": "You counted the old $48 stop's risk and never updated it to the new $46 stop.",
+    "$9,200": "You priced the shares at the stop, 200 times $46, instead of the risk.",
+    "$1,200": "You added the old risk and the new risk together."
+   }
   },
   {
    "key": "q14",
@@ -2074,9 +2085,9 @@
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q14": {
    "status": "pass",

@@ -1795,11 +1795,11 @@
    "key": "q18",
    "skill": "setup.cup_handle",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ch.trim_1",
    "q": "One R is the fill minus the stop. Fill 38.60, stop 37.90. At what price is the 3R level?",
-   "answer": 40.7,
-   "why": "40.70, the 3R level. One R is the fill minus the stop. Add three of those to the fill and you get 40.70. The first sell is a judgment, not a fixed third at 3R. Often it comes into a 3, 5 or 7 day push, or at about 5 to 10R.",
+   "answer": "$40.70",
+   "why": "40.70, the 3R level. One R is the fill minus the stop: 38.60 minus 37.90. Add three of those to the fill, 38.60, and you get 40.70. The first sell is a judgment, not a fixed third at 3R. Often it comes into a 3, 5 or 7 day push, or at about 5 to 10R.",
    "lesson_line": "Know your 3R before the open. It is a mark on the ruler, not an automatic sell.",
    "facts": [
     "r02",
@@ -1826,7 +1826,18 @@
      "the stem says hard rule because the owner's practice is to wait longer"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$36.50",
+    "$40.00",
+    "$39.30",
+    "$40.70"
+   ],
+   "wrong": {
+    "$40.00": "Added the three R to the stop instead of the fill.",
+    "$39.30": "Added one R, not three.",
+    "$36.50": "Subtracted the three R instead of adding them."
+   }
   },
   {
    "key": "q19",
@@ -1985,10 +1996,10 @@
    "key": "q24",
    "skill": "setup.cup_handle",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ch.prior_trend",
    "q": "Lowest low of the prior six months 30.00, left-side high 40.50. How big was the run into the cup, in percent?",
-   "answer": 35.0,
+   "answer": "35.0%",
    "why": "35%. The rise from the lowest low of 30.00 to the left-side high of 40.50, divided by 30.00, is 35%. A cup needs a run of at least 30% before it. IBD says so, and AAII also asks for at least 30%.",
    "lesson_line": "Measure the run before the rest. A cup with no run in front of it is just a dip.",
    "facts": [
@@ -2005,7 +2016,7 @@
     "round": 1
    },
    "suffix": "%",
-   "simple": "The stock rose 35% from its low to the high, which clears the 30% a cup needs after a run.",
+   "simple": "The stock rose 35.0% from its low to the high, which clears the 30% a cup needs after a run.",
    "deeper": {
     "counter": "The 30% is common ground, but AAII repeats O'Neil, so IBD and AAII are one view, not two. They differ on the start. AAII counts from the last intermediate low. Our card counts from the lowest low of the prior 6 months."
    },
@@ -2016,16 +2027,27 @@
      "a computed key"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "25.9%",
+    "135.0%",
+    "10.5%",
+    "35.0%"
+   ],
+   "wrong": {
+    "25.9%": "Divided the gain by the high instead of the low.",
+    "10.5%": "Read the dollar gain as a percent.",
+    "135.0%": "Forgot to subtract one: the high as a percent of the low."
+   }
   },
   {
    "key": "q25",
    "skill": "setup.cup_handle",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ch.cup_depth",
    "q": "Left-side high 80.00, the cup's lowest intraday low 58.00. How deep is the cup, in percent?",
-   "answer": 27.5,
+   "answer": "27.5%",
    "why": "27.5%. Depth is the fall from the left-side high to the cup's low, divided by the 80.00 high. IBD measures the decline from the stock's high. Zanger measures it off the old high point. Dividing by the low would measure from the wrong place.",
    "lesson_line": "Depth is high to low, divided by the high. Measure it; do not eyeball it.",
    "facts": [
@@ -2054,16 +2076,27 @@
    "depends_on": [
     "D-052"
    ],
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "37.9%",
+    "22.0%",
+    "72.5%",
+    "27.5%"
+   ],
+   "wrong": {
+    "37.9%": "Divided the drop by the cup low instead of the high.",
+    "72.5%": "Took the low as a percent of the high and skipped the drop.",
+    "22.0%": "Read the dollar drop as a percent."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.cup_handle",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ch.handle_position",
    "q": "Left-side high 62.00, cup low 44.00. Where is the cup's midpoint?",
-   "answer": 53.0,
+   "answer": "$53.00",
    "why": "53.00, halfway between the left-side high 62.00 and the cup low 44.00. The gap between them is the cup's height, not its midpoint. IBD: the midpoint of the handle's high and low should be above the midpoint of the cup. Our card uses the same test.",
    "lesson_line": "Find the cup's midpoint first. The handle has to sit above it.",
    "facts": [
@@ -2089,7 +2122,18 @@
      "a computed key"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "$18.00",
+    "$71.00",
+    "$106.00",
+    "$53.00"
+   ],
+   "wrong": {
+    "$18.00": "Gave the cup's height, not its midpoint.",
+    "$106.00": "Added the two prices and forgot to halve.",
+    "$71.00": "Went half the height above the left-side high instead of down to the midpoint."
+   }
   },
   {
    "key": "q27",
@@ -2136,11 +2180,11 @@
    "key": "q28",
    "skill": "setup.cup_handle",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ch.stop",
    "q": "Fill 56.61, stop 55.27. How far below the fill is the stop, in percent, to two decimals?",
-   "answer": 2.37,
-   "why": "2.37%. Take the gap between the fill and the stop, then divide it by the fill, 56.61. Our stop usually sits within about 3% of the buy, so this fits. These are GWW's numbers from 2004-09-29, where the stop was 2.4%.",
+   "answer": "2.37%",
+   "why": "2.37%. The gap between the fill and the stop is 56.61 minus 55.27, which is 1.34. Divide it by the fill: 1.34 over 56.61 is 2.37%. Our stop usually sits within about 3% of the buy, so this fits. These are GWW's numbers from 2004-09-29, where the stop was 2.4%.",
    "lesson_line": "Measure the stop in percent of the fill. About 3% or less is our usual.",
    "facts": [
     "h04",
@@ -2169,7 +2213,18 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "97.63%",
+    "1.34%",
+    "23.70%",
+    "2.37%"
+   ],
+   "wrong": {
+    "1.34%": "Read the dollar gap as a percent.",
+    "97.63%": "Took the stop as a percent of the fill and skipped the gap.",
+    "23.70%": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q29",
@@ -2359,10 +2414,10 @@
    "key": "q33",
    "skill": "setup.cup_handle",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ch.breakeven",
    "q": "Bought at 72.40, stop 71.60. On day two it trades 74.40. How many R is that?",
-   "answer": 2.5,
+   "answer": "2.5R",
    "why": "2.5R. The gain per share divided by the risk per share, the fill minus the stop, is 2.5. The stop only moves up, never down or wider.",
    "lesson_line": "Count in R: the gain per share over the risk per share.",
    "facts": [
@@ -2394,16 +2449,27 @@
    "depends_on": [
     "D-019"
    ],
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "3.5R",
+    "2.0R",
+    "2.5R",
+    "0.4R"
+   ],
+   "wrong": {
+    "3.5R": "Measured the gain from the stop instead of the fill.",
+    "2.0R": "Read the dollar gain as R.",
+    "0.4R": "Flipped the division: risk over gain."
+   }
   },
   {
    "key": "q34",
    "skill": "setup.cup_handle",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ch.stop",
    "q": "Account 40,000. Risk 0.75%. Fill 40.76, stop 39.73. How many shares, before any cap?",
-   "answer": 291,
+   "answer": "291 shares",
    "why": "291. Risk dollars are the account times the risk percent. Divide them by the fill minus the stop and round down to 291. The cap comes after, and the smaller number wins. The stop sets the size, never the other way round.",
    "lesson_line": "The stop sets the size. Round down.",
    "facts": [
@@ -2432,7 +2498,18 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "582 shares",
+    "2,912 shares",
+    "7 shares",
+    "291 shares"
+   ],
+   "wrong": {
+    "582 shares": "Used twice the stated risk percent.",
+    "2,912 shares": "Decimal slip: the risk dollars came out ten times too big.",
+    "7 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
+   }
   },
   {
    "key": "q35",
@@ -3942,10 +4019,10 @@
    "key": "q72",
    "skill": "setup.cup_handle",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ch.liquidity",
    "q": "A cup stock averages 600,000 shares a day at $28. How many millions of dollars does it trade a day?",
-   "answer": 16.8,
+   "answer": "$16.8 million",
    "why": "16.8 million dollars a day. Dollars traded is price times shares: $28 times 600,000. Our floor is a price of $10 or more and at least $20 million traded a day. This stock clears the price but not the dollar floor, so we skip it, however clean the cup.",
    "lesson_line": "Price times shares is dollars traded. We need $20 million a day.",
    "facts": [
@@ -3973,7 +4050,18 @@
      "rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "$1.7 million",
+    "$0.6 million",
+    "$16.8 million",
+    "$168 million"
+   ],
+   "wrong": {
+    "$0.6 million": "Gave the shares in millions and skipped the price.",
+    "$168 million": "Decimal slip: moved the decimal one place.",
+    "$1.7 million": "Decimal slip the other way: moved the decimal one place down."
+   }
   },
   {
    "key": "q73",
@@ -4004,10 +4092,10 @@
    "key": "q74",
    "skill": "setup.cup_handle",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ch.position_adv",
    "q": "We never own more than 1% of a stock's average daily volume. A stock averages 250,000 shares a day. What is the most we may own?",
-   "answer": 2500,
+   "answer": "2,500 shares",
    "why": "2,500 shares. We never own more than 1% of a stock's average daily volume. One percent of 250,000 is 2,500. It is a ceiling on what we own, and it applies to every stock.",
    "lesson_line": "Cap every position at 1% of average daily volume.",
    "facts": [
@@ -4033,7 +4121,18 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "25,000 shares",
+    "250,000 shares",
+    "250 shares",
+    "2,500 shares"
+   ],
+   "wrong": {
+    "25,000 shares": "Decimal slip: ten percent of the volume.",
+    "250 shares": "Decimal slip the other way: a tenth of the cap.",
+    "250,000 shares": "Used the whole average daily volume as the limit."
+   }
   },
   {
    "key": "q75",
@@ -4222,11 +4321,11 @@
    "key": "q80",
    "skill": "setup.cup_handle",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ch.handle_depth_best",
    "q": "Handle high 50.00, handle low 47.50. How deep is the handle, in percent?",
-   "answer": 5.0,
-   "why": "5.0%. Depth is the fall from the handle's own high, taken as a percent of that high. Our card calls a handle of 8% or less better, and about 5% best. Zanger's 5% is measured from the old high point, which is a different yardstick.",
+   "answer": "5.0%",
+   "why": "5.0%. The fall is 50.00 minus 47.50, which is 2.50. Divided by the handle's own high, 50.00, that is 5.0%. Our card calls a handle of 8% or less better, and about 5% best. Zanger's 5% is measured from the old high point, which is a different yardstick.",
    "lesson_line": "Handle depth is the fall from its own high. Shallower grades higher.",
    "facts": [
     "c48",
@@ -4252,7 +4351,18 @@
      "the 8% and 5% grade cues are card numbers"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "95.0%",
+    "2.5%",
+    "5.0%",
+    "50.0%"
+   ],
+   "wrong": {
+    "2.5%": "Read the dollar drop as a percent.",
+    "95.0%": "Took the handle low as a percent of the high and skipped the drop.",
+    "50.0%": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q81",
@@ -4851,8 +4961,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Question text still says 3R is where we take a third; neutralise."
+   "fixed": false,
+   "notes": "Math right (0.70; 2.10; 40.70; 40.00; 39.30; 36.50). Why walks the steps."
   },
   "q19": {
    "status": "pass",
@@ -4887,20 +4997,20 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(40.5-30)/30 = 35%. c04 measures from the lowest low of the prior 6 months; IBD i06 and AAII a03 give the 30%. AAII-repeats-O'Neil is from the s32 source note."
+   "fixed": true,
+   "notes": "Math right (10.5/30=35.0; 25.9; 135; 10.5). Mixed precision made 35% stand out; one decimal on all. Why lacked 10.50."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(80-58)/80 = 27.5%. i38 and z02 measure from the high. 27.5% sits inside every ch.cup_depth option."
+   "fixed": true,
+   "notes": "Math right (22/80=27.5; 22/58=37.9; 72.5; 22). 22% was the lone whole number among one-decimal choices; one decimal on all. Why lacked the 22.00 step."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(62+44)/2 = 53. i15 and c10 give the midpoint test. Does not answer q27 (which needs the handle midpoint)."
+   "fixed": true,
+   "notes": "Math right (53; 18; 9; 106). TELL: the answer was the only choice inside the 44-62 price range. Replaced $9.00 with $71.00, a real direction slip (half the height above the high)."
   },
   "q27": {
    "status": "pass",
@@ -4911,8 +5021,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "keep right: percent arithmetic, 2.37% inside preferred range"
+   "fixed": true,
+   "notes": "Math right (1.34/56.61=2.37; 97.63; 1.34). 23.7% was one decimal where the stem asks for two; made 23.70%. Why lacked the 1.34 step."
   },
   "q29": {
    "status": "pass",
@@ -4943,13 +5053,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2.5R arithmetic; ok."
+   "notes": "Math right (0.80; 2.00; 2.5; 3.5 from stop; 0.4). Why walks the steps."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "40000 x 0.75% = 300; 300/1.03 = 291.26, rounds down to 291. A5 verbatim; the cap (40%) does not bind."
+   "notes": "Math right (300/1.03=291.3; 582; 2912; 7). Why walks the steps."
   },
   "q35": {
    "status": "cut",
@@ -5182,8 +5292,8 @@
   "q72": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "28 x 600,000 = 16.8 million, under the 20 million floor (B23). Price test passes. Numbers from the question."
+   "fixed": true,
+   "notes": "16.8 right. The $21.4 million wrong choice is not what dividing gives (600,000/28 = 21,429, not 21.4 million), so its note named a mistake that does not produce that number. Replaced with $1.7 million, a decimal slip. Why lacked the product."
   },
   "q73": {
    "status": "pass",
@@ -5195,7 +5305,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1% of 250,000 = 2,500 (D42 verbatim). Numbers from the question."
+   "notes": "250,000/100=2,500; slips 25,000, 250, 250,000 real enough. Why fine."
   },
   "q75": {
    "status": "pass",
@@ -5229,9 +5339,9 @@
   },
   "q80": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Math right (2.5/50=5.0; 2.5 dollar; 95; 50). Why lacked 2.50."
   },
   "q81": {
    "status": "pass",

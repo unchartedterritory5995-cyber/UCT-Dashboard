@@ -842,9 +842,9 @@
    "key": "q09",
    "skill": "options.expiry",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You buy a call with 45 days left for a 3-week plan. How many days will be left when the plan ends?",
-   "answer": 24,
+   "answer": "24 days",
    "suffix": "days",
    "calc": {
     "fn": "arith",
@@ -869,7 +869,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "42 days",
+    "66 days",
+    "24 days",
+    "21 days"
+   ],
+   "wrong": {
+    "66 days": "Adds the plan to the days left instead of subtracting.",
+    "42 days": "Takes 3 weeks off as if it were 3 days.",
+    "21 days": "Gives the length of the plan, not the days left after it."
+   }
   },
   {
    "key": "q10",
@@ -1062,9 +1073,9 @@
    "key": "q15",
    "skill": "options.expiry",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A 5-day at-the-money call costs $0.93. The 50-day one costs $2.95, with ten times the time. How many times the 5-day price is it?",
-   "answer": 3.2,
+   "answer": "3.2x",
    "suffix": "x",
    "calc": {
     "fn": "arith",
@@ -1094,7 +1105,18 @@
      "fixed before (question clarified)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "10.0x",
+    "0.3x",
+    "2.0x",
+    "3.2x"
+   ],
+   "wrong": {
+    "10.0x": "Assumes the price grows in step with the time. Ten times the time, ten times the price.",
+    "0.3x": "Divides the short price by the long one, upside down.",
+    "2.0x": "Subtracts the two prices instead of dividing them."
+   }
   },
   {
    "key": "q16",
@@ -1518,9 +1540,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
   },
   "q10": {
    "status": "pass",
@@ -1557,8 +1579,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 2.95 / 0.93 = 3.17, rounds to 3.2; 'ten times' is 50/5 from the stem. Deeper rows $3.61 and $5.10 are in f20, and 'does not double' holds (5.10 < 2 x 3.61)."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
   },
   "q16": {
    "status": "pass",

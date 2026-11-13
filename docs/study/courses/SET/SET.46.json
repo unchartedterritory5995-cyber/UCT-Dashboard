@@ -1501,11 +1501,11 @@
    "key": "q19",
    "skill": "setup.avwap_reclaim",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "av.trim_1",
    "q": "Bought at 17.70 with the stop at 17.50. Where is 3R?",
-   "answer": 18.3,
-   "why": "18.30. One R is the fill minus the stop, 17.70 minus 17.50. Add three of those to the fill. 3R is a mark to measure by, not an automatic sale. NOW reached 3R in five sessions.",
+   "answer": "$18.30",
+   "why": "One R is the fill minus the stop: 17.70 minus 17.50. Add three of those to the fill of 17.70 to get 18.30. 3R is a mark to measure by, not an automatic sale. NOW reached 3R in five sessions.",
    "lesson_line": "Know 3R before the open. It is a mark to measure by.",
    "facts": [
     "r10",
@@ -1535,7 +1535,18 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$18.10",
+    "$18.30",
+    "$18.50",
+    "$17.90"
+   ],
+   "wrong": {
+    "$18.10": "Added the three R to the stop, not to the fill.",
+    "$17.90": "Added only one R.",
+    "$18.50": "Counted four R instead of three."
+   }
   },
   {
    "key": "q20",
@@ -1712,11 +1723,11 @@
    "key": "q25",
    "skill": "setup.avwap_reclaim",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "av.real_fall",
    "q": "Anchor high 60.00, lowest low after it 51.00, ATR 1.80. How many ATR did it fall?",
-   "answer": 5.0,
-   "why": "5.0 ATR. Take the anchor high minus the lowest low, then divide by the ATR. 60.00 minus 51.00, divided by 1.80, is 5.0. That clears the 4 ATR our card proposes, so it counts as a real fall. Measure to the lowest low since the anchor, not to today's price.",
+   "answer": "5.0 ATR",
+   "why": "The fall is the anchor high minus the lowest low: 60.00 minus 51.00. Divide it by the ATR of 1.80 to get 5.0. That clears the 4 ATR our card proposes, so it counts as a real fall. Measure to the lowest low since the anchor, not to today's price.",
    "lesson_line": "Measure the fall in ATR, not in dollars.",
    "facts": [
     "c01",
@@ -1742,16 +1753,27 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "16.2 ATR",
+    "9.0 ATR",
+    "0.2 ATR",
+    "5.0 ATR"
+   ],
+   "wrong": {
+    "9.0 ATR": "Never divided the fall by the ATR.",
+    "0.2 ATR": "Flipped the division: ATR over the fall.",
+    "16.2 ATR": "Multiplied by the ATR instead of dividing."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.avwap_reclaim",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "av.reclaim_day_close",
    "q": "AVWAP 45.20, ATR 1.10, the reclaim day closes 46.55. How far over the line, in ATR?",
-   "answer": 1.23,
+   "answer": "1.23 ATR",
    "why": "1.23 ATR. Take the close minus the line, then divide by the ATR: 46.55 minus 45.20, divided by 1.10, is 1.23. Our card proposes a close 0.3 to 1.0 ATR over the line: clear, but not stretched. At 1.23 it is past 1.0, stretched, past the top of that range, so it fails the card's test.",
    "lesson_line": "Clear the line, but do not sprint past it.",
    "facts": [
@@ -1779,16 +1801,27 @@
      "the verdict rests on a proposed card line, av.reclaim_day_close (+2)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "1.35 ATR",
+    "0.81 ATR",
+    "1.23 ATR",
+    "0.03 ATR"
+   ],
+   "wrong": {
+    "1.35 ATR": "Never divided the gap by the ATR.",
+    "0.81 ATR": "Flipped the division: ATR over the gap.",
+    "0.03 ATR": "Divided the gap by the line price instead of the ATR."
+   }
   },
   {
    "key": "q27",
    "skill": "setup.avwap_reclaim",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "av.stop_width",
    "q": "Fill 22.93. The reclaim day's low is 22.71 and the stop sits three cents under it. How far is the stop, in percent?",
-   "answer": 1.09,
+   "answer": "1.09%",
    "why": "1.09%. The stop sits three cents under the reclaim day's low of 22.71. Take the fill minus the stop, divide by the fill 22.93, then multiply by 100. That is well inside the 3% the stop usually sits within.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
@@ -1816,16 +1849,27 @@
      "rests on the owner's rulebook (F62, A13) and held decision D-008"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "0.96%",
+    "1.09%",
+    "0.25%",
+    "10.90%"
+   ],
+   "wrong": {
+    "0.96%": "Forgot the three cents and measured to the low itself.",
+    "0.25%": "Read the dollar gap as a percent.",
+    "10.90%": "Slipped a decimal."
+   }
   },
   {
    "key": "q28",
    "skill": "setup.avwap_reclaim",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "av.size_by_grade",
    "q": "Account 100,000. Risk 0.5%. Fill 120.84, stop 118.83. How many shares?",
-   "answer": 248,
+   "answer": "248 shares",
    "why": "248 shares. Multiply the account by the risk percent. Divide that by the fill minus the stop, 120.84 minus 118.83. Round down to whole shares. Then check the cap: no position over 40% of the account. 248 shares at 120.84 is well under it, so the risk size stands.",
    "lesson_line": "The stop sets the size, never the other way round.",
    "facts": [
@@ -1859,7 +1903,18 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "4 shares",
+    "497 shares",
+    "2,487 shares",
+    "248 shares"
+   ],
+   "wrong": {
+    "4 shares": "Divided the risk dollars by the fill, not the stop distance.",
+    "497 shares": "Doubled the risk dollars.",
+    "2,487 shares": "Slipped a decimal and risked ten times too much."
+   }
   },
   {
    "key": "q29",
@@ -1992,11 +2047,11 @@
    "key": "q32",
    "skill": "setup.avwap_reclaim",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "av.not_stretched",
    "q": "The stock ran for days after its reclaim. Its 10-day average is 40.00 and it trades 44.80. How far above the 10-day, in percent?",
-   "answer": 12.0,
-   "why": "12%. Stretch is measured from the 10-day average: 44.80 minus 40.00, divided by 40.00, as a percent. That is past our 10% line, so this one is a skip, not a smaller buy.",
+   "answer": "12.0%",
+   "why": "The gap is 44.80 minus 40.00. Divide it by the 10-day average of 40.00 to get 12.0%. That is past our 10% line, so this one is a skip, not a smaller buy.",
    "lesson_line": "Measure the stretch from the 10-day before you buy.",
    "facts": [
     "h13"
@@ -2011,7 +2066,7 @@
     "round": 1
    },
    "suffix": "%",
-   "simple": "12%, which is past our 10% limit, so the stock is too stretched to buy.",
+   "simple": "12.0%, which is past our 10% limit, so the stock is too stretched to buy.",
    "tier": "core",
    "risk": {
     "score": 7,
@@ -2021,7 +2076,18 @@
      "rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "10.7%",
+    "4.8%",
+    "12.0%",
+    "112.0%"
+   ],
+   "wrong": {
+    "10.7%": "Divided by price instead of the 10-day.",
+    "4.8%": "Read the dollar gap as a percent.",
+    "112.0%": "Never took off the 10-day, just compared price to average."
+   }
   },
   {
    "key": "q33",
@@ -2899,10 +2965,10 @@
    "key": "q57",
    "skill": "setup.avwap_reclaim",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "av.trim_2",
    "q": "Bought at 52.67, stop 51.99. You sell a third at 56.07. How many R did that third bank?",
-   "answer": 5.0,
+   "answer": "5.0R",
    "why": "5R. One R is the fill minus the stop, 52.67 minus 51.99. The gain is 56.07 minus 52.67. Divide the gain by one R to get 5R. When and how much to sell is a judgment. EPC reached 3R in six sessions and ran to 18.9R.",
    "lesson_line": "Count every exit in R. This sale banked 5R.",
    "facts": [
@@ -2934,7 +3000,18 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "3.4R",
+    "5.0R",
+    "6.0R",
+    "1.7R"
+   ],
+   "wrong": {
+    "3.4R": "Called the dollar gain the R multiple.",
+    "6.0R": "Measured the gain from the stop instead of the buy.",
+    "1.7R": "Split the R across the third that was sold."
+   }
   },
   {
    "key": "q58",
@@ -3366,7 +3443,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "100,000 x 0.5% = 500; 500 / 2.01 = 248.76, rounded down 248; 248 x 120.84 = about 30% of the account, under A7's 40%. Deeper's rounding claim checked (249 x 2.01 = 500.49). Pass."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q29": {
    "status": "cut",
@@ -3420,7 +3497,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R arithmetic; why no longer teaches a fixed third."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q63": {
    "status": "cut",
@@ -3444,25 +3521,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic only; no fixed sell."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (60-51)/1.8 = 5.0 correct; stem clear; why grounded in c01."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (46.55-45.20)/1.10 = 1.227 -> 1.23 correct; verdict per c04. Why wording a little clunky ('past ... past') but accurate."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q30": {
    "status": "pass",
@@ -3480,7 +3557,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(44.80 - 40.00) / 40.00 = 12.0%, calc matches; over C29's 10%. Pass."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q38": {
    "status": "pass",

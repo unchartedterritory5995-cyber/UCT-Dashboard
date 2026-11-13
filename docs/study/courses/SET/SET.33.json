@@ -1164,7 +1164,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: stop 66.05; (66.83-66.05)/66.83 = 1.167% = 1.17. calc matches."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q17": {
    "status": "pass",
@@ -1212,13 +1212,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: 1000/1.82 = 549.45, so 549 (given in the question); cap 40000/238.91 = 167.43, so 167. A5 and A7 (h03, h17)."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q26": {
    "status": "pass",
@@ -1267,7 +1267,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: 1R = 0.91; gain = 4.00; 4.00/0.91 = 4.396 = 4.4R. calc matches."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q34": {
    "status": "pass",
@@ -1413,7 +1413,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: (237.12-236.78)/236.78 = 0.1436% = 0.14. Inputs from d03. Keys no line (D-125 untouched)."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q58": {
    "status": "pass",
@@ -1455,7 +1455,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: (146.30-140.33)/140.33 = 4.254% = 4.25, past the 4% line (h11). Trap note checked: 5.97/146.30 = 4.08%, still over the line."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "w1": {
    "status": "pass",
@@ -1479,7 +1479,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D42 (h36) and c54 verbatim. 1% of 350,000 = 3,500."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q66": {
    "status": "pass",
@@ -2006,11 +2006,11 @@
    "key": "q16",
    "skill": "setup.thirty_minute_pivot",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pvt.stop_width",
-   "q": "Candle low 66.08. You fill at 66.83 with the stop 3 cents under the low. How far below the fill is the stop, in percent of the fill?",
-   "answer": 1.17,
-   "why": "1.17%. The stop is 3 cents under the low, so 66.05. Take the stop from the fill and divide by the fill: that is 1.17%. Measure from the fill, not the stop. DK's stop sat this far under its buy.",
+   "q": "Candle low 66.08. You fill at 66.83 with the stop 3 cents under the low. How far below the fill is the stop?",
+   "answer": "1.17%",
+   "why": "1.17%. The stop is 3 cents under the low, so 66.05. The gap is the fill minus the stop: 66.83 minus 66.05. Divide by the fill, 66.83, and show it as a percent. Measure from the fill, not the stop. DK's stop sat this far under its buy.",
    "lesson_line": "Stop first, then the distance, then the size.",
    "facts": [
     "c05",
@@ -2036,7 +2036,18 @@
      "+2 computed key"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "1.12%",
+    "0.78%",
+    "11.67%",
+    "1.17%"
+   ],
+   "wrong": {
+    "1.12%": "Used the candle low as the stop. The stop sits 3 cents under it.",
+    "0.78%": "Read the dollar gap as a percent. Divide it by the fill first.",
+    "11.67%": "Slipped the decimal point one place right."
+   }
   },
   {
    "key": "q17",
@@ -2259,11 +2270,11 @@
    "key": "q24",
    "skill": "setup.thirty_minute_pivot",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pvt.trim_1",
    "q": "Bought 238.91 with the stop at 237.09. Where is 3R?",
-   "answer": 244.37,
-   "why": "244.37. One R is the fill minus the stop, the gap between 238.91 and 237.09. Add three of those gaps to the fill and you reach 244.37. It is a marker, not a fixed sell level. PSX got there the next session.",
+   "answer": "$244.37",
+   "why": "244.37. One R is the fill minus the stop: 238.91 minus 237.09. Add three of those gaps to the fill and you reach 244.37. It is a marker, not a fixed sell level. PSX got there the next session.",
    "lesson_line": "Know the 3R price before the fill. It is a marker, not an automatic sell.",
    "facts": [
     "r21",
@@ -2290,17 +2301,28 @@
      "+2 rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$242.55",
+    "$244.37",
+    "$233.45",
+    "$241.91"
+   ],
+   "wrong": {
+    "$242.55": "Added three R to the stop instead of to the fill.",
+    "$233.45": "Subtracted three R. A long's target sits above the fill.",
+    "$241.91": "Added 3 dollars, not three R. R is the fill minus the stop."
+   }
   },
   {
    "key": "q25",
    "skill": "setup.thirty_minute_pivot",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pvt.size_cap",
    "q": "Account 100,000, risk 1%. Fill 238.91, stop 237.09: the formula says 549 shares. How many do you buy under the 40% cap?",
-   "answer": 167,
-   "why": "167 shares. The cap is 40% of the account, divided by the fill of 238.91 and rounded down. The formula's 549 is bigger, and the size is the smaller of the risk-based size and the cap. A tight stop never justifies a bigger position, because a gap can jump the stop.",
+   "answer": "167 shares",
+   "why": "167 shares. The cap is 40% of the account: 100,000 x 0.40. Divide that by the fill of 238.91 and round down to 167. The formula's 549 is bigger, and the size is the smaller of the risk-based size and the cap. A tight stop never justifies a bigger position, because a gap can jump the stop.",
    "lesson_line": "A tight stop never buys a bigger position than the cap.",
    "facts": [
     "h17",
@@ -2327,7 +2349,18 @@
      "+2 rests on the owner's rulebook (A5, A7)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "549 shares",
+    "167 shares",
+    "219 shares",
+    "418 shares"
+   ],
+   "wrong": {
+    "549 shares": "That is the formula's size. The cap is smaller, so the cap wins.",
+    "219 shares": "Took 40% of the 549 shares. The cap is 40% of the account in dollars, divided by the fill.",
+    "418 shares": "Used the whole account. The cap is 40% of it, not all of it."
+   }
   },
   {
    "key": "q26",
@@ -2567,11 +2600,11 @@
    "key": "q33",
    "skill": "setup.thirty_minute_pivot",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pvt.trim_2",
    "q": "Bought 106.65, stop 105.74. The stock trades 110.65. How many R is that?",
-   "answer": 4.4,
-   "why": "4.4R. One R is the fill minus the stop, the gap between 106.65 and 105.74. The gain is 110.65 minus the fill. The gain divided by one R is about 4.4. That is short of 5R, where the second third comes off.",
+   "answer": "4.4R",
+   "why": "4.4R. One R is the fill minus the stop: 106.65 minus 105.74. The gain is 110.65 minus 106.65. Divide the gain by one R and you get about 4.4. That is short of 5R, where the second third comes off.",
    "lesson_line": "Count in R. The second trim waits for 5R.",
    "facts": [
     "h20",
@@ -2597,7 +2630,18 @@
      "+2 rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "3.8R",
+    "5.4R",
+    "4.4R",
+    "0.2R"
+   ],
+   "wrong": {
+    "5.4R": "Measured the gain from the stop instead of from the fill.",
+    "3.8R": "Used the percent gain and called it R. R is gain over the stop distance.",
+    "0.2R": "Inverted it: R divided by the gain instead of gain divided by R."
+   }
   },
   {
    "key": "q34",
@@ -3527,11 +3571,11 @@
    "key": "q57",
    "skill": "setup.thirty_minute_pivot",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pvt.level",
-   "q": "The 10-day EMA is 236.78 and the pivot candle's low is 237.12. How far above the average is the low, in percent?",
-   "answer": 0.14,
-   "why": "0.14%. Take the average from the low, 237.12, and divide by the average, 236.78. The result is about 0.14%. PSX's pivot candle sat just above its 10-day EMA.",
+   "q": "The 10-day EMA is 236.78 and the pivot candle's low is 237.12. How far above the average is the low?",
+   "answer": "0.14%",
+   "why": "0.14%. The gap is the low minus the average: 237.12 minus 236.78. Divide by the average, 236.78, and show it as a percent. The result is about 0.14%. PSX's pivot candle sat just above its 10-day EMA.",
    "lesson_line": "Read the gap between the candle and the line as a number.",
    "facts": [
     "d03",
@@ -3560,7 +3604,18 @@
    "depends_on": [
     "D-125"
    ],
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "0.34%",
+    "1.44%",
+    "0.14%",
+    "14.36%"
+   ],
+   "wrong": {
+    "0.34%": "Read the dollar gap as a percent. Divide it by the average first.",
+    "1.44%": "Slipped the decimal point one place right.",
+    "14.36%": "Multiplied by 100 twice."
+   }
   },
   {
    "key": "q58",
@@ -3817,11 +3872,11 @@
    "key": "q64",
    "skill": "setup.thirty_minute_pivot",
    "rung": 9,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pvt.no_chase",
-   "q": "The pivot candle's high is 140.33. You look up and it trades 146.30. How far above the high is that, in percent?",
-   "answer": 4.25,
-   "why": "4.25%, past the 4% line. The move from 140.33 up to 146.30, divided by the pivot high, is 4.25%. Divide by the pivot high, the buy point, not the new price. Skip it: chasing costs size, not risk, because the stop stays put, the distance grows and the shares shrink.",
+   "q": "The pivot candle's high is 140.33. You look up and it trades 146.30. How far above the high is that?",
+   "answer": "4.25%",
+   "why": "4.25%, past the 4% line. The move is 146.30 minus 140.33. Divide by the pivot high, 140.33, not the new price, and show it as a percent. Skip it: chasing costs size, not risk, because the stop stays put, the distance grows and the shares shrink.",
    "lesson_line": "Measure the chase before you buy it.",
    "facts": [
     "h11",
@@ -3849,16 +3904,27 @@
      "+2 rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "0.43%",
+    "4.08%",
+    "5.97%",
+    "4.25%"
+   ],
+   "wrong": {
+    "4.08%": "Divided by the new price. Divide by the pivot high, the buy point.",
+    "5.97%": "Read the dollar gap as a percent. Divide it by the pivot high first.",
+    "0.43%": "Slipped the decimal point one place left."
+   }
   },
   {
    "key": "q65",
    "skill": "setup.thirty_minute_pivot",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pvt.position_adv",
    "q": "A stock averages 350,000 shares a day. Under our rule of 1% of average daily volume alone, what is the most we can hold?",
-   "answer": 3500,
+   "answer": "3,500 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3867,7 +3933,7 @@
     },
     "round": 0
    },
-   "why": "3,500 shares. One percent of 350,000 is 3,500. We never own more than 1% of a stock's average daily volume, and the card repeats it.",
+   "why": "3,500 shares. One percent of 350,000 is 350,000 x 0.01, which is 3,500. We never own more than 1% of a stock's average daily volume, and the card repeats it.",
    "lesson_line": "Check the stock's volume as well as the stop. One percent is the ceiling.",
    "facts": [
     "h36",
@@ -3886,7 +3952,18 @@
      "+2 rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "35,000 shares",
+    "350 shares",
+    "140,000 shares",
+    "3,500 shares"
+   ],
+   "wrong": {
+    "35,000 shares": "Took ten times too much. Slipped the decimal point.",
+    "350 shares": "Took a tenth of the right amount. Slipped the decimal point.",
+    "140,000 shares": "Took 40% of the volume. The 40% is the account cap, a different rule."
+   }
   },
   {
    "key": "q66",

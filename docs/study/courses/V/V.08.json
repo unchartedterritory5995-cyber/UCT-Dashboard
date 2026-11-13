@@ -1982,9 +1982,9 @@
    "key": "q05",
    "skill": "vocab.options_terms",
    "rung": 2,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A call is quoted at $3.45. One contract covers 100 shares. What does one contract cost, before fees?",
-   "answer": 345,
+   "answer": "$345",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -2011,7 +2011,18 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$3.45",
+    "$3,450",
+    "$103.45",
+    "$345"
+   ],
+   "wrong": {
+    "$3.45": "Gave the quote per share and skipped the 100 shares.",
+    "$103.45": "Added 100 to the quote instead of multiplying.",
+    "$3,450": "Slipped a decimal place."
+   }
   },
   {
    "key": "q06",
@@ -2716,9 +2727,9 @@
    "key": "q25",
    "skill": "vocab.options_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The stock is at $95. The 100-strike call trades at $1.20. How much intrinsic value does it have?",
-   "answer": 0,
+   "answer": "$0",
    "prefix": "$",
    "calc": {
     "fn": "intrinsic",
@@ -2728,7 +2739,7 @@
      "underlying": 95
     }
    },
-   "why": "$0. A call has intrinsic value only when it is in the money, with the stock above the strike. At $95 the 100-strike call is out of the money. So all of its $1.20 premium is time value.",
+   "why": "$0. Intrinsic value for a call is the stock price less the strike, never below zero. $95 less $100 is below zero, so it is $0. The call is out of the money, so all of its $1.20 premium is time value.",
    "lesson_line": "Out of the money, you're paying only for time and the chance of a move.",
    "facts": [
     "f42",
@@ -2744,15 +2755,26 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$1.20",
+    "-$5",
+    "$0",
+    "$5"
+   ],
+   "wrong": {
+    "$1.20": "Gave the whole premium as intrinsic value.",
+    "-$5": "Took the stock less the strike and let it go below zero.",
+    "$5": "Used the put math, strike less stock."
+   }
   },
   {
    "key": "q26",
    "skill": "vocab.options_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The stock is at $64. The 60-strike call trades at $5.10. How much of that is time value?",
-   "answer": 1.1,
+   "answer": "$1.10",
    "prefix": "$",
    "calc": {
     "fn": "extrinsic",
@@ -2763,7 +2785,7 @@
      "premium": 5.1
     }
    },
-   "why": "$1.10. Intrinsic value is the in-the-money part of the premium: $64 minus $60. Time value is any premium above intrinsic value, so $5.10 less the intrinsic value leaves $1.10.",
+   "why": "$1.10. Intrinsic value is the in-the-money part: $64 less $60, or $4. Time value is any premium above that. $5.10 less $4 leaves $1.10.",
    "lesson_line": "Split every premium: intrinsic value first, then time value.",
    "facts": [
     "f32",
@@ -2780,15 +2802,26 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$4.00",
+    "$1.10",
+    "$5.10",
+    "$9.10"
+   ],
+   "wrong": {
+    "$4.00": "Gave the intrinsic value, not the time value.",
+    "$5.10": "Called the whole premium time value.",
+    "$9.10": "Added the intrinsic value to the premium instead of subtracting."
+   }
   },
   {
    "key": "q27",
    "skill": "vocab.options_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You buy the 60-strike call for $2.50. At expiration, what stock price breaks even, before fees?",
-   "answer": 62.5,
+   "answer": "$62.50",
    "prefix": "$",
    "calc": {
     "fn": "option_breakeven",
@@ -2813,15 +2846,26 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$60.00",
+    "$57.50",
+    "$2.50",
+    "$62.50"
+   ],
+   "wrong": {
+    "$60.00": "Called the strike the break-even and forgot the premium paid.",
+    "$57.50": "Subtracted the premium, which is put math.",
+    "$2.50": "Gave the premium, not a stock price."
+   }
   },
   {
    "key": "q28",
    "skill": "vocab.options_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your call has a delta of 0.40. The stock rises $2, all else equal. About how much does the option gain per share?",
-   "answer": 0.8,
+   "answer": "$0.80",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -2850,15 +2894,26 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$0.40",
+    "$2.00",
+    "$0.80",
+    "$5.00"
+   ],
+   "wrong": {
+    "$0.40": "Used delta for one dollar and ignored the $2 move.",
+    "$2.00": "Gave the stock's move, as if delta were 1.",
+    "$5.00": "Divided the move by delta instead of multiplying."
+   }
   },
   {
    "key": "q29",
    "skill": "vocab.options_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your option's theta is -0.06. If nothing else changes, about how much does one contract lose in a day?",
-   "answer": 6,
+   "answer": "$6",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -2885,7 +2940,18 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$0.06",
+    "$6",
+    "$60",
+    "$1,667"
+   ],
+   "wrong": {
+    "$0.06": "Gave theta per share and skipped the 100 shares.",
+    "$60": "Slipped a decimal place.",
+    "$1,667": "Divided 100 by theta instead of multiplying."
+   }
   },
   {
    "key": "q30",
@@ -3609,9 +3675,9 @@
    "key": "q50",
    "skill": "vocab.options_terms",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Iron condor: sell the 65 call, buy the 70 call, sell the 55 put, buy the 50 put, for a $1.50 credit. Max loss per contract?",
-   "answer": 350,
+   "answer": "$350",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -3623,7 +3689,7 @@
      "shares": 100
     }
    },
-   "why": "$350. An iron condor loses on one side at most, since the stock can finish past only one wing. The max loss is that side's strike width less the credit: $70 less $65, minus $1.50, times 100 shares. Both wings here are the same width, so either side gives $350.",
+   "why": "$350. An iron condor loses on one side at most, since the stock can finish past only one wing. The call wing is $70 less $65 wide. Take the $1.50 credit off that width. Times 100 shares is $350. Both wings are the same width, so either side gives $350.",
    "lesson_line": "Know the max loss before you sell premium. On a condor it's the wing width minus the credit.",
    "facts": [
     "f165",
@@ -3641,7 +3707,18 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$650",
+    "$350",
+    "$1,000",
+    "$500"
+   ],
+   "wrong": {
+    "$650": "Added the credit to the width instead of subtracting.",
+    "$1,000": "Added both wings together, though only one can lose.",
+    "$500": "Gave the full width and forgot the $1.50 credit."
+   }
   },
   {
    "key": "q51",
@@ -4321,9 +4398,9 @@
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q06": {
    "status": "pass",
@@ -4444,31 +4521,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc intrinsic(call,100,95)=0; simple grounded on f42/f60."
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc extrinsic = 5.10 - (64-60) = 1.10; simple names no uncalculated number."
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q27": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.40 x $2 = $0.80 per share, matches calc and f121's worked method; 'all else equal' and 'about' cover gamma; f108 backs the estimate caveat."
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q30": {
    "status": "pass",
@@ -4595,9 +4672,9 @@
   },
   "q50": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 350 matches; wrongs real (650 = width + credit, 1,000 = both wings, 500 = no credit). Why showed no figures for the width or the net; added."
   },
   "q51": {
    "status": "pass",

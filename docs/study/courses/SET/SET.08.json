@@ -1757,10 +1757,10 @@
    "key": "q19",
    "skill": "setup.bull_flag",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bf.trim_1",
    "q": "Bought at 62.80 with the stop at 61.65. R is the fill minus the stop. Where is 3R?",
-   "answer": 66.25,
+   "answer": "$66.25",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1770,7 +1770,7 @@
     },
     "round": 2
    },
-   "why": "66.25. One R is the fill minus the stop. Add three of those to the fill. That is the 3R price, a mark on the ruler and not a fixed sell. SHOP's pole top, 66.57, sits close by but plays no part.",
+   "why": "66.25. One R is the fill minus the stop: 62.80 minus 61.65. Add three of those to the fill, 62.80, and you get 66.25. It is a mark on the ruler and not a fixed sell. SHOP's pole top, 66.57, sits close by but plays no part.",
    "lesson_line": "Know your 3R before the open. It is a measuring mark, not an automatic sell.",
    "facts": [
     "r04",
@@ -1787,7 +1787,18 @@
      "rests on the owner's rulebook (a third off at 3R, B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$65.10",
+    "$63.95",
+    "$59.35",
+    "$66.25"
+   ],
+   "wrong": {
+    "$65.10": "Added the three R to the stop instead of the fill.",
+    "$63.95": "Added one R, not three.",
+    "$59.35": "Subtracted the three R instead of adding them."
+   }
   },
   {
    "key": "q20",
@@ -1941,10 +1952,10 @@
    "key": "q24",
    "skill": "setup.bull_flag",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bf.pole",
    "q": "The low before the run was 25.00. The pole top is 29.50. How big is the pole, in percent?",
-   "answer": 18.0,
+   "answer": "18.0%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1953,14 +1964,14 @@
     },
     "round": 1
    },
-   "why": "18%. Divide the pole top by the low before it and subtract one. Measure from the low, not the top. Kullamagi's own big move runs 30% to 100% or more, and Bulkowski wants a straight-line run. This question only measures the pole.",
+   "why": "18%. The gain is 29.50 minus 25.00, which is 4.50. Divide by the low before the run: 4.50 over 25.00 is 18%. Measure from the low, not the top. Kullamagi's own big move runs 30% to 100% or more, and Bulkowski wants a straight-line run. This question only measures the pole.",
    "lesson_line": "Measure the pole first. The rest only matters if the run was real.",
    "facts": [
     "k1",
     "b2"
    ],
    "suffix": "%",
-   "simple": "The pole is 18 percent, found by dividing the top by the low before it and taking away one.",
+   "simple": "The pole is 18.0 percent, found by dividing the top by the low before it and taking away one.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1969,16 +1980,27 @@
      "rests on a held decision (D-029, the pole size line), kept out of the key"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "15.3%",
+    "18.0%",
+    "118.0%",
+    "4.5%"
+   ],
+   "wrong": {
+    "15.3%": "Divided the gain by the pole top instead of the low.",
+    "4.5%": "Read the dollar gain as a percent.",
+    "118.0%": "Forgot to subtract one: the top as a percent of the low."
+   }
   },
   {
    "key": "q25",
    "skill": "setup.bull_flag",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bf.depth_half_pole",
    "q": "Pole low 30.00, pole top 45.00, flag low 39.00. What share of the pole did the flag give back, in percent?",
-   "answer": 40.0,
+   "answer": "40.0%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1989,7 +2011,7 @@
     },
     "round": 1
    },
-   "why": "40%. Take the drop from the pole top to the flag low and divide it by the pole's height, not by the price. Our card reads depth as a share of the pole, such as a third of it. Bonde notes that momentum movers often correct very shallowly.",
+   "why": "40%. The pole runs from 30.00 to 45.00. The flag dropped from 45.00 to 39.00. That drop divided by the pole's height is 40%. Our card reads depth as a share of the pole, such as a third of it. Bonde notes that momentum movers often correct very shallowly.",
    "lesson_line": "Measure the give-back against the pole, not against the price.",
    "facts": [
     "c45",
@@ -2009,16 +2031,27 @@
    "depends_on": [
     "D-046"
    ],
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "60.0%",
+    "13.3%",
+    "40.0%",
+    "15.4%"
+   ],
+   "wrong": {
+    "13.3%": "Divided the drop by the pole top price, not the pole's height.",
+    "15.4%": "Divided the drop by the flag low price.",
+    "60.0%": "Gave the share of the pole kept, not given back."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.bull_flag",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bf.stop_width",
    "q": "Fill 83.26. The day's low is 81.23 and the stop sits five cents under it. How far below the fill is the stop, as a percent of the fill?",
-   "answer": 2.5,
+   "answer": "2.50%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2028,7 +2061,7 @@
     },
     "round": 2
    },
-   "why": "2.5%. The stop is five cents under the 81.23 low, so it sits at 81.18. Divide the gap to the fill by the 83.26 fill, not by the stop. That is inside the 3% the stop usually sits within. It matches RARE's stop, 81.18.",
+   "why": "2.5%. The stop is five cents under the 81.23 low, so it sits at 81.18. The gap to the fill is 83.26 minus 81.18, which is 2.08. Divide by the 83.26 fill, not by the stop: 2.08 over 83.26 is 2.5%. That is inside the 3% the stop usually sits within. It matches RARE's stop, 81.18.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h24",
@@ -2046,7 +2079,18 @@
      "rests on the owner's rulebook (the stop under the day's low, A3 and F62)"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "2.08%",
+    "25.00%",
+    "0.06%",
+    "2.50%"
+   ],
+   "wrong": {
+    "2.08%": "Read the dollar gap as a percent.",
+    "0.06%": "Measured only the five-cent cushion, not the gap to the stop.",
+    "25.00%": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q27",
@@ -2444,10 +2488,10 @@
    "key": "q37",
    "skill": "setup.bull_flag",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bf.stop",
    "q": "Account 60,000. Risk 0.5%. Fill 20.09, stop 19.81. How many shares?",
-   "answer": 1071,
+   "answer": "1,071 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2481,7 +2525,18 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "1,194 shares",
+    "1,071 shares",
+    "2,142 shares",
+    "14 shares"
+   ],
+   "wrong": {
+    "1,194 shares": "Took the position cap as the size, but the size is the smaller of the two.",
+    "2,142 shares": "Used twice the stated risk percent.",
+    "14 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
+   }
   },
   {
    "key": "q38",
@@ -2715,10 +2770,10 @@
    "key": "q44",
    "skill": "setup.bull_flag",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bf.trim_2",
    "q": "Bought at 48.98, stop 48.29. R is the fill minus the stop. The stock trades to 52.43. How many R is that?",
-   "answer": 5.0,
+   "answer": "5R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -2728,7 +2783,7 @@
     },
     "round": 1
    },
-   "why": "5R. The move from 48.98 to 52.43 is five times the risk per share. Five R is a mark on the ruler, one place a sell can come into a strong push. PANW went on to 26.4R at its best.",
+   "why": "5R. One R is the fill minus the stop: 48.98 minus 48.29. The gain is 52.43 minus 48.98. The gain divided by one R is 5R. Five R is a mark on the ruler, one place a sell can come into a strong push. PANW went on to 26.4R at its best.",
    "lesson_line": "Count in R, not dollars. 5R is a mark worth knowing.",
    "facts": [
     "r06",
@@ -2745,7 +2800,18 @@
      "rests on the owner's rulebook (a third at 5R, E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "6R",
+    "3.45R",
+    "5R",
+    "7R"
+   ],
+   "wrong": {
+    "6R": "Measured the gain from the stop instead of the fill.",
+    "3.45R": "Read the dollar gain as R.",
+    "7R": "Read the percent gain as R."
+   }
   },
   {
    "key": "q45",
@@ -3726,10 +3792,10 @@
    "key": "q69",
    "skill": "setup.bull_flag",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bf.pole_strong",
    "q": "Before the pole, the lowest low was 40.00. What price is 30% above it?",
-   "answer": 52.0,
+   "answer": "$52.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3755,7 +3821,18 @@
      "rests on the card's grade row"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "$70.00",
+    "$12.00",
+    "$28.00",
+    "$52.00"
+   ],
+   "wrong": {
+    "$12.00": "Found the 30% but did not add it to the low.",
+    "$28.00": "Subtracted the 30% instead of adding it.",
+    "$70.00": "Added 30 dollars, not 30 percent."
+   }
   },
   {
    "key": "q70",
@@ -3802,10 +3879,10 @@
    "key": "q71",
    "skill": "setup.bull_flag",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bf.depth_shallow",
    "q": "The pole top is 60.00 and the flag low is 56.00. How far under the top is the low, as a percent of the top?",
-   "answer": 6.7,
+   "answer": "6.7%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3833,16 +3910,27 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "7.1%",
+    "93.3%",
+    "4.0%",
+    "6.7%"
+   ],
+   "wrong": {
+    "7.1%": "Divided the drop by the low instead of the top.",
+    "93.3%": "Took the low as a percent of the top and skipped the drop.",
+    "4.0%": "Read the dollar drop as a percent."
+   }
   },
   {
    "key": "q72",
    "skill": "setup.bull_flag",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bf.not_stretched",
    "q": "You would buy at 56.60. The 10-day average is 50.00. How far above the 10-day is the buy, in percent?",
-   "answer": 13.2,
+   "answer": "13.2%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3869,7 +3957,18 @@
      "a computed key"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "11.7%",
+    "13.2%",
+    "113.2%",
+    "6.6%"
+   ],
+   "wrong": {
+    "11.7%": "Divided the gap by the buy price instead of the average.",
+    "113.2%": "Forgot to subtract one: the buy as a percent of the average.",
+    "6.6%": "Read the dollar gap as a percent."
+   }
   },
   {
    "key": "q73",
@@ -4016,10 +4115,10 @@
    "key": "q77",
    "skill": "setup.bull_flag",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bf.inv_heavy_red",
    "q": "The 50-day average volume is 1,800,000 shares. A red flag day trades 2,700,000. How many times average is that?",
-   "answer": 1.5,
+   "answer": "1.5 times",
    "calc": {
     "fn": "arith",
     "args": {
@@ -4047,7 +4146,18 @@
      "a number that may change"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "0.5 times",
+    "0.7 times",
+    "1.5 times",
+    "15 times"
+   ],
+   "wrong": {
+    "0.5 times": "Counted only the extra volume above average.",
+    "0.7 times": "Flipped the division: average over the day's volume.",
+    "15 times": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q78",
@@ -4263,7 +4373,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic only."
+   "notes": "Math right (1.15; 3.45; 66.25; 65.10; 63.95; 59.35). Why walks the steps."
   },
   "q20": {
    "status": "pass",
@@ -4292,20 +4402,20 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(29.50-25)/25 = 18.0%. Kullamagi's 30-100% quoted as his (k1), no verdict keyed on the pending pole line."
+   "fixed": true,
+   "notes": "Math right (4.5/25=18.0; 15.3; 118; 4.5). The answer was the only whole-number choice, a tell; all choices put to one decimal."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(45-39)/(45-30) = 40%. Gives a measure only, no verdict on depth; c45 and p5 are loosely but fairly cited."
+   "fixed": true,
+   "notes": "Math right (6/15=40; 6/45=13.3; 60; 6/39=15.4). The answer was the only whole number among decimals, a tell; one decimal on all. Why lacked 15 and 6."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Stop 81.18; (83.26-81.18)/83.26 = 2.498% rounds to 2.5; inside h04's about 3%; matches d05's RARE stop 81.18."
+   "fixed": true,
+   "notes": "Math right (2.08/83.26=2.498%). Mixed precision (2.5 / 25 / 2.08 / 0.06) made 2.5% stand out; all choices now two decimals."
   },
   "q27": {
    "status": "pass",
@@ -4372,7 +4482,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "300/0.28 = 1071.43 -> 1071; cap 40% = 24,000 vs 21,516 so cap does not bind. Numbers from question/d03/h30. calc fn exists."
+   "notes": "Math right (300/0.28=1071.4; cap 1194; 2142; 14). Why walks the steps and names the cap."
   },
   "q38": {
    "status": "pass",
@@ -4414,7 +4524,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5R arithmetic; softened."
+   "notes": "Math right (0.69; 3.45; 5R; 6R from stop; 3.45R; 7R pct). Why walks the steps."
   },
   "q45": {
    "status": "pass",
@@ -4566,9 +4676,9 @@
   },
   "q69": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "52.00 = 40*1.3; 12 = gain only; 28 = minus; 70 = plus 30 dollars. Why fine."
   },
   "q70": {
    "status": "pass",
@@ -4580,13 +4690,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(60-56)/60 = 6.67%, rounds to 6.7; c45 10%-from-top part."
+   "notes": "4/60=6.7; 4/56=7.1; 56/60=93.3; 4.0. Why walks steps."
   },
   "q72": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(56.60-50)/50 = 13.2%, over C29's 10%. Different form from q35 (applied scenario), so not a duplicate."
+   "notes": "6.6/50=13.2; 6.6/56.6=11.7; 113.2; 6.6. Why fine."
   },
   "q73": {
    "status": "cut",
@@ -4614,9 +4724,9 @@
   },
   "q77": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "2.7/1.8=1.5; 0.5 excess; 0.7 flipped; 15 slip. Why fine."
   },
   "q78": {
    "status": "pass",

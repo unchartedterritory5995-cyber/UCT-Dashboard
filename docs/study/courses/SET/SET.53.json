@@ -1211,10 +1211,10 @@
    "key": "q14",
    "skill": "setup.red_to_green",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rg.gap_floor",
-   "q": "Prior close 329.07, open 325.97. How far below the prior close is the open, in percent?",
-   "answer": 0.94,
+   "q": "Prior close 329.07, open 325.97. How far below the prior close is the open?",
+   "answer": "0.94%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1224,7 +1224,7 @@
     },
     "round": 2
    },
-   "why": "0.94%. Take the prior close minus the open, then divide by the prior close. The stock opened under the line, so the day starts red. This only measures the gap. It is not a rule for how big a gap must be.",
+   "why": "The gap is the prior close minus the open: 329.07 - 325.97 = 3.10. Divide by the prior close: 3.10 / 329.07 = 0.94%. The open is under the prior close, so the day starts red. This only measures the gap. It is not a rule for how big a gap must be.",
    "lesson_line": "Measure the gap from the prior close.",
    "facts": [
     "dCE",
@@ -1244,16 +1244,27 @@
    "depends_on": [
     "D-133"
    ],
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "3.10%",
+    "0.94%",
+    "9.42%",
+    "99.06%"
+   ],
+   "wrong": {
+    "3.10%": "Stopped at the dollar gap and never divided by the prior close.",
+    "9.42%": "Decimal slip: moved the point one place too far.",
+    "99.06%": "The open is 99.06% of the prior close. That is what is left, not the gap."
+   }
   },
   {
    "key": "q15",
    "skill": "setup.red_to_green",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rg.stop_width",
-   "q": "Bought at 62.40, dip low 61.35, stop 3 cents under the dip low. How wide is the stop in percent?",
-   "answer": 1.73,
+   "q": "Bought at 62.40, dip low 61.35, stop 3 cents under the dip low. How wide is the stop?",
+   "answer": "1.73%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1263,7 +1274,7 @@
     },
     "round": 2
    },
-   "why": "1.73%. The stop is 3 cents under the 61.35 dip low. Take the entry minus the stop, then divide by the entry. Our stop usually sits within about 3% of the buy, so this one fits. It is a loss on the position, not on the account.",
+   "why": "The stop sits 3 cents under the 61.35 dip low. Take the entry minus that stop, then divide by the entry: (62.40 - (61.35 - 0.03)) / 62.40 = 1.73%. Our stop usually sits within about 3% of the buy, so this one fits. It is a loss on the position, not on the account.",
    "lesson_line": "Measure the stop in percent before you size.",
    "facts": [
     "h04",
@@ -1281,16 +1292,27 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "1.68%",
+    "1.08%",
+    "1.73%",
+    "17.31%"
+   ],
+   "wrong": {
+    "1.68%": "Skipped the 3 cents and measured to the dip low, 61.35.",
+    "1.08%": "Stopped at the dollar distance and never divided by the entry.",
+    "17.31%": "Decimal slip: moved the point one place too far."
+   }
   },
   {
    "key": "q16",
    "skill": "setup.red_to_green",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rg.trim_1",
    "q": "Fill 111.93, stop 110.75. What price is 3R?",
-   "answer": 115.47,
+   "answer": "$115.47",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1300,7 +1322,7 @@
     },
     "round": 2
    },
-   "why": "115.47. One R is the fill minus the stop. Add three of them to the fill. 3R is a measuring stick, not an automatic sale. The first sell is a judgment, not a fixed third at 3R.",
+   "why": "One R is the fill minus the stop. Add three of them to the fill: 111.93 + 3 x (111.93 - 110.75) = 115.47. 3R is a measuring stick, not an automatic sale. The first sell is a judgment, not a fixed third at 3R.",
    "lesson_line": "Know your 3R before the open. The first sell is a judgment.",
    "facts": [
     "dTP",
@@ -1318,7 +1340,18 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$114.29",
+    "$116.65",
+    "$113.11",
+    "$115.47"
+   ],
+   "wrong": {
+    "$114.29": "Counted 3R up from the stop, not from the fill.",
+    "$113.11": "Added only one R, one stop distance, to the fill.",
+    "$116.65": "Added four R, counting the fill itself as the first step."
+   }
   },
   {
    "key": "q17",
@@ -1808,10 +1841,10 @@
    "key": "q31",
    "skill": "setup.red_to_green",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rg.inv_close_back_under",
    "q": "Bought at 96.36, stop at 94.67. The day closes at 95.90. How many R is the open loss?",
-   "answer": 0.27,
+   "answer": "0.27R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1822,7 +1855,7 @@
     },
     "round": 2
    },
-   "why": "0.27R. Take the fill minus the close, then divide by the fill minus the stop. The fill minus the stop is one R, the loss you planned. So this open loss is well under one R.",
+   "why": "One R is the fill minus the stop. The open loss is the fill minus the close. Divide: (96.36 - 95.90) / (96.36 - 94.67) = 0.27R. That is well under the one R you planned to lose.",
    "lesson_line": "A weak close can still be a small loss in R.",
    "facts": [
     "dTW"
@@ -1837,16 +1870,27 @@
      "a computed key (+2)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "3.67R",
+    "0.27R",
+    "0.46R",
+    "2.72R"
+   ],
+   "wrong": {
+    "0.46R": "Used the dollar loss as R and never divided by one R.",
+    "3.67R": "Flipped the fraction: one R divided by the loss.",
+    "2.72R": "Decimal slip: moved the point one place too far."
+   }
   },
   {
    "key": "q32",
    "skill": "setup.red_to_green",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rg.full_size",
    "q": "Account 100,000. You risk 0.75% and the position cap is 40%. Buy at 111.93, stop at 110.75. How many shares?",
-   "answer": 357,
+   "answer": "357 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1857,7 +1901,7 @@
     },
     "round": 0
    },
-   "why": "357 shares. Our size is the smaller of two numbers: the risk size and the 40% cap. The risk size is the account times the risk, divided by the entry minus the stop. Here the stop is tight, so the risk size comes out far over 40% of the account. The cap wins: 40% of 100,000, divided by 111.93, rounded down to 357.",
+   "why": "The risk size is the account times the risk, over the stop distance. That is 100,000 x 0.75% / (111.93 - 110.75) = 635 shares. The cap is 40% of 100,000, divided by 111.93, which is 357 shares. Our size is the smaller of the two, so the cap wins.",
    "lesson_line": "The size is the smaller of the risk size and the cap.",
    "facts": [
     "h31",
@@ -1879,7 +1923,18 @@
      "fixed before: the old key broke the 40% cap (+1)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "893 shares",
+    "357 shares",
+    "635 shares",
+    "254 shares"
+   ],
+   "wrong": {
+    "635 shares": "That is the risk size. It skips the 40% cap, which is smaller.",
+    "893 shares": "Divided the whole account by the price, with no cap at all.",
+    "254 shares": "Took 40% of the risk size instead of 40% of the account."
+   }
   },
   {
    "key": "q33",
@@ -3126,10 +3181,10 @@
    "key": "q65",
    "skill": "setup.red_to_green",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rg.liquidity",
    "q": "The stock trades 1,500,000 shares a day on average at 12.00. How many dollars a day is that?",
-   "answer": 18000000,
+   "answer": "$18,000,000",
    "calc": {
     "fn": "dollar_volume",
     "args": {
@@ -3138,7 +3193,7 @@
     },
     "round": 0
    },
-   "why": "$18 million a day. Shares times price: 1,500,000 times 12.00. Our floor is $20 million a day, so this stock fails even though its price is over $10.",
+   "why": "Dollars a day is shares times price: 1,500,000 x 12.00 = $18,000,000. Our floor is $20 million a day, so this stock fails even though its price is over $10.",
    "lesson_line": "Shares times price is dollars a day. Check it against $20 million.",
    "facts": [
     "h09",
@@ -3146,7 +3201,7 @@
    ],
    "house": true,
    "prefix": "$",
-   "simple": "$18 million a day, because 1,500,000 shares times 12.00 is 18,000,000, under our $20 million floor.",
+   "simple": "It is $18,000,000 a day, because 1,500,000 shares times 12.00 is that, under our $20 million floor.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -3155,7 +3210,18 @@
      "rests on the owner's rulebook, B23 (+2)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "$180,000,000",
+    "$1,500,000",
+    "$18,000,000",
+    "$125,000"
+   ],
+   "wrong": {
+    "$180,000,000": "Decimal slip: added a zero.",
+    "$125,000": "Divided shares by price instead of multiplying them.",
+    "$1,500,000": "Gave the share count and forgot to multiply by the price."
+   }
   },
   {
    "key": "q66",
@@ -3240,10 +3306,10 @@
    "key": "q68",
    "skill": "setup.red_to_green",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rg.position_adv",
    "q": "A stock averages 2,400,000 shares a day. What is the most shares our volume ceiling lets you own?",
-   "answer": 24000,
+   "answer": "24,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3252,7 +3318,7 @@
     },
     "round": 0
    },
-   "why": "24,000 shares. One percent of 2,400,000. We never own more than 1% of a stock's average daily volume, so owning more is over our ceiling.",
+   "why": "Our ceiling is 1% of the average daily volume. One percent is 0.01, so 2,400,000 times 0.01 = 24,000 shares. We never own more than that, so owning more is over our ceiling.",
    "lesson_line": "Move the decimal two places: 1% of the daily volume.",
    "facts": [
     "h19"
@@ -3269,7 +3335,18 @@
      "rests on the owner's rulebook, D42 (+2)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "240,000 shares",
+    "48,000 shares",
+    "2,376,000 shares",
+    "24,000 shares"
+   ],
+   "wrong": {
+    "240,000 shares": "Moved the decimal one place, which is ten percent, not one.",
+    "2,376,000 shares": "Took one percent off the volume instead of one percent of it.",
+    "48,000 shares": "Used two percent, not one."
+   }
   },
   {
    "key": "q69",
@@ -3338,10 +3415,10 @@
    "key": "q71",
    "skill": "setup.red_to_green",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rg.trim_2",
    "q": "Fill 111.93, stop 110.75. Where is 5R?",
-   "answer": 117.83,
+   "answer": "$117.83",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3351,7 +3428,7 @@
     },
     "round": 2
    },
-   "why": "117.83. One R is the fill minus the stop. Add five of them to the fill. In a thirds plan, another third can come off at 5R, then the last third trails. These levels are adjustable.",
+   "why": "One R is the fill minus the stop. Add five of them to the fill: 111.93 + 5 x (111.93 - 110.75) = 117.83. In a thirds plan, another third can come off at 5R, then the last third trails. These levels are adjustable.",
    "lesson_line": "Write your 5R price down. It is a level to measure from.",
    "facts": [
     "h20"
@@ -3367,7 +3444,18 @@
      "rests on the owner's rulebook, E51 (+2)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$119.01",
+    "$116.65",
+    "$117.83",
+    "$106.03"
+   ],
+   "wrong": {
+    "$116.65": "Counted 5R up from the stop, not from the fill.",
+    "$106.03": "Subtracted five R from the fill instead of adding it.",
+    "$119.01": "Added six R, counting the fill itself as the first step."
+   }
   },
   {
    "key": "q72",
@@ -3672,20 +3760,20 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (329.07-325.97)/329.07*100 = 0.942, rounded 0.94. Simple and why carry only question numbers. The hourly versus daily open note stays with the owner."
+   "fixed": true,
+   "notes": "Two of three wrongs were digit shifts of 0.94 (answer sat in the middle of a cluster). Replaced 0.09% with the what-is-left mistake."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (62.40-61.32)/62.40*100 = 1.7308, rounded 1.73. All numbers come from the question. 'Within about 3%' and 'position, not the account' are h04 verbatim. No longer duplicates w3."
+   "notes": "Verified 1.73 (stop 61.32); 1.68 is the measure-to-dip-low mistake; fine."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "fixed": true,
+   "notes": "Answer was the highest choice and every wrong undershot. Replaced the add-three-dollars slip with a four-R overshoot."
   },
   "q17": {
    "status": "pass",
@@ -3775,14 +3863,14 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (96.36-95.90)/(96.36-94.67) = 0.272, rounded 0.27. All numbers are in the question. The why no longer restates q24's verdict. Minor, left: 'one R' is never defined by a cited quote anywhere in the unit (q16 and q71 use the same definition); a lesson-level note, not a defect in this item."
+   "fixed": true,
+   "notes": "Content passes; reordered only to vary the answer slot."
   },
   "q32": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer was the smallest and 3,574 was a slip sharing its digits. Replaced it with a real conceptual slip, 40% of the risk size."
   },
   "q33": {
    "status": "pass",
@@ -4002,9 +4090,9 @@
   },
   "q65": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "1.8M/18M/180M put the answer in the middle of a decimal-slip ladder. Replaced the dropped-zero slip with forgetting the price."
   },
   "q66": {
    "status": "pass",
@@ -4021,8 +4109,8 @@
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 2,400,000 * 0.01 = 24,000. The stem no longer states 1%, so it tests the rule. Separate from q67 (tf) and q66 (ceiling against risk math)."
+   "fixed": true,
+   "notes": "240,000/24,000/2,400 made the answer the middle of a slip ladder. Replaced 2,400 with a two-percent mix-up."
   },
   "q69": {
    "status": "pass",
@@ -4039,8 +4127,8 @@
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "fixed": true,
+   "notes": "Answer was the highest choice. Replaced the add-five-dollars slip with a six-R overshoot."
   },
   "q72": {
    "status": "pass",

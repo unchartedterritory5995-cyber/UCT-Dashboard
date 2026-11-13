@@ -2758,10 +2758,10 @@
    "key": "q19",
    "skill": "vocab.chart_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "simple moving average",
    "q": "The last five closes are $20, $22, $24, $25 and $23. What is the 5-day simple moving average?",
-   "answer": 22.8,
+   "answer": "$22.80",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2774,7 +2774,7 @@
     }
    },
    "prefix": "$",
-   "why": "$22.80. ChartSchool: a 5-day simple moving average is the five-day sum of closing prices divided by five. Add $20, $22, $24, $25 and $23, then divide by five. Fidelity calls the SMA simply the average price over the period.",
+   "why": "$22.80. ChartSchool: a 5-day simple moving average is the five-day sum of closing prices divided by five. The sum is $20 + $22 + $24 + $25 + $23 = $114. Then $114 / 5 = $22.80. Fidelity calls the SMA simply the average price over the period.",
    "lesson_line": "A simple moving average adds up the closes and divides by how many there are.",
    "facts": [
     "f78",
@@ -2788,7 +2788,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$114.00",
+    "$28.50",
+    "$22.80",
+    "$21.50"
+   ],
+   "wrong": {
+    "$114.00": "Added the five closes and never divided.",
+    "$28.50": "Divided the $114 sum by 4 instead of 5.",
+    "$21.50": "Averaged only the oldest and newest closes, $20 and $23."
+   }
   },
   {
    "key": "q20",
@@ -3005,10 +3016,10 @@
    "key": "q26",
    "skill": "vocab.chart_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "percent extended",
-   "q": "A stock closes at $66. Its 50-day average is $60. How far above the 50-day is it, in percent?",
-   "answer": 10,
+   "q": "A stock closes at $66. Its 50-day average is $60. How far above the 50-day is it?",
+   "answer": "10.0%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -3038,7 +3049,18 @@
      "house rule (h1, owner's rulebook A14 and C29)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "9.1%",
+    "6.0%",
+    "110.0%",
+    "10.0%"
+   ],
+   "wrong": {
+    "9.1%": "Divided the $6 gap by the $66 close, not the $60 average.",
+    "6.0%": "Used the $6 gap as a percent and never divided by $60.",
+    "110.0%": "Took the close as a percent of the average, not the gap."
+   }
   },
   {
    "key": "q27",
@@ -3421,10 +3443,10 @@
    "key": "q37",
    "skill": "vocab.chart_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "relative volume",
    "q": "A stock trades 3,000,000 shares today. Its 50-day average volume is 1,200,000 shares. What is its relative volume?",
-   "answer": 2.5,
+   "answer": "2.5x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3448,7 +3470,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "0.4x",
+    "2.5x",
+    "25.0x",
+    "1.5x"
+   ],
+   "wrong": {
+    "0.4x": "Flipped it: divided the average by today's volume.",
+    "25.0x": "Decimal slip: moved the point one place too far.",
+    "1.5x": "Used the extra volume over average, not today's volume itself."
+   }
   },
   {
    "key": "q38",
@@ -3833,10 +3866,10 @@
    "key": "q49",
    "skill": "vocab.chart_terms",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "term": "down from highs",
-   "q": "A stock's high is $80. It now trades at $68. How far down from its high is it, in percent?",
-   "answer": 15,
+   "q": "A stock's high is $80. It now trades at $68. How far down from its high is it?",
+   "answer": "15.0%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -3864,7 +3897,18 @@
      "house rule (h1, owner's rulebook A14)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "85.0%",
+    "17.6%",
+    "12.0%",
+    "15.0%"
+   ],
+   "wrong": {
+    "17.6%": "Divided the $12 drop by today's $68, not by the $80 high.",
+    "12.0%": "Used the $12 drop as a percent and never divided.",
+    "85.0%": "$68 is 85% of the high. That is what is left, not the drop."
+   }
   },
   {
    "key": "q50",
@@ -4053,10 +4097,10 @@
    "key": "q55",
    "skill": "vocab.chart_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "range",
-   "q": "Today's high is $52.40 and today's low is $50.10. What is the day's range in dollars?",
-   "answer": 2.3,
+   "q": "Today's high is $52.40 and today's low is $50.10. What is the day's range?",
+   "answer": "$2.30",
    "calc": {
     "fn": "arith",
     "args": {
@@ -4080,16 +4124,27 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$102.50",
+    "$51.25",
+    "$2.30",
+    "$0.23"
+   ],
+   "wrong": {
+    "$102.50": "Added the high and the low instead of subtracting.",
+    "$51.25": "Took the midpoint of the day, not the range.",
+    "$0.23": "Decimal slip: moved the point one place too far."
+   }
   },
   {
    "key": "q56",
    "skill": "vocab.chart_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "retracement",
    "q": "A stock rallies from $40 to $60, then pulls back to $50. What percent of the rally has it given back?",
-   "answer": 50,
+   "answer": "50.0%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -4116,16 +4171,27 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "16.7%",
+    "50.0%",
+    "25.0%",
+    "200.0%"
+   ],
+   "wrong": {
+    "16.7%": "Divided the pullback by the $60 top, not by the rally.",
+    "25.0%": "Divided the pullback by the $40 start, not by the rally.",
+    "200.0%": "Flipped it: divided the rally by the pullback."
+   }
   },
   {
    "key": "q57",
    "skill": "vocab.chart_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "correction",
-   "q": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak, in percent?",
-   "answer": 12,
+   "q": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak?",
+   "answer": "12.0%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -4147,7 +4213,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "88.0%",
+    "13.6%",
+    "12.0%",
+    "1.2%"
+   ],
+   "wrong": {
+    "13.6%": "Divided the drop by the 4,400 low, not by the peak.",
+    "88.0%": "4,400 is 88% of the peak. That is what is left, not the drop.",
+    "1.2%": "Decimal slip: moved the point one place too far."
+   }
   },
   {
    "key": "q58",
@@ -4506,8 +4583,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(20+22+24+25+23)/5 = 22.8. Calc and quotes match."
+   "fixed": true,
+   "notes": "Answer was the smallest and the only non-round value. Swapped the last-three slip for first-and-last, which sits below the answer."
   },
   "q20": {
    "status": "pass",
@@ -4547,9 +4624,9 @@
   },
   "q26": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Recomputed from the calc; answer shown, wrongs are real mistakes, no tell."
   },
   "q27": {
    "status": "pass",
@@ -4616,7 +4693,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 3,000,000 / 1,200,000 = 2.5 checked. f126/f127 are on the RVOL page. Unquoted 50-period line is gone. Pass."
+   "notes": "Recomputed from the calc; answer shown, wrongs are real mistakes, no tell."
   },
   "q38": {
    "status": "pass",
@@ -4687,8 +4764,8 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (80 - 68) / 80 = 15 checked. House rule h1 = rulebook A14 (read a chart in percents). The deeper note uses no unquoted number. Pass."
+   "fixed": true,
+   "notes": "Content passes; reordered only to vary the answer slot."
   },
   "q50": {
    "status": "pass",
@@ -4723,20 +4800,20 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "52.40 - 50.10 = 2.30. Calc and quotes match."
+   "fixed": true,
+   "notes": "Content passes; reordered only to vary the answer slot."
   },
   "q56": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Content passes; reordered only to vary the answer slot."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "(5000-4400)/5000 = 12% is right. The simple line says 'the 10% line most guides use', but only Investopedia is cited (f185), and the conflicts entry notes ChartSchool defines a correction differently. Scoped it to Investopedia."
+   "fixed": false,
+   "notes": "Verified 12.0; 13.6 = 600/4400; fine."
   },
   "q58": {
    "status": "pass",

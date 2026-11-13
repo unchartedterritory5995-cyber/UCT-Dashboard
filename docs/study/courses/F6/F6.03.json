@@ -705,9 +705,9 @@
    "key": "q11",
    "skill": "options.value",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The stock trades at 87.50. What is the 80 call's intrinsic value, per share?",
-   "answer": 7.5,
+   "answer": "$7.50",
    "prefix": "$",
    "calc": {
     "fn": "intrinsic",
@@ -732,15 +732,26 @@
      "the key is computed"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$167.50",
+    "$0.00",
+    "$75.00",
+    "$7.50"
+   ],
+   "wrong": {
+    "$167.50": "Added the strike to the stock price instead of subtracting.",
+    "$0.00": "Used the put formula, strike minus stock, which gives nothing for a call.",
+    "$75.00": "Slipped a decimal place."
+   }
   },
   {
    "key": "q12",
    "skill": "options.value",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "With the stock at 61, what is the 70 put's intrinsic value, per share?",
-   "answer": 9,
+   "answer": "$9.00",
    "prefix": "$",
    "calc": {
     "fn": "intrinsic",
@@ -764,7 +775,18 @@
      "the key is computed"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$131.00",
+    "$0.00",
+    "$9.00",
+    "$90.00"
+   ],
+   "wrong": {
+    "$0.00": "Used the call formula, stock minus strike, which gives nothing for a put.",
+    "$131.00": "Added the stock price to the strike instead of subtracting.",
+    "$90.00": "Slipped a decimal place."
+   }
   },
   {
    "key": "q13",
@@ -826,9 +848,9 @@
    "key": "q15",
    "skill": "options.value",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The stock is at 52. The 50 call costs 3.40. How much of that is time value, per share?",
-   "answer": 1.4,
+   "answer": "$1.40",
    "prefix": "$",
    "calc": {
     "fn": "extrinsic",
@@ -839,7 +861,7 @@
      "premium": 3.4
     }
    },
-   "why": "$1.40. First find intrinsic value: the stock minus the strike, 52 minus 50. Then take it off the 3.40 premium. What is left is time value, since time value is any premium above intrinsic value.",
+   "why": "$1.40. First find intrinsic value: the stock minus the strike, 52 minus 50, which is 2. Take that off the 3.40 premium: 3.40 minus 2 is 1.40. What is left is time value, since time value is any premium above intrinsic value.",
    "lesson_line": "Premium minus intrinsic equals time value. Do it on every quote.",
    "facts": [
     "f4",
@@ -854,7 +876,18 @@
      "the key is computed"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$2.00",
+    "$3.40",
+    "$5.40",
+    "$1.40"
+   ],
+   "wrong": {
+    "$2.00": "Gave the intrinsic value instead of the time value.",
+    "$3.40": "Gave the whole premium and took nothing off.",
+    "$5.40": "Added the intrinsic value to the premium instead of subtracting."
+   }
   },
   {
    "key": "q16",
@@ -1012,9 +1045,9 @@
    "key": "q20",
    "skill": "options.value",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The 100 call is 50.40 with the stock at 150. How much time value is in it, per share?",
-   "answer": 0.4,
+   "answer": "$0.40",
    "prefix": "$",
    "calc": {
     "fn": "extrinsic",
@@ -1025,7 +1058,7 @@
      "premium": 50.4
     }
    },
-   "why": "$0.40. Intrinsic value is the stock minus the strike: 150 minus 100. Take that off the 50.40 premium, and 0.40 is left as time value. A deep in-the-money option normally has very little time value. Nearly all of its price is intrinsic value.",
+   "why": "$0.40. Intrinsic value is the stock minus the strike: 150 minus 100 is 50. Take that off the 50.40 premium, and 0.40 is left as time value. A deep in-the-money option normally has very little time value. Nearly all of its price is intrinsic value.",
    "lesson_line": "Deep in the money, the premium is almost all intrinsic value.",
    "facts": [
     "f15",
@@ -1039,7 +1072,18 @@
      "the key is computed"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$4.00",
+    "$0.40",
+    "$0.04",
+    "$50.00"
+   ],
+   "wrong": {
+    "$4.00": "Slipped a decimal place.",
+    "$0.04": "Slipped a decimal place the other way.",
+    "$50.00": "Gave the intrinsic value instead of the time value."
+   }
   },
   {
    "key": "q21",
@@ -1096,9 +1140,9 @@
    "key": "q22",
    "skill": "options.value",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The stock is at 45. You buy the 40 call for 6.00. What stock price at expiry gets you back to even?",
-   "answer": 46,
+   "answer": "$46",
    "prefix": "$",
    "calc": {
     "fn": "option_breakeven",
@@ -1127,7 +1171,18 @@
      "it was fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$51",
+    "$40",
+    "$46",
+    "$34"
+   ],
+   "wrong": {
+    "$51": "Added the premium to the stock price instead of the strike.",
+    "$40": "Used the strike alone and ignored the premium.",
+    "$34": "Subtracted the premium from the strike, the put formula."
+   }
   },
   {
    "key": "q23",
@@ -1467,15 +1522,15 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1."
   },
   "q13": {
    "status": "pass",
@@ -1491,9 +1546,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4. Why rewritten to show the steps."
   },
   "q16": {
    "status": "pass",
@@ -1521,9 +1576,9 @@
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
   },
   "q21": {
    "status": "pass",
@@ -1533,9 +1588,9 @@
   },
   "q22": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
   },
   "q23": {
    "status": "pass",

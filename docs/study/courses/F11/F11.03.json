@@ -1025,9 +1025,9 @@
    "key": "q09",
    "skill": "styles.method_by_style",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A day trade in a $50,000 account: entry $18.60, stop $18.35, just under the first 10-minute low. You'll risk $200. How many shares?",
-   "answer": 800,
+   "answer": "800 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1038,7 +1038,7 @@
     }
    },
    "suffix": "shares",
-   "why": "800 shares. Shares are the dollars you'll risk divided by the distance from entry to stop. Here that is $200 over $18.60 minus $18.35. Our rule then caps any position at 40% of the account, and 800 shares at $18.60 stays under it. It's the same formula as a swing trade.",
+   "why": "Shares are the dollars you'll risk divided by the distance from entry to stop. That distance is $18.60 minus $18.35. $200 divided by it gives 800 shares. Our rule then caps any position at 40% of the account, and 800 shares at $18.60 stays under it. It's the same formula as a swing trade.",
    "lesson_line": "Day trade or swing trade: shares are dollars at risk over risk per share.",
    "facts": [
     "f20",
@@ -1056,7 +1056,18 @@
      "fixed before (stem reworded by the checker)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "1,075 shares",
+    "10 shares",
+    "80 shares",
+    "800 shares"
+   ],
+   "wrong": {
+    "1,075 shares": "Filled the 40% account cap instead of sizing from the $200 risk.",
+    "10 shares": "Divided the $200 by the $18.60 entry price. Divide by the risk per share.",
+    "80 shares": "A decimal slip: ten times too small."
+   }
   },
   {
    "key": "q10",
@@ -1109,10 +1120,10 @@
    "key": "q11",
    "skill": "styles.method_by_style",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R?",
-   "answer": 42.4,
+   "answer": "$42.40",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1122,7 +1133,7 @@
     }
    },
    "prefix": "$",
-   "why": "$42.40. R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later.",
+   "why": "R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry, which gives $42.40. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later.",
    "lesson_line": "3R is three times your risk per share, added to the entry.",
    "facts": [
     "r01",
@@ -1140,7 +1151,18 @@
      "fixed before (2R target moved to 3R trim)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$43.00",
+    "$37.60",
+    "$42.40",
+    "$41.60"
+   ],
+   "wrong": {
+    "$37.60": "Went three times the risk below the entry. A long's 3R sits above it.",
+    "$43.00": "Added a flat $3.00, not three times the risk.",
+    "$41.60": "That is only two times the risk. 3R takes three times it."
+   }
   },
   {
    "key": "q12",
@@ -1263,9 +1285,9 @@
    "key": "q15",
    "skill": "styles.method_by_style",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Jeffrey Hirsch allows stops up to 20%, but no position may lose over 2% of the portfolio. With a 20% stop, how big can the position be?",
-   "answer": 10,
+   "answer": "10% of the portfolio",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1275,7 +1297,7 @@
     }
    },
    "suffix": "% of the portfolio",
-   "why": "10% of the portfolio. Divide the 2% loss cap by the 20% stop. A 10% position that falls 20% loses 2% of the portfolio. A wide long-term stop fits the cap because the position is sized down to match. This is Hirsch's practice, not our stop. Our stop usually sits within about 3% of the buy.",
+   "why": "Divide the 2% loss cap by the 20% stop to get 10%. A 10% position that falls 20% loses 2% of the portfolio. A wide long-term stop fits the cap because the position is sized down to match. This is Hirsch's practice, not our stop. Our stop usually sits within about 3% of the buy.",
    "lesson_line": "A wide stop on a long hold is fine. The size shrinks so the risk doesn't grow.",
    "facts": [
     "f51",
@@ -1296,7 +1318,18 @@
      "fixed before (stem and why reworded)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "20% of the portfolio",
+    "10% of the portfolio",
+    "2% of the portfolio",
+    "40% of the portfolio"
+   ],
+   "wrong": {
+    "20% of the portfolio": "That is the stop width, not the position size.",
+    "2% of the portfolio": "That is the loss cap, not the position size.",
+    "40% of the portfolio": "Multiplied the 2% cap by the 20% stop. Divide them."
+   }
   },
   {
    "key": "q16",
@@ -1697,8 +1730,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "800 is right: the calc gives 200 / 0.25 = 800 (rounded to 2 places in calc_value). The $50,000 account keeps 800 x $18.60 under the 40% cap (h20, h21), and the why only says it stays under, with no new number. $200 is 0.4% of $50,000, inside A1. Teaching the 40% cap here does not give away q20's key, which also rests on the formula outgrowing the cap."
+   "fixed": true,
+   "notes": "Calc 800. Choices real (1,075 = 40% cap, 10 = 200/18.60, 80 slip). Why skipped the entry-to-stop step; added."
   },
   "q10": {
    "status": "pass",
@@ -1709,8 +1742,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ok"
+   "fixed": true,
+   "notes": "Calc 42.4. Choices real (37.60 below, 43 flat $3, 41.60 = 2R). Moved the answer to slot 1 (two answers in slot 3). Why is fine."
   },
   "q12": {
    "status": "pass",
@@ -1733,9 +1766,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "2 / 20 x 100 = 10%. 20% stop width, 2% cap, 40% multiplied. Why shows the steps."
   },
   "q16": {
    "status": "cut",

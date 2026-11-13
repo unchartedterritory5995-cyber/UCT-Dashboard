@@ -1651,10 +1651,10 @@
    "key": "q15",
    "skill": "setup.qullamaggie_kell",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.breakout_trim_1",
    "q": "Bought at 161.59 with the stop at 158.95. Where is 3R?",
-   "answer": 169.51,
+   "answer": "$169.51",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1664,7 +1664,7 @@
     },
     "round": 2
    },
-   "why": "169.51. One R is the buy minus the stop. Three R is the buy of 161.59 plus three of those. That is a yardstick, not a fixed sale. HWM got there in 7 days.",
+   "why": "One R is the buy minus the stop: 161.59 minus 158.95. Add three of those to the buy of 161.59 to get 169.51. That is a yardstick, not a fixed sale. HWM got there in 7 days.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
     "r70",
@@ -1681,16 +1681,27 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$166.87",
+    "$172.15",
+    "$164.23",
+    "$169.51"
+   ],
+   "wrong": {
+    "$166.87": "Added the three R to the stop, not to the buy.",
+    "$164.23": "Added only one R.",
+    "$172.15": "Counted four R instead of three."
+   }
   },
   {
    "key": "q16",
    "skill": "setup.qullamaggie_kell",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.breakout_depth",
    "q": "The base high is 64.40 and the base low is 52.10. How deep is it, in percent of the high, to one decimal?",
-   "answer": 19.1,
+   "answer": "19.1%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1700,7 +1711,7 @@
     },
     "round": 1
    },
-   "why": "19.1. Depth is the drop from the base high to the base low, over the base high. Take 64.40 minus 52.10, divide by 64.40, and round to one decimal. That is inside the 25% cap but deeper than the 15% A+ depth.",
+   "why": "The drop is 64.40 minus 52.10. Divide it by the base high of 64.40 to get 19.1%. That is inside the 25% cap but deeper than the 15% A+ depth.",
    "lesson_line": "Depth in percent of the base high. Under 15% is the A+ depth.",
    "facts": [
     "a10",
@@ -1720,7 +1731,18 @@
      "the 25% cap named in the explanation is the card's proposed number"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "23.6%",
+    "12.3%",
+    "80.9%",
+    "19.1%"
+   ],
+   "wrong": {
+    "23.6%": "Divided the drop by the base low instead of the high.",
+    "12.3%": "Read the dollar drop as a percent.",
+    "80.9%": "Found where the low sits as a share of the high, not the drop."
+   }
   },
   {
    "key": "q17",
@@ -1966,10 +1988,10 @@
    "key": "q22",
    "skill": "setup.qullamaggie_kell",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.breakout_depth",
    "q": "Prior move 35.00 to 52.28. Base high 52.28, base low 45.00. What share of the move did it give back, in percent?",
-   "answer": 42.1,
+   "answer": "42.1%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1980,7 +2002,7 @@
     },
     "round": 1
    },
-   "why": "42.1. The drop from 52.28 to 45.00, divided by the move from 35.00 to 52.28, is 42.1%. The cap is no more than half of the prior move, so it passes.",
+   "why": "The drop is 52.28 minus 45.00. The prior move is 52.28 minus 35.00. Divide the drop by the move to get 42.1%. The cap is no more than half of the prior move, so it passes.",
    "lesson_line": "Give-back as a share of the move. Half is the most.",
    "facts": [
     "a10"
@@ -1997,7 +2019,18 @@
      "one cited fact only"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "13.9%",
+    "16.2%",
+    "57.9%",
+    "42.1%"
+   ],
+   "wrong": {
+    "13.9%": "Divided the drop by the base high instead of the prior move.",
+    "16.2%": "Divided the drop by the base low instead of the prior move.",
+    "57.9%": "Found how much of the move it kept, not how much it gave back."
+   }
   },
   {
    "key": "q23",
@@ -3372,10 +3405,10 @@
    "key": "q69",
    "skill": "setup.qullamaggie_kell",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.kell_ee_definition",
    "q": "A stock's 10-day EMA is 100.00. It closes at 111.50 with its low at 102.00. How far above the 10-day is the close, in percent?",
-   "answer": 11.5,
+   "answer": "11.5%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3385,7 +3418,7 @@
     },
     "round": 1
    },
-   "why": "11.5. The close is 11.5% above the 10-day, which is 10% or more. The low of 102.00 is also above the 10-day, so there is air. On the daily chart that fits our card's Exhaustion Extension test, and we skip a long more than 10% above its 10-day.",
+   "why": "The close of 111.50 is 11.50 over the 10-day of 100.00. Divide by the 10-day to get 11.5%. That is 10% or more. The low of 102.00 is also above the 10-day, so there is air. On the daily chart that fits our card's Exhaustion Extension test, and we skip a long more than 10% above its 10-day.",
    "lesson_line": "Measure the close against the 10-day. Ten percent or more with air is extended.",
    "facts": [
     "b14",
@@ -3403,7 +3436,18 @@
      "rests on the criteria card, which the owner has not yet ruled on"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "111.5%",
+    "10.3%",
+    "2.0%",
+    "11.5%"
+   ],
+   "wrong": {
+    "10.3%": "Divided by the close instead of the 10-day.",
+    "2.0%": "Measured from the low instead of the close.",
+    "111.5%": "Never took off the 10-day, just compared close to average."
+   }
   },
   {
    "key": "q70",
@@ -3885,10 +3929,10 @@
    "key": "q86",
    "skill": "setup.qullamaggie_kell",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.breakout_liquidity",
    "q": "A stock closes at $18 and averages 1,100,000 shares a day. About what is its dollar volume a day, in millions?",
-   "answer": 19.8,
+   "answer": "$19.80 million",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3898,7 +3942,7 @@
     },
     "round": 2
    },
-   "why": "19.8 million. $18 times 1,100,000 shares is about $19.8 million a day. That is under the $20 million a day line, so it fails our liquidity rule even though the price is over $10. Both tests must pass.",
+   "why": "Dollar volume is the price times the shares: 18 times 1,100,000 is 19.8 million. That is under the $20 million a day line, so it fails our liquidity rule even though the price is over $10. Both tests must pass.",
    "lesson_line": "Both tests: $10 or more, and $20 million a day.",
    "facts": [
     "hB23",
@@ -3916,7 +3960,18 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "$198.00 million",
+    "$1.98 million",
+    "$0.06 million",
+    "$19.80 million"
+   ],
+   "wrong": {
+    "$198.00 million": "Slipped a decimal.",
+    "$1.98 million": "Slipped a decimal the other way.",
+    "$0.06 million": "Divided the shares by the price instead of multiplying."
+   }
   },
   {
    "key": "q87",
@@ -3959,10 +4014,10 @@
    "key": "q88",
    "skill": "setup.qullamaggie_kell",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.breakout_position_adv",
    "q": "Your stop math says 12,000 shares. The stock averages 800,000 shares a day. How many shares may you buy?",
-   "answer": 8000,
+   "answer": "8,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3971,7 +4026,7 @@
     },
     "round": 0
    },
-   "why": "8,000 shares. One percent of 800,000 is 8,000. That is less than the 12,000 the stop math allows, so the volume cap sets the size. You never own more than 1% of average daily volume.",
+   "why": "One percent of 800,000 is 8,000 shares. That is less than the 12,000 the stop math allows, so the volume cap sets the size. You never own more than 1% of average daily volume.",
    "lesson_line": "Never own more than 1% of average daily volume.",
    "facts": [
     "hD42",
@@ -3988,7 +4043,18 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "12,000 shares",
+    "800 shares",
+    "80,000 shares",
+    "8,000 shares"
+   ],
+   "wrong": {
+    "12,000 shares": "Went with the stop math and ignored the volume cap.",
+    "80,000 shares": "Slipped a decimal and took ten percent of the volume.",
+    "800 shares": "Slipped a decimal and took a tenth of a percent."
+   }
   },
   {
    "key": "q89",
@@ -4207,10 +4273,10 @@
    "key": "q95",
    "skill": "setup.qullamaggie_kell",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.breakout_not_stretched",
    "q": "The 10-day average is 50.00. At what price does a long become too stretched to buy?",
-   "answer": 55,
+   "answer": "$55.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -4219,7 +4285,7 @@
     },
     "round": 2
    },
-   "why": "55.00. Ten percent above 50.00 is 55.00. We skip a long more than 10% above its 10-day average, so a price above 55.00 is skipped.",
+   "why": "Ten percent is added to 50.00: 50.00 times 1.1 is 55.00. We skip a long more than 10% above its 10-day average, so a price above 55.00 is skipped.",
    "lesson_line": "Skip a long more than 10% above its 10-day.",
    "facts": [
     "hC29"
@@ -4235,7 +4301,18 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "$45.00",
+    "$60.00",
+    "$50.50",
+    "$55.00"
+   ],
+   "wrong": {
+    "$45.00": "Took 10% off the average instead of adding it.",
+    "$60.00": "Added ten dollars instead of ten percent.",
+    "$50.50": "Slipped a decimal and added only one percent."
+   }
   },
   {
    "key": "q96",
@@ -4324,10 +4401,10 @@
    "key": "q98",
    "skill": "setup.qullamaggie_kell",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.breakout_stop_gap",
    "q": "You bought at 50.00 with the stop at 48.00. A gap-down day's first 30-minute low is 45.80. What is the loss, in R?",
-   "answer": 2.1,
+   "answer": "2.1R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -4338,7 +4415,7 @@
     },
     "round": 1
    },
-   "why": "2.1R. One R is the buy minus the stop, 50.00 minus 48.00. The first 30-minute low of 45.80 is 2.1 times that far under the buy. That is past the 2R ceiling, so you get out.",
+   "why": "One R is the buy minus the stop: 50.00 minus 48.00. The loss is 50.00 minus the low of 45.80. Divide the loss by one R to get 2.1R. That is past the 2R ceiling, so you get out.",
    "lesson_line": "First 30 minutes past 2R: get out.",
    "facts": [
     "hB20c",
@@ -4355,7 +4432,18 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "0.5R",
+    "4.2R",
+    "1.1R",
+    "2.1R"
+   ],
+   "wrong": {
+    "4.2R": "Called the dollar loss the R multiple.",
+    "1.1R": "Measured the loss from the stop instead of the buy.",
+    "0.5R": "Flipped the division: risk over loss."
+   }
   },
   {
    "key": "q99",
@@ -4507,10 +4595,10 @@
    "key": "q103",
    "skill": "setup.qullamaggie_kell",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.breakout_breakeven",
    "q": "Bought at 36.00 with the stop at 34.00. At what price does the ideal breakeven window open?",
-   "answer": 40,
+   "answer": "$40.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -4520,7 +4608,7 @@
     },
     "round": 2
    },
-   "why": "40.00. One R is the buy minus the stop, which is 36.00 minus 34.00. The window opens at 2R, so 40.00. From there the stop may move up to the 36.00 entry, ideally anywhere from 2R to 5R.",
+   "why": "One R is the buy minus the stop: 36.00 minus 34.00. The window opens at 2R, so add two of those to the buy to get 40.00. From there the stop may move up to the 36.00 entry, ideally anywhere from 2R to 5R.",
    "lesson_line": "2R above the buy opens the breakeven window.",
    "facts": [
     "hB19",
@@ -4537,16 +4625,27 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "$38.00",
+    "$42.00",
+    "$40.00",
+    "$32.00"
+   ],
+   "wrong": {
+    "$38.00": "Added the two R to the stop, not to the buy.",
+    "$42.00": "Counted three R instead of two.",
+    "$32.00": "Went down from the buy instead of up."
+   }
   },
   {
    "key": "q104",
    "skill": "setup.qullamaggie_kell",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.breakout_trim_2",
    "q": "Bought at 52.35 with the stop at 51.21. Where is 5R?",
-   "answer": 58.05,
+   "answer": "$58.05",
    "calc": {
     "fn": "arith",
     "args": {
@@ -4556,7 +4655,7 @@
     },
     "round": 2
    },
-   "why": "58.05. One R is the buy minus the stop, 52.35 minus 51.21. Five R above the buy is 58.05. That is a yardstick, and a first sell at about 5 to 10R is often best.",
+   "why": "One R is the buy minus the stop: 52.35 minus 51.21. Add five of those to the buy of 52.35 to get 58.05. That is a yardstick, and a first sell at about 5 to 10R is often best.",
    "lesson_line": "5R is a yardstick. A first sell near 5 to 10R is often best.",
    "facts": [
     "r72"
@@ -4572,7 +4671,18 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$56.91",
+    "$59.19",
+    "$55.77",
+    "$58.05"
+   ],
+   "wrong": {
+    "$56.91": "Added the five R to the stop, not to the buy.",
+    "$55.77": "Counted three R instead of five.",
+    "$59.19": "Counted six R instead of five."
+   }
   },
   {
    "key": "q105",
@@ -5055,10 +5165,10 @@
    "key": "q118",
    "skill": "setup.qullamaggie_kell",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "qk.kell_cb_stop",
    "q": "Kell might size a 15% position with a 2% stop. What share of the account does that risk, in percent?",
-   "answer": 0.3,
+   "answer": "0.3%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -5068,7 +5178,7 @@
     },
     "round": 1
    },
-   "why": "0.3%. A 15% position with a 2% stop risks 0.3% of the account, or 30 bps. Kell's own range for a support buy is 15-30 bps, with a 1-2% stop, so this is the top of it.",
+   "why": "Risk is the position size times the stop width. 15% times 2% is 0.3% of the account, or 30 bps. Kell's own range for a support buy is 15-30 bps, with a 1-2% stop, so this is the top of it.",
    "lesson_line": "Position size times stop width is the risk.",
    "facts": [
     "L17"
@@ -5084,7 +5194,18 @@
      "one cited fact only"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "17.0%",
+    "3.0%",
+    "0.3%",
+    "7.5%"
+   ],
+   "wrong": {
+    "3.0%": "Slipped a decimal.",
+    "17.0%": "Added the two numbers instead of multiplying.",
+    "7.5%": "Divided the position size by the stop width."
+   }
   },
   {
    "key": "q119",
@@ -5466,14 +5587,14 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "3R arithmetic; softened."
+   "fixed": true,
+   "notes": "Recomputed 169.51. The $172.15 choice is 4R (10.56 over the buy), but its note said five R; note fixed."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q17": {
    "status": "pass",
@@ -5520,9 +5641,9 @@
   },
   "q22": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q23": {
    "status": "cut",
@@ -5740,7 +5861,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "11.5% calc right; air and 10% test per b14/b14b/hC29."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q70": {
    "status": "pass",
@@ -5837,7 +5958,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "18 x 1.1M = 19.8M, under $20M line (aLiq/hB23)."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q87": {
    "status": "pass",
@@ -5847,9 +5968,9 @@
   },
   "q88": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q89": {
    "status": "pass",
@@ -5891,9 +6012,9 @@
   },
   "q95": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q96": {
    "status": "pass",
@@ -5910,9 +6031,9 @@
   },
   "q98": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q99": {
    "status": "pass",
@@ -5942,13 +6063,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1R=2.00, 2R window opens at 40.00. Matches hB19. Stem no longer gives 2R."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q104": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5R arithmetic; reframed as yardstick, cites r72."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q105": {
    "status": "pass",
@@ -6034,7 +6155,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "15 x 2 / 100 = 0.3; L17 quote supports."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q119": {
    "status": "pass",

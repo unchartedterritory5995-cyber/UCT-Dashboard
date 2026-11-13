@@ -1336,11 +1336,11 @@
    "key": "q15",
    "skill": "setup.remount",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rm.stop_width",
    "q": "Buy 86.24, stop 83.52. How far is the stop below the buy, in percent?",
-   "answer": 3.2,
-   "why": "3.2%. Take the buy minus the stop. Divide that by the buy, 86.24, to get about 3.2%. That is PYPL, just over the 3% a stop usually sits within, so the size comes down.",
+   "answer": "3.2%",
+   "why": "3.2%. Take the buy minus the stop and divide by the buy: (86.24 - 83.52) / 86.24 is about 3.2%. That is PYPL, just over the 3% a stop usually sits within, so the size comes down.",
    "lesson_line": "Measure the stop in percent before you size the trade.",
    "facts": [
     "d08",
@@ -1365,17 +1365,28 @@
      "+2 computed key"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "2.7%",
+    "0.3%",
+    "96.8%",
+    "3.2%"
+   ],
+   "wrong": {
+    "2.7%": "Gave the gap in dollars as a percent, no divide.",
+    "0.3%": "Decimal slip, one place too short.",
+    "96.8%": "Divided the stop by the buy, no subtraction."
+   }
   },
   {
    "key": "q16",
    "skill": "setup.remount",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rm.trim_1",
    "q": "Bought at 109.42 with the stop at 105.86. Where is 3R?",
-   "answer": 120.1,
-   "why": "120.10. One R is the fill minus the stop. Three R is three of those. Add them to the fill, 109.42, to get 120.10. The first sell is a judgment, not a fixed third at 3R.",
+   "answer": "$120.10",
+   "why": "120.10. One R is the fill minus the stop. Add three R to the fill: 109.42 + 3 x (109.42 - 105.86) = 120.10. The first sell is a judgment, not a fixed third at 3R.",
    "lesson_line": "Know your 3R before the open. It is a mark, not a sell order.",
    "facts": [
     "d03",
@@ -1401,7 +1412,18 @@
      "+2 the third at 3R is a rulebook rule"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$116.54",
+    "$120.10",
+    "$112.98",
+    "$98.74"
+   ],
+   "wrong": {
+    "$116.54": "Added three R to the stop, not the fill.",
+    "$112.98": "Added only one R, forgot the times three.",
+    "$98.74": "Subtracted three R instead of adding."
+   }
   },
   {
    "key": "q17",
@@ -1660,11 +1682,11 @@
    "key": "q25",
    "skill": "setup.remount",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rm.trim_1",
    "q": "Bought at 59.54, stop 58.44. If the stock trades to 61.47, how many R is that?",
-   "answer": 1.75,
-   "why": "1.75R. One R is the fill minus the stop. The gain is the exit price minus the fill. Divide the gain by one R to get 1.75R. That is short of the 3R mark. The first sell is a judgment, not a fixed third at 3R.",
+   "answer": "1.75R",
+   "why": "1.75R. One R is the fill minus the stop. The gain is the exit price minus the fill. (61.47 - 59.54) / (59.54 - 58.44) = 1.75R. That is short of the 3R mark. The first sell is a judgment, not a fixed third at 3R.",
    "lesson_line": "Count in R. Know where you stand against 3R.",
    "facts": [
     "d05",
@@ -1693,7 +1715,18 @@
      "+2 computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "1.93R",
+    "2.75R",
+    "1.75R",
+    "0.03R"
+   ],
+   "wrong": {
+    "2.75R": "Measured the gain from the stop, not the fill.",
+    "1.93R": "Used the dollar gain as R, no divide.",
+    "0.03R": "Divided the gain by the fill price, not by one R."
+   }
   },
   {
    "key": "q26",
@@ -1817,11 +1850,11 @@
    "key": "q29",
    "skill": "setup.remount",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rm.stop_width",
    "q": "Account 100,000, risk 0.5%. Buy 109.42, stop 105.86. How many shares does the stop allow?",
-   "answer": 140,
-   "why": "140 shares. Risk is 0.5% of 100,000. The stop distance is 109.42 minus 105.86. Divide the risk by that distance and round down to 140. The size is the smaller of that and the 40% position cap. Here 140 shares cost far less than the cap, so the risk size wins. The stop is 3.3% from the buy. We size to the stop and never tighten it.",
+   "answer": "140 shares",
+   "why": "140 shares. Risk is 0.5% of 100,000. The stop distance is 109.42 minus 105.86. 100,000 x 0.5% / (109.42 - 105.86), rounded down, is 140. Those shares cost far less than the 40% cap, so the risk size wins. The stop is 3.3% from the buy. We size to the stop and never tighten it.",
    "lesson_line": "The stop sets the size. Wider stop, fewer shares.",
    "facts": [
     "h03",
@@ -1853,7 +1886,18 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "141 shares",
+    "365 shares",
+    "1,404 shares",
+    "140 shares"
+   ],
+   "wrong": {
+    "141 shares": "Rounded up, so the risk goes over 0.5%.",
+    "365 shares": "Sized to the 40% cap, not to the stop.",
+    "1,404 shares": "Moved the decimal on the risk percent."
+   }
   },
   {
    "key": "q30",
@@ -3254,10 +3298,10 @@
    "key": "q65",
    "skill": "setup.remount",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rm.break_left_line",
    "q": "The line is 62.00. The deepest close under it was 60.50. ATR, the typical daily move, is 1.20. How many ATR under the line?",
-   "answer": 1.25,
+   "answer": "1.25 ATR",
    "why": "1.25 ATR. Take the line minus the deepest close, 62.00 minus 60.50. Divide that by the ATR, 1.20, to get 1.25 ATR. Our card proposes a close at least 0.5 ATR under the line, so this break left the line.",
    "lesson_line": "Our card proposes a close at least half an ATR under the line.",
    "facts": [
@@ -3284,7 +3328,18 @@
      "+2 computed key"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "1.50 ATR",
+    "0.80 ATR",
+    "1.25 ATR",
+    "12.50 ATR"
+   ],
+   "wrong": {
+    "1.50 ATR": "Gave the gap in dollars, no divide.",
+    "0.80 ATR": "Flipped it: divided the ATR by the gap.",
+    "12.50 ATR": "Decimal slip on the ATR."
+   }
   },
   {
    "key": "q66",
@@ -3501,11 +3556,11 @@
    "key": "q72",
    "skill": "setup.remount",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rm.trim_2",
    "q": "Bought at 59.54 with the stop at 58.44. Where is 5R?",
-   "answer": 65.04,
-   "why": "65.04. One R is the fill minus the stop. Five R is five of those. Add them to the fill, 59.54, to get 65.04. By default the second third comes off there.",
+   "answer": "$65.04",
+   "why": "65.04. One R is the fill minus the stop. Add five R to the fill: 59.54 + 5 x (59.54 - 58.44) = 65.04. By default the second third comes off there.",
    "lesson_line": "Know your 5R before the open. The second third comes off there.",
    "facts": [
     "h20",
@@ -3532,7 +3587,18 @@
      "+2 the third at 5R is a rulebook rule"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "$63.94",
+    "$65.04",
+    "$62.84",
+    "$54.04"
+   ],
+   "wrong": {
+    "$63.94": "Added five R to the stop, not the fill.",
+    "$62.84": "Added three R instead of five.",
+    "$54.04": "Subtracted five R instead of adding."
+   }
   },
   {
    "key": "q73",
@@ -4056,13 +4122,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(86.24-83.52)/86.24 = 3.154% -> 3.2, recomputed with the calc. 3.2% over the 3% line (A13, m07) so size down is right."
+   "notes": "3.2 ok (3.154); wrongs verified."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "120.10 ok; wrongs verified."
   },
   "q17": {
    "status": "cut",
@@ -4116,7 +4182,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "1.75 ok; 2.75 from stop, 1.93 dollars, 0.03 over fill. verified."
   },
   "q26": {
    "status": "pass",
@@ -4140,7 +4206,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "500 / 3.56 = 140.45 -> 140. Cost 15,319 is under the 40% cap (40,000), so risk size wins (A5, A7). Stop 3.3% is flagged."
+   "notes": "140 ok (140.4); 141 up (risk 502 > 500), 365 = cap, 1,404 = 5% risk. verified."
   },
   "q30": {
    "status": "pass",
@@ -4362,7 +4428,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(62.00-60.50)/1.20 = 1.25 recomputed. k26 verbatim and the member text says 'our card proposes'."
+   "notes": "1.25 ok; wrongs verified."
   },
   "q66": {
    "status": "pass",
@@ -4405,7 +4471,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "59.54 + 5 x 1.10 = 65.04 recomputed. Second third at 5R is E51. Same ask as q16 at a different level and trade; acceptable."
+   "notes": "65.04 ok; wrongs verified."
   },
   "q73": {
    "status": "pass",

@@ -824,9 +824,9 @@
    "key": "q09",
    "skill": "options.theta",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "An option with 60 days left is worth 2.60. Its theta is -0.04. Three days pass, nothing else changes. About what is it worth?",
-   "answer": 2.48,
+   "answer": "$2.48",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -837,7 +837,7 @@
      "theta": 0.04
     }
    },
-   "why": "About $2.48. Theta is the value lost per day with everything else unchanged. Three days at 0.04 each come off the 2.60. That simple sum is a fair estimate here: the option has 60 days left, and the hold is short. Theta is not fixed, though. It changes as expiry gets close.",
+   "why": "About $2.48. Theta is the value lost per day with everything else unchanged. Three days at 0.04 each is 0.12. Take 0.12 off the 2.60 and you get 2.48. That simple sum is a fair estimate here: the option has 60 days left, and the hold is short. Theta is not fixed, though. It changes as expiry gets close.",
    "lesson_line": "Days times theta gives a quick estimate while expiry is still far off.",
    "facts": [
     "f37",
@@ -853,7 +853,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$2.72",
+    "$0.12",
+    "$2.56",
+    "$2.48"
+   ],
+   "wrong": {
+    "$2.72": "Added the decay instead of taking it off.",
+    "$2.56": "Took off one day of decay instead of three.",
+    "$0.12": "Gave the decay alone and forgot to take it off the price."
+   }
   },
   {
    "key": "q10",
@@ -944,9 +955,9 @@
    "key": "q12",
    "skill": "options.theta",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Cboe's theta table: a 45 call is 1.71 with 35 days left and 0.76 with 7 days left. What did those four weeks cost, per share?",
-   "answer": 0.95,
+   "answer": "$0.95",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -972,7 +983,18 @@
      "the key rests on one quoted table (f64, Cboe 2012 slides), which WebFetch could not reach on 2026-11-12 (403)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$2.47",
+    "$0.76",
+    "$0.95",
+    "$1.71"
+   ],
+   "wrong": {
+    "$2.47": "Added the two prices instead of subtracting.",
+    "$0.76": "Gave the value left, not what the four weeks cost.",
+    "$1.71": "Gave the starting price, not the cost."
+   }
   },
   {
    "key": "q13",
@@ -1317,9 +1339,9 @@
    "key": "q22",
    "skill": "options.theta",
    "rung": 9,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A far out-of-the-money call expiring Friday costs 0.10. Its theta is -0.02. What share of its price does one day of decay take?",
-   "answer": 20,
+   "answer": "20%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1329,7 +1351,7 @@
      "premium": 0.1
     }
    },
-   "why": "20%. A theta of -0.02 means about two cents a share for the day. Against a 0.10 premium, that is a fifth of the option in one day. A far out-of-the-money option's price is all time value. If the call is still out of the money at expiry, all of it is gone. A small theta can still be a big bite of a cheap option.",
+   "why": "20%. A theta of -0.02 means about two cents a share for the day. Divide that by the 0.10 premium: 0.02 over 0.10 is 20%. A far out-of-the-money option's price is all time value. If the call is still out of the money at expiry, all of it is gone. A small theta can still be a big bite of a cheap option.",
    "lesson_line": "Judge theta against the premium. A few cents on a cheap option can be a big bite.",
    "facts": [
     "f1",
@@ -1347,7 +1369,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "2%",
+    "20%",
+    "5%",
+    "80%"
+   ],
+   "wrong": {
+    "2%": "Read two cents as 2% and never set it against the price.",
+    "5%": "Flipped the ratio and divided the price by the theta.",
+    "80%": "Gave the share of the price left after the day."
+   }
   },
   {
    "key": "q23",
@@ -1500,8 +1533,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 2.60 - 3*0.04 = 2.48 checked. 'Not fixed' rests on f19; 60 days left is outside the ~30-day speed-up (f9 context) so the linear sum is fair. lesson_line hints that near expiry the sum fails but not in which direction, so q19 is not given away."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
   },
   "q10": {
    "status": "pass",
@@ -1517,9 +1550,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
   },
   "q13": {
    "status": "pass",
@@ -1585,9 +1618,9 @@
   },
   "q22": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1."
   },
   "q23": {
    "status": "pass",

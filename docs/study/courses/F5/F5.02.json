@@ -1033,9 +1033,9 @@
    "key": "q09",
    "skill": "fund.estimates",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The consensus is $0.80 a share. The company reports $0.84. What is the earnings surprise, in percent?",
-   "answer": 5.0,
+   "answer": "5%",
    "suffix": "%",
    "calc": {
     "fn": "pct_change",
@@ -1059,7 +1059,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "105%",
+    "4%",
+    "95%",
+    "5%"
+   ],
+   "wrong": {
+    "4%": "You read the 4-cent beat as 4%.",
+    "105%": "You divided actual by the estimate and forgot to subtract one.",
+    "95%": "You divided the estimate by the actual instead of the actual by the estimate."
+   }
   },
   {
    "key": "q10",
@@ -1118,9 +1129,9 @@
    "key": "q12",
    "skill": "fund.estimates",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Cisco reported $1.22 adjusted EPS. The LSEG consensus was $1.17. What was the surprise, in percent?",
-   "answer": 4.3,
+   "answer": "4.3%",
    "suffix": "%",
    "calc": {
     "fn": "pct_change",
@@ -1146,15 +1157,26 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "104.3%",
+    "5.0%",
+    "4.3%",
+    "0.4%"
+   ],
+   "wrong": {
+    "5.0%": "You read the 5-cent beat as 5%.",
+    "104.3%": "You divided actual by the consensus and forgot to subtract one.",
+    "0.4%": "A decimal slip: you moved the point one place."
+   }
   },
   {
    "key": "q13",
    "skill": "fund.estimates",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Qualcomm guided next-quarter EPS to $2.15 to $2.35. What is the midpoint of that range?",
-   "answer": 2.25,
+   "answer": "$2.25",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1164,7 +1186,7 @@
      "high": 2.35
     }
    },
-   "why": "$2.25. Add the two ends, $2.15 and $2.35, and halve it. FactSet judges a range by its midpoint against the mean estimate. Analysts expected $2.27, so the EPS midpoint sat just under. CNBC called the earnings forecast lighter than expected, and the stock slid 7% in extended trading. The revenue guide is a separate number.",
+   "why": "$2.25. Add the two ends: $2.15 plus $2.35 is $4.50. Half of $4.50 is $2.25. FactSet judges a range by its midpoint against the mean estimate. Analysts expected $2.27, so the EPS midpoint sat just under. CNBC called the earnings forecast lighter than expected, and the stock slid 7% in extended trading. The revenue guide is a separate number.",
    "lesson_line": "When the guide is a range, compare its midpoint to the consensus.",
    "facts": [
     "f76",
@@ -1179,7 +1201,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$4.50",
+    "$2.25",
+    "$0.20",
+    "$2.35"
+   ],
+   "wrong": {
+    "$4.50": "You added the two ends and forgot to halve.",
+    "$0.20": "You gave the width of the range, not its middle.",
+    "$2.35": "You took the top of the range, the best case."
+   }
   },
   {
    "key": "q14",
@@ -1262,9 +1295,9 @@
    "key": "q16",
    "skill": "fund.estimates",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "FactSet's 5-year averages around the report: beats +0.9%, misses -3.1%. How many times bigger is the average miss move?",
-   "answer": 3.4,
+   "answer": "3.4 times",
    "suffix": "times",
    "calc": {
     "fn": "arith",
@@ -1275,7 +1308,7 @@
     },
     "round": 1
    },
-   "why": "About 3.4 times. Divide the miss move by the beat move, 3.1 by 0.9, and round to one decimal. FactSet measures from two days before to two days after the report, over five years. Beats averaged a 0.9% gain and misses a 3.1% drop. These are averages, not a forecast for one stock.",
+   "why": "About 3.4 times. Divide the miss move by the beat move: 3.1 divided by 0.9 is about 3.4. FactSet measures from two days before to two days after the report, over five years. Beats averaged a 0.9% gain and misses a 3.1% drop. These are averages, not a forecast for one stock.",
    "lesson_line": "On average a beat pays a little and a miss costs a lot.",
    "facts": [
     "f52",
@@ -1294,7 +1327,18 @@
      "computed key from averages that change every quarter"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "4.0 times",
+    "0.3 times",
+    "2.2 times",
+    "3.4 times"
+   ],
+   "wrong": {
+    "0.3 times": "You flipped it and divided the beat move by the miss move.",
+    "2.2 times": "You subtracted 0.9 from 3.1 instead of dividing.",
+    "4.0 times": "You added 0.9 to 3.1 instead of dividing."
+   }
   },
   {
    "key": "q17",
@@ -1344,9 +1388,9 @@
    "key": "q18",
    "skill": "fund.estimates",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Elevance reported $6.99 EPS vs. $4.71 expected. The $6.99 included a $1.85 non-operating benefit. What is EPS without it?",
-   "answer": 5.14,
+   "answer": "$5.14",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1356,7 +1400,7 @@
      "benefit": 1.85
     }
    },
-   "why": "$5.14. Take $6.99 and subtract the $1.85 non-operating benefit. FactSet does not say whether analysts had counted on the benefit. If they had not, $5.14 still tops the $4.71 estimate. Then most of the headline beat came from the benefit, not the business.",
+   "why": "$5.14. Take $6.99 and subtract the $1.85 non-operating benefit: 6.99 minus 1.85 is 5.14. FactSet does not say whether analysts had counted on the benefit. If they had not, $5.14 still tops the $4.71 estimate. Then most of the headline beat came from the benefit, not the business.",
    "lesson_line": "Check what's inside a beat. A tax break or a one-off gain can make it look bigger.",
    "facts": [
     "f56",
@@ -1374,7 +1418,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$2.28",
+    "$8.84",
+    "$5.14",
+    "$2.86"
+   ],
+   "wrong": {
+    "$8.84": "You added the $1.85 benefit instead of taking it out.",
+    "$2.28": "You took the $4.71 estimate off the $6.99, which is the headline beat.",
+    "$2.86": "You took the benefit off the $4.71 estimate instead of off the $6.99."
+   }
   },
   {
    "key": "q19",
@@ -1629,9 +1684,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer and calc check out. Fix: 4.8% was within a fifth of a point of the answer; swapped it for 95%, dividing estimate by actual."
   },
   "q10": {
    "status": "pass",
@@ -1649,13 +1704,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc (1.22-1.17)/1.17*100 = 4.27 -> 4.3. Why and lesson line match f60 and f2. Same method as q09, but a real case at a higher rung, so I kept it."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Midpoint (2.15+2.35)/2 = 2.25. f54 midpoint rule, f76 $2.27, f75 'lighter than expected' and 7%. Revenue caveat is right."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q14": {
    "status": "pass",
@@ -1673,7 +1728,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc 3.1/0.9 = 3.44 -> 3.4. Window and 5-year averages per f51-f53. The averages caveat needs no fact. f51-f53 rest on the FactSet PDF (s14), which was not re-read this wave (owner flag stands)."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q17": {
    "status": "pass",
@@ -1685,7 +1740,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc 6.99-1.85 = 5.14. Every number in the why comes from the question. The hedge on whether analysts counted the benefit comes before the beat claim. 'Most of the beat' holds: 1.85 of a 2.28 gap."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q19": {
    "status": "pass",

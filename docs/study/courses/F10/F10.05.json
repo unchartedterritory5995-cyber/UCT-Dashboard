@@ -1050,9 +1050,9 @@
    "key": "q13",
    "skill": "orders.scaling",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You bought 100 shares at $50. At $40 you buy 100 more. What price gets you back to break even?",
-   "answer": 45,
+   "answer": "$45.00",
    "calc": {
     "fn": "avg_price",
     "args": {
@@ -1069,7 +1069,7 @@
     }
    },
    "prefix": "$",
-   "why": "$45. That is your new average cost: 100 shares at $50 and 100 at $40 average out to $45. The bar to break even came down. But now twice the shares ride on a stock that has been falling. Averaging down only helps if the price turns back up. We don't do it: the full size goes on once, with one stop.",
+   "why": "Your new average cost is the total spent divided by the total shares. 100 shares at $50 and 100 at $40 average out to $45. The bar to break even came down. But now twice the shares ride on a stock that has been falling. We don't average down: the full size goes on once, with one stop.",
    "lesson_line": "Averaging down lowers the bar and raises the bet. The stock still has to turn.",
    "facts": [
     "f26",
@@ -1085,7 +1085,18 @@
      "computed key (avg_price)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$50.00",
+    "$40.00",
+    "$45.00",
+    "$90.00"
+   ],
+   "wrong": {
+    "$50.00": "That is your first price. The second buy lowered your average.",
+    "$40.00": "That is only the second price. Your average includes both buys.",
+    "$90.00": "Added the two prices and forgot to divide by the number of buys."
+   }
   },
   {
    "key": "q14",
@@ -1131,9 +1142,9 @@
    "key": "q15",
    "skill": "orders.scaling",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You bought 100 shares at $30. It doubles to $60. How many shares do you sell to get your whole cost back?",
-   "answer": 50,
+   "answer": "50 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1144,7 +1155,7 @@
     }
    },
    "suffix": "shares",
-   "why": "50 shares. At $60, each share is worth twice the $30 you paid. So half the shares bring back your whole cost. That is Hirsch's rule: sell half on a double and let the rest ride. It is his rule, not ours. Our first sell is a judgment, usually on day 3 or later.",
+   "why": "Your cost is the 100 shares you bought at $30. At $60, each share is worth twice what you paid. So half the shares bring back your whole cost. That is Hirsch's rule: sell half on a double and let the rest ride. It is his rule, not ours. Our first sell is a judgment, usually on day 3 or later.",
    "lesson_line": "Half on a double gets your cost back. The rest rides on the gain.",
    "facts": [
     "f14",
@@ -1160,7 +1171,18 @@
      "computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "100 shares",
+    "50 shares",
+    "30 shares",
+    "25 shares"
+   ],
+   "wrong": {
+    "100 shares": "Divided your cost by the $30 entry price. Use today's $60 price.",
+    "30 shares": "Used the $30 entry price as a share count.",
+    "25 shares": "Halved twice. Half the shares, not a quarter, return the cost."
+   }
   },
   {
    "key": "q16",
@@ -1653,10 +1675,10 @@
    "key": "q29",
    "skill": "orders.scaling",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Entry $50, stop $47.50. Where is the 3R price?",
-   "answer": 57.5,
+   "answer": "$57.50",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1666,7 +1688,7 @@
     }
    },
    "prefix": "$",
-   "why": "$57.50. One R is the distance from the $50 entry to the $47.50 stop. Three of those above the entry is 3R. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later.",
+   "why": "One R is the distance from the $50 entry down to the $47.50 stop. Three times that, added above the entry, is the 3R price: $57.50. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later.",
    "lesson_line": "Know the 3R price before you buy. It is a mark on the trade, not a sell order.",
    "facts": [
     "r01",
@@ -1682,16 +1704,27 @@
      "computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$53.00",
+    "$55.00",
+    "$42.50",
+    "$57.50"
+   ],
+   "wrong": {
+    "$55.00": "That is only two times the risk. 3R takes three times it.",
+    "$42.50": "Went three times the risk below the entry. 3R sits above it.",
+    "$53.00": "Added a flat $3.00, not three times the risk."
+   }
   },
   {
    "key": "q30",
    "skill": "orders.scaling",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Entry $80, stop $77. Where is 5R, our second trim?",
-   "answer": 95,
+   "answer": "$95.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1701,7 +1734,7 @@
     }
    },
    "prefix": "$",
-   "why": "$95. One R is the distance from the $80 entry to the $77 stop. Five of those above the entry is 5R, our second trim. Another third comes off there, and the last third trails.",
+   "why": "One R is the distance from the $80 entry down to the $77 stop. Five times that, added above the entry, is 5R: $95. That is our second trim. Another third comes off there, and the last third trails.",
    "lesson_line": "5R: the second third comes off. The last third trails.",
    "facts": [
     "h04",
@@ -1716,7 +1749,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$85.00",
+    "$92.00",
+    "$65.00",
+    "$95.00"
+   ],
+   "wrong": {
+    "$85.00": "Added a flat $5.00, not five times the risk.",
+    "$92.00": "That is only four times the risk. The second trim is at five times.",
+    "$65.00": "Went five times the risk below the entry. 5R sits above it."
+   }
   },
   {
    "key": "q31",
@@ -2061,9 +2105,9 @@
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Calc 45.0. $50 first price, $40 second price, $90 summed prices. Why shows the average."
   },
   "q14": {
    "status": "pass",
@@ -2074,8 +2118,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ok"
+   "fixed": true,
+   "notes": "Calc 50.0. Choices acceptable. Moved the answer from slot 4 to slot 2 to vary slots in this lesson."
   },
   "q16": {
    "status": "pass",
@@ -2171,14 +2215,14 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ok"
+   "fixed": true,
+   "notes": "Calc 57.5. Choices real (55 = 2R, 42.50 below, 53 flat $3). Why fine. Moved the answer to slot 1."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: 1R = 80 - 77 = 3, 5R = 80 + 15 = $95; calc matches. h04 gives 5R as the second trim. New numbers no longer share q29's R. Stem names 5R, which only higher-rung q37 needs."
+   "notes": "Calc 95.0. 85 flat $5, 92 = 4R, 65 below the entry. Why walks the steps."
   },
   "q31": {
    "status": "pass",

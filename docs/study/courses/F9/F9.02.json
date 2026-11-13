@@ -504,9 +504,9 @@
    "key": "q06",
    "skill": "risk.size_from_stop",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You'll risk $300 on this trade. Your stop is $1.50 below your entry. How many shares do you buy?",
-   "answer": 200,
+   "answer": "200 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -516,7 +516,7 @@
     }
    },
    "suffix": "shares",
-   "why": "200 shares. Divide the $300 you will risk by the $1.50 your stop sits below your entry. That is the risk per share. 200 shares at $1.50 each lose $300 if the stop fills. A gap past the stop could cost more.",
+   "why": "200 shares. Risk per share is $1.50, the gap from entry to stop. Divide $300 by $1.50 to get 200. A gap past the stop could cost more.",
    "lesson_line": "Dollars at risk over risk per share gives the risk-based share count.",
    "facts": [
     "f02",
@@ -530,7 +530,18 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "450 shares",
+    "2,000 shares",
+    "200 shares",
+    "150 shares"
+   ],
+   "wrong": {
+    "450 shares": "Multiplied $300 by $1.50 instead of dividing.",
+    "2,000 shares": "Decimal slip: moved the decimal in the stop gap.",
+    "150 shares": "Rounded the $1.50 stop gap up to $2."
+   }
   },
   {
    "key": "q07",
@@ -598,9 +609,9 @@
    "key": "q09",
    "skill": "risk.size_from_stop",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Account $48,000, risking 0.5%. Entry $50, stop $48.50. How many shares?",
-   "answer": 160,
+   "answer": "160 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -611,7 +622,7 @@
     }
    },
    "suffix": "shares",
-   "why": "160 shares. First take 0.5% of the $48,000 account. That is your dollars at risk. Then divide by the distance from $50 to $48.50, which is your risk per share. Round down if it does not divide evenly. The method is Investopedia's: account risk divided by trade risk. Stopped out at $48.50, you lose about 0.5% of the account.",
+   "why": "160 shares. Dollars at risk are 0.5% of $48,000, which is $240. Risk per share is the gap from $50 to $48.50. Divide $240 by that gap to get 160.",
    "lesson_line": "Account times risk %, then divide by entry minus stop.",
    "facts": [
     "f05",
@@ -626,15 +637,26 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "240 shares",
+    "160 shares",
+    "1,600 shares",
+    "480 shares"
+   ],
+   "wrong": {
+    "240 shares": "Stopped after the dollar risk and never divided by the stop gap.",
+    "1,600 shares": "Decimal slip: made the risk ten times too big.",
+    "480 shares": "Divided $240 by the risk percent instead of by the stop gap."
+   }
   },
   {
    "key": "q10",
    "skill": "risk.size_from_stop",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You risk 1% of the account. Your stop is 5% below entry. What percent of the account goes into the stock?",
-   "answer": 20,
+   "answer": "20%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -644,7 +666,7 @@
     }
    },
    "suffix": "%",
-   "why": "20%. Position percent is risk percent divided by stop percent, so 1% over 5%. Check it: a 5% drop on 20% of the account costs 1% of the account. This is the shares rule written in percents. It assumes you sell at the stop. A gap past it can cost more than you planned.",
+   "why": "20%. Position percent is risk percent divided by stop percent. 1% divided by 5% is 0.2, which is 20%. Check it: a 5% drop on 20% of the account costs 1%.",
    "lesson_line": "Position % equals risk % divided by stop distance %.",
    "facts": [
     "h02",
@@ -659,15 +681,26 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "5%",
+    "0.2%",
+    "4%",
+    "20%"
+   ],
+   "wrong": {
+    "5%": "Used the stop percent as the position size.",
+    "0.2%": "Divided but forgot to turn it back into a percent.",
+    "4%": "Subtracted 1 from 5 instead of dividing."
+   }
   },
   {
    "key": "q11",
    "skill": "risk.size_from_stop",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your position is 25% of the account. The stop is 4% below entry. What percent of the account do you lose if the stop fills?",
-   "answer": 1,
+   "answer": "1%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -677,7 +710,7 @@
     }
    },
    "suffix": "%",
-   "why": "1%. Risk is position size times stop distance: 25% of the account times a 4% drop. This is the size rule run backward, where position percent is risk percent over stop percent. It assumes you sell at the stop. A gap past it can cost more than you planned.",
+   "why": "1%. Risk is position size times stop distance. 25% of the account times a 4% drop costs 1% of the account.",
    "lesson_line": "Size times stop distance is your real risk.",
    "facts": [
     "h02",
@@ -692,7 +725,18 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "100%",
+    "1%",
+    "6.25%",
+    "21%"
+   ],
+   "wrong": {
+    "100%": "Multiplied 25 by 4 and forgot to divide by 100.",
+    "6.25%": "Divided the position by the stop instead of multiplying.",
+    "21%": "Subtracted the stop percent from the position percent."
+   }
   },
   {
    "key": "q12",
@@ -942,9 +986,9 @@
    "key": "q18",
    "skill": "risk.size_from_stop",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "StockCharts' MNST example: $50,000 account, 1% risk, entry $86, stop at support $71. How many shares?",
-   "answer": 33,
+   "answer": "33 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -955,7 +999,7 @@
     }
    },
    "suffix": "shares",
-   "why": "33 shares. Your risk is 1% of the $50,000 account, which is $500. Divide it by the distance from the $86 entry to the $71 stop, and round down. StockCharts says that if the trade fails you lose around 1%, or approximately $500. The example's other stop is tighter, so it allows more shares for the same loss. This is StockCharts' example. Our stops usually sit within about 3% of the buy.",
+   "why": "33 shares. Risk is 1% of $50,000, which is $500. Risk per share is the gap from the $86 entry to the $71 stop. Divide $500 by that gap and round down to 33.",
    "lesson_line": "Pick the stop from support, then let the math set the shares.",
    "facts": [
     "f22",
@@ -976,7 +1020,18 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "333 shares",
+    "6 shares",
+    "33 shares",
+    "7 shares"
+   ],
+   "wrong": {
+    "333 shares": "Decimal slip: risked ten times too much.",
+    "6 shares": "Divided by the $86 entry price, not the stop gap.",
+    "7 shares": "Divided by the $71 stop price, not the stop gap."
+   }
   },
   {
    "key": "q19",
@@ -1030,9 +1085,9 @@
    "key": "q20",
    "skill": "risk.size_from_stop",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Account $60,000, risking 0.75%. You buy at $125.40 with the stop at $121.10, a few cents under the day's low. How many shares?",
-   "answer": 104,
+   "answer": "104 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -1043,7 +1098,7 @@
     }
    },
    "suffix": "shares",
-   "why": "104 shares. Take 0.75% of $60,000 as your dollars at risk. Divide by the distance from $125.40 to $121.10. Round the result down to 104. Rounding up would risk more than you planned. Our default stop sits a few cents under the day's low, which is where this one is.",
+   "why": "104 shares. Dollars at risk are 0.75% of $60,000, which is $450. Risk per share is the gap from $125.40 to $121.10. Divide $450 by that gap and round down to 104.",
    "lesson_line": "Real prices are messy. Do the math and round down, so you stay inside your risk.",
    "facts": [
     "h01",
@@ -1063,7 +1118,18 @@
      "the stop is a few cents under the low, as the owner's rulebook says (h01, A3, F62)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "1,046 shares",
+    "112 shares",
+    "450 shares",
+    "104 shares"
+   ],
+   "wrong": {
+    "112 shares": "Rounded the prices to whole dollars, which shrank the stop gap.",
+    "450 shares": "Used the dollar risk as the share count.",
+    "1,046 shares": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q21",
@@ -1261,10 +1327,10 @@
    "key": "q26",
    "skill": "risk.size_from_stop",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "You risk 1% and the stop is 2% below entry, so risk math says 50%. Our cap is 40%. At 40%, what percent of the account do you risk?",
-   "answer": 0.8,
+   "answer": "0.8%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1282,7 +1348,7 @@
    ],
    "tier": "extended",
    "simple": "You risk 0.8%, because a 2% drop on a 40% position costs 0.8% of the account.",
-   "why": "0.8%. The size is the smaller of the risk-based size and the cap, so you hold 40%, not 50%. Risk is position size times stop distance: a 2% drop on 40% of the account. That is below your 1% plan, because the cap held you back. It assumes you sell at the stop. A gap past it can cost more than you planned.",
+   "why": "0.8%. The cap holds you to 40%, not 50%. Risk is position size times stop distance. 40% of the account times a 2% drop is 0.8%.",
    "risk": {
     "score": 4,
     "reasons": [
@@ -1290,7 +1356,18 @@
      "rests on the owner's rulebook (A5, A7)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "1%",
+    "8%",
+    "2%",
+    "0.8%"
+   ],
+   "wrong": {
+    "1%": "Ignored the cap and assumed you still risk your plan.",
+    "8%": "Decimal slip: moved the decimal one place.",
+    "2%": "Took the stop distance as the loss on the account."
+   }
   },
   {
    "key": "q27",
@@ -1399,7 +1476,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "300 / 1.5 = 200. Calc args match the question."
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q07": {
    "status": "pass",
@@ -1417,20 +1494,20 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "0.5% of 48,000 = 240; 240/1.5 = 160 exactly; position about 16.7%, cap not binding. Calc args now match the stem. No tell."
+   "fixed": true,
+   "notes": "Why skipped the dollar-risk step."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1 / 5 = 20%, under the 40% cap. Consistent with h02 and rulebook section 3."
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "25% x 4% = 1%. Caveat on gaps present."
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q12": {
    "status": "pass",
@@ -1473,7 +1550,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "500 / 15 = 33.3, so 33. Matches StockCharts MNST ($86, $71, $50,000, 1%). Labelled as StockCharts' example; h09 noted."
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q19": {
    "status": "pass",
@@ -1484,8 +1561,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "0.75% of 60,000 = 450; 450/4.30 = 104.65, floor 104; rounding trap is 105. Stop is a few cents under the low (F62). Position about 21.7%, under cap."
+   "fixed": true,
+   "notes": "Why skipped the $450 and $4.30 steps."
   },
   "q21": {
    "status": "pass",
@@ -1520,8 +1597,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Risk math 1/2 = 50%, cap 40% binds, 40 x 2 / 100 = 0.8. Matches A5 and A7; stem gives every input."
+   "fixed": true,
+   "notes": "Wrong note on 8% was false: forgetting the /100 gives 80%, not 8%. Relabelled as a decimal slip."
   },
   "q27": {
    "status": "pass",

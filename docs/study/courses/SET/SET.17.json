@@ -1851,10 +1851,10 @@
    "key": "q20",
    "skill": "setup.wedge_drop",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wd.stop_width",
-   "q": "Short at 55.16 with the stop at 56.28. How far above the fill is the stop, in percent, to two decimals?",
-   "answer": 2.03,
+   "q": "Short at 55.16 with the stop at 56.28. How far above the fill is the stop, in percent?",
+   "answer": "2.03%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1864,7 +1864,7 @@
     },
     "round": 2
    },
-   "why": "2.03%. The stop minus the fill, divided by the fill: (56.28 - 55.16) / 55.16. That fits inside the 3% a stop usually sits within, and it is a loss on the position, not the account. It was WHR's stop in August 2002.",
+   "why": "2.03%. The stop minus the fill, over the fill: (56.28 - 55.16) / 55.16 x 100 = 2.03%. That fits inside the 3% a stop usually sits within, and it is a loss on the position, not the account. It was WHR's stop in August 2002.",
    "lesson_line": "Stop first, distance second, size last. Measure the distance before the size.",
    "facts": [
     "h04",
@@ -1872,7 +1872,7 @@
     "d01"
    ],
    "house": true,
-   "suffix": "%",
+   "suffix": "",
    "simple": "The stop is 2.03% above the fill. That is the gap between them divided by the fill, and it fits inside 3%.",
    "tier": "core",
    "risk": {
@@ -1882,7 +1882,19 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "1.12%",
+    "98.0%",
+    "20.3%",
+    "2.03%"
+   ],
+   "wrong": {
+    "1.12%": "Used the dollar gap as if it were the percent.",
+    "20.3%": "A decimal slip, one place too far right.",
+    "98.0%": "Gave the fill as a share of the stop, not the gap between them."
+   },
+   "prefix": ""
   },
   {
    "key": "q21",
@@ -1968,10 +1980,10 @@
    "key": "q23",
    "skill": "setup.wedge_drop",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wd.trim_1",
    "q": "Shorted at 45.96 with the stop at 46.89. Where is 3R?",
-   "answer": 43.17,
+   "answer": "$43.17",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1981,14 +1993,14 @@
     },
     "round": 2
    },
-   "why": "43.17. One R is the stop minus the fill, 46.89 - 45.96. Three of those below the fill is 3R, and that is 43.17. It is a measuring stick, not a cover order. PCG reached 3R on day 10.",
+   "why": "$43.17. One R is the stop minus the fill: 46.89 - 45.96. Three R below the fill is 45.96 - 3 x (46.89 - 45.96) = 43.17. It is a measuring stick, not a cover order. PCG reached 3R on day 10.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a cover order.",
    "facts": [
     "d03",
     "r54"
    ],
    "house": true,
-   "prefix": "$",
+   "prefix": "",
    "simple": "3R is the fill minus three times the stop distance, so 43.17. It is a measuring stick, not a cover order.",
    "tier": "core",
    "risk": {
@@ -1998,7 +2010,19 @@
      "the first cover is the owner's D-013 judgment, not a fixed 3R cover"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$48.75",
+    "$43.17",
+    "$44.10",
+    "$42.24"
+   ],
+   "wrong": {
+    "$48.75": "Added the 3R to the fill. On a short, 3R is below the fill.",
+    "$44.10": "Counted 3R down from the stop, which is only two R below the fill.",
+    "$42.24": "Went four R down, counting the fill as the first one."
+   },
+   "suffix": ""
   },
   {
    "key": "q24",
@@ -2125,10 +2149,10 @@
    "key": "q27",
    "skill": "setup.wedge_drop",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wd.trim_2",
    "q": "Shorted at 78.94, stop 80.77. The stock trades down to 69.79. How many R is that?",
-   "answer": 5.0,
+   "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -2139,7 +2163,7 @@
     },
     "round": 1
    },
-   "why": "5R. One R is the stop minus the fill, 80.77 - 78.94. The gain is the fill minus the price, 78.94 - 69.79. The gain divided by one R is 5.0. That is a measure, not a fixed cover price. EXP reached 3R in three sessions on the way.",
+   "why": "5.0R. One R is the stop minus the fill: 80.77 - 78.94. The gain is the fill minus the price: 78.94 - 69.79. Gain over R: (78.94 - 69.79) / (80.77 - 78.94) = 5.0. That is a measure, not a fixed cover price. EXP reached 3R in three sessions on the way.",
    "lesson_line": "Count a short in R too. The gain divided by one R is the R.",
    "facts": [
     "d09",
@@ -2147,8 +2171,8 @@
     "r54"
    ],
    "house": true,
-   "suffix": "R",
-   "simple": "The fall from the fill is five times the stop distance, so it is 5R.",
+   "suffix": "",
+   "simple": "The fall from the fill is 5.0 times the stop distance, so it is 5.0R.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2157,7 +2181,19 @@
      "when to cover is the owner's D-013 judgment"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "6.0R",
+    "9.2R",
+    "0.2R",
+    "5.0R"
+   ],
+   "wrong": {
+    "6.0R": "Measured the fall from the stop, not from the fill.",
+    "9.2R": "Used the dollar gain without dividing by one R.",
+    "0.2R": "Flipped the division: one R over the gain."
+   },
+   "prefix": ""
   },
   {
    "key": "q28",
@@ -2605,10 +2641,10 @@
    "key": "q40",
    "skill": "setup.wedge_drop",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wd.stop",
    "q": "Account 50,000. Risk 1%. Short at 131.23, stop 134.79. How many shares?",
-   "answer": 140,
+   "answer": "140 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2619,7 +2655,7 @@
     },
     "round": 0
    },
-   "why": "140 shares. Risk is 1% of 50,000. Divide it by the stop minus the fill, 134.79 - 131.23, and round down to 140. The stop sets the size, never the other way round.",
+   "why": "140 shares. Risk is 50,000 x 1%. Risk per share is the stop minus the fill: 134.79 - 131.23. Divide the first by the second and round down to 140. The stop sets the size, never the other way round.",
    "lesson_line": "Risk sets the size. Divide the dollars you risk by the distance to the stop.",
    "facts": [
     "h03",
@@ -2627,7 +2663,7 @@
     "d07"
    ],
    "house": true,
-   "suffix": " shares",
+   "suffix": "",
    "simple": "Divide the 1% risk by the distance to the stop, then round down. That gives 140 shares.",
    "tier": "extended",
    "risk": {
@@ -2636,7 +2672,19 @@
      "+2 a computed key"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "381 shares",
+    "184 shares",
+    "140 shares",
+    "1,404 shares"
+   ],
+   "wrong": {
+    "381 shares": "Divided the account by the price and ignored the stop.",
+    "184 shares": "Divided the risk dollars by the stop's percent, not by the dollars per share.",
+    "1,404 shares": "Typed the risk as ten times too big, so the share count came out ten times too big."
+   },
+   "prefix": ""
   },
   {
    "key": "q41",
@@ -3024,10 +3072,10 @@
    "key": "q51",
    "skill": "setup.wedge_drop",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wd.not_stretched",
    "q": "The 10-day average is 40.00 and the stock opens at 36.40. How far under the average is the open, in percent?",
-   "answer": 9.0,
+   "answer": "9.0%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3037,15 +3085,15 @@
     },
     "round": 1
    },
-   "why": "9%. Take the average minus the open, divide by the average, and multiply by 100: (40.00 - 36.40) / 40.00. That is under 10%, so this test does not stop the short at that open. We skip a short more than 10% under its 10-day average, checked at the open on a gap down.",
+   "why": "9.0%. The open is under the average by (40.00 - 36.40) / 40.00 x 100 = 9.0%. That is under 10%, so this test does not stop the short at that open. We skip a short more than 10% under its 10-day average, checked at the open on a gap down.",
    "lesson_line": "Check the stretch at the open on a gap down. Past 10% under the 10-day, pass.",
    "facts": [
     "c50",
     "h12"
    ],
    "house": true,
-   "suffix": "%",
-   "simple": "Take the average minus the open and divide by the average. That is 9%, under the 10% line, so this test lets the short through.",
+   "suffix": "",
+   "simple": "Take the average minus the open and divide by the average. That is 9.0%, under the 10% line, so this test lets the short through.",
    "deeper": {
     "trap": "Divide by the average, not by the open. The average is the line the open sits under. Use average minus open, over average."
    },
@@ -3056,7 +3104,19 @@
      "+2 a computed key"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "0.9%",
+    "9.9%",
+    "3.6%",
+    "9.0%"
+   ],
+   "wrong": {
+    "9.9%": "Divided by the open, not by the average.",
+    "3.6%": "Used the dollar gap as if it were the percent.",
+    "0.9%": "A decimal slip. The open is far more than one percent under the average."
+   },
+   "prefix": ""
   },
   {
    "key": "q52",
@@ -3947,8 +4007,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(56.28-55.16)/55.16 = 2.03%. Stem asks for two decimals. Numbers from d01."
+   "fixed": true,
+   "notes": "Calc 2.03 ok. 20.3% and 0.20% both reused the answer's digits (a tell) and the 0.20% note misdescribed the slip. Replaced 0.20% with the fill-as-share-of-stop mistake (98.0%)."
   },
   "q21": {
    "status": "pass",
@@ -3966,7 +4026,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q24": {
    "status": "pass",
@@ -3990,7 +4050,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q28": {
    "status": "pass",
@@ -4069,7 +4129,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "500/3.56 = 140.45, rounded down to 140. Position is about 37% of the account, under the 40% cap (A7)."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q41": {
    "status": "pass",
@@ -4138,7 +4198,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(40-36.40)/40 = 9.0%. Stem says how far under the average, so the divisor is the average. Does not repeat q18's verdict."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q52": {
    "status": "cut",

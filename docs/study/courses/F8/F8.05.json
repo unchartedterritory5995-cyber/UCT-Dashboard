@@ -856,9 +856,9 @@
    "key": "q09",
    "skill": "psych.euphoria",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your rule is 1% risk on a $60,000 account. Feeling hot, you set up a trade risking $2,400. How many times your normal risk is that?",
-   "answer": 4,
+   "answer": "4 times",
    "calc": {
     "fn": "arith",
     "args": {
@@ -868,7 +868,7 @@
      "risk_pct": 1
     }
    },
-   "suffix": "times",
+   "suffix": "",
    "why": "4 times. Your normal risk is 1% of $60,000, and $2,400 is four of those. Your rule is a percent of the account, so check every trade in percent.",
    "lesson_line": "Measure every position against your rule in percent. Dollars can fool you.",
    "facts": [
@@ -884,7 +884,18 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "24 times",
+    "2.4 times",
+    "0.04 times",
+    "4 times"
+   ],
+   "wrong": {
+    "24 times": "Divided $2,400 by 100 instead of by the normal risk.",
+    "2.4 times": "Slipped a decimal place in the division.",
+    "0.04 times": "Divided the risk by the account only."
+   }
   },
   {
    "key": "q10",
@@ -1150,9 +1161,9 @@
    "key": "q17",
    "skill": "psych.euphoria",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A friend starts at 100 shares and doubles his size after every win. He wins five in a row. How many shares on trade six?",
-   "answer": 3200,
+   "answer": "3,200 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1160,7 +1171,7 @@
      "start": 100
     }
    },
-   "suffix": "shares",
+   "suffix": "",
    "why": "3,200 shares. 100 shares doubled five times is 3,200. Doubling after wins can work for a while in a strong trend. But doubling down on a winning bet exposes you to a single large loss that may wipe out the earlier gains.",
    "lesson_line": "Size that doubles on every win can hand the whole streak back in one loss.",
    "facts": [
@@ -1180,7 +1191,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "1,600 shares",
+    "6,400 shares",
+    "3,200 shares",
+    "600 shares"
+   ],
+   "wrong": {
+    "1,600 shares": "Doubled four times, one win short.",
+    "6,400 shares": "Doubled six times, once on trade six itself.",
+    "600 shares": "Added 100 shares per win instead of doubling."
+   }
   },
   {
    "key": "q18",
@@ -1424,7 +1446,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc 2400/(60000*1/100)=4 checked. Why grounded in f24/f26."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q10": {
    "status": "pass",
@@ -1473,7 +1495,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Deeper trap: 3,200 from calc, 100 from question, reversal hedged per f23."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q18": {
    "status": "pass",

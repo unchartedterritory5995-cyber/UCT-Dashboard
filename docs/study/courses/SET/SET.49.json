@@ -1589,10 +1589,10 @@
    "key": "q15",
    "skill": "setup.capitulation",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "cap.flush_day",
    "q": "Prior close 80.00, ATR 2.50, today's low 74.60. How many ATR under the prior close is the low?",
-   "answer": 2.16,
+   "answer": "2.16 ATR",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1620,16 +1620,27 @@
      "the 2 ATR flush line is a proposed card criterion"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "5.40 ATR",
+    "0.46 ATR",
+    "6.75 ATR",
+    "2.16 ATR"
+   ],
+   "wrong": {
+    "5.40 ATR": "Gave the dollar drop and skipped the ATR division.",
+    "0.46 ATR": "Flipped the division, ATR over the drop.",
+    "6.75 ATR": "Used the percent drop as ATR."
+   }
   },
   {
    "key": "q16",
    "skill": "setup.capitulation",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "cap.stretch_stock",
    "q": "The highest close of the last 10 sessions was 120.00 and the flush low is 100.00. How far is the drop, in percent?",
-   "answer": 16.7,
+   "answer": "16.7%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1656,16 +1667,27 @@
      "the 15% stretch is the dossier's proposal"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "83.3%",
+    "20.0%",
+    "16.7%",
+    "1.7%"
+   ],
+   "wrong": {
+    "20.0%": "Divided by the flush low, not the high close.",
+    "83.3%": "Gave the low as a share of the high.",
+    "1.7%": "Slipped the decimal point a place."
+   }
   },
   {
    "key": "q17",
    "skill": "setup.capitulation",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "cap.stretch_index",
    "q": "QQQ's 50-day is 500 and its ATR is 8. It closes at 472. How many ATR under the 50-day is it?",
-   "answer": 3.5,
+   "answer": "3.5 ATR",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1693,7 +1715,18 @@
      "the 3 ATR index stretch is a proposed card criterion"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "28.0 ATR",
+    "0.3 ATR",
+    "3.5 ATR",
+    "5.6 ATR"
+   ],
+   "wrong": {
+    "28.0 ATR": "Gave the gap in points and skipped the ATR division.",
+    "0.3 ATR": "Flipped the division, ATR over the gap.",
+    "5.6 ATR": "Used the percent gap as ATR."
+   }
   },
   {
    "key": "q18",
@@ -1875,10 +1908,10 @@
    "key": "q24",
    "skill": "setup.capitulation",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "cap.stop_width",
    "q": "Reclaim at 38.49, undercut low 38.31, stop at 38.26. How far is the stop, in percent?",
-   "answer": 0.6,
+   "answer": "0.6%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1915,16 +1948,27 @@
     "D-007",
     "D-041"
    ],
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "6.0%",
+    "0.6%",
+    "0.2%",
+    "23.0%"
+   ],
+   "wrong": {
+    "6.0%": "Slipped the decimal point a place.",
+    "0.2%": "Used the dollar gap as a percent.",
+    "23.0%": "Used the 23 cent gap as a percent."
+   }
   },
   {
    "key": "q25",
    "skill": "setup.capitulation",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "cap.trim_2",
    "q": "Entry 38.49, stop 38.26. Where is 5R?",
-   "answer": 39.64,
+   "answer": "39.64",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1934,7 +1978,7 @@
     },
     "round": 2
    },
-   "why": "39.64. One R is the risk per share, 38.49 minus 38.26. Add five of those to the entry of 38.49 and you reach 39.64. 5R is a mark to measure by. Selling at about 5 to 10R is often best.",
+   "why": "39.64. One R is the risk per share: 38.49 minus 38.26. Multiply that by five and add it to the 38.49 entry to reach 39.64. 5R is a mark to measure by. Selling at about 5 to 10R is often best.",
    "lesson_line": "5R is five risk units above the entry.",
    "facts": [
     "r11",
@@ -1953,7 +1997,18 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "38.72",
+    "39.64",
+    "39.41",
+    "39.87"
+   ],
+   "wrong": {
+    "38.72": "Added one R, not five.",
+    "39.41": "Added five R to the stop, not the entry.",
+    "39.87": "Added six R, one too many."
+   }
   },
   {
    "key": "q26",
@@ -3634,10 +3689,10 @@
    "key": "q68",
    "skill": "setup.capitulation",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "cap.position_adv",
    "q": "A bounce trade in a stock that averages 400,000 shares a day. Under our 1% rule, what is the most we can own?",
-   "answer": 4000,
+   "answer": "4,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3663,7 +3718,18 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "2,000 shares",
+    "40,000 shares",
+    "400 shares",
+    "4,000 shares"
+   ],
+   "wrong": {
+    "40,000 shares": "Slipped the decimal point up a place.",
+    "400 shares": "Slipped the decimal point down a place.",
+    "2,000 shares": "Halved the cap."
+   }
   },
   {
    "key": "q69",
@@ -4165,21 +4231,21 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "5.4/2.5 = 2.16. 5.40 skipped ATR, 0.46 = 2.5/5.4 flipped, 6.75 = 5.4/80 percent drop. Verified."
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "20/120 = 16.7%. 20.0 = 20/100, 83.3 = 100/120, 1.7 decimal slip. Verified."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(500-472)/8 = 3.5 by calc. Bracco's 3 ATR remark (u04) re-found; he applies it to the S&P, and the card treats QQQ as an index read (its own seed)."
+   "notes": "28/8 = 3.5. 28.0 skipped ATR, 0.3 = 8/28 flipped, 5.6 = 28/500 as percent. Verified."
   },
   "q18": {
    "status": "pass",
@@ -4207,15 +4273,15 @@
   },
   "q24": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "0.23/38.49 = 0.6%. 6.0 decimal slip, 0.2 dollar gap, 23.0 cents as percent. Real, though the last two are cousins."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "5R arithmetic; judgment cited."
+   "fixed": true,
+   "notes": "39.64 correct (38.49+5*0.23). Answer was the largest choice; swapped the subtract-5R choice for a six-R count slip (39.87) and wrote the steps into the why."
   },
   "q27": {
    "status": "pass",
@@ -4500,9 +4566,9 @@
   },
   "q68": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "1% of 400,000 = 4,000. 40,000 and 400 decimal slips, 2,000 half the cap. Fine."
   },
   "q69": {
    "status": "cut",

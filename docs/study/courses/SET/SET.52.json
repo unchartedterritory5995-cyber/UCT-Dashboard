@@ -1114,10 +1114,10 @@
    "key": "q15",
    "skill": "setup.wick_play",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wk.day1_wick",
    "q": "Day 1: open 32.46, high 34.00, low 31.83, close 32.11. The upper wick is what percent of the day's range?",
-   "answer": 71,
+   "answer": "71%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1146,7 +1146,18 @@
      "the minimum wick size is held in D-116 (no threshold is keyed)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "87%",
+    "71%",
+    "29%",
+    "5%"
+   ],
+   "wrong": {
+    "87%": "Measured from the close, not the body top.",
+    "29%": "Measured the part under the open.",
+    "5%": "Divided by the price, not the range."
+   }
   },
   {
    "key": "q16",
@@ -1282,10 +1293,10 @@
    "key": "q20",
    "skill": "setup.wick_play",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wk.stop_a",
    "q": "Day 2's high is 190.70 and its low is 189.04. The stop sits 3 cents under day 2's low. Where is the stop?",
-   "answer": 189.01,
+   "answer": "$189.01",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1312,16 +1323,27 @@
      "house stop rule (F62); the day-3 stop is pending D-115"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "$189.04",
+    "$189.07",
+    "$189.01",
+    "$190.67"
+   ],
+   "wrong": {
+    "$189.04": "Put the stop right on the low.",
+    "$189.07": "Put the stop above the low.",
+    "$190.67": "Went 3 cents under the high."
+   }
   },
   {
    "key": "q21",
    "skill": "setup.wick_play",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wk.trim_1",
    "q": "You buy at 30.70 with the stop at 30.32. What price is 3R?",
-   "answer": 31.84,
+   "answer": "$31.84",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1331,7 +1353,7 @@
     },
     "round": 2
    },
-   "why": "31.84. One R is the fill minus the stop. Multiply it by three and add it to the fill. 3R is a measuring stick, not an automatic sale, because the first sell is a judgment. 3R means three times the risk per share, not 3% over the buy.",
+   "why": "31.84. One R is the fill minus the stop: 30.70 minus 30.32. Multiply it by three and add it to the 30.70 fill. 3R is a measuring stick, not an automatic sale, because the first sell is a judgment. 3R means three times the risk per share, not 3% over the buy.",
    "lesson_line": "Know your 3R before the open. The first sell is a judgment.",
    "facts": [
     "dSW",
@@ -1348,7 +1370,18 @@
      "house trim rule from the owner's rulebook (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$31.62",
+    "$31.84",
+    "$31.08",
+    "$32.22"
+   ],
+   "wrong": {
+    "$31.08": "Added one R, not three.",
+    "$31.62": "Took 3% over the buy, not three R.",
+    "$32.22": "Added four R, one too many."
+   }
   },
   {
    "key": "q22",
@@ -1473,10 +1506,10 @@
    "key": "q25",
    "skill": "setup.wick_play",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wk.stop_width",
    "q": "Trigger 190.71, stop 189.01. How wide is the stop in percent?",
-   "answer": 0.89,
+   "answer": "0.89%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1486,7 +1519,7 @@
     },
     "round": 2
    },
-   "why": "0.89%. Take the trigger minus the stop, divide by the trigger and multiply by 100. That is well inside the 3% our stop usually stays within. The 3% is a usual width, a loss on the position, not a hard limit and not a loss on the account.",
+   "why": "0.89%. The stop gap is the trigger minus the stop: 190.71 minus 189.01. Divide that by the trigger, 190.71, and multiply by 100. That is 0.89%, well inside the 3% our stop usually stays within. The 3% is a usual width, a loss on the position, not a hard limit and not a loss on the account.",
    "lesson_line": "Measure the stop in percent before you size.",
    "facts": [
     "h04",
@@ -1503,16 +1536,27 @@
      "house rule (A13); the day-3 buy and stop are pending D-115"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "1.70%",
+    "8.90%",
+    "99.11%",
+    "0.89%"
+   ],
+   "wrong": {
+    "1.70%": "Used the dollar gap as a percent.",
+    "8.90%": "Slipped the decimal point a place.",
+    "99.11%": "Gave the stop as a share of the trigger."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.wick_play",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wk.stop_width",
    "q": "Account 50,000. You risk 1%. Buy at 33.64, stop at 32.54. How many shares?",
-   "answer": 454,
+   "answer": "454 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -1523,7 +1567,7 @@
     },
     "round": 0
    },
-   "why": "454 shares. Stop first, then the size from the stop. Take the account times the risk percent, divide by the entry minus the stop and round down. Then apply the caps. 454 shares cost well under 40% of the account, so that cap does not bind.",
+   "why": "454 shares. Stop first, then the size from the stop. The dollar risk is 50,000 times 1%. Divide it by the buy minus the stop, 33.64 minus 32.54, and round down. Then apply the caps. 454 shares cost well under 40% of the account, so that cap does not bind.",
    "lesson_line": "The stop sets the size.",
    "facts": [
     "h31",
@@ -1545,7 +1589,18 @@
      "fixed before (40% cap note added 2026-11-10)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "4,545 shares",
+    "594 shares",
+    "909 shares",
+    "454 shares"
+   ],
+   "wrong": {
+    "594 shares": "Sized to the 40% cap, not to the risk.",
+    "909 shares": "Doubled the risk percent.",
+    "4,545 shares": "Used ten times the risk percent."
+   }
   },
   {
    "key": "q27",
@@ -1776,10 +1831,10 @@
    "key": "q33",
    "skill": "setup.wick_play",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wk.stop_gap",
    "q": "Bought at 91.40, stop at 88.89. The next day opens at 77.80. How many R is the loss at the open?",
-   "answer": 5.42,
+   "answer": "5.42R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1812,7 +1867,18 @@
      "fixed before (q48 cut, q33 made pure B20 arithmetic)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "13.60R",
+    "4.42R",
+    "5.42R",
+    "0.18R"
+   ],
+   "wrong": {
+    "13.60R": "Gave the dollar loss and skipped the R division.",
+    "4.42R": "Measured the loss from the stop, not the buy.",
+    "0.18R": "Flipped the division, risk over the loss."
+   }
   },
   {
    "key": "q34",
@@ -3219,9 +3285,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "1.54/2.17 = 71%. 87 = 1.89/2.17 from the close, 29 the part under the open, 5 = 1.54/32.46. Verified."
   },
   "q16": {
    "status": "pass",
@@ -3251,13 +3317,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc 189.04 - 0.03 = 189.01 recomputed; cStopA, h24, dME on file; the why says 3 cents is the example's choice."
+   "notes": "189.04-0.03 = 189.01. The 3-cent gaps are the point of the question (on the low, above it, off the high). Fine."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "fixed": true,
+   "notes": "31.84 correct (30.70+3*0.38). Answer was the largest choice; replaced the add-to-the-stop choice with a four-R count slip (32.22) and shuffled."
   },
   "q22": {
    "status": "pass",
@@ -3281,13 +3347,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc (190.71 - 189.01) / 190.71 x 100 = 0.89 recomputed; h04 'about 3%', a loss on the position, stated correctly."
+   "notes": "1.70/190.71 = 0.89%. 1.70 dollar gap, 8.90 slip, 99.11 share. Verified."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "shares_from_risk 500 / 1.10 = 454.5, rounded down 454 recomputed; 454 x 33.64 = 30.5% of 50,000, under h32's 40%. Trap note correct."
+   "notes": "500/1.10 = 454.5, down to 454. 594 = 20000/33.64 cap, 909 doubled, 4,545 ten times. Verified."
   },
   "q27": {
    "status": "pass",
@@ -3330,7 +3396,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc (91.40 - 77.80) / (91.40 - 88.89) = 5.42 recomputed; stop given in the question; h06, h07 verbatim, past 2R get out. '15% lower' is dSH's own words."
+   "notes": "13.60/2.51 = 5.42R. 13.60 dollars, 4.42 from the stop, 0.18 flipped. Verified."
   },
   "q34": {
    "status": "pass",

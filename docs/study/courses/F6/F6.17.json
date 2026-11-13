@@ -949,9 +949,9 @@
    "key": "q09",
    "skill": "options.manage",
    "rung": 4,
-   "format": "numeric",
-   "q": "You bought 6 calls at $1.80. They double to $3.60, and you sell 3. How much cash comes back, in dollars?",
-   "answer": 1080,
+   "format": "mcq",
+   "q": "You bought 6 calls at $1.80. They double to $3.60, and you sell 3. How much cash comes back?",
+   "answer": "$1,080",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -980,7 +980,18 @@
      "fixed before (lesson line, 2026-11-09)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$10.80",
+    "$540",
+    "$2,160",
+    "$1,080"
+   ],
+   "wrong": {
+    "$540": "Sells the 3 at the old $1.80 price.",
+    "$2,160": "Counts all 6 contracts. You sold only 3.",
+    "$10.80": "Forgets that one contract covers 100 shares."
+   }
   },
   {
    "key": "q10",
@@ -1031,9 +1042,9 @@
    "key": "q11",
    "skill": "options.manage",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "E*TRADE says some traders close an option at a 50% loss. On a call bought for $3.20, at what option price do they exit?",
-   "answer": 1.6,
+   "answer": "$1.60",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1058,7 +1069,18 @@
      "fixed before (question text, 2026-11-09)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$4.80",
+    "$6.40",
+    "$2.70",
+    "$1.60"
+   ],
+   "wrong": {
+    "$4.80": "Adds 50 percent instead of taking it off.",
+    "$6.40": "That is the double-your-money exit, not the 50% loss exit.",
+    "$2.70": "Takes 50 cents off instead of 50 percent."
+   }
   },
   {
    "key": "q12",
@@ -1103,9 +1125,9 @@
    "key": "q13",
    "skill": "options.manage",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your 50 call is worth $7.00. You sell it and buy the 55 call for $3.50. How much cash comes back, per contract?",
-   "answer": 350,
+   "answer": "$350",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1131,7 +1153,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$3.50",
+    "$1,050",
+    "$350",
+    "$700"
+   ],
+   "wrong": {
+    "$3.50": "Forgets that one contract covers 100 shares.",
+    "$1,050": "Adds the two prices instead of taking the difference.",
+    "$700": "Counts only the cash from selling the 50 call."
+   }
   },
   {
    "key": "q14",
@@ -1200,9 +1233,9 @@
    "key": "q16",
    "skill": "options.manage",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your call expiring Friday is bid $0.90. The same strike two months out costs $3.10. What does rolling out cost, per contract?",
-   "answer": 220,
+   "answer": "$220",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1233,15 +1266,26 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$400",
+    "$220",
+    "$310",
+    "$2.20"
+   ],
+   "wrong": {
+    "$400": "Adds the two prices. You sell one call and buy the other.",
+    "$310": "Counts only the new call and forgets the $0.90 you get back.",
+    "$2.20": "Forgets that one contract covers 100 shares."
+   }
   },
   {
    "key": "q17",
    "skill": "options.manage",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You sold a put spread for $1.20. It costs $0.25 to close now. Hold to expiry instead: what's the most extra you can make per spread?",
-   "answer": 25,
+   "answer": "$25",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1266,7 +1310,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$95",
+    "$120",
+    "$25",
+    "$0.25"
+   ],
+   "wrong": {
+    "$120": "Thinks you can still make the whole credit. Most of it is already made.",
+    "$95": "Gives what closing now already earns, not what is left to make.",
+    "$0.25": "Forgets that one contract covers 100 shares."
+   }
   },
   {
    "key": "q18",
@@ -1725,8 +1780,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 3 x 3.60 x 100 = 1080 matches. Equality with the 6 x $1.80 cost is now said in words, not a second unbacked number. Deeper example and why consistent with f06, f52."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
   },
   "q10": {
    "status": "pass",
@@ -1738,7 +1793,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc 3.20 x 0.5 = 1.60 is right; f65 quote supports the 50% exit. Two defects: (1) lesson_line says 'one trader's plan' but f65 says 'Some options traders' (plural), so the line misstates the source. (2) 'where is that exit?' with prefix $ is ambiguous in a lesson whose other numerics (q09, q13, q16, q17) answer in dollars per contract (x100); a member can fairly type 160. Stem now asks for the option price. 119 chars."
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
   },
   "q12": {
    "status": "pass",
@@ -1750,8 +1805,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold calc (7.00 - 3.50) x 100 = 350, matches key and calc. f18 (OIC Tier 1) supports selling and buying a more distant strike for a credit; f67 for protecting part of the profit; f06 for the new premium still at risk; f52 for x100. All numbers from the question. No second reading: 'per contract' and 'cash comes back' fix the net credit. Does not give away q16 (roll out cost) or q09."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
   },
   "q14": {
    "status": "pass",
@@ -1767,15 +1822,15 @@
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
   },
   "q18": {
    "status": "pass",

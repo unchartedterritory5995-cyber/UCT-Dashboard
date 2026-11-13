@@ -943,9 +943,9 @@
    "key": "q09",
    "skill": "fund.earnings_decision",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your position is 20% of the account. A report gaps it down 15% at the open. What share of the account did you lose?",
-   "answer": 3,
+   "answer": "3%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -970,7 +970,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "5%",
+    "15%",
+    "1.3%",
+    "3%"
+   ],
+   "wrong": {
+    "5%": "Subtracted the gap from the position size instead of multiplying.",
+    "1.3%": "Divided the position size by the gap.",
+    "15%": "Gave the stock's drop and ignored how big the position was."
+   }
   },
   {
    "key": "q10",
@@ -1055,9 +1066,9 @@
    "key": "q12",
    "skill": "fund.earnings_decision",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your position is 30% of the account. You sell half before the report. It gaps down 10%. What share of the account did you lose?",
-   "answer": 1.5,
+   "answer": "1.5%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1068,7 +1079,7 @@
     }
    },
    "suffix": "%",
-   "why": "1.5% of the account. You sold half before the report, so only half of a 30% position rode into the gap. 10% off that half is 1.5% of the account. The half you kept still took the full 10% drop. A trim lowers what a gap costs. It doesn't remove it.",
+   "why": "1.5% of the account. You sold half before the report, so you kept half of a 30% position. Half of 30% is 15%. A 10% gap on 15% of the account is 1.5%. A trim lowers what a gap costs. It doesn't remove it.",
    "lesson_line": "Selling half before a report halves what the gap costs. The shares you keep take the full drop.",
    "facts": [
     "f48",
@@ -1084,15 +1095,26 @@
      "inputs changed in wave6 so it no longer reuses q09's numbers"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "3%",
+    "0.75%",
+    "15%",
+    "1.5%"
+   ],
+   "wrong": {
+    "3%": "Let the whole position take the gap and ignored the sale.",
+    "0.75%": "Cut the gap in half as well as the position.",
+    "15%": "Gave the size of the half you kept, not the loss on it."
+   }
   },
   {
    "key": "q13",
    "skill": "fund.earnings_decision",
    "rung": 5,
-   "format": "numeric",
-   "q": "You're up 2% on a stock. A report gaps it down 15%. How far below your entry price are you now, in percent?",
-   "answer": 13.3,
+   "format": "mcq",
+   "q": "You're up 2% on a stock. A report gaps it down 15%. How far below your entry price are you now?",
+   "answer": "13.3%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1102,7 +1124,7 @@
     }
    },
    "suffix": "%",
-   "why": "13.3% below your entry. The gap takes 15% off today's price, and today's price is only 2% above your entry. The 2% gain absorbs only the first sliver of the drop. The rest comes out of your money. You can't just subtract 2 from 15, because the gap comes off the higher price.",
+   "why": "13.3% below your entry. The 15% gap comes off today's price, which is 15.3% of your entry. Your 2% gain covers part of that. 15.3% minus 2% is 13.3% below. You can't just subtract 2 from 15, because the gap comes off the higher price.",
    "lesson_line": "A small gain is no cushion. A gap goes straight through it and into your money.",
    "facts": [
     "f49",
@@ -1120,7 +1142,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "17.0%",
+    "15.3%",
+    "13.3%",
+    "1.3%"
+   ],
+   "wrong": {
+    "15.3%": "Took the gap off the higher price but forgot to subtract your gain.",
+    "17.0%": "Added your gain to the gap instead of taking it off.",
+    "1.3%": "Slipped a decimal place."
+   }
   },
   {
    "key": "q14",
@@ -1264,9 +1297,9 @@
    "key": "q18",
    "skill": "fund.earnings_decision",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You own 500 shares, sell stop at $34. A report gaps the stock to $32 and your stop fills there. How much more did you lose than planned?",
-   "answer": 1000,
+   "answer": "$1,000",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1277,7 +1310,7 @@
     }
    },
    "prefix": "$",
-   "why": "$1,000 more than planned. You planned to sell at $34 and sold at $32. That's the drop from $34 to $32 on each of 500 shares. This is Schwab's own gap example: the $34 sell stop triggers at the open and fills at $32. The stop decided when you sold. The gap decided the price.",
+   "why": "$1,000 more than planned. You planned to sell at $34 and sold at $32, which is $2 less per share. $2 times 500 shares is $1,000. This is Schwab's own gap example: the $34 sell stop triggers at the open and fills at $32. The stop decided when you sold. The gap decided the price.",
    "lesson_line": "Plan the earnings loss from the gap, not from the stop.",
    "facts": [
     "f17",
@@ -1297,7 +1330,18 @@
      "Schwab page unreachable on 2026-11-12, last confirmed 2026-11-09"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$2",
+    "$16,000",
+    "$1,000",
+    "$10,000"
+   ],
+   "wrong": {
+    "$2": "Gave the loss per share and skipped the share count.",
+    "$16,000": "Gave the sale proceeds, not the extra loss.",
+    "$10,000": "Slipped a decimal place on the dollars."
+   }
   },
   {
    "key": "q19",
@@ -1634,9 +1678,9 @@
    "key": "q27",
    "skill": "fund.earnings_decision",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You bought at $50 with a stop at $48. The day before the report, the stock is at $62. How many R are you up?",
-   "answer": 6,
+   "answer": "6R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -1646,7 +1690,7 @@
     }
    },
    "suffix": "R",
-   "why": "6R. R is your first risk per share: your entry minus your stop, so $50 minus $48. The rise from $50 to $62 is six times that. Our rule: hold through a report only if the trade is up 5R. At 6R, this one may stay in.",
+   "why": "6R. R is your first risk per share: entry minus stop, so $50 minus $48. The stock rose $12, from $50 to $62. That rise is six times the risk, so it is 6R. Our rule: hold through a report only if the trade is up 5R. At 6R, this one may stay in.",
    "lesson_line": "Count your gain in R before a report. Under 5R, we're out before the numbers.",
    "facts": [
     "f63",
@@ -1662,7 +1706,18 @@
      "new in wave6: teaches the R that q11, q14, q20, q22, q24 and q28 use"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "7R",
+    "6R",
+    "12R",
+    "24R"
+   ],
+   "wrong": {
+    "7R": "Measured the rise from the stop instead of from your entry.",
+    "12R": "Gave the dollar gain per share and never divided by the risk.",
+    "24R": "Multiplied the gain by the risk instead of dividing."
+   }
   },
   {
    "key": "q28",
@@ -1793,9 +1848,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2."
   },
   "q10": {
    "status": "pass",
@@ -1812,14 +1867,14 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed 30 x 0.5 x 10 / 100 = 1.5. Every number is in the question or calc. Lesson line states only the arithmetic, not a trim-and-hold strategy, so it does not contradict B22."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4. Why rewritten to show the steps."
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1. Why rewritten to show the steps. Stem no longer names the unit the choices carry."
   },
   "q14": {
    "status": "pass",
@@ -1849,8 +1904,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "stop-gap loss arithmetic; no trim or short entry; keep agrees"
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3. Why rewritten to show the steps."
   },
   "q19": {
    "status": "pass",
@@ -1903,8 +1958,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed (62 - 50) / (50 - 48) = 6. f63 re-read live 2026-11-12 on vantharp.com: both quoted sentences are on the page verbatim. B22 applied correctly (6R clears 5R, 'may stay in'). It teaches R before the questions that use it; that teaching is intended, not a giveaway."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
   },
   "q28": {
    "status": "pass",

@@ -864,9 +864,9 @@
    "key": "q08",
    "skill": "basics.float_cap",
    "rung": 4,
-   "format": "numeric",
-   "q": "A stock trades at $30 with 50 million shares outstanding. What is its market cap, in millions of dollars?",
-   "answer": 1500,
+   "format": "mcq",
+   "q": "A stock trades at $30 with 50 million shares outstanding. What is its market cap?",
+   "answer": "$1,500 million",
    "calc": {
     "fn": "market_cap",
     "args": {
@@ -876,7 +876,7 @@
    },
    "prefix": "$",
    "suffix": " million",
-   "why": "$1,500 million, which is $1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap.",
+   "why": "$1,500 million, which is $1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million is 1,500 million. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap.",
    "lesson_line": "Price times shares outstanding. Work in millions and the zeros stay easy.",
    "facts": [
     "f1",
@@ -890,15 +890,26 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$1.5 million",
+    "$150 million",
+    "$80 million",
+    "$1,500 million"
+   ],
+   "wrong": {
+    "$150 million": "A decimal slip: you dropped a zero.",
+    "$80 million": "You added the price and the shares instead of multiplying.",
+    "$1.5 million": "A units slip: 1,500 million is $1.5 billion, not $1.5 million."
+   }
   },
   {
    "key": "q09",
    "skill": "basics.float_cap",
    "rung": 4,
-   "format": "numeric",
-   "q": "80 million shares are outstanding. Insiders hold 30 million, all restricted. The rest trade freely. What is the float, in millions?",
-   "answer": 50,
+   "format": "mcq",
+   "q": "80 million shares are outstanding. Insiders hold 30 million, all restricted. The rest trade freely. What is the float?",
+   "answer": "50 million",
    "calc": {
     "fn": "arith",
     "args": {
@@ -924,7 +935,18 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "30 million",
+    "110 million",
+    "50 million",
+    "80 million"
+   ],
+   "wrong": {
+    "110 million": "You added the insider shares to the shares outstanding.",
+    "30 million": "You gave the insiders' shares, which are the part left out of the float.",
+    "80 million": "You gave all shares outstanding and never took out the insiders' shares."
+   }
   },
   {
    "key": "q10",
@@ -980,9 +1002,9 @@
    "key": "q11",
    "skill": "basics.float_cap",
    "rung": 5,
-   "format": "numeric",
-   "q": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap, in millions?",
-   "answer": 1200,
+   "format": "mcq",
+   "q": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap?",
+   "answer": "$1,200 million",
    "calc": {
     "fn": "arith",
     "args": {
@@ -993,7 +1015,7 @@
    },
    "prefix": "$",
    "suffix": " million",
-   "why": "$1,200 million. Float-adjusted market cap is the price times the shares available to the public: $20 times 60 million. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number.",
+   "why": "$1,200 million. Float-adjusted market cap is the price times the shares available to the public: $20 times 60 million is 1,200 million. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number.",
    "lesson_line": "Market cap counts every share. Float-adjusted cap counts only what can trade.",
    "facts": [
     "f40",
@@ -1009,7 +1031,18 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$2,000 million",
+    "$1,200 million",
+    "$800 million",
+    "$12,000 million"
+   ],
+   "wrong": {
+    "$2,000 million": "You used all 100 million shares outstanding instead of the 60 million float.",
+    "$800 million": "You used only the shares that are not in the float.",
+    "$12,000 million": "A decimal slip: you added a zero."
+   }
   },
   {
    "key": "q12",
@@ -1084,9 +1117,9 @@
    "key": "q14",
    "skill": "basics.float_cap",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Stock A trades at $900 with 20 million shares. Stock B trades at $45 with 2 billion shares. B's market cap is how many times A's?",
-   "answer": 5,
+   "answer": "5 times",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1098,7 +1131,7 @@
     }
    },
    "suffix": " times",
-   "why": "5 times. Size is price times shares, so multiply each before you compare. B trades at $45 with 2 billion shares. A trades at $900 with 20 million. B's far lower price hides a far bigger company. FINRA warns that price alone is not a good guide to size; the share count matters most.",
+   "why": "5 times. Size is price times shares, so multiply each before you compare. A is $900 times 20 million shares. B is $45 times 2 billion shares. B's far lower price hides a far bigger company, and its cap is 5 times A's. FINRA warns that price alone is not a good guide to size; the share count matters most.",
    "lesson_line": "A high price can just mean few shares. Size is price times shares.",
    "facts": [
     "f7",
@@ -1113,7 +1146,18 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "0.05 times",
+    "20 times",
+    "100 times",
+    "5 times"
+   ],
+   "wrong": {
+    "20 times": "You compared only the prices and flipped them, $900 over $45.",
+    "100 times": "You compared only the share counts, 2 billion over 20 million.",
+    "0.05 times": "You compared only the prices, $45 over $900."
+   }
   },
   {
    "key": "q15",
@@ -1486,15 +1530,15 @@
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer and calc check out. Fix: $150 / $1,500 / $15,000 was a decimal ladder with the answer in the middle, an easy tell; swapped $15,000 for a units slip."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stem 130 chars. 'All restricted' and 'the rest trade freely' force 80 - 30 = 50 (calc). Why rests on f43/f26; no ungrounded number."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q10": {
    "status": "pass",
@@ -1504,9 +1548,9 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q12": {
    "status": "pass",
@@ -1524,7 +1568,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc: (45 x 2000) / (900 x 20) = 90000 / 18000 = 5. Stem 129 chars. Why gives no intermediate number outside the stem; FINRA f7 supports the lesson."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q15": {
    "status": "pass",

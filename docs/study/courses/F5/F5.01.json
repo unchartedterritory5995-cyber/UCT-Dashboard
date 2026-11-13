@@ -961,9 +961,9 @@
    "key": "q09",
    "skill": "fund.report",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Target's Q1 2025 net earnings were $1,036 million on 456.5 million diluted shares. What is diluted EPS, to the cent?",
-   "answer": 2.27,
+   "answer": "$2.27",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -973,7 +973,7 @@
      "shares": 456.5
     }
    },
-   "why": "$2.27. Divide net earnings of $1,036 million by 456.5 million diluted shares. Both are in millions, so the millions cancel. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27.",
+   "why": "$2.27. Divide net earnings of $1,036 million by 456.5 million diluted shares. Both are in millions, so the millions cancel, and 1,036 / 456.5 is about 2.27. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27.",
    "lesson_line": "EPS is net income over the share count. You can check it yourself.",
    "facts": [
     "f04",
@@ -988,15 +988,26 @@
      "fixed before: 'to the cent' added (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$579.50",
+    "$0.44",
+    "$22.70",
+    "$2.27"
+   ],
+   "wrong": {
+    "$0.44": "You flipped the division and divided the shares by the earnings.",
+    "$22.70": "A decimal slip: you moved the point one place.",
+    "$579.50": "You subtracted the share count from the earnings instead of dividing."
+   }
   },
   {
    "key": "q10",
    "skill": "fund.report",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "NVIDIA's Q3 fiscal 2026 revenue was $57,006 million, up from $35,082 million a year earlier. YoY growth, to the nearest percent?",
-   "answer": 62,
+   "answer": "62%",
    "suffix": "%",
    "calc": {
     "fn": "yoy_growth",
@@ -1024,15 +1035,26 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "6.2%",
+    "38%",
+    "162%",
+    "62%"
+   ],
+   "wrong": {
+    "38%": "You divided the rise by this year's $57,006 million instead of the year-ago figure.",
+    "162%": "You divided the two numbers and forgot to subtract one.",
+    "6.2%": "A decimal slip: you moved the point one place."
+   }
   },
   {
    "key": "q11",
    "skill": "fund.report",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Amazon's net sales were $187.8 billion in Q4 2024 and $155.7 billion in Q1 2025. By what percent did they fall, to one decimal?",
-   "answer": 17.1,
+   "answer": "17.1%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1043,7 +1065,7 @@
     },
     "round": 1
    },
-   "why": "17.1%. Take the drop, $187.8 billion minus $155.7 billion, and divide it by the $187.8 billion starting point. Then times 100. That is the quarter-over-quarter change coming out of the fourth quarter. The number tells you how far sales fell. It does not tell you why.",
+   "why": "17.1%. The drop is $187.8 billion minus $155.7 billion, which is $32.1 billion. Divide it by the $187.8 billion starting point, then times 100, which gives 17.1%. That is the quarter-over-quarter change coming out of the fourth quarter. The number tells you how far sales fell. It does not tell you why.",
    "lesson_line": "Quarter over quarter compares back-to-back quarters. Measure the change from the earlier one.",
    "facts": [
     "f44",
@@ -1063,15 +1085,26 @@
      "fixed before: 'to one decimal' added (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "32.1%",
+    "20.6%",
+    "82.9%",
+    "17.1%"
+   ],
+   "wrong": {
+    "20.6%": "You divided the drop by the new $155.7 billion instead of the starting $187.8 billion.",
+    "82.9%": "You divided the new number by the old and forgot to subtract from 100%.",
+    "32.1%": "You read the $32.1 billion drop as a percent."
+   }
   },
   {
    "key": "q12",
    "skill": "fund.report",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23,846 million, cost $17,128 million. To one decimal?",
-   "answer": 28.2,
+   "answer": "28.2%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1082,7 +1115,7 @@
     },
     "round": 1
    },
-   "why": "28.2%. Gross margin is net sales less cost of sales, divided by net sales. Here that is $23,846 million less $17,128 million, divided by $23,846 million. Target's release reports the same 28.2 percent.",
+   "why": "28.2%. Take sales less cost of sales, $23,846 million minus $17,128 million. Divide that by the $23,846 million of sales and you get 28.2%. Target's release reports the same 28.2 percent.",
    "lesson_line": "Gross margin is what's left of each sales dollar after the cost of the goods.",
    "facts": [
     "f03",
@@ -1099,7 +1132,18 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "71.8%",
+    "39.2%",
+    "28.2%",
+    "2.8%"
+   ],
+   "wrong": {
+    "39.2%": "You divided the profit by the cost of sales instead of by sales.",
+    "71.8%": "You gave the cost share and forgot to subtract it from sales.",
+    "2.8%": "A decimal slip: you moved the point one place."
+   }
   },
   {
    "key": "q13",
@@ -1189,9 +1233,9 @@
    "key": "q15",
    "skill": "fund.report",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1,624 million on $28,095 million of revenue. To one decimal?",
-   "answer": 5.8,
+   "answer": "5.8%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1202,7 +1246,7 @@
     },
     "round": 1
    },
-   "why": "5.8%. Operating margin is income from operations divided by revenue: $1,624 million over $28,095 million. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier.",
+   "why": "5.8%. Operating margin is income from operations divided by revenue: $1,624 million over $28,095 million is 5.8%. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier.",
    "lesson_line": "Operating margin shows how much of each sales dollar survives the cost of running the business.",
    "facts": [
     "f06",
@@ -1219,7 +1263,18 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "0.6%",
+    "17.3%",
+    "94.2%",
+    "5.8%"
+   ],
+   "wrong": {
+    "17.3%": "You flipped the division and divided revenue by operating income.",
+    "94.2%": "You gave the share of each sales dollar that went to costs.",
+    "0.6%": "A decimal slip: you moved the point one place."
+   }
   },
   {
    "key": "q16",
@@ -1630,27 +1685,27 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Computed cold: 57006/35082 = 1.62494, so 62.49% rounds to 62 (close to the .5 line but on the right side; $57.0B/$35.1B also gives 62). Matches f47 (up 62%) and f48 table row, both re-fetched from the NVIDIA 8-K on 2026-11-12. calc fn yoy_growth exists in courses_lib. Stem 128 chars. Deeper 22% and $46,743M are in f48. Scoped lesson_line no longer clashes with q11."
+   "fixed": true,
+   "notes": "Answer and calc check out. Fix: the 22% choice (versus the quarter before) cannot be made from the numbers in the question; swapped it for a decimal slip."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (187.8-155.7)/187.8*100 = 17.1 matches. New lesson_line grounded in f63 and no longer previews q14. Deeper trap correct (dividing by 155.7 gives a bigger figure). Does not answer q14."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (23846-17128)/23846*100 = 28.2, matches f33. Stem now states the formula (f32, f66), 137 chars. Simple is a little circular but correct and adds no ungrounded number."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q13": {
    "status": "pass",
@@ -1668,7 +1723,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 1624/28095*100 = 5.8, matches f52. Stem states the formula (f06, f72), 134 chars. Why names the financial summary table. Lesson-level note for the resolver: q20's why (not in scope) states Tesla's 5.8% margin, so q20 seen first in review would give this key away."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q16": {
    "status": "pass",

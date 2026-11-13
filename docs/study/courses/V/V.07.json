@@ -1740,10 +1740,10 @@
    "key": "q18",
    "skill": "vocab.order_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Trailing stop",
    "q": "You buy at $30 and set a sell trailing stop $2 below the price. It climbs to $37.40, then dips to $36. Where is your stop now?",
-   "answer": 35.4,
+   "answer": "$35.40",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1768,7 +1768,18 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$28.00",
+    "$35.40",
+    "$37.40",
+    "$34.00"
+   ],
+   "wrong": {
+    "$28.00": "Trailed from your $30 entry, not from the high.",
+    "$37.40": "Gave the high and forgot to take off the $2.",
+    "$34.00": "Trailed from the $36 dip, not from the high."
+   }
   },
   {
    "key": "q19",
@@ -2255,10 +2266,10 @@
    "key": "q32",
    "skill": "vocab.order_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "IOC",
    "q": "You send an immediate-or-cancel (IOC) order to buy 800 shares. Only 300 can fill right away. How many shares get canceled?",
-   "answer": 500,
+   "answer": "500 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2268,7 +2279,7 @@
     },
     "round": 0
    },
-   "why": "500. An immediate-or-cancel order fills whatever it can at once and cancels any unfilled balance: 800 less 300. Unlike fill-or-kill, IOC keeps the partial fill, so you own the 300 shares.",
+   "why": "500. An immediate-or-cancel order fills whatever it can at once and cancels any unfilled balance. 800 less 300 filled leaves 500 canceled. Unlike fill-or-kill, IOC keeps the partial fill, so you own the 300 shares.",
    "lesson_line": "IOC takes what's there now and walks away from the rest.",
    "facts": [
     "f26",
@@ -2287,7 +2298,18 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "300 shares",
+    "800 shares",
+    "0 shares",
+    "500 shares"
+   ],
+   "wrong": {
+    "300 shares": "Gave the shares that filled, not the ones canceled.",
+    "800 shares": "Canceled the whole order, which is fill-or-kill, not IOC.",
+    "0 shares": "Thought the rest keeps working on the book, which is a day order, not IOC."
+   }
   },
   {
    "key": "q33",
@@ -2621,10 +2643,10 @@
    "key": "q42",
    "skill": "vocab.order_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Slippage",
    "q": "You send a market buy for 1,000 shares with the ask at $15.20. They fill at an average of $15.29. What did slippage cost you?",
-   "answer": 90,
+   "answer": "$90",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2635,7 +2657,7 @@
     }
    },
    "prefix": "$",
-   "why": "$90. A market buy generally fills at or near the ask, so $15.20 was the price you expected. You paid an average of $15.29 across 1,000 shares: $15.29 less $15.20, times 1,000. A large order can fill in parts at several prices.",
+   "why": "$90. A market buy generally fills at or near the ask, so $15.20 was the price you expected. You paid an average of $15.29, which is $0.09 a share more. Times 1,000 shares is $90. A large order can fill in parts at several prices.",
    "lesson_line": "A big market order can fill at several prices. Check your average fill, not just the quote.",
    "facts": [
     "f117",
@@ -2652,7 +2674,18 @@
      "fixed before (why reworded for an average fill)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$0.09",
+    "$900",
+    "$90",
+    "$15,290"
+   ],
+   "wrong": {
+    "$0.09": "Gave the slippage per share and skipped the 1,000 shares.",
+    "$900": "Slipped a decimal place.",
+    "$15,290": "Gave the total price paid, not the extra cost."
+   }
   },
   {
    "key": "q43",
@@ -3043,10 +3076,10 @@
    "key": "q54",
    "skill": "vocab.order_terms",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Cover",
    "q": "You short 200 shares at $18.00. A squeeze hits and you buy to cover at $27.40. How much did you lose, before costs?",
-   "answer": 1880,
+   "answer": "$1,880",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3057,7 +3090,7 @@
     }
    },
    "prefix": "$",
-   "why": "$1,880. On a short you lose what the price rose: $27.40 less $18.00, times 200 shares. Covering above the price you shorted at is a loss. Costs such as interest on the borrowed shares would add to it.",
+   "why": "$1,880. On a short you lose what the price rose. $27.40 less $18.00 is $9.40 a share. Times 200 shares is $1,880. Covering above the price you shorted at is a loss. Costs such as interest on the borrowed shares would add to it.",
    "lesson_line": "A short loses as price rises, and price can keep rising. Have your buy stop in.",
    "facts": [
     "f103",
@@ -3073,7 +3106,18 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$5,480",
+    "$9.40",
+    "$1,880",
+    "$18,800"
+   ],
+   "wrong": {
+    "$9.40": "Gave the loss per share and skipped the 200 shares.",
+    "$5,480": "Gave the cost of covering, not the loss.",
+    "$18,800": "Slipped a decimal place."
+   }
   },
   {
    "key": "q55",
@@ -3522,9 +3566,9 @@
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q19": {
    "status": "pass",
@@ -3608,9 +3652,9 @@
   },
   "q32": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 500 matches. 1,100 (added filled to ordered) is not a mistake a trader makes; replaced with 0 shares (thinks the rest keeps working on the book). Why now states 500."
   },
   "q33": {
    "status": "pass",
@@ -3672,8 +3716,8 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Solved cold: (15.29 - 15.20) x 1,000 = $90; calc rounds 89.99999999999986 to 90.0, accepted forms fine. Expected price = ask is f47 (checked on the SEC Types of Orders page); several fill prices is f3 (checked). Stem's 'average' hints q37, but q37 is also taught in w1/f3; not a giveaway of a key word. Systemic, not this question's: Word Match (study_store.game_pool 'match') takes every approved vocab recall item whose term differs from its answer, so a tf or numeric item with a term pairs the word with 'True' or a number; 216 V items carry a term on tf/numeric. The pool should keep only mcq it"
+   "fixed": true,
+   "notes": "Calc 90 matches; wrongs real (0.09 per share, 900 decimal, 15,290 total paid). Why skipped the $0.09 step; added."
   },
   "q43": {
    "status": "pass",
@@ -3744,9 +3788,9 @@
   },
   "q54": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 1880 matches; wrongs real (9.40 per share, 5,480 = 27.40 x 200, 18,800 decimal). Why skipped the per-share step; added."
   },
   "q55": {
    "status": "pass",

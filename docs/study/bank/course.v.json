@@ -1537,21 +1537,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "22.8",
-    "22.80",
-    "22.800"
-   ],
-   "answer": 22.8
+   "answer": "$22.80"
   },
   "difficulty": 2,
   "id": "si_bcd7d34e4812",
   "lesson_origin": "session",
-  "lesson_text": "$22.80. ChartSchool: a 5-day simple moving average is the five-day sum of closing prices divided by five. Add $20, $22, $24, $25 and $23, then divide by five. Fidelity calls the SMA simply the average price over the period. A simple moving average adds up the closes and divides by how many there are.",
+  "lesson_text": "$22.80. ChartSchool: a 5-day simple moving average is the five-day sum of closing prices divided by five. The sum is $20 + $22 + $24 + $25 + $23 = $114. Then $114 / 5 = $22.80. Fidelity calls the SMA simply the average price over the period. A simple moving average adds up the closes and divides by how many there are.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$21.50",
+    "$22.80",
+    "$28.50",
+    "$114.00"
+   ],
+   "kind": "mcq",
    "q": "The last five closes are $20, $22, $24, $25 and $23. What is the 5-day simple moving average?",
    "subject": "simple moving average"
   },
@@ -1588,13 +1588,18 @@
      "fn": "arith",
      "result": 22.8
     },
-    "given": "The last five closes are $20, $22, $24, $25 and $23. What is the 5-day simple moving average?"
+    "given": "The last five closes are $20, $22, $24, $25 and $23. What is the 5-day simple moving average? $114.00 $28.50 $22.80 $21.50"
    },
    "lesson_line": "A simple moving average adds up the closes and divides by how many there are.",
    "simple": "It's $22.80, because you add the five closes and divide by five.",
    "tier": "core",
    "unit": "V.02",
-   "why": "$22.80. ChartSchool: a 5-day simple moving average is the five-day sum of closing prices divided by five. Add $20, $22, $24, $25 and $23, then divide by five. Fidelity calls the SMA simply the average price over the period."
+   "why": "$22.80. ChartSchool: a 5-day simple moving average is the five-day sum of closing prices divided by five. The sum is $20 + $22 + $24 + $25 + $23 = $114. Then $114 / 5 = $22.80. Fidelity calls the SMA simply the average price over the period.",
+   "wrong": {
+    "$114.00": "Added the five closes and never divided.",
+    "$21.50": "Averaged only the oldest and newest closes, $20 and $23.",
+    "$28.50": "Divided the $114 sum by 4 instead of 5."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.chart_terms",
@@ -2097,13 +2102,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "10",
-    "10.0",
-    "10.00",
-    "10.000"
-   ],
-   "answer": 10.0
+   "answer": "10.0%"
   },
   "difficulty": 2,
   "id": "si_1e0c92c98839",
@@ -2111,10 +2110,15 @@
   "lesson_text": "10%. Subtract the average from the close, then divide by the average: (66 - 60) / 60 = 10%. ChartSchool measures distance from a moving average as a percent of the average. A $5 gap means far more on a $20 stock than on a $500 stock. We read extension the same way. Measure extension in percent, not dollars. Then a $20 stock and a $500 stock compare fairly.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "A stock closes at $66. Its 50-day average is $60. How far above the 50-day is it, in percent?",
-   "subject": "percent extended",
-   "suffix": "%"
+   "choices": [
+    "6.0%",
+    "9.1%",
+    "10.0%",
+    "110.0%"
+   ],
+   "kind": "mcq",
+   "q": "A stock closes at $66. Its 50-day average is $60. How far above the 50-day is it?",
+   "subject": "percent extended"
   },
   "reveal_json": {
    "deeper": {
@@ -2162,13 +2166,18 @@
      "fn": "pct_change",
      "result": 10.0
     },
-    "given": "A stock closes at $66. Its 50-day average is $60. How far above the 50-day is it, in percent?"
+    "given": "A stock closes at $66. Its 50-day average is $60. How far above the 50-day is it? 9.1% 6.0% 110.0% 10.0%"
    },
    "lesson_line": "Measure extension in percent, not dollars. Then a $20 stock and a $500 stock compare fairly.",
    "simple": "It's 10% above, because the gap between the close and the average is one tenth of the $60 average.",
    "tier": "extended",
    "unit": "V.02",
-   "why": "10%. Subtract the average from the close, then divide by the average: (66 - 60) / 60 = 10%. ChartSchool measures distance from a moving average as a percent of the average. A $5 gap means far more on a $20 stock than on a $500 stock. We read extension the same way."
+   "why": "10%. Subtract the average from the close, then divide by the average: (66 - 60) / 60 = 10%. ChartSchool measures distance from a moving average as a percent of the average. A $5 gap means far more on a $20 stock than on a $500 stock. We read extension the same way.",
+   "wrong": {
+    "110.0%": "Took the close as a percent of the average, not the gap.",
+    "6.0%": "Used the $6 gap as a percent and never divided by $60.",
+    "9.1%": "Divided the $6 gap by the $66 close, not the $60 average."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.chart_terms",
@@ -3055,12 +3064,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.5",
-    "2.50",
-    "2.500"
-   ],
-   "answer": 2.5
+   "answer": "2.5x"
   },
   "difficulty": 2,
   "id": "si_b51091d4d36e",
@@ -3068,10 +3072,15 @@
   "lesson_text": "2.5x. Relative volume is today's volume divided by the average: 3,000,000 / 1,200,000 = 2.5. ChartSchool: an RVOL of 2.5 means volume is 2.5 times normal. A value of 1.0 means volume matches the average. Relative volume compares today with normal. A reading of 1.0 is a normal day; 2.5 is two and a half times normal.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.4x",
+    "1.5x",
+    "2.5x",
+    "25.0x"
+   ],
+   "kind": "mcq",
    "q": "A stock trades 3,000,000 shares today. Its 50-day average volume is 1,200,000 shares. What is its relative volume?",
-   "subject": "relative volume",
-   "suffix": "x"
+   "subject": "relative volume"
   },
   "reveal_json": {
    "depth": {
@@ -3103,13 +3112,18 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "A stock trades 3,000,000 shares today. Its 50-day average volume is 1,200,000 shares. What is its relative volume?"
+    "given": "A stock trades 3,000,000 shares today. Its 50-day average volume is 1,200,000 shares. What is its relative volume? 0.4x 2.5x 25.0x 1.5x"
    },
    "lesson_line": "Relative volume compares today with normal. A reading of 1.0 is a normal day; 2.5 is two and a half times normal.",
    "simple": "It's 2.5x, because today's 3,000,000 shares divided by the 1,200,000 average is two and a half times normal.",
    "tier": "core",
    "unit": "V.02",
-   "why": "2.5x. Relative volume is today's volume divided by the average: 3,000,000 / 1,200,000 = 2.5. ChartSchool: an RVOL of 2.5 means volume is 2.5 times normal. A value of 1.0 means volume matches the average."
+   "why": "2.5x. Relative volume is today's volume divided by the average: 3,000,000 / 1,200,000 = 2.5. ChartSchool: an RVOL of 2.5 means volume is 2.5 times normal. A value of 1.0 means volume matches the average.",
+   "wrong": {
+    "0.4x": "Flipped it: divided the average by today's volume.",
+    "1.5x": "Used the extra volume over average, not today's volume itself.",
+    "25.0x": "Decimal slip: moved the point one place too far."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.chart_terms",
@@ -3961,13 +3975,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "15",
-    "15.0",
-    "15.00",
-    "15.000"
-   ],
-   "answer": 15.0
+   "answer": "15.0%"
   },
   "difficulty": 2,
   "id": "si_ab7d562c0dc7",
@@ -3975,10 +3983,15 @@
   "lesson_text": "15%. Subtract the price from the high, then divide by the high: (80 - 68) / 80 = 15%. Measure from the high, not from today's price. We read every chart this way, in percent down from highs, so stocks at any price compare fairly. We read a chart in percents: down from highs, extended from the averages. Percents compare across stocks.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "A stock's high is $80. It now trades at $68. How far down from its high is it, in percent?",
-   "subject": "down from highs",
-   "suffix": "%"
+   "choices": [
+    "12.0%",
+    "15.0%",
+    "17.6%",
+    "85.0%"
+   ],
+   "kind": "mcq",
+   "q": "A stock's high is $80. It now trades at $68. How far down from its high is it?",
+   "subject": "down from highs"
   },
   "reveal_json": {
    "deeper": {
@@ -4012,13 +4025,18 @@
      "fn": "drawdown_pct",
      "result": 15.0
     },
-    "given": "A stock's high is $80. It now trades at $68. How far down from its high is it, in percent?"
+    "given": "A stock's high is $80. It now trades at $68. How far down from its high is it? 85.0% 17.6% 12.0% 15.0%"
    },
    "lesson_line": "We read a chart in percents: down from highs, extended from the averages. Percents compare across stocks.",
    "simple": "It's 15% down, because you measure the drop from the $80 high, not from today's price.",
    "tier": "extended",
    "unit": "V.02",
-   "why": "15%. Subtract the price from the high, then divide by the high: (80 - 68) / 80 = 15%. Measure from the high, not from today's price. We read every chart this way, in percent down from highs, so stocks at any price compare fairly."
+   "why": "15%. Subtract the price from the high, then divide by the high: (80 - 68) / 80 = 15%. Measure from the high, not from today's price. We read every chart this way, in percent down from highs, so stocks at any price compare fairly.",
+   "wrong": {
+    "12.0%": "Used the $12 drop as a percent and never divided.",
+    "17.6%": "Divided the $12 drop by today's $68, not by the $80 high.",
+    "85.0%": "$68 is 85% of the high. That is what is left, not the drop."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.chart_terms",
@@ -4429,12 +4447,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.3",
-    "2.30",
-    "2.300"
-   ],
-   "answer": 2.3
+   "answer": "$2.30"
   },
   "difficulty": 2,
   "id": "si_4d98d007eddb",
@@ -4442,9 +4455,14 @@
   "lesson_text": "$2.30. ChartSchool defines the daily range as the day's high minus the same day's low: $52.40 - $50.10 = $2.30. On a bar chart, Schwab notes, the height of the bar shows that range. It is not the change from yesterday's close. Range is the day's high minus its low, the distance between the two.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "Today's high is $52.40 and today's low is $50.10. What is the day's range in dollars?",
+   "choices": [
+    "$0.23",
+    "$2.30",
+    "$51.25",
+    "$102.50"
+   ],
+   "kind": "mcq",
+   "q": "Today's high is $52.40 and today's low is $50.10. What is the day's range?",
    "subject": "range"
   },
   "reveal_json": {
@@ -4477,13 +4495,18 @@
      "fn": "arith",
      "result": 2.3
     },
-    "given": "Today's high is $52.40 and today's low is $50.10. What is the day's range in dollars?"
+    "given": "Today's high is $52.40 and today's low is $50.10. What is the day's range? $102.50 $51.25 $2.30 $0.23"
    },
    "lesson_line": "Range is the day's high minus its low, the distance between the two.",
    "simple": "It's $2.30, the high minus the low for the day.",
    "tier": "core",
    "unit": "V.02",
-   "why": "$2.30. ChartSchool defines the daily range as the day's high minus the same day's low: $52.40 - $50.10 = $2.30. On a bar chart, Schwab notes, the height of the bar shows that range. It is not the change from yesterday's close."
+   "why": "$2.30. ChartSchool defines the daily range as the day's high minus the same day's low: $52.40 - $50.10 = $2.30. On a bar chart, Schwab notes, the height of the bar shows that range. It is not the change from yesterday's close.",
+   "wrong": {
+    "$0.23": "Decimal slip: moved the point one place too far.",
+    "$102.50": "Added the high and the low instead of subtracting.",
+    "$51.25": "Took the midpoint of the day, not the range."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.chart_terms",
@@ -4494,13 +4517,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "50",
-    "50.0",
-    "50.00",
-    "50.000"
-   ],
-   "answer": 50.0
+   "answer": "50.0%"
   },
   "difficulty": 2,
   "id": "si_5d83aebcd221",
@@ -4508,10 +4525,15 @@
   "lesson_text": "50%. Divide the drop from the top by the size of the rally: (60 - 50) / (60 - 40) = 50%. Dow Theory's Hamilton estimated that pullbacks retrace 1/3 to 2/3 of the prior move, with 50% being typical. ChartSchool's glossary adds that a retracement of more than 2/3 typically signals a trend reversal. These are rules of thumb from history, not guarantees. Measure a pullback as a share of the rally. Past two-thirds, ChartSchool says a reversal is more likely.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "16.7%",
+    "25.0%",
+    "50.0%",
+    "200.0%"
+   ],
+   "kind": "mcq",
    "q": "A stock rallies from $40 to $60, then pulls back to $50. What percent of the rally has it given back?",
-   "subject": "retracement",
-   "suffix": "%"
+   "subject": "retracement"
   },
   "reveal_json": {
    "depth": {
@@ -4558,13 +4580,18 @@
      "fn": "arith",
      "result": 50.0
     },
-    "given": "A stock rallies from $40 to $60, then pulls back to $50. What percent of the rally has it given back?"
+    "given": "A stock rallies from $40 to $60, then pulls back to $50. What percent of the rally has it given back? 16.7% 50.0% 25.0% 200.0%"
    },
    "lesson_line": "Measure a pullback as a share of the rally. Past two-thirds, ChartSchool says a reversal is more likely.",
    "simple": "It gave back 50%, half the rally, because it fell halfway from $60 back toward $40.",
    "tier": "extended",
    "unit": "V.02",
-   "why": "50%. Divide the drop from the top by the size of the rally: (60 - 50) / (60 - 40) = 50%. Dow Theory's Hamilton estimated that pullbacks retrace 1/3 to 2/3 of the prior move, with 50% being typical. ChartSchool's glossary adds that a retracement of more than 2/3 typically signals a trend reversal. These are rules of thumb from history, not guarantees."
+   "why": "50%. Divide the drop from the top by the size of the rally: (60 - 50) / (60 - 40) = 50%. Dow Theory's Hamilton estimated that pullbacks retrace 1/3 to 2/3 of the prior move, with 50% being typical. ChartSchool's glossary adds that a retracement of more than 2/3 typically signals a trend reversal. These are rules of thumb from history, not guarantees.",
+   "wrong": {
+    "16.7%": "Divided the pullback by the $60 top, not by the rally.",
+    "200.0%": "Flipped it: divided the rally by the pullback.",
+    "25.0%": "Divided the pullback by the $40 start, not by the rally."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.chart_terms",
@@ -4575,13 +4602,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "12",
-    "12.0",
-    "12.00",
-    "12.000"
-   ],
-   "answer": 12.0
+   "answer": "12.0%"
   },
   "difficulty": 2,
   "id": "si_673419aae696",
@@ -4589,10 +4610,15 @@
   "lesson_text": "12%. Divide the drop by the peak: (5,000 - 4,400) / 5,000 = 12%. Investopedia calls a decline of 10% or more from the peak a correction. By that line, this drop is a correction. Measure a drop from the peak. A fall of 10% or more counts as a correction.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak, in percent?",
-   "subject": "correction",
-   "suffix": "%"
+   "choices": [
+    "1.2%",
+    "12.0%",
+    "13.6%",
+    "88.0%"
+   ],
+   "kind": "mcq",
+   "q": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak?",
+   "subject": "correction"
   },
   "reveal_json": {
    "depth": {
@@ -4616,13 +4642,18 @@
      "fn": "drawdown_pct",
      "result": 12.0
     },
-    "given": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak, in percent?"
+    "given": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak? 88.0% 13.6% 12.0% 1.2%"
    },
    "lesson_line": "Measure a drop from the peak. A fall of 10% or more counts as a correction.",
    "simple": "It is down 12%, past the 10% line Investopedia uses for a correction.",
    "tier": "extended",
    "unit": "V.02",
-   "why": "12%. Divide the drop by the peak: (5,000 - 4,400) / 5,000 = 12%. Investopedia calls a decline of 10% or more from the peak a correction. By that line, this drop is a correction."
+   "why": "12%. Divide the drop by the peak: (5,000 - 4,400) / 5,000 = 12%. Investopedia calls a decline of 10% or more from the peak a correction. By that line, this drop is a correction.",
+   "wrong": {
+    "1.2%": "Decimal slip: moved the point one place too far.",
+    "13.6%": "Divided the drop by the 4,400 low, not by the peak.",
+    "88.0%": "4,400 is 88% of the peak. That is what is left, not the drop."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.chart_terms",
@@ -7611,23 +7642,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.5",
-    "2.50",
-    "2.500"
-   ],
-   "answer": 2.5
+   "answer": "2.5x"
   },
   "difficulty": 2,
   "id": "si_0f90bfa11527",
   "lesson_origin": "session",
-  "lesson_text": "2.5x. The body runs from the $50.00 open to the $50.40 close. The lower shadow runs from the bottom of the body, the $50.00 open, down to the $49.00 low. Divide the shadow by the body and you get 2.5. ChartSchool says the long shadow should generally be at least twice the body, so this one qualifies. Shape alone does not make a hammer: it also needs a decline before it. Measure the shadow against the body. Generally it should be at least twice the body.",
+  "lesson_text": "2.5x. The body runs from the $50.00 open to the $50.40 close. The lower shadow runs from the $50.00 open down to the $49.00 low. Divide: ($50.00 - $49.00) / ($50.40 - $50.00) = 2.5. ChartSchool says the long shadow should generally be at least twice the body, so this one qualifies. Shape alone does not make a hammer: it also needs a decline before it. Measure the shadow against the body. Generally it should be at least twice the body.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.4x",
+    "2.5x",
+    "3.5x",
+    "3.75x"
+   ],
+   "kind": "mcq",
    "q": "Open $50.00, high $50.50, low $49.00, close $50.40. How many times the body is the lower shadow?",
-   "subject": "hammer",
-   "suffix": "x"
+   "subject": "hammer"
   },
   "reveal_json": {
    "depth": {
@@ -7688,13 +7719,18 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "Open $50.00, high $50.50, low $49.00, close $50.40. How many times the body is the lower shadow?"
+    "given": "Open $50.00, high $50.50, low $49.00, close $50.40. How many times the body is the lower shadow? 3.5x 0.4x 2.5x 3.75x"
    },
    "lesson_line": "Measure the shadow against the body. Generally it should be at least twice the body.",
    "simple": "The lower shadow is 2.5 times the body, which clears the usual line of at least twice the body.",
    "tier": "extended",
    "unit": "V.03",
-   "why": "2.5x. The body runs from the $50.00 open to the $50.40 close. The lower shadow runs from the bottom of the body, the $50.00 open, down to the $49.00 low. Divide the shadow by the body and you get 2.5. ChartSchool says the long shadow should generally be at least twice the body, so this one qualifies. Shape alone does not make a hammer: it also needs a decline before it."
+   "why": "2.5x. The body runs from the $50.00 open to the $50.40 close. The lower shadow runs from the $50.00 open down to the $49.00 low. Divide: ($50.00 - $49.00) / ($50.40 - $50.00) = 2.5. ChartSchool says the long shadow should generally be at least twice the body, so this one qualifies. Shape alone does not make a hammer: it also needs a decline before it.",
+   "wrong": {
+    "0.4x": "Flipped it: divided the body by the shadow.",
+    "3.5x": "Measured the shadow from the $50.40 close, not the body bottom.",
+    "3.75x": "Used the whole high-to-low range, not just the lower shadow."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.candle_terms",
@@ -8286,22 +8322,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "32",
-    "32.0",
-    "32.00",
-    "32.000"
-   ],
-   "answer": 32.0
+   "answer": "$32.00"
   },
   "difficulty": 2,
   "id": "si_eb774150f22b",
   "lesson_origin": "session",
-  "lesson_text": "$32.00. The dark cloud's line is the midpoint of the white body, halfway between the $30.00 open and the $34.00 close. The black candle must open above the white close and close below $32.00. A close above the midpoint might still be a reversal, but it is not counted as a bearish dark cloud. Find the first body's midpoint before you name a dark cloud. A close above it doesn't count.",
+  "lesson_text": "$32.00. The dark cloud's line is the midpoint of the white body: ($30.00 + $34.00) / 2 = $32.00. The black candle must open above the white close and close below $32.00. A close above the midpoint might still be a reversal, but it is not counted as a bearish dark cloud. Find the first body's midpoint before you name a dark cloud. A close above it doesn't count.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$30.00",
+    "$31.00",
+    "$32.00",
+    "$34.00"
+   ],
+   "kind": "mcq",
    "q": "A long white candle opens at $30.00 and closes at $34.00. Below what price must the next black candle close for a dark cloud cover?",
    "subject": "dark cloud cover"
   },
@@ -8342,13 +8377,18 @@
      "fn": "arith",
      "result": 32.0
     },
-    "given": "A long white candle opens at $30.00 and closes at $34.00. Below what price must the next black candle close for a dark cloud cover?"
+    "given": "A long white candle opens at $30.00 and closes at $34.00. Below what price must the next black candle close for a dark cloud cover? $34.00 $30.00 $31.00 $32.00"
    },
    "lesson_line": "Find the first body's midpoint before you name a dark cloud. A close above it doesn't count.",
    "simple": "It must close below $32.00, because that is halfway between the $30.00 open and the $34.00 close.",
    "tier": "extended",
    "unit": "V.03",
-   "why": "$32.00. The dark cloud's line is the midpoint of the white body, halfway between the $30.00 open and the $34.00 close. The black candle must open above the white close and close below $32.00. A close above the midpoint might still be a reversal, but it is not counted as a bearish dark cloud."
+   "why": "$32.00. The dark cloud's line is the midpoint of the white body: ($30.00 + $34.00) / 2 = $32.00. The black candle must open above the white close and close below $32.00. A close above the midpoint might still be a reversal, but it is not counted as a bearish dark cloud.",
+   "wrong": {
+    "$30.00": "That is the white open. It asks for a full engulf, not the midpoint.",
+    "$31.00": "Took a quarter of the way up the body, not half.",
+    "$34.00": "That is the white close. A close there is no dip into the body."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.candle_terms",
@@ -10405,12 +10445,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.2",
-    "1.20",
-    "1.200"
-   ],
-   "answer": 1.2
+   "answer": "$1.20"
   },
   "difficulty": 2,
   "id": "si_2fa038e5bb78",
@@ -10418,9 +10453,14 @@
   "lesson_text": "$1.20. The real body is the range between the open and the close: $41.20 minus $40.00. The high of $41.50 and the low of $39.60 make the shadows, and they are left out. The close is above the open, so this body is hollow. Body is close minus open. Leave the high and the low out of it.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body, in dollars?",
+   "choices": [
+    "$0.30",
+    "$0.40",
+    "$1.20",
+    "$1.90"
+   ],
+   "kind": "mcq",
+   "q": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body?",
    "subject": "real body"
   },
   "reveal_json": {
@@ -10460,13 +10500,18 @@
      "fn": "arith",
      "result": 1.2
     },
-    "given": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body, in dollars?"
+    "given": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body? $1.90 $1.20 $0.40 $0.30"
    },
    "lesson_line": "Body is close minus open. Leave the high and the low out of it.",
    "simple": "The real body is $1.20, because it runs from the $40.00 open to the $41.20 close, and the shadows don't count.",
    "tier": "core",
    "unit": "V.03",
-   "why": "$1.20. The real body is the range between the open and the close: $41.20 minus $40.00. The high of $41.50 and the low of $39.60 make the shadows, and they are left out. The close is above the open, so this body is hollow."
+   "why": "$1.20. The real body is the range between the open and the close: $41.20 minus $40.00. The high of $41.50 and the low of $39.60 make the shadows, and they are left out. The close is above the open, so this body is hollow.",
+   "wrong": {
+    "$0.30": "That is the upper shadow: high minus close.",
+    "$0.40": "That is the lower shadow: open minus low.",
+    "$1.90": "Used high minus low, which counts the shadows."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.candle_terms",
@@ -10477,12 +10522,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.1",
-    "2.10",
-    "2.100"
-   ],
-   "answer": 2.1
+   "answer": "$2.10"
   },
   "difficulty": 2,
   "id": "si_2c4789545f88",
@@ -10490,9 +10530,14 @@
   "lesson_text": "$2.10. The close, $25.30, is above the open, $25.00, so the close is the top of the body. The upper shadow runs from there to the $27.40 high: $27.40 minus $25.30. Do not measure from the open, which is the bottom of this body. Upper shadow is the high minus the top of the body. On a hollow candle, the top is the close.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow, in dollars?",
+   "choices": [
+    "$0.30",
+    "$2.10",
+    "$2.40",
+    "$2.60"
+   ],
+   "kind": "mcq",
+   "q": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow?",
    "subject": "upper shadow"
   },
   "reveal_json": {
@@ -10539,13 +10584,18 @@
      "fn": "arith",
      "result": 2.1
     },
-    "given": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow, in dollars?"
+    "given": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow? $2.40 $2.10 $2.60 $0.30"
    },
    "lesson_line": "Upper shadow is the high minus the top of the body. On a hollow candle, the top is the close.",
    "simple": "The upper shadow is $2.10, because it runs from the $25.30 close at the body's top to the $27.40 high.",
    "tier": "core",
    "unit": "V.03",
-   "why": "$2.10. The close, $25.30, is above the open, $25.00, so the close is the top of the body. The upper shadow runs from there to the $27.40 high: $27.40 minus $25.30. Do not measure from the open, which is the bottom of this body."
+   "why": "$2.10. The close, $25.30, is above the open, $25.00, so the close is the top of the body. The upper shadow runs from there to the $27.40 high: $27.40 minus $25.30. Do not measure from the open, which is the bottom of this body.",
+   "wrong": {
+    "$0.30": "That is the body, not the upper shadow.",
+    "$2.40": "Measured from the open, which is the bottom of this body.",
+    "$2.60": "Used high minus low, the whole range."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.candle_terms",
@@ -10556,12 +10606,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.4",
-    "2.40",
-    "2.400"
-   ],
-   "answer": 2.4
+   "answer": "$2.40"
   },
   "difficulty": 2,
   "id": "si_8161ad0f4458",
@@ -10569,9 +10614,14 @@
   "lesson_text": "$2.40. The close, $59.40, is below the open, $60.00, so the candle is filled and the close is the bottom of the body. The lower shadow runs from $59.40 down to the $57.00 low. Measuring from the open would count the body as part of the shadow. On a filled candle the bottom of the body is the close. Measure the lower shadow from there.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow, in dollars?",
+   "choices": [
+    "$0.60",
+    "$0.70",
+    "$2.40",
+    "$3.00"
+   ],
+   "kind": "mcq",
+   "q": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow?",
    "subject": "lower shadow"
   },
   "reveal_json": {
@@ -10628,13 +10678,18 @@
      "fn": "arith",
      "result": 2.4
     },
-    "given": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow, in dollars?"
+    "given": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow? $0.70 $3.00 $2.40 $0.60"
    },
    "lesson_line": "On a filled candle the bottom of the body is the close. Measure the lower shadow from there.",
    "simple": "The lower shadow is $2.40, because on this filled candle the bottom of the body is the $59.40 close.",
    "tier": "extended",
    "unit": "V.03",
-   "why": "$2.40. The close, $59.40, is below the open, $60.00, so the candle is filled and the close is the bottom of the body. The lower shadow runs from $59.40 down to the $57.00 low. Measuring from the open would count the body as part of the shadow."
+   "why": "$2.40. The close, $59.40, is below the open, $60.00, so the candle is filled and the close is the bottom of the body. The lower shadow runs from $59.40 down to the $57.00 low. Measuring from the open would count the body as part of the shadow.",
+   "wrong": {
+    "$0.60": "That is the body, not the lower shadow.",
+    "$0.70": "Measured up from the close to the high, which is not the lower shadow.",
+    "$3.00": "Measured from the open, which adds the body to the shadow."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.candle_terms",
@@ -13073,22 +13128,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "60",
-    "60.0",
-    "60.00",
-    "60.000"
-   ],
-   "answer": 60.0
+   "answer": "$60"
   },
   "difficulty": 2,
   "id": "si_70e2b933ac3a",
   "lesson_origin": "session",
-  "lesson_text": "$60. Measure the cup's depth from the right peak to the bottom, $50 less $40, and add it to the $50 breakout. StockCharts, Fidelity and Investopedia all use this method. Fidelity says to use it only as a guideline. It estimates the move. It is not a promise that price will get there. Cup target: the cup's depth added to the breakout. A guide, not a promise.",
+  "lesson_text": "$60. The cup's depth runs from the right peak to the bottom: $50 - $40 = $10. Add it to the $50 breakout: $50 + $10 = $60. StockCharts, Fidelity and Investopedia all use this method. Fidelity says to use it only as a guideline. It estimates the move. It is not a promise that price will get there. Cup target: the cup's depth added to the breakout. A guide, not a promise.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$10",
+    "$50",
+    "$60",
+    "$90"
+   ],
+   "kind": "mcq",
    "q": "Cup low $40. Right lip and breakout $50. Add the cup's depth to the breakout: what's the textbook target?",
    "subject": "cup with handle"
   },
@@ -13144,13 +13198,18 @@
      "fn": "arith",
      "result": 60.0
     },
-    "given": "Cup low $40. Right lip and breakout $50. Add the cup's depth to the breakout: what's the textbook target?"
+    "given": "Cup low $40. Right lip and breakout $50. Add the cup's depth to the breakout: what's the textbook target? $50 $10 $60 $90"
    },
    "lesson_line": "Cup target: the cup's depth added to the breakout. A guide, not a promise.",
    "simple": "Add the cup's depth, $40 up to $50, to the $50 breakout to get $60. Use it only as a guideline.",
    "tier": "core",
    "unit": "V.04",
-   "why": "$60. Measure the cup's depth from the right peak to the bottom, $50 less $40, and add it to the $50 breakout. StockCharts, Fidelity and Investopedia all use this method. Fidelity says to use it only as a guideline. It estimates the move. It is not a promise that price will get there."
+   "why": "$60. The cup's depth runs from the right peak to the bottom: $50 - $40 = $10. Add it to the $50 breakout: $50 + $10 = $60. StockCharts, Fidelity and Investopedia all use this method. Fidelity says to use it only as a guideline. It estimates the move. It is not a promise that price will get there.",
+   "wrong": {
+    "$10": "That is the cup's depth alone, not the target.",
+    "$50": "Added the depth to the $40 cup low, not the breakout.",
+    "$90": "Added the $40 cup low to the breakout instead of the depth."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.pattern_terms",
@@ -13404,22 +13463,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "38",
-    "38.0",
-    "38.00",
-    "38.000"
-   ],
-   "answer": 38.0
+   "answer": "$38"
   },
   "difficulty": 2,
   "id": "si_07926c007212",
   "lesson_origin": "session",
-  "lesson_text": "$38. The pole's length, $30 less $20, added to the $28 breakout. StockCharts applies the flagpole length to the breakout to estimate the move, and Investopedia sets the pennant target the same way. Bulkowski says a target is an estimate only. Flag target: the pole's length added to the breakout.",
+  "lesson_text": "$38. The pole's length is $30 - $20 = $10. Add it to the $28 breakout: $28 + $10 = $38. StockCharts applies the flagpole length to the breakout to estimate the move, and Investopedia sets the pennant target the same way. Bulkowski says a target is an estimate only. Flag target: the pole's length added to the breakout.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$10",
+    "$38",
+    "$40",
+    "$58"
+   ],
+   "kind": "mcq",
    "q": "The flagpole runs from $20 to $30. The flag breaks out at $28. Add the pole's length to the breakout: what's the target?",
    "subject": "flagpole"
   },
@@ -13461,13 +13519,18 @@
      "fn": "arith",
      "result": 38.0
     },
-    "given": "The flagpole runs from $20 to $30. The flag breaks out at $28. Add the pole's length to the breakout: what's the target?"
+    "given": "The flagpole runs from $20 to $30. The flag breaks out at $28. Add the pole's length to the breakout: what's the target? $40 $38 $58 $10"
    },
    "lesson_line": "Flag target: the pole's length added to the breakout.",
    "simple": "The target is $38, the pole's run from $20 to $30 added to the $28 breakout, and it is only an estimate.",
    "tier": "extended",
    "unit": "V.04",
-   "why": "$38. The pole's length, $30 less $20, added to the $28 breakout. StockCharts applies the flagpole length to the breakout to estimate the move, and Investopedia sets the pennant target the same way. Bulkowski says a target is an estimate only."
+   "why": "$38. The pole's length is $30 - $20 = $10. Add it to the $28 breakout: $28 + $10 = $38. StockCharts applies the flagpole length to the breakout to estimate the move, and Investopedia sets the pennant target the same way. Bulkowski says a target is an estimate only.",
+   "wrong": {
+    "$10": "That is the pole's length alone, not the target.",
+    "$40": "Added the length to the pole top, not the breakout.",
+    "$58": "Added the $30 pole top to the breakout instead of the length."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.pattern_terms",
@@ -13693,13 +13756,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "5",
-    "5.0",
-    "5.00",
-    "5.000"
-   ],
-   "answer": 5.0
+   "answer": "5 touches"
   },
   "difficulty": 1,
   "id": "si_28a76f0113ec",
@@ -13707,7 +13764,13 @@
   "lesson_text": "5. On a rising wedge, Bulkowski wants at least five touches: 3 on one trendline and 2 on the other. Fidelity's guide asks the same of a wedge before a breakout. With fewer touches, Bulkowski would not call it a good pattern yet. Count the touches: three on one line, two on the other.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "4 touches",
+    "6 touches",
+    "5 touches",
+    "3 touches"
+   ],
+   "kind": "mcq",
    "q": "On a rising wedge, at least how many touches across both lines do Bulkowski and Fidelity's guide want?",
    "subject": "wedge"
   },
@@ -13741,13 +13804,18 @@
      "fn": "arith",
      "result": 5.0
     },
-    "given": "On a rising wedge, at least how many touches across both lines do Bulkowski and Fidelity's guide want?"
+    "given": "On a rising wedge, at least how many touches across both lines do Bulkowski and Fidelity's guide want? 3 touches 4 touches 5 touches 6 touches"
    },
    "lesson_line": "Count the touches: three on one line, two on the other.",
    "simple": "They want at least 5 touches: three on one line and two on the other.",
    "tier": "core",
    "unit": "V.04",
-   "why": "5. On a rising wedge, Bulkowski wants at least five touches: 3 on one trendline and 2 on the other. Fidelity's guide asks the same of a wedge before a breakout. With fewer touches, Bulkowski would not call it a good pattern yet."
+   "why": "5. On a rising wedge, Bulkowski wants at least five touches: 3 on one trendline and 2 on the other. Fidelity's guide asks the same of a wedge before a breakout. With fewer touches, Bulkowski would not call it a good pattern yet.",
+   "wrong": {
+    "3 touches": "Counted one line only, not both.",
+    "4 touches": "Two on each line is not enough, one line needs three.",
+    "6 touches": "Three on each line is more than the guide asks."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.pattern_terms",
@@ -13767,9 +13835,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Bearish, though prices are rising",
     "Neutral until it hits the apex",
     "Bullish, as prices are rising",
-    "Bearish, though prices are rising",
     "Bullish, like a falling wedge"
    ],
    "kind": "mcq",
@@ -13920,10 +13988,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Falling wedge",
     "Descending triangle",
     "Bear flag",
-    "Symmetrical triangle"
+    "Symmetrical triangle",
+    "Falling wedge"
    ],
    "kind": "mcq",
    "q": "Which word fits?",
@@ -14032,9 +14100,9 @@
   "prompt_json": {
    "choices": [
     "Rising wedge",
+    "Symmetrical triangle",
     "Ascending triangle",
-    "Rectangle",
-    "Symmetrical triangle"
+    "Rectangle"
    ],
    "kind": "mcq",
    "q": "Which word fits?",
@@ -14143,9 +14211,9 @@
   "prompt_json": {
    "choices": [
     "Only after price passes the apex",
-    "Half to three-quarters of the way in",
     "Right at the apex of the triangle",
-    "In the first few days of the pattern"
+    "In the first few days of the pattern",
+    "Half to three-quarters of the way in"
    ],
    "kind": "mcq",
    "q": "In a symmetrical triangle, where does the ideal breakout come?",
@@ -14215,8 +14283,8 @@
    "choices": [
     "When the second low matches the first",
     "When the second low holds a day",
-    "When volume spikes at the second low",
-    "When price clears the middle peak"
+    "When price clears the middle peak",
+    "When volume spikes at the second low"
    ],
    "kind": "mcq",
    "q": "When is a double bottom complete?",
@@ -14272,24 +14340,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2",
-    "2.0",
-    "2.00",
-    "2.000"
-   ],
-   "answer": 2.0
+   "answer": "2%"
   },
   "difficulty": 2,
   "id": "si_2f19d5a16515",
   "lesson_origin": "session",
-  "lesson_text": "2%. $49.00 sits 2% under the $50.00 first low. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it. Two lows within about 3% of each other still count as roughly equal.",
+  "lesson_text": "2%. The gap is $50.00 - $49.00 = $1.00. Divide by the first low: $1.00 / $50.00 = 2%. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it. Two lows within about 3% of each other still count as roughly equal.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "First low $50.00, second low $49.00. How far below the first low is the second, in percent?",
-   "subject": "double bottom",
-   "suffix": "%"
+   "choices": [
+    "0.02%",
+    "1%",
+    "2%",
+    "98%"
+   ],
+   "kind": "mcq",
+   "q": "First low $50.00, second low $49.00. How far below the first low is the second?",
+   "subject": "double bottom"
   },
   "reveal_json": {
    "depth": {
@@ -14328,13 +14395,18 @@
      "fn": "arith",
      "result": 2.0
     },
-    "given": "First low $50.00, second low $49.00. How far below the first low is the second, in percent?"
+    "given": "First low $50.00, second low $49.00. How far below the first low is the second? 0.02% 1% 98% 2%"
    },
    "lesson_line": "Two lows within about 3% of each other still count as roughly equal.",
    "simple": "The second low is 2% under the first, inside the 3% gap StockCharts allows, so the lows count as about equal.",
    "tier": "extended",
    "unit": "V.04",
-   "why": "2%. $49.00 sits 2% under the $50.00 first low. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it."
+   "why": "2%. The gap is $50.00 - $49.00 = $1.00. Divide by the first low: $1.00 / $50.00 = 2%. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it.",
+   "wrong": {
+    "0.02%": "Forgot to multiply by 100 after dividing.",
+    "1%": "Used the $1.00 gap as a percent and never divided by $50.",
+    "98%": "Took the second low as a share of the first, not the gap."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.pattern_terms",
@@ -14354,9 +14426,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Not yet, it must break below $70",
     "Yes, two peaks at about one price",
     "No, the peaks must match exactly",
-    "Not yet, it must break below $70",
     "Yes, the second peak failed"
    ],
    "kind": "mcq",
@@ -14433,8 +14505,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A close under the $44 neckline",
     "A new high above the $55 head",
+    "A close under the $44 neckline",
     "Nothing, three peaks complete it",
     "Another peak near the $48 shoulder"
    ],
@@ -14507,22 +14579,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "40",
-    "40.0",
-    "40.00",
-    "40.000"
-   ],
-   "answer": 40.0
+   "answer": "$40"
   },
   "difficulty": 3,
   "id": "si_6683ab605f87",
   "lesson_origin": "session",
-  "lesson_text": "$40. The head sits $60 less $50 above the neckline. StockCharts subtracts that distance from the neckline, and Fidelity's guide projects it down from the neckline. StockCharts adds that any price target is a rough guide and other factors count. The target only applies after the neckline breaks. Head-to-neckline height, projected down from the neckline. A guide, not a promise.",
+  "lesson_text": "$40. The head sits $60 - $50 = $10 above the neckline. StockCharts subtracts that distance from the neckline: $50 - $10 = $40. Fidelity's guide projects it down from the neckline too. StockCharts adds that any price target is a rough guide and other factors count. The target only applies after the neckline breaks. Head-to-neckline height, projected down from the neckline. A guide, not a promise.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$10",
+    "$40",
+    "$50",
+    "$60"
+   ],
+   "kind": "mcq",
    "q": "Head at $60, neckline at $50. Measure head to neckline and subtract that from the neckline. What's the target?",
    "subject": "head and shoulders"
   },
@@ -14580,13 +14651,18 @@
      "fn": "arith",
      "result": 40.0
     },
-    "given": "Head at $60, neckline at $50. Measure head to neckline and subtract that from the neckline. What's the target?"
+    "given": "Head at $60, neckline at $50. Measure head to neckline and subtract that from the neckline. What's the target? $50 $40 $60 $10"
    },
    "lesson_line": "Head-to-neckline height, projected down from the neckline. A guide, not a promise.",
    "simple": "The target is $40, the gap from the $60 head to the $50 neckline taken off the neckline, as a rough guide.",
    "tier": "extended",
    "unit": "V.04",
-   "why": "$40. The head sits $60 less $50 above the neckline. StockCharts subtracts that distance from the neckline, and Fidelity's guide projects it down from the neckline. StockCharts adds that any price target is a rough guide and other factors count. The target only applies after the neckline breaks."
+   "why": "$40. The head sits $60 - $50 = $10 above the neckline. StockCharts subtracts that distance from the neckline: $50 - $10 = $40. Fidelity's guide projects it down from the neckline too. StockCharts adds that any price target is a rough guide and other factors count. The target only applies after the neckline breaks.",
+   "wrong": {
+    "$10": "That is the head height alone, not the target.",
+    "$50": "Took the head height off the $60 head, not the neckline.",
+    "$60": "Added the head height to the neckline instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.pattern_terms",
@@ -14693,8 +14769,8 @@
   "prompt_json": {
    "choices": [
     "Upthrust",
-    "Spring",
     "Throwback",
+    "Spring",
     "Breakdown"
    ],
    "kind": "mcq",
@@ -14778,9 +14854,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A sharp dip that scares holders out",
     "A gap up on strong earnings news",
     "A week of very tiny daily ranges",
-    "A sharp dip that scares holders out",
     "A slow, steady slide over many months"
    ],
    "kind": "mcq",
@@ -14846,10 +14922,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The range's build-up behind a move",
     "The news that started the big selloff",
     "The breakout day's volume spike",
-    "The trend before the range began"
+    "The trend before the range began",
+    "The range's build-up behind a move"
    ],
    "kind": "mcq",
    "q": "In Wyckoff's method, what is the cause?",
@@ -14993,9 +15069,9 @@
   "prompt_json": {
    "choices": [
     "A V-shaped drop, then recovery",
+    "Sideways for several weeks or more",
     "A gap left unfilled for weeks",
-    "A steep, sudden run on volume",
-    "Sideways for several weeks or more"
+    "A steep, sudden run on volume"
    ],
    "kind": "mcq",
    "q": "What does flat base mean?",
@@ -15082,9 +15158,9 @@
   "prompt_json": {
    "choices": [
     "A rounded base with a short handle",
-    "A range set by recent highs and lows",
     "Three peaks, middle highest",
-    "A flat top with rising lows"
+    "A flat top with rising lows",
+    "A range set by recent highs and lows"
    ],
    "kind": "mcq",
    "q": "What does Darvas box mean?",
@@ -15390,9 +15466,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Inverse head and shoulders",
     "Head and shoulders top",
     "Triple bottom near $30",
-    "Inverse head and shoulders",
     "Rounding bottom, or saucer"
    ],
    "kind": "mcq",
@@ -15497,9 +15573,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A weekly chart",
     "A one-month daily chart",
     "An intraday chart",
+    "A weekly chart",
     "A long daily chart"
    ],
    "kind": "mcq",
@@ -15630,8 +15706,8 @@
   "prompt_json": {
    "choices": [
     "A routine throwback",
-    "A bullish shakeout",
     "A busted pattern",
+    "A bullish shakeout",
     "A Wyckoff spring"
    ],
    "kind": "mcq",
@@ -15722,8 +15798,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Yes, the target is the plan",
     "No, reassess: conditions changed",
+    "Yes, the target is the plan",
     "Yes, and add to get there faster",
     "No, widen the stop to give it room"
    ],
@@ -15808,10 +15884,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Wait for the close above $34",
     "Buy now, the shape is done",
     "Buy half now, half at $34",
-    "Wait for a retest of the head's low"
+    "Wait for a retest of the head's low",
+    "Wait for the close above $34"
    ],
    "kind": "mcq",
    "q": "What does the textbook say?",
@@ -16064,10 +16140,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Pennants are short, after sharp runs",
     "Triangles need a long downtrend first",
     "Pennants come with no flagpole",
-    "Pennants have two parallel lines",
-    "Pennants are short, after sharp runs"
+    "Pennants have two parallel lines"
    ],
    "kind": "mcq",
    "q": "What separates a symmetrical triangle from a pennant?",
@@ -16156,9 +16232,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Triple top",
     "Ascending triangle",
     "Head and shoulders",
+    "Triple top",
     "Double top"
    ],
    "kind": "mcq",
@@ -16246,8 +16322,8 @@
   "prompt_json": {
    "choices": [
     "Throwback",
-    "Spring",
     "Upthrust",
+    "Spring",
     "Breakout"
    ],
    "kind": "mcq",
@@ -16321,9 +16397,9 @@
   "prompt_json": {
    "choices": [
     "Exactly on today's $49.60 low",
-    "A few cents under today's $49.60 low",
     "Exactly on the $47 handle low",
-    "A few cents under the $47 handle low"
+    "A few cents under the $47 handle low",
+    "A few cents under today's $49.60 low"
    ],
    "kind": "mcq",
    "q": "Under UCT's default stop rule, where does your stop go?",
@@ -17894,11 +17970,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "11.05",
-    "11.050"
-   ],
-   "answer": 11.05
+   "answer": "$11.05"
   },
   "difficulty": 1,
   "id": "si_cbc62b8a217b",
@@ -17906,8 +17978,13 @@
   "lesson_text": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. A cent over $11.04 is $11.05, the same price as the owner's JBI example. Kicker entry: over the red day's high, at market as it trades through.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$10.94",
+    "$11.05",
+    "$11.14",
+    "$12.04"
+   ],
+   "kind": "mcq",
    "q": "Kicker day. The red day before it topped at $11.04. You enter a cent over that high as it trades through. What do you pay?",
    "subject": "Kicker"
   },
@@ -17933,13 +18010,18 @@
      "fn": "arith",
      "result": 11.05
     },
-    "given": "Kicker day. The red day before it topped at $11.04. You enter a cent over that high as it trades through. What do you pay?"
+    "given": "Kicker day. The red day before it topped at $11.04. You enter a cent over that high as it trades through. What do you pay? $12.04 $10.94 $11.14 $11.05"
    },
    "lesson_line": "Kicker entry: over the red day's high, at market as it trades through.",
    "simple": "$11.05, a cent over the red day's $11.04 high, the level our Kicker entry breaks.",
    "tier": "core",
    "unit": "V.05",
-   "why": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. A cent over $11.04 is $11.05, the same price as the owner's JBI example."
+   "why": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. A cent over $11.04 is $11.05, the same price as the owner's JBI example.",
+   "wrong": {
+    "$10.94": "A dime under the high, so the entry has not triggered yet.",
+    "$11.14": "A dime over the high, not a cent.",
+    "$12.04": "A dollar over the high, not a cent."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -18864,22 +18946,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "33",
-    "33.0",
-    "33.00",
-    "33.000"
-   ],
-   "answer": 33.0
+   "answer": "$33.00"
   },
   "difficulty": 2,
   "id": "si_3dbb8116816f",
   "lesson_origin": "session",
-  "lesson_text": "$33.00. You buy the $30.00 reclaim. The stop sits at $29.00, a few cents under the day's low, where our rulebook puts it. Your risk per share is the gap between the two. 3R is three times that risk, added on top of $30.00. It is a mark to measure with, not an order to sell. Count from the entry, never from the stop. 3R is three times your entry-to-stop risk, added to the entry.",
+  "lesson_text": "$33.00. You buy the $30.00 reclaim. The stop sits at $29.00, a few cents under the day's low, where our rulebook puts it. Risk per share is $30.00 - $29.00. 3R is three times that, added to the entry: $30.00 + 3 x ($30.00 - $29.00) = $33.00. It is a mark to measure with, not an order to sell. 3R is three times your entry-to-stop risk, added to the entry.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$31.00",
+    "$32.00",
+    "$33.00",
+    "$34.00"
+   ],
+   "kind": "mcq",
    "q": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. Your stop is $29.00, just under the day's low. Where is the 3R price?",
    "subject": "3R"
   },
@@ -18934,13 +19015,18 @@
      "fn": "arith",
      "result": 33.0
     },
-    "given": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. Your stop is $29.00, just under the day's low. Where is the 3R price?"
+    "given": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. Your stop is $29.00, just under the day's low. Where is the 3R price? $32.00 $31.00 $33.00 $34.00"
    },
    "lesson_line": "3R is three times your entry-to-stop risk, added to the entry.",
    "simple": "$33.00, because 3R adds three times your risk per share, $30.00 down to $29.00, on top of your entry.",
    "tier": "extended",
    "unit": "V.05",
-   "why": "$33.00. You buy the $30.00 reclaim. The stop sits at $29.00, a few cents under the day's low, where our rulebook puts it. Your risk per share is the gap between the two. 3R is three times that risk, added on top of $30.00. It is a mark to measure with, not an order to sell. Count from the entry, never from the stop."
+   "why": "$33.00. You buy the $30.00 reclaim. The stop sits at $29.00, a few cents under the day's low, where our rulebook puts it. Risk per share is $30.00 - $29.00. 3R is three times that, added to the entry: $30.00 + 3 x ($30.00 - $29.00) = $33.00. It is a mark to measure with, not an order to sell.",
+   "wrong": {
+    "$31.00": "Added only one R, one risk per share, to the entry.",
+    "$32.00": "Counted 3R up from the $29.00 stop, not from the entry.",
+    "$34.00": "Added four R, counting the entry itself as the first step."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -19714,22 +19800,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "47",
-    "47.0",
-    "47.00",
-    "47.000"
-   ],
-   "answer": 47.0
+   "answer": "$47.00"
   },
   "difficulty": 3,
   "id": "si_697ae202518d",
   "lesson_origin": "session",
-  "lesson_text": "$47.00. The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. The lower one is the 50-day at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.00. An easy slip is starting from the higher average, the 21-day at $48.00. Launchpad stop: a quarter of an ATR under the lower of the 21-day and 50-day.",
+  "lesson_text": "$47.00. The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. The lower one is the 50-day at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.50 - 0.25 x $2.00 = $47.00. An easy slip is starting from the higher average, the 21-day at $48.00. Launchpad stop: a quarter of an ATR under the lower of the 21-day and 50-day.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$45.50",
+    "$46.50",
+    "$47.00",
+    "$47.50"
+   ],
+   "kind": "mcq",
    "q": "Launchpad. The 21-day average is $48.00, the 50-day is $47.50, and the ATR is $2.00. Where does our stop go?",
    "subject": "Launchpad"
   },
@@ -19766,13 +19851,18 @@
      "fn": "arith",
      "result": 47.0
     },
-    "given": "Launchpad. The 21-day average is $48.00, the 50-day is $47.50, and the ATR is $2.00. Where does our stop go?"
+    "given": "Launchpad. The 21-day average is $48.00, the 50-day is $47.50, and the ATR is $2.00. Where does our stop go? $45.50 $47.50 $47.00 $46.50"
    },
    "lesson_line": "Launchpad stop: a quarter of an ATR under the lower of the 21-day and 50-day.",
    "simple": "$47.00, because the lower average is the 50-day at $47.50, and our stop sits a quarter of the $2.00 ATR below it.",
    "tier": "extended",
    "unit": "V.05",
-   "why": "$47.00. The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. The lower one is the 50-day at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.00. An easy slip is starting from the higher average, the 21-day at $48.00."
+   "why": "$47.00. The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. The lower one is the 50-day at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.50 - 0.25 x $2.00 = $47.00. An easy slip is starting from the higher average, the 21-day at $48.00.",
+   "wrong": {
+    "$45.50": "Took a full ATR off the 50-day, not a quarter.",
+    "$46.50": "Took half an ATR off the 50-day, not a quarter.",
+    "$47.50": "Started from the 21-day, $48.00, then took off a quarter ATR."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -19964,21 +20054,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "52.5",
-    "52.50",
-    "52.500"
-   ],
-   "answer": 52.5
+   "answer": "$52.50"
   },
   "difficulty": 3,
   "id": "si_3177a190cb28",
   "lesson_origin": "session",
-  "lesson_text": "$52.50. R is the risk per share from trigger to stop, $45.00 down to $43.50. 5R is five times that, added on top of the $45.00 trigger. It is a mark to measure a push with, not a fixed sell. Count from the trigger, not the stop. 5R: five times your risk per share, on top of the entry.",
+  "lesson_text": "$52.50. R is the risk per share from trigger to stop: $45.00 - $43.50. 5R is five times that, added to the trigger: $45.00 + 5 x ($45.00 - $43.50) = $52.50. It is a mark to measure a push with, not a fixed sell. Count from the trigger, not the stop. 5R: five times your risk per share, on top of the entry.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$49.50",
+    "$51.00",
+    "$52.50",
+    "$54.00"
+   ],
+   "kind": "mcq",
    "q": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is the 5R price?",
    "subject": "3R"
   },
@@ -20022,13 +20112,18 @@
      "fn": "arith",
      "result": 52.5
     },
-    "given": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is the 5R price?"
+    "given": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is the 5R price? $51.00 $52.50 $49.50 $54.00"
    },
    "lesson_line": "5R: five times your risk per share, on top of the entry.",
    "simple": "$52.50, because 5R is five times your risk from the $45.00 trigger to the $43.50 stop, added to the trigger.",
    "tier": "extended",
    "unit": "V.05",
-   "why": "$52.50. R is the risk per share from trigger to stop, $45.00 down to $43.50. 5R is five times that, added on top of the $45.00 trigger. It is a mark to measure a push with, not a fixed sell. Count from the trigger, not the stop."
+   "why": "$52.50. R is the risk per share from trigger to stop: $45.00 - $43.50. 5R is five times that, added to the trigger: $45.00 + 5 x ($45.00 - $43.50) = $52.50. It is a mark to measure a push with, not a fixed sell. Count from the trigger, not the stop.",
+   "wrong": {
+    "$49.50": "Added only 3R to the trigger, not 5R.",
+    "$51.00": "Counted 5R up from the $43.50 stop, not from the trigger.",
+    "$54.00": "Added six R, counting the trigger itself as the first step."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -21470,13 +21565,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "4",
-    "4.0",
-    "4.00",
-    "4.000"
-   ],
-   "answer": 4.0
+   "answer": "$4"
   },
   "difficulty": 1,
   "id": "si_ebb4115f9647",
@@ -21484,8 +21573,13 @@
   "lesson_text": "$4. R per share is your entry minus your stop: $50 less $46. Tharp's own example buys at $50 with a $40 exit, so 1R is $10 a share. R is the loss you plan for. Entry minus stop. That's 1R per share.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.40",
+    "$4",
+    "$46",
+    "$54"
+   ],
+   "kind": "mcq",
    "q": "You buy at $50 with your stop at $46. What is your R per share?",
    "subject": "R"
   },
@@ -21526,13 +21620,18 @@
      "fn": "arith",
      "result": 4.0
     },
-    "given": "You buy at $50 with your stop at $46. What is your R per share?"
+    "given": "You buy at $50 with your stop at $46. What is your R per share? $46 $0.40 $54 $4"
    },
    "lesson_line": "Entry minus stop. That's 1R per share.",
    "simple": "Your R is $4 a share, because R is your entry price minus your stop price.",
    "tier": "core",
    "unit": "V.06",
-   "why": "$4. R per share is your entry minus your stop: $50 less $46. Tharp's own example buys at $50 with a $40 exit, so 1R is $10 a share. R is the loss you plan for."
+   "why": "$4. R per share is your entry minus your stop: $50 less $46. Tharp's own example buys at $50 with a $40 exit, so 1R is $10 a share. R is the loss you plan for.",
+   "wrong": {
+    "$0.40": "Slipped a decimal place.",
+    "$46": "Gave the stop price instead of the gap between entry and stop.",
+    "$54": "Added the risk to your entry instead of taking the stop off."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.risk_terms",
@@ -21863,24 +21962,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3",
-    "3.0",
-    "3.00",
-    "3.000"
-   ],
-   "answer": 3.0
+   "answer": "3R"
   },
   "difficulty": 2,
   "id": "si_be49b2d0a328",
   "lesson_origin": "session",
-  "lesson_text": "3R. Your gain per share is $92 less $80. Your risk per share is $80 less $76. The gain is three times the risk, so the trade made 3R. Tharp's drill works the same way. Buy at $40, stop at $35, sell at $50: a $10 gain on $5 of risk is 2R. Divide what you made by what you risked. That's the R-multiple.",
+  "lesson_text": "3R. Gain per share is $92 less $80, or $12. Risk per share is $80 less $76, or $4. $12 divided by $4 is 3R. Tharp's drill works the same way: buy at $40, stop at $35, sell at $50 is a $10 gain on $5 of risk, or 2R. Divide what you made by what you risked. That's the R-multiple.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.33R",
+    "3R",
+    "4R",
+    "12R"
+   ],
+   "kind": "mcq",
    "q": "You buy at $80 with a stop at $76. You sell at $92. What R-multiple did you make?",
-   "subject": "R-multiple",
-   "suffix": "R"
+   "subject": "R-multiple"
   },
   "reveal_json": {
    "depth": {
@@ -21919,13 +22017,18 @@
      "fn": "r_multiple",
      "result": 3.0
     },
-    "given": "You buy at $80 with a stop at $76. You sell at $92. What R-multiple did you make?"
+    "given": "You buy at $80 with a stop at $76. You sell at $92. What R-multiple did you make? 12R 0.33R 4R 3R"
    },
    "lesson_line": "Divide what you made by what you risked. That's the R-multiple.",
    "simple": "You made 3R, because your gain per share was three times your risk per share.",
    "tier": "core",
    "unit": "V.06",
-   "why": "3R. Your gain per share is $92 less $80. Your risk per share is $80 less $76. The gain is three times the risk, so the trade made 3R. Tharp's drill works the same way. Buy at $40, stop at $35, sell at $50: a $10 gain on $5 of risk is 2R."
+   "why": "3R. Gain per share is $92 less $80, or $12. Risk per share is $80 less $76, or $4. $12 divided by $4 is 3R. Tharp's drill works the same way: buy at $40, stop at $35, sell at $50 is a $10 gain on $5 of risk, or 2R.",
+   "wrong": {
+    "0.33R": "Divided the risk by the gain, upside down.",
+    "12R": "Gave the gain per share and never divided by the risk.",
+    "4R": "Gave the risk per share instead of the multiple."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.risk_terms",
@@ -22181,23 +22284,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.6",
-    "0.60",
-    "0.600"
-   ],
-   "answer": 0.6
+   "answer": "0.6R"
   },
   "difficulty": 2,
   "id": "si_2a66af0f5c15",
   "lesson_origin": "session",
-  "lesson_text": "0.6R. Weight each result by how often it happens, then add. Winners come 40% of the time at +3R. Losers come the rest of the time at -1R. Tharp calls expectancy the mean R-multiple. Investopedia's expected value is the same sum: each outcome times its chance, added up. Expectancy needs both: how often you win, and how big the wins and losses are.",
+  "lesson_text": "0.6R. Weight each result by how often it happens. Wins: 40% times 3R is 1.2R. Losses: 60% times 1R is 0.6R. Take 1.2R less 0.6R and you get 0.6R. Tharp calls expectancy the mean R-multiple. Investopedia's expected value is the same sum. Expectancy needs both: how often you win, and how big the wins and losses are.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.6R",
+    "1.2R",
+    "1.4R",
+    "2R"
+   ],
+   "kind": "mcq",
    "q": "You win 40% of your trades. Winners average 3R and losers 1R. What is your expectancy per trade?",
-   "subject": "Expectancy",
-   "suffix": "R"
+   "subject": "Expectancy"
   },
   "reveal_json": {
    "depth": {
@@ -22236,13 +22339,18 @@
      "fn": "expectancy_r",
      "result": 0.6
     },
-    "given": "You win 40% of your trades. Winners average 3R and losers 1R. What is your expectancy per trade?"
+    "given": "You win 40% of your trades. Winners average 3R and losers 1R. What is your expectancy per trade? 1.2R 2R 0.6R 1.4R"
    },
    "lesson_line": "Expectancy needs both: how often you win, and how big the wins and losses are.",
    "simple": "Your expectancy is 0.6R a trade, because your 3R wins outweigh your 1R losses at a 40% win rate.",
    "tier": "core",
    "unit": "V.06",
-   "why": "0.6R. Weight each result by how often it happens, then add. Winners come 40% of the time at +3R. Losers come the rest of the time at -1R. Tharp calls expectancy the mean R-multiple. Investopedia's expected value is the same sum: each outcome times its chance, added up."
+   "why": "0.6R. Weight each result by how often it happens. Wins: 40% times 3R is 1.2R. Losses: 60% times 1R is 0.6R. Take 1.2R less 0.6R and you get 0.6R. Tharp calls expectancy the mean R-multiple. Investopedia's expected value is the same sum.",
+   "wrong": {
+    "1.2R": "Counted the 40% wins and ignored the losses.",
+    "1.4R": "Swapped the rates, so winners came 60% of the time.",
+    "2R": "Took the 3R win less the 1R loss and ignored how often each happens."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.risk_terms",
@@ -22716,22 +22824,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3",
-    "3.0",
-    "3.00",
-    "3.000"
-   ],
-   "answer": 3.0
+   "answer": "$3"
   },
   "difficulty": 2,
   "id": "si_008c8636ea03",
   "lesson_origin": "session",
-  "lesson_text": "$3. The target is $23 less $20 away. The stop is $20 less $19 away. The target is three times as far. Investopedia writes that as 1:3 risk/reward: three units of reward for every unit of risk. Divide the distance to the target by the distance to the stop.",
+  "lesson_text": "$3. The target is $23 less $20, or $3 away. The stop is $20 less $19, or $1 away. $3 of reward for $1 of risk is $3 for each dollar. Investopedia writes that as 1:3 risk/reward: three units of reward for every unit of risk. Divide the distance to the target by the distance to the stop.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.33",
+    "$1.15",
+    "$3",
+    "$4"
+   ],
+   "kind": "mcq",
    "q": "Entry $20, stop $19, target $23. How many dollars can you make for each dollar you risk?",
    "subject": "Risk/reward ratio"
   },
@@ -22766,13 +22873,18 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "Entry $20, stop $19, target $23. How many dollars can you make for each dollar you risk?"
+    "given": "Entry $20, stop $19, target $23. How many dollars can you make for each dollar you risk? $4 $0.33 $3 $1.15"
    },
    "lesson_line": "Divide the distance to the target by the distance to the stop.",
    "simple": "You can make $3 for each $1 you risk, because the target is three times as far away as the stop.",
    "tier": "core",
    "unit": "V.06",
-   "why": "$3. The target is $23 less $20 away. The stop is $20 less $19 away. The target is three times as far. Investopedia writes that as 1:3 risk/reward: three units of reward for every unit of risk."
+   "why": "$3. The target is $23 less $20, or $3 away. The stop is $20 less $19, or $1 away. $3 of reward for $1 of risk is $3 for each dollar. Investopedia writes that as 1:3 risk/reward: three units of reward for every unit of risk.",
+   "wrong": {
+    "$0.33": "Divided the risk by the reward, upside down.",
+    "$1.15": "Divided the target price by the entry price.",
+    "$4": "Measured the reward from the stop instead of from your entry."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.risk_terms",
@@ -22951,24 +23063,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "266",
-    "266.0",
-    "266.00",
-    "266.000"
-   ],
-   "answer": 266.0
+   "answer": "266 shares"
   },
   "difficulty": 2,
   "id": "si_d49bb5def150",
   "lesson_origin": "session",
-  "lesson_text": "266 shares. Take 1% of $40,000. Divide it by the risk per share, $25 less $23.50. Round down, never up. Investopedia's method is the same: account risk divided by trade risk gives the share count. Our rule then caps it: the size is the smaller of this and the position cap, 40% of the account. Here the cap does not bind. Dollars at risk divided by risk per share. Round down, never up.",
+  "lesson_text": "266 shares. 1% of $40,000 is $400. Risk per share is $25 less $23.50. Divide the $400 by the risk per share and round down, never up. Investopedia's method is the same. Our rule caps size at 40% of the account, and here the cap does not bind. Dollars at risk divided by risk per share. Round down, never up.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "266 shares",
+    "400 shares",
+    "1,600 shares",
+    "2,666 shares"
+   ],
+   "kind": "mcq",
    "q": "Account $40,000, risking 1% a trade. Entry $25, stop $23.50. How many shares do you buy?",
-   "subject": "Position sizing",
-   "suffix": "shares"
+   "subject": "Position sizing"
   },
   "reveal_json": {
    "depth": {
@@ -23022,13 +23133,18 @@
      "fn": "shares_from_risk",
      "result": 266.0
     },
-    "given": "Account $40,000, risking 1% a trade. Entry $25, stop $23.50. How many shares do you buy?"
+    "given": "Account $40,000, risking 1% a trade. Entry $25, stop $23.50. How many shares do you buy? 400 shares 2,666 shares 1,600 shares 266 shares"
    },
    "lesson_line": "Dollars at risk divided by risk per share. Round down, never up.",
    "simple": "Buy 266 shares, because 1% of the account divided by your risk per share, rounded down, gives 266.",
    "tier": "extended",
    "unit": "V.06",
-   "why": "266 shares. Take 1% of $40,000. Divide it by the risk per share, $25 less $23.50. Round down, never up. Investopedia's method is the same: account risk divided by trade risk gives the share count. Our rule then caps it: the size is the smaller of this and the position cap, 40% of the account. Here the cap does not bind."
+   "why": "266 shares. 1% of $40,000 is $400. Risk per share is $25 less $23.50. Divide the $400 by the risk per share and round down, never up. Investopedia's method is the same. Our rule caps size at 40% of the account, and here the cap does not bind.",
+   "wrong": {
+    "1,600 shares": "Spent the whole account on shares, ignoring the stop.",
+    "2,666 shares": "Slipped a decimal place.",
+    "400 shares": "Treated the $400 of risk as a share count."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.risk_terms",
@@ -23761,24 +23877,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "25",
-    "25.0",
-    "25.00",
-    "25.000"
-   ],
-   "answer": 25.0
+   "answer": "25%"
   },
   "difficulty": 2,
   "id": "si_c64c1eb92b2e",
   "lesson_origin": "session",
-  "lesson_text": "25%. After a loss you climb back from a smaller base, so the gain has to be bigger than the loss. A given percent loss always needs a bigger percent gain to break even. Down 20% needs up 25%. The deeper the hole, the steeper the climb.",
+  "lesson_text": "25%. Say the account was $100. Down 20% leaves $80. To get back to $100 you need $20 on a base of $80. $20 divided by $80 is 25%. You climb back from a smaller base, so the gain is bigger than the loss. Down 20% needs up 25%. The deeper the hole, the steeper the climb.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "16.7%",
+    "20%",
+    "25%",
+    "80%"
+   ],
+   "kind": "mcq",
    "q": "Your account is down 20% from its peak. What gain takes it back to the high?",
-   "subject": "Drawdown",
-   "suffix": "%"
+   "subject": "Drawdown"
   },
   "reveal_json": {
    "deeper": {
@@ -23811,13 +23926,18 @@
      "fn": "gain_to_recover",
      "result": 25.0
     },
-    "given": "Your account is down 20% from its peak. What gain takes it back to the high?"
+    "given": "Your account is down 20% from its peak. What gain takes it back to the high? 20% 25% 16.7% 80%"
    },
    "lesson_line": "Down 20% needs up 25%. The deeper the hole, the steeper the climb.",
    "simple": "You need a 25% gain, because you climb back from a smaller base than the one you fell from.",
    "tier": "extended",
    "unit": "V.06",
-   "why": "25%. After a loss you climb back from a smaller base, so the gain has to be bigger than the loss. A given percent loss always needs a bigger percent gain to break even."
+   "why": "25%. Say the account was $100. Down 20% leaves $80. To get back to $100 you need $20 on a base of $80. $20 divided by $80 is 25%. You climb back from a smaller base, so the gain is bigger than the loss.",
+   "wrong": {
+    "16.7%": "Worked out the fall that follows a 20% gain, the reverse trip.",
+    "20%": "Assumed the gain needed equals the loss.",
+    "80%": "Gave the share of the account you still have."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.risk_terms",
@@ -24506,24 +24626,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "6",
-    "6.0",
-    "6.00",
-    "6.000"
-   ],
-   "answer": 6.0
+   "answer": "6%"
   },
   "difficulty": 2,
   "id": "si_5c04a886cafa",
   "lesson_origin": "session",
-  "lesson_text": "6%. Add up what every open trade loses if its stop is hit: four trades at 1.5% each. Seykota and Druz: 2% on each of five positions is a total heat of 10%. Heat adds up even when each trade looks small. Know your total heat before you add one more trade.",
+  "lesson_text": "6%. Add up what every open trade loses if its stop is hit. Four trades at 1.5% each is 4 times 1.5%, or 6%. Seykota and Druz: 2% on each of five positions is a total heat of 10%. Heat adds up even when each trade looks small. Know your total heat before you add one more trade.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "1.5%",
+    "4%",
+    "5.5%",
+    "6%"
+   ],
+   "kind": "mcq",
    "q": "You hold four trades. Each one risks 1.5% of the account to its stop. What is your portfolio heat?",
-   "subject": "Portfolio heat",
-   "suffix": "%"
+   "subject": "Portfolio heat"
   },
   "reveal_json": {
    "depth": {
@@ -24562,13 +24681,18 @@
      "fn": "arith",
      "result": 6.0
     },
-    "given": "You hold four trades. Each one risks 1.5% of the account to its stop. What is your portfolio heat?"
+    "given": "You hold four trades. Each one risks 1.5% of the account to its stop. What is your portfolio heat? 1.5% 6% 5.5% 4%"
    },
    "lesson_line": "Know your total heat before you add one more trade.",
    "simple": "Your heat is 6%, because four trades that each risk 1.5% add up to 6%.",
    "tier": "extended",
    "unit": "V.06",
-   "why": "6%. Add up what every open trade loses if its stop is hit: four trades at 1.5% each. Seykota and Druz: 2% on each of five positions is a total heat of 10%. Heat adds up even when each trade looks small."
+   "why": "6%. Add up what every open trade loses if its stop is hit. Four trades at 1.5% each is 4 times 1.5%, or 6%. Seykota and Druz: 2% on each of five positions is a total heat of 10%. Heat adds up even when each trade looks small.",
+   "wrong": {
+    "1.5%": "Counted one trade's risk and skipped the other three.",
+    "4%": "Gave the number of trades as the percent.",
+    "5.5%": "Added the 4 trades to the 1.5% instead of multiplying."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.risk_terms",
@@ -24853,22 +24977,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "700",
-    "700.0",
-    "700.00",
-    "700.000"
-   ],
-   "answer": 700.0
+   "answer": "$700"
   },
   "difficulty": 2,
   "id": "si_8e27de49f77c",
   "lesson_origin": "session",
-  "lesson_text": "$700. Open risk runs from today's $62 down to your $55 stop, times 100 shares. Your stop sits above your $50 entry, so a fill at the stop would still be a profit. But the open gain above $55 is still at risk. Open profit above your stop is still at risk.",
+  "lesson_text": "$700. Open risk runs from today's $62 down to your $55 stop: $7 a share. Times 100 shares is $700. Your stop sits above your $50 entry, so a fill at the stop would still be a profit. But the open gain above $55 is still at risk. Open profit above your stop is still at risk.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$7",
+    "$500",
+    "$700",
+    "$1,200"
+   ],
+   "kind": "mcq",
    "q": "You own 100 shares bought at $50. They now trade at $62, and your stop is $55. What is your open risk?",
    "subject": "Open risk"
   },
@@ -24913,13 +25036,18 @@
      "fn": "arith",
      "result": 700.0
     },
-    "given": "You own 100 shares bought at $50. They now trade at $62, and your stop is $55. What is your open risk?"
+    "given": "You own 100 shares bought at $50. They now trade at $62, and your stop is $55. What is your open risk? $1,200 $700 $500 $7"
    },
    "lesson_line": "Open profit above your stop is still at risk.",
    "simple": "Your open risk is $700, because 100 shares could fall from $62 down to your $55 stop.",
    "tier": "extended",
    "unit": "V.06",
-   "why": "$700. Open risk runs from today's $62 down to your $55 stop, times 100 shares. Your stop sits above your $50 entry, so a fill at the stop would still be a profit. But the open gain above $55 is still at risk."
+   "why": "$700. Open risk runs from today's $62 down to your $55 stop: $7 a share. Times 100 shares is $700. Your stop sits above your $50 entry, so a fill at the stop would still be a profit. But the open gain above $55 is still at risk.",
+   "wrong": {
+    "$1,200": "Gave the open gain from your entry, not the risk down to the stop.",
+    "$500": "Gave the profit locked in above your entry, not the open risk.",
+    "$7": "Gave the risk per share and skipped the 100 shares."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.risk_terms",
@@ -25194,22 +25322,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "68",
-    "68.0",
-    "68.00",
-    "68.000"
-   ],
-   "answer": 68.0
+   "answer": "$68"
   },
   "difficulty": 2,
   "id": "si_8152b214b819",
   "lesson_origin": "session",
-  "lesson_text": "$68. The stop trails 20% under the $85 high, and it stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down. A trailing stop measures from the high, not from your entry.",
+  "lesson_text": "$68. The stop trails 20% under the $85 high. 20% of $85 is $17. $85 less $17 is $68. It stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down. A trailing stop measures from the high, not from your entry.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$17",
+    "$65",
+    "$68",
+    "$102"
+   ],
+   "kind": "mcq",
    "q": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop?",
    "subject": "Trailing stop"
   },
@@ -25260,13 +25387,18 @@
      "fn": "arith",
      "result": 68.0
     },
-    "given": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop?"
+    "given": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop? $65 $17 $68 $102"
    },
    "lesson_line": "A trailing stop measures from the high, not from your entry.",
    "simple": "Your stop is at $68, because it sits 20% under the $85 high and never moves down.",
    "tier": "extended",
    "unit": "V.06",
-   "why": "$68. The stop trails 20% under the $85 high, and it stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down."
+   "why": "$68. The stop trails 20% under the $85 high. 20% of $85 is $17. $85 less $17 is $68. It stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down.",
+   "wrong": {
+    "$102": "Added 20% to the high instead of subtracting.",
+    "$17": "Worked out 20% of the high and never took it off.",
+    "$65": "Took 20 dollars off the high, not 20 percent."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.risk_terms",
@@ -25895,21 +26027,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "72.5",
-    "72.50",
-    "72.500"
-   ],
-   "answer": 72.5
+   "answer": "$72.50"
   },
   "difficulty": 2,
   "id": "si_ba4dd5ea85c1",
   "lesson_origin": "session",
-  "lesson_text": "$72.50. StockCharts' long Chandelier Exit is the 22-day high minus three times the 22-day ATR: $80 less three times $2.50. It is a trailing stop based on ATR, so it hangs under the high and its distance grows with volatility. Chandelier Exit: the 22-day high minus three ATRs, by default.",
+  "lesson_text": "$72.50. StockCharts' long Chandelier Exit is the 22-day high minus three times the 22-day ATR. Three times $2.50 is $7.50. $80 less $7.50 is $72.50. It is a trailing stop based on ATR, so it hangs under the high and its distance grows with volatility. Chandelier Exit: the 22-day high minus three ATRs, by default.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$7.50",
+    "$72.50",
+    "$77.50",
+    "$87.50"
+   ],
+   "kind": "mcq",
    "q": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down?",
    "subject": "Chandelier Exit"
   },
@@ -25958,13 +26090,18 @@
      "fn": "arith",
      "result": 72.5
     },
-    "given": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down?"
+    "given": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down? $77.50 $72.50 $7.50 $87.50"
    },
    "lesson_line": "Chandelier Exit: the 22-day high minus three ATRs, by default.",
    "simple": "The exit sits at $72.50, three ATRs of $2.50 under the $80 high.",
    "tier": "extended",
    "unit": "V.06",
-   "why": "$72.50. StockCharts' long Chandelier Exit is the 22-day high minus three times the 22-day ATR: $80 less three times $2.50. It is a trailing stop based on ATR, so it hangs under the high and its distance grows with volatility."
+   "why": "$72.50. StockCharts' long Chandelier Exit is the 22-day high minus three times the 22-day ATR. Three times $2.50 is $7.50. $80 less $7.50 is $72.50. It is a trailing stop based on ATR, so it hangs under the high and its distance grows with volatility.",
+   "wrong": {
+    "$7.50": "Gave the three ATRs and never took them off the high.",
+    "$77.50": "Went down only one ATR instead of three.",
+    "$87.50": "Added three ATRs to the high instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.risk_terms",
@@ -28072,12 +28209,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "35.4",
-    "35.40",
-    "35.400"
-   ],
-   "answer": 35.4
+   "answer": "$35.40"
   },
   "difficulty": 2,
   "id": "si_b3bc9784639f",
@@ -28085,8 +28217,13 @@
   "lesson_text": "$35.40. A trailing stop follows the high by the set amount: $37.40 less $2. When price dips to $36, the stop does not move down. It holds at $35.40, and the $36 dip is still above it, so nothing triggers. A trailing stop tracks the high, not your entry.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$28.00",
+    "$34.00",
+    "$35.40",
+    "$37.40"
+   ],
+   "kind": "mcq",
    "q": "You buy at $30 and set a sell trailing stop $2 below the price. It climbs to $37.40, then dips to $36. Where is your stop now?",
    "subject": "Trailing stop"
   },
@@ -28127,13 +28264,18 @@
      "fn": "arith",
      "result": 35.4
     },
-    "given": "You buy at $30 and set a sell trailing stop $2 below the price. It climbs to $37.40, then dips to $36. Where is your stop now?"
+    "given": "You buy at $30 and set a sell trailing stop $2 below the price. It climbs to $37.40, then dips to $36. Where is your stop now? $28.00 $35.40 $37.40 $34.00"
    },
    "lesson_line": "A trailing stop tracks the high, not your entry.",
    "simple": "Your stop is at $35.40, because it trails the $37.40 high by $2 and does not drop on the dip.",
    "tier": "core",
    "unit": "V.07",
-   "why": "$35.40. A trailing stop follows the high by the set amount: $37.40 less $2. When price dips to $36, the stop does not move down. It holds at $35.40, and the $36 dip is still above it, so nothing triggers."
+   "why": "$35.40. A trailing stop follows the high by the set amount: $37.40 less $2. When price dips to $36, the stop does not move down. It holds at $35.40, and the $36 dip is still above it, so nothing triggers.",
+   "wrong": {
+    "$28.00": "Trailed from your $30 entry, not from the high.",
+    "$34.00": "Trailed from the $36 dip, not from the high.",
+    "$37.40": "Gave the high and forgot to take off the $2."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.order_terms",
@@ -29265,21 +29407,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "500",
-    "500.0",
-    "500.00",
-    "500.000"
-   ],
-   "answer": 500.0
+   "answer": "500 shares"
   },
   "difficulty": 2,
   "id": "si_ebe2bfe270d1",
   "lesson_origin": "session",
-  "lesson_text": "500. An immediate-or-cancel order fills whatever it can at once and cancels any unfilled balance: 800 less 300. Unlike fill-or-kill, IOC keeps the partial fill, so you own the 300 shares. IOC takes what's there now and walks away from the rest.",
+  "lesson_text": "500. An immediate-or-cancel order fills whatever it can at once and cancels any unfilled balance. 800 less 300 filled leaves 500 canceled. Unlike fill-or-kill, IOC keeps the partial fill, so you own the 300 shares. IOC takes what's there now and walks away from the rest.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0 shares",
+    "300 shares",
+    "500 shares",
+    "800 shares"
+   ],
+   "kind": "mcq",
    "q": "You send an immediate-or-cancel (IOC) order to buy 800 shares. Only 300 can fill right away. How many shares get canceled?",
    "subject": "IOC"
   },
@@ -29330,13 +29472,18 @@
      "fn": "arith",
      "result": 500.0
     },
-    "given": "You send an immediate-or-cancel (IOC) order to buy 800 shares. Only 300 can fill right away. How many shares get canceled?"
+    "given": "You send an immediate-or-cancel (IOC) order to buy 800 shares. Only 300 can fill right away. How many shares get canceled? 300 shares 800 shares 0 shares 500 shares"
    },
    "lesson_line": "IOC takes what's there now and walks away from the rest.",
    "simple": "500 shares cancel, because IOC keeps the 300 it can fill now and drops the rest of the 800.",
    "tier": "extended",
    "unit": "V.07",
-   "why": "500. An immediate-or-cancel order fills whatever it can at once and cancels any unfilled balance: 800 less 300. Unlike fill-or-kill, IOC keeps the partial fill, so you own the 300 shares."
+   "why": "500. An immediate-or-cancel order fills whatever it can at once and cancels any unfilled balance. 800 less 300 filled leaves 500 canceled. Unlike fill-or-kill, IOC keeps the partial fill, so you own the 300 shares.",
+   "wrong": {
+    "0 shares": "Thought the rest keeps working on the book, which is a day order, not IOC.",
+    "300 shares": "Gave the shares that filled, not the ones canceled.",
+    "800 shares": "Canceled the whole order, which is fill-or-kill, not IOC."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.order_terms",
@@ -30081,22 +30228,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "90",
-    "90.0",
-    "90.00",
-    "90.000"
-   ],
-   "answer": 90.0
+   "answer": "$90"
   },
   "difficulty": 2,
   "id": "si_99f406b31b0b",
   "lesson_origin": "session",
-  "lesson_text": "$90. A market buy generally fills at or near the ask, so $15.20 was the price you expected. You paid an average of $15.29 across 1,000 shares: $15.29 less $15.20, times 1,000. A large order can fill in parts at several prices. A big market order can fill at several prices. Check your average fill, not just the quote.",
+  "lesson_text": "$90. A market buy generally fills at or near the ask, so $15.20 was the price you expected. You paid an average of $15.29, which is $0.09 a share more. Times 1,000 shares is $90. A large order can fill in parts at several prices. A big market order can fill at several prices. Check your average fill, not just the quote.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.09",
+    "$90",
+    "$900",
+    "$15,290"
+   ],
+   "kind": "mcq",
    "q": "You send a market buy for 1,000 shares with the ask at $15.20. They fill at an average of $15.29. What did slippage cost you?",
    "subject": "Slippage"
   },
@@ -30145,13 +30291,18 @@
      "fn": "arith",
      "result": 90.0
     },
-    "given": "You send a market buy for 1,000 shares with the ask at $15.20. They fill at an average of $15.29. What did slippage cost you?"
+    "given": "You send a market buy for 1,000 shares with the ask at $15.20. They fill at an average of $15.29. What did slippage cost you? $0.09 $900 $90 $15,290"
    },
    "lesson_line": "A big market order can fill at several prices. Check your average fill, not just the quote.",
    "simple": "It cost $90, because you paid $15.29 a share instead of the $15.20 ask, on 1,000 shares.",
    "tier": "extended",
    "unit": "V.07",
-   "why": "$90. A market buy generally fills at or near the ask, so $15.20 was the price you expected. You paid an average of $15.29 across 1,000 shares: $15.29 less $15.20, times 1,000. A large order can fill in parts at several prices."
+   "why": "$90. A market buy generally fills at or near the ask, so $15.20 was the price you expected. You paid an average of $15.29, which is $0.09 a share more. Times 1,000 shares is $90. A large order can fill in parts at several prices.",
+   "wrong": {
+    "$0.09": "Gave the slippage per share and skipped the 1,000 shares.",
+    "$15,290": "Gave the total price paid, not the extra cost.",
+    "$900": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.order_terms",
@@ -31083,22 +31234,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1880",
-    "1880.0",
-    "1880.00",
-    "1880.000"
-   ],
-   "answer": 1880.0
+   "answer": "$1,880"
   },
   "difficulty": 2,
   "id": "si_150ef8d21334",
   "lesson_origin": "session",
-  "lesson_text": "$1,880. On a short you lose what the price rose: $27.40 less $18.00, times 200 shares. Covering above the price you shorted at is a loss. Costs such as interest on the borrowed shares would add to it. A short loses as price rises, and price can keep rising. Have your buy stop in.",
+  "lesson_text": "$1,880. On a short you lose what the price rose. $27.40 less $18.00 is $9.40 a share. Times 200 shares is $1,880. Covering above the price you shorted at is a loss. Costs such as interest on the borrowed shares would add to it. A short loses as price rises, and price can keep rising. Have your buy stop in.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$9.40",
+    "$1,880",
+    "$5,480",
+    "$18,800"
+   ],
+   "kind": "mcq",
    "q": "You short 200 shares at $18.00. A squeeze hits and you buy to cover at $27.40. How much did you lose, before costs?",
    "subject": "Cover"
   },
@@ -31147,13 +31297,18 @@
      "fn": "arith",
      "result": 1880.0
     },
-    "given": "You short 200 shares at $18.00. A squeeze hits and you buy to cover at $27.40. How much did you lose, before costs?"
+    "given": "You short 200 shares at $18.00. A squeeze hits and you buy to cover at $27.40. How much did you lose, before costs? $5,480 $9.40 $1,880 $18,800"
    },
    "lesson_line": "A short loses as price rises, and price can keep rising. Have your buy stop in.",
    "simple": "You lost $1,880, because the price rose from $18.00 to $27.40 on the 200 shares you were short.",
    "tier": "extended",
    "unit": "V.07",
-   "why": "$1,880. On a short you lose what the price rose: $27.40 less $18.00, times 200 shares. Covering above the price you shorted at is a loss. Costs such as interest on the borrowed shares would add to it."
+   "why": "$1,880. On a short you lose what the price rose. $27.40 less $18.00 is $9.40 a share. Times 200 shares is $1,880. Covering above the price you shorted at is a loss. Costs such as interest on the borrowed shares would add to it.",
+   "wrong": {
+    "$18,800": "Slipped a decimal place.",
+    "$5,480": "Gave the cost of covering, not the loss.",
+    "$9.40": "Gave the loss per share and skipped the 200 shares."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.order_terms",
@@ -32468,13 +32623,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "345",
-    "345.0",
-    "345.00",
-    "345.000"
-   ],
-   "answer": 345.0
+   "answer": "$345"
   },
   "difficulty": 1,
   "id": "si_45474da415ce",
@@ -32482,8 +32631,13 @@
   "lesson_text": "$345. Option prices are quoted per share, and one equity contract usually covers 100 shares. So $3.45 times 100 is $345 before fees. The SEC's own example works the same way: a $2.20 premium is $220 per contract. The 100 changes only if a special event adjusts the contract. Multiply the quote by 100. That's what one contract really costs.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$3.45",
+    "$103.45",
+    "$345",
+    "$3,450"
+   ],
+   "kind": "mcq",
    "q": "A call is quoted at $3.45. One contract covers 100 shares. What does one contract cost, before fees?",
    "subject": "V.08#q05"
   },
@@ -32531,13 +32685,18 @@
      "fn": "arith",
      "result": 345.0
     },
-    "given": "A call is quoted at $3.45. One contract covers 100 shares. What does one contract cost, before fees?"
+    "given": "A call is quoted at $3.45. One contract covers 100 shares. What does one contract cost, before fees? $3.45 $3,450 $103.45 $345"
    },
    "lesson_line": "Multiply the quote by 100. That's what one contract really costs.",
    "simple": "$345, because the $3.45 quote is per share and one contract covers 100 shares.",
    "tier": "core",
    "unit": "V.08",
-   "why": "$345. Option prices are quoted per share, and one equity contract usually covers 100 shares. So $3.45 times 100 is $345 before fees. The SEC's own example works the same way: a $2.20 premium is $220 per contract. The 100 changes only if a special event adjusts the contract."
+   "why": "$345. Option prices are quoted per share, and one equity contract usually covers 100 shares. So $3.45 times 100 is $345 before fees. The SEC's own example works the same way: a $2.20 premium is $220 per contract. The 100 changes only if a special event adjusts the contract.",
+   "wrong": {
+    "$103.45": "Added 100 to the quote instead of multiplying.",
+    "$3,450": "Slipped a decimal place.",
+    "$3.45": "Gave the quote per share and skipped the 100 shares."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.options_terms",
@@ -34182,22 +34341,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0",
-    "0.0",
-    "0.00",
-    "0.000"
-   ],
-   "answer": 0.0
+   "answer": "$0"
   },
   "difficulty": 2,
   "id": "si_2b2325f4755c",
   "lesson_origin": "session",
-  "lesson_text": "$0. A call has intrinsic value only when it is in the money, with the stock above the strike. At $95 the 100-strike call is out of the money. So all of its $1.20 premium is time value. Out of the money, you're paying only for time and the chance of a move.",
+  "lesson_text": "$0. Intrinsic value for a call is the stock price less the strike, never below zero. $95 less $100 is below zero, so it is $0. The call is out of the money, so all of its $1.20 premium is time value. Out of the money, you're paying only for time and the chance of a move.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "-$5",
+    "$0",
+    "$1.20",
+    "$5"
+   ],
+   "kind": "mcq",
    "q": "The stock is at $95. The 100-strike call trades at $1.20. How much intrinsic value does it have?",
    "subject": "V.08#q25"
   },
@@ -34238,13 +34396,18 @@
      "fn": "intrinsic",
      "result": 0.0
     },
-    "given": "The stock is at $95. The 100-strike call trades at $1.20. How much intrinsic value does it have?"
+    "given": "The stock is at $95. The 100-strike call trades at $1.20. How much intrinsic value does it have? $1.20 -$5 $0 $5"
    },
    "lesson_line": "Out of the money, you're paying only for time and the chance of a move.",
    "simple": "$0. The stock at $95 is below the 100 strike, so the call is out of the money and all time value.",
    "tier": "extended",
    "unit": "V.08",
-   "why": "$0. A call has intrinsic value only when it is in the money, with the stock above the strike. At $95 the 100-strike call is out of the money. So all of its $1.20 premium is time value."
+   "why": "$0. Intrinsic value for a call is the stock price less the strike, never below zero. $95 less $100 is below zero, so it is $0. The call is out of the money, so all of its $1.20 premium is time value.",
+   "wrong": {
+    "$1.20": "Gave the whole premium as intrinsic value.",
+    "$5": "Used the put math, strike less stock.",
+    "-$5": "Took the stock less the strike and let it go below zero."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.options_terms",
@@ -34255,21 +34418,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.1",
-    "1.10",
-    "1.100"
-   ],
-   "answer": 1.1
+   "answer": "$1.10"
   },
   "difficulty": 2,
   "id": "si_9eaed6a955a2",
   "lesson_origin": "session",
-  "lesson_text": "$1.10. Intrinsic value is the in-the-money part of the premium: $64 minus $60. Time value is any premium above intrinsic value, so $5.10 less the intrinsic value leaves $1.10. Split every premium: intrinsic value first, then time value.",
+  "lesson_text": "$1.10. Intrinsic value is the in-the-money part: $64 less $60, or $4. Time value is any premium above that. $5.10 less $4 leaves $1.10. Split every premium: intrinsic value first, then time value.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$1.10",
+    "$4.00",
+    "$5.10",
+    "$9.10"
+   ],
+   "kind": "mcq",
    "q": "The stock is at $64. The 60-strike call trades at $5.10. How much of that is time value?",
    "subject": "V.08#q26"
   },
@@ -34318,13 +34481,18 @@
      "fn": "extrinsic",
      "result": 1.1
     },
-    "given": "The stock is at $64. The 60-strike call trades at $5.10. How much of that is time value?"
+    "given": "The stock is at $64. The 60-strike call trades at $5.10. How much of that is time value? $4.00 $1.10 $5.10 $9.10"
    },
    "lesson_line": "Split every premium: intrinsic value first, then time value.",
    "simple": "$1.10. The stock's lead over the 60 strike is intrinsic value, and the rest of the $5.10 is time value.",
    "tier": "core",
    "unit": "V.08",
-   "why": "$1.10. Intrinsic value is the in-the-money part of the premium: $64 minus $60. Time value is any premium above intrinsic value, so $5.10 less the intrinsic value leaves $1.10."
+   "why": "$1.10. Intrinsic value is the in-the-money part: $64 less $60, or $4. Time value is any premium above that. $5.10 less $4 leaves $1.10.",
+   "wrong": {
+    "$4.00": "Gave the intrinsic value, not the time value.",
+    "$5.10": "Called the whole premium time value.",
+    "$9.10": "Added the intrinsic value to the premium instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.options_terms",
@@ -34335,12 +34503,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "62.5",
-    "62.50",
-    "62.500"
-   ],
-   "answer": 62.5
+   "answer": "$62.50"
   },
   "difficulty": 2,
   "id": "si_0c0e468e2e94",
@@ -34348,8 +34511,13 @@
   "lesson_text": "$62.50. At expiration, a long call breaks even when the stock equals the strike plus the premium paid: $60 plus $2.50. Between $60 and $62.50 the call is in the money, yet the trade still loses money. A long call needs the stock above strike plus premium to make money at expiration.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$2.50",
+    "$57.50",
+    "$60.00",
+    "$62.50"
+   ],
+   "kind": "mcq",
    "q": "You buy the 60-strike call for $2.50. At expiration, what stock price breaks even, before fees?",
    "subject": "V.08#q27"
   },
@@ -34383,13 +34551,18 @@
      "fn": "option_breakeven",
      "result": 62.5
     },
-    "given": "You buy the 60-strike call for $2.50. At expiration, what stock price breaks even, before fees?"
+    "given": "You buy the 60-strike call for $2.50. At expiration, what stock price breaks even, before fees? $60.00 $57.50 $2.50 $62.50"
    },
    "lesson_line": "A long call needs the stock above strike plus premium to make money at expiration.",
    "simple": "$62.50, because a call buyer must earn back the $2.50 paid, so the stock needs to reach the 60 strike plus $2.50.",
    "tier": "core",
    "unit": "V.08",
-   "why": "$62.50. At expiration, a long call breaks even when the stock equals the strike plus the premium paid: $60 plus $2.50. Between $60 and $62.50 the call is in the money, yet the trade still loses money."
+   "why": "$62.50. At expiration, a long call breaks even when the stock equals the strike plus the premium paid: $60 plus $2.50. Between $60 and $62.50 the call is in the money, yet the trade still loses money.",
+   "wrong": {
+    "$2.50": "Gave the premium, not a stock price.",
+    "$57.50": "Subtracted the premium, which is put math.",
+    "$60.00": "Called the strike the break-even and forgot the premium paid."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.options_terms",
@@ -34400,12 +34573,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.8",
-    "0.80",
-    "0.800"
-   ],
-   "answer": 0.8
+   "answer": "$0.80"
   },
   "difficulty": 2,
   "id": "si_33d47f5c1e54",
@@ -34413,8 +34581,13 @@
   "lesson_text": "About $0.80. Delta estimates how much the premium may change for a $1 move in the stock. So 0.40 times $2 is about $0.80 a share. It is only an estimate: delta keeps changing as the stock moves. Delta gives you a rough dollar move, not an exact one.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.40",
+    "$0.80",
+    "$2.00",
+    "$5.00"
+   ],
+   "kind": "mcq",
    "q": "Your call has a delta of 0.40. The stock rises $2, all else equal. About how much does the option gain per share?",
    "subject": "V.08#q28"
   },
@@ -34458,13 +34631,18 @@
      "fn": "arith",
      "result": 0.8
     },
-    "given": "Your call has a delta of 0.40. The stock rises $2, all else equal. About how much does the option gain per share?"
+    "given": "Your call has a delta of 0.40. The stock rises $2, all else equal. About how much does the option gain per share? $0.40 $2.00 $0.80 $5.00"
    },
    "lesson_line": "Delta gives you a rough dollar move, not an exact one.",
    "simple": "About $0.80, because a 0.40 delta moves the option about $0.40 for each $1, and the stock rose $2.",
    "tier": "extended",
    "unit": "V.08",
-   "why": "About $0.80. Delta estimates how much the premium may change for a $1 move in the stock. So 0.40 times $2 is about $0.80 a share. It is only an estimate: delta keeps changing as the stock moves."
+   "why": "About $0.80. Delta estimates how much the premium may change for a $1 move in the stock. So 0.40 times $2 is about $0.80 a share. It is only an estimate: delta keeps changing as the stock moves.",
+   "wrong": {
+    "$0.40": "Used delta for one dollar and ignored the $2 move.",
+    "$2.00": "Gave the stock's move, as if delta were 1.",
+    "$5.00": "Divided the move by delta instead of multiplying."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.options_terms",
@@ -34475,13 +34653,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "6",
-    "6.0",
-    "6.00",
-    "6.000"
-   ],
-   "answer": 6.0
+   "answer": "$6"
   },
   "difficulty": 2,
   "id": "si_e84e71429255",
@@ -34489,8 +34661,13 @@
   "lesson_text": "About $6. Theta is the premium's expected decay per day with everything else unchanged, quoted per share. One contract usually covers 100 shares, so 0.06 times 100 is about $6 a day. The minus sign just shows the value is lost. Theta is quoted per share. Multiply by 100 to see what a quiet day costs you.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.06",
+    "$6",
+    "$60",
+    "$1,667"
+   ],
+   "kind": "mcq",
    "q": "Your option's theta is -0.06. If nothing else changes, about how much does one contract lose in a day?",
    "subject": "V.08#q29"
   },
@@ -34538,13 +34715,18 @@
      "fn": "arith",
      "result": 6.0
     },
-    "given": "Your option's theta is -0.06. If nothing else changes, about how much does one contract lose in a day?"
+    "given": "Your option's theta is -0.06. If nothing else changes, about how much does one contract lose in a day? $0.06 $6 $60 $1,667"
    },
    "lesson_line": "Theta is quoted per share. Multiply by 100 to see what a quiet day costs you.",
    "simple": "About $6, because theta of 0.06 is per share per day, and one contract covers 100 shares.",
    "tier": "extended",
    "unit": "V.08",
-   "why": "About $6. Theta is the premium's expected decay per day with everything else unchanged, quoted per share. One contract usually covers 100 shares, so 0.06 times 100 is about $6 a day. The minus sign just shows the value is lost."
+   "why": "About $6. Theta is the premium's expected decay per day with everything else unchanged, quoted per share. One contract usually covers 100 shares, so 0.06 times 100 is about $6 a day. The minus sign just shows the value is lost.",
+   "wrong": {
+    "$0.06": "Gave theta per share and skipped the 100 shares.",
+    "$1,667": "Divided 100 by theta instead of multiplying.",
+    "$60": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.options_terms",
@@ -36266,22 +36448,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "350",
-    "350.0",
-    "350.00",
-    "350.000"
-   ],
-   "answer": 350.0
+   "answer": "$350"
   },
   "difficulty": 3,
   "id": "si_79a7c11874ad",
   "lesson_origin": "session",
-  "lesson_text": "$350. An iron condor loses on one side at most, since the stock can finish past only one wing. The max loss is that side's strike width less the credit: $70 less $65, minus $1.50, times 100 shares. Both wings here are the same width, so either side gives $350. Know the max loss before you sell premium. On a condor it's the wing width minus the credit.",
+  "lesson_text": "$350. An iron condor loses on one side at most, since the stock can finish past only one wing. The call wing is $70 less $65 wide. Take the $1.50 credit off that width. Times 100 shares is $350. Both wings are the same width, so either side gives $350. Know the max loss before you sell premium. On a condor it's the wing width minus the credit.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$350",
+    "$500",
+    "$650",
+    "$1,000"
+   ],
+   "kind": "mcq",
    "q": "Iron condor: sell the 65 call, buy the 70 call, sell the 55 put, buy the 50 put, for a $1.50 credit. Max loss per contract?",
    "subject": "V.08#q50"
   },
@@ -36320,13 +36501,18 @@
      "fn": "arith",
      "result": 350.0
     },
-    "given": "Iron condor: sell the 65 call, buy the 70 call, sell the 55 put, buy the 50 put, for a $1.50 credit. Max loss per contract?"
+    "given": "Iron condor: sell the 65 call, buy the 70 call, sell the 55 put, buy the 50 put, for a $1.50 credit. Max loss per contract? $650 $350 $1,000 $500"
    },
    "lesson_line": "Know the max loss before you sell premium. On a condor it's the wing width minus the credit.",
    "simple": "$350, because only one side can lose: the call width less the $1.50 credit, times 100 shares.",
    "tier": "extended",
    "unit": "V.08",
-   "why": "$350. An iron condor loses on one side at most, since the stock can finish past only one wing. The max loss is that side's strike width less the credit: $70 less $65, minus $1.50, times 100 shares. Both wings here are the same width, so either side gives $350."
+   "why": "$350. An iron condor loses on one side at most, since the stock can finish past only one wing. The call wing is $70 less $65 wide. Take the $1.50 credit off that width. Times 100 shares is $350. Both wings are the same width, so either side gives $350.",
+   "wrong": {
+    "$1,000": "Added both wings together, though only one can lose.",
+    "$500": "Gave the full width and forgot the $1.50 credit.",
+    "$650": "Added the credit to the width instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.options_terms",
@@ -38284,21 +38470,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.5",
-    "2.50",
-    "2.500"
-   ],
-   "answer": 2.5
+   "answer": "$2.50"
   },
   "difficulty": 2,
   "id": "si_97050de2bbe8",
   "lesson_origin": "session",
-  "lesson_text": "$2.50. EPS is net income divided by shares outstanding: $50 million over 20 million shares. Both figures are in millions, so the millions cancel and the answer is dollars per share. EPS is net income divided by shares. Same profit spread over fewer shares means a higher EPS.",
+  "lesson_text": "$2.50. EPS is net income divided by shares outstanding. $50 million over 20 million shares is 2.5. The millions cancel, so the answer is $2.50 a share. EPS is net income divided by shares. Same profit spread over fewer shares means a higher EPS.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.40",
+    "$2.50",
+    "$25.00",
+    "$70.00"
+   ],
+   "kind": "mcq",
    "q": "A company earns $50 million in net income. It has 20 million shares outstanding. What is its EPS?",
    "subject": "EPS"
   },
@@ -38332,13 +38518,18 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "A company earns $50 million in net income. It has 20 million shares outstanding. What is its EPS?"
+    "given": "A company earns $50 million in net income. It has 20 million shares outstanding. What is its EPS? $0.40 $70.00 $25.00 $2.50"
    },
    "lesson_line": "EPS is net income divided by shares. Same profit spread over fewer shares means a higher EPS.",
    "simple": "EPS is $2.50, because $50 million of net income split over 20 million shares is $2.50 a share.",
    "tier": "core",
    "unit": "V.09",
-   "why": "$2.50. EPS is net income divided by shares outstanding: $50 million over 20 million shares. Both figures are in millions, so the millions cancel and the answer is dollars per share."
+   "why": "$2.50. EPS is net income divided by shares outstanding. $50 million over 20 million shares is 2.5. The millions cancel, so the answer is $2.50 a share.",
+   "wrong": {
+    "$0.40": "Divided the shares by the income, upside down.",
+    "$25.00": "Slipped a decimal place.",
+    "$70.00": "Added income and shares instead of dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.fund_terms",
@@ -38627,23 +38818,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "70.1",
-    "70.10",
-    "70.100"
-   ],
-   "answer": 70.1
+   "answer": "70.1%"
   },
   "difficulty": 2,
   "id": "si_d5eb081970d3",
   "lesson_origin": "session",
-  "lesson_text": "70.1%. Gross margin is gross profit divided by revenue: $585,000 over $835,000, times 100, rounded to one decimal. These are the SEC's own example numbers. Put gross profit on top, not operating income or net income, or you get a different margin. A margin is a profit divided by revenue. Know which profit you're using.",
+  "lesson_text": "70.1%. Gross margin is gross profit divided by revenue. $585,000 divided by $835,000, then times 100, is 70.1%. These are the SEC's own example numbers. Put gross profit on top, not operating income or net income, or you get a different margin. A margin is a profit divided by revenue. Know which profit you're using.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "7.0%",
+    "29.9%",
+    "70.1%",
+    "142.7%"
+   ],
+   "kind": "mcq",
    "q": "Revenue is $835,000. Gross profit is $585,000. What is the gross margin, to one decimal place?",
-   "subject": "Gross margin",
-   "suffix": "%"
+   "subject": "Gross margin"
   },
   "reveal_json": {
    "depth": {
@@ -38682,13 +38873,18 @@
      "fn": "arith",
      "result": 70.1
     },
-    "given": "Revenue is $835,000. Gross profit is $585,000. What is the gross margin, to one decimal place?"
+    "given": "Revenue is $835,000. Gross profit is $585,000. What is the gross margin, to one decimal place? 29.9% 142.7% 7.0% 70.1%"
    },
    "lesson_line": "A margin is a profit divided by revenue. Know which profit you're using.",
    "simple": "Gross margin is 70.1%, because gross profit of $585,000 is that share of $835,000 in revenue.",
    "tier": "core",
    "unit": "V.09",
-   "why": "70.1%. Gross margin is gross profit divided by revenue: $585,000 over $835,000, times 100, rounded to one decimal. These are the SEC's own example numbers. Put gross profit on top, not operating income or net income, or you get a different margin."
+   "why": "70.1%. Gross margin is gross profit divided by revenue. $585,000 divided by $835,000, then times 100, is 70.1%. These are the SEC's own example numbers. Put gross profit on top, not operating income or net income, or you get a different margin.",
+   "wrong": {
+    "142.7%": "Put revenue over gross profit, upside down.",
+    "29.9%": "Gave the share of revenue that went to costs.",
+    "7.0%": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.fund_terms",
@@ -38877,23 +39073,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "63.2",
-    "63.20",
-    "63.200"
-   ],
-   "answer": 63.2
+   "answer": "63.2%"
   },
   "difficulty": 3,
   "id": "si_c6a26553d5b0",
   "lesson_origin": "session",
-  "lesson_text": "63.2%. Operating margin is operating income divided by revenue: $36,010 million over $57,006 million, times 100, rounded to one decimal. Both rows come from the same quarter's table in NVIDIA's own release. Work the margin out yourself from the release. It takes seconds, and then you know the number.",
+  "lesson_text": "63.2%. Operating margin is operating income divided by revenue. $36,010 million divided by $57,006 million, then times 100, is 63.2%. Both rows come from the same quarter's table in NVIDIA's own release. Work the margin out yourself from the release. It takes seconds, and then you know the number.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "6.3%",
+    "36.8%",
+    "63.2%",
+    "158.3%"
+   ],
+   "kind": "mcq",
    "q": "NVIDIA, Q3 fiscal 2026: revenue $57,006 million, operating income $36,010 million. What is the operating margin, to one decimal?",
-   "subject": "Operating margin",
-   "suffix": "%"
+   "subject": "Operating margin"
   },
   "reveal_json": {
    "deeper": {
@@ -38949,13 +39145,18 @@
      "fn": "arith",
      "result": 63.2
     },
-    "given": "NVIDIA, Q3 fiscal 2026: revenue $57,006 million, operating income $36,010 million. What is the operating margin, to one decimal?"
+    "given": "NVIDIA, Q3 fiscal 2026: revenue $57,006 million, operating income $36,010 million. What is the operating margin, to one decimal? 158.3% 36.8% 63.2% 6.3%"
    },
    "lesson_line": "Work the margin out yourself from the release. It takes seconds, and then you know the number.",
    "simple": "The margin is 63.2%, because $36,010 million of profit from operations is that part of $57,006 million in sales.",
    "tier": "extended",
    "unit": "V.09",
-   "why": "63.2%. Operating margin is operating income divided by revenue: $36,010 million over $57,006 million, times 100, rounded to one decimal. Both rows come from the same quarter's table in NVIDIA's own release."
+   "why": "63.2%. Operating margin is operating income divided by revenue. $36,010 million divided by $57,006 million, then times 100, is 63.2%. Both rows come from the same quarter's table in NVIDIA's own release.",
+   "wrong": {
+    "158.3%": "Put revenue over operating income, upside down.",
+    "36.8%": "Gave the share of sales that went to operating costs.",
+    "6.3%": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.fund_terms",
@@ -39862,24 +40063,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "4",
-    "4.0",
-    "4.00",
-    "4.000"
-   ],
-   "answer": 4.0
+   "answer": "4%"
   },
   "difficulty": 3,
   "id": "si_8dfaf382ee2a",
   "lesson_origin": "session",
-  "lesson_text": "4%. Zacks measures EPS surprise as actual minus consensus, divided by the absolute value of the consensus, times 100. Here that is ($1.30 minus $1.25) over $1.25, times 100. The estimate is positive, so the absolute value changes nothing. Surprise percent is actual minus estimate, over the estimate. A tiny estimate can make a small beat look huge.",
+  "lesson_text": "4%. Zacks measures EPS surprise as actual minus consensus, over the consensus, times 100. The gap is $1.30 less $1.25. Divide that gap by $1.25, then times 100, and you get 4%. Surprise percent is actual minus estimate, over the estimate. A tiny estimate can make a small beat look huge.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.4%",
+    "4%",
+    "5%",
+    "104%"
+   ],
+   "kind": "mcq",
    "q": "NVIDIA's adjusted EPS was $1.30. The estimate was $1.25. What was the EPS surprise, in percent?",
-   "subject": "Earnings surprise",
-   "suffix": "%"
+   "subject": "Earnings surprise"
   },
   "reveal_json": {
    "deeper": {
@@ -39914,13 +40114,18 @@
      "fn": "arith",
      "result": 4.0
     },
-    "given": "NVIDIA's adjusted EPS was $1.30. The estimate was $1.25. What was the EPS surprise, in percent?"
+    "given": "NVIDIA's adjusted EPS was $1.30. The estimate was $1.25. What was the EPS surprise, in percent? 5% 4% 104% 0.4%"
    },
    "lesson_line": "Surprise percent is actual minus estimate, over the estimate. A tiny estimate can make a small beat look huge.",
    "simple": "The surprise is 4%, because actual minus the estimate, divided by the $1.25 estimate, comes to 4%.",
    "tier": "extended",
    "unit": "V.09",
-   "why": "4%. Zacks measures EPS surprise as actual minus consensus, divided by the absolute value of the consensus, times 100. Here that is ($1.30 minus $1.25) over $1.25, times 100. The estimate is positive, so the absolute value changes nothing."
+   "why": "4%. Zacks measures EPS surprise as actual minus consensus, over the consensus, times 100. The gap is $1.30 less $1.25. Divide that gap by $1.25, then times 100, and you get 4%.",
+   "wrong": {
+    "0.4%": "Slipped a decimal place.",
+    "104%": "Divided actual by the estimate and forgot to subtract.",
+    "5%": "Read the 5-cent gap as a percent."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.fund_terms",
@@ -41156,24 +41361,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "65",
-    "65.0",
-    "65.00",
-    "65.000"
-   ],
-   "answer": 65.0
+   "answer": "65%"
   },
   "difficulty": 3,
   "id": "si_ec161db5af4a",
   "lesson_origin": "session",
-  "lesson_text": "65%. Year-over-year growth is the new number minus the old one, divided by the old one. Here that is ($36,010 million minus $21,869 million) over $21,869 million, as a percent, rounded to a whole number. Both numbers sit on the same row of NVIDIA's table: Q3 fiscal 2026 against Q3 fiscal 2025. Growth is new minus old, divided by old. It takes seconds to check the release.",
+  "lesson_text": "65%. Year-over-year growth is the new number minus the old one, divided by the old one. The rise is $36,010 million less $21,869 million. Divide the rise by $21,869 million, then show it as a percent: 65% rounded. Both numbers sit on the same row of NVIDIA's table: Q3 fiscal 2026 against Q3 fiscal 2025. Growth is new minus old, divided by old. It takes seconds to check the release.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "6.5%",
+    "39%",
+    "65%",
+    "165%"
+   ],
+   "kind": "mcq",
    "q": "NVIDIA operating income: $36,010 million in Q3 fiscal 2026, $21,869 million in Q3 fiscal 2025. YoY growth, to the nearest whole percent?",
-   "subject": "Year over year (YoY)",
-   "suffix": "%"
+   "subject": "Year over year (YoY)"
   },
   "reveal_json": {
    "deeper": {
@@ -41221,13 +41425,18 @@
      "fn": "yoy_growth",
      "result": 65.0
     },
-    "given": "NVIDIA operating income: $36,010 million in Q3 fiscal 2026, $21,869 million in Q3 fiscal 2025. YoY growth, to the nearest whole percent?"
+    "given": "NVIDIA operating income: $36,010 million in Q3 fiscal 2026, $21,869 million in Q3 fiscal 2025. YoY growth, to the nearest whole percent? 39% 165% 65% 6.5%"
    },
    "lesson_line": "Growth is new minus old, divided by old. It takes seconds to check the release.",
    "simple": "Growth is 65%, because the rise from $21,869 million to $36,010 million is 65% of the old number.",
    "tier": "extended",
    "unit": "V.09",
-   "why": "65%. Year-over-year growth is the new number minus the old one, divided by the old one. Here that is ($36,010 million minus $21,869 million) over $21,869 million, as a percent, rounded to a whole number. Both numbers sit on the same row of NVIDIA's table: Q3 fiscal 2026 against Q3 fiscal 2025."
+   "why": "65%. Year-over-year growth is the new number minus the old one, divided by the old one. The rise is $36,010 million less $21,869 million. Divide the rise by $21,869 million, then show it as a percent: 65% rounded. Both numbers sit on the same row of NVIDIA's table: Q3 fiscal 2026 against Q3 fiscal 2025.",
+   "wrong": {
+    "165%": "Divided new by old and never took off the base.",
+    "39%": "Divided by the new number instead of the old base.",
+    "6.5%": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.fund_terms",
@@ -42035,25 +42244,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2",
-    "2.0",
-    "2.00",
-    "2.000"
-   ],
-   "answer": 2.0
+   "answer": "$2 billion"
   },
   "difficulty": 2,
   "id": "si_158bf6e0f96f",
   "lesson_origin": "session",
-  "lesson_text": "$2 billion. Market cap is the current share price times the total shares outstanding: $25 times 80 million shares. The 50 million float is the part free for public trading, and it does not change market cap. Nasdaq calls market cap a measure of corporate size. Market cap uses all the shares outstanding, not just the float.",
+  "lesson_text": "$2 billion. Market cap is the current share price times the total shares outstanding. $25 times 80 million shares is $2 billion. The 50 million float is the part free for public trading, and it does not change market cap. Nasdaq calls market cap a measure of corporate size. Market cap uses all the shares outstanding, not just the float.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "A stock trades at $25. It has 80 million shares outstanding and a float of 50 million. What is its market cap, in billions?",
-   "subject": "Market cap",
-   "suffix": "billion"
+   "choices": [
+    "$20 billion",
+    "$3.2 billion",
+    "$1.25 billion",
+    "$2 billion"
+   ],
+   "kind": "mcq",
+   "q": "A stock trades at $25. It has 80 million shares outstanding and a float of 50 million. What is its market cap?",
+   "subject": "Market cap"
   },
   "reveal_json": {
    "deeper": {
@@ -42102,13 +42309,18 @@
      "fn": "arith",
      "result": 2.0
     },
-    "given": "A stock trades at $25. It has 80 million shares outstanding and a float of 50 million. What is its market cap, in billions?"
+    "given": "A stock trades at $25. It has 80 million shares outstanding and a float of 50 million. What is its market cap? $3.2 billion $2 billion $1.25 billion $20 billion"
    },
    "lesson_line": "Market cap uses all the shares outstanding, not just the float.",
    "simple": "Market cap is $2 billion, because you multiply the $25 price by all 80 million shares, not just the float.",
    "tier": "core",
    "unit": "V.09",
-   "why": "$2 billion. Market cap is the current share price times the total shares outstanding: $25 times 80 million shares. The 50 million float is the part free for public trading, and it does not change market cap. Nasdaq calls market cap a measure of corporate size."
+   "why": "$2 billion. Market cap is the current share price times the total shares outstanding. $25 times 80 million shares is $2 billion. The 50 million float is the part free for public trading, and it does not change market cap. Nasdaq calls market cap a measure of corporate size.",
+   "wrong": {
+    "$1.25 billion": "Used the 50 million float instead of all shares.",
+    "$20 billion": "Slipped a decimal place.",
+    "$3.2 billion": "Divided the shares by the price instead of multiplying."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.fund_terms",
@@ -42130,8 +42342,8 @@
    "choices": [
     "Shares bought back",
     "All shares, with insiders",
-    "Shares sold short right now",
-    "Shares open to public trading"
+    "Shares open to public trading",
+    "Shares sold short right now"
    ],
    "kind": "mcq",
    "q": "What does float mean for a stock?",
@@ -42201,13 +42413,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "70",
-    "70.0",
-    "70.00",
-    "70.000"
-   ],
-   "answer": 70.0
+   "answer": "70 million"
   },
   "difficulty": 2,
   "id": "si_162f5c322e17",
@@ -42215,10 +42421,15 @@
   "lesson_text": "About 70 million. Float is shares outstanding minus closely held and restricted shares: 100 million minus 30 million. Sources differ on what else to take out; FINRA's public float also leaves out large stakeholders. So float figures can differ by source. Here only the insiders' restricted shares are named. Take out the locked-up shares. What's left is the supply you're really trading against.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "A company has 100 million shares outstanding. Insiders hold 30 million restricted shares. Roughly how many shares float, in millions?",
-   "subject": "Float",
-   "suffix": "million"
+   "choices": [
+    "100 million",
+    "70 million",
+    "130 million",
+    "30 million"
+   ],
+   "kind": "mcq",
+   "q": "A company has 100 million shares outstanding. Insiders hold 30 million restricted shares. Roughly how many shares float?",
+   "subject": "Float"
   },
   "reveal_json": {
    "depth": {
@@ -42257,13 +42468,18 @@
      "fn": "arith",
      "result": 70.0
     },
-    "given": "A company has 100 million shares outstanding. Insiders hold 30 million restricted shares. Roughly how many shares float, in millions?"
+    "given": "A company has 100 million shares outstanding. Insiders hold 30 million restricted shares. Roughly how many shares float? 30 million 100 million 70 million 130 million"
    },
    "lesson_line": "Take out the locked-up shares. What's left is the supply you're really trading against.",
    "simple": "About 70 million shares float, because the 30 million locked insider shares come out of the 100 million total.",
    "tier": "extended",
    "unit": "V.09",
-   "why": "About 70 million. Float is shares outstanding minus closely held and restricted shares: 100 million minus 30 million. Sources differ on what else to take out; FINRA's public float also leaves out large stakeholders. So float figures can differ by source. Here only the insiders' restricted shares are named."
+   "why": "About 70 million. Float is shares outstanding minus closely held and restricted shares: 100 million minus 30 million. Sources differ on what else to take out; FINRA's public float also leaves out large stakeholders. So float figures can differ by source. Here only the insiders' restricted shares are named.",
+   "wrong": {
+    "100 million": "Called every outstanding share float.",
+    "130 million": "Added the restricted shares instead of subtracting.",
+    "30 million": "Gave the restricted shares, not what is left."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.fund_terms",
@@ -42356,9 +42572,9 @@
   "prompt_json": {
    "choices": [
     "A post-report range it stays in",
-    "The move options are pricing in",
     "The analysts' price target",
-    "The stock's average past reaction"
+    "The stock's average past reaction",
+    "The move options are pricing in"
    ],
    "kind": "mcq",
    "q": "Before a report, what is a stock's implied move?",
@@ -42499,23 +42715,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "7.7",
-    "7.70",
-    "7.700"
-   ],
-   "answer": 7.7
+   "answer": "7.7%"
   },
   "difficulty": 2,
   "id": "si_6a0453978174",
   "lesson_origin": "session",
-  "lesson_text": "7.7%. Divide the expected move by the price: $16.74 over $216.88, times 100, rounded to one decimal. Schwab uses this example and calls it a potential 7.7% move. The expected move sets neither the size nor the direction of the real move. The actual move can be bigger, smaller or nothing. Turn the expected move into a percent. It's a priced size, not a promise, and it has no direction.",
+  "lesson_text": "7.7%. Divide the expected move by the price. $16.74 over $216.88, times 100, is 7.7%. Schwab uses this example and calls it a potential 7.7% move. The expected move sets neither the size nor the direction of the real move. The actual move can be bigger, smaller or nothing. Turn the expected move into a percent. It's a priced size, not a promise, and it has no direction.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.8%",
+    "7.7%",
+    "8.4%",
+    "15.4%"
+   ],
+   "kind": "mcq",
    "q": "A stock at $216.88 has an expected move of $16.74 either way. What is that as a percent of the price, to one decimal?",
-   "subject": "Expected move",
-   "suffix": "%"
+   "subject": "Expected move"
   },
   "reveal_json": {
    "depth": {
@@ -42568,13 +42784,18 @@
      "fn": "arith",
      "result": 7.7
     },
-    "given": "A stock at $216.88 has an expected move of $16.74 either way. What is that as a percent of the price, to one decimal?"
+    "given": "A stock at $216.88 has an expected move of $16.74 either way. What is that as a percent of the price, to one decimal? 15.4% 7.7% 8.4% 0.8%"
    },
    "lesson_line": "Turn the expected move into a percent. It's a priced size, not a promise, and it has no direction.",
    "simple": "The move is 7.7% of the price, because $16.74 divided by $216.88 comes to about 7.7%.",
    "tier": "extended",
    "unit": "V.09",
-   "why": "7.7%. Divide the expected move by the price: $16.74 over $216.88, times 100, rounded to one decimal. Schwab uses this example and calls it a potential 7.7% move. The expected move sets neither the size nor the direction of the real move. The actual move can be bigger, smaller or nothing."
+   "why": "7.7%. Divide the expected move by the price. $16.74 over $216.88, times 100, is 7.7%. Schwab uses this example and calls it a potential 7.7% move. The expected move sets neither the size nor the direction of the real move. The actual move can be bigger, smaller or nothing.",
+   "wrong": {
+    "0.8%": "Slipped a decimal place.",
+    "15.4%": "Doubled it because the move goes both ways.",
+    "8.4%": "Divided by the low end of the range instead of the price."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.fund_terms",
@@ -42594,9 +42815,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A gap that skips past your stop",
     "A move capped at the $10 priced in",
     "A move up, since options lean bullish",
-    "A gap that skips past your stop",
     "A fill at $95, since the stop is set"
    ],
    "kind": "mcq",
@@ -42762,10 +42983,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Form 8-K filing",
     "Form 10-K",
     "Form 10-Q",
-    "No filing",
-    "Form 8-K filing"
+    "No filing"
    ],
    "kind": "mcq",
    "q": "Which SEC form must carry the text of that release?",
@@ -43035,9 +43256,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Sell before the report comes out",
     "Hold, since the trade is a winner",
     "Hold with the stop at breakeven",
+    "Sell before the report comes out",
     "Sell half, hold the rest through it"
    ],
    "kind": "mcq",
@@ -46395,24 +46616,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "30",
-    "30.0",
-    "30.00",
-    "30.000"
-   ],
-   "answer": 30.0
+   "answer": "30 basis points"
   },
   "difficulty": 3,
   "id": "si_aa741a704ef3",
   "lesson_origin": "session",
-  "lesson_text": "30 basis points. The yield fell from 5.24% to 4.94%, which is 30 hundredths of a percentage point. Each hundredth of a percentage point is one basis point. Quote yield moves in basis points. It avoids the percent-of-a-percent mix-up.",
+  "lesson_text": "30 basis points. The yield fell from 5.24% to 4.94%. 5.24 less 4.94 is 0.30 of a percentage point. Each hundredth of a point is one basis point, so 0.30 times 100 is 30. Quote yield moves in basis points. It avoids the percent-of-a-percent mix-up.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.3 basis points",
+    "300 basis points",
+    "30 basis points",
+    "1,018 basis points"
+   ],
+   "kind": "mcq",
    "q": "Oct. 1, 2026: the 10-year Treasury yielded 5.24%. Oct. 30: 4.94%. How many basis points did it fall?",
-   "subject": "Basis point",
-   "suffix": "basis points"
+   "subject": "Basis point"
   },
   "reveal_json": {
    "deeper": {
@@ -46468,13 +46688,18 @@
      "fn": "arith",
      "result": 30.0
     },
-    "given": "Oct. 1, 2026: the 10-year Treasury yielded 5.24%. Oct. 30: 4.94%. How many basis points did it fall?"
+    "given": "Oct. 1, 2026: the 10-year Treasury yielded 5.24%. Oct. 30: 4.94%. How many basis points did it fall? 1,018 basis points 0.3 basis points 30 basis points 300 basis points"
    },
    "lesson_line": "Quote yield moves in basis points. It avoids the percent-of-a-percent mix-up.",
    "simple": "It fell 30 basis points, because each hundredth of a percentage point is one basis point.",
    "tier": "extended",
    "unit": "V.10",
-   "why": "30 basis points. The yield fell from 5.24% to 4.94%, which is 30 hundredths of a percentage point. Each hundredth of a percentage point is one basis point."
+   "why": "30 basis points. The yield fell from 5.24% to 4.94%. 5.24 less 4.94 is 0.30 of a percentage point. Each hundredth of a point is one basis point, so 0.30 times 100 is 30.",
+   "wrong": {
+    "0.3 basis points": "Left the 0.30 as is and skipped converting to hundredths.",
+    "1,018 basis points": "Added the two yields instead of subtracting.",
+    "300 basis points": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.macro_terms",
@@ -46569,9 +46794,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "The establishment survey",
     "Weekly jobless claims",
     "Household survey",
-    "The establishment survey",
     "The Fed's Beige Book"
    ],
    "kind": "mcq",
@@ -46769,10 +46994,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A Treasury bond",
     "A T-bill",
     "A Treasury FRN",
-    "A T-note"
+    "A T-note",
+    "A Treasury bond"
    ],
    "kind": "mcq",
    "q": "A Treasury security matures in 20 years. What type is it?",
@@ -46852,9 +47077,9 @@
   "prompt_json": {
    "choices": [
     "Unemployed, on layoff",
+    "Not in the labor force",
     "Employed between jobs",
-    "Jobless; wants work",
-    "Not in the labor force"
+    "Jobless; wants work"
    ],
    "kind": "mcq",
    "q": "How does BLS classify Dana?",
@@ -46931,8 +47156,8 @@
   "prompt_json": {
    "choices": [
     "Cutting the rate target",
-    "Quantitative easing",
     "Forward guidance",
+    "Quantitative easing",
     "Quantitative tightening"
    ],
    "kind": "mcq",
@@ -47020,9 +47245,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Sloping up, the usual shape",
     "Inverted, short yields on top",
     "Sloping up, a recession warning",
-    "Sloping up, the usual shape",
     "Inverted, a recession warning"
    ],
    "kind": "mcq",
@@ -47113,10 +47338,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Fed funds futures prices",
     "A survey of economists",
     "Votes cast by FOMC members",
-    "The Fed's dot plot"
+    "The Fed's dot plot",
+    "Fed funds futures prices"
    ],
    "kind": "mcq",
    "q": "CME FedWatch shows the odds of a Fed rate move. Where do those odds come from?",
@@ -47182,9 +47407,9 @@
   "prompt_json": {
    "choices": [
     "Recession",
+    "Deflation",
     "Disinflation",
-    "Tightening",
-    "Deflation"
+    "Tightening"
    ],
    "kind": "mcq",
    "q": "Which word fits?",
@@ -47265,8 +47490,8 @@
   "prompt_json": {
    "choices": [
     "Doves",
-    "Hawks",
     "Bulls",
+    "Hawks",
     "Bears"
    ],
    "kind": "mcq",
@@ -47355,8 +47580,8 @@
   "prompt_json": {
    "choices": [
     "Core is measured over a year",
-    "Core counts only goods",
     "Energy, which core leaves out",
+    "Core counts only goods",
     "Shelter, which core leaves out"
    ],
    "kind": "mcq",
@@ -47437,8 +47662,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "CPI, up 3.7%",
     "PCE, up 3.6%",
+    "CPI, up 3.7%",
     "Core PCE, up 3.1%",
     "PCE, last month"
    ],
@@ -47537,10 +47762,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "About 0.8%",
     "About 13.6%",
     "About 3.4%",
-    "Can't tell"
+    "Can't tell",
+    "About 0.8%"
    ],
    "kind": "mcq",
    "q": "About how much did real GDP grow within the quarter itself?",
@@ -47709,10 +47934,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "It rose",
     "It stayed at face value",
     "Its interest payments fell",
-    "It fell",
-    "It rose"
+    "It fell"
    ],
    "kind": "mcq",
    "q": "What happened to the note's market price?",
@@ -48047,9 +48272,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The taper tantrum",
     "A yield curve inversion",
     "Quantitative tightening",
+    "The taper tantrum",
     "The rate-hike scare"
    ],
    "kind": "mcq",
@@ -48212,8 +48437,8 @@
   "prompt_json": {
    "choices": [
     "It comes within days of the turn",
-    "It comes with the next GDP report",
     "It comes long after the turn",
+    "It comes with the next GDP report",
     "It forecasts the next turn"
    ],
    "kind": "mcq",
@@ -48298,9 +48523,9 @@
   "prompt_json": {
    "choices": [
     "Up by 10 basis points",
-    "Up by 100 basis points",
     "Up 1% in a headline",
-    "Up 10% in a headline"
+    "Up 10% in a headline",
+    "Up by 100 basis points"
    ],
    "kind": "mcq",
    "q": "Which way of saying it is right and can't be misread?",
@@ -48367,24 +48592,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "38",
-    "38.0",
-    "38.00",
-    "38.000"
-   ],
-   "answer": 38.0
+   "answer": "38 basis points"
   },
   "difficulty": 3,
   "id": "si_9f0b6336c07e",
   "lesson_origin": "session",
-  "lesson_text": "38 basis points. FRED's series is the 10-year Treasury yield minus the 2-year. On Oct. 30, 2026 that was 4.94% minus 4.56%. Positive means the curve slopes up from 2 to 10 years. Below zero, that part of the curve is inverted. Track the 10-year minus 2-year spread in basis points. Below zero, that part of the curve is inverted.",
+  "lesson_text": "38 basis points. FRED's series is the 10-year Treasury yield minus the 2-year: 4.94 less 4.56 is 0.38 of a point. Times 100, that is 38 basis points. Positive means the curve slopes up from 2 to 10 years. Below zero, that part of the curve is inverted. Track the 10-year minus 2-year spread in basis points. Below zero, that part of the curve is inverted.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "Oct. 30, 2026: the 2-year Treasury yields 4.56%, the 10-year 4.94%. What is the 10-year minus 2-year spread, in basis points?",
-   "subject": "10-year minus 2-year spread",
-   "suffix": "basis points"
+   "choices": [
+    "-38 basis points",
+    "38 basis points",
+    "0.38 basis points",
+    "950 basis points"
+   ],
+   "kind": "mcq",
+   "q": "Oct. 30, 2026: the 2-year Treasury yields 4.56%, the 10-year 4.94%. What is the 10-year minus 2-year spread?",
+   "subject": "10-year minus 2-year spread"
   },
   "reveal_json": {
    "deeper": {
@@ -48447,13 +48671,18 @@
      "fn": "arith",
      "result": 38.0
     },
-    "given": "Oct. 30, 2026: the 2-year Treasury yields 4.56%, the 10-year 4.94%. What is the 10-year minus 2-year spread, in basis points?"
+    "given": "Oct. 30, 2026: the 2-year Treasury yields 4.56%, the 10-year 4.94%. What is the 10-year minus 2-year spread? -38 basis points 38 basis points 0.38 basis points 950 basis points"
    },
    "lesson_line": "Track the 10-year minus 2-year spread in basis points. Below zero, that part of the curve is inverted.",
    "simple": "The spread is 38 basis points, because the 10-year yield sat that far above the 2-year.",
    "tier": "extended",
    "unit": "V.10",
-   "why": "38 basis points. FRED's series is the 10-year Treasury yield minus the 2-year. On Oct. 30, 2026 that was 4.94% minus 4.56%. Positive means the curve slopes up from 2 to 10 years. Below zero, that part of the curve is inverted."
+   "why": "38 basis points. FRED's series is the 10-year Treasury yield minus the 2-year: 4.94 less 4.56 is 0.38 of a point. Times 100, that is 38 basis points. Positive means the curve slopes up from 2 to 10 years. Below zero, that part of the curve is inverted.",
+   "wrong": {
+    "-38 basis points": "Subtracted the 10-year from the 2-year, the wrong order.",
+    "0.38 basis points": "Left the 0.38 as is and skipped converting to hundredths.",
+    "950 basis points": "Added the two yields instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.macro_terms",
@@ -49239,13 +49468,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1200",
-    "1200.0",
-    "1200.00",
-    "1200.000"
-   ],
-   "answer": 1200.0
+   "answer": "1,200"
   },
   "difficulty": 2,
   "id": "si_b29c8b662157",
@@ -49253,7 +49476,13 @@
   "lesson_text": "1,200. ChartSchool defines net advances as the number of advancing stocks less the number of declining stocks: 2,150 minus 950. A positive number means more stocks rose than fell. It is a one-day count. The A/D line is the running total of these daily numbers. Net advances is a subtraction. Positive means the up side won the day.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "120",
+    "1,200",
+    "2,150",
+    "3,100"
+   ],
+   "kind": "mcq",
    "q": "2,150 stocks advanced today and 950 declined. What were net advances?",
    "subject": "Net advances"
   },
@@ -49294,13 +49523,18 @@
      "fn": "arith",
      "result": 1200.0
     },
-    "given": "2,150 stocks advanced today and 950 declined. What were net advances?"
+    "given": "2,150 stocks advanced today and 950 declined. What were net advances? 3,100 120 2,150 1,200"
    },
    "lesson_line": "Net advances is a subtraction. Positive means the up side won the day.",
    "simple": "Net advances are 1,200, because 2,150 stocks rose and 950 fell, and 2,150 minus 950 is 1,200.",
    "tier": "core",
    "unit": "V.11",
-   "why": "1,200. ChartSchool defines net advances as the number of advancing stocks less the number of declining stocks: 2,150 minus 950. A positive number means more stocks rose than fell. It is a one-day count. The A/D line is the running total of these daily numbers."
+   "why": "1,200. ChartSchool defines net advances as the number of advancing stocks less the number of declining stocks: 2,150 minus 950. A positive number means more stocks rose than fell. It is a one-day count. The A/D line is the running total of these daily numbers.",
+   "wrong": {
+    "120": "Slipped a decimal place.",
+    "2,150": "Gave the advancers only.",
+    "3,100": "Added advancers and decliners instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -49421,13 +49655,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "4200",
-    "4200.0",
-    "4200.00",
-    "4200.000"
-   ],
-   "answer": 4200.0
+   "answer": "4,200"
   },
   "difficulty": 2,
   "id": "si_f32d00aa41d2",
@@ -49435,7 +49663,13 @@
   "lesson_text": "4,200. ChartSchool: each new A/D line value is the previous value plus the current period's net advances. Today's net advances are 1,200 minus 2,000, a negative number. Add it to 5,000 and the line falls to 4,200. ChartSchool notes the line falls whenever net advances are negative. Yesterday's line plus today's net advances. Down days pull it lower, up days push it higher.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "3,800",
+    "4,200",
+    "5,800",
+    "8,200"
+   ],
+   "kind": "mcq",
    "q": "The A/D line stood at 5,000 yesterday. Today 1,200 stocks rose and 2,000 fell. Where is the A/D line now?",
    "subject": "Advance-decline line"
   },
@@ -49477,13 +49711,18 @@
      "fn": "arith",
      "result": 4200.0
     },
-    "given": "The A/D line stood at 5,000 yesterday. Today 1,200 stocks rose and 2,000 fell. Where is the A/D line now?"
+    "given": "The A/D line stood at 5,000 yesterday. Today 1,200 stocks rose and 2,000 fell. Where is the A/D line now? 5,800 3,800 8,200 4,200"
    },
    "lesson_line": "Yesterday's line plus today's net advances. Down days pull it lower, up days push it higher.",
    "simple": "The line drops to 4,200, because more stocks fell than rose, so today's net number is below zero.",
    "tier": "extended",
    "unit": "V.11",
-   "why": "4,200. ChartSchool: each new A/D line value is the previous value plus the current period's net advances. Today's net advances are 1,200 minus 2,000, a negative number. Add it to 5,000 and the line falls to 4,200. ChartSchool notes the line falls whenever net advances are negative."
+   "why": "4,200. ChartSchool: each new A/D line value is the previous value plus the current period's net advances. Today's net advances are 1,200 minus 2,000, a negative number. Add it to 5,000 and the line falls to 4,200. ChartSchool notes the line falls whenever net advances are negative.",
+   "wrong": {
+    "3,800": "Took only the 1,200 advancers off the line.",
+    "5,800": "Subtracted in the wrong order, so the line rose.",
+    "8,200": "Added both the advancers and the decliners."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -49815,13 +50054,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3",
-    "3.0",
-    "3.00",
-    "3.000"
-   ],
-   "answer": 3.0
+   "answer": "3.0"
   },
   "difficulty": 2,
   "id": "si_8933f77bbe8a",
@@ -49829,7 +50062,13 @@
   "lesson_text": "3. Nasdaq and Fidelity both define the advance-decline ratio as advancing stocks divided by declining stocks: 2,400 over 800. Three stocks rose for every one that fell. Nasdaq reads a rising ratio as bullish and a falling one as bearish. A ratio of 3 means three stocks up for every one down.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.33",
+    "0.75",
+    "2.0",
+    "3.0"
+   ],
+   "kind": "mcq",
    "q": "2,400 stocks advanced and 800 declined. What is the advance-decline ratio?",
    "subject": "Advance-decline ratio"
   },
@@ -49870,13 +50109,18 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "2,400 stocks advanced and 800 declined. What is the advance-decline ratio?"
+    "given": "2,400 stocks advanced and 800 declined. What is the advance-decline ratio? 0.33 0.75 3.0 2.0"
    },
    "lesson_line": "A ratio of 3 means three stocks up for every one down.",
    "simple": "The ratio is 3, because 2,400 rising stocks divided by 800 falling stocks gives three up for each one down.",
    "tier": "core",
    "unit": "V.11",
-   "why": "3. Nasdaq and Fidelity both define the advance-decline ratio as advancing stocks divided by declining stocks: 2,400 over 800. Three stocks rose for every one that fell. Nasdaq reads a rising ratio as bullish and a falling one as bearish."
+   "why": "3. Nasdaq and Fidelity both define the advance-decline ratio as advancing stocks divided by declining stocks: 2,400 over 800. Three stocks rose for every one that fell. Nasdaq reads a rising ratio as bullish and a falling one as bearish.",
+   "wrong": {
+    "0.33": "Divided decliners by advancers, upside down.",
+    "0.75": "Divided advancers by the total of both.",
+    "2.0": "Divided net advances by the decliners."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -50667,13 +50911,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "135",
-    "135.0",
-    "135.00",
-    "135.000"
-   ],
-   "answer": 135.0
+   "answer": "135"
   },
   "difficulty": 2,
   "id": "si_3f51312bdc11",
@@ -50681,7 +50919,13 @@
   "lesson_text": "135. ChartSchool and AAII both define net new highs as new 52-week highs minus new 52-week lows: 180 minus 45. A positive number means more stocks are at highs than at lows, which AAII calls bullish. Positive net new highs means more stocks at highs than at lows.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "135",
+    "180",
+    "225",
+    "1,350"
+   ],
+   "kind": "mcq",
    "q": "Today 180 stocks hit 52-week highs and 45 hit 52-week lows. What are net new highs?",
    "subject": "Net new highs"
   },
@@ -50722,13 +50966,18 @@
      "fn": "arith",
      "result": 135.0
     },
-    "given": "Today 180 stocks hit 52-week highs and 45 hit 52-week lows. What are net new highs?"
+    "given": "Today 180 stocks hit 52-week highs and 45 hit 52-week lows. What are net new highs? 225 180 135 1,350"
    },
    "lesson_line": "Positive net new highs means more stocks at highs than at lows.",
    "simple": "Net new highs are 135, because you take the 45 new lows away from the 180 new highs.",
    "tier": "extended",
    "unit": "V.11",
-   "why": "135. ChartSchool and AAII both define net new highs as new 52-week highs minus new 52-week lows: 180 minus 45. A positive number means more stocks are at highs than at lows, which AAII calls bullish."
+   "why": "135. ChartSchool and AAII both define net new highs as new 52-week highs minus new 52-week lows: 180 minus 45. A positive number means more stocks are at highs than at lows, which AAII calls bullish.",
+   "wrong": {
+    "1,350": "Slipped a decimal place.",
+    "180": "Gave the new highs only.",
+    "225": "Added highs and lows instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -50818,21 +51067,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "75",
-    "75.0",
-    "75.00",
-    "75.000"
-   ],
-   "answer": 75.0
+   "answer": "75%"
   },
   "difficulty": 2,
   "id": "si_a32a424b3581",
   "lesson_origin": "session",
-  "lesson_text": "75. ChartSchool: Record High Percent = {New Highs / (New Highs + New Lows)} x 100. Here that is 60 divided by the total of 60 and 20, times 100. Record High Percent is new highs as a share of all new highs and lows, times 100.",
+  "lesson_text": "75. ChartSchool: Record High Percent = {New Highs / (New Highs + New Lows)} x 100. New highs plus new lows is 60 plus 20, or 80. 60 over that total, times 100, is 75. Record High Percent is new highs as a share of all new highs and lows, times 100.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "25%",
+    "75%",
+    "80%",
+    "300%"
+   ],
+   "kind": "mcq",
    "q": "60 stocks made 52-week highs and 20 made 52-week lows. What is the Record High Percent?",
    "subject": "Record High Percent"
   },
@@ -50859,13 +51108,18 @@
      "fn": "arith",
      "result": 75.0
     },
-    "given": "60 stocks made 52-week highs and 20 made 52-week lows. What is the Record High Percent?"
+    "given": "60 stocks made 52-week highs and 20 made 52-week lows. What is the Record High Percent? 300% 80% 25% 75%"
    },
    "lesson_line": "Record High Percent is new highs as a share of all new highs and lows, times 100.",
    "simple": "It is 75, because 60 highs divided by 60 highs plus 20 lows, times 100, gives 75.",
    "tier": "core",
    "unit": "V.11",
-   "why": "75. ChartSchool: Record High Percent = {New Highs / (New Highs + New Lows)} x 100. Here that is 60 divided by the total of 60 and 20, times 100."
+   "why": "75. ChartSchool: Record High Percent = {New Highs / (New Highs + New Lows)} x 100. New highs plus new lows is 60 plus 20, or 80. 60 over that total, times 100, is 75.",
+   "wrong": {
+    "25%": "Gave the lows' share instead of the highs'.",
+    "300%": "Divided highs by lows and skipped the total.",
+    "80%": "Gave the total of highs and lows, not a share."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -51101,24 +51355,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "68",
-    "68.0",
-    "68.00",
-    "68.000"
-   ],
-   "answer": 68.0
+   "answer": "68%"
   },
   "difficulty": 2,
   "id": "si_e605e72e74e8",
   "lesson_origin": "session",
-  "lesson_text": "68%. ChartSchool: divide the stocks above their moving average by all the stocks in the index. Here that is 340 over 500, times 100. Above 50%, more than half the stocks are above the average, which ChartSchool calls a bullish bias. Below 50% is a bearish bias. Above 50%, most stocks sit above their 50-day. Below 50%, most sit under it.",
+  "lesson_text": "68%. ChartSchool: divide the stocks above their moving average by all the stocks in the index. 340 over 500, times 100, is 68%. Above 50%, more than half the stocks are above the average, which ChartSchool calls a bullish bias. Below 50% is a bearish bias. Above 50%, most stocks sit above their 50-day. Below 50%, most sit under it.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "32%",
+    "50%",
+    "68%",
+    "680%"
+   ],
+   "kind": "mcq",
    "q": "In a 500-stock index, 340 stocks trade above their 50-day moving average. What percent is that?",
-   "subject": "Percent above 50-day",
-   "suffix": "%"
+   "subject": "Percent above 50-day"
   },
   "reveal_json": {
    "depth": {
@@ -51150,13 +51403,18 @@
      "fn": "arith",
      "result": 68.0
     },
-    "given": "In a 500-stock index, 340 stocks trade above their 50-day moving average. What percent is that?"
+    "given": "In a 500-stock index, 340 stocks trade above their 50-day moving average. What percent is that? 32% 50% 68% 680%"
    },
    "lesson_line": "Above 50%, most stocks sit above their 50-day. Below 50%, most sit under it.",
    "simple": "It is 68 percent, because 340 of the 500 stocks are above their 50-day average.",
    "tier": "core",
    "unit": "V.11",
-   "why": "68%. ChartSchool: divide the stocks above their moving average by all the stocks in the index. Here that is 340 over 500, times 100. Above 50%, more than half the stocks are above the average, which ChartSchool calls a bullish bias. Below 50% is a bearish bias."
+   "why": "68%. ChartSchool: divide the stocks above their moving average by all the stocks in the index. 340 over 500, times 100, is 68%. Above 50%, more than half the stocks are above the average, which ChartSchool calls a bullish bias. Below 50% is a bearish bias.",
+   "wrong": {
+    "32%": "Gave the share below the average, not above.",
+    "50%": "Took the 50 in 50-day as the answer.",
+    "680%": "Divided by 50 instead of the 500 stocks."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -51506,13 +51764,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "75",
-    "75.0",
-    "75.00",
-    "75.000"
-   ],
-   "answer": 75.0
+   "answer": "75"
   },
   "difficulty": 2,
   "id": "si_072bc2f192b0",
@@ -51520,7 +51772,13 @@
   "lesson_text": "75. ChartSchool forms the McClellan Oscillator by subtracting the 39-day EMA of net advances from the 19-day EMA: 140 minus 65. It is positive when the 19-day EMA is above the 39-day, which signals advances are gaining the upper hand. Versions differ in their settings. McClellan Financial states its two EMAs as 10% and 5% smoothing constants. Fast minus slow. Above zero, advancers have the upper hand.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "2.15",
+    "20",
+    "75",
+    "205"
+   ],
+   "kind": "mcq",
    "q": "The 19-day EMA of net advances is +140. The 39-day EMA is +65. What is the McClellan Oscillator?",
    "subject": "McClellan Oscillator"
   },
@@ -51561,13 +51819,18 @@
      "fn": "arith",
      "result": 75.0
     },
-    "given": "The 19-day EMA of net advances is +140. The 39-day EMA is +65. What is the McClellan Oscillator?"
+    "given": "The 19-day EMA of net advances is +140. The 39-day EMA is +65. What is the McClellan Oscillator? 205 75 20 2.15"
    },
    "lesson_line": "Fast minus slow. Above zero, advancers have the upper hand.",
    "simple": "The oscillator is 75, because you take the slow 39-day average of 65 away from the fast 19-day average of 140.",
    "tier": "core",
    "unit": "V.11",
-   "why": "75. ChartSchool forms the McClellan Oscillator by subtracting the 39-day EMA of net advances from the 19-day EMA: 140 minus 65. It is positive when the 19-day EMA is above the 39-day, which signals advances are gaining the upper hand. Versions differ in their settings. McClellan Financial states its two EMAs as 10% and 5% smoothing constants."
+   "why": "75. ChartSchool forms the McClellan Oscillator by subtracting the 39-day EMA of net advances from the 19-day EMA: 140 minus 65. It is positive when the 19-day EMA is above the 39-day, which signals advances are gaining the upper hand. Versions differ in their settings. McClellan Financial states its two EMAs as 10% and 5% smoothing constants.",
+   "wrong": {
+    "2.15": "Divided the fast average by the slow one.",
+    "20": "Subtracted the 19 from the 39 day periods.",
+    "205": "Added the two averages instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -52212,13 +52475,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3",
-    "3.0",
-    "3.00",
-    "3.000"
-   ],
-   "answer": 3.0
+   "answer": "3.0"
   },
   "difficulty": 2,
   "id": "si_dd1e3468ab8e",
@@ -52226,7 +52483,13 @@
   "lesson_text": "3. ChartSchool defines advancing volume as the total volume of advancing stocks, and declining volume as that of declining stocks. Divide one by the other: 3.6 over 1.2. Three shares traded in rising stocks for every one in falling stocks. Unlike the issues ratio, this one weighs stocks by shares traded, and ChartSchool notes volume statistics favor large-cap stocks. The issues ratio counts stocks. The volume ratio weighs them by shares traded.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.33",
+    "2.0",
+    "3.0",
+    "4.8"
+   ],
+   "kind": "mcq",
    "q": "Up volume was 3.6 billion shares and down volume was 1.2 billion. What is the up/down volume ratio?",
    "subject": "Up/down volume ratio"
   },
@@ -52274,13 +52537,18 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "Up volume was 3.6 billion shares and down volume was 1.2 billion. What is the up/down volume ratio?"
+    "given": "Up volume was 3.6 billion shares and down volume was 1.2 billion. What is the up/down volume ratio? 0.33 3.0 4.8 2.0"
    },
    "lesson_line": "The issues ratio counts stocks. The volume ratio weighs them by shares traded.",
    "simple": "The ratio is 3, because 3.6 billion shares in rising stocks divided by 1.2 billion in falling stocks gives three to one.",
    "tier": "extended",
    "unit": "V.11",
-   "why": "3. ChartSchool defines advancing volume as the total volume of advancing stocks, and declining volume as that of declining stocks. Divide one by the other: 3.6 over 1.2. Three shares traded in rising stocks for every one in falling stocks. Unlike the issues ratio, this one weighs stocks by shares traded, and ChartSchool notes volume statistics favor large-cap stocks."
+   "why": "3. ChartSchool defines advancing volume as the total volume of advancing stocks, and declining volume as that of declining stocks. Divide one by the other: 3.6 over 1.2. Three shares traded in rising stocks for every one in falling stocks. Unlike the issues ratio, this one weighs stocks by shares traded, and ChartSchool notes volume statistics favor large-cap stocks.",
+   "wrong": {
+    "0.33": "Divided down volume by up volume, upside down.",
+    "2.0": "Divided the gap between the volumes by down volume.",
+    "4.8": "Added the two volumes instead of dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -52455,20 +52723,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.5",
-    "0.50",
-    "0.500"
-   ],
-   "answer": 0.5
+   "answer": "0.5"
   },
   "difficulty": 2,
   "id": "si_a81c4fd7afa0",
   "lesson_origin": "session",
-  "lesson_text": "0.5. ChartSchool: TRIN = (advances / declines) / (advancing volume / declining volume). The issue ratio is 1,800 over 1,200. The volume ratio is 3 over 1. Divide the first by the second. Low readings, below one, show relative strength in the volume ratio: volume favored the gainers even more than the count did. Nasdaq reads a value under 1.0 as bullish. Below 1.0, the volume ratio beat the issue ratio. That's the bullish read.",
+  "lesson_text": "0.5. ChartSchool: TRIN = (advances / declines) / (advancing volume / declining volume). The issue ratio is 1,800 over 1,200, or 1.5. The volume ratio is 3 over 1, or 3. Divide the first by the second: 1.5 over 3 is 0.5. Low readings, below one, show relative strength in the volume ratio: volume favored the gainers even more than the count did. Nasdaq reads a value under 1.0 as bullish. Below 1.0, the volume ratio beat the issue ratio. That's the bullish read.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.5",
+    "1.5",
+    "2.0",
+    "4.5"
+   ],
+   "kind": "mcq",
    "q": "1,800 advancers and 1,200 decliners. Up volume 3 billion, down volume 1 billion. What is TRIN?",
    "subject": "Arms Index (TRIN)"
   },
@@ -52525,13 +52794,18 @@
      "fn": "arith",
      "result": 0.5
     },
-    "given": "1,800 advancers and 1,200 decliners. Up volume 3 billion, down volume 1 billion. What is TRIN?"
+    "given": "1,800 advancers and 1,200 decliners. Up volume 3 billion, down volume 1 billion. What is TRIN? 2.0 0.5 1.5 4.5"
    },
    "lesson_line": "Below 1.0, the volume ratio beat the issue ratio. That's the bullish read.",
    "simple": "TRIN is 0.5, which is below 1.0, because volume favored the rising stocks even more than the stock count did.",
    "tier": "extended",
    "unit": "V.11",
-   "why": "0.5. ChartSchool: TRIN = (advances / declines) / (advancing volume / declining volume). The issue ratio is 1,800 over 1,200. The volume ratio is 3 over 1. Divide the first by the second. Low readings, below one, show relative strength in the volume ratio: volume favored the gainers even more than the count did. Nasdaq reads a value under 1.0 as bullish."
+   "why": "0.5. ChartSchool: TRIN = (advances / declines) / (advancing volume / declining volume). The issue ratio is 1,800 over 1,200, or 1.5. The volume ratio is 3 over 1, or 3. Divide the first by the second: 1.5 over 3 is 0.5. Low readings, below one, show relative strength in the volume ratio: volume favored the gainers even more than the count did. Nasdaq reads a value under 1.0 as bullish.",
+   "wrong": {
+    "1.5": "Gave the issue ratio and skipped the volume ratio.",
+    "2.0": "Flipped it, putting the volume ratio over the issue ratio.",
+    "4.5": "Multiplied the two ratios instead of dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.breadth_terms",
@@ -55118,23 +55392,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "6.5",
-    "6.50",
-    "6.500"
-   ],
-   "answer": 6.5
+   "answer": "6.5 points"
   },
   "difficulty": 2,
   "id": "si_6171b5ca8835",
   "lesson_origin": "session",
-  "lesson_text": "6.5 points a year. The market returned 17.9% and the heaviest-trading households 11.4%, so 17.9 minus 11.4 is 6.5. The study covered 66,465 households at a large discount broker from 1991 to 1996. It shows heavy trading went with lower returns in that sample, not that every active trader lags. Activity isn't edge. The busiest traders in that study trailed the market.",
+  "lesson_text": "The market made 17.9% a year. The heaviest traders made 11.4%. The gap is 17.9 minus 11.4, which is 6.5 points. The study covered 66,465 households at a large discount broker from 1991 to 1996. It shows heavy trading went with lower returns in that sample, not that every active trader lags. Activity isn't edge. The busiest traders in that study trailed the market.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "1.6 points",
+    "6.5 points",
+    "65 points",
+    "29.3 points"
+   ],
+   "kind": "mcq",
    "q": "Barber and Odean: the heaviest traders earned 11.4% a year and the market 17.9%. How many points a year did they trail by?",
-   "subject": "Overtrading",
-   "suffix": "points"
+   "subject": "Overtrading"
   },
   "reveal_json": {
    "deeper": {
@@ -55169,13 +55443,18 @@
      "fn": "arith",
      "result": 6.5
     },
-    "given": "Barber and Odean: the heaviest traders earned 11.4% a year and the market 17.9%. How many points a year did they trail by?"
+    "given": "Barber and Odean: the heaviest traders earned 11.4% a year and the market 17.9%. How many points a year did they trail by? 29.3 points 6.5 points 65 points 1.6 points"
    },
    "lesson_line": "Activity isn't edge. The busiest traders in that study trailed the market.",
    "simple": "They trailed by 6.5 points a year, because 17.9 minus 11.4 is 6.5.",
    "tier": "extended",
    "unit": "V.12",
-   "why": "6.5 points a year. The market returned 17.9% and the heaviest-trading households 11.4%, so 17.9 minus 11.4 is 6.5. The study covered 66,465 households at a large discount broker from 1991 to 1996. It shows heavy trading went with lower returns in that sample, not that every active trader lags."
+   "why": "The market made 17.9% a year. The heaviest traders made 11.4%. The gap is 17.9 minus 11.4, which is 6.5 points. The study covered 66,465 households at a large discount broker from 1991 to 1996. It shows heavy trading went with lower returns in that sample, not that every active trader lags.",
+   "wrong": {
+    "1.6 points": "Divided 17.9 by 11.4, which gives a ratio, not a gap.",
+    "29.3 points": "Added the two returns instead of subtracting.",
+    "65 points": "Decimal slip: dropped the point in 6.5."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.psych_terms",
@@ -55196,8 +55475,8 @@
   "prompt_json": {
    "choices": [
     "Following the crowd into a hot name",
-    "Overrating your skill and knowledge",
     "Trusting a plan you've tested well",
+    "Overrating your skill and knowledge",
     "Being sure you saw the outcome coming"
    ],
    "kind": "mcq",
@@ -55338,9 +55617,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Overconfidence",
     "Familiarity bias",
     "Anchoring",
-    "Overconfidence",
     "Loss aversion"
    ],
    "kind": "mcq",
@@ -55478,10 +55757,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Self-attribution bias",
     "Law of small numbers",
     "Confirmation bias",
-    "Availability heuristic"
+    "Availability heuristic",
+    "Self-attribution bias"
    ],
    "kind": "mcq",
    "q": "Which word is this: wins are my skill, losses are bad luck?",
@@ -55623,9 +55902,9 @@
   "prompt_json": {
    "choices": [
     "Avoiding risk to protect your capital",
+    "A loss hurts more than an equal gain",
     "Losing more trades than you win",
-    "Selling your winners far too early",
-    "A loss hurts more than an equal gain"
+    "Selling your winners far too early"
    ],
    "kind": "mcq",
    "q": "What is loss aversion?",
@@ -55803,8 +56082,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Recency bias",
     "Loss aversion",
+    "Recency bias",
     "FOMO",
     "Herd mentality"
    ],
@@ -55896,9 +56175,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Selling winners early, holding losers",
     "Adding to a stock that keeps falling",
     "Trading on your mood instead of a plan",
+    "Selling winners early, holding losers",
     "Selling everything in a panic"
    ],
    "kind": "mcq",
@@ -56039,9 +56318,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Disposition effect",
     "Familiarity bias",
     "Hindsight bias",
-    "Disposition effect",
     "House money effect"
    ],
    "kind": "mcq",
@@ -56139,9 +56418,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Favoring info that backs your view",
     "Waiting for price to confirm a breakout",
     "Believing you knew it all along",
+    "Favoring info that backs your view",
     "Changing your view with every headline"
    ],
    "kind": "mcq",
@@ -56273,8 +56552,8 @@
    "choices": [
     "Gambling fallacy",
     "Herd mentality",
-    "Confirmation bias",
-    "Anchoring"
+    "Anchoring",
+    "Confirmation bias"
    ],
    "kind": "mcq",
    "q": "Which word names this?",
@@ -56412,9 +56691,9 @@
   "prompt_json": {
    "choices": [
     "Holding a stock for the long run",
+    "Leaning on the first number you saw",
     "Following a mentor in every trade",
-    "Marking a price level on a chart",
-    "Leaning on the first number you saw"
+    "Marking a price level on a chart"
    ],
    "kind": "mcq",
    "q": "What is anchoring?",
@@ -56585,8 +56864,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "FOMO",
     "Anchoring",
+    "FOMO",
     "Hindsight bias",
     "Herd mentality"
    ],
@@ -56718,9 +56997,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Overweighting what just happened",
     "Believing a streak must end soon",
     "Judging a trade by its result",
+    "Overweighting what just happened",
     "Favoring the newest stock listings"
    ],
    "kind": "mcq",
@@ -56808,8 +57087,8 @@
   "prompt_json": {
    "choices": [
     "House money effect",
-    "Familiarity bias",
     "Recency bias",
+    "Familiarity bias",
     "FOMO"
    ],
    "kind": "mcq",
@@ -56969,9 +57248,9 @@
   "prompt_json": {
    "choices": [
     "House money effect",
-    "Availability bias",
     "Confirmation bias",
-    "Anchoring"
+    "Anchoring",
+    "Availability bias"
    ],
    "kind": "mcq",
    "q": "One stock's 30% earnings gap-down is all over the news. Now every earnings report feels like a disaster. Which bias?",
@@ -57052,8 +57331,8 @@
    "choices": [
     "Leaning too hard on recent news",
     "Seeing a pattern in a random run",
-    "Studying your past trades",
-    "Feeling you knew it all along"
+    "Feeling you knew it all along",
+    "Studying your past trades"
    ],
    "kind": "mcq",
    "q": "What is hindsight bias?",
@@ -57271,9 +57550,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A same-day journal of your read",
     "Forget it and move on quickly",
     "Buy it back now to make up for it",
-    "A same-day journal of your read",
     "Trust your gut more next time"
    ],
    "kind": "mcq",
@@ -57378,8 +57657,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Copying others over your own research",
     "Trusting a stock's old high price",
+    "Copying others over your own research",
     "Betting against whatever the crowd buys",
     "Investing in a company everyone knows"
    ],
@@ -57614,9 +57893,9 @@
   "prompt_json": {
    "choices": [
     "Trading with someone else's capital",
-    "Risking more after recent profits",
     "Risking more to win back a loss",
-    "Keeping recent profits in cash"
+    "Keeping recent profits in cash",
+    "Risking more after recent profits"
    ],
    "kind": "mcq",
    "q": "What is the house money effect?",
@@ -57682,9 +57961,9 @@
   "prompt_json": {
    "choices": [
     "Loss aversion",
+    "House money effect",
     "Anchoring",
-    "Disposition effect",
-    "House money effect"
+    "Disposition effect"
    ],
    "kind": "mcq",
    "q": "Which word fits?",
@@ -57771,8 +58050,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Gambler's fallacy",
     "The break-even effect",
+    "Gambler's fallacy",
     "House money effect",
     "Disposition effect"
    ],
@@ -57927,10 +58206,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Thinking a streak is 'due' to end",
     "Believing a hot streak will continue",
     "Trading like a gambler, with no edge",
-    "Betting big when you have an edge"
+    "Betting big when you have an edge",
+    "Thinking a streak is 'due' to end"
    ],
    "kind": "mcq",
    "q": "What is the gambler's fallacy?",
@@ -58004,8 +58283,8 @@
    "choices": [
     "Hot hand fallacy",
     "House money effect",
-    "Recency bias",
-    "Gambler's fallacy"
+    "Gambler's fallacy",
+    "Recency bias"
    ],
    "kind": "mcq",
    "q": "Which word fits that reasoning?",
@@ -58117,8 +58396,8 @@
   "prompt_json": {
    "choices": [
     "Feeling you knew the result all along",
-    "Expecting a trend to keep going",
     "Judging a choice by how it turned out",
+    "Expecting a trend to keep going",
     "Crediting wins to skill, losses to luck"
    ],
    "kind": "mcq",
@@ -58199,8 +58478,8 @@
   "prompt_json": {
    "choices": [
     "Spreading money across many sectors",
-    "Preferring names you already know",
     "Trading only setups you've tested",
+    "Preferring names you already know",
     "Copying what others are buying"
    ],
    "kind": "mcq",
@@ -58273,9 +58552,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Treating money by where it came from",
     "Valuing a stock from its balance sheet",
     "Doing quick trade math in your head",
-    "Treating money by where it came from",
     "Tracking every trade in a journal"
    ],
    "kind": "mcq",
@@ -58398,10 +58677,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Two years is too small a sample",
     "Past returns never tell you anything",
     "Beating the index two years is easy",
-    "Newsletters can't pick stocks"
+    "Newsletters can't pick stocks",
+    "Two years is too small a sample"
    ],
    "kind": "mcq",
    "q": "What's wrong with that conclusion?",
@@ -58477,10 +58756,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A fast rise on crowd enthusiasm",
     "A stock up on strong earnings",
     "A slow, steady climb over many months",
-    "A sharp sell-off on wide panic selling",
-    "A fast rise on crowd enthusiasm"
+    "A sharp sell-off on wide panic selling"
    ],
    "kind": "mcq",
    "q": "In market terms, what is a mania?",
@@ -61387,24 +61666,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "40",
-    "40.0",
-    "40.00",
-    "40.000"
-   ],
-   "answer": 40.0
+   "answer": "40%"
   },
   "difficulty": 2,
   "id": "si_adcb9fb53732",
   "lesson_origin": "session",
-  "lesson_text": "40%. StockCharts defines win rate as winners divided by winners plus losers. Here that is 10 winners out of 25 trades, or 40%. The bottom number counts every trade, losers included. Dividing winners by losers gives a different ratio, not a win rate. Count every trade in the bottom number, losers included.",
+  "lesson_text": "Win rate is winners divided by all trades. All trades are 10 winners plus 15 losers, which is 25. So 10 out of 25 is 40%. StockCharts defines win rate this way. Dividing winners by losers gives a different ratio. Count every trade in the bottom number, losers included.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "28.6%",
+    "40%",
+    "60%",
+    "66.7%"
+   ],
+   "kind": "mcq",
    "q": "You made 25 trades: 10 winners and 15 losers. What's your win rate?",
-   "subject": "Win rate",
-   "suffix": "%"
+   "subject": "Win rate"
   },
   "reveal_json": {
    "depth": {
@@ -61436,13 +61714,18 @@
      "fn": "arith",
      "result": 40.0
     },
-    "given": "You made 25 trades: 10 winners and 15 losers. What's your win rate?"
+    "given": "You made 25 trades: 10 winners and 15 losers. What's your win rate? 66.7% 28.6% 60% 40%"
    },
    "lesson_line": "Count every trade in the bottom number, losers included.",
    "simple": "Your win rate is 40%, because 10 of your 25 trades were winners.",
    "tier": "core",
    "unit": "V.13",
-   "why": "40%. StockCharts defines win rate as winners divided by winners plus losers. Here that is 10 winners out of 25 trades, or 40%. The bottom number counts every trade, losers included. Dividing winners by losers gives a different ratio, not a win rate."
+   "why": "Win rate is winners divided by all trades. All trades are 10 winners plus 15 losers, which is 25. So 10 out of 25 is 40%. StockCharts defines win rate this way. Dividing winners by losers gives a different ratio.",
+   "wrong": {
+    "28.6%": "Counted the winners twice in the bottom number.",
+    "60%": "Used the losers, not the winners, on top.",
+    "66.7%": "Divided winners by losers, so the losers were left out of the bottom number."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.process_terms",
@@ -61617,22 +61900,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "400",
-    "400.0",
-    "400.00",
-    "400.000"
-   ],
-   "answer": 400.0
+   "answer": "$400"
   },
   "difficulty": 1,
   "id": "si_924ac116bf9b",
   "lesson_origin": "session",
-  "lesson_text": "$400. Add up the three winning trades and divide by how many there were. Steenbarger's monthly review tracks average win size next to average loss size. StockCharts: you want the average gain to outpace the average loss. Average win and average loss are the sizes that give win rate its meaning.",
+  "lesson_text": "Add the three wins: $300 plus $500 plus $400 is $1,200. Divide by the 3 trades, which gives $400. Steenbarger's monthly review tracks average win size next to average loss size. StockCharts: you want the average gain to outpace the average loss. Average win and average loss are the sizes that give win rate its meaning.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$300",
+    "$400",
+    "$600",
+    "$1,200"
+   ],
+   "kind": "mcq",
    "q": "Your three winning trades made $300, $500 and $400. What's your average win?",
    "subject": "Average win"
   },
@@ -61667,13 +61949,18 @@
      "fn": "arith",
      "result": 400.0
     },
-    "given": "Your three winning trades made $300, $500 and $400. What's your average win?"
+    "given": "Your three winning trades made $300, $500 and $400. What's your average win? $1,200 $400 $600 $300"
    },
    "lesson_line": "Average win and average loss are the sizes that give win rate its meaning.",
    "simple": "Your average win is $400, because you add the three wins and divide by three.",
    "tier": "core",
    "unit": "V.13",
-   "why": "$400. Add up the three winning trades and divide by how many there were. Steenbarger's monthly review tracks average win size next to average loss size. StockCharts: you want the average gain to outpace the average loss."
+   "why": "Add the three wins: $300 plus $500 plus $400 is $1,200. Divide by the 3 trades, which gives $400. Steenbarger's monthly review tracks average win size next to average loss size. StockCharts: you want the average gain to outpace the average loss.",
+   "wrong": {
+    "$1,200": "Added the three wins and forgot to divide.",
+    "$300": "Divided the total by four instead of three.",
+    "$600": "Divided the total by two instead of three."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.process_terms",
@@ -61759,21 +62046,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3",
-    "3.0",
-    "3.00",
-    "3.000"
-   ],
-   "answer": 3.0
+   "answer": "3.00"
   },
   "difficulty": 2,
   "id": "si_b9dbaacdd0fa",
   "lesson_origin": "session",
-  "lesson_text": "3. Fidelity's payoff ratio is the average percentage profit per trade divided by the average percentage loss per trade. Here that is 6% divided by 2%. Your average win is three times your average loss. On its own it doesn't say you make money. StockCharts: you also need to know how often the strategy wins. Know both sizes. A win rate only means something next to this number.",
+  "lesson_text": "Payoff ratio is the average win divided by the average loss. Fidelity defines it in percentage terms. Here that is 6% divided by 2%, which is 3. Your average win is three times your average loss. On its own it doesn't say you make money. StockCharts: you also need to know how often the strategy wins. Know both sizes. A win rate only means something next to this number.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.33",
+    "3.00",
+    "4.00",
+    "12.00"
+   ],
+   "kind": "mcq",
    "q": "Your average win is 6%. Your average loss is 2%. What's your payoff ratio?",
    "subject": "Payoff ratio"
   },
@@ -61814,13 +62101,18 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "Your average win is 6%. Your average loss is 2%. What's your payoff ratio?"
+    "given": "Your average win is 6%. Your average loss is 2%. What's your payoff ratio? 0.33 3.00 4.00 12.00"
    },
    "lesson_line": "Know both sizes. A win rate only means something next to this number.",
    "simple": "Your payoff ratio is 3, because your average win of 6% is three times your average loss of 2%.",
    "tier": "core",
    "unit": "V.13",
-   "why": "3. Fidelity's payoff ratio is the average percentage profit per trade divided by the average percentage loss per trade. Here that is 6% divided by 2%. Your average win is three times your average loss. On its own it doesn't say you make money. StockCharts: you also need to know how often the strategy wins."
+   "why": "Payoff ratio is the average win divided by the average loss. Fidelity defines it in percentage terms. Here that is 6% divided by 2%, which is 3. Your average win is three times your average loss. On its own it doesn't say you make money. StockCharts: you also need to know how often the strategy wins.",
+   "wrong": {
+    "0.33": "Flipped it: loss divided by win.",
+    "12.00": "Multiplied the win by the loss instead of dividing.",
+    "4.00": "Subtracted the loss from the win instead of dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.process_terms",
@@ -61899,20 +62191,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.5",
-    "1.50",
-    "1.500"
-   ],
-   "answer": 1.5
+   "answer": "1.50"
   },
   "difficulty": 2,
   "id": "si_852ee6487cf3",
   "lesson_origin": "session",
-  "lesson_text": "1.5. Profit factor is gross profit divided by gross loss: $9,000 divided by $6,000. StockCharts says anything over 1 shows a profitable trading strategy. Here the winners made 1.5 times what the losers lost. It uses totals, so it does not tell you how often you won. Over 1, the winners paid for the losers. Under 1, they didn't.",
+  "lesson_text": "Profit factor is gross profit divided by gross loss. Gross profit is $9,000 and gross loss is $6,000. Then 9,000 divided by 6,000 is 1.5. StockCharts says anything over 1 shows a profitable trading strategy. It uses totals, so it does not tell you how often you won. Over 1, the winners paid for the losers. Under 1, they didn't.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.60",
+    "0.67",
+    "1.50",
+    "2.50"
+   ],
+   "kind": "mcq",
    "q": "Your winners made $9,000 in total. Your losers lost $6,000 in total. What's your profit factor?",
    "subject": "Profit factor"
   },
@@ -61953,13 +62246,18 @@
      "fn": "arith",
      "result": 1.5
     },
-    "given": "Your winners made $9,000 in total. Your losers lost $6,000 in total. What's your profit factor?"
+    "given": "Your winners made $9,000 in total. Your losers lost $6,000 in total. What's your profit factor? 2.50 0.67 1.50 0.60"
    },
    "lesson_line": "Over 1, the winners paid for the losers. Under 1, they didn't.",
    "simple": "Your profit factor is 1.5, because your winners made $9,000 and your losers lost $6,000.",
    "tier": "core",
    "unit": "V.13",
-   "why": "1.5. Profit factor is gross profit divided by gross loss: $9,000 divided by $6,000. StockCharts says anything over 1 shows a profitable trading strategy. Here the winners made 1.5 times what the losers lost. It uses totals, so it does not tell you how often you won."
+   "why": "Profit factor is gross profit divided by gross loss. Gross profit is $9,000 and gross loss is $6,000. Then 9,000 divided by 6,000 is 1.5. StockCharts says anything over 1 shows a profitable trading strategy. It uses totals, so it does not tell you how often you won.",
+   "wrong": {
+    "0.60": "Divided profit by the combined total of wins and losses.",
+    "0.67": "Flipped it: gross loss divided by gross profit.",
+    "2.50": "Divided the gross total of both sides by the loss."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.process_terms",
@@ -62024,22 +62322,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "-50",
-    "-50.0",
-    "-50.00",
-    "-50.000"
-   ],
-   "answer": -50.0
+   "answer": "-50 dollars"
   },
   "difficulty": 3,
   "id": "si_8e751fd95179",
   "lesson_origin": "session",
-  "lesson_text": "-$50 a trade. Schwab defines expectancy as your average gain or loss per trade. You win 70% of the time and still lose $50 a trade on average. The average loss is far bigger than the average win. StockCharts: some traders like high winning percentages and small profits. Here the losses are too big for that style to pay. A high win rate can still lose money. Check the size of the losses.",
+  "lesson_text": "Expectancy is win rate times average win, minus loss rate times average loss. Winners add 70% of $100, which is $70. The other trades lose, and the loss rate is 100% minus 70%. That share of the $400 loss costs more than $70. The net is -$50 a trade. A high win rate can still lose money. Check the size of the losses.",
   "module": "V",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "-300 dollars",
+    "-250 dollars",
+    "+70 dollars",
+    "-50 dollars"
+   ],
+   "kind": "mcq",
    "q": "Win rate 70%. Average win $100. Average loss $400. What's your expectancy per trade, in dollars?",
    "subject": "Negative expectancy"
   },
@@ -62090,13 +62387,18 @@
      "fn": "expectancy_r",
      "result": -50.0
     },
-    "given": "Win rate 70%. Average win $100. Average loss $400. What's your expectancy per trade, in dollars?"
+    "given": "Win rate 70%. Average win $100. Average loss $400. What's your expectancy per trade, in dollars? -300 dollars +70 dollars -50 dollars -250 dollars"
    },
    "lesson_line": "A high win rate can still lose money. Check the size of the losses.",
    "simple": "You lose $50 a trade on average, because your losses are so big that winning 70% of the time can't cover them.",
    "tier": "extended",
    "unit": "V.13",
-   "why": "-$50 a trade. Schwab defines expectancy as your average gain or loss per trade. You win 70% of the time and still lose $50 a trade on average. The average loss is far bigger than the average win. StockCharts: some traders like high winning percentages and small profits. Here the losses are too big for that style to pay."
+   "why": "Expectancy is win rate times average win, minus loss rate times average loss. Winners add 70% of $100, which is $70. The other trades lose, and the loss rate is 100% minus 70%. That share of the $400 loss costs more than $70. The net is -$50 a trade.",
+   "wrong": {
+    "+70 dollars": "Counted only the winners and left out the losing side.",
+    "-250 dollars": "Swapped the win rate and loss rate in the formula.",
+    "-300 dollars": "Took average win minus average loss and ignored the win rate."
+   }
   },
   "review_status": "draft",
   "skill_id": "vocab.process_terms",
@@ -62118,8 +62420,8 @@
    "choices": [
     "The setup has stopped working",
     "Your stops are set too tight",
-    "The next trade is due to win",
-    "Losing runs happen to any edge"
+    "Losing runs happen to any edge",
+    "The next trade is due to win"
    ],
    "kind": "mcq",
    "q": "What does the streak alone tell you?",
@@ -62209,9 +62511,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Running a strategy on past data",
     "Picturing a trade failed in advance",
     "Reviewing your own closed trades",
-    "Running a strategy on past data",
     "Trading fake money in a live market"
    ],
    "kind": "mcq",
@@ -62464,10 +62766,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Its rules are bent to fit old data",
     "It covers too many years of data",
     "It needs tighter stops to be safe",
-    "It didn't test enough settings"
+    "It didn't test enough settings",
+    "Its rules are bent to fit old data"
    ],
    "kind": "mcq",
    "q": "What's the main problem with this backtest?",
@@ -62530,9 +62832,9 @@
   "prompt_json": {
    "choices": [
     "Day trading",
+    "Paper trading",
     "Swing trading",
-    "Backtesting",
-    "Paper trading"
+    "Backtesting"
    ],
    "kind": "mcq",
    "q": "Trading with simulated money in a live market, for practice. What's that called?",
@@ -62659,8 +62961,8 @@
   "prompt_json": {
    "choices": [
     "Your stock picks get worse live",
-    "Real fills and real losses differ",
     "Live fills usually beat paper fills",
+    "Real fills and real losses differ",
     "The same results as on paper"
    ],
    "kind": "mcq",
@@ -62942,9 +63244,9 @@
   "prompt_json": {
    "choices": [
     "Write up only the losers",
-    "Write it up the same day",
     "Wait for the monthly review",
-    "Skip it, the broker logs it"
+    "Skip it, the broker logs it",
+    "Write it up the same day"
    ],
    "kind": "mcq",
    "q": "What does UCT's rulebook say to do?",

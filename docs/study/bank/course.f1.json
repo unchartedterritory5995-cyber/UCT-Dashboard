@@ -2192,11 +2192,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.04",
-    "0.040"
-   ],
-   "answer": 0.04
+   "answer": "$0.04"
   },
   "difficulty": 2,
   "id": "si_48c879a5ce9e",
@@ -2204,8 +2200,13 @@
   "lesson_text": "$0.04. The bid is the most a buyer pays right now, $24.98. The ask is the least a seller takes, $25.02. The spread is ask minus bid: 25.02 minus 24.98 = 0.04. Buy at the ask and sell back at the bid, and you lose that 4 cents a share. Spread equals ask minus bid. Work it out before every order.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.02",
+    "$0.04",
+    "$0.40",
+    "$25.00"
+   ],
+   "kind": "mcq",
    "q": "Bid $24.98, ask $25.02. What is the spread in dollars?",
    "subject": "F1.03#q08"
   },
@@ -2259,13 +2260,18 @@
      "fn": "spread",
      "result": 0.04
     },
-    "given": "Bid $24.98, ask $25.02. What is the spread in dollars?"
+    "given": "Bid $24.98, ask $25.02. What is the spread in dollars? $25.00 $0.02 $0.40 $0.04"
    },
    "lesson_line": "Spread equals ask minus bid. Work it out before every order.",
    "simple": "The spread is $0.04, because the ask of $25.02 minus the bid of $24.98 leaves four cents.",
    "tier": "core",
    "unit": "F1.03",
-   "why": "$0.04. The bid is the most a buyer pays right now, $24.98. The ask is the least a seller takes, $25.02. The spread is ask minus bid: 25.02 minus 24.98 = 0.04. Buy at the ask and sell back at the bid, and you lose that 4 cents a share."
+   "why": "$0.04. The bid is the most a buyer pays right now, $24.98. The ask is the least a seller takes, $25.02. The spread is ask minus bid: 25.02 minus 24.98 = 0.04. Buy at the ask and sell back at the bid, and you lose that 4 cents a share.",
+   "wrong": {
+    "$0.02": "You took half the spread, the distance from the middle to one side.",
+    "$0.40": "A decimal slip: you moved the point one place.",
+    "$25.00": "You gave the middle price, bid plus ask halved, not ask minus bid."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.spread",
@@ -2276,22 +2282,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "200",
-    "200.0",
-    "200.00",
-    "200.000"
-   ],
-   "answer": 200.0
+   "answer": "$200"
   },
   "difficulty": 2,
   "id": "si_fe77a2865f7f",
   "lesson_origin": "session",
-  "lesson_text": "$200. You paid the $10.20 ask and sold at the $9.80 bid. You gave up the full spread on each of the 500 shares. The SEC's own example works the same way: 200 shares bought at $60 and sold at $59.50 lose $100. A quick round trip at an unchanged quote costs the spread. Buy at the ask, sell at the bid, and you pay the spread. Wide spreads make quick exits expensive.",
+  "lesson_text": "$200. You paid the $10.20 ask and sold at the $9.80 bid. That loses $0.40 a share, and $0.40 times 500 shares is $200. The SEC's own example works the same way: 200 shares bought at $60 and sold at $59.50 lose $100. A quick round trip at an unchanged quote costs the spread. Buy at the ask, sell at the bid, and you pay the spread. Wide spreads make quick exits expensive.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.40",
+    "$100",
+    "$200",
+    "$2,000"
+   ],
+   "kind": "mcq",
    "q": "Bid $9.80, ask $10.20. You buy 500 shares at the ask and sell right away at the bid. What did the spread cost you?",
    "subject": "F1.03#q10"
   },
@@ -2319,13 +2324,18 @@
      "fn": "arith",
      "result": 200.0
     },
-    "given": "Bid $9.80, ask $10.20. You buy 500 shares at the ask and sell right away at the bid. What did the spread cost you?"
+    "given": "Bid $9.80, ask $10.20. You buy 500 shares at the ask and sell right away at the bid. What did the spread cost you? $0.40 $100 $200 $2,000"
    },
    "lesson_line": "Buy at the ask, sell at the bid, and you pay the spread. Wide spreads make quick exits expensive.",
    "simple": "You lose $200, because you paid the ask and sold at the bid on all 500 shares.",
    "tier": "extended",
    "unit": "F1.03",
-   "why": "$200. You paid the $10.20 ask and sold at the $9.80 bid. You gave up the full spread on each of the 500 shares. The SEC's own example works the same way: 200 shares bought at $60 and sold at $59.50 lose $100. A quick round trip at an unchanged quote costs the spread."
+   "why": "$200. You paid the $10.20 ask and sold at the $9.80 bid. That loses $0.40 a share, and $0.40 times 500 shares is $200. The SEC's own example works the same way: 200 shares bought at $60 and sold at $59.50 lose $100. A quick round trip at an unchanged quote costs the spread.",
+   "wrong": {
+    "$0.40": "You gave the spread per share and forgot to multiply by 500 shares.",
+    "$100": "You counted only half the spread, as if you lost to the middle price.",
+    "$2,000": "A decimal slip: you moved the point one place."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.spread",
@@ -2519,20 +2529,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "30.13",
-    "30.130"
-   ],
-   "answer": 30.13
+   "answer": "$30.13"
   },
   "difficulty": 2,
   "id": "si_37ca20c9811f",
   "lesson_origin": "session",
-  "lesson_text": "$30.13. Multiply each fill's shares by its price, add them up, and divide by the 1,000 shares. More shares filled at $30.15 than at $30.10, so the average sits closer to $30.15. That average, not the ask you first saw, is your real cost. When your order fills at several prices, your real cost is the average, not the ask you saw.",
+  "lesson_text": "$30.13. The fills cost 400 times $30.10 plus 600 times $30.15, which is $30,130 in all. Divide that by the 1,000 shares and you get $30.13. More shares filled at $30.15 than at $30.10, so the average sits closer to $30.15. That average, not the ask you first saw, is your real cost. When your order fills at several prices, your real cost is the average, not the ask you saw.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$30.10",
+    "$30.13",
+    "$15,065",
+    "$30,130"
+   ],
+   "kind": "mcq",
    "q": "Your market buy for 1,000 shares fills 400 at $30.10 and 600 at $30.15. What is your average price?",
    "subject": "F1.03#q13"
   },
@@ -2566,13 +2577,18 @@
      "fn": "avg_price",
      "result": 30.13
     },
-    "given": "Your market buy for 1,000 shares fills 400 at $30.10 and 600 at $30.15. What is your average price?"
+    "given": "Your market buy for 1,000 shares fills 400 at $30.10 and 600 at $30.15. What is your average price? $30,130 $30.10 $15,065 $30.13"
    },
    "lesson_line": "When your order fills at several prices, your real cost is the average, not the ask you saw.",
    "simple": "Your average is $30.13, because more of the shares, 600 of 1,000, filled at the higher price.",
    "tier": "extended",
    "unit": "F1.03",
-   "why": "$30.13. Multiply each fill's shares by its price, add them up, and divide by the 1,000 shares. More shares filled at $30.15 than at $30.10, so the average sits closer to $30.15. That average, not the ask you first saw, is your real cost."
+   "why": "$30.13. The fills cost 400 times $30.10 plus 600 times $30.15, which is $30,130 in all. Divide that by the 1,000 shares and you get $30.13. More shares filled at $30.15 than at $30.10, so the average sits closer to $30.15. That average, not the ask you first saw, is your real cost.",
+   "wrong": {
+    "$15,065": "You divided the $30,130 total by the number of fills instead of the 1,000 shares.",
+    "$30,130": "You gave the total cost and forgot to divide by the 1,000 shares.",
+    "$30.10": "You used only the first fill's price."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.spread",
@@ -3062,24 +3078,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "75",
-    "75.0",
-    "75.00",
-    "75.000"
-   ],
-   "answer": 75.0
+   "answer": "75%"
   },
   "difficulty": 3,
   "id": "si_88bb618a7a20",
   "lesson_origin": "session",
-  "lesson_text": "75%. The spread is $20.30 minus $20.00. Divide it by the $0.40 stop distance. Sell right after you buy and you would get about the bid. That is already most of the way to your stop, before the stock moves. I'd skip a name this wide. If the spread eats most of your stop room, the trade is broken before it starts.",
+  "lesson_text": "75%. The spread is the $20.30 ask minus the $20.00 bid. Divide it by the $0.40 stop distance and you get 75%. Sell right after you buy and you would get about the bid. That is already most of the way to your stop, before the stock moves. I'd skip a name this wide. If the spread eats most of your stop room, the trade is broken before it starts.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "1.5%",
+    "30%",
+    "75%",
+    "133%"
+   ],
+   "kind": "mcq",
    "q": "You buy at the $20.30 ask. The bid is $20.00. Your stop is $0.40 under your fill. What percent of that $0.40 is the spread?",
-   "subject": "F1.03#q21",
-   "suffix": "%"
+   "subject": "F1.03#q21"
   },
   "reveal_json": {
    "deeper": {
@@ -3115,13 +3130,18 @@
      "fn": "arith",
      "result": 75.0
     },
-    "given": "You buy at the $20.30 ask. The bid is $20.00. Your stop is $0.40 under your fill. What percent of that $0.40 is the spread?"
+    "given": "You buy at the $20.30 ask. The bid is $20.00. Your stop is $0.40 under your fill. What percent of that $0.40 is the spread? 1.5% 133% 75% 30%"
    },
    "lesson_line": "If the spread eats most of your stop room, the trade is broken before it starts.",
    "simple": "The spread is 75% of your stop room, so you start most of the way to your stop.",
    "tier": "expert",
    "unit": "F1.03",
-   "why": "75%. The spread is $20.30 minus $20.00. Divide it by the $0.40 stop distance. Sell right after you buy and you would get about the bid. That is already most of the way to your stop, before the stock moves. I'd skip a name this wide."
+   "why": "75%. The spread is the $20.30 ask minus the $20.00 bid. Divide it by the $0.40 stop distance and you get 75%. Sell right after you buy and you would get about the bid. That is already most of the way to your stop, before the stock moves. I'd skip a name this wide.",
+   "wrong": {
+    "1.5%": "You divided the spread by the $20.30 price, not by the stop distance.",
+    "133%": "You flipped the division and divided the $0.40 stop distance by the spread.",
+    "30%": "You read the 30-cent spread as 30% without dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.spread",
@@ -5558,21 +5578,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "78",
-    "78.0",
-    "78.00",
-    "78.000"
-   ],
-   "answer": 78.0
+   "answer": "78 bars"
   },
   "difficulty": 1,
   "id": "si_9ef9df26c751",
   "lesson_origin": "session",
-  "lesson_text": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET. That is six and a half hours. An hour holds twelve 5-minute bars. Twelve bars an hour over six and a half hours is 78. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars. Count more than 78 five-minute bars in a full day and your chart is showing extended hours.",
+  "lesson_text": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET. That is six and a half hours, or 390 minutes. Divide 390 by 5 and you get 78 bars. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars. Count more than 78 five-minute bars in a full day and your chart is showing extended hours.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "72 bars",
+    "78 bars",
+    "84 bars",
+    "390 bars"
+   ],
+   "kind": "mcq",
    "q": "Regular hours only, how many 5-minute bars make one full trading day?",
    "subject": "F1.05#q07"
   },
@@ -5631,17 +5651,17 @@
      "fn": "arith",
      "result": 78.0
     },
-    "given": "Regular hours only, how many 5-minute bars make one full trading day?"
+    "given": "Regular hours only, how many 5-minute bars make one full trading day? 390 bars 72 bars 84 bars 78 bars"
    },
    "lesson_line": "Count more than 78 five-minute bars in a full day and your chart is showing extended hours.",
    "simple": "78 bars, because the 9:30 to 4:00 session is six and a half hours, and each bar covers 5 minutes.",
    "tier": "core",
    "unit": "F1.05",
-   "why": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET. That is six and a half hours. An hour holds twelve 5-minute bars. Twelve bars an hour over six and a half hours is 78. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars.",
+   "why": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET. That is six and a half hours, or 390 minutes. Divide 390 by 5 and you get 78 bars. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars.",
    "wrong": {
-    "192": "That counts 4:00 a.m. to 8:00 p.m. ET, sixteen hours. That window includes extended hours, not just the regular session.",
-    "72": "That treats the session as six hours. It is six and a half hours, because it runs 9:30 to 4:00.",
-    "84": "That counts seven hours, as if the session opened at 9:00. It opens at 9:30, so it is six and a half hours."
+    "390 bars": "You counted minutes and forgot to divide by 5.",
+    "72 bars": "You used six hours. The session is six and a half hours.",
+    "84 bars": "You used seven hours, as if the session opened at 9:00."
    }
   },
   "review_status": "draft",
@@ -6003,24 +6023,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "10",
-    "10.0",
-    "10.00",
-    "10.000"
-   ],
-   "answer": 10.0
+   "answer": "10%"
   },
   "difficulty": 2,
   "id": "si_4aa3d1b3ea4c",
   "lesson_origin": "session",
-  "lesson_text": "10%. A gap is measured from one day's close to the next day's open. Take the open minus the close, $44.00 minus $40.00, then divide by the close, $40.00. That gives a 10% gap up. Divide by the close, not the open, or you get a different number. Measure a gap from yesterday's close to today's open, in percent.",
+  "lesson_text": "10%. A gap is measured from one day's close to the next day's open. Take the open minus the close, $44.00 minus $40.00, which is $4.00. Divide $4.00 by the close, $40.00, and you get 10%, a gap up. Divide by the close, not the open, or you get a different number. Measure a gap from yesterday's close to today's open, in percent.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "4%",
+    "9.1%",
+    "10%",
+    "110%"
+   ],
+   "kind": "mcq",
    "q": "Yesterday's close was $40.00. This morning it opens at $44.00. How big is the gap, as a percent of the close?",
-   "subject": "F1.05#q12",
-   "suffix": "%"
+   "subject": "F1.05#q12"
   },
   "reveal_json": {
    "depth": {
@@ -6051,13 +6070,18 @@
      "fn": "pct_change",
      "result": 10.0
     },
-    "given": "Yesterday's close was $40.00. This morning it opens at $44.00. How big is the gap, as a percent of the close?"
+    "given": "Yesterday's close was $40.00. This morning it opens at $44.00. How big is the gap, as a percent of the close? 4% 9.1% 10% 110%"
    },
    "lesson_line": "Measure a gap from yesterday's close to today's open, in percent.",
    "simple": "The gap is 10%, because the $44.00 open is 10% above the $40.00 close.",
    "tier": "extended",
    "unit": "F1.05",
-   "why": "10%. A gap is measured from one day's close to the next day's open. Take the open minus the close, $44.00 minus $40.00, then divide by the close, $40.00. That gives a 10% gap up. Divide by the close, not the open, or you get a different number."
+   "why": "10%. A gap is measured from one day's close to the next day's open. Take the open minus the close, $44.00 minus $40.00, which is $4.00. Divide $4.00 by the close, $40.00, and you get 10%, a gap up. Divide by the close, not the open, or you get a different number.",
+   "wrong": {
+    "110%": "You divided the open by the close and forgot to subtract one.",
+    "4%": "You read the $4.00 dollar gap as a percent.",
+    "9.1%": "You divided the $4.00 gap by the $44.00 open instead of the $40.00 close."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.hours",
@@ -7562,25 +7586,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1500",
-    "1500.0",
-    "1500.00",
-    "1500.000"
-   ],
-   "answer": 1500.0
+   "answer": "$1,500 million"
   },
   "difficulty": 2,
   "id": "si_04086f801b7c",
   "lesson_origin": "session",
-  "lesson_text": "$1,500 million, which is $1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap. Price times shares outstanding. Work in millions and the zeros stay easy.",
+  "lesson_text": "$1,500 million, which is $1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million is 1,500 million. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap. Price times shares outstanding. Work in millions and the zeros stay easy.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "A stock trades at $30 with 50 million shares outstanding. What is its market cap, in millions of dollars?",
-   "subject": "F1.06#q08",
-   "suffix": " million"
+   "choices": [
+    "$1.5 million",
+    "$1,500 million",
+    "$80 million",
+    "$150 million"
+   ],
+   "kind": "mcq",
+   "q": "A stock trades at $30 with 50 million shares outstanding. What is its market cap?",
+   "subject": "F1.06#q08"
   },
   "reveal_json": {
    "depth": {
@@ -7611,13 +7633,18 @@
      "fn": "market_cap",
      "result": 1500.0
     },
-    "given": "A stock trades at $30 with 50 million shares outstanding. What is its market cap, in millions of dollars?"
+    "given": "A stock trades at $30 with 50 million shares outstanding. What is its market cap? $1.5 million $150 million $80 million $1,500 million"
    },
    "lesson_line": "Price times shares outstanding. Work in millions and the zeros stay easy.",
    "simple": "$1,500 million, since market cap is the $30 price times the 50 million shares.",
    "tier": "core",
    "unit": "F1.06",
-   "why": "$1,500 million, which is $1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap."
+   "why": "$1,500 million, which is $1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million is 1,500 million. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap.",
+   "wrong": {
+    "$1.5 million": "A units slip: 1,500 million is $1.5 billion, not $1.5 million.",
+    "$150 million": "A decimal slip: you dropped a zero.",
+    "$80 million": "You added the price and the shares instead of multiplying."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.float_cap",
@@ -7628,13 +7655,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "50",
-    "50.0",
-    "50.00",
-    "50.000"
-   ],
-   "answer": 50.0
+   "answer": "50 million"
   },
   "difficulty": 2,
   "id": "si_269a3a9b478a",
@@ -7642,10 +7663,15 @@
   "lesson_text": "50 million shares. The float is shares outstanding minus closely held shares and restricted stock: 80 million minus 30 million. The insiders' 30 million are all restricted, so nothing is subtracted twice. The rest trade freely, so they make up the float. Float is the shares outstanding minus insiders' holdings and restricted stock.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "80 million shares are outstanding. Insiders hold 30 million, all restricted. The rest trade freely. What is the float, in millions?",
-   "subject": "F1.06#q09",
-   "suffix": " million"
+   "choices": [
+    "110 million",
+    "30 million",
+    "50 million",
+    "80 million"
+   ],
+   "kind": "mcq",
+   "q": "80 million shares are outstanding. Insiders hold 30 million, all restricted. The rest trade freely. What is the float?",
+   "subject": "F1.06#q09"
   },
   "reveal_json": {
    "depth": {
@@ -7684,13 +7710,18 @@
      "fn": "arith",
      "result": 50.0
     },
-    "given": "80 million shares are outstanding. Insiders hold 30 million, all restricted. The rest trade freely. What is the float, in millions?"
+    "given": "80 million shares are outstanding. Insiders hold 30 million, all restricted. The rest trade freely. What is the float? 30 million 110 million 50 million 80 million"
    },
    "lesson_line": "Float is the shares outstanding minus insiders' holdings and restricted stock.",
    "simple": "50 million, since you take the 30 million insider shares away from the 80 million in all.",
    "tier": "core",
    "unit": "F1.06",
-   "why": "50 million shares. The float is shares outstanding minus closely held shares and restricted stock: 80 million minus 30 million. The insiders' 30 million are all restricted, so nothing is subtracted twice. The rest trade freely, so they make up the float."
+   "why": "50 million shares. The float is shares outstanding minus closely held shares and restricted stock: 80 million minus 30 million. The insiders' 30 million are all restricted, so nothing is subtracted twice. The rest trade freely, so they make up the float.",
+   "wrong": {
+    "110 million": "You added the insider shares to the shares outstanding.",
+    "30 million": "You gave the insiders' shares, which are the part left out of the float.",
+    "80 million": "You gave all shares outstanding and never took out the insiders' shares."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.float_cap",
@@ -7711,9 +7742,9 @@
   "prompt_json": {
    "choices": [
     "100 shares near $200",
-    "300 shares near $200",
     "300 shares near $600",
-    "33 shares near $1,800"
+    "33 shares near $1,800",
+    "300 shares near $200"
    ],
    "kind": "mcq",
    "q": "What do you hold right after the split?",
@@ -7803,25 +7834,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1200",
-    "1200.0",
-    "1200.00",
-    "1200.000"
-   ],
-   "answer": 1200.0
+   "answer": "$1,200 million"
   },
   "difficulty": 2,
   "id": "si_47fb32cd605b",
   "lesson_origin": "session",
-  "lesson_text": "$1,200 million. Float-adjusted market cap is the price times the shares available to the public: $20 times 60 million. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number. Market cap counts every share. Float-adjusted cap counts only what can trade.",
+  "lesson_text": "$1,200 million. Float-adjusted market cap is the price times the shares available to the public: $20 times 60 million is 1,200 million. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number. Market cap counts every share. Float-adjusted cap counts only what can trade.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap, in millions?",
-   "subject": "F1.06#q11",
-   "suffix": " million"
+   "choices": [
+    "$1,200 million",
+    "$2,000 million",
+    "$12,000 million",
+    "$800 million"
+   ],
+   "kind": "mcq",
+   "q": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap?",
+   "subject": "F1.06#q11"
   },
   "reveal_json": {
    "depth": {
@@ -7860,13 +7889,18 @@
      "fn": "arith",
      "result": 1200.0
     },
-    "given": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap, in millions?"
+    "given": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap? $2,000 million $1,200 million $800 million $12,000 million"
    },
    "lesson_line": "Market cap counts every share. Float-adjusted cap counts only what can trade.",
    "simple": "$1,200 million, because float-adjusted cap counts only the 60 million shares the public can trade, at $20 each.",
    "tier": "extended",
    "unit": "F1.06",
-   "why": "$1,200 million. Float-adjusted market cap is the price times the shares available to the public: $20 times 60 million. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number."
+   "why": "$1,200 million. Float-adjusted market cap is the price times the shares available to the public: $20 times 60 million is 1,200 million. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number.",
+   "wrong": {
+    "$12,000 million": "A decimal slip: you added a zero.",
+    "$2,000 million": "You used all 100 million shares outstanding instead of the 60 million float.",
+    "$800 million": "You used only the shares that are not in the float."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.float_cap",
@@ -7975,9 +8009,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "The $600 million stock",
     "The $900 billion stock",
     "The $40 billion stock",
-    "The $600 million stock",
     "The $3 billion stock"
    ],
    "kind": "mcq",
@@ -8052,24 +8086,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "5",
-    "5.0",
-    "5.00",
-    "5.000"
-   ],
-   "answer": 5.0
+   "answer": "5 times"
   },
   "difficulty": 2,
   "id": "si_a2df07aed0b6",
   "lesson_origin": "session",
-  "lesson_text": "5 times. Size is price times shares, so multiply each before you compare. B trades at $45 with 2 billion shares. A trades at $900 with 20 million. B's far lower price hides a far bigger company. FINRA warns that price alone is not a good guide to size; the share count matters most. A high price can just mean few shares. Size is price times shares.",
+  "lesson_text": "5 times. Size is price times shares, so multiply each before you compare. A is $900 times 20 million shares. B is $45 times 2 billion shares. B's far lower price hides a far bigger company, and its cap is 5 times A's. FINRA warns that price alone is not a good guide to size; the share count matters most. A high price can just mean few shares. Size is price times shares.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "20 times",
+    "0.05 times",
+    "5 times",
+    "100 times"
+   ],
+   "kind": "mcq",
    "q": "Stock A trades at $900 with 20 million shares. Stock B trades at $45 with 2 billion shares. B's market cap is how many times A's?",
-   "subject": "F1.06#q14",
-   "suffix": " times"
+   "subject": "F1.06#q14"
   },
   "reveal_json": {
    "depth": {
@@ -8110,13 +8143,18 @@
      "fn": "arith",
      "result": 5.0
     },
-    "given": "Stock A trades at $900 with 20 million shares. Stock B trades at $45 with 2 billion shares. B's market cap is how many times A's?"
+    "given": "Stock A trades at $900 with 20 million shares. Stock B trades at $45 with 2 billion shares. B's market cap is how many times A's? 0.05 times 20 times 100 times 5 times"
    },
    "lesson_line": "A high price can just mean few shares. Size is price times shares.",
    "simple": "5 times, because B's low price is spread over far more shares, so the whole company is worth more.",
    "tier": "extended",
    "unit": "F1.06",
-   "why": "5 times. Size is price times shares, so multiply each before you compare. B trades at $45 with 2 billion shares. A trades at $900 with 20 million. B's far lower price hides a far bigger company. FINRA warns that price alone is not a good guide to size; the share count matters most."
+   "why": "5 times. Size is price times shares, so multiply each before you compare. A is $900 times 20 million shares. B is $45 times 2 billion shares. B's far lower price hides a far bigger company, and its cap is 5 times A's. FINRA warns that price alone is not a good guide to size; the share count matters most.",
+   "wrong": {
+    "0.05 times": "You compared only the prices, $45 over $900.",
+    "100 times": "You compared only the share counts, 2 billion over 20 million.",
+    "20 times": "You compared only the prices and flipped them, $900 over $45."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.float_cap",
@@ -8222,8 +8260,8 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "More shares free to sell",
     "Insiders forced to sell",
+    "More shares free to sell",
     "A guaranteed drop in price",
     "Fewer shares in the float"
    ],
@@ -8456,8 +8494,8 @@
    "choices": [
     "The company is worth 25 times more",
     "The float grew 25 times larger",
-    "Fewer shares, same company value",
-    "It is a safer stock to own now"
+    "It is a safer stock to own now",
+    "Fewer shares, same company value"
    ],
    "kind": "mcq",
    "q": "What has really changed?",
@@ -8549,8 +8587,8 @@
    "choices": [
     "Missing more of the move",
     "Paying a few cents extra",
-    "Being shaken out early",
-    "A crash that's hard to exit"
+    "A crash that's hard to exit",
+    "Being shaken out early"
    ],
    "kind": "mcq",
    "q": "What's the biggest risk if you buy here?",
@@ -9638,24 +9676,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "9",
-    "9.0",
-    "9.00",
-    "9.000"
-   ],
-   "answer": 9.0
+   "answer": "9%"
   },
   "difficulty": 2,
   "id": "si_422f25186648",
   "lesson_origin": "session",
-  "lesson_text": "About 9%. A 3x fund aims for three times the index's daily move. So a 3% drop means about a 9% loss that day, before fees. FINRA runs the same math on an inverse 3x fund: a 3% index day, a 9% move. Three times the move means three times the loss on a down day.",
+  "lesson_text": "About 9%. A 3x fund aims for three times the index's daily move. Three times a 3% drop is a 9% loss that day, before fees. FINRA runs the same math on an inverse 3x fund: a 3% index day, a 9% move. Three times the move means three times the loss on a down day.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "1%",
+    "3%",
+    "6%",
+    "9%"
+   ],
+   "kind": "mcq",
    "q": "The index falls 3% today. About how much should a 3x fund on that index lose today?",
-   "subject": "F1.07#q10",
-   "suffix": "%"
+   "subject": "F1.07#q10"
   },
   "reveal_json": {
    "depth": {
@@ -9708,13 +9745,18 @@
      "fn": "arith",
      "result": 9.0
     },
-    "given": "The index falls 3% today. About how much should a 3x fund on that index lose today?"
+    "given": "The index falls 3% today. About how much should a 3x fund on that index lose today? 6% 3% 1% 9%"
    },
    "lesson_line": "Three times the move means three times the loss on a down day.",
    "simple": "About 9%, because a 3x fund aims to move three times the index's move for that one day.",
    "tier": "core",
    "unit": "F1.07",
-   "why": "About 9%. A 3x fund aims for three times the index's daily move. So a 3% drop means about a 9% loss that day, before fees. FINRA runs the same math on an inverse 3x fund: a 3% index day, a 9% move."
+   "why": "About 9%. A 3x fund aims for three times the index's daily move. Three times a 3% drop is a 9% loss that day, before fees. FINRA runs the same math on an inverse 3x fund: a 3% index day, a 9% move.",
+   "wrong": {
+    "1%": "You divided the 3% by 3 instead of multiplying.",
+    "3%": "You gave the index's move and never applied the 3x.",
+    "6%": "You added 3 and 3 instead of multiplying them."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.etfs",
@@ -9967,22 +10009,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "91",
-    "91.0",
-    "91.00",
-    "91.000"
-   ],
-   "answer": 91.0
+   "answer": "$91"
   },
   "difficulty": 2,
   "id": "si_ff6e4a34dbe4",
   "lesson_origin": "session",
-  "lesson_text": "$91. The fund triples each day's move. The drop lands on a bigger balance than the gain did, so the round trip leaves it below $100. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees. Up 10%, down 10% is a small loss. A 3x fund turns it into a big one.",
+  "lesson_text": "$91. The fund triples each day's move: three times the 10% gain, then three times the 10% drop. The drop lands on a bigger balance than the gain did, so the round trip leaves it below $100. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees. Up 10%, down 10% is a small loss. A 3x fund turns it into a big one.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$70",
+    "$91",
+    "$99",
+    "$100"
+   ],
+   "kind": "mcq",
    "q": "A 3x fund starts at $100. The index rises 10% one day and falls 10% the next. What is the fund worth, before fees?",
    "subject": "F1.07#q14"
   },
@@ -10043,13 +10084,18 @@
      "fn": "leveraged_path",
      "result": 91.0
     },
-    "given": "A 3x fund starts at $100. The index rises 10% one day and falls 10% the next. What is the fund worth, before fees?"
+    "given": "A 3x fund starts at $100. The index rises 10% one day and falls 10% the next. What is the fund worth, before fees? $99 $100 $91 $70"
    },
    "lesson_line": "Up 10%, down 10% is a small loss. A 3x fund turns it into a big one.",
    "simple": "$91, because the fund triples each move, and the drop hits a bigger balance than the gain did.",
    "tier": "extended",
    "unit": "F1.07",
-   "why": "$91. The fund triples each day's move. The drop lands on a bigger balance than the gain did, so the round trip leaves it below $100. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees."
+   "why": "$91. The fund triples each day's move: three times the 10% gain, then three times the 10% drop. The drop lands on a bigger balance than the gain did, so the round trip leaves it below $100. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees.",
+   "wrong": {
+    "$100": "You assumed an up 10% and a down 10% cancel out.",
+    "$70": "You took the tripled drop off the original $100 instead of off the bigger balance.",
+    "$99": "You gave the index's result, up 10% then down 10% to 99, not the 3x fund's."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.etfs",
@@ -10060,22 +10106,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3000",
-    "3000.0",
-    "3000.00",
-    "3000.000"
-   ],
-   "answer": 3000.0
+   "answer": "$3,000"
   },
   "difficulty": 2,
   "id": "si_1cf7036340dd",
   "lesson_origin": "session",
-  "lesson_text": "$3,000. A 3x fund aims for three times the index's daily move. So $3,000 of it swings about as much in a day as $9,000 of the plain index fund, before fees. That match holds for one day only. Held longer, the 3x fund's return can drift away from three times the index. A 3x fund swings about three times as hard as its index each day.",
+  "lesson_text": "$3,000. A 3x fund aims for three times the index's daily move. So you need only a third of the dollars: $9,000 divided by 3 is $3,000. That $3,000 swings about as much in a day as $9,000 of the plain index fund, before fees. That match holds for one day only. Held longer, the 3x fund's return can drift away from three times the index. A 3x fund swings about three times as hard as its index each day.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$3,000",
+    "$6,000",
+    "$9,000",
+    "$27,000"
+   ],
+   "kind": "mcq",
    "q": "You hold $9,000 of a plain index fund. How much of a 3x fund on the same index swings about as much in a day?",
    "subject": "F1.07#q15"
   },
@@ -10123,13 +10168,18 @@
      "fn": "arith",
      "result": 3000.0
     },
-    "given": "You hold $9,000 of a plain index fund. How much of a 3x fund on the same index swings about as much in a day?"
+    "given": "You hold $9,000 of a plain index fund. How much of a 3x fund on the same index swings about as much in a day? $27,000 $3,000 $9,000 $6,000"
    },
    "lesson_line": "A 3x fund swings about three times as hard as its index each day.",
    "simple": "$3,000, because a 3x fund moves about three times the index each day, so a third of the dollars swings the same.",
    "tier": "extended",
    "unit": "F1.07",
-   "why": "$3,000. A 3x fund aims for three times the index's daily move. So $3,000 of it swings about as much in a day as $9,000 of the plain index fund, before fees. That match holds for one day only. Held longer, the 3x fund's return can drift away from three times the index."
+   "why": "$3,000. A 3x fund aims for three times the index's daily move. So you need only a third of the dollars: $9,000 divided by 3 is $3,000. That $3,000 swings about as much in a day as $9,000 of the plain index fund, before fees. That match holds for one day only. Held longer, the 3x fund's return can drift away from three times the index.",
+   "wrong": {
+    "$27,000": "You multiplied by 3 instead of dividing by 3.",
+    "$6,000": "You took off a third instead of dividing by 3.",
+    "$9,000": "You put in the same dollars, forgetting the 3x makes each dollar swing three times as much."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.etfs",
@@ -10568,11 +10618,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.82",
-    "1.820"
-   ],
-   "answer": 1.82
+   "answer": "1.82%"
   },
   "difficulty": 3,
   "id": "si_a6a9eb5beeef",
@@ -10580,10 +10626,15 @@
   "lesson_text": "1.82%. An inverse fund aims for the opposite of the index's move each day, then starts fresh the next day. Day 1: the index rises 10, from 100 to 110, so the fund falls 10%, from 100 to 90. Day 2: the index falls back to 100. That drop is 10 / 110 = 9.09% of 110, so the fund gains 9.09%. But the gain works on 90, not 100. Gaining 9.09% on 90 brings the fund to 98.18. That is a loss of 1.82% from 100. On a calm 100, 101, 100 path, FINRA finds a loss of only 0.02%. Bigger swings mean bigger drift. Same start, same finish. The bigger the swings in between, the more a daily-reset fund loses.",
   "module": "F1",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0%",
+    "1%",
+    "1.82%",
+    "10%"
+   ],
+   "kind": "mcq",
    "q": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose?",
-   "subject": "F1.07#q22",
-   "suffix": "%"
+   "subject": "F1.07#q22"
   },
   "reveal_json": {
    "deeper": {
@@ -10637,13 +10688,18 @@
      "fn": "arith",
      "result": 1.82
     },
-    "given": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose?"
+    "given": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose? 10% 0% 1% 1.82%"
    },
    "lesson_line": "Same start, same finish. The bigger the swings in between, the more a daily-reset fund loses.",
    "simple": "1.82%, because the fund loses on the way up, and its gain on the way back works on a smaller balance.",
    "tier": "expert",
    "unit": "F1.07",
-   "why": "1.82%. An inverse fund aims for the opposite of the index's move each day, then starts fresh the next day. Day 1: the index rises 10, from 100 to 110, so the fund falls 10%, from 100 to 90. Day 2: the index falls back to 100. That drop is 10 / 110 = 9.09% of 110, so the fund gains 9.09%. But the gain works on 90, not 100. Gaining 9.09% on 90 brings the fund to 98.18. That is a loss of 1.82% from 100. On a calm 100, 101, 100 path, FINRA finds a loss of only 0.02%. Bigger swings mean bigger drift."
+   "why": "1.82%. An inverse fund aims for the opposite of the index's move each day, then starts fresh the next day. Day 1: the index rises 10, from 100 to 110, so the fund falls 10%, from 100 to 90. Day 2: the index falls back to 100. That drop is 10 / 110 = 9.09% of 110, so the fund gains 9.09%. But the gain works on 90, not 100. Gaining 9.09% on 90 brings the fund to 98.18. That is a loss of 1.82% from 100. On a calm 100, 101, 100 path, FINRA finds a loss of only 0.02%. Bigger swings mean bigger drift.",
+   "wrong": {
+    "0%": "You thought flat in, flat out. The fund loses on the way.",
+    "1%": "You used a 10% gain on day 2 instead of 9.09%.",
+    "10%": "You gave only day 1's loss and ignored the gain back."
+   }
   },
   "review_status": "draft",
   "skill_id": "basics.etfs",

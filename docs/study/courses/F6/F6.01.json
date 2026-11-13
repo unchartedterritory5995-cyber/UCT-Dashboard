@@ -841,9 +841,9 @@
    "key": "q10",
    "skill": "options.calls_puts",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You buy 3 standard call contracts on a stock. If you exercise all of them, how many shares do you buy?",
-   "answer": 300,
+   "answer": "300 shares",
    "suffix": "shares",
    "calc": {
     "fn": "arith",
@@ -869,7 +869,18 @@
      "fixed before (checker added 'standard')"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "3 shares",
+    "100 shares",
+    "300 shares",
+    "103 shares"
+   ],
+   "wrong": {
+    "3 shares": "Forgot each contract covers 100 shares.",
+    "100 shares": "Counted one contract instead of three.",
+    "103 shares": "Added the numbers instead of multiplying."
+   }
   },
   {
    "key": "q11",
@@ -965,9 +976,9 @@
    "key": "q14",
    "skill": "options.calls_puts",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You own 200 shares of XYZ and two standard XYZ 30 puts. If you exercise both puts, how much cash do you receive?",
-   "answer": 6000,
+   "answer": "$6,000",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -994,7 +1005,18 @@
      "fixed before (checker added 'standard' and fixed the lesson line)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$3,000",
+    "$12,000",
+    "$600",
+    "$6,000"
+   ],
+   "wrong": {
+    "$3,000": "Counted one put instead of two.",
+    "$12,000": "Multiplied the strike by the 200 shares you own and by the two puts.",
+    "$600": "Slipped a decimal place."
+   }
   },
   {
    "key": "q15",
@@ -1505,9 +1527,9 @@
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2."
   },
   "q11": {
    "status": "cut",
@@ -1535,9 +1557,9 @@
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4."
   },
   "q15": {
    "status": "pass",

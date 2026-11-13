@@ -1467,10 +1467,10 @@
    "key": "q16",
    "skill": "setup.ma_pullbacks",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "map.trim_1",
    "q": "Bought at 86.93 with the stop at 85.82. One R is the buy minus the stop. Where is 3R?",
-   "answer": 90.26,
+   "answer": "$90.26",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1480,7 +1480,7 @@
     },
     "round": 2
    },
-   "why": "90.26. One R is the buy minus the stop. Add three of those to the buy. That is the 3R mark, a yardstick and not a fixed sale.",
+   "why": "One R is the buy minus the stop: 86.93 minus 85.82. Add three of those to the buy of 86.93 to get 90.26. That is the 3R mark, a yardstick and not a fixed sale.",
    "lesson_line": "3R is the buy plus three R. It is a yardstick, not a sell order.",
    "facts": [
     "r70",
@@ -1498,7 +1498,18 @@
      "the buy trigger behind the example is held as D-003"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$89.15",
+    "$91.37",
+    "$88.04",
+    "$90.26"
+   ],
+   "wrong": {
+    "$89.15": "Added the three R to the stop, not to the buy.",
+    "$88.04": "Added only one R.",
+    "$91.37": "Counted four R instead of three."
+   }
   },
   {
    "key": "q17",
@@ -1530,10 +1541,10 @@
    "key": "q18",
    "skill": "setup.ma_pullbacks",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "map.stop_width",
    "q": "Bought at 64.00 with the stop at 61.50. How far under the buy is the stop, in percent, to one decimal?",
-   "answer": 3.9,
+   "answer": "3.9%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1543,7 +1554,7 @@
     },
     "round": 1
    },
-   "why": "3.9. The stop sits 3.9% under the buy, measured against the buy price. That is wider than the usual limit of about 3%.",
+   "why": "The gap is 64.00 minus 61.50. Divide it by the buy of 64.00, not the stop, to get 3.9%. That is wider than the usual limit of about 3%.",
    "lesson_line": "Measure the stop in percent of the buy. Over about 3% is wider than we usually allow.",
    "facts": [
     "hA13"
@@ -1562,7 +1573,18 @@
      "rests on the owner's rulebook (A13, about 3%)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "4.1%",
+    "2.5%",
+    "39%",
+    "3.9%"
+   ],
+   "wrong": {
+    "4.1%": "Divided by the stop instead of the buy.",
+    "2.5%": "Read the dollar gap as a percent.",
+    "39%": "Slipped a decimal."
+   }
   },
   {
    "key": "q19",
@@ -1737,10 +1759,10 @@
    "key": "q24",
    "skill": "setup.ma_pullbacks",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "map.near_high",
    "q": "The 52-week high is 300.00. The stock closed at 238.00 on the hold day. How far under the high is the close, as a percent of the high?",
-   "answer": 20.7,
+   "answer": "20.7%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1750,7 +1772,7 @@
     },
     "round": 1
    },
-   "why": "20.7. Take the high minus the close, then divide by the high. That is inside the 25% limit on the hold day, so the trend filter passes. It is one check of many, not a buy.",
+   "why": "The drop is 300.00 minus 238.00. Divide it by the high of 300.00 to get 20.7%. That is inside the 25% limit on the hold day, so the trend filter passes. It is one check of many, not a buy.",
    "lesson_line": "Percent off the high is a quick filter. Under 25% passes it.",
    "facts": [
     "c03",
@@ -1766,7 +1788,18 @@
      "+2 computed key (percent under the high)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "26.1%",
+    "79.3%",
+    "6.2%",
+    "20.7%"
+   ],
+   "wrong": {
+    "26.1%": "Divided the drop by the close instead of the high.",
+    "79.3%": "Found where the close sits as a share of the high, not the drop.",
+    "6.2%": "Slipped a decimal."
+   }
   },
   {
    "key": "q25",
@@ -1811,10 +1844,10 @@
    "key": "q26",
    "skill": "setup.ma_pullbacks",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "map.touch",
    "q": "The 50-day is 410.00 and ATR is 9.00. The pullback low was 400.10. How many ATR under the line did it dip?",
-   "answer": 1.1,
+   "answer": "1.10 ATR",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1825,7 +1858,7 @@
     },
     "round": 2
    },
-   "why": "1.1. Divide the dip under the line, 410.00 minus 400.10, by the 9.00 ATR. The touch rule allows a low from 1 ATR under to 0.25 ATR over the line. So 1.1 ATR under is outside it, not a touch.",
+   "why": "The dip under the line is 410.00 minus 400.10. Divide it by the 9.00 ATR to get 1.10. The touch rule allows a low from 1 ATR under to 0.25 ATR over the line. So 1.1 ATR under is outside it, not a touch.",
    "lesson_line": "Divide the dip under the line by ATR. More than 1 ATR under is not a touch.",
    "facts": [
     "c10"
@@ -1842,7 +1875,18 @@
      "the touch rule is a card proposal, not settled"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "9.90 ATR",
+    "1.10 ATR",
+    "0.91 ATR",
+    "0.02 ATR"
+   ],
+   "wrong": {
+    "9.90 ATR": "Never divided the dip by the ATR.",
+    "0.91 ATR": "Flipped the division: ATR over the dip.",
+    "0.02 ATR": "Divided the dip by the line price instead of the ATR."
+   }
   },
   {
    "key": "q27",
@@ -1999,10 +2043,10 @@
    "key": "q32",
    "skill": "setup.ma_pullbacks",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "map.no_chase",
    "q": "The trigger is 31.80. What is the highest fill we accept, with the 4% rule?",
-   "answer": 33.07,
+   "answer": "$33.07",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2011,7 +2055,7 @@
     },
     "round": 2
    },
-   "why": "33.07. Add 4% of 31.80 to the trigger. A fill above that is more than 4% over the trigger, so we skip it. We never buy more than 4% above the buy point.",
+   "why": "Four percent is added to the trigger: 31.80 times 1.04 is 33.07. A fill above that is more than 4% over the trigger, so we skip it. We never buy more than 4% above the buy point.",
    "lesson_line": "Work out your chase ceiling before the open.",
    "facts": [
     "c17",
@@ -2028,16 +2072,27 @@
      "rests on the owner's rulebook (C28, 4% chase limit)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "$30.53",
+    "$35.80",
+    "$31.93",
+    "$33.07"
+   ],
+   "wrong": {
+    "$30.53": "Took 4% off the trigger instead of adding it.",
+    "$35.80": "Added four dollars instead of four percent.",
+    "$31.93": "Slipped a decimal and added only a tenth of the 4%."
+   }
   },
   {
    "key": "q69",
    "skill": "setup.ma_pullbacks",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "map.stop_width",
    "q": "Account 50,000, risk 1%, buy 31.80, stop 30.67. Risk dollars divided by the stop distance: how many shares, rounded down?",
-   "answer": 442.0,
+   "answer": "442 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2047,7 +2102,7 @@
      "stop": 30.67
     }
    },
-   "why": "442. Shares are the account times the risk percent, divided by the gap between the buy and the stop, rounded down. Here that is 1% of 50,000, divided by 31.80 minus 30.67. The wider the stop, the fewer shares.",
+   "why": "Risk dollars are 1% of 50,000. The stop distance is 31.80 minus 30.67. Divide the risk dollars by that distance and round down to 442 shares. The wider the stop, the fewer shares.",
    "lesson_line": "The stop sets the size. Account times risk, divided by the stop distance.",
    "facts": [
     "hA5",
@@ -2067,16 +2122,27 @@
      "rests on the owner's rulebook (A5, A3)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "15 shares",
+    "4,424 shares",
+    "44,247 shares",
+    "442 shares"
+   ],
+   "wrong": {
+    "15 shares": "Divided the risk dollars by the buy price, not the stop distance.",
+    "4,424 shares": "Slipped a decimal and risked ten times too much.",
+    "44,247 shares": "Used the whole account as the risk dollars."
+   }
   },
   {
    "key": "q70",
    "skill": "setup.ma_pullbacks",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "map.volume",
    "q": "The dip averaged 1.2 million shares a day. The 50-day average is 2.0 million. The dip ran at how many times the 50-day average?",
-   "answer": 0.6,
+   "answer": "0.6x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2086,7 +2152,7 @@
     },
     "round": 1
    },
-   "why": "0.6. The dip's average volume divided by the 50-day average is 0.6. That is below the 50-day average and under the roughly 0.7x A+ cue, so the dip was quiet.",
+   "why": "Divide the dip volume of 1.2 million by the 50-day average of 2.0 million. That is 0.6. It is below the 50-day average and under the roughly 0.7x A+ cue, so the dip was quiet.",
    "lesson_line": "Compare dip volume to the 50-day average. Below it is quiet; about 0.7 or less is the A+ cue.",
    "facts": [
     "c13",
@@ -2102,16 +2168,27 @@
      "+2 computed key (volume ratio)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "1.7x",
+    "0.6x",
+    "0.8x",
+    "2.4x"
+   ],
+   "wrong": {
+    "1.7x": "Flipped the ratio: the average over the dip.",
+    "0.8x": "Took the gap in millions and called it the ratio.",
+    "2.4x": "Multiplied the two numbers instead of dividing."
+   }
   },
   {
    "key": "q71",
    "skill": "setup.ma_pullbacks",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "map.not_stretched",
    "q": "Price is 53.00 and the 10-day average is 48.00. How far above the average is price, in percent, to one decimal?",
-   "answer": 10.4,
+   "answer": "10.4%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2121,7 +2198,7 @@
     },
     "round": 1
    },
-   "why": "10.4. Take the gap between 53.00 and 48.00, then divide by the 10-day average of 48.00. That is more than 10% above the 10-day average, so we skip the long as too stretched.",
+   "why": "The gap is 53.00 minus 48.00. Divide it by the 10-day average of 48.00 to get 10.4%. That is more than 10% above the 10-day average, so we skip the long as too stretched.",
    "lesson_line": "Over 10% above the 10-day is too stretched to buy.",
    "facts": [
     "hC29",
@@ -2138,7 +2215,18 @@
      "rests on the owner's rulebook (C29, 10% above the 10-day)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "9.4%",
+    "10.4%",
+    "5.0%",
+    "0.10%"
+   ],
+   "wrong": {
+    "9.4%": "Divided by price instead of the average.",
+    "5.0%": "Read the dollar gap as a percent.",
+    "0.10%": "Forgot to multiply by 100."
+   }
   },
   {
    "key": "q33",
@@ -3536,10 +3624,10 @@
    "key": "q74",
    "skill": "setup.ma_pullbacks",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "map.position_adv",
    "q": "A stock trades 2,000,000 shares a day on average. Under our volume cap, what is the most shares you can own?",
-   "answer": 20000,
+   "answer": "20,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3548,7 +3636,7 @@
     },
     "round": 0
    },
-   "why": "20,000. One percent of 2,000,000 shares is 20,000, and we never own more than that. The cap holds whatever the stop says.",
+   "why": "One percent of 2,000,000 shares is 20,000. We never own more than that. The cap holds whatever the stop says.",
    "lesson_line": "Check the average daily volume first. Own no more than 1% of it.",
    "facts": [
     "hD42",
@@ -3565,7 +3653,18 @@
      "rests on the owner's rulebook (D42, 1% of average daily volume)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "200,000 shares",
+    "2,000 shares",
+    "20,000 shares",
+    "200 shares"
+   ],
+   "wrong": {
+    "200,000 shares": "Slipped a decimal and took ten percent.",
+    "2,000 shares": "Slipped a decimal and took a tenth of a percent.",
+    "200 shares": "Slipped two decimals."
+   }
   },
   {
    "key": "q75",
@@ -3854,10 +3953,10 @@
    "key": "q83",
    "skill": "setup.ma_pullbacks",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "map.breakeven",
    "q": "Bought at 50.00 with the stop at 48.00. At what price is 2R, where the breakeven window opens?",
-   "answer": 54.0,
+   "answer": "$54.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3867,7 +3966,7 @@
     },
     "round": 2
    },
-   "why": "54. One R is the buy minus the stop. Two of those added to the buy gives 54. The breakeven window runs from 2R to 5R, and by default the stop moves at the first trim. The window is a guide, not one exact price.",
+   "why": "One R is the buy minus the stop: 50.00 minus 48.00. Add two of those to the buy of 50.00 to get 54.00. The breakeven window runs from 2R to 5R, and by default the stop moves at the first trim. The window is a guide, not one exact price.",
    "lesson_line": "Know your 2R before the open. The breakeven window starts there.",
    "facts": [
     "hB19",
@@ -3875,7 +3974,7 @@
    ],
    "house": true,
    "prefix": "$",
-   "simple": "2R is 54, which is the buy of 50.00 plus two times the gap down to the stop.",
+   "simple": "2R is 54.00, which is the buy of 50.00 plus two times the gap down to the stop.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -3884,7 +3983,18 @@
      "rests on the owner's rulebook (B19, breakeven 2R to 5R)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "$52.00",
+    "$56.00",
+    "$46.00",
+    "$54.00"
+   ],
+   "wrong": {
+    "$52.00": "Added the two R to the stop, not to the buy.",
+    "$56.00": "Counted three R instead of two.",
+    "$46.00": "Went down from the buy instead of up."
+   }
   },
   {
    "key": "q84",
@@ -4233,7 +4343,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic only; B19 cite dropped, softened."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q17": {
    "status": "cut",
@@ -4245,7 +4355,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(64-61.5)/64 = 3.906, so 3.9. hA13 grounds the 3% measured against the buy. The trap (dividing by the stop gives 4.1) is real. Could not break it."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q19": {
    "status": "pass",
@@ -4282,7 +4392,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc re-derived: (300-238)/300*100 = 20.67, rounds to 20.7. Under 25% per c03. Stem names the base."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q25": {
    "status": "pass",
@@ -4294,7 +4404,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc re-derived: (410.00 - 400.10) / 9.00 = 1.10. c10 verbatim (1 ATR under to 0.25 ATR over), so 1.1 is outside it. Does not clash with q08."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q27": {
    "status": "cut",
@@ -4331,25 +4441,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc: 31.80 x 1.04 = 33.072 -> 33.07. c17 and C28 verbatim. A fill of 33.08 is 4.03% over, so 33.07 is the top."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q69": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc: 50,000 x 1% = 500; 500 / 1.13 = 442.48 -> 442. A5 verbatim, rounded down. About 28% of the account, under the 40% cap, so the cap does not bite."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q70": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc re-derived: 1.2/2.0 = 0.6. c13 and g2 support 'below the 50-day average' and the about-0.7x cue."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q71": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc: (53 - 48) / 48 = 10.42% -> 10.4. C29 and c18 verbatim: skip a long more than 10% above the 10-day."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q33": {
    "status": "pass",
@@ -4589,7 +4699,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc: 2,000,000 x 1% = 20,000. D42 and c21 verbatim. Why says the cap holds whatever the stop says, which matches A5 (smaller of the two)."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q75": {
    "status": "pass",
@@ -4644,7 +4754,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc: 50.00 + 2 x 2.00 = 54.00. B19 and c23 verbatim (breakeven 2R to 5R, at the first trim by default). Different numbers from q16, which now uses the MOH example."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q84": {
    "status": "cut",

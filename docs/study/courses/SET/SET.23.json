@@ -1597,10 +1597,10 @@
    "key": "q20",
    "skill": "setup.kicker",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "kk.trim_1",
    "q": "Bought at 48.60 with the stop at 47.40. Where is 3R?",
-   "answer": 52.2,
+   "answer": "$52.20",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1610,7 +1610,7 @@
     },
     "round": 2
    },
-   "why": "52.20. One R is the fill minus the stop, the risk on each share. Add three of those to the fill: 48.60 + 3 x (48.60 minus 47.40) = 52.20. 3R is a yardstick for the trade, not a fixed sell.",
+   "why": "$52.20. One R is the fill minus the stop, 48.60 minus 47.40. Add three of those to the 48.60 fill. 3R is a yardstick for the trade, not a fixed sell.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
     "h03",
@@ -1627,7 +1627,18 @@
      "rests on the owner's rulebook (a third off at 3R)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$53.40",
+    "$45.00",
+    "$51.00",
+    "$52.20"
+   ],
+   "wrong": {
+    "$45.00": "Subtracted three R from the fill.",
+    "$51.00": "Added three R to the stop, not the fill.",
+    "$53.40": "Counted four R, one too many."
+   }
   },
   {
    "key": "q21",
@@ -1707,10 +1718,10 @@
    "key": "q23",
    "skill": "setup.kicker",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "kk.gap_open",
    "q": "The red day closed at 44.10. The Kicker day opens at 44.75. What is the gap, as a percent of the red close, to two decimals?",
-   "answer": 1.47,
+   "answer": "1.47%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1719,7 +1730,7 @@
     },
     "round": 2
    },
-   "why": "1.47%. The gap is the open minus the red day's close, over that close: 44.75 against 44.10. The Kicker day must open at least 1.5% above the red day's close, so 1.47% is just short. Rounding it to 1.5% would hide that.",
+   "why": "1.47%. The gap is the open minus the red day's close, 44.75 minus 44.10. Divide that by the red close, 44.10. The Kicker day must open at least 1.5% above the red day's close, so 1.47% is just short. Rounding it to 1.5% would hide that.",
    "lesson_line": "Measure the gap. A gap a hair short of the line is not a gap.",
    "facts": [
     "k_gap",
@@ -1741,7 +1752,18 @@
      "the 1.5% line is a proposed criterion value"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "0.65%",
+    "1.47%",
+    "14.74%",
+    "98.55%"
+   ],
+   "wrong": {
+    "0.65%": "Read the dollar gap as a percent.",
+    "14.74%": "Slipped the decimal one place to the right.",
+    "98.55%": "Divided the red close by the open and skipped the subtraction."
+   }
   },
   {
    "key": "q24",
@@ -1842,10 +1864,10 @@
    "key": "q26",
    "skill": "setup.kicker",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "kk.stop",
    "q": "Filled at 27.98. The Kicker day's low so far is 26.90. Where is the stop?",
-   "answer": 27.0,
+   "answer": "$27.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1854,7 +1876,7 @@
     },
     "round": 2
    },
-   "why": "27.00. Two stops compete: a few cents under the 26.90 low so far, or 3.5% under the 27.98 fill, which is 27.00. Take the one closer to the entry. The low-based stop sits under 26.90, so it is farther away. The 3.5% stop is the closer one.",
+   "why": "$27.00. Two stops compete. 3.5% under the 27.98 fill is 27.98 times 0.965, which is 27.00. A few cents under the 26.90 low is lower, so it is farther away. Take the stop closer to the entry.",
    "lesson_line": "Two stops, one answer: take the one closer to the entry.",
    "facts": [
     "k_stop",
@@ -1875,16 +1897,27 @@
      "rests on the owner's rulebook (Kicker stop ruling, F62)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "$24.48",
+    "$27.14",
+    "$26.87",
+    "$27.00"
+   ],
+   "wrong": {
+    "$27.14": "Used a tighter percent than the Kicker's 3.5%.",
+    "$26.87": "Put the stop a few cents under the 26.90 low, which is farther away.",
+    "$24.48": "Took 3.5 dollars off the fill, not 3.5%."
+   }
   },
   {
    "key": "q27",
    "skill": "setup.kicker",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "kk.chase_limit",
    "q": "The buy point is 83.20. The Kicker opens at 86.00. How far above the buy point is that, in percent, to one decimal?",
-   "answer": 3.4,
+   "answer": "3.4%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1893,7 +1926,7 @@
     },
     "round": 1
    },
-   "why": "3.4%. Take the open minus the buy point, over the buy point: 86.00 against 83.20 is about 3.4%. We never buy more than 4% above the buy point, so this open is inside the limit. Past 4%, the open is a chase. A morning flush that curls back up is another way in.",
+   "why": "3.4%. The open minus the buy point is 86.00 minus 83.20. Divide that by the buy point, 83.20, to get about 3.4%. We never buy more than 4% above the buy point, so this open is inside the limit. Past 4%, the open is a chase. A morning flush that curls back up is another way in.",
    "lesson_line": "Measure the open against your buy point. Past 4% over it, you are chasing.",
    "facts": [
     "h11",
@@ -1911,7 +1944,18 @@
      "the 4% chase limit is the owner's rulebook (C28); the flush way in is the owner's ruling D-022"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "2.8%",
+    "3.4%",
+    "33.7%",
+    "96.7%"
+   ],
+   "wrong": {
+    "2.8%": "Read the dollar gap as a percent.",
+    "33.7%": "Slipped the decimal one place to the right.",
+    "96.7%": "Divided the buy point by the open and skipped the subtraction."
+   }
   },
   {
    "key": "q28",
@@ -2199,10 +2243,10 @@
    "key": "q35",
    "skill": "setup.kicker",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "kk.not_stretched",
    "q": "Fill 55.00. The 10-day average is 49.00. How far above the 10-day is the fill, in percent, to one decimal?",
-   "answer": 12.2,
+   "answer": "12.2%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -2211,7 +2255,7 @@
     },
     "round": 1
    },
-   "why": "12.2%. The gap is the fill minus the 10-day average, over that average: 55.00 against 49.00 is about 12.2%. We skip a long that is more than 10% above its 10-day average, so we pass on this one. The test uses the 10-day average as the base, not the fill.",
+   "why": "12.2%. The fill minus the 10-day average is 55.00 minus 49.00. Divide that by the average, 49.00, to get about 12.2%. We skip a long that is more than 10% above its 10-day average, so we pass on this one. The test uses the 10-day average as the base, not the fill.",
    "lesson_line": "Too stretched to buy: skip a long more than 10% over its 10-day.",
    "facts": [
     "h13",
@@ -2232,7 +2276,18 @@
      "rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "10.9%",
+    "6.0%",
+    "12.2%",
+    "112.2%"
+   ],
+   "wrong": {
+    "6.0%": "Read the dollar gap as a percent.",
+    "10.9%": "Divided by the fill, not by the 10-day average.",
+    "112.2%": "Divided fill by average and forgot to subtract one."
+   }
   },
   {
    "key": "q36",
@@ -2277,10 +2332,10 @@
    "key": "q37",
    "skill": "setup.kicker",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "kk.stop_cap",
    "q": "Filled at 22.17 with the stop at 21.76. How far under the fill is the stop, as a percent of the fill, to one decimal?",
-   "answer": 1.8,
+   "answer": "1.8%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2290,7 +2345,7 @@
     },
     "round": 1
    },
-   "why": "1.8%. The stop distance is the fill minus the stop, over the fill: 22.17 against 21.76 is about 1.8%. That is inside the Kicker's 3.5% cap, so the stop passes that test. If the honest stop is more than 3.5% away, it is not a clean Kicker.",
+   "why": "1.8%. The fill minus the stop is 22.17 minus 21.76. Divide that by the fill, 22.17, to get about 1.8%. That is inside the Kicker's 3.5% cap, so the stop passes that test. If the honest stop is more than 3.5% away, it is not a clean Kicker.",
    "lesson_line": "Measure the stop. Over 3.5% away, it is not a clean Kicker.",
    "facts": [
     "k_cap",
@@ -2307,16 +2362,27 @@
      "rests on the owner's ruling (the 3.5% cap)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "98.2%",
+    "0.4%",
+    "18.5%",
+    "1.8%"
+   ],
+   "wrong": {
+    "0.4%": "Read the dollar gap as a percent.",
+    "18.5%": "Slipped the decimal one place to the right.",
+    "98.2%": "Divided the stop by the fill and skipped the subtraction."
+   }
   },
   {
    "key": "q38",
    "skill": "setup.kicker",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "kk.size_from_stop",
    "q": "Account 100,000, risk 0.5%. Fill 22.17, stop 21.76. How many shares, rounded down? The position cap does not bind.",
-   "answer": 1219.0,
+   "answer": "1,219 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2327,7 +2393,7 @@
     },
     "round": 0
    },
-   "why": "1219 shares. Risk dollars are 100,000 x 0.5%. Divide that by the stop distance, 22.17 minus 21.76, and round down to 1219. The size is the smaller of this and the position cap, and the cap does not bind here. The stop comes first and sets the size.",
+   "why": "1,219 shares. Risk dollars are 0.5% of 100,000. Divide that by the stop distance, 22.17 minus 21.76, and round down. The cap does not bind here. The stop comes first and sets the size.",
    "lesson_line": "Stop first, then size. Shares are risk dollars over the stop distance.",
    "facts": [
     "h03",
@@ -2346,7 +2412,18 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "121 shares",
+    "1,219 shares",
+    "2,439 shares",
+    "4,510 shares"
+   ],
+   "wrong": {
+    "121 shares": "Slipped the decimal: used a tenth of the risk percent.",
+    "2,439 shares": "Risked double the risk percent.",
+    "4,510 shares": "Bought the whole account at the fill price."
+   }
   },
   {
    "key": "q39",
@@ -3771,10 +3848,10 @@
    "key": "q76",
    "skill": "setup.kicker",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "kk.close_above_red_high",
    "q": "A Kicker day ran 40.00 to 44.00 and closed at 43.40. Where in its range did it close, in percent?",
-   "answer": 85,
+   "answer": "85%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3785,7 +3862,7 @@
     },
     "round": 1
    },
-   "why": "85. Close minus low, over the range, times 100. The close was 43.40 in a range from 40.00 to 44.00. Our card wants the finished Kicker to close in the top 20% of its range, so this one reads strong.",
+   "why": "85%. The close minus the low is 43.40 minus 40.00. Divide that by the range, 44.00 minus 40.00, and multiply by 100. Our card wants the finished Kicker to close in the top 20% of its range, so this one reads strong.",
    "lesson_line": "Close minus low, over the range. A strong Kicker closes in the top of its range.",
    "facts": [
     "cc1",
@@ -3802,7 +3879,18 @@
      "rests on one card line (cc1)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "8%",
+    "15%",
+    "85%",
+    "99%"
+   ],
+   "wrong": {
+    "15%": "Measured down from the high, not up from the low.",
+    "8%": "Divided by the close instead of the range.",
+    "99%": "Divided the close by the high and skipped the low."
+   }
   },
   {
    "key": "q77",
@@ -3875,10 +3963,10 @@
    "key": "q79",
    "skill": "setup.kicker",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "kk.two_candles",
    "q": "The red day opened at 51.00 and closed at 50.00. How big is its body, as a percent of the close?",
-   "answer": 2,
+   "answer": "2%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3888,7 +3976,7 @@
     },
     "round": 1
    },
-   "why": "2%. The body is the open minus the close: 51.00 minus 50.00 is 1.00. Divided by the close, 1.00 on 50.00 is 2%. We state a red body as a percent of price, as with GWW's 0.04% baby candle. The whole range and the drop from the prior close are different measures.",
+   "why": "2%. The body is the open minus the close, 51.00 minus 50.00. Divide that by the close, 50.00, to get 2%. We state a red body as a percent of price, as with GWW's 0.04% baby candle. The whole range and the drop from the prior close are different measures.",
    "lesson_line": "Read the measure the question names. Here the body is open minus close, over the close.",
    "facts": [
     "ct1",
@@ -3897,7 +3985,7 @@
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The body is the open minus the close, over the close, so 1.00 on 50.00 is 2%.",
+   "simple": "The body is the open minus the close, over the close, which gives 2%.",
    "tier": "core",
    "risk": {
     "score": 8,
@@ -3911,7 +3999,18 @@
    "depends_on": [
     "D-097"
    ],
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "98%",
+    "1%",
+    "20%",
+    "2%"
+   ],
+   "wrong": {
+    "1%": "Read the dollar gap as a percent.",
+    "20%": "Slipped the decimal one place to the right.",
+    "98%": "Divided the close by the open and skipped the subtraction."
+   }
   },
   {
    "key": "q80",
@@ -4166,10 +4265,10 @@
    "key": "q87",
    "skill": "setup.kicker",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "kk.trim_2",
    "q": "Bought at 36.80 with the stop at 35.70. Where is 5R?",
-   "answer": 42.3,
+   "answer": "$42.30",
    "calc": {
     "fn": "arith",
     "args": {
@@ -4179,7 +4278,7 @@
     },
     "round": 2
    },
-   "why": "42.30. One R is the fill minus the stop. Add five of those to the fill: 36.80 + 5 x (36.80 minus 35.70) = 42.30. 5R is a yardstick. Selling at about 5 to 10R is often best.",
+   "why": "$42.30. One R is the fill minus the stop, 36.80 minus 35.70. Add five of those to the 36.80 fill. 5R is a yardstick. Selling at about 5 to 10R is often best.",
    "lesson_line": "Know your 5R before the open. A strong trade often runs past it.",
    "facts": [
     "r03"
@@ -4195,7 +4294,18 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$37.90",
+    "$42.30",
+    "$41.20",
+    "$31.30"
+   ],
+   "wrong": {
+    "$37.90": "Added one R, not five.",
+    "$41.20": "Added five R to the stop, not the fill.",
+    "$31.30": "Subtracted five R from the fill."
+   }
   },
   {
    "key": "q88",
@@ -4502,7 +4612,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q21": {
    "status": "pass",
@@ -4520,7 +4630,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "44.75 / 44.10 - 1 = 1.474%, so 1.47. Card gap line is 1.5% (k_gap). CEG deeper example matches dCEG, dCEGn, dCEGd."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q24": {
    "status": "pass",
@@ -4537,15 +4647,15 @@
   },
   "q26": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 27.98 x 0.965 = 27.00 matches; wrong choices check out (27.14 = 3% under fill, 26.87 = three cents under low, 24.48 = 3.50 off). Only the why leads with a bare 27.00 while the choices carry the dollar sign."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "math unchanged, flush note ok"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q28": {
    "status": "pass",
@@ -4595,7 +4705,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "55.00 / 49.00 - 1 = 12.24%, so 12.2. C29 and k_str support the skip. The deeper counter is supported by h11 and h13."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q36": {
    "status": "pass",
@@ -4607,13 +4717,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(22.17 - 21.76) / 22.17 = 1.849%, so 1.8. Inside the 3.5% cap (k_cap)."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "100,000 x 0.5% = 500; 500 / 0.41 = 1219.5, rounded down 1219. 1219 x 22.17 is about 27% of the account, under the 40% cap, so 'the cap does not bind' is true."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q39": {
    "status": "pass",
@@ -4844,7 +4954,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(43.40-40.00)/(44.00-40.00)*100 = 85. Top 20% from cc1. Good."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q77": {
    "status": "pass",
@@ -4862,7 +4972,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(51 - 50) / 50 = 2%. The stem defines the measure, matching the card's (open - close) / close. No pending threshold (1% floor) is keyed."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q80": {
    "status": "pass",
@@ -4910,7 +5020,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q88": {
    "status": "cut",

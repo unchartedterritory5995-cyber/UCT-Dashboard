@@ -1671,10 +1671,10 @@
    "key": "q20",
    "skill": "setup.flat_base",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fb.trim_1",
    "q": "Bought at 90.01 with the stop at 88.22. One R is the fill minus the stop. Where is 3R?",
-   "answer": 95.38,
+   "answer": "$95.38",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1684,7 +1684,7 @@
     },
     "round": 2
    },
-   "why": "95.38. One R is the fill minus the stop. Add three of those to the fill. That is the 3R price, a mark on the ruler and not a fixed sell. NUS reached it the next session.",
+   "why": "95.38. One R is the fill minus the stop: 90.01 minus 88.22. Add three of those to the fill, 90.01, and you get 95.38. It is a mark on the ruler and not a fixed sell. NUS reached it the next session.",
    "lesson_line": "Know your 3R before the open. It is a measuring mark, not an automatic sell.",
    "facts": [
     "r06",
@@ -1702,7 +1702,18 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$93.59",
+    "$84.64",
+    "$91.80",
+    "$95.38"
+   ],
+   "wrong": {
+    "$93.59": "Added the three R to the stop instead of the fill.",
+    "$91.80": "Added one R, not three.",
+    "$84.64": "Subtracted the three R instead of adding them."
+   }
   },
   {
    "key": "q21",
@@ -1848,10 +1859,10 @@
    "key": "q25",
    "skill": "setup.flat_base",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fb.prior_trend",
    "q": "The lowest low in the two months before the base was 40.00 and the left-side high is 50.00. The prior advance, in percent?",
-   "answer": 25.0,
+   "answer": "25%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1860,7 +1871,7 @@
     },
     "round": 1
    },
-   "why": "25%. The advance is the gain from the lowest low to the left-side high, divided by the low: 50 minus 40, over 40. IBD looks for a prior uptrend of at least 30% in price. Kullamagi looks for a move of 30% to 100% or more in the past 1 to 3 months. A 25% run is under both lines.",
+   "why": "25%. The advance is the gain from the lowest low to the left-side high, divided by the low. 50 minus 40 is 10, and 10 over 40 is 25%. IBD looks for a prior uptrend of at least 30% in price. Kullamagi looks for a move of 30% to 100% or more in the past 1 to 3 months. A 25% run is under both lines.",
    "lesson_line": "Measure the run before the rest. A box with no run in front of it is just a box.",
    "facts": [
     "i13",
@@ -1877,16 +1888,27 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "20%",
+    "125%",
+    "25%",
+    "10%"
+   ],
+   "wrong": {
+    "20%": "Divided the gain by the high instead of the low.",
+    "125%": "Forgot to subtract one: the high as a percent of the low.",
+    "10%": "Read the 10 points of gain as 10 percent."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.flat_base",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fb.depth",
    "q": "Left-side high 100.00, the base's lowest intraday low 86.50. How deep is the base, in percent?",
-   "answer": 13.5,
+   "answer": "13.5%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -1914,16 +1936,27 @@
    "depends_on": [
     "D-043"
    ],
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "15.6%",
+    "13.5%",
+    "86.5%",
+    "1.4%"
+   ],
+   "wrong": {
+    "15.6%": "Divided the drop by the low instead of the high.",
+    "86.5%": "Took the low as a percent of the high and skipped the drop.",
+    "1.4%": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q27",
    "skill": "setup.flat_base",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fb.stop_width",
    "q": "Fill 72.20. The breakout day's low is 70.75 and the stop sits five cents under it. How far below the fill is the stop, in percent?",
-   "answer": 2.08,
+   "answer": "2.08%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1933,7 +1966,7 @@
     },
     "round": 2
    },
-   "why": "2.08%. The stop sits five cents under the breakout day's low, so 70.70. Measured against the 72.20 fill, that gap is 2.08%. It is inside the 3% the stop usually sits within. The day's low here is made up for the drill.",
+   "why": "2.08%. The stop sits five cents under the breakout day's low, so 70.70. The gap to the 72.20 fill is 1.50, and 1.50 over 72.20 is 2.08%. It is inside the 3% the stop usually sits within. The day's low here is made up for the drill.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h24",
@@ -1955,16 +1988,27 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "1.50%",
+    "20.80%",
+    "0.07%",
+    "2.08%"
+   ],
+   "wrong": {
+    "1.50%": "Read the dollar gap as a percent.",
+    "0.07%": "Measured only the five-cent cushion, not the whole gap to the stop.",
+    "20.80%": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q28",
    "skill": "setup.flat_base",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fb.trim_2",
    "q": "Bought at 30.28, stop 29.79. The stock trades to 32.73. How many R is that?",
-   "answer": 5.0,
+   "answer": "5R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -1974,7 +2018,7 @@
     },
     "round": 1
    },
-   "why": "5R. One R is the fill minus the stop, and the gain is counted in those units. At 32.73 the stock is five R above the 30.28 fill. Five R is one mark we measure by, not a fixed sell. ALLY took ten days just to reach 3R.",
+   "why": "5R. One R is the fill minus the stop: 30.28 minus 29.79. The gain is 32.73 minus 30.28. The gain divided by one R is 5R. Five R is one mark we measure by, not a fixed sell. ALLY took ten days just to reach 3R.",
    "lesson_line": "Count in R, not dollars. 5R is a mark on the ruler.",
    "facts": [
     "r08",
@@ -1991,7 +2035,18 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "6R",
+    "5R",
+    "2.45R",
+    "0.2R"
+   ],
+   "wrong": {
+    "6R": "Measured the gain from the stop instead of the fill.",
+    "2.45R": "Read the dollar gain as R.",
+    "0.2R": "Flipped the division: risk over gain."
+   }
   },
   {
    "key": "q29",
@@ -2597,10 +2652,10 @@
    "key": "q45",
    "skill": "setup.flat_base",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fb.stop",
    "q": "Account 50,000. Risk 0.5%. Fill 59.40, stop 57.96. No position cap applies. How many shares?",
-   "answer": 173,
+   "answer": "173 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2611,7 +2666,7 @@
     },
     "round": 0
    },
-   "why": "173 shares. The dollar risk is the account times the risk percent, which is 0.5% of 50,000. The risk per share is the fill minus the stop, 59.40 minus 57.96. Divide the first by the second and round down. The size is the smaller of that and the position cap, and no cap binds here. The stop sets the size, never the other way round.",
+   "why": "173 shares. The dollar risk is 0.5% of 50,000. The risk per share is 59.40 minus 57.96. Divide the first by the second and round down to 173. The size is the smaller of that and the position cap, and no cap binds here. The stop sets the size, never the other way round.",
    "lesson_line": "The stop sets the size. Divide the dollar risk by the distance and round down.",
    "facts": [
     "h03",
@@ -2633,7 +2688,18 @@
      "fixed before"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "347 shares",
+    "1,736 shares",
+    "173 shares",
+    "4 shares"
+   ],
+   "wrong": {
+    "347 shares": "Used twice the stated risk percent.",
+    "1,736 shares": "Decimal slip: the risk dollars came out ten times too big.",
+    "4 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
+   }
   },
   {
    "key": "q46",
@@ -3524,10 +3590,10 @@
    "key": "q69",
    "skill": "setup.flat_base",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fb.first_week",
    "q": "Left-side high 100.00. The base's first week tops out at 97.50. How far under the high is that, in percent?",
-   "answer": 2.5,
+   "answer": "2.5%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -3553,7 +3619,18 @@
      "the 3% is a proposed card number"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "25%",
+    "97.5%",
+    "2.5%",
+    "0.25%"
+   ],
+   "wrong": {
+    "97.5%": "Took the first week's high as a percent of the high and skipped the gap.",
+    "25%": "Decimal slip: moved the decimal one place.",
+    "0.25%": "Decimal slip the other way."
+   }
   },
   {
    "key": "q70",
@@ -3600,10 +3677,10 @@
    "key": "q71",
    "skill": "setup.flat_base",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fb.length_max",
    "q": "Our card caps a flat base at 325 sessions. A trading week has 5 sessions. How many weeks is that?",
-   "answer": 65,
+   "answer": "65 weeks",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3630,7 +3707,18 @@
      "card cap matches MarketSmith's 65 weeks"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "46 weeks",
+    "1,625 weeks",
+    "81 weeks",
+    "65 weeks"
+   ],
+   "wrong": {
+    "46 weeks": "Divided by seven calendar days, not five sessions.",
+    "1,625 weeks": "Multiplied instead of dividing.",
+    "81 weeks": "Divided by a four-session week."
+   }
   },
   {
    "key": "q72",
@@ -3852,10 +3940,10 @@
    "key": "q78",
    "skill": "setup.flat_base",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fb.no_chase",
    "q": "Our buy point is the pivot, 48.50. By our no-chase rule, what is the highest price we will pay?",
-   "answer": 50.44,
+   "answer": "$50.44",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3864,7 +3952,7 @@
     },
     "round": 2
    },
-   "why": "50.44. We never buy more than 4% above the buy point. With market orders our buy point is the pivot, because IBD's 10 cents does not matter. Add four percent of the pivot to the pivot. Any price above that is a chase.",
+   "why": "50.44. We never buy more than 4% above the buy point. With market orders our buy point is the pivot, because IBD's 10 cents does not matter. Four percent of 48.50, added to 48.50, is 50.44. Any price above that is a chase.",
    "lesson_line": "Know your top price before the open. Past four percent, I let it go.",
    "facts": [
     "h11",
@@ -3881,7 +3969,18 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "$52.50",
+    "$50.44",
+    "$46.56",
+    "$48.60"
+   ],
+   "wrong": {
+    "$52.50": "Added four dollars, not four percent.",
+    "$46.56": "Subtracted the four percent instead of adding it.",
+    "$48.60": "Added only IBD's ten cents to the pivot."
+   }
   },
   {
    "key": "q79",
@@ -4081,7 +4180,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic kept; softened."
+   "notes": "Math right (95.38; 93.59; 91.80; 84.64). Why walks the steps."
   },
   "q21": {
    "status": "pass",
@@ -4111,25 +4210,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(50-40)/40 = 25.0, matches pct_change calc. Advance measured from the low is the standard reading. 25% under IBD's 30% and Kullamagi's 30%-100% is a comparison only, no rule is keyed."
+   "notes": "25% = 10/40; 20% = 10/50; 125%; 10%. Why walks steps."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
+   "notes": "13.5 = 13.5/100; 15.6 = 13.5/86.5; 86.5; 1.4 slip. Original why fine."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
+   "fixed": true,
+   "notes": "Math right (1.50/72.20=2.08). 20.8% was the only one-decimal choice, a format tell; made it 20.80%."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5R arithmetic kept; softened."
+   "notes": "Math right (0.49; 2.45; 5.0; 6R from stop; 0.2 flipped). Why walks the steps."
   },
   "q29": {
    "status": "pass",
@@ -4234,7 +4333,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "250 / 1.44 = 173.6, rounded down to 173 (shares_from_risk floors). Position is about 20.6% of the account, under the 40% cap, so 'no cap applies' is true. h03 and h01 support it."
+   "notes": "Math right (250/1.44=173.6; 347; 1736; 4). Why walks the steps in words."
   },
   "q46": {
    "status": "pass",
@@ -4382,7 +4481,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc re-derived: (100 - 97.5) / 100 = 2.5%. c29 verbatim."
+   "notes": "2.5 = 2.5/100; 97.5; 25; 0.25. Why walks steps."
   },
   "q70": {
    "status": "pass",
@@ -4395,7 +4494,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c30 verbatim; 325 / 5 = 65; m01 agrees on 65 weeks."
+   "notes": "325/5=65; /7=46; x5=1625; /4=81. All real slips."
   },
   "q72": {
    "status": "pass",
@@ -4437,8 +4536,8 @@
   "q78": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math is right: 48.50 x 1.04 = 50.44. But the rule is 4% above the buy point and IBD's buy point is pivot plus 10 cents (50.54 on that reading). The stem never says our buy point is the pivot. Say so and cite c01."
+   "fixed": false,
+   "notes": "Math right (48.5*1.04=50.44; 52.50; 46.56; 48.60). Why fine."
   },
   "q79": {
    "status": "cut",

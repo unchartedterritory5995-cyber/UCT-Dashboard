@@ -1143,9 +1143,9 @@
    "key": "q09",
    "skill": "history.bottoms",
    "rung": 4,
-   "format": "numeric",
-   "q": "The S&P 500 closed at 4,796.56 on Jan. 3, 2022 and 3,577.03 on Oct. 12, 2022. How far did it fall, in percent? One decimal.",
-   "answer": 25.4,
+   "format": "mcq",
+   "q": "The S&P 500 closed at 4,796.56 on Jan. 3, 2022 and 3,577.03 on Oct. 12, 2022. How far did it fall?",
+   "answer": "25.4%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -1154,7 +1154,7 @@
     },
     "round": 1
    },
-   "suffix": "%",
+   "suffix": "",
    "why": "25.4%. Take the peak minus the low, then divide by the peak: 4,796.56 less 3,577.03, over 4,796.56. FRED's numbers are daily closes, so this is a close-to-close drawdown. It is well past the 20% line and lasted more than two months, so it counts as a bear market.",
    "lesson_line": "Measure a drawdown from the peak close. Peak to low, 2022 took about a quarter off the S&P 500.",
    "facts": [
@@ -1171,7 +1171,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "74.6%",
+    "34.1%",
+    "2.54%",
+    "25.4%"
+   ],
+   "wrong": {
+    "34.1%": "Divided the drop by the low, not the peak.",
+    "74.6%": "Gave what is left, not the fall.",
+    "2.54%": "Decimal slip."
+   }
   },
   {
    "key": "q10",
@@ -1245,9 +1256,9 @@
    "key": "q12",
    "skill": "history.bottoms",
    "rung": 5,
-   "format": "numeric",
-   "q": "In March 2022 the Nasdaq closed at 12,581.22 on the 14th and 14,619.64 on the 29th. How much did it rally, in percent? One decimal.",
-   "answer": 16.2,
+   "format": "mcq",
+   "q": "In March 2022 the Nasdaq closed at 12,581.22 on the 14th and 14,619.64 on the 29th. How much did it rally?",
+   "answer": "16.2%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1256,7 +1267,7 @@
     },
     "round": 1
    },
-   "suffix": "%",
+   "suffix": "",
    "why": "16.2%. Take the gain, 14,619.64 less 12,581.22, and divide by the start, 12,581.22. Investopedia rounds the same two-week move to 16%. The Nasdaq set new lows four weeks later, so it was a bear market rally. There is no sure way to tell one until it unwinds.",
    "lesson_line": "A bear rally can run 16% in two weeks and still fail. Size alone proves nothing.",
    "facts": [
@@ -1278,7 +1289,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "13.9%",
+    "16.2%",
+    "1.62%",
+    "116.2%"
+   ],
+   "wrong": {
+    "13.9%": "Divided the gain by the end level, not the start.",
+    "116.2%": "Stopped at the ratio and forgot to subtract one.",
+    "1.62%": "Decimal slip."
+   }
   },
   {
    "key": "q13",
@@ -1441,9 +1463,9 @@
    "key": "q17",
    "skill": "history.bottoms",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The S&P 500's 2022 low close was 3,577.03. By the 20% rule, what close marks a new bull market? Round to a whole point.",
-   "answer": 4292,
+   "answer": "4,292",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1471,7 +1493,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "4,471",
+    "3,597",
+    "4,292",
+    "3,649"
+   ],
+   "wrong": {
+    "4,471": "Undid a 20% loss instead of adding a 20% gain.",
+    "3,597": "Added 20 points instead of 20 percent.",
+    "3,649": "Slipped a decimal place in the multiplier."
+   }
   },
   {
    "key": "q18",
@@ -1969,9 +2002,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q10": {
    "status": "pass",
@@ -1987,9 +2020,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q13": {
    "status": "pass",
@@ -2020,7 +2053,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4,292 from the calc; 3,577.03 f08; June 8, 2023 f15; IBD line from f91 used correctly."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q18": {
    "status": "pass",

@@ -1090,9 +1090,9 @@
    "key": "q11",
    "skill": "styles.time_of_day",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Thin stock. 9:31: $24.80 bid, $25.10 ask. 10:30: $24.98 bid, $25.02 ask. Buy 1,000 at the ask, sell at the bid. Extra cost at 9:31 vs 10:30?",
-   "answer": 260,
+   "answer": "$260",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1105,7 +1105,7 @@
     }
    },
    "prefix": "$",
-   "why": "$260. Buy at the ask and sell at the bid, and you give up the whole spread on every share. The 9:31 spread is far wider than the 10:30 one. The gap between the two spreads, times 1,000 shares, is the extra cost. Spreads are typically widest at the open.",
+   "why": "Buy at the ask and sell at the bid, and you give up the whole spread on every share. On 1,000 shares the 9:31 spread costs $300 and the 10:30 spread costs $40. The extra cost at 9:31 is the gap, $260. Spreads are typically widest at the open.",
    "lesson_line": "In a thin stock, the first minutes can be the priciest time to trade. Check the spread first.",
    "facts": [
     "f23",
@@ -1121,7 +1121,18 @@
      "fixed before (2026-11-09 checker)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$300",
+    "$40",
+    "$340",
+    "$260"
+   ],
+   "wrong": {
+    "$300": "Only the 9:31 cost. Subtract the 10:30 cost to get the extra.",
+    "$340": "Added the two spreads. The extra cost is their difference.",
+    "$40": "Only the 10:30 cost, on 1,000 shares."
+   }
   },
   {
    "key": "q12",
@@ -1170,9 +1181,9 @@
    "key": "q13",
    "skill": "styles.time_of_day",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "It's Sunday, Nov. 22, 2026. How many full NYSE sessions does the coming week hold?",
-   "answer": 3,
+   "answer": "3 sessions",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1198,7 +1209,18 @@
      "fixed before (2026-11-09 checker)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "2 sessions",
+    "5 sessions",
+    "3 sessions",
+    "4 sessions"
+   ],
+   "wrong": {
+    "5 sessions": "Counted every weekday. Thursday is a holiday and Friday is short.",
+    "4 sessions": "Missed that Friday closes early, so it is not a full session.",
+    "2 sessions": "Dropped Wednesday as well. Only Thursday and Friday are affected."
+   }
   },
   {
    "key": "q14",
@@ -1636,8 +1658,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc checked: (0.30 - 0.04) x 1,000 = 260. The stem is exactly 140 chars, so it fits. 'vs 10:30' removes the $300 reading. Minor: the rulebook (B23, D42) keeps us out of thin stocks. The item only prices a spread, so no key goes against it."
+   "fixed": true,
+   "notes": "Calc 260 (0.30 - 0.04) x 1000. Choices real (300 = 9:31 only, 340 = sum, 40 = 10:30 only). Why skipped the two spreads; added."
   },
   "q12": {
    "status": "pass",
@@ -1647,9 +1669,9 @@
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 3 (Thanksgiving Nov 26 2026, early close Nov 27). Choices real. Answer sat in the middle of a sorted list, a cheap tell; reordered to slot 1."
   },
   "q14": {
    "status": "pass",

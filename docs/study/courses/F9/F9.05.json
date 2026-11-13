@@ -535,9 +535,9 @@
    "key": "q05",
    "skill": "risk.heat",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Four open trades risk 1%, 0.5%, 1% and 0.75% of your account at their stops. What's your total open risk?",
-   "answer": 3.25,
+   "answer": "3.25%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -549,7 +549,7 @@
     }
    },
    "suffix": "%",
-   "why": "3.25%. Add what each trade loses at its stop: 1% + 0.5% + 1% + 0.75%. That is how Seykota and Druz count it: 2% on each of five trades is 10% in total. You add the risks, not the money in each position.",
+   "why": "3.25%. Add what each trade loses at its stop: 1% plus 0.5% plus 1% plus 0.75%. That is 3.25%. You add the risks, not the money in each position.",
    "lesson_line": "Add every open trade's risk. That one number is what's on the line.",
    "facts": [
     "f02",
@@ -564,7 +564,18 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "0.81%",
+    "2.75%",
+    "32.5%",
+    "3.25%"
+   ],
+   "wrong": {
+    "0.81%": "Averaged the four risks instead of adding them.",
+    "2.75%": "Left out the 0.5% trade.",
+    "32.5%": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q06",
@@ -684,9 +695,9 @@
    "key": "q10",
    "skill": "risk.heat",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You risk 0.5% of the account per trade. Your cap on total open risk is 5%. How many such trades fit within the cap?",
-   "answer": 10,
+   "answer": "10 trades",
    "calc": {
     "fn": "arith",
     "args": {
@@ -696,7 +707,7 @@
     }
    },
    "suffix": "trades",
-   "why": "10 trades. Divide the cap by the risk per trade: 5% divided by 0.5% is 10. Ten trades fill the cap exactly, and an eleventh would go over it. A smaller risk per trade lets you carry more names under the same cap.",
+   "why": "10 trades. Divide the cap by the risk per trade. 5% divided by 0.5% is 10. Ten trades fill the cap exactly.",
    "lesson_line": "Your risk per trade and your cap decide how many names you can carry.",
    "facts": [
     "f02",
@@ -711,15 +722,26 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "2.5 trades",
+    "10 trades",
+    "5 trades",
+    "100 trades"
+   ],
+   "wrong": {
+    "2.5 trades": "Multiplied 5% by 0.5% instead of dividing.",
+    "5 trades": "Used the cap number as the trade count.",
+    "100 trades": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q11",
    "skill": "risk.heat",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Account $80,000. Four open trades would lose $600, $450, $800 and $350 at their stops. What's your total open risk?",
-   "answer": 2.75,
+   "answer": "2.75%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -732,7 +754,7 @@
     }
    },
    "suffix": "%",
-   "why": "2.75%. Add the four stop losses: $600 + $450 + $800 + $350. Divide that total by the $80,000 account and multiply by 100 to get a percent. Count in dollars first, then turn the total into a single percent of the account.",
+   "why": "2.75%. Add the four stop losses: $600 + $450 + $800 + $350. Divide the total by the $80,000 account and multiply by 100 to get 2.75%.",
    "lesson_line": "Dollars at risk over account size. Redo it after every new trade.",
    "facts": [
     "f02",
@@ -747,7 +769,18 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "27.5%",
+    "0.69%",
+    "2.75%",
+    "2.31%"
+   ],
+   "wrong": {
+    "27.5%": "Decimal slip: moved the decimal one place.",
+    "0.69%": "Averaged the four losses instead of adding them.",
+    "2.31%": "Left out the $350 trade."
+   }
   },
   {
    "key": "q12",
@@ -1029,9 +1062,9 @@
    "key": "q20",
    "skill": "risk.heat",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Account $50,000, cap 5% total open risk. Five trades risk $500, $400, $450, $300 and $350. How much can a sixth trade risk?",
-   "answer": 500,
+   "answer": "$500",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1046,7 +1079,7 @@
     }
    },
    "prefix": "$",
-   "why": "$500. The cap is 5% of $50,000. Add what the five trades already risk and subtract it from the cap in dollars. What's left is the most the sixth trade can risk.",
+   "why": "$500. The cap is 5% of $50,000, which is $2,500. The five trades risk $500 plus $400 plus $450 plus $300 plus $350, which is $2,000. $2,500 minus $2,000 is $500.",
    "lesson_line": "Before a new name, find the room: the cap minus what's already at risk.",
    "facts": [
     "f02",
@@ -1064,7 +1097,18 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$400",
+    "$2,500",
+    "$2,000",
+    "$500"
+   ],
+   "wrong": {
+    "$2,500": "Gave the whole 5% cap, not what is left.",
+    "$2,000": "Gave what the five trades already risk.",
+    "$400": "Used the average risk of the five trades."
+   }
   },
   {
    "key": "q21",
@@ -1240,9 +1284,9 @@
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q06": {
    "status": "pass",
@@ -1272,13 +1316,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5 / 0.5 = 10, calc agrees; 'within' leaves one answer. A10 framing is owner flag 1."
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(600+450+800+350)/80000*100 = 2.75, calc agrees; the why adds no ungrounded number."
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q12": {
    "status": "pass",
@@ -1331,9 +1375,9 @@
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q21": {
    "status": "pass",

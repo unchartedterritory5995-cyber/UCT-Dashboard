@@ -959,9 +959,9 @@
    "key": "q11",
    "skill": "psych.fear",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Entry $40, stop $38, so 1R is $2 a share. You sell at $41 out of nerves. How many R did you make?",
-   "answer": 0.5,
+   "answer": "0.5R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -970,8 +970,8 @@
      "exit": 41
     }
    },
-   "suffix": "R",
-   "why": "0.5R. Your gain per share was half of the $2 you risked per share, so you made 0.5R. One loss at the full stop costs 1R, twice this win. So it takes two exits like this one to pay for a single full stop-out.",
+   "suffix": "",
+   "why": "0.5R. Your gain was $41 minus $40, or $1 a share. Your risk was $2 a share. $1 divided by $2 is 0.5R. One loss at the full stop costs 1R, twice this win. So it takes two exits like this to pay for one full stop-out.",
    "lesson_line": "Measure exits in R. It takes two half-R wins to pay for one full-R loss.",
    "facts": [
     "f50",
@@ -985,7 +985,18 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "1R",
+    "0.05R",
+    "2R",
+    "0.5R"
+   ],
+   "wrong": {
+    "1R": "Counted the $1 gain as 1R.",
+    "2R": "Flipped the ratio, risk over gain.",
+    "0.05R": "Decimal slip."
+   }
   },
   {
    "key": "q12",
@@ -1584,7 +1595,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc r_multiple(40,38,41) = 0.5. Intermediate $1 removed. 'twice' and 'two exits' are 1R over the question's own 0.5R, trivial and grounded in the question."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q12": {
    "status": "pass",

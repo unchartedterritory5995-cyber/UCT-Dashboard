@@ -1490,10 +1490,10 @@
    "key": "q15",
    "skill": "setup.ipo_base",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ipo.trim_1",
    "q": "Bought at 57.42 with the stop at 56.05. Where is 3R?",
-   "answer": 61.53,
+   "answer": "$61.53",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1503,7 +1503,7 @@
     },
     "round": 2
    },
-   "why": "61.53. One R is the fill minus the stop, 57.42 minus 56.05. Three R is three of those added to the fill. R is a distance in dollars, not a fixed percent of price. The first sell is a judgment, not a fixed third at 3R. KRMN reached 3R the next day.",
+   "why": "One R is the fill minus the stop, 57.42 minus 56.05. Three R is three of those added to the fill: 57.42 plus 3 times (57.42 minus 56.05) is 61.53. R is a distance in dollars, not a fixed percent of price. The first sell is a judgment, not a fixed third at 3R. KRMN reached 3R the next day.",
    "lesson_line": "Know your 3R before the open. It is a mark on the ruler, not an automatic sell.",
    "facts": [
     "r04",
@@ -1520,16 +1520,27 @@
      "rests on the owner's rulebook (B19, a third at 3R)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$58.79",
+    "$62.90",
+    "$60.16",
+    "$61.53"
+   ],
+   "wrong": {
+    "$58.79": "That adds one R, not three.",
+    "$60.16": "That counts three R up from the stop, not from the fill.",
+    "$62.90": "That adds four R. Three R is three gaps, not four."
+   }
   },
   {
    "key": "q16",
    "skill": "setup.ipo_base",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ipo.depth",
    "q": "IPO high 54.62, base low 38.63. How deep is the base, in percent?",
-   "answer": 29.3,
+   "answer": "29.3%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1539,7 +1550,7 @@
     },
     "round": 1
    },
-   "why": "29.3. Depth runs from the IPO high down to the base's lowest low, divided by the IPO high. Here the high is 54.62 and the low is 38.63, so the base is 29.3% deep. On our card, divide by the high, not the low. Use the lowest low of the base, not the last close. BSY sat 29% deep.",
+   "why": "Depth is the drop from the IPO high to the base's lowest low, divided by the IPO high: (54.62 minus 38.63) divided by 54.62 is 29.3%. On our card, divide by the high, not the low. Use the lowest low of the base, not the last close. BSY sat 29% deep.",
    "lesson_line": "Depth is high minus low, divided by the high. Read charts in percents.",
    "facts": [
     "m09",
@@ -1560,16 +1571,27 @@
    "depends_on": [
     "D-055"
    ],
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "41.4%",
+    "70.7%",
+    "16.0%",
+    "29.3%"
+   ],
+   "wrong": {
+    "41.4%": "That divides by the low. Depth is measured against the high.",
+    "70.7%": "That is the low as a share of the high. Depth is the drop, not what is left.",
+    "16.0%": "That is the dollar amount read as a percent. Divide it first."
+   }
   },
   {
    "key": "q17",
    "skill": "setup.ipo_base",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ipo.stop",
    "q": "Fill 19.53, stop 18.10. How far under the fill is the stop, in percent?",
-   "answer": 7.3,
+   "answer": "7.3%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1579,7 +1601,7 @@
     },
     "round": 1
    },
-   "why": "7.3. The stop is 7.3% under the fill: the gap divided by the fill, not by the stop. We prefer a stop of 1% to 3% and accept up to 5%. This is wider than that. Past 5%, we mostly wait for a tighter trigger instead of taking the trade.",
+   "why": "The stop distance is the fill minus the stop, divided by the fill: (19.53 minus 18.10) divided by 19.53 is 7.3%. Divide by the fill, not the stop. We prefer a stop of 1% to 3% and accept up to 5%. This is wider than that. Past 5%, we mostly wait for a tighter trigger instead of taking the trade.",
    "lesson_line": "Measure the stop in percent. Past 5%, mostly wait for a tighter trigger.",
    "facts": [
     "d05",
@@ -1597,16 +1619,27 @@
      "rests on the owner's rulebook (A13) and the held stop-width decision (D-005)"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "0.7%",
+    "7.9%",
+    "1.4%",
+    "7.3%"
+   ],
+   "wrong": {
+    "7.9%": "That divides by the stop. Divide by the fill, the price you paid.",
+    "1.4%": "That is the dollar amount read as a percent. Divide it first.",
+    "0.7%": "That slips a decimal place."
+   }
   },
   {
    "key": "q18",
    "skill": "setup.ipo_base",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ipo.no_chase",
    "q": "The buy point is the IPO high, 57.32. What is the most we would pay under the 4% chase limit?",
-   "answer": 59.61,
+   "answer": "$59.61",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1615,7 +1648,7 @@
     },
     "round": 2
    },
-   "why": "59.61. The chase limit is 4% above the buy point, and the buy point is the IPO high, 57.32. With a market order IBD's extra 10 cents does not matter. Never buy above 59.61. Chasing costs size: the stop stays under the buy point, so the distance grows and the shares shrink.",
+   "why": "The chase limit is 4% above the buy point, and the buy point is the IPO high. Multiply: 57.32 times 1.04 is 59.61. With a market order IBD's extra 10 cents does not matter. Never buy above 59.61. Chasing costs size: the stop stays under the buy point, so the distance grows and the shares shrink.",
    "lesson_line": "Know the chase limit before the open: 4% over the buy point.",
    "facts": [
     "c08",
@@ -1638,7 +1671,18 @@
      "rests on the owner's rulebook (C28, the 4% limit)"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "$61.32",
+    "$55.03",
+    "$57.55",
+    "$59.61"
+   ],
+   "wrong": {
+    "$61.32": "That adds 4 dollars, not 4 percent.",
+    "$55.03": "That takes 4% off. The chase limit sits above the buy point.",
+    "$57.55": "That adds a fraction of a percent, not 4 percent. A decimal slip."
+   }
   },
   {
    "key": "q19",
@@ -1795,10 +1839,10 @@
    "key": "q24",
    "skill": "setup.ipo_base",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ipo.breakout_volume",
    "q": "The base averaged 1,200,000 shares a day. Our card gives its top grade at 1.4 times that on breakout day. How many shares?",
-   "answer": 1680000.0,
+   "answer": "1,680,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1807,7 +1851,7 @@
     },
     "round": 0
    },
-   "why": "1,680,000. Our card gives the top grade for breakout-day volume of at least 1.4 times the base's average: 1,200,000 times 1.4. Volume raises the grade. It is not needed for the setup to count. The listing week is left out of that average. IBD's test is 40% above the 50-day average, and many new issues have yet to trade that long. Our card compares with the base's own sessions.",
+   "why": "Our card gives the top grade for breakout-day volume of at least 1.4 times the base's average. Multiply: 1,200,000 times 1.4 is 1,680,000. Volume raises the grade. It is not needed for the setup to count. The listing week is left out of that average. IBD's test is 40% above the 50-day average, and many new issues have yet to trade that long. Our card compares with the base's own sessions.",
    "lesson_line": "Measure breakout volume against the base's own sessions, not the listing week.",
    "facts": [
     "c06",
@@ -1824,7 +1868,18 @@
      "the 1.4 times line is a proposed card gate that D-006 may turn into a grade cue"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "480,000 shares",
+    "857,143 shares",
+    "16,800,000 shares",
+    "1,680,000 shares"
+   ],
+   "wrong": {
+    "480,000 shares": "That is only the extra 40%. The target is 1.4 times the average, so the base is added.",
+    "857,143 shares": "That divides by 1.4. Multiply by 1.4.",
+    "16,800,000 shares": "That is ten times too many. A decimal slip."
+   }
   },
   {
    "key": "q25",
@@ -2255,10 +2310,10 @@
    "key": "q36",
    "skill": "setup.ipo_base",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ipo.stop",
    "q": "Account 100,000, risk 0.5%, buy 57.42, stop 56.05. Ignore the position cap. How many shares?",
-   "answer": 364.0,
+   "answer": "364 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2269,7 +2324,7 @@
     },
     "round": 0
    },
-   "why": "364. Risk dollars are the account times the risk percent. Risk per share is the buy minus the stop, 57.42 minus 56.05. Divide the dollars by the risk per share and round down, never to the nearest. The size comes from the stop. Widening the stop to sit through the base's depth is a named mistake. In real life the position cap is checked too, and the smaller size wins.",
+   "why": "Risk dollars are the account times the risk percent: 100,000 times 0.5% is 500. Risk per share is the buy minus the stop, 57.42 minus 56.05. Divide 500 by that and round down to 364, never to the nearest. The size comes from the stop. Widening the stop to sit through the base's depth is a named mistake. In real life the position cap is checked too, and the smaller size wins.",
    "lesson_line": "Shares come from the stop: risk in dollars divided by risk per share, rounded down.",
    "facts": [
     "h03",
@@ -2290,7 +2345,18 @@
      "rests on the owner's rulebook (A5, shares from the stop)"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "729 shares",
+    "500 shares",
+    "3,649 shares",
+    "364 shares"
+   ],
+   "wrong": {
+    "3,649 shares": "That risks ten times the planned dollars. A decimal slip.",
+    "729 shares": "That risks double the planned dollars.",
+    "500 shares": "That is the risk dollars read as shares. Divide by the risk per share."
+   }
   },
   {
    "key": "q37",
@@ -3469,10 +3535,10 @@
    "key": "q68",
    "skill": "setup.ipo_base",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ipo.position_adv",
    "q": "A new issue at $40 averages 650,000 shares a day. We cap ourselves at 1% of that. What is the most shares we can own?",
-   "answer": 6500,
+   "answer": "6,500 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3482,7 +3548,7 @@
     "round": 0
    },
    "suffix": "shares",
-   "why": "6,500 shares. We never own more than 1% of a stock's average daily volume, and 1% of 650,000 is 6,500. The ceiling holds even when the stop would allow more shares. A thin stock reaches it quickly, and illiquid stocks are not even watched.",
+   "why": "We never own more than 1% of a stock's average daily volume. 1% of 650,000 is 650,000 times 0.01, or 6,500. The ceiling holds even when the stop would allow more shares. A thin stock reaches it quickly, and illiquid stocks are not even watched.",
    "lesson_line": "One percent of the average daily volume is the ceiling, whatever the stop allows.",
    "facts": [
     "h19"
@@ -3498,7 +3564,18 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "65,000 shares",
+    "650 shares",
+    "260,000 shares",
+    "6,500 shares"
+   ],
+   "wrong": {
+    "65,000 shares": "That is ten times our line.",
+    "650 shares": "That is a tenth of our line. A decimal slip.",
+    "260,000 shares": "That is 1% of the dollar volume. The cap counts shares, not dollars."
+   }
   },
   {
    "key": "q69",
@@ -3727,10 +3804,10 @@
    "key": "q76",
    "skill": "setup.ipo_base",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ipo.breakeven",
    "q": "Bought at 22.81, stop 21.73. At what price does our breakeven window open?",
-   "answer": 24.97,
+   "answer": "$24.97",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3741,7 +3818,7 @@
     "round": 2
    },
    "suffix": "",
-   "why": "24.97. Our breakeven window opens at 2R. One R is the fill minus the stop, 22.81 minus 21.73. Add two of those to the fill. The window runs from 2R to 5R, and by default the stop moves at the first trim.",
+   "why": "Our breakeven window opens at 2R. One R is the fill minus the stop, 22.81 minus 21.73. Add two of those to the fill: 22.81 plus 2 times (22.81 minus 21.73) is 24.97. The window runs from 2R to 5R, and by default the stop moves at the first trim.",
    "lesson_line": "Count in R. From 2R the stop can move up to your entry.",
    "facts": [
     "h05",
@@ -3762,7 +3839,18 @@
     ]
    },
    "prefix": "$",
-   "batch": "wave1"
+   "batch": "tomcq",
+   "choices": [
+    "$23.89",
+    "$24.97",
+    "$26.05",
+    "$28.21"
+   ],
+   "wrong": {
+    "$23.89": "That is one R above the fill. The window opens at two R.",
+    "$26.05": "That is 3R, the usual first trim, not the start of the window.",
+    "$28.21": "That is 5R, where the window ends."
+   }
   },
   {
    "key": "q77",
@@ -4020,26 +4108,26 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "3R arithmetic; softened."
+   "fixed": true,
+   "notes": "A 4R overshoot was added so the right answer is not always the largest; it replaced the 3% slip. Calc recomputed; the other wrong choices checked by hand."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(54.62-38.63)/54.62 = 29.3. Card formula divides by the IPO high. Computation only, no cap keyed."
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit right: 7.3% is past 5%, mostly wait for a tighter trigger | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "57.32 x 1.04 = 59.61. Question states the buy point, so the 10-cent ambiguity is settled."
+   "fixed": true,
+   "notes": "The note for $57.55 said \"a tenth of the limit\"; 57.32 x 1.004 = 57.55 is 0.4%. Calc recomputed; the other wrong choices checked by hand."
   },
   "q19": {
    "status": "pass",
@@ -4074,8 +4162,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit right: 1.4x is the top-grade mark, volume only raises grade | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q25": {
    "status": "pass",
@@ -4151,8 +4239,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "500 / 1.37 = 364.96, rounded down 364 (A5). Cap ignored by the question; 364 shares is about 21% of the account."
+   "fixed": true,
+   "notes": "365 was within rounding of 364.96 and made an adjacent pair; replaced with risk dollars read as shares. Why now shows the 500. Calc recomputed; the other wrong choices checked by hand."
   },
   "q37": {
    "status": "pass",
@@ -4346,7 +4434,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1% of 650,000 = 6,500 (D42). The why's 'ceiling holds even when the stop allows more' is implied by 'never'. Price of $40 is a harmless extra."
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q69": {
    "status": "pass",
@@ -4394,7 +4482,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "22.81 + 2 x 1.08 = 24.97. Window 2R to 5R is B19; default at the first trim is c49. 3R = 26.05 is one R above 24.97 as the trap says."
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q77": {
    "status": "cut",

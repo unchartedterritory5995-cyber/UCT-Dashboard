@@ -1020,9 +1020,9 @@
    "key": "q09",
    "skill": "short.risk",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Short interest is 6,000,000 shares. Average daily volume is 750,000 shares. What is days to cover?",
-   "answer": 8,
+   "answer": "8 days",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1047,7 +1047,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "0.1 days",
+    "5.25 days",
+    "80 days",
+    "8 days"
+   ],
+   "wrong": {
+    "0.1 days": "Flipped it: divided the daily volume by the short interest.",
+    "5.25 days": "Subtracted the two figures. Days to cover divides them.",
+    "80 days": "A decimal slip: ten times too big."
+   }
   },
   {
    "key": "q10",
@@ -1096,9 +1107,9 @@
    "key": "q11",
    "skill": "short.risk",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Account $40,000, risking 0.5%. You short at $30.00 with a buy stop at $31.50. How many shares?",
-   "answer": 133,
+   "answer": "133 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -1109,7 +1120,7 @@
     }
    },
    "suffix": "shares",
-   "why": "133 shares. Risk 0.5% of $40,000. On a short, risk per share is the buy stop minus the entry: $31.50 minus $30.00. Divide the dollars at risk by that, and round down to whole shares.",
+   "why": "Risk 0.5% of $40,000 to get the dollars at risk. On a short, risk per share is the buy stop minus the entry: $31.50 minus $30.00. Divide the dollars at risk by that, and round down to 133 whole shares.",
    "lesson_line": "Stop first, then size. On a short, risk per share runs up to the buy stop.",
    "facts": [
     "f74",
@@ -1126,15 +1137,26 @@
      "sizing method matches the owner's rulebook (A1, A5)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "133 shares",
+    "7 shares",
+    "1,333 shares",
+    "400 shares"
+   ],
+   "wrong": {
+    "7 shares": "Divided the dollars at risk by the $30.00 entry price. Divide by the risk per share.",
+    "1,333 shares": "A decimal slip: ten times too big.",
+    "400 shares": "Divided the dollars at risk by the 0.5 risk percent. Divide by the stop distance."
+   }
   },
   {
    "key": "q12",
    "skill": "short.risk",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You short at $50.00 with a buy stop at $52.00. You cover at $45.00. How many R did you make?",
-   "answer": 2.5,
+   "answer": "2.5R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -1145,7 +1167,7 @@
     }
    },
    "suffix": "R",
-   "why": "2.5R. On a short, your risk is the distance from entry up to the buy stop: $50.00 to $52.00. Your gain is the distance from entry down to where you bought back: $50.00 to $45.00. The gain divided by the risk is the R.",
+   "why": "On a short, your risk is the distance from entry up to the buy stop: $50.00 to $52.00. Your gain is the distance from entry down to where you bought back: $50.00 to $45.00. The gain divided by the risk is the R: $5.00 over $2.00, or 2.5R.",
    "lesson_line": "R works the same on a short, flipped: the risk sits above you, the profit below.",
    "facts": [
     "f01",
@@ -1160,7 +1182,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "-2.5R",
+    "5.0R",
+    "0.4R",
+    "2.5R"
+   ],
+   "wrong": {
+    "-2.5R": "Treated the short like a long. Buying back lower is a gain on a short.",
+    "0.4R": "Flipped it: risk over gain.",
+    "5.0R": "Used the dollar gain as the R. Divide it by the risk."
+   }
   },
   {
    "key": "q13",
@@ -1205,9 +1238,9 @@
    "key": "q14",
    "skill": "short.risk",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00, and your stop fills there. What did you lose?",
-   "answer": 1600,
+   "answer": "$1,600",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1218,7 +1251,7 @@
     }
    },
    "prefix": "$",
-   "why": "$1,600. Good news gapped the stock open above your buy stop. A triggered stop becomes a market order, so it filled at $29.00, not $26.00. The loss is $29.00 minus $25.00, times 400 shares. Your stop set the planned loss, not the worst one.",
+   "why": "Good news gapped the stock open above your buy stop. A triggered stop becomes a market order, so it filled at $29.00, not $26.00. The loss is $29.00 minus $25.00, times 400 shares, which is $1,600. Your stop set the planned loss, not the worst one.",
    "lesson_line": "Your stop sets the planned loss, not the worst one. On a short, a gap up decides the rest.",
    "facts": [
     "f72",
@@ -1235,15 +1268,26 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$400",
+    "$11,600",
+    "$1,200",
+    "$1,600"
+   ],
+   "wrong": {
+    "$400": "That was the planned loss at the $26.00 stop. The fill was at $29.00.",
+    "$1,200": "Counted only the gap past the stop. The loss starts at your $25.00 entry.",
+    "$11,600": "That is the cost to buy back the 400 shares, not the loss."
+   }
   },
   {
    "key": "q15",
    "skill": "short.risk",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Short 1,000 shares. FINRA minimum: 30% of value or $5 a share, whichever is more. It goes $20 to $40. How much does the minimum rise?",
-   "answer": 6000,
+   "answer": "$6,000",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1255,7 +1299,7 @@
     }
    },
    "prefix": "$",
-   "why": "$6,000. FINRA's minimum on a short at $5 or more is 30% of its current value or $5 a share, whichever is greater. At $20 and at $40, 30% of the value beats $5 a share. So the minimum doubles with the price. That is only FINRA's floor. A broker can ask for more, and the loss on the move comes out of the same account.",
+   "why": "FINRA's minimum on a short at $5 or more is 30% of its current value or $5 a share, whichever is greater. At $20, 30% of the value is $6,000. At $40, it is $12,000. So the minimum rises by $6,000. That is only FINRA's floor. A broker can ask for more, and the loss on the move comes out of the same account.",
    "lesson_line": "A short's margin grows as the stock rises. Miss the call and the broker can close it for you.",
    "facts": [
     "f60",
@@ -1277,7 +1321,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$6,000",
+    "$20,000",
+    "$12,000",
+    "$5,000"
+   ],
+   "wrong": {
+    "$12,000": "That is the minimum at $40. The question asks how much it rises.",
+    "$20,000": "That is the stock's $20 move on 1,000 shares, not the margin rise.",
+    "$5,000": "Used the $5 a share floor. At these prices 30% of the value is more."
+   }
   },
   {
    "key": "q16",
@@ -1524,9 +1579,9 @@
    "key": "q22",
    "skill": "short.risk",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You short at the $19.95 close on January 12, 2021. It closes at $347.51 on January 27. What's your loss on the move, as a % of the sale?",
-   "answer": 1642,
+   "answer": "1,642%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1559,7 +1614,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "1,742%",
+    "164%",
+    "94%",
+    "1,642%"
+   ],
+   "wrong": {
+    "1,742%": "Forgot to take off the original price. The loss is the rise, not the new price as a share of the old.",
+    "94%": "Divided the rise by the $347.51 close. Divide by the $19.95 sale price.",
+    "164%": "A decimal slip: ten times too small."
+   }
   },
   {
    "key": "q23",
@@ -1835,7 +1901,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f114 now supports 'not whether a squeeze will come' ('may be'). 6,000,000 / 750,000 = 8, calc present."
+   "notes": "6,000,000 / 750,000 = 8. 0.1 flipped (0.125), 5.25 subtracted (millions), 80 slip. Why is fine."
   },
   "q10": {
    "status": "pass",
@@ -1846,14 +1912,14 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer: 40,000 x 0.5% = $200; $200 / $1.50 = 133.3, rounded down = 133 (h05 round down). Cap (A7 40%) not binding: 133 x $30 = $3,990. Risk per share up to the stop matches f74's $84-stop example. calc present."
+   "fixed": true,
+   "notes": "Calc 133.33 -> 133. Choices real (7 = 200/30, 400 = 200/0.5, 1,333 slip). Why skipped the dollars-at-risk step; added."
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 2.5. Choices real. Moved the answer from slot 1 to slot 4. Why skipped the dollar figures; added."
   },
   "q13": {
    "status": "pass",
@@ -1863,15 +1929,15 @@
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 1600. Choices real (400 planned, 1,200 = 29-26 x 400, 11,600 = 29 x 400). Why skipped the times-400 step; added."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "At $20: 30% = $6 > $5; at $40: $12 > $5. Requirement 1,000 x $6 = $6,000 to $12,000, rise $6,000; calc 0.3 x 1000 x 20 = 6000. simple now scoped to this case per f60."
+   "fixed": true,
+   "notes": "Calc 6000 (30% x 1000 x 20). Choices real (12,000 = minimum at $40, 20,000 = price move, 5,000 = $5 floor). Why did not show the two minimums; added."
   },
   "q16": {
    "status": "pass",
@@ -1913,7 +1979,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "lesson_line matches f70/f02 ('limited to 100% of the money you invested'; unlimited loss on a short). No longer hints at a smaller short size the rulebook does not state."
+   "notes": "Calc 1642 (1641.9 rounded). 1,742 = ratio, 94 = divided by $347.51, 164 slip. Why walks the steps."
   },
   "q23": {
    "status": "cut",

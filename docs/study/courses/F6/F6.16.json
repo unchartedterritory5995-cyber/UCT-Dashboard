@@ -1174,9 +1174,9 @@
    "key": "q13",
    "skill": "options.assignment",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Short 3 calls, no shares. Exercised the day before the ex-date, and you're assigned. Dividend: $0.40 a share. What dividend do you owe?",
-   "answer": 120,
+   "answer": "$120",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1208,7 +1208,18 @@
      "fixed before (question states the per-share basis)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$0",
+    "$1.20",
+    "$40",
+    "$120"
+   ],
+   "wrong": {
+    "$0": "Thinks only a shareholder owes the dividend. An assigned call writer owes it too.",
+    "$40": "Counts one contract instead of 3.",
+    "$1.20": "Forgets that one contract covers 100 shares."
+   }
   },
   {
    "key": "q14",
@@ -1714,8 +1725,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "f93 re-fetched 2026-11-12 on FINRA s5: 'multiplied by 100, since each contract represents 100 shares' is on the page. The calc 3*100*0.40 = 120 is right. The why's 'deliver the stock plus the dividend' is f17. Stem 130 chars."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
   },
   "q14": {
    "status": "pass",

@@ -1318,10 +1318,10 @@
    "key": "q16",
    "skill": "setup.gap_support",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "gs.test_low",
    "q": "Gap-up low 53.03, test-day low 52.45. How deep is the breach, in percent?",
-   "answer": 1.1,
+   "answer": "1.1%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1331,7 +1331,7 @@
     },
     "round": 1
    },
-   "why": "1.1. Take the gap-up low minus the test-day low, then divide by the gap-up low, and give it as a percent. ILMN's slight undercut was this deep, 1.1% under 53.03, and the day closed at 94% of its range.",
+   "why": "1.1%. The breach is the gap-up low minus the test-day low, 53.03 minus 52.45. Divide that by the gap-up low, 53.03, and show it as a percent. ILMN's slight undercut was this deep, and the day closed at 94% of its range.",
    "lesson_line": "Breach depth is the dip under the line, over the line.",
    "facts": [
     "e05",
@@ -1350,16 +1350,27 @@
      "computed key"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "98.9%",
+    "0.6%",
+    "10.9%",
+    "1.1%"
+   ],
+   "wrong": {
+    "0.6%": "Read the dollar gap as a percent.",
+    "10.9%": "Slipped the decimal one place to the right.",
+    "98.9%": "Divided the test low by the gap-up low and skipped the subtraction."
+   }
   },
   {
    "key": "q17",
    "skill": "setup.gap_support",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "gs.trim_1",
    "q": "Bought at 25.10 with the stop at 24.71. Where is 3R?",
-   "answer": 26.27,
+   "answer": "$26.27",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1369,7 +1380,7 @@
     },
     "round": 2
    },
-   "why": "26.27. One R is the fill minus the stop. Add three of those to the fill. 3R is a yardstick for the trade, not a fixed sell. AKAM ran to 30.4R from these levels.",
+   "why": "$26.27. One R is the fill minus the stop, 25.10 minus 24.71. Add three of those to the 25.10 fill. 3R is a yardstick for the trade, not a fixed sell. AKAM ran to 30.4R from these levels.",
    "lesson_line": "Know your 3R before the close. It is a yardstick, not a sell order.",
    "facts": [
     "e11",
@@ -1386,7 +1397,18 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$23.93",
+    "$26.27",
+    "$25.49",
+    "$26.66"
+   ],
+   "wrong": {
+    "$23.93": "Subtracted three R from the fill.",
+    "$25.49": "Added one R, not three.",
+    "$26.66": "Counted four R, one too many."
+   }
   },
   {
    "key": "q18",
@@ -1546,10 +1568,10 @@
    "key": "q23",
    "skill": "setup.gap_support",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "gs.stop_width",
    "q": "Fill 15.96, stop 15.48. How far is the stop from the fill, in percent?",
-   "answer": 3.0,
+   "answer": "3.0%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1559,7 +1581,7 @@
     },
     "round": 1
    },
-   "why": "3.0. The fill minus the stop, divided by the fill. That is right at the 'about 3%' line. If the honest stop is more than about 3% away, size down or skip, and never pull it in. VIAV had these levels and ran to 25.4R.",
+   "why": "3.0%. The fill minus the stop is 15.96 minus 15.48. Divide that by the fill, 15.96, and show it as a percent. That is right at the 'about 3%' line. If the honest stop is more than about 3% away, size down or skip, and never pull it in. VIAV had these levels and ran to 25.4R.",
    "lesson_line": "Stop distance is the fill minus the stop, over the fill.",
    "facts": [
     "g15",
@@ -1575,7 +1597,18 @@
      "computed key; the 'about 3%' line is marked settled on the card"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "30.1%",
+    "0.5%",
+    "3.0%",
+    "97.0%"
+   ],
+   "wrong": {
+    "0.5%": "Read the dollar gap as a percent.",
+    "30.1%": "Slipped the decimal one place to the right.",
+    "97.0%": "Divided the stop by the fill and skipped the subtraction."
+   }
   },
   {
    "key": "q24",
@@ -2196,10 +2229,10 @@
    "key": "q40",
    "skill": "setup.gap_support",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "gs.stop",
    "q": "Account 50,000. Risk 0.5%. Fill 53.27, stop 52.40. How many shares does the risk allow?",
-   "answer": 287,
+   "answer": "287 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2210,7 +2243,7 @@
     },
     "round": 0
    },
-   "why": "287 shares. The risk is 0.5% of 50,000. Divide that by the fill minus the stop, 53.27 minus 52.40, and round down. The stop sets the size. The position cap is a second limit; this question asks for the risk-based size.",
+   "why": "287 shares. Risk dollars are 0.5% of 50,000. Divide that by the fill minus the stop, 53.27 minus 52.40, and round down. The stop sets the size. The position cap is a second limit. This question asks for the risk-based size.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2228,7 +2261,18 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "938 shares",
+    "28 shares",
+    "574 shares",
+    "287 shares"
+   ],
+   "wrong": {
+    "28 shares": "Slipped the decimal: used a tenth of the risk percent.",
+    "574 shares": "Risked double the risk percent.",
+    "938 shares": "Bought the whole account at the fill price."
+   }
   },
   {
    "key": "q41",
@@ -2327,10 +2371,10 @@
    "key": "q44",
    "skill": "setup.gap_support",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "gs.pullback_depth",
    "q": "The post-gap high is 24.00. The close before the test is 22.20. The 14-day ATR is 0.90. How many ATRs is the pullback?",
-   "answer": 2.0,
+   "answer": "2.0 ATR",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2341,7 +2385,7 @@
     },
     "round": 1
    },
-   "why": "2.0 ATR. Take the post-gap high minus the close before the test, then divide by the ATR. The pullback has to be at least 1 ATR under the post-gap high, so 2.0 clears it.",
+   "why": "2.0 ATR. The drop is the post-gap high minus the close before the test, 24.00 minus 22.20. Divide it by the ATR, 0.90, to get 2.0. The pullback has to be at least 1 ATR under the post-gap high, so 2.0 clears it.",
    "lesson_line": "Pullback depth is measured in ATRs.",
    "facts": [
     "g09"
@@ -2356,7 +2400,18 @@
      "computed key; a proposed card criterion"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "0.5 ATR",
+    "2.0 ATR",
+    "1.8 ATR",
+    "26.7 ATR"
+   ],
+   "wrong": {
+    "0.5 ATR": "Flipped it: divided the ATR by the drop.",
+    "1.8 ATR": "Read the dollar drop as ATRs and never divided.",
+    "26.7 ATR": "Divided the post-gap high by the ATR, not the drop."
+   }
   },
   {
    "key": "q45",
@@ -3259,11 +3314,11 @@
    "key": "q68",
    "skill": "setup.gap_support",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "gs.position_adv",
    "q": "The stock trades 600,000 shares a day on average. The most shares we may own?",
-   "answer": 6000,
-   "why": "6,000 shares. One percent of 600,000 is 6,000. Never own more than 1% of a stock's average daily volume.",
+   "answer": "6,000 shares",
+   "why": "6,000 shares. We never own more than 1% of a stock's average daily volume. 1% of 600,000 is 6,000.",
    "lesson_line": "One percent of the daily volume is the ceiling.",
    "facts": [
     "h33"
@@ -3287,7 +3342,18 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "3,000 shares",
+    "600 shares",
+    "6,000 shares",
+    "60,000 shares"
+   ],
+   "wrong": {
+    "600 shares": "Slipped the decimal: took a tenth of one percent.",
+    "3,000 shares": "Used half a percent, mixing it up with the risk percent.",
+    "60,000 shares": "Took ten percent of the volume, not one percent."
+   }
   },
   {
    "key": "q69",
@@ -3383,11 +3449,11 @@
    "key": "q72",
    "skill": "setup.gap_support",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "gs.trim_2",
    "q": "Bought at 27.15 with the stop at 26.89. Where is 5R?",
-   "answer": 28.45,
-   "why": "28.45. One R is the fill minus the stop, 27.15 minus 26.89. Five of those above the fill is 28.45. 5R is a yardstick. A strong trade often runs well past it. GPN ran to 24.9R from these levels.",
+   "answer": "$28.45",
+   "why": "$28.45. One R is the fill minus the stop, 27.15 minus 26.89. Add five of those to the 27.15 fill. 5R is a yardstick. A strong trade often runs well past it. GPN ran to 24.9R from these levels.",
    "lesson_line": "Know your 5R before the open. A strong trade often runs past it.",
    "facts": [
     "e02",
@@ -3412,7 +3478,18 @@
      "computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$28.71",
+    "$27.41",
+    "$28.19",
+    "$28.45"
+   ],
+   "wrong": {
+    "$27.41": "Added one R, not five.",
+    "$28.19": "Added five R to the stop, not the fill.",
+    "$28.71": "Counted six R, one too many."
+   }
   },
   {
    "key": "q73",
@@ -3989,15 +4066,15 @@
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic kept; yardstick not sell"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q19": {
    "status": "pass",
@@ -4021,7 +4098,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(15.96-15.48)/15.96 = 3.0075, rounds to 3.0. Matches e13 (3.0%) and g15 'about 3%'."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q24": {
    "status": "pass",
@@ -4107,7 +4184,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "50,000 x 0.5% = 250; 250 / 0.87 = 287.36, rounded down 287. Position 287 x 53.27 = 15,288, about 30.6% of the account, under the 40% cap (A7). Risk 0.5% is inside A1/E49. Stem asks what the risk allows, so no cap ambiguity. Example account is invented, already flagged."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q41": {
    "status": "pass",
@@ -4132,7 +4209,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(24.00-22.20)/0.90 = 2.0. Clears the g09 1 ATR bar. ATR/post-gap-high definitions are a lesson-level flag, not a key problem."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q45": {
    "status": "pass",
@@ -4238,7 +4315,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1% of 600,000 = 6,000 (h33). Rule is taught in q69 first; q68 applies it."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q69": {
    "status": "pass",
@@ -4262,7 +4339,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5R arithmetic ok"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q73": {
    "status": "pass",

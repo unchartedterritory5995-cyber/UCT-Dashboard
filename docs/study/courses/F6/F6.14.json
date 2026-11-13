@@ -1057,9 +1057,9 @@
   {
    "key": "q09",
    "rung": 4,
-   "format": "numeric",
-   "q": "You buy the 50 call at 2.10 and the 50 put at 1.90. Before fees, what's the most one straddle can lose, in dollars?",
-   "answer": 400,
+   "format": "mcq",
+   "q": "You buy the 50 call at 2.10 and the 50 put at 1.90. Before fees, what's the most one straddle can lose?",
+   "answer": "$400",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1086,7 +1086,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$210",
+    "$4.00",
+    "$4,000",
+    "$400"
+   ],
+   "wrong": {
+    "$210": "Counts only the call's premium.",
+    "$4.00": "Forgets that one contract covers 100 shares.",
+    "$4,000": "Slips a decimal place on the 100 shares."
+   }
   },
   {
    "key": "q10",
@@ -1126,9 +1137,9 @@
   {
    "key": "q11",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You buy the 210 call for 2.40 and the 190 put for 2.10. Where is the lower break-even at expiry?",
-   "answer": 185.5,
+   "answer": "$185.50",
    "prefix": "$",
    "calc": {
     "fn": "option_breakeven",
@@ -1153,7 +1164,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$187.90",
+    "$214.50",
+    "$185.50",
+    "$190.00"
+   ],
+   "wrong": {
+    "$187.90": "Counts only the put's 2.10 premium. Both legs count.",
+    "$214.50": "That is the upper break-even, off the call strike.",
+    "$190.00": "Stops at the put strike and forgets the premiums."
+   }
   },
   {
    "key": "q12",
@@ -1195,9 +1217,9 @@
   {
    "key": "q13",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You sell the March 60 call at 1.95 and buy the May 60 call at 3.10. Before fees, what's the most one spread can lose?",
-   "answer": 115,
+   "answer": "$115",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1227,7 +1249,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$505",
+    "$115",
+    "$310",
+    "$1.15"
+   ],
+   "wrong": {
+    "$505": "Adds the two premiums. You sell one call and buy the other.",
+    "$310": "Counts only the 3.10 call you bought. The 1.95 you took in comes off.",
+    "$1.15": "Forgets that one contract covers 100 shares."
+   }
   },
   {
    "key": "q14",
@@ -1297,9 +1330,9 @@
   {
    "key": "q16",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Stock at 200. The 200 straddle costs 12.00. What percent move at expiry gets it back to even?",
-   "answer": 6,
+   "answer": "6%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1329,7 +1362,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "3%",
+    "12%",
+    "6%",
+    "17%"
+   ],
+   "wrong": {
+    "12%": "Reads the 12.00 cost as 12 percent.",
+    "3%": "Splits the cost between the call and the put.",
+    "17%": "Flips the ratio. It divides the stock price by the cost."
+   }
   },
   {
    "key": "q17",
@@ -1751,10 +1795,10 @@
    "key": "q27",
    "skill": "options.vol_spreads",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Account $100,000, risk 1% a trade. Our stop on an option is the premium paid. A straddle costs $450 a contract. How many can you buy?",
-   "answer": 2,
+   "answer": "2 contracts",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -1780,7 +1824,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "3 contracts",
+    "222 contracts",
+    "22 contracts",
+    "2 contracts"
+   ],
+   "wrong": {
+    "3 contracts": "Rounds up. A third contract goes past your risk.",
+    "222 contracts": "Divides the whole account by $450, not 1% of it.",
+    "22 contracts": "Slips a decimal place on the 1% risk."
+   }
   },
   {
    "key": "q28",
@@ -1868,8 +1923,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc (2.10+1.90)x100 = 400; f2, f66, f67, f3 support. 'Before fees' present."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
   },
   "q10": {
    "status": "pass",
@@ -1879,9 +1934,9 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
   },
   "q12": {
    "status": "pass",
@@ -1893,8 +1948,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc (3.10-1.95)x100 = 115; f53/f30 max loss = net debit; f67 for 100 shares. Simple states only what the why states."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
   },
   "q14": {
    "status": "pass",
@@ -1911,8 +1966,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Solved cold: break-evens 188/212, 12/200 = 6%. calc matches. Why and deeper keep it as the break-even move, not a forecast (f45 'rough estimate'). Lesson line 19 words."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
   },
   "q17": {
    "status": "pass",
@@ -1996,8 +2051,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc shares_from_risk(100000,1,450,0) = floor(1000/450) = 2. h2 (B25) and h3 (A1) quotes verified verbatim in sizing_rule.md section 9; 1% is inside A1/E49; 2 x $450 = $900 is far under the A7 cap. Owner flag on the sizing method stands."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
   },
   "q28": {
    "status": "pass",

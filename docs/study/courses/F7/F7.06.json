@@ -1139,9 +1139,9 @@
    "key": "q09",
    "skill": "history.fed_rates",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The Fed raises its target range by 75 basis points. How many percentage points is that?",
-   "answer": 0.75,
+   "answer": "0.75 points",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1166,15 +1166,27 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "7.5 points",
+    "0.075 points",
+    "75 points",
+    "0.75 points"
+   ],
+   "wrong": {
+    "7.5 points": "Moved the decimal one place too few.",
+    "0.075 points": "Moved the decimal one place too many.",
+    "75 points": "Left the basis points as they were."
+   },
+   "suffix": ""
   },
   {
    "key": "q10",
    "skill": "history.fed_rates",
    "rung": 4,
-   "format": "numeric",
-   "q": "January 3, 2022: the 2-year Treasury yields 0.78% and the 10-year 1.63%. What is the 2s10s, in percentage points?",
-   "answer": 0.85,
+   "format": "mcq",
+   "q": "January 3, 2022: the 2-year Treasury yields 0.78% and the 10-year 1.63%. What is the 2s10s?",
+   "answer": "0.85 points",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1198,7 +1210,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "2.41 points",
+    "0.85 points",
+    "1.63 points",
+    "-0.85 points"
+   ],
+   "wrong": {
+    "-0.85 points": "Subtracted the 10-year from the 2-year.",
+    "2.41 points": "Added the two yields.",
+    "1.63 points": "Used only the 10-year yield."
+   }
   },
   {
    "key": "q11",
@@ -1272,9 +1295,9 @@
    "key": "q13",
    "skill": "history.fed_rates",
    "rung": 5,
-   "format": "numeric",
-   "q": "The Fed's range was 0-0.25% in January 2022 and 4.25-4.50% by December. How many percentage points did the top end rise?",
-   "answer": 4.25,
+   "format": "mcq",
+   "q": "The Fed's range was 0-0.25% in January 2022 and 4.25-4.50% by December. How far did the top end rise?",
+   "answer": "4.25 points",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1304,7 +1327,19 @@
      "fixed before (q13 wording, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "4.50 points",
+    "4.75 points",
+    "4.25 points",
+    "0.425 points"
+   ],
+   "wrong": {
+    "4.50 points": "Used only the December top end.",
+    "4.75 points": "Added the January top end instead of subtracting it.",
+    "0.425 points": "Decimal slip."
+   },
+   "suffix": ""
   },
   {
    "key": "q14",
@@ -1821,15 +1856,15 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q11": {
    "status": "pass",
@@ -1847,7 +1882,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 4.50-0.25=4.25 is right. 'Seven hikes' rests on f67 and f18. The bottom end goes 0 to 4.25 (f19, f22). The f18 steps add to 425 bp, which is 4.25 points. 'Highest in 15 years' rests on f88."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q14": {
    "status": "pass",

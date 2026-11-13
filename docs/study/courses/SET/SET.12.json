@@ -1250,10 +1250,10 @@
    "key": "q15",
    "skill": "setup.vcp",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "vcp.ratio",
    "q": "The first pullback is 24%. Each next one is half the last. How deep is the third?",
-   "answer": 6.0,
+   "answer": "6%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1262,7 +1262,7 @@
     },
     "round": 0
    },
-   "why": "6. Halve the 24% once for the second pullback, then halve that result for the third, which gives 6%. Minervini likes each contraction to be about half of the one before, give or take. That is a rule of thumb, so real bases land near it, not exactly on it.",
+   "why": "Halve the 24% once for the second pullback, then halve that result for the third, which gives 6%. Minervini likes each contraction to be about half of the one before, give or take. That is a rule of thumb, so real bases land near it, not exactly on it.",
    "lesson_line": "About half each time. The swings shrink fast.",
    "facts": [
     "v02",
@@ -1286,16 +1286,27 @@
    "depends_on": [
     "D-059"
    ],
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "12%",
+    "8%",
+    "3%",
+    "6%"
+   ],
+   "wrong": {
+    "12%": "That stops after one halving. It is the second pullback.",
+    "3%": "That halves three times. The third pullback is two halvings in.",
+    "8%": "That divides 24 by 3. Each pullback is half the last."
+   }
   },
   {
    "key": "q16",
    "skill": "setup.vcp",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "vcp.final_t",
    "q": "The final contraction's high is 170.00 and its low is 164.05. How deep is it, in percent of the high?",
-   "answer": 3.5,
+   "answer": "3.5%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1305,7 +1316,7 @@
     },
     "round": 1
    },
-   "why": "3.5. The depth is the high minus the low, divided by the high, so for 170.00 and 164.05 it is 3.5%. ChartMill wants the final contraction under 10%, and 3% to 6% is best. Our card says 10% or less.",
+   "why": "The depth is the high minus the low, divided by the high: (170.00 minus 164.05) divided by 170.00 is 3.5%. ChartMill wants the final contraction under 10%, and 3% to 6% is best. Our card says 10% or less.",
    "lesson_line": "Depth is high minus low, divided by the high. The last swing should be the tightest.",
    "facts": [
     "cm1",
@@ -1321,16 +1332,27 @@
      "+2 a computed key"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "6.0%",
+    "96.5%",
+    "35.0%",
+    "3.5%"
+   ],
+   "wrong": {
+    "6.0%": "That is the dollar amount read as a percent. Divide it first.",
+    "35.0%": "That slips a decimal place.",
+    "96.5%": "That is the low as a share of the high, not the drop."
+   }
   },
   {
    "key": "q17",
    "skill": "setup.vcp",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "vcp.stop_width",
    "q": "Fill 170.00, stop 165.39. How far under the fill is the stop, in percent?",
-   "answer": 2.7,
+   "answer": "2.7%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1340,7 +1362,7 @@
     },
     "round": 1
    },
-   "why": "2.7. Take the fill minus the stop, which is 170.00 minus 165.39, and divide by the fill, 170.00. That gives 2.7%. Always divide by the fill, not by the stop.",
+   "why": "The gap is the fill minus the stop, divided by the fill: (170.00 minus 165.39) divided by 170.00 is 2.7%. Always divide by the fill, not by the stop.",
    "lesson_line": "Measure the stop in percent before you size the trade.",
    "facts": [
     "h04",
@@ -1357,16 +1379,27 @@
      "+2 sits beside the held decision D-005 on stop width"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "4.6%",
+    "27.1%",
+    "97.3%",
+    "2.7%"
+   ],
+   "wrong": {
+    "4.6%": "That is the dollar amount read as a percent. Divide it first.",
+    "27.1%": "That slips a decimal place.",
+    "97.3%": "That is the stop as a share of the fill, not the gap."
+   }
   },
   {
    "key": "q18",
    "skill": "setup.vcp",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "vcp.trim_1",
    "q": "Bought at 17.38 with the stop at 16.59. One R is the gap between them. Where is 3R?",
-   "answer": 19.75,
+   "answer": "$19.75",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1376,7 +1409,7 @@
     },
     "round": 2
    },
-   "why": "19.75. One R is the fill minus the stop, here 17.38 minus 16.59. Add three of those to the fill and 3R sits at 19.75. 3R is a yardstick, not a fixed sale point.",
+   "why": "One R is the fill minus the stop, 17.38 minus 16.59. Add three of those to the fill: 17.38 plus 3 times (17.38 minus 16.59) is 19.75. 3R is a yardstick, not a fixed sale point.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, and the first sell is a judgment.",
    "facts": [
     "d03",
@@ -1393,16 +1426,27 @@
      "+2 rests on the owner's rulebook (B19, the hard rule of a third at 3R)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$20.54",
+    "$18.17",
+    "$18.96",
+    "$19.75"
+   ],
+   "wrong": {
+    "$18.17": "That adds one R, not three.",
+    "$18.96": "That counts 3R up from the stop, not from the fill.",
+    "$20.54": "That adds four R. Three R is three gaps, not four."
+   }
   },
   {
    "key": "q19",
    "skill": "setup.vcp",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "vcp.no_chase",
    "q": "The pivot is 16.47. The chase limit is 4% above it. What price is that, to the nearest cent?",
-   "answer": 17.13,
+   "answer": "$17.13",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1411,7 +1455,7 @@
     },
     "round": 2
    },
-   "why": "17.13. Multiply the pivot by 1.04 and round to the nearest cent. We never buy more than 4% above the buy point. Past that, the stop stays put, the distance grows and the shares shrink.",
+   "why": "The chase limit is the pivot plus 4%. Multiply the pivot by 1.04: 16.47 times 1.04 is 17.13 to the nearest cent. We never buy more than 4% above the buy point. Past that, the stop stays put, the distance grows and the shares shrink.",
    "lesson_line": "Know the chase limit before the open: 4% over the pivot.",
    "facts": [
     "c15",
@@ -1434,7 +1478,18 @@
      "+2 rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "$20.47",
+    "$16.54",
+    "$15.81",
+    "$17.13"
+   ],
+   "wrong": {
+    "$20.47": "That adds 4 dollars, not 4 percent.",
+    "$16.54": "That adds a fraction of a percent, not 4 percent. A decimal slip.",
+    "$15.81": "That takes 4% off. The chase limit sits above the pivot."
+   }
   },
   {
    "key": "q20",
@@ -2224,10 +2279,10 @@
    "key": "q41",
    "skill": "setup.vcp",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "vcp.stop_width",
    "q": "Account 100,000, risk 0.5%, buy 24.60, stop 23.55. Before any cap, how many shares?",
-   "answer": 476.0,
+   "answer": "476 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2238,7 +2293,7 @@
     },
     "round": 0
    },
-   "why": "476. Shares equal 0.5% of the 100,000 account, divided by the risk per share. That is the gap between 24.60 and 23.55, and the answer is rounded down to 476. The size comes from the stop, then it is capped.",
+   "why": "Risk dollars are 0.5% of 100,000, which is 500. Risk per share is the gap between 24.60 and 23.55. Divide 500 by that, then round down to 476. The size comes from the stop, then it is capped.",
    "lesson_line": "Shares come from the stop: risk in dollars divided by risk per share, rounded down.",
    "facts": [
     "h03",
@@ -2254,7 +2309,18 @@
      "+2 rests on the owner's rulebook (A5, shares rounded down then capped)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "500 shares",
+    "4,761 shares",
+    "952 shares",
+    "476 shares"
+   ],
+   "wrong": {
+    "4,761 shares": "That risks ten times the plan. A decimal slip.",
+    "952 shares": "That risks double the plan.",
+    "500 shares": "That is the risk dollars read as shares. Divide by the risk per share."
+   }
   },
   {
    "key": "q42",
@@ -3357,10 +3423,10 @@
    "key": "q72",
    "skill": "setup.vcp",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "vcp.no_right_side_selling",
    "q": "A down day in the second half of a base trades 3,300,000 shares. The 50-day average is 2,200,000. How many times the average?",
-   "answer": 1.5,
+   "answer": "1.5x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3370,7 +3436,7 @@
     },
     "round": 2
    },
-   "why": "1.5. That is 3,300,000 divided by 2,200,000. It meets our limit of 1.5 times the 50-day average or more, so exactly 1.5 counts and this base still has selling on its right side.",
+   "why": "Divide the day's volume by the average: 3,300,000 divided by 2,200,000 is 1.5. That meets our limit of 1.5 times the 50-day average or more, so exactly 1.5 counts and this base still has selling on its right side.",
    "lesson_line": "A down day at 1.5 times the average or more on the right side is selling.",
    "facts": [
     "c06",
@@ -3388,7 +3454,18 @@
      "our one-day line is stricter than ChartMill's 'several' days"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "1.1x",
+    "0.7x",
+    "0.5x",
+    "1.5x"
+   ],
+   "wrong": {
+    "0.5x": "That is only the extra over the average, not the multiple.",
+    "1.1x": "That is the gap in millions, not a multiple of the average.",
+    "0.7x": "That flips the division. Put the day's volume on top."
+   }
   },
   {
    "key": "q73",
@@ -3550,10 +3627,10 @@
    "key": "q78",
    "skill": "setup.vcp",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "vcp.trim_2",
    "q": "You bought 900 shares. Say you sell a third at 3R and another third at 5R. How many are left to trail?",
-   "answer": 300,
+   "answer": "300 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3562,7 +3639,7 @@
     },
     "round": 0
    },
-   "why": "300. A third of 900 is 300, sold at 3R. Another third of 900 is 300, sold at 5R. That leaves the last 300, which is trailed. Both thirds are measured on the full 900, not on what is left. When to sell each part is a judgment, but the arithmetic is fixed.",
+   "why": "A third of 900 is 300. Sell 300 at 3R and another 300 at 5R. Both thirds are measured on the full 900, not on what is left. That leaves the last 300, which is trailed. When to sell each part is a judgment, but the arithmetic is fixed.",
    "lesson_line": "Count each third on the full position. Trail what is left.",
    "facts": [
     "r03"
@@ -3579,7 +3656,18 @@
      "+1 fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "600 shares",
+    "400 shares",
+    "450 shares",
+    "300 shares"
+   ],
+   "wrong": {
+    "600 shares": "That counts only one third sold. Two thirds are gone.",
+    "400 shares": "That takes the second third from what is left. Both thirds come from the full 900.",
+    "450 shares": "That halves the 900 once. A third is not a half."
+   }
   },
   {
    "key": "q79",
@@ -3902,31 +3990,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "24 / 2 / 2 = 6; calc matches; the stem states exact halving so the 'about half' caveat is only in the why. No tell."
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep right: percent arithmetic, 2.7% inside preferred range | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "fixed": true,
+   "notes": "Replaced $2.37 with a 4R overshoot so the answer is not the largest. Calc recomputed; the other wrong choices checked by hand."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "16.47 x 1.04 = 17.1288, rounds to 17.13; matches calc and C28. No second answer."
+   "fixed": true,
+   "notes": "The note for $16.54 said \"a tenth of the limit\"; 16.47 x 1.004 = 16.54 is 0.4%. Calc recomputed; the other wrong choices checked by hand."
   },
   "q20": {
    "status": "pass",
@@ -4059,8 +4147,8 @@
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "fixed": true,
+   "notes": "477 was within rounding of 476.2 and made an adjacent pair; replaced with risk dollars read as shares. Why shows the 500. Calc recomputed; the other wrong choices checked by hand."
   },
   "q42": {
    "status": "pass",
@@ -4247,9 +4335,9 @@
   },
   "q72": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "0.67x had two decimals against one in the other choices; now 0.7x. Calc recomputed; the other wrong choices checked by hand."
   },
   "q73": {
    "status": "pass",
@@ -4286,7 +4374,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q79": {
    "status": "pass",

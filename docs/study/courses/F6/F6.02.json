@@ -916,9 +916,9 @@
    "key": "q10",
    "skill": "options.premium",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You buy 3 call contracts quoted at 2.40. What's the total premium you pay, before commissions?",
-   "answer": 720,
+   "answer": "$720",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -944,7 +944,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$7,200",
+    "$240",
+    "$7.20",
+    "$720"
+   ],
+   "wrong": {
+    "$240": "Forgot to multiply by the 3 contracts.",
+    "$7.20": "Forgot each contract covers 100 shares.",
+    "$7,200": "Slipped a decimal place."
+   }
   },
   {
    "key": "q11",
@@ -1019,9 +1030,9 @@
    "key": "q13",
    "skill": "options.premium",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You sell 1 put at 2.80 and buy 1 lower-strike put at 1.05, same expiry. What credit do you collect, before commissions?",
-   "answer": 175,
+   "answer": "$175",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1033,7 +1044,7 @@
      "multiplier": 100
     }
    },
-   "why": "$175. You sell one put at 2.80 and buy one lower-strike put at 1.05. The difference, times 100 shares, is the net credit. A bull put spread always opens as a credit, because the put you sell has the higher strike. Commissions come off that credit.",
+   "why": "$175. You sell one put at 2.80 and buy one lower-strike put at 1.05. The difference is 2.80 minus 1.05, which is 1.75 a share. Times 100 shares, that is $175. A bull put spread always opens as a credit, because the put you sell has the higher strike. Commissions come off that credit.",
    "lesson_line": "Collect more than you pay and the trade opens as a credit.",
    "facts": [
     "f26",
@@ -1049,7 +1060,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$385",
+    "$280",
+    "$175",
+    "$1.75"
+   ],
+   "wrong": {
+    "$385": "Added the two premiums instead of subtracting.",
+    "$280": "Counted only the put you sold and ignored the one you bought.",
+    "$1.75": "Forgot each contract covers 100 shares."
+   }
   },
   {
    "key": "q14",
@@ -1150,9 +1172,9 @@
    "key": "q17",
    "skill": "options.premium",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You bought 4 calls at 1.20 and sold them at 2.05. What's your profit before commissions?",
-   "answer": 340,
+   "answer": "$340",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1164,7 +1186,7 @@
      "multiplier": 100
     }
    },
-   "why": "$340. Profit is the sale price minus the purchase price per share, times 100 shares, times the number of contracts. Here that is 2.05 minus 1.20, times 100, times 4. The premium you paid is already taken off, so this is your net before commissions.",
+   "why": "$340. Profit per share is the sale price minus the purchase price: 2.05 minus 1.20. Times 100 shares is $85 a contract. Times 4 contracts is $340. The premium you paid is already taken off, so this is your net before commissions.",
    "lesson_line": "Profit is exit minus entry, times 100, times contracts. Take the premium off before you call it a win.",
    "facts": [
     "f5",
@@ -1179,7 +1201,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$85",
+    "$340",
+    "$820",
+    "$480"
+   ],
+   "wrong": {
+    "$85": "Forgot to multiply by the 4 contracts.",
+    "$820": "Used the sale proceeds and ignored what you paid.",
+    "$480": "Gave the cost you paid, not the profit."
+   }
   },
   {
    "key": "q18",
@@ -1267,9 +1300,9 @@
    "key": "q20",
    "skill": "options.premium",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your account is $50,000. You buy 4 calls at 1.50 and they expire worthless. What percent of the account is gone, before commissions?",
-   "answer": 1.2,
+   "answer": "1.2%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1301,7 +1334,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "0.3%",
+    "12%",
+    "0.012%",
+    "1.2%"
+   ],
+   "wrong": {
+    "0.3%": "Counted one contract instead of four.",
+    "12%": "Slipped a decimal place.",
+    "0.012%": "Forgot each contract covers 100 shares."
+   }
   },
   {
    "key": "q21",
@@ -1696,9 +1740,9 @@
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1."
   },
   "q11": {
    "status": "pass",
@@ -1714,9 +1758,9 @@
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3. Why rewritten to show the steps."
   },
   "q14": {
    "status": "pass",
@@ -1738,9 +1782,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
   },
   "q18": {
    "status": "pass",
@@ -1764,7 +1808,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer: 4 x 1.50 x 100 = $600; 600 / 50,000 = 1.2% (calc checked). Key right, and 1.2% sits inside A1 (0.25% to 2%) and B25 (premium paid is the stop). Defect: the stem asks what percent 'is gone' without 'before commissions', yet the why says commissions come on top, so the true answer is a bit over 1.2%; every other money question in the unit says 'before commissions' (conflicts note 2). Fix: add it to the stem (132 chars). Also add f10 to facts, since the why says '1.50 a share' and f10 is the per-share quote fact."
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4. Why rewritten to show the steps."
   },
   "q21": {
    "status": "pass",

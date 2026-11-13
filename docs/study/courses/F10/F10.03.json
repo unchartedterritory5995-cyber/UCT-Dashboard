@@ -1028,9 +1028,9 @@
    "key": "q09",
    "skill": "orders.brackets",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A broker's sample bracket: buy at $219.50, stop at $218.00, target at $221.00. How many dollars of reward per dollar of risk?",
-   "answer": 1,
+   "answer": "1 to 1",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1041,7 +1041,7 @@
     }
    },
    "suffix": "to 1",
-   "why": "1 to 1. The $221.00 target sits exactly as far above the $219.50 entry as the $218.00 stop sits below it. So each dollar of risk has one dollar of reward. That is Interactive Brokers' own sample bracket. It is a measurement of the plan, not a promise: a stop price is only a trigger.",
+   "why": "Reward is the $221.00 target minus the $219.50 entry. Risk is the $219.50 entry minus the $218.00 stop. The two are the same size. Divide reward by risk to get 1, so 1 to 1. That is Interactive Brokers' own sample bracket. It measures the plan, not a promise: a stop price is only a trigger.",
    "lesson_line": "Measure every bracket before you send it: distance to the target over distance to the stop.",
    "facts": [
     "f50",
@@ -1059,7 +1059,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "2 to 1",
+    "0.5 to 1",
+    "1.5 to 1",
+    "1 to 1"
+   ],
+   "wrong": {
+    "2 to 1": "Measured the target from the stop, so the risk was counted as reward too.",
+    "1.5 to 1": "Used the dollar reward as the ratio and never divided by the risk.",
+    "0.5 to 1": "Divided the reward by the whole stop-to-target range, not by the risk."
+   }
   },
   {
    "key": "q10",
@@ -1090,10 +1101,10 @@
    "key": "q11",
    "skill": "orders.brackets",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Entry $40, stop $38. What price is 3R, three times your risk above the entry?",
-   "answer": 46,
+   "answer": "$46.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1104,7 +1115,7 @@
     }
    },
    "prefix": "$",
-   "why": "$46. Your risk per share is the distance from the $40 entry down to the $38 stop. We call that distance R. 3R is three times it, added above the $40 entry. It is a measuring mark, not an order to sell. We rarely sell on day 1 and usually wait until day 3 at the earliest.",
+   "why": "Risk per share is the $40 entry minus the $38 stop. That is 1R. Take three times it and add it to the $40 entry to get $46. It is a measuring mark, not an order to sell. We rarely sell on day 1 and usually wait until day 3 at the earliest.",
    "lesson_line": "Stop first. R is the stop distance, and 3R is three times it above the entry.",
    "facts": [
     "f45",
@@ -1126,7 +1137,18 @@
      "rewritten before to the 2026-11-09 rulebook"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$34.00",
+    "$43.00",
+    "$46.00",
+    "$44.00"
+   ],
+   "wrong": {
+    "$34.00": "Went three times the risk below the entry. A long's 3R sits above it.",
+    "$43.00": "Added a flat $3.00, not three times the risk.",
+    "$44.00": "Measured 3R up from the $38 stop, not from the $40 entry."
+   }
   },
   {
    "key": "q12",
@@ -1668,9 +1690,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 1.0 = 1 to 1. Choices fine (2 = target from stop, 1.5 = dollar reward, 0.5 = reward over whole range). Why jumped to the answer; spelled out reward and risk."
   },
   "q10": {
    "status": "pass",
@@ -1681,8 +1703,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ok"
+   "fixed": true,
+   "notes": "Calc 46.0. Choices fine (34 below entry, 43 flat $3, 44 measured from stop). Why skipped the 1R step; added."
   },
   "q12": {
    "status": "pass",

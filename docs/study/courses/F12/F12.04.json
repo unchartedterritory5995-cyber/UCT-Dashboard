@@ -981,9 +981,9 @@
    "key": "q13",
    "skill": "process.grading",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Plan: buy at $50, stop $48, target $56. You chase and fill at $53, same stop and target. Reward per $1 of risk now?",
-   "answer": 0.6,
+   "answer": "$0.60",
    "calc": {
     "fn": "arith",
     "args": {
@@ -994,7 +994,7 @@
     }
    },
    "prefix": "$",
-   "why": "$0.60 of reward for each $1 of risk. From $53 the target is closer to you than the stop. At your planned $50, the target was much further away than the stop. The chart did not change, only your entry did. Risk per share is the entry minus the stop, as in Schwab's example. Chasing turned good reward for the risk into poor, and that is graded under how you traded it. Our own rule is never to buy more than 4% above the buy point, and $53 is past it.",
+   "why": "Reward is the $56 target minus your $53 entry, or $3. Risk is the $53 entry minus the $48 stop, as in Schwab's example. Divide the reward by that risk to get $0.60 of reward for each $1 of risk. At your planned $50, the target was much further away than the stop. The chart did not change, only your entry did. Chasing turned good reward for the risk into poor, and that is graded under how you traded it. Our own rule is never to buy more than 4% above the buy point, and $53 is past it.",
    "lesson_line": "Chasing doesn't change the chart. It changes what you get paid for the risk.",
    "facts": [
     "f04",
@@ -1014,7 +1014,18 @@
      "fill moved past the rulebook's chase line (C28)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$3.00",
+    "$0.38",
+    "$1.67",
+    "$0.60"
+   ],
+   "wrong": {
+    "$3.00": "That is the reward for the risk at your planned $50 entry, before you chased.",
+    "$1.67": "Flipped it: risk over reward.",
+    "$0.38": "Divided the reward by the whole stretch from stop to target. Divide by the risk."
+   }
   },
   {
    "key": "q14",
@@ -1528,8 +1539,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (56-53)/(53-48) = 0.6 verified. $53 is 6% above $50 (from the question), past C28's 4% line; f67 quote verified verbatim. Why says reward per $1 of risk falls, which does not contradict C28's 'chasing costs size, not risk' (dollar risk vs reward ratio). Deeper claims (3 to target vs 5 to stop) follow from the question's numbers. Q 117 chars."
+   "fixed": true,
+   "notes": "Calc 0.6 (3/5). Choices real (3.00 at plan, 1.67 flipped, 0.38 = 3/8). Why skipped the reward and risk steps; added."
   },
   "q14": {
    "status": "pass",

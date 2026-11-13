@@ -1478,10 +1478,10 @@
    "key": "q19",
    "skill": "setup.high_volume_edge",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "hve.trim_1",
    "q": "Bought at 56.28 with the stop at 55.53. Where is 3R?",
-   "answer": 58.53,
+   "answer": "$58.53",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1491,7 +1491,7 @@
     },
     "round": 2
    },
-   "why": "58.53. R is the risk per share, the buy minus the stop. 3R is the buy plus three times that risk, which gives 58.53. 3R is a measuring mark, so know the price before the buy.",
+   "why": "$58.53. One R is the fill minus the stop, 56.28 minus 55.53. Add three of those to the 56.28 fill. 3R is a measuring mark, so know the price before the buy.",
    "lesson_line": "3R is a measuring mark. Know its price before the buy.",
    "facts": [
     "d04",
@@ -1508,7 +1508,18 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$59.28",
+    "$57.03",
+    "$57.78",
+    "$58.53"
+   ],
+   "wrong": {
+    "$57.03": "Added one R, not three.",
+    "$57.78": "Added three R to the stop, not the fill.",
+    "$59.28": "Counted four R, one too many."
+   }
   },
   {
    "key": "q20",
@@ -1699,10 +1710,10 @@
    "key": "q25",
    "skill": "setup.high_volume_edge",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "hve.stop_width",
    "q": "Fill 58.13. The day-2 low is 57.56. The stop sits two cents under it. How far below the fill, in percent to one decimal?",
-   "answer": 1.0,
+   "answer": "1.0%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1712,7 +1723,7 @@
     },
     "round": 1
    },
-   "why": "1.0%. VRTX's HVC was 58.12, so the fill is a cent over it at 58.13. Two cents under the day-2 low of 57.56 puts the stop at 57.54. That is 1.0% under the fill. Stop first, then the distance, then the size.",
+   "why": "1.0%. The stop is two cents under the day-2 low: 57.56 minus 0.02. The fill minus that stop, over the fill, 58.13, is 1.0%. Stop first, then the distance, then the size.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "c04",
@@ -1737,16 +1748,27 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "10.1%",
+    "0.6%",
+    "1.0%",
+    "99.0%"
+   ],
+   "wrong": {
+    "0.6%": "Read the dollar gap as a percent.",
+    "10.1%": "Slipped the decimal one place to the right.",
+    "99.0%": "Divided the stop by the fill and skipped the subtraction."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.high_volume_edge",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "hve.position_adv",
    "q": "The stock averages 3,000,000 shares a day after the event. By our volume rule, the most shares you may own?",
-   "answer": 30000,
+   "answer": "30,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1755,7 +1777,7 @@
     },
     "round": 0
    },
-   "why": "30,000 shares. Never own more than 1% of a stock's average daily volume, measured on the post-event average. 1% of 3,000,000 shares is 30,000. Illiquid stocks are not even watched.",
+   "why": "30,000 shares. We never own more than 1% of a stock's average daily volume, measured on the post-event average. 1% of 3,000,000 shares is 30,000. Illiquid stocks are not even watched.",
    "lesson_line": "Own no more than 1% of a day's volume.",
    "facts": [
     "c46",
@@ -1771,16 +1793,27 @@
      "+2 rests on the owner's rulebook (D42, 1% of average daily volume)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "300,000 shares",
+    "3,000 shares",
+    "15,000 shares",
+    "30,000 shares"
+   ],
+   "wrong": {
+    "3,000 shares": "Slipped the decimal: took a tenth of one percent.",
+    "15,000 shares": "Used half a percent, mixing it up with the risk percent.",
+    "300,000 shares": "Took ten percent of the volume, not one percent."
+   }
   },
   {
    "key": "q27",
    "skill": "setup.high_volume_edge",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "hve.trim_2",
    "q": "Bought at 84.90, stop 83.38. The stock trades 92.50. How many R is that?",
-   "answer": 5.0,
+   "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -1790,7 +1823,7 @@
     },
     "round": 2
    },
-   "why": "5.0R. R is the buy minus the stop, and the gain here is 5 times that. About 5 to 10R is often a good place to sell. The first sell is a judgment, not a fixed level.",
+   "why": "5.0R. R is the buy minus the stop, 84.90 minus 83.38. The gain is 92.50 minus 84.90. Divide the gain by R to get 5.0R. About 5 to 10R is often a good place to sell. The first sell is a judgment, not a fixed level.",
    "lesson_line": "Count the gain in R. Around 5R to 10R is often where we sell.",
    "facts": [
     "d07",
@@ -1808,16 +1841,27 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "0.2R",
+    "5.0R",
+    "6.0R",
+    "7.6R"
+   ],
+   "wrong": {
+    "0.2R": "Flipped it: divided the risk by the gain.",
+    "6.0R": "Measured the gain from the stop, not from the buy.",
+    "7.6R": "Used the dollar gain and never divided by the risk."
+   }
   },
   {
    "key": "q28",
    "skill": "setup.high_volume_edge",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "hve.lesser_known",
    "q": "Before the record day the stock traded 2,500,000 shares a day at 12.00. How many dollars a day is that?",
-   "answer": 30000000,
+   "answer": "$30,000,000",
    "calc": {
     "fn": "dollar_volume",
     "args": {
@@ -1826,7 +1870,7 @@
     },
     "round": 0
    },
-   "why": "$30 million a day: 2,500,000 shares times 12. The card calls a stock lesser-known when its dollar volume before the event is under about $100 million a day. It must not be a mega-cap. At $30 million this name is well under that cue.",
+   "why": "$30,000,000 a day: 2,500,000 shares times 12.00. The card calls a stock lesser-known when its dollar volume before the event is under about $100 million a day. It must not be a mega-cap. At $30 million this name is well under that cue.",
    "lesson_line": "Read the dollar volume before the day. Small means lesser-known.",
    "facts": [
     "c25",
@@ -1843,7 +1887,18 @@
      "+2 rests on the card's proposed $100 million cue"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "$3,000,000",
+    "$208,333",
+    "$30,000,000",
+    "$300,000,000"
+   ],
+   "wrong": {
+    "$208,333": "Divided the shares by the price instead of multiplying.",
+    "$3,000,000": "Dropped a zero.",
+    "$300,000,000": "Added a zero."
+   }
   },
   {
    "key": "q29",
@@ -2491,10 +2546,10 @@
    "key": "q46",
    "skill": "setup.high_volume_edge",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "hve.stop",
    "q": "Account 40,000. Risk 0.5%. Fill 20.18, stop 19.89. Ignore the position cap and round down. How many shares?",
-   "answer": 689,
+   "answer": "689 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2505,7 +2560,7 @@
     },
     "round": 0
    },
-   "why": "689 shares. Shares are the account times the risk percent, divided by the distance from entry to stop, rounded down. Here that is 40,000 times 0.5%, divided by the gap between 20.18 and 19.89. The size is then the smaller of that and the position cap. If the honest stop does not fit the risk, you skip.",
+   "why": "689 shares. Risk dollars are 0.5% of 40,000. Divide that by the fill minus the stop, 20.18 minus 19.89, and round down. The size is then the smaller of that and the position cap. If the honest stop does not fit the risk, you skip.",
    "lesson_line": "The stop sets the size, never the other way round.",
    "facts": [
     "h03",
@@ -2526,7 +2581,18 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "1,982 shares",
+    "68 shares",
+    "1,379 shares",
+    "689 shares"
+   ],
+   "wrong": {
+    "68 shares": "Slipped the decimal: used a tenth of the risk percent.",
+    "1,379 shares": "Risked double the risk percent.",
+    "1,982 shares": "Bought the whole account at the fill price."
+   }
   },
   {
    "key": "q47",
@@ -3571,7 +3637,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: 3R price arithmetic kept; no longer says the hard rule is a third at 3R; B19 citation swapped for the ruling"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q20": {
    "status": "pass",
@@ -3607,25 +3673,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc rechecked: stop 57.54, (58.13-57.54)/58.13 = 1.015%, rounds to 1.0. Matches d13. Numbers grounded."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1% of 3,000,000 = 30,000 (h19/c46). The volume rule is named, so the position cap cannot be read as the limit."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: R-multiple arithmetic kept; was 'another third at 5R after the first at 3R'; now about 5 to 10R is often where we "
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2,500,000 x 12.00 = 30,000,000 (calc). Under the card's $100M cue (c25) and over the rulebook $20M floor, so no conflict either way."
+   "notes": "Calc 2,500,000 x 12 = 30,000,000 matches; wrongs check out (shares/price = 208,333; dropped and added zero). Mild: the right answer is the middle of the three round magnitudes, accepted."
   },
   "q29": {
    "status": "pass",
@@ -3737,7 +3803,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc rechecked: 200 / 0.29 = 689.6, floor 689. Stem says ignore the cap and round down. TVTX numbers are in d01."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q47": {
    "status": "pass",

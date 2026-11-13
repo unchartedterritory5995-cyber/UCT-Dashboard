@@ -726,9 +726,9 @@
    "key": "q09",
    "skill": "options.delta",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your call has a 0.45 delta. The stock rises $2, nothing else changes. About how much should the call gain, per share?",
-   "answer": 0.9,
+   "answer": "$0.90",
    "calc": {
     "fn": "arith",
     "args": {
@@ -754,7 +754,18 @@
      "the key is computed"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "$1.55",
+    "$4.44",
+    "$2.45",
+    "$0.90"
+   ],
+   "wrong": {
+    "$1.55": "Subtracted the delta from the move instead of multiplying.",
+    "$4.44": "Divided the move by the delta.",
+    "$2.45": "Added the delta to the move instead of multiplying."
+   }
   },
   {
    "key": "q10",
@@ -955,9 +966,9 @@
    "key": "q15",
    "skill": "options.delta",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You own 3 calls at a 0.55 delta. The stock rises $4, nothing else changes. About how much should the position gain?",
-   "answer": 660,
+   "answer": "$660",
    "calc": {
     "fn": "arith",
     "args": {
@@ -968,7 +979,7 @@
     }
    },
    "prefix": "$",
-   "why": "$660. Take 0.55 times the $4 move, times 100 shares a contract, times 3 contracts. That is an estimate, not a promise.",
+   "why": "$660. Take 0.55 times the $4 move, times 100 shares a contract. That is $220 for one contract. Times 3 contracts is $660. That is an estimate, not a promise.",
    "lesson_line": "Dollar estimate: delta times move times 100 times contracts. The bigger the move, the rougher it gets.",
    "facts": [
     "f1",
@@ -988,7 +999,18 @@
      "the key is computed"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "tomcq",
+   "choices": [
+    "$220",
+    "$1,200",
+    "$660",
+    "$6.60"
+   ],
+   "wrong": {
+    "$220": "Counted one contract instead of three.",
+    "$1,200": "Treated the calls like shares, a delta of one.",
+    "$6.60": "Forgot each contract covers 100 shares."
+   }
   },
   {
    "key": "q16",
@@ -1405,8 +1427,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "0.45 x 2 = 0.90, recomputed."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4."
   },
   "q10": {
    "status": "pass",
@@ -1441,8 +1463,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "3 x 0.55 x 4 x 100 = 660, recomputed."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
   },
   "q16": {
    "status": "pass",

@@ -1317,10 +1317,10 @@
    "key": "q15",
    "skill": "setup.wyckoff_spring",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "spr.range_height",
    "q": "Floor 91.25, top 100.68. How tall is the range, as a percent of the floor?",
-   "answer": 10.3,
+   "answer": "10.3%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1330,7 +1330,7 @@
     },
     "round": 1
    },
-   "why": "10.3%. Height is the top minus the floor, divided by the floor: (100.68 - 91.25) / 91.25 = 10.3%. That sits inside our card's 6% to 20% band. Our scan measures it the same way: GIS's 21.30 to 23.30 shelf is 9.4%.",
+   "why": "10.3%. The height is the top minus the floor: 100.68 minus 91.25. Divide that by the floor, 91.25, to get 10.3%. That sits inside our card's 6% to 20% band. Dividing by the top instead gives a smaller number, so use the floor.",
    "lesson_line": "Height is top minus floor, over the floor.",
    "facts": [
     "c07",
@@ -1348,16 +1348,27 @@
      "proposed card criterion (spr.range_height), the owner's review pending"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "9.4%",
+    "110.3%",
+    "10.3%",
+    "1.0%"
+   ],
+   "wrong": {
+    "9.4%": "Divided by the top, not the floor.",
+    "110.3%": "Gave the top as a share of the floor.",
+    "1.0%": "Slipped the decimal point a place."
+   }
   },
   {
    "key": "q16",
    "skill": "setup.wyckoff_spring",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "spr.dip_depth",
    "q": "The floor is 150.00, ATR is 3.00 and the spring low is 149.10. How deep is the dip, in ATR?",
-   "answer": 0.3,
+   "answer": "0.3 ATR",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1385,7 +1396,18 @@
      "rests on a proposed card criterion awaiting the owner's review (0.1 to 1 ATR)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "0.9 ATR",
+    "0.3 ATR",
+    "3.3 ATR",
+    "0.6 ATR"
+   ],
+   "wrong": {
+    "0.9 ATR": "Gave the dollars under the floor and skipped the ATR.",
+    "3.3 ATR": "Flipped the division, ATR over the dollars.",
+    "0.6 ATR": "Used the percent under the floor as ATR."
+   }
   },
   {
    "key": "q17",
@@ -1713,10 +1735,10 @@
    "key": "q26",
    "skill": "setup.wyckoff_spring",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "spr.stop_width",
    "q": "You buy at 62.50 with the stop at 61.30. How far is the stop, as a percent of the buy?",
-   "answer": 1.92,
+   "answer": "1.92%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1743,7 +1765,18 @@
      "rests on the owner's rulebook (A13) and the held stop-width decision D-022"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "1.20%",
+    "19.20%",
+    "98.08%",
+    "1.92%"
+   ],
+   "wrong": {
+    "1.20%": "Used the dollar gap as a percent.",
+    "19.20%": "Slipped the decimal point a place.",
+    "98.08%": "Gave the stop as a share of the buy."
+   }
   },
   {
    "key": "q27",
@@ -2661,10 +2694,10 @@
    "key": "q51",
    "skill": "setup.wyckoff_spring",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "spr.range_top_resistance",
    "q": "Entry 142.00, stop 140.00, old range top 148.00. How many R is the top away?",
-   "answer": 3.0,
+   "answer": "3.0R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2697,7 +2730,18 @@
      "rests on house sources (the DELL plan, the card)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "6.0R",
+    "3.0R",
+    "4.0R",
+    "0.3R"
+   ],
+   "wrong": {
+    "6.0R": "Gave the dollar climb and skipped the R division.",
+    "4.0R": "Measured the climb from the stop, not the entry.",
+    "0.3R": "Flipped the division, risk over the climb."
+   }
   },
   {
    "key": "q52",
@@ -3257,10 +3301,10 @@
    "key": "q69",
    "skill": "setup.wyckoff_spring",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "spr.liquidity",
    "q": "A stock trades 750,000 shares a day at 24.00. How many dollars a day is that?",
-   "answer": 18000000,
+   "answer": "$18,000,000",
    "calc": {
     "fn": "dollar_volume",
     "args": {
@@ -3286,7 +3330,18 @@
      "rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "$1,800,000",
+    "$180,000,000",
+    "$18,000,000",
+    "$31,250"
+   ],
+   "wrong": {
+    "$1,800,000": "Slipped the decimal point a place.",
+    "$180,000,000": "Slipped the decimal point the other way.",
+    "$31,250": "Divided shares by price, not multiplied."
+   }
   },
   {
    "key": "q70",
@@ -3389,10 +3444,10 @@
    "key": "q73",
    "skill": "setup.wyckoff_spring",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "spr.breakeven",
    "q": "Bought at 52.40 with the stop at 51.10. At what price is 2R, where the breakeven window opens?",
-   "answer": 55.0,
+   "answer": "$55.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3402,7 +3457,7 @@
     },
     "round": 2
    },
-   "why": "55. One R is the buy minus the stop. 2R is the buy plus two of those, which is 55. Our breakeven window runs from 2R to 5R, and the card moves the stop to breakeven at the first trim by default. So 55 is where the window opens, not a point where you must move it.",
+   "why": "55.00. One R is the buy minus the stop: 52.40 minus 51.10. Add two of those to the 52.40 buy. That gives 55.00. Our breakeven window runs from 2R to 5R, and the card moves the stop to breakeven at the first trim by default. So 55.00 is where the window opens, not a point where you must move it.",
    "lesson_line": "Know your 2R before the open. The breakeven window starts there.",
    "facts": [
     "h05",
@@ -3410,7 +3465,7 @@
    ],
    "house": true,
    "prefix": "$",
-   "simple": "2R is 55, the buy plus twice the gap down to the stop.",
+   "simple": "2R is $55.00, the buy plus twice the gap down to the stop.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -3419,16 +3474,27 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "$53.70",
+    "$55.00",
+    "$54.40",
+    "$56.30"
+   ],
+   "wrong": {
+    "$53.70": "Added one R, not two.",
+    "$54.40": "Added 2 dollars, not two R.",
+    "$56.30": "Added three R, one too many."
+   }
   },
   {
    "key": "q74",
    "skill": "setup.wyckoff_spring",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "spr.trim_2",
    "q": "A spring position is 900 shares. You sell a third of the 900 at 3R and another third of the 900 at 5R. How many are left to trail?",
-   "answer": 300,
+   "answer": "300 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3455,7 +3521,18 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "600 shares",
+    "400 shares",
+    "100 shares",
+    "300 shares"
+   ],
+   "wrong": {
+    "600 shares": "Counted only one of the two sells.",
+    "400 shares": "Sold a third of what was left on the second sell.",
+    "100 shares": "Took a third of a third."
+   }
   },
   {
    "key": "q75",
@@ -3673,14 +3750,14 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc re-derived: (100.68 - 91.25) / 91.25 x 100 = 10.33 -> 10.3. d01 (GIS 21.30-23.30 = 9.4%) confirms the floor divisor (2.00/21.30 = 9.39%)."
+   "fixed": true,
+   "notes": "10.3% = 9.43/91.25 verified; wrong choices real (9.4% = 9.43/100.68). But the old why quotes a GIS shelf that also equals 9.4%, which would read as confirming the wrong choice. Rewrote the why with the steps and no GIS line."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc (150.00 - 149.10) / 3.00 = 0.3 checks. Key inside c09's band. Minor: 'real but shallow' and the Fraser sentence are soft padding but not false (d03 calls a 0.13 ATR undercut shallow; f01 verified on Fraser's page)."
+   "notes": "0.9/3 = 0.3. 0.9 skipped ATR, 3.3 = 3/0.9 flipped, 0.6 = 0.9/150 percent. Verified."
   },
   "q18": {
    "status": "pass",
@@ -3716,8 +3793,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "D-005: 1-3% preferred, up to 5% ok; '3% or so usually' is stale."
+   "fixed": false,
+   "notes": "1.2/62.5 = 1.92%. 1.20 dollar gap, 19.20 slip, 98.08 stop as share. Verified."
   },
   "q28": {
    "status": "pass",
@@ -3802,7 +3879,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "notes": "6/2 = 3.0R. 6.0 dollar climb, 4.0 = 8/2 from the stop, 0.3 = 2/6 flipped. Verified."
   },
   "q61": {
    "status": "pass",
@@ -4015,9 +4092,9 @@
   },
   "q69": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "750,000*24 = 18,000,000. Decimal slips and 31,250 = 750,000/24. Verified."
   },
   "q70": {
    "status": "pass",
@@ -4039,15 +4116,15 @@
   },
   "q73": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "55.00 correct (52.40+2*1.30). Answer was the largest choice; replaced the subtract-2R choice with a three-R count slip (56.30)."
   },
   "q74": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "notes": "900-2*300 = 300. 600 one sell, 400 = 900-300-200, 100 a third of a third. Fine."
   },
   "q75": {
    "status": "pass",

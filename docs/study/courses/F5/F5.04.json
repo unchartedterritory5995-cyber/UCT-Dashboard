@@ -1002,9 +1002,9 @@
    "key": "q10",
    "skill": "fund.season",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "MSFT was $209.58 hours before its July 22, 2020 report. Options priced a $9.48 move. What is that as a percent?",
-   "answer": 4.5,
+   "answer": "4.5%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1015,7 +1015,7 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "4.5%. Divide the priced move by the price, then multiply by 100: $9.48 divided by $209.58 is about 4.5%. IBKR read that move from the nearest at-the-money straddle. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after.",
+   "why": "4.5%. Divide the priced move by the price, then multiply by 100. $9.48 divided by $209.58 is about 4.5%. IBKR read that move from the nearest at-the-money straddle. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after.",
    "lesson_line": "Turn the priced move into a percent. Then compare it with how far away your stop is.",
    "facts": [
     "f52",
@@ -1032,7 +1032,18 @@
      "computed key (calc); inputs from one IBKR page, which refused a plain client (403) on 2026-11-12"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "0.5%",
+    "22.1%",
+    "9.5%",
+    "4.5%"
+   ],
+   "wrong": {
+    "22.1%": "You flipped it and divided the stock price by the priced move.",
+    "9.5%": "You read the $9.48 dollar move as a percent.",
+    "0.5%": "A decimal slip: you moved the point the wrong way."
+   }
   },
   {
    "key": "q11",
@@ -1133,9 +1144,9 @@
    "key": "q14",
    "skill": "fund.season",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You hold 200 shares of a $40 stock into earnings. The implied move is ±9%. What do you lose if it gaps down that much?",
-   "answer": 720,
+   "answer": "$720",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1146,7 +1157,7 @@
     }
    },
    "prefix": "$",
-   "why": "$720. The position is 200 shares at $40, and 9% of it is $720. That is the loss if the stock gaps down by the implied move. The implied move is no cap: the real gap can be bigger or smaller.",
+   "why": "$720. The loss is shares times price times the implied move: 200 times $40 times 9% is $720. That is the loss if the stock gaps down by the implied move. The implied move is no cap: the real gap can be bigger or smaller.",
    "lesson_line": "Put the implied move in dollars on your position. Plan for that loss, and know it can be bigger.",
    "facts": [
     "f39",
@@ -1162,7 +1173,18 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$1,800",
+    "$3.60",
+    "$720",
+    "$7,200"
+   ],
+   "wrong": {
+    "$3.60": "You found the loss per share and forgot to multiply by 200 shares.",
+    "$1,800": "You treated the 9% as $9 a share.",
+    "$7,200": "A decimal slip: you added a zero."
+   }
   },
   {
    "key": "q15",
@@ -1602,8 +1624,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc 9.48 / 209.58 x 100 = 4.52, rounds to 4.5, matches f52. Size-not-direction from f36."
+   "fixed": true,
+   "notes": "Answer and calc check out. Fix: the explanation did not show the intermediate step; added it."
   },
   "q11": {
    "status": "cut",
@@ -1626,8 +1648,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc 200 x 40 x 9 / 100 = 720. 'bigger or smaller' from f38. $40 clears B23."
+   "fixed": true,
+   "notes": "Answer and calc check out. Fix: the explanation did not show the intermediate step; added it."
   },
   "q15": {
    "status": "cut",

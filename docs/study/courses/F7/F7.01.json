@@ -1129,9 +1129,9 @@
    "key": "q11",
    "skill": "history.how_markets_move",
    "rung": 4,
-   "format": "numeric",
-   "q": "An index's record close is 4,800. Today it closes at 4,080. How far below the record is it, in percent?",
-   "answer": 15,
+   "format": "mcq",
+   "q": "An index's record close is 4,800. Today it closes at 4,080. How far below the record is it?",
+   "answer": "15%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -1154,7 +1154,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "18%",
+    "85%",
+    "1.5%",
+    "15%"
+   ],
+   "wrong": {
+    "18%": "Divides the fall by today's close instead of the record.",
+    "85%": "Gives the close as a share of the record, not how far below it is.",
+    "1.5%": "Slips a decimal place."
+   }
   },
   {
    "key": "q12",
@@ -1338,9 +1349,9 @@
    "key": "q17",
    "skill": "history.how_markets_move",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The S&P 500's record close in February 2025 was 6,144.15. At what close would it be down exactly 20%?",
-   "answer": 4915.32,
+   "answer": "4,915.32",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1364,15 +1375,26 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "7,372.98",
+    "1,228.83",
+    "4,915.32",
+    "6,124.15"
+   ],
+   "wrong": {
+    "7,372.98": "Adds 20% to the record instead of taking it off.",
+    "6,124.15": "Takes 20 points off the record, not 20 percent.",
+    "1,228.83": "Gives the 20% drop itself, not the level it leaves."
+   }
   },
   {
    "key": "q18",
    "skill": "history.how_markets_move",
    "rung": 6,
-   "format": "numeric",
-   "q": "An index falls 25% from its record, then rises 20% off the low. How far below the old record is it now, in percent?",
-   "answer": 10,
+   "format": "mcq",
+   "q": "An index falls 25% from its record, then rises 20% off the low. How far below the old record is it now?",
+   "answer": "10%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1401,7 +1423,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "5%",
+    "10%",
+    "45%",
+    "20%"
+   ],
+   "wrong": {
+    "5%": "Subtracts 20 from 25. The rise is figured on a smaller base.",
+    "45%": "Adds the fall and the rise.",
+    "20%": "Takes the 20% rise as the new gap to the record."
+   }
   },
   {
    "key": "q19",
@@ -1897,9 +1930,9 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
   },
   "q12": {
    "status": "pass",
@@ -1933,15 +1966,15 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2. Replaced 5,120.13 (ambiguous half-cent rounding 5120.125)."
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
   },
   "q19": {
    "status": "pass",

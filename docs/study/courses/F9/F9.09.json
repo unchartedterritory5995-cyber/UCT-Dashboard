@@ -907,10 +907,10 @@
    "key": "q08",
    "skill": "risk.trade_rules",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "The buy point is $50. Under our 4% chase line, what's the highest price you may pay?",
-   "answer": 52,
+   "answer": "$52.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -935,7 +935,18 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$50.20",
+    "$48.00",
+    "$52.00",
+    "$2.00"
+   ],
+   "wrong": {
+    "$48.00": "Subtracted the 4% instead of adding it.",
+    "$50.20": "Decimal slip: added a tenth of the 4%.",
+    "$2.00": "Found the 4% but did not add it to the buy point."
+   }
   },
   {
    "key": "q09",
@@ -1158,10 +1169,10 @@
    "key": "q15",
    "skill": "risk.trade_rules",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "You bought at $40 with a $38 stop. Earnings are tomorrow and the stock is at $48. How many R are you up?",
-   "answer": 4,
+   "answer": "4R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -1171,7 +1182,7 @@
     }
    },
    "suffix": "R",
-   "why": "4R. One R is the risk from the $40 entry to the $38 stop. The move from $40 to $48 is four times that. Our line to hold through earnings is 5R, so this one is sold before the report, however good it looks.",
+   "why": "4R. One R is the risk per share, $40 minus $38. The gain per share is $48 minus $40, which is $8. The gain divided by one R is 4R. Our line to hold through earnings is 5R, so this one is sold before the report, however good it looks.",
    "lesson_line": "Count the R before the report. Under 5R, sell before it; a gap won't wait for your stop.",
    "facts": [
     "h15",
@@ -1190,7 +1201,18 @@
      "computed key (calc r_multiple)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "8R",
+    "4R",
+    "20R",
+    "5R"
+   ],
+   "wrong": {
+    "8R": "Counted the dollars gained as R.",
+    "20R": "Counted the percent gained as R.",
+    "5R": "Measured from the stop instead of the entry, which lands on the hold line."
+   }
   },
   {
    "key": "q16",
@@ -1251,10 +1273,10 @@
    "key": "q18",
    "skill": "risk.trade_rules",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Entry $60, stop $57. The stock gaps down. Below what price does the first 30 minutes' loss pass 2R, our gap-rule ceiling?",
-   "answer": 54,
+   "answer": "$54",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1264,7 +1286,7 @@
     }
    },
    "prefix": "$",
-   "why": "$54. One R is the risk from the $60 entry to the $57 stop. Twice that below the entry is $54. If the first 30 minutes take the stock under $54, the loss is past 2R, and our rule says get out.",
+   "why": "$54. One R is $60 minus $57. Twice that, taken off the $60 entry, is $54. If the first 30 minutes take the stock under $54, the loss is past 2R, and our rule says get out.",
    "lesson_line": "Know your 2R price ahead of time. If the first 30 minutes take the loss past it, get out.",
    "facts": [
     "h19",
@@ -1283,7 +1305,18 @@
      "the gap rule's broker-stop mechanics are still an open owner question (see q17 in conflicts)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$51",
+    "$57",
+    "$58",
+    "$54"
+   ],
+   "wrong": {
+    "$51": "Counted two R down from the stop, not from the entry.",
+    "$57": "Used the stop price, which is only one R.",
+    "$58": "Took two dollars under the entry instead of two R."
+   }
   },
   {
    "key": "q19",
@@ -1761,7 +1794,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc 50 * 1.04 = 52 checked. Stem gives 4% but q03 (rung 1) comes first, so no giveaway in play order."
+   "notes": "52.00 = 50*1.04; 48.00, 50.20 (0.4%), 2.00 all real slips."
   },
   "q09": {
    "status": "pass",
@@ -1801,9 +1834,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Math right (8/2=4; 5R from stop; 20R pct; 8R dollars). Why lacked the dollar gain."
   },
   "q16": {
    "status": "pass",
@@ -1820,8 +1853,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc checked: 60 - 2*(60-57) = 54. The key and why are right, and the why stays in h19's words. But the lesson_line 'Past it, the gap rule stops waiting' still says to exit the moment price crosses, which the last fix took out of the why: h19 says only 'if the first 30 minutes take the loss past 2R, get out'. 'Before a gap day' also suggests you can know a gap is coming. Lesson_line restated in the rule's words."
+   "fixed": false,
+   "notes": "Math right (54; 51 from stop; 57 = stop; 58). Why walks the steps."
   },
   "q19": {
    "status": "pass",

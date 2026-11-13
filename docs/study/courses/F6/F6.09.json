@@ -810,9 +810,9 @@
    "key": "q09",
    "skill": "options.strike",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The stock is at 50. You buy the 52.50 call for 0.99. Held to expiry, what stock price gets you back to even?",
-   "answer": 53.49,
+   "answer": "$53.49",
    "prefix": "$",
    "calc": {
     "fn": "option_breakeven",
@@ -836,15 +836,26 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$51.51",
+    "$52.50",
+    "$53.49",
+    "$50.99"
+   ],
+   "wrong": {
+    "$51.51": "Takes the premium off the strike. That is the put formula.",
+    "$52.50": "Stops at the strike and forgets the 0.99 the call cost.",
+    "$50.99": "Adds the premium to today's stock price, not to the strike."
+   }
   },
   {
    "key": "q10",
    "skill": "options.strike",
    "rung": 4,
-   "format": "numeric",
-   "q": "A call shows a 0.22 delta. Read as rough odds, what's the chance it expires worthless, in percent?",
-   "answer": 78,
+   "format": "mcq",
+   "q": "A call shows a 0.22 delta. Read as rough odds, what's the chance it expires worthless?",
+   "answer": "78%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -874,7 +885,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "78%",
+    "22%",
+    "2.2%",
+    "99.78%"
+   ],
+   "wrong": {
+    "22%": "That is the chance of finishing in the money, not of expiring worthless.",
+    "2.2%": "Slips a decimal place on the 0.22 delta.",
+    "99.78%": "Subtracts 0.22 from 100 without turning the delta into a percent."
+   }
   },
   {
    "key": "q11",
@@ -1202,9 +1224,9 @@
    "key": "q20",
    "skill": "options.strike",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You own shares bought at 50 and buy the 45 put for 0.55. Held to expiry, what's your worst-case loss per share?",
-   "answer": 5.55,
+   "answer": "$5.55",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1234,7 +1256,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$5.00",
+    "$4.45",
+    "$0.55",
+    "$5.55"
+   ],
+   "wrong": {
+    "$5.00": "Skips the 0.55 the put cost.",
+    "$4.45": "Takes the premium off the loss when it should be added.",
+    "$0.55": "Counts only the premium. That holds only if you bought the stock at the strike."
+   }
   },
   {
    "key": "q21",
@@ -1348,9 +1381,9 @@
    "key": "q24",
    "skill": "options.strike",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A far out-of-the-money call is quoted 0.10 bid, 0.20 ask. How wide is the spread, as a percent of the ask?",
-   "answer": 50,
+   "answer": "50%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1379,7 +1412,18 @@
      "fixed before (lesson line no longer contradicts q08)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "100%",
+    "67%",
+    "50%",
+    "10%"
+   ],
+   "wrong": {
+    "100%": "Divides the spread by the 0.10 bid instead of the ask.",
+    "67%": "Divides the spread by the midpoint, not the ask.",
+    "10%": "Reads the 0.10 spread in dollars as 10 percent."
+   }
   },
   {
    "key": "q25",
@@ -1426,9 +1470,9 @@
    "key": "q26",
    "skill": "options.strike",
    "rung": 9,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your target is 110 by expiry. You buy the 110 call for 1.00. Held to expiry, how far past your target must the stock go to break even?",
-   "answer": 1,
+   "answer": "$1.00",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1447,7 +1491,7 @@
     "f25",
     "f14"
    ],
-   "simple": "$1, because the call's break-even is the strike plus the 1.00 you paid, which sits above your 110 target.",
+   "simple": "$1.00, because the call's break-even is the strike plus the 1.00 you paid, which sits above your 110 target.",
    "deeper": {
     "trap": "A strike at your target feels natural, but held to expiry it can't win at the target. The stock has to clear 110 plus 1.00. Pick a strike whose break-even sits below your target. Or plan to sell before expiry, while the call still has time value."
    },
@@ -1459,7 +1503,18 @@
      "fixed before (held-to-expiry condition added)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$1.00",
+    "$0.00",
+    "$100.00",
+    "$0.10"
+   ],
+   "wrong": {
+    "$0.00": "Treats the 110 strike as the break-even and ignores the premium.",
+    "$100.00": "Mixes up the dollars on a whole contract with the price per share.",
+    "$0.10": "Slips a decimal place on the 1.00 premium."
+   }
   },
   {
    "key": "q27",
@@ -1625,15 +1680,15 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
   },
   "q11": {
    "status": "pass",
@@ -1709,9 +1764,9 @@
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
   },
   "q21": {
    "status": "pass",
@@ -1734,8 +1789,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (0.20-0.10)/0.20*100 = 50. 'Half the ask' restates the calc. The deeper's buy-at-ask, sell-at-bid case is the same arithmetic. f57, f41 and f56 back the rest."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
   },
   "q25": {
    "status": "pass",
@@ -1745,9 +1800,9 @@
   },
   "q26": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
   },
   "q27": {
    "status": "pass",

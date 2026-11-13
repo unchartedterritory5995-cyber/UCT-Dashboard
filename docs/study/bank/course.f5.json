@@ -488,20 +488,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.27",
-    "2.270"
-   ],
-   "answer": 2.27
+   "answer": "$2.27"
   },
   "difficulty": 2,
   "id": "si_d1dbc1089c43",
   "lesson_origin": "session",
-  "lesson_text": "$2.27. Divide net earnings of $1,036 million by 456.5 million diluted shares. Both are in millions, so the millions cancel. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27. EPS is net income over the share count. You can check it yourself.",
+  "lesson_text": "$2.27. Divide net earnings of $1,036 million by 456.5 million diluted shares. Both are in millions, so the millions cancel, and 1,036 / 456.5 is about 2.27. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27. EPS is net income over the share count. You can check it yourself.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.44",
+    "$2.27",
+    "$22.70",
+    "$579.50"
+   ],
+   "kind": "mcq",
    "q": "Target's Q1 2025 net earnings were $1,036 million on 456.5 million diluted shares. What is diluted EPS, to the cent?",
    "subject": "F5.01#q09"
   },
@@ -535,13 +536,18 @@
      "fn": "arith",
      "result": 2.27
     },
-    "given": "Target's Q1 2025 net earnings were $1,036 million on 456.5 million diluted shares. What is diluted EPS, to the cent?"
+    "given": "Target's Q1 2025 net earnings were $1,036 million on 456.5 million diluted shares. What is diluted EPS, to the cent? $579.50 $0.44 $22.70 $2.27"
    },
    "lesson_line": "EPS is net income over the share count. You can check it yourself.",
    "simple": "It's $2.27, because you split the $1,036 million of profit over the 456.5 million shares.",
    "tier": "core",
    "unit": "F5.01",
-   "why": "$2.27. Divide net earnings of $1,036 million by 456.5 million diluted shares. Both are in millions, so the millions cancel. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27."
+   "why": "$2.27. Divide net earnings of $1,036 million by 456.5 million diluted shares. Both are in millions, so the millions cancel, and 1,036 / 456.5 is about 2.27. Target's table divides by the quarter's weighted average diluted shares and reports the same $2.27.",
+   "wrong": {
+    "$0.44": "You flipped the division and divided the shares by the earnings.",
+    "$22.70": "A decimal slip: you moved the point one place.",
+    "$579.50": "You subtracted the share count from the earnings instead of dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.report",
@@ -552,13 +558,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "62",
-    "62.0",
-    "62.00",
-    "62.000"
-   ],
-   "answer": 62.0
+   "answer": "62%"
   },
   "difficulty": 2,
   "id": "si_4d887c73fe32",
@@ -566,10 +566,15 @@
   "lesson_text": "62%. Divide this year's $57,006 million by the year-ago $35,082 million, subtract one, then times 100. That rounds to 62. NVIDIA's release says revenue was up 62% from a year ago. Growth is measured from the old number. For year over year, divide by the year-ago figure.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "6.2%",
+    "38%",
+    "62%",
+    "162%"
+   ],
+   "kind": "mcq",
    "q": "NVIDIA's Q3 fiscal 2026 revenue was $57,006 million, up from $35,082 million a year earlier. YoY growth, to the nearest percent?",
-   "subject": "F5.01#q10",
-   "suffix": "%"
+   "subject": "F5.01#q10"
   },
   "reveal_json": {
    "deeper": {
@@ -610,13 +615,18 @@
      "fn": "yoy_growth",
      "result": 62.0
     },
-    "given": "NVIDIA's Q3 fiscal 2026 revenue was $57,006 million, up from $35,082 million a year earlier. YoY growth, to the nearest percent?"
+    "given": "NVIDIA's Q3 fiscal 2026 revenue was $57,006 million, up from $35,082 million a year earlier. YoY growth, to the nearest percent? 6.2% 38% 162% 62%"
    },
    "lesson_line": "Growth is measured from the old number. For year over year, divide by the year-ago figure.",
    "simple": "62%, because the jump from $35,082 million to $57,006 million is about 62% of the year-ago number.",
    "tier": "core",
    "unit": "F5.01",
-   "why": "62%. Divide this year's $57,006 million by the year-ago $35,082 million, subtract one, then times 100. That rounds to 62. NVIDIA's release says revenue was up 62% from a year ago."
+   "why": "62%. Divide this year's $57,006 million by the year-ago $35,082 million, subtract one, then times 100. That rounds to 62. NVIDIA's release says revenue was up 62% from a year ago.",
+   "wrong": {
+    "162%": "You divided the two numbers and forgot to subtract one.",
+    "38%": "You divided the rise by this year's $57,006 million instead of the year-ago figure.",
+    "6.2%": "A decimal slip: you moved the point one place."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.report",
@@ -627,23 +637,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "17.1",
-    "17.10",
-    "17.100"
-   ],
-   "answer": 17.1
+   "answer": "17.1%"
   },
   "difficulty": 2,
   "id": "si_61566d6b0bcf",
   "lesson_origin": "session",
-  "lesson_text": "17.1%. Take the drop, $187.8 billion minus $155.7 billion, and divide it by the $187.8 billion starting point. Then times 100. That is the quarter-over-quarter change coming out of the fourth quarter. The number tells you how far sales fell. It does not tell you why. Quarter over quarter compares back-to-back quarters. Measure the change from the earlier one.",
+  "lesson_text": "17.1%. The drop is $187.8 billion minus $155.7 billion, which is $32.1 billion. Divide it by the $187.8 billion starting point, then times 100, which gives 17.1%. That is the quarter-over-quarter change coming out of the fourth quarter. The number tells you how far sales fell. It does not tell you why. Quarter over quarter compares back-to-back quarters. Measure the change from the earlier one.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "17.1%",
+    "20.6%",
+    "32.1%",
+    "82.9%"
+   ],
+   "kind": "mcq",
    "q": "Amazon's net sales were $187.8 billion in Q4 2024 and $155.7 billion in Q1 2025. By what percent did they fall, to one decimal?",
-   "subject": "F5.01#q11",
-   "suffix": "%"
+   "subject": "F5.01#q11"
   },
   "reveal_json": {
    "deeper": {
@@ -692,13 +702,18 @@
      "fn": "arith",
      "result": 17.1
     },
-    "given": "Amazon's net sales were $187.8 billion in Q4 2024 and $155.7 billion in Q1 2025. By what percent did they fall, to one decimal?"
+    "given": "Amazon's net sales were $187.8 billion in Q4 2024 and $155.7 billion in Q1 2025. By what percent did they fall, to one decimal? 32.1% 20.6% 82.9% 17.1%"
    },
    "lesson_line": "Quarter over quarter compares back-to-back quarters. Measure the change from the earlier one.",
    "simple": "17.1%, because the drop from $187.8 billion to $155.7 billion is about 17.1% of the starting $187.8 billion.",
    "tier": "extended",
    "unit": "F5.01",
-   "why": "17.1%. Take the drop, $187.8 billion minus $155.7 billion, and divide it by the $187.8 billion starting point. Then times 100. That is the quarter-over-quarter change coming out of the fourth quarter. The number tells you how far sales fell. It does not tell you why."
+   "why": "17.1%. The drop is $187.8 billion minus $155.7 billion, which is $32.1 billion. Divide it by the $187.8 billion starting point, then times 100, which gives 17.1%. That is the quarter-over-quarter change coming out of the fourth quarter. The number tells you how far sales fell. It does not tell you why.",
+   "wrong": {
+    "20.6%": "You divided the drop by the new $155.7 billion instead of the starting $187.8 billion.",
+    "32.1%": "You read the $32.1 billion drop as a percent.",
+    "82.9%": "You divided the new number by the old and forgot to subtract from 100%."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.report",
@@ -709,23 +724,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "28.2",
-    "28.20",
-    "28.200"
-   ],
-   "answer": 28.2
+   "answer": "28.2%"
   },
   "difficulty": 2,
   "id": "si_96057433d33b",
   "lesson_origin": "session",
-  "lesson_text": "28.2%. Gross margin is net sales less cost of sales, divided by net sales. Here that is $23,846 million less $17,128 million, divided by $23,846 million. Target's release reports the same 28.2 percent. Gross margin is what's left of each sales dollar after the cost of the goods.",
+  "lesson_text": "28.2%. Take sales less cost of sales, $23,846 million minus $17,128 million. Divide that by the $23,846 million of sales and you get 28.2%. Target's release reports the same 28.2 percent. Gross margin is what's left of each sales dollar after the cost of the goods.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "2.8%",
+    "28.2%",
+    "39.2%",
+    "71.8%"
+   ],
+   "kind": "mcq",
    "q": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23,846 million, cost $17,128 million. To one decimal?",
-   "subject": "F5.01#q12",
-   "suffix": "%"
+   "subject": "F5.01#q12"
   },
   "reveal_json": {
    "depth": {
@@ -778,13 +793,18 @@
      "fn": "arith",
      "result": 28.2
     },
-    "given": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23,846 million, cost $17,128 million. To one decimal?"
+    "given": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23,846 million, cost $17,128 million. To one decimal? 71.8% 39.2% 28.2% 2.8%"
    },
    "lesson_line": "Gross margin is what's left of each sales dollar after the cost of the goods.",
    "simple": "28.2%, because sales minus the cost of sales, divided by sales, comes to about 28.2%.",
    "tier": "extended",
    "unit": "F5.01",
-   "why": "28.2%. Gross margin is net sales less cost of sales, divided by net sales. Here that is $23,846 million less $17,128 million, divided by $23,846 million. Target's release reports the same 28.2 percent."
+   "why": "28.2%. Take sales less cost of sales, $23,846 million minus $17,128 million. Divide that by the $23,846 million of sales and you get 28.2%. Target's release reports the same 28.2 percent.",
+   "wrong": {
+    "2.8%": "A decimal slip: you moved the point one place.",
+    "39.2%": "You divided the profit by the cost of sales instead of by sales.",
+    "71.8%": "You gave the cost share and forgot to subtract it from sales."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.report",
@@ -981,23 +1001,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "5.8",
-    "5.80",
-    "5.800"
-   ],
-   "answer": 5.8
+   "answer": "5.8%"
   },
   "difficulty": 2,
   "id": "si_5819d55401d4",
   "lesson_origin": "session",
-  "lesson_text": "5.8%. Operating margin is income from operations divided by revenue: $1,624 million over $28,095 million. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier. Operating margin shows how much of each sales dollar survives the cost of running the business.",
+  "lesson_text": "5.8%. Operating margin is income from operations divided by revenue: $1,624 million over $28,095 million is 5.8%. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier. Operating margin shows how much of each sales dollar survives the cost of running the business.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.6%",
+    "5.8%",
+    "17.3%",
+    "94.2%"
+   ],
+   "kind": "mcq",
    "q": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1,624 million on $28,095 million of revenue. To one decimal?",
-   "subject": "F5.01#q15",
-   "suffix": "%"
+   "subject": "F5.01#q15"
   },
   "reveal_json": {
    "depth": {
@@ -1050,13 +1070,18 @@
      "fn": "arith",
      "result": 5.8
     },
-    "given": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1,624 million on $28,095 million of revenue. To one decimal?"
+    "given": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1,624 million on $28,095 million of revenue. To one decimal? 0.6% 17.3% 94.2% 5.8%"
    },
    "lesson_line": "Operating margin shows how much of each sales dollar survives the cost of running the business.",
    "simple": "5.8%, because $1,624 million of operating income is about 5.8% of $28,095 million in revenue.",
    "tier": "extended",
    "unit": "F5.01",
-   "why": "5.8%. Operating margin is income from operations divided by revenue: $1,624 million over $28,095 million. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier."
+   "why": "5.8%. Operating margin is income from operations divided by revenue: $1,624 million over $28,095 million is 5.8%. It is the share of each sales dollar left from the main business. Tesla's financial summary table shows the same 5.8%, down from 10.8% a year earlier.",
+   "wrong": {
+    "0.6%": "A decimal slip: you moved the point one place.",
+    "17.3%": "You flipped the division and divided revenue by operating income.",
+    "94.2%": "You gave the share of each sales dollar that went to costs."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.report",
@@ -2717,13 +2742,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "5",
-    "5.0",
-    "5.00",
-    "5.000"
-   ],
-   "answer": 5.0
+   "answer": "5%"
   },
   "difficulty": 2,
   "id": "si_c259d2927d04",
@@ -2731,10 +2750,15 @@
   "lesson_text": "5%. Take actual minus the estimate, divide by the estimate, then multiply by 100. Here $0.84 against $0.80 is a 5% beat. Zacks divides by the absolute value of the estimate, which only matters when the estimate is negative. The surprise is measured against the consensus, not against last year. The surprise is measured against the estimate, not against last year.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "4%",
+    "5%",
+    "95%",
+    "105%"
+   ],
+   "kind": "mcq",
    "q": "The consensus is $0.80 a share. The company reports $0.84. What is the earnings surprise, in percent?",
-   "subject": "F5.02#q09",
-   "suffix": "%"
+   "subject": "F5.02#q09"
   },
   "reveal_json": {
    "depth": {
@@ -2772,13 +2796,18 @@
      "fn": "pct_change",
      "result": 5.0
     },
-    "given": "The consensus is $0.80 a share. The company reports $0.84. What is the earnings surprise, in percent?"
+    "given": "The consensus is $0.80 a share. The company reports $0.84. What is the earnings surprise, in percent? 105% 4% 95% 5%"
    },
    "lesson_line": "The surprise is measured against the estimate, not against last year.",
    "simple": "The surprise is 5%, because $0.84 is 5% above the $0.80 consensus.",
    "tier": "core",
    "unit": "F5.02",
-   "why": "5%. Take actual minus the estimate, divide by the estimate, then multiply by 100. Here $0.84 against $0.80 is a 5% beat. Zacks divides by the absolute value of the estimate, which only matters when the estimate is negative. The surprise is measured against the consensus, not against last year."
+   "why": "5%. Take actual minus the estimate, divide by the estimate, then multiply by 100. Here $0.84 against $0.80 is a 5% beat. Zacks divides by the absolute value of the estimate, which only matters when the estimate is negative. The surprise is measured against the consensus, not against last year.",
+   "wrong": {
+    "105%": "You divided actual by the estimate and forgot to subtract one.",
+    "4%": "You read the 4-cent beat as 4%.",
+    "95%": "You divided the estimate by the actual instead of the actual by the estimate."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.estimates",
@@ -2942,12 +2971,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "4.3",
-    "4.30",
-    "4.300"
-   ],
-   "answer": 4.3
+   "answer": "4.3%"
   },
   "difficulty": 2,
   "id": "si_4dc75e3f68af",
@@ -2955,10 +2979,15 @@
   "lesson_text": "4.3%. Take $1.22 minus $1.17, divide by the $1.17 estimate, and multiply by 100. Rounded to one decimal, that is 4.3%. Actual is above the consensus, so it is a beat. Work the surprise in percent: actual minus the consensus, divided by the consensus.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.4%",
+    "4.3%",
+    "5.0%",
+    "104.3%"
+   ],
+   "kind": "mcq",
    "q": "Cisco reported $1.22 adjusted EPS. The LSEG consensus was $1.17. What was the surprise, in percent?",
-   "subject": "F5.02#q12",
-   "suffix": "%"
+   "subject": "F5.02#q12"
   },
   "reveal_json": {
    "depth": {
@@ -3003,13 +3032,18 @@
      "fn": "pct_change",
      "result": 4.3
     },
-    "given": "Cisco reported $1.22 adjusted EPS. The LSEG consensus was $1.17. What was the surprise, in percent?"
+    "given": "Cisco reported $1.22 adjusted EPS. The LSEG consensus was $1.17. What was the surprise, in percent? 104.3% 5.0% 4.3% 0.4%"
    },
    "lesson_line": "Work the surprise in percent: actual minus the consensus, divided by the consensus.",
    "simple": "It's about 4.3%, because $1.22 sits about 4.3% above the $1.17 consensus.",
    "tier": "extended",
    "unit": "F5.02",
-   "why": "4.3%. Take $1.22 minus $1.17, divide by the $1.17 estimate, and multiply by 100. Rounded to one decimal, that is 4.3%. Actual is above the consensus, so it is a beat."
+   "why": "4.3%. Take $1.22 minus $1.17, divide by the $1.17 estimate, and multiply by 100. Rounded to one decimal, that is 4.3%. Actual is above the consensus, so it is a beat.",
+   "wrong": {
+    "0.4%": "A decimal slip: you moved the point one place.",
+    "104.3%": "You divided actual by the consensus and forgot to subtract one.",
+    "5.0%": "You read the 5-cent beat as 5%."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.estimates",
@@ -3020,20 +3054,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.25",
-    "2.250"
-   ],
-   "answer": 2.25
+   "answer": "$2.25"
   },
   "difficulty": 2,
   "id": "si_f5760c448475",
   "lesson_origin": "session",
-  "lesson_text": "$2.25. Add the two ends, $2.15 and $2.35, and halve it. FactSet judges a range by its midpoint against the mean estimate. Analysts expected $2.27, so the EPS midpoint sat just under. CNBC called the earnings forecast lighter than expected, and the stock slid 7% in extended trading. The revenue guide is a separate number. When the guide is a range, compare its midpoint to the consensus.",
+  "lesson_text": "$2.25. Add the two ends: $2.15 plus $2.35 is $4.50. Half of $4.50 is $2.25. FactSet judges a range by its midpoint against the mean estimate. Analysts expected $2.27, so the EPS midpoint sat just under. CNBC called the earnings forecast lighter than expected, and the stock slid 7% in extended trading. The revenue guide is a separate number. When the guide is a range, compare its midpoint to the consensus.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.20",
+    "$2.25",
+    "$2.35",
+    "$4.50"
+   ],
+   "kind": "mcq",
    "q": "Qualcomm guided next-quarter EPS to $2.15 to $2.35. What is the midpoint of that range?",
    "subject": "F5.02#q13"
   },
@@ -3074,13 +3109,18 @@
      "fn": "arith",
      "result": 2.25
     },
-    "given": "Qualcomm guided next-quarter EPS to $2.15 to $2.35. What is the midpoint of that range?"
+    "given": "Qualcomm guided next-quarter EPS to $2.15 to $2.35. What is the midpoint of that range? $4.50 $2.25 $0.20 $2.35"
    },
    "lesson_line": "When the guide is a range, compare its midpoint to the consensus.",
    "simple": "The midpoint is $2.25, halfway between $2.15 and $2.35, and it sat just under the $2.27 analysts expected.",
    "tier": "extended",
    "unit": "F5.02",
-   "why": "$2.25. Add the two ends, $2.15 and $2.35, and halve it. FactSet judges a range by its midpoint against the mean estimate. Analysts expected $2.27, so the EPS midpoint sat just under. CNBC called the earnings forecast lighter than expected, and the stock slid 7% in extended trading. The revenue guide is a separate number."
+   "why": "$2.25. Add the two ends: $2.15 plus $2.35 is $4.50. Half of $4.50 is $2.25. FactSet judges a range by its midpoint against the mean estimate. Analysts expected $2.27, so the EPS midpoint sat just under. CNBC called the earnings forecast lighter than expected, and the stock slid 7% in extended trading. The revenue guide is a separate number.",
+   "wrong": {
+    "$0.20": "You gave the width of the range, not its middle.",
+    "$2.35": "You took the top of the range, the best case.",
+    "$4.50": "You added the two ends and forgot to halve."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.estimates",
@@ -3260,23 +3300,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3.4",
-    "3.40",
-    "3.400"
-   ],
-   "answer": 3.4
+   "answer": "3.4 times"
   },
   "difficulty": 2,
   "id": "si_3de459344e67",
   "lesson_origin": "session",
-  "lesson_text": "About 3.4 times. Divide the miss move by the beat move, 3.1 by 0.9, and round to one decimal. FactSet measures from two days before to two days after the report, over five years. Beats averaged a 0.9% gain and misses a 3.1% drop. These are averages, not a forecast for one stock. On average a beat pays a little and a miss costs a lot.",
+  "lesson_text": "About 3.4 times. Divide the miss move by the beat move: 3.1 divided by 0.9 is about 3.4. FactSet measures from two days before to two days after the report, over five years. Beats averaged a 0.9% gain and misses a 3.1% drop. These are averages, not a forecast for one stock. On average a beat pays a little and a miss costs a lot.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.3 times",
+    "2.2 times",
+    "4.0 times",
+    "3.4 times"
+   ],
+   "kind": "mcq",
    "q": "FactSet's 5-year averages around the report: beats +0.9%, misses -3.1%. How many times bigger is the average miss move?",
-   "subject": "F5.02#q16",
-   "suffix": "times"
+   "subject": "F5.02#q16"
   },
   "reveal_json": {
    "deeper": {
@@ -3325,13 +3365,18 @@
      "fn": "arith",
      "result": 3.4
     },
-    "given": "FactSet's 5-year averages around the report: beats +0.9%, misses -3.1%. How many times bigger is the average miss move?"
+    "given": "FactSet's 5-year averages around the report: beats +0.9%, misses -3.1%. How many times bigger is the average miss move? 4.0 times 0.3 times 2.2 times 3.4 times"
    },
    "lesson_line": "On average a beat pays a little and a miss costs a lot.",
    "simple": "The average miss move is about 3.4 times the average beat move, since 3.1 divided by 0.9 is about 3.4.",
    "tier": "extended",
    "unit": "F5.02",
-   "why": "About 3.4 times. Divide the miss move by the beat move, 3.1 by 0.9, and round to one decimal. FactSet measures from two days before to two days after the report, over five years. Beats averaged a 0.9% gain and misses a 3.1% drop. These are averages, not a forecast for one stock."
+   "why": "About 3.4 times. Divide the miss move by the beat move: 3.1 divided by 0.9 is about 3.4. FactSet measures from two days before to two days after the report, over five years. Beats averaged a 0.9% gain and misses a 3.1% drop. These are averages, not a forecast for one stock.",
+   "wrong": {
+    "0.3 times": "You flipped it and divided the beat move by the miss move.",
+    "2.2 times": "You subtracted 0.9 from 3.1 instead of dividing.",
+    "4.0 times": "You added 0.9 to 3.1 instead of dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.estimates",
@@ -3351,10 +3396,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "The next-quarter outlook",
     "Its stock buyback news",
     "A one-time gain in the beat",
-    "The 12-cent GAAP loss",
-    "The next-quarter outlook"
+    "The 12-cent GAAP loss"
    ],
    "kind": "mcq",
    "q": "The next day the stock falls 17%. What drove the drop?",
@@ -3463,20 +3508,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "5.14",
-    "5.140"
-   ],
-   "answer": 5.14
+   "answer": "$5.14"
   },
   "difficulty": 3,
   "id": "si_40f5b3ca54ba",
   "lesson_origin": "session",
-  "lesson_text": "$5.14. Take $6.99 and subtract the $1.85 non-operating benefit. FactSet does not say whether analysts had counted on the benefit. If they had not, $5.14 still tops the $4.71 estimate. Then most of the headline beat came from the benefit, not the business. Check what's inside a beat. A tax break or a one-off gain can make it look bigger.",
+  "lesson_text": "$5.14. Take $6.99 and subtract the $1.85 non-operating benefit: 6.99 minus 1.85 is 5.14. FactSet does not say whether analysts had counted on the benefit. If they had not, $5.14 still tops the $4.71 estimate. Then most of the headline beat came from the benefit, not the business. Check what's inside a beat. A tax break or a one-off gain can make it look bigger.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$2.28",
+    "$2.86",
+    "$5.14",
+    "$8.84"
+   ],
+   "kind": "mcq",
    "q": "Elevance reported $6.99 EPS vs. $4.71 expected. The $6.99 included a $1.85 non-operating benefit. What is EPS without it?",
    "subject": "F5.02#q18"
   },
@@ -3520,13 +3566,18 @@
      "fn": "arith",
      "result": 5.14
     },
-    "given": "Elevance reported $6.99 EPS vs. $4.71 expected. The $6.99 included a $1.85 non-operating benefit. What is EPS without it?"
+    "given": "Elevance reported $6.99 EPS vs. $4.71 expected. The $6.99 included a $1.85 non-operating benefit. What is EPS without it? $2.28 $8.84 $5.14 $2.86"
    },
    "lesson_line": "Check what's inside a beat. A tax break or a one-off gain can make it look bigger.",
    "simple": "It's $5.14: take the $1.85 non-operating benefit out of the $6.99 reported.",
    "tier": "extended",
    "unit": "F5.02",
-   "why": "$5.14. Take $6.99 and subtract the $1.85 non-operating benefit. FactSet does not say whether analysts had counted on the benefit. If they had not, $5.14 still tops the $4.71 estimate. Then most of the headline beat came from the benefit, not the business."
+   "why": "$5.14. Take $6.99 and subtract the $1.85 non-operating benefit: 6.99 minus 1.85 is 5.14. FactSet does not say whether analysts had counted on the benefit. If they had not, $5.14 still tops the $4.71 estimate. Then most of the headline beat came from the benefit, not the business.",
+   "wrong": {
+    "$2.28": "You took the $4.71 estimate off the $6.99, which is the headline beat.",
+    "$2.86": "You took the benefit off the $4.71 estimate instead of off the $6.99.",
+    "$8.84": "You added the $1.85 benefit instead of taking it out."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.estimates",
@@ -3546,10 +3597,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Its forecast calmed investors",
     "It missed, the bar was low",
     "A stock split was announced",
-    "It ran up into the report"
+    "It ran up into the report",
+    "Its forecast calmed investors"
    ],
    "kind": "mcq",
    "q": "This time the stock rises nearly 9%. Going by CNBC's report, what was different?",
@@ -3648,8 +3699,8 @@
    "choices": [
     "The quarter was really a miss",
     "Beats usually get sold on the news",
-    "The guide missed the consensus",
-    "The bar was above the estimates"
+    "The bar was above the estimates",
+    "The guide missed the consensus"
    ],
    "kind": "mcq",
    "q": "Shares still drop in extended trading. What's the best read?",
@@ -3767,9 +3818,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "About 42% below",
     "About 72% below",
     "About 58% below",
-    "About 42% below",
     "About 18% below"
    ],
    "kind": "mcq",
@@ -4650,24 +4701,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "40",
-    "40.0",
-    "40.00",
-    "40.000"
-   ],
-   "answer": 40.0
+   "answer": "40%"
   },
   "difficulty": 2,
   "id": "si_ea5a2d44805d",
   "lesson_origin": "session",
-  "lesson_text": "40%. Growth is the change divided by the starting value. Take the change from $0.60 to $0.84 and divide it by the starting $0.60. Both numbers are the June quarter, a year apart, which is the same-quarter comparison O'Neil uses. Growth is the change over the starting value. Same quarter, a year apart.",
+  "lesson_text": "40%. Growth is the change divided by the starting value. Take the change from $0.60 to $0.84 and divide it by the starting $0.60. That is 40%. Both numbers are the June quarter, a year apart, which is the same-quarter comparison O'Neil uses. Growth is the change over the starting value. Same quarter, a year apart.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "24%",
+    "29%",
+    "40%",
+    "140%"
+   ],
+   "kind": "mcq",
    "q": "EPS was $0.60 in the June quarter last year. This June quarter it's $0.84. What's the year-over-year EPS growth?",
-   "subject": "F5.03#q09",
-   "suffix": "%"
+   "subject": "F5.03#q09"
   },
   "reveal_json": {
    "depth": {
@@ -4705,13 +4755,18 @@
      "fn": "yoy_growth",
      "result": 40.0
     },
-    "given": "EPS was $0.60 in the June quarter last year. This June quarter it's $0.84. What's the year-over-year EPS growth?"
+    "given": "EPS was $0.60 in the June quarter last year. This June quarter it's $0.84. What's the year-over-year EPS growth? 140% 29% 24% 40%"
    },
    "lesson_line": "Growth is the change over the starting value. Same quarter, a year apart.",
    "simple": "40%. You divide the rise from $0.60 to $0.84 by the starting $0.60.",
    "tier": "core",
    "unit": "F5.03",
-   "why": "40%. Growth is the change divided by the starting value. Take the change from $0.60 to $0.84 and divide it by the starting $0.60. Both numbers are the June quarter, a year apart, which is the same-quarter comparison O'Neil uses."
+   "why": "40%. Growth is the change divided by the starting value. Take the change from $0.60 to $0.84 and divide it by the starting $0.60. That is 40%. Both numbers are the June quarter, a year apart, which is the same-quarter comparison O'Neil uses.",
+   "wrong": {
+    "140%": "You divided the new EPS by the old and forgot to subtract one.",
+    "24%": "You read the 24-cent rise as 24%.",
+    "29%": "You divided the rise by the new $0.84 instead of the starting $0.60."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.growth",
@@ -4722,21 +4777,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "30",
-    "30.0",
-    "30.00",
-    "30.000"
-   ],
-   "answer": 30.0
+   "answer": "30"
   },
   "difficulty": 2,
   "id": "si_111cbc96b2be",
   "lesson_origin": "session",
-  "lesson_text": "30. P/E is the share price divided by earnings per share over the last 12 months: $90 over $3. Investopedia reads it this way: at 20x, investors pay $20 for $1 of current earnings. So at 30, buyers pay $30 for each $1 of yearly earnings. P/E is the price over the last 12 months of EPS.",
+  "lesson_text": "30. P/E is the share price divided by earnings per share over the last 12 months: $90 over $3 is 30. Investopedia reads it this way: at 20x, investors pay $20 for $1 of current earnings. So at 30, buyers pay $30 for each $1 of yearly earnings. P/E is the price over the last 12 months of EPS.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.03",
+    "30",
+    "93",
+    "270"
+   ],
+   "kind": "mcq",
    "q": "A stock trades at $90. Its EPS over the last 12 months is $3. What's its P/E?",
    "subject": "F5.03#q10"
   },
@@ -4783,13 +4838,18 @@
      "fn": "pe",
      "result": 30.0
     },
-    "given": "A stock trades at $90. Its EPS over the last 12 months is $3. What's its P/E?"
+    "given": "A stock trades at $90. Its EPS over the last 12 months is $3. What's its P/E? 93 270 30 0.03"
    },
    "lesson_line": "P/E is the price over the last 12 months of EPS.",
    "simple": "30. Divide the $90 price by the $3 of yearly EPS, so buyers pay $30 for each $1 of earnings.",
    "tier": "core",
    "unit": "F5.03",
-   "why": "30. P/E is the share price divided by earnings per share over the last 12 months: $90 over $3. Investopedia reads it this way: at 20x, investors pay $20 for $1 of current earnings. So at 30, buyers pay $30 for each $1 of yearly earnings."
+   "why": "30. P/E is the share price divided by earnings per share over the last 12 months: $90 over $3 is 30. Investopedia reads it this way: at 20x, investors pay $20 for $1 of current earnings. So at 30, buyers pay $30 for each $1 of yearly earnings.",
+   "wrong": {
+    "0.03": "You flipped it and divided the EPS by the price.",
+    "270": "You multiplied the price by the EPS instead of dividing.",
+    "93": "You added the price and the EPS instead of dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.growth",
@@ -4869,21 +4929,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "25",
-    "25.0",
-    "25.00",
-    "25.000"
-   ],
-   "answer": 25.0
+   "answer": "25"
   },
   "difficulty": 2,
   "id": "si_8d0207648194",
   "lesson_origin": "session",
-  "lesson_text": "25. P/E is price divided by EPS: $100 over $4. The price did not move, but earnings doubled from $2 to $4, so the P/E fell from 50 to 25. That's how a fast grower can grow into a high P/E. Investopedia notes a high P/E can turn out cheap if the company keeps growing fast. It works only if the growth shows up. Fast earnings growth pulls a high P/E down, even when the price stands still.",
+  "lesson_text": "25. P/E is price divided by EPS: $100 over $4 is 25. The price did not move, but earnings doubled from $2 to $4, so the P/E fell from 50 to 25. That's how a fast grower can grow into a high P/E. Investopedia notes a high P/E can turn out cheap if the company keeps growing fast. It works only if the growth shows up. Fast earnings growth pulls a high P/E down, even when the price stands still.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "25",
+    "50",
+    "104",
+    "400"
+   ],
+   "kind": "mcq",
    "q": "A stock is $100 with EPS of $2, a P/E of 50. A year later EPS is $4 and the price is still $100. What's the P/E now?",
    "subject": "F5.03#q12"
   },
@@ -4923,13 +4983,18 @@
      "fn": "pe",
      "result": 25.0
     },
-    "given": "A stock is $100 with EPS of $2, a P/E of 50. A year later EPS is $4 and the price is still $100. What's the P/E now?"
+    "given": "A stock is $100 with EPS of $2, a P/E of 50. A year later EPS is $4 and the price is still $100. What's the P/E now? 400 50 104 25"
    },
    "lesson_line": "Fast earnings growth pulls a high P/E down, even when the price stands still.",
    "simple": "25. The price stayed at $100 while EPS doubled to $4, so the price-to-earnings ratio fell by half.",
    "tier": "extended",
    "unit": "F5.03",
-   "why": "25. P/E is price divided by EPS: $100 over $4. The price did not move, but earnings doubled from $2 to $4, so the P/E fell from 50 to 25. That's how a fast grower can grow into a high P/E. Investopedia notes a high P/E can turn out cheap if the company keeps growing fast. It works only if the growth shows up."
+   "why": "25. P/E is price divided by EPS: $100 over $4 is 25. The price did not move, but earnings doubled from $2 to $4, so the P/E fell from 50 to 25. That's how a fast grower can grow into a high P/E. Investopedia notes a high P/E can turn out cheap if the company keeps growing fast. It works only if the growth shows up.",
+   "wrong": {
+    "104": "You added the price and the new EPS instead of dividing.",
+    "400": "You multiplied the price by the EPS instead of dividing.",
+    "50": "You kept the old EPS of $2, so the P/E never changed."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.growth",
@@ -5105,20 +5170,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.5",
-    "1.50",
-    "1.500"
-   ],
-   "answer": 1.5
+   "answer": "1.5"
   },
   "difficulty": 2,
   "id": "si_28814d198c06",
   "lesson_origin": "session",
-  "lesson_text": "1.5. PEG is the P/E divided by the earnings growth rate: 30 over 20. Fidelity says a PEG of 1 or less is typically read as undervalued. Investopedia warns PEG can be unreliable for cyclical stocks and high-growth tech firms. It is a rough check, not a verdict. PEG puts growth back into the P/E. A lower PEG means less paid per point of growth.",
+  "lesson_text": "1.5. PEG is the P/E divided by the earnings growth rate: 30 over 20 is 1.5. Fidelity says a PEG of 1 or less is typically read as undervalued. Investopedia warns PEG can be unreliable for cyclical stocks and high-growth tech firms. It is a rough check, not a verdict. PEG puts growth back into the P/E. A lower PEG means less paid per point of growth.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.67",
+    "1.5",
+    "10",
+    "50"
+   ],
+   "kind": "mcq",
    "q": "A stock's P/E is 30. Its EPS is expected to grow 20% a year. What's its PEG ratio?",
    "subject": "F5.03#q15"
   },
@@ -5166,13 +5232,18 @@
      "fn": "arith",
      "result": 1.5
     },
-    "given": "A stock's P/E is 30. Its EPS is expected to grow 20% a year. What's its PEG ratio?"
+    "given": "A stock's P/E is 30. Its EPS is expected to grow 20% a year. What's its PEG ratio? 10 0.67 1.5 50"
    },
    "lesson_line": "PEG puts growth back into the P/E. A lower PEG means less paid per point of growth.",
    "simple": "1.5. You divide the price-to-earnings ratio of 30 by the growth rate of 20.",
    "tier": "extended",
    "unit": "F5.03",
-   "why": "1.5. PEG is the P/E divided by the earnings growth rate: 30 over 20. Fidelity says a PEG of 1 or less is typically read as undervalued. Investopedia warns PEG can be unreliable for cyclical stocks and high-growth tech firms. It is a rough check, not a verdict."
+   "why": "1.5. PEG is the P/E divided by the earnings growth rate: 30 over 20 is 1.5. Fidelity says a PEG of 1 or less is typically read as undervalued. Investopedia warns PEG can be unreliable for cyclical stocks and high-growth tech firms. It is a rough check, not a verdict.",
+   "wrong": {
+    "0.67": "You flipped it and divided the growth rate by the P/E.",
+    "10": "You subtracted the growth rate from the P/E instead of dividing.",
+    "50": "You added the P/E and the growth rate instead of dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.growth",
@@ -7045,23 +7116,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "4.5",
-    "4.50",
-    "4.500"
-   ],
-   "answer": 4.5
+   "answer": "4.5%"
   },
   "difficulty": 2,
   "id": "si_242b5119f610",
   "lesson_origin": "session",
-  "lesson_text": "4.5%. Divide the priced move by the price, then multiply by 100: $9.48 divided by $209.58 is about 4.5%. IBKR read that move from the nearest at-the-money straddle. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after. Turn the priced move into a percent. Then compare it with how far away your stop is.",
+  "lesson_text": "4.5%. Divide the priced move by the price, then multiply by 100. $9.48 divided by $209.58 is about 4.5%. IBKR read that move from the nearest at-the-money straddle. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after. Turn the priced move into a percent. Then compare it with how far away your stop is.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.5%",
+    "4.5%",
+    "9.5%",
+    "22.1%"
+   ],
+   "kind": "mcq",
    "q": "MSFT was $209.58 hours before its July 22, 2020 report. Options priced a $9.48 move. What is that as a percent?",
-   "subject": "F5.04#q10",
-   "suffix": "%"
+   "subject": "F5.04#q10"
   },
   "reveal_json": {
    "depth": {
@@ -7114,13 +7185,18 @@
      "fn": "arith",
      "result": 4.5
     },
-    "given": "MSFT was $209.58 hours before its July 22, 2020 report. Options priced a $9.48 move. What is that as a percent?"
+    "given": "MSFT was $209.58 hours before its July 22, 2020 report. Options priced a $9.48 move. What is that as a percent? 0.5% 22.1% 9.5% 4.5%"
    },
    "lesson_line": "Turn the priced move into a percent. Then compare it with how far away your stop is.",
    "simple": "About 4.5%, because $9.48 is about 4.5% of the $209.58 price.",
    "tier": "core",
    "unit": "F5.04",
-   "why": "4.5%. Divide the priced move by the price, then multiply by 100: $9.48 divided by $209.58 is about 4.5%. IBKR read that move from the nearest at-the-money straddle. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after."
+   "why": "4.5%. Divide the priced move by the price, then multiply by 100. $9.48 divided by $209.58 is about 4.5%. IBKR read that move from the nearest at-the-money straddle. It is a size, not a direction. MSFT closed at $202.54 on July 23, the day after.",
+   "wrong": {
+    "0.5%": "A decimal slip: you moved the point the wrong way.",
+    "22.1%": "You flipped it and divided the stock price by the priced move.",
+    "9.5%": "You read the $9.48 dollar move as a percent."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.season",
@@ -7307,22 +7383,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "720",
-    "720.0",
-    "720.00",
-    "720.000"
-   ],
-   "answer": 720.0
+   "answer": "$720"
   },
   "difficulty": 2,
   "id": "si_06c0565e8740",
   "lesson_origin": "session",
-  "lesson_text": "$720. The position is 200 shares at $40, and 9% of it is $720. That is the loss if the stock gaps down by the implied move. The implied move is no cap: the real gap can be bigger or smaller. Put the implied move in dollars on your position. Plan for that loss, and know it can be bigger.",
+  "lesson_text": "$720. The loss is shares times price times the implied move: 200 times $40 times 9% is $720. That is the loss if the stock gaps down by the implied move. The implied move is no cap: the real gap can be bigger or smaller. Put the implied move in dollars on your position. Plan for that loss, and know it can be bigger.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$3.60",
+    "$720",
+    "$1,800",
+    "$7,200"
+   ],
+   "kind": "mcq",
    "q": "You hold 200 shares of a $40 stock into earnings. The implied move is ±9%. What do you lose if it gaps down that much?",
    "subject": "F5.04#q14"
   },
@@ -7364,13 +7439,18 @@
      "fn": "arith",
      "result": 720.0
     },
-    "given": "You hold 200 shares of a $40 stock into earnings. The implied move is ±9%. What do you lose if it gaps down that much?"
+    "given": "You hold 200 shares of a $40 stock into earnings. The implied move is ±9%. What do you lose if it gaps down that much? $1,800 $3.60 $720 $7,200"
    },
    "lesson_line": "Put the implied move in dollars on your position. Plan for that loss, and know it can be bigger.",
    "simple": "$720, because 9% of 200 shares at $40 is $720. A real gap can be bigger.",
    "tier": "extended",
    "unit": "F5.04",
-   "why": "$720. The position is 200 shares at $40, and 9% of it is $720. That is the loss if the stock gaps down by the implied move. The implied move is no cap: the real gap can be bigger or smaller."
+   "why": "$720. The loss is shares times price times the implied move: 200 times $40 times 9% is $720. That is the loss if the stock gaps down by the implied move. The implied move is no cap: the real gap can be bigger or smaller.",
+   "wrong": {
+    "$1,800": "You treated the 9% as $9 a share.",
+    "$3.60": "You found the loss per share and forgot to multiply by 200 shares.",
+    "$7,200": "A decimal slip: you added a zero."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.season",
@@ -8775,12 +8855,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "5.5",
-    "5.50",
-    "5.500"
-   ],
-   "answer": 5.5
+   "answer": "5.5%"
   },
   "difficulty": 2,
   "id": "si_8c7817430a29",
@@ -8788,10 +8863,15 @@
   "lesson_text": "5.5%. Divide the straddle price by the stock price: $4.40 divided by $80 is 5.5%. The strike equals the stock price, so neither option has intrinsic value. That makes the full-straddle read and the read that subtracts intrinsic value give the same answer. It is an estimate of the move's size, either way, not a promise or a limit. Straddle divided by price gives the implied move in percent. It's an estimate, not a promise.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "2.8%",
+    "5.5%",
+    "18.2%",
+    "55%"
+   ],
+   "kind": "mcq",
    "q": "The stock is $80. The $80 call and put in the nearest expiry cost $4.40 together. What move, in percent, is priced?",
-   "subject": "F5.05#q09",
-   "suffix": "%"
+   "subject": "F5.05#q09"
   },
   "reveal_json": {
    "depth": {
@@ -8837,13 +8917,18 @@
      "fn": "arith",
      "result": 5.5
     },
-    "given": "The stock is $80. The $80 call and put in the nearest expiry cost $4.40 together. What move, in percent, is priced?"
+    "given": "The stock is $80. The $80 call and put in the nearest expiry cost $4.40 together. What move, in percent, is priced? 55% 18.2% 2.8% 5.5%"
    },
    "lesson_line": "Straddle divided by price gives the implied move in percent. It's an estimate, not a promise.",
    "simple": "About 5.5%, because $4.40 for the straddle divided by the $80 stock price gives the move options price.",
    "tier": "core",
    "unit": "F5.05",
-   "why": "5.5%. Divide the straddle price by the stock price: $4.40 divided by $80 is 5.5%. The strike equals the stock price, so neither option has intrinsic value. That makes the full-straddle read and the read that subtracts intrinsic value give the same answer. It is an estimate of the move's size, either way, not a promise or a limit."
+   "why": "5.5%. Divide the straddle price by the stock price: $4.40 divided by $80 is 5.5%. The strike equals the stock price, so neither option has intrinsic value. That makes the full-straddle read and the read that subtracts intrinsic value give the same answer. It is an estimate of the move's size, either way, not a promise or a limit.",
+   "wrong": {
+    "18.2%": "You flipped it and divided the stock price by the straddle.",
+    "2.8%": "You used about half the straddle, only one leg.",
+    "55%": "A decimal slip: you moved the point one place."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.expected_move",
@@ -8854,23 +8939,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "8.5",
-    "8.50",
-    "8.500"
-   ],
-   "answer": 8.5
+   "answer": "8.5%"
   },
   "difficulty": 2,
   "id": "si_f3950f174ed6",
   "lesson_origin": "session",
-  "lesson_text": "8.5%. Measure from the last close before the report to the first close after it: $86.80 minus $80, divided by $80, is 8.5%. That is the realized move, the move that actually printed. Hold it up against the implied move to see whether the stock moved more or less than options priced. Measure the realized move from the last close before the report. Then hold it up against what was priced.",
+  "lesson_text": "8.5%. Measure from the last close before the report to the first close after it. $86.80 minus $80 is $6.80. Divide $6.80 by $80 and you get 8.5%. That is the realized move, the move that actually printed. Hold it up against the implied move to see whether the stock moved more or less than options priced. Measure the realized move from the last close before the report. Then hold it up against what was priced.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "6.8%",
+    "7.8%",
+    "8.5%",
+    "108.5%"
+   ],
+   "kind": "mcq",
    "q": "A stock's last close before its report was $80. Its first close after was $86.80. What was the realized move, in percent?",
-   "subject": "F5.05#q10",
-   "suffix": "%"
+   "subject": "F5.05#q10"
   },
   "reveal_json": {
    "depth": {
@@ -8908,13 +8993,18 @@
      "fn": "pct_change",
      "result": 8.5
     },
-    "given": "A stock's last close before its report was $80. Its first close after was $86.80. What was the realized move, in percent?"
+    "given": "A stock's last close before its report was $80. Its first close after was $86.80. What was the realized move, in percent? 6.8% 7.8% 8.5% 108.5%"
    },
    "lesson_line": "Measure the realized move from the last close before the report. Then hold it up against what was priced.",
    "simple": "It was 8.5%, found by taking the rise from $80 to $86.80 and dividing it by the $80 start.",
    "tier": "core",
    "unit": "F5.05",
-   "why": "8.5%. Measure from the last close before the report to the first close after it: $86.80 minus $80, divided by $80, is 8.5%. That is the realized move, the move that actually printed. Hold it up against the implied move to see whether the stock moved more or less than options priced."
+   "why": "8.5%. Measure from the last close before the report to the first close after it. $86.80 minus $80 is $6.80. Divide $6.80 by $80 and you get 8.5%. That is the realized move, the move that actually printed. Hold it up against the implied move to see whether the stock moved more or less than options priced.",
+   "wrong": {
+    "108.5%": "You divided the new close by the old and forgot to subtract one.",
+    "6.8%": "You read the $6.80 dollar rise as a percent.",
+    "7.8%": "You divided the rise by the new $86.80 close instead of the old $80 close."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.expected_move",
@@ -8925,12 +9015,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.5",
-    "2.50",
-    "2.500"
-   ],
-   "answer": 2.5
+   "answer": "2.5x"
   },
   "difficulty": 2,
   "id": "si_d0e413e82ed1",
@@ -8938,10 +9023,15 @@
   "lesson_text": "2.5. Divide the realized move by the implied move: 10 divided by 4 is 2.5. Near one means about as priced, under one means smaller, over one means bigger. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. At 2.5 the stock moved far more than options priced. Realized over implied: under one is smaller than priced, over one is bigger.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.4x",
+    "2.5x",
+    "6.0x",
+    "14.0x"
+   ],
+   "kind": "mcq",
    "q": "Options priced a 4% move. The stock moved 10%. What is the realized move divided by the implied move?",
-   "subject": "F5.05#q11",
-   "suffix": "x"
+   "subject": "F5.05#q11"
   },
   "reveal_json": {
    "depth": {
@@ -8994,13 +9084,18 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "Options priced a 4% move. The stock moved 10%. What is the realized move divided by the implied move?"
+    "given": "Options priced a 4% move. The stock moved 10%. What is the realized move divided by the implied move? 14.0x 0.4x 6.0x 2.5x"
    },
    "lesson_line": "Realized over implied: under one is smaller than priced, over one is bigger.",
    "simple": "It is 2.5, because a 10% move is two and a half times the 4% move options priced.",
    "tier": "extended",
    "unit": "F5.05",
-   "why": "2.5. Divide the realized move by the implied move: 10 divided by 4 is 2.5. Near one means about as priced, under one means smaller, over one means bigger. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. At 2.5 the stock moved far more than options priced."
+   "why": "2.5. Divide the realized move by the implied move: 10 divided by 4 is 2.5. Near one means about as priced, under one means smaller, over one means bigger. When a stock moves more than implied, OIC says the options are sometimes called outperforming expectations. At 2.5 the stock moved far more than options priced.",
+   "wrong": {
+    "0.4x": "You flipped it and divided the implied move by the realized move.",
+    "14.0x": "You added 4 and 10 instead of dividing.",
+    "6.0x": "You subtracted 4 from 10 instead of dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.expected_move",
@@ -9797,12 +9892,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.3",
-    "2.30",
-    "2.300"
-   ],
-   "answer": 2.3
+   "answer": "2.3x"
   },
   "difficulty": 3,
   "id": "si_90725ac2426d",
@@ -9810,10 +9900,15 @@
   "lesson_text": "2.3. Divide 20.3 by 9: about 2.3. Before Meta's February 2024 report, its at-the-money front-week options had an implied volatility of about 9%, Sosnick wrote. The stock closed up 20.3% for the session, Reuters reported, its biggest one-day percentage gain in a year. More than double the priced move means the news landed far outside what the market expected. Twice the priced move or more means the news landed far outside what the market priced.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.4x",
+    "2.3x",
+    "11.3x",
+    "29.3x"
+   ],
+   "kind": "mcq",
    "q": "Meta, February 2024: front-week options implied about a 9% move. The stock closed up 20.3%. Realized divided by implied?",
-   "subject": "F5.05#q21",
-   "suffix": "x"
+   "subject": "F5.05#q21"
   },
   "reveal_json": {
    "deeper": {
@@ -9855,13 +9950,18 @@
      "fn": "arith",
      "result": 2.3
     },
-    "given": "Meta, February 2024: front-week options implied about a 9% move. The stock closed up 20.3%. Realized divided by implied?"
+    "given": "Meta, February 2024: front-week options implied about a 9% move. The stock closed up 20.3%. Realized divided by implied? 11.3x 0.4x 2.3x 29.3x"
    },
    "lesson_line": "Twice the priced move or more means the news landed far outside what the market priced.",
    "simple": "About 2.3, because Meta's 20.3% jump was more than twice the 9% move its options implied.",
    "tier": "expert",
    "unit": "F5.05",
-   "why": "2.3. Divide 20.3 by 9: about 2.3. Before Meta's February 2024 report, its at-the-money front-week options had an implied volatility of about 9%, Sosnick wrote. The stock closed up 20.3% for the session, Reuters reported, its biggest one-day percentage gain in a year. More than double the priced move means the news landed far outside what the market expected."
+   "why": "2.3. Divide 20.3 by 9: about 2.3. Before Meta's February 2024 report, its at-the-money front-week options had an implied volatility of about 9%, Sosnick wrote. The stock closed up 20.3% for the session, Reuters reported, its biggest one-day percentage gain in a year. More than double the priced move means the news landed far outside what the market expected.",
+   "wrong": {
+    "0.4x": "You flipped it and divided the 9% by the 20.3%.",
+    "11.3x": "You subtracted 9 from 20.3 instead of dividing.",
+    "29.3x": "You added 9 and 20.3 instead of dividing."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.expected_move",
@@ -10694,13 +10794,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3",
-    "3.0",
-    "3.00",
-    "3.000"
-   ],
-   "answer": 3.0
+   "answer": "3%"
   },
   "difficulty": 2,
   "id": "si_846651199d8b",
@@ -10708,10 +10802,15 @@
   "lesson_text": "3% of the account. The gap hits every share you hold. So the loss is the position's share of the account times the gap: 20% times 15% is 3%. Your stop doesn't change it, because a stop can't trade inside a gap. The stock lost 15%. The account lost 3%. Position size times the gap is the hit. Size decides how much a report can hurt.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "1.3%",
+    "3%",
+    "5%",
+    "15%"
+   ],
+   "kind": "mcq",
    "q": "Your position is 20% of the account. A report gaps it down 15% at the open. What share of the account did you lose?",
-   "subject": "F5.06#q09",
-   "suffix": "%"
+   "subject": "F5.06#q09"
   },
   "reveal_json": {
    "depth": {
@@ -10750,13 +10849,18 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "Your position is 20% of the account. A report gaps it down 15% at the open. What share of the account did you lose?"
+    "given": "Your position is 20% of the account. A report gaps it down 15% at the open. What share of the account did you lose? 5% 15% 1.3% 3%"
    },
    "lesson_line": "Position size times the gap is the hit. Size decides how much a report can hurt.",
    "simple": "3%, because a 15% drop on a position worth 20% of the account costs 3% of the whole account.",
    "tier": "core",
    "unit": "F5.06",
-   "why": "3% of the account. The gap hits every share you hold. So the loss is the position's share of the account times the gap: 20% times 15% is 3%. Your stop doesn't change it, because a stop can't trade inside a gap. The stock lost 15%. The account lost 3%."
+   "why": "3% of the account. The gap hits every share you hold. So the loss is the position's share of the account times the gap: 20% times 15% is 3%. Your stop doesn't change it, because a stop can't trade inside a gap. The stock lost 15%. The account lost 3%.",
+   "wrong": {
+    "1.3%": "Divided the position size by the gap.",
+    "15%": "Gave the stock's drop and ignored how big the position was.",
+    "5%": "Subtracted the gap from the position size instead of multiplying."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.earnings_decision",
@@ -10946,23 +11050,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.5",
-    "1.50",
-    "1.500"
-   ],
-   "answer": 1.5
+   "answer": "1.5%"
   },
   "difficulty": 2,
   "id": "si_01635d066403",
   "lesson_origin": "session",
-  "lesson_text": "1.5% of the account. You sold half before the report, so only half of a 30% position rode into the gap. 10% off that half is 1.5% of the account. The half you kept still took the full 10% drop. A trim lowers what a gap costs. It doesn't remove it. Selling half before a report halves what the gap costs. The shares you keep take the full drop.",
+  "lesson_text": "1.5% of the account. You sold half before the report, so you kept half of a 30% position. Half of 30% is 15%. A 10% gap on 15% of the account is 1.5%. A trim lowers what a gap costs. It doesn't remove it. Selling half before a report halves what the gap costs. The shares you keep take the full drop.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.75%",
+    "1.5%",
+    "3%",
+    "15%"
+   ],
+   "kind": "mcq",
    "q": "Your position is 30% of the account. You sell half before the report. It gaps down 10%. What share of the account did you lose?",
-   "subject": "F5.06#q12",
-   "suffix": "%"
+   "subject": "F5.06#q12"
   },
   "reveal_json": {
    "depth": {
@@ -11002,13 +11106,18 @@
      "fn": "arith",
      "result": 1.5
     },
-    "given": "Your position is 30% of the account. You sell half before the report. It gaps down 10%. What share of the account did you lose?"
+    "given": "Your position is 30% of the account. You sell half before the report. It gaps down 10%. What share of the account did you lose? 3% 0.75% 15% 1.5%"
    },
    "lesson_line": "Selling half before a report halves what the gap costs. The shares you keep take the full drop.",
    "simple": "1.5%, because you kept half the shares, so the 10% gap hit only half of a 30% position.",
    "tier": "extended",
    "unit": "F5.06",
-   "why": "1.5% of the account. You sold half before the report, so only half of a 30% position rode into the gap. 10% off that half is 1.5% of the account. The half you kept still took the full 10% drop. A trim lowers what a gap costs. It doesn't remove it."
+   "why": "1.5% of the account. You sold half before the report, so you kept half of a 30% position. Half of 30% is 15%. A 10% gap on 15% of the account is 1.5%. A trim lowers what a gap costs. It doesn't remove it.",
+   "wrong": {
+    "0.75%": "Cut the gap in half as well as the position.",
+    "15%": "Gave the size of the half you kept, not the loss on it.",
+    "3%": "Let the whole position take the gap and ignored the sale."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.earnings_decision",
@@ -11019,23 +11128,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "13.3",
-    "13.30",
-    "13.300"
-   ],
-   "answer": 13.3
+   "answer": "13.3%"
   },
   "difficulty": 2,
   "id": "si_13e362b9f3ce",
   "lesson_origin": "session",
-  "lesson_text": "13.3% below your entry. The gap takes 15% off today's price, and today's price is only 2% above your entry. The 2% gain absorbs only the first sliver of the drop. The rest comes out of your money. You can't just subtract 2 from 15, because the gap comes off the higher price. A small gain is no cushion. A gap goes straight through it and into your money.",
+  "lesson_text": "13.3% below your entry. The 15% gap comes off today's price, which is 15.3% of your entry. Your 2% gain covers part of that. 15.3% minus 2% is 13.3% below. You can't just subtract 2 from 15, because the gap comes off the higher price. A small gain is no cushion. A gap goes straight through it and into your money.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "You're up 2% on a stock. A report gaps it down 15%. How far below your entry price are you now, in percent?",
-   "subject": "F5.06#q13",
-   "suffix": "%"
+   "choices": [
+    "1.3%",
+    "13.3%",
+    "15.3%",
+    "17.0%"
+   ],
+   "kind": "mcq",
+   "q": "You're up 2% on a stock. A report gaps it down 15%. How far below your entry price are you now?",
+   "subject": "F5.06#q13"
   },
   "reveal_json": {
    "deeper": {
@@ -11077,13 +11186,18 @@
      "fn": "arith",
      "result": 13.3
     },
-    "given": "You're up 2% on a stock. A report gaps it down 15%. How far below your entry price are you now, in percent?"
+    "given": "You're up 2% on a stock. A report gaps it down 15%. How far below your entry price are you now? 17.0% 15.3% 13.3% 1.3%"
    },
    "lesson_line": "A small gain is no cushion. A gap goes straight through it and into your money.",
    "simple": "13.3%, because the 15% gap wiped out your 2% gain and then took the rest from your own money.",
    "tier": "extended",
    "unit": "F5.06",
-   "why": "13.3% below your entry. The gap takes 15% off today's price, and today's price is only 2% above your entry. The 2% gain absorbs only the first sliver of the drop. The rest comes out of your money. You can't just subtract 2 from 15, because the gap comes off the higher price."
+   "why": "13.3% below your entry. The 15% gap comes off today's price, which is 15.3% of your entry. Your 2% gain covers part of that. 15.3% minus 2% is 13.3% below. You can't just subtract 2 from 15, because the gap comes off the higher price.",
+   "wrong": {
+    "1.3%": "Slipped a decimal place.",
+    "15.3%": "Took the gap off the higher price but forgot to subtract your gain.",
+    "17.0%": "Added your gain to the gap instead of taking it off."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.earnings_decision",
@@ -11392,22 +11506,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1000",
-    "1000.0",
-    "1000.00",
-    "1000.000"
-   ],
-   "answer": 1000.0
+   "answer": "$1,000"
   },
   "difficulty": 3,
   "id": "si_2b5fd9d223ee",
   "lesson_origin": "session",
-  "lesson_text": "$1,000 more than planned. You planned to sell at $34 and sold at $32. That's the drop from $34 to $32 on each of 500 shares. This is Schwab's own gap example: the $34 sell stop triggers at the open and fills at $32. The stop decided when you sold. The gap decided the price. Plan the earnings loss from the gap, not from the stop.",
+  "lesson_text": "$1,000 more than planned. You planned to sell at $34 and sold at $32, which is $2 less per share. $2 times 500 shares is $1,000. This is Schwab's own gap example: the $34 sell stop triggers at the open and fills at $32. The stop decided when you sold. The gap decided the price. Plan the earnings loss from the gap, not from the stop.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$2",
+    "$1,000",
+    "$10,000",
+    "$16,000"
+   ],
+   "kind": "mcq",
    "q": "You own 500 shares, sell stop at $34. A report gaps the stock to $32 and your stop fills there. How much more did you lose than planned?",
    "subject": "F5.06#q18"
   },
@@ -11459,13 +11572,18 @@
      "fn": "arith",
      "result": 1000.0
     },
-    "given": "You own 500 shares, sell stop at $34. A report gaps the stock to $32 and your stop fills there. How much more did you lose than planned?"
+    "given": "You own 500 shares, sell stop at $34. A report gaps the stock to $32 and your stop fills there. How much more did you lose than planned? $2 $16,000 $1,000 $10,000"
    },
    "lesson_line": "Plan the earnings loss from the gap, not from the stop.",
    "simple": "$1,000, because you planned to sell at $34 but every one of your 500 shares sold at $32.",
    "tier": "extended",
    "unit": "F5.06",
-   "why": "$1,000 more than planned. You planned to sell at $34 and sold at $32. That's the drop from $34 to $32 on each of 500 shares. This is Schwab's own gap example: the $34 sell stop triggers at the open and fills at $32. The stop decided when you sold. The gap decided the price."
+   "why": "$1,000 more than planned. You planned to sell at $34 and sold at $32, which is $2 less per share. $2 times 500 shares is $1,000. This is Schwab's own gap example: the $34 sell stop triggers at the open and fills at $32. The stop decided when you sold. The gap decided the price.",
+   "wrong": {
+    "$10,000": "Slipped a decimal place on the dollars.",
+    "$16,000": "Gave the sale proceeds, not the extra loss.",
+    "$2": "Gave the loss per share and skipped the share count."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.earnings_decision",
@@ -12106,24 +12224,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "6",
-    "6.0",
-    "6.00",
-    "6.000"
-   ],
-   "answer": 6.0
+   "answer": "6R"
   },
   "difficulty": 2,
   "id": "si_3721716df0dc",
   "lesson_origin": "session",
-  "lesson_text": "6R. R is your first risk per share: your entry minus your stop, so $50 minus $48. The rise from $50 to $62 is six times that. Our rule: hold through a report only if the trade is up 5R. At 6R, this one may stay in. Count your gain in R before a report. Under 5R, we're out before the numbers.",
+  "lesson_text": "6R. R is your first risk per share: entry minus stop, so $50 minus $48. The stock rose $12, from $50 to $62. That rise is six times the risk, so it is 6R. Our rule: hold through a report only if the trade is up 5R. At 6R, this one may stay in. Count your gain in R before a report. Under 5R, we're out before the numbers.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "6R",
+    "7R",
+    "12R",
+    "24R"
+   ],
+   "kind": "mcq",
    "q": "You bought at $50 with a stop at $48. The day before the report, the stock is at $62. How many R are you up?",
-   "subject": "F5.06#q27",
-   "suffix": "R"
+   "subject": "F5.06#q27"
   },
   "reveal_json": {
    "depth": {
@@ -12155,13 +12272,18 @@
      "fn": "r_multiple",
      "result": 6.0
     },
-    "given": "You bought at $50 with a stop at $48. The day before the report, the stock is at $62. How many R are you up?"
+    "given": "You bought at $50 with a stop at $48. The day before the report, the stock is at $62. How many R are you up? 7R 6R 12R 24R"
    },
    "lesson_line": "Count your gain in R before a report. Under 5R, we're out before the numbers.",
    "simple": "6R, because the rise from $50 to $62 is six times the $50 to $48 risk you took.",
    "tier": "core",
    "unit": "F5.06",
-   "why": "6R. R is your first risk per share: your entry minus your stop, so $50 minus $48. The rise from $50 to $62 is six times that. Our rule: hold through a report only if the trade is up 5R. At 6R, this one may stay in."
+   "why": "6R. R is your first risk per share: entry minus stop, so $50 minus $48. The stock rose $12, from $50 to $62. That rise is six times the risk, so it is 6R. Our rule: hold through a report only if the trade is up 5R. At 6R, this one may stay in.",
+   "wrong": {
+    "12R": "Gave the dollar gain per share and never divided by the risk.",
+    "24R": "Multiplied the gain by the risk instead of dividing.",
+    "7R": "Measured the rise from the stop instead of from your entry."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.earnings_decision",
@@ -13159,13 +13281,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "4",
-    "4.0",
-    "4.00",
-    "4.000"
-   ],
-   "answer": 4.0
+   "answer": "4x"
   },
   "difficulty": 2,
   "id": "si_4e77e7204711",
@@ -13173,10 +13289,15 @@
   "lesson_text": "4x. Divide the day's volume by the average volume: 3,200,000 divided by 800,000 is 4. Whether that is enough depends on whose bar you use. Bulkowski wants above the 30-day average. Kacher and Morales, as Bulkowski reads them, want at least 1.5 times the 50-day average. One manager wants 3-5x. Know which bar is yours. Divide the day's volume by the average. Traders use different bars, so know which one is yours.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.25x",
+    "3x",
+    "4x",
+    "40x"
+   ],
+   "kind": "mcq",
    "q": "Average daily volume is 800,000 shares. On the earnings gap day it trades 3,200,000. How many times average is that?",
-   "subject": "F5.07#q11",
-   "suffix": "x"
+   "subject": "F5.07#q11"
   },
   "reveal_json": {
    "deeper": {
@@ -13225,13 +13346,18 @@
      "fn": "arith",
      "result": 4.0
     },
-    "given": "Average daily volume is 800,000 shares. On the earnings gap day it trades 3,200,000. How many times average is that?"
+    "given": "Average daily volume is 800,000 shares. On the earnings gap day it trades 3,200,000. How many times average is that? 3x 0.25x 4x 40x"
    },
    "lesson_line": "Divide the day's volume by the average. Traders use different bars, so know which one is yours.",
    "simple": "It is 4 times the average, because you divide the day's volume by the average volume.",
    "tier": "core",
    "unit": "F5.07",
-   "why": "4x. Divide the day's volume by the average volume: 3,200,000 divided by 800,000 is 4. Whether that is enough depends on whose bar you use. Bulkowski wants above the 30-day average. Kacher and Morales, as Bulkowski reads them, want at least 1.5 times the 50-day average. One manager wants 3-5x. Know which bar is yours."
+   "why": "4x. Divide the day's volume by the average volume: 3,200,000 divided by 800,000 is 4. Whether that is enough depends on whose bar you use. Bulkowski wants above the 30-day average. Kacher and Morales, as Bulkowski reads them, want at least 1.5 times the 50-day average. One manager wants 3-5x. Know which bar is yours.",
+   "wrong": {
+    "0.25x": "Flipped the ratio and divided the average by the day's volume.",
+    "3x": "Counted only the extra volume above the average.",
+    "40x": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.post_earnings",
@@ -13686,21 +13812,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "42",
-    "42.0",
-    "42.00",
-    "42.000"
-   ],
-   "answer": 42.0
+   "answer": "42 shares"
   },
   "difficulty": 2,
   "id": "si_cbf7a506cebc",
   "lesson_origin": "session",
-  "lesson_text": "42 shares. The risk per share is the entry minus the stop, $63.50 minus $58.80. Divide the $200 you risk by that, then round down to whole shares. Never round up, or you risk more than you planned. A wide earnings day means a far stop and fewer shares, while the dollars at risk stay the same. A far stop means fewer shares. The dollars at risk stay the same.",
+  "lesson_text": "42 shares. Risk per share is the entry minus the stop, $63.50 minus $58.80. Divide the $200 you risk by that and you get a little over 42. Round down to 42 shares. Never round up, or you risk more than you planned. A wide earnings day means a far stop and fewer shares, while the dollars at risk stay the same. A far stop means fewer shares. The dollars at risk stay the same.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "42 shares",
+    "43 shares",
+    "425 shares",
+    "8,510 shares"
+   ],
+   "kind": "mcq",
    "q": "Account $40,000, risking 0.5% ($200). Entry $63.50, stop $58.80. How many shares can you buy?",
    "subject": "F5.07#q17"
   },
@@ -13742,13 +13868,18 @@
      "fn": "shares_from_risk",
      "result": 42.0
     },
-    "given": "Account $40,000, risking 0.5% ($200). Entry $63.50, stop $58.80. How many shares can you buy?"
+    "given": "Account $40,000, risking 0.5% ($200). Entry $63.50, stop $58.80. How many shares can you buy? 43 shares 425 shares 8,510 shares 42 shares"
    },
    "lesson_line": "A far stop means fewer shares. The dollars at risk stay the same.",
    "simple": "You can buy 42 shares, because $200 divided by the risk per share, $63.50 minus $58.80, rounds down to 42.",
    "tier": "extended",
    "unit": "F5.07",
-   "why": "42 shares. The risk per share is the entry minus the stop, $63.50 minus $58.80. Divide the $200 you risk by that, then round down to whole shares. Never round up, or you risk more than you planned. A wide earnings day means a far stop and fewer shares, while the dollars at risk stay the same."
+   "why": "42 shares. Risk per share is the entry minus the stop, $63.50 minus $58.80. Divide the $200 you risk by that and you get a little over 42. Round down to 42 shares. Never round up, or you risk more than you planned. A wide earnings day means a far stop and fewer shares, while the dollars at risk stay the same.",
+   "wrong": {
+    "425 shares": "Slipped a decimal place on the risk percent.",
+    "43 shares": "Rounded up, so you risk more than you planned.",
+    "8,510 shares": "Divided the account by the risk per share and skipped the dollars you risk."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.post_earnings",
@@ -15399,12 +15530,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "25.2",
-    "25.20",
-    "25.200"
-   ],
-   "answer": 25.2
+   "answer": "25.2%"
   },
   "difficulty": 2,
   "id": "si_f77efe303a63",
@@ -15412,10 +15538,15 @@
   "lesson_text": "25.2%. The surprise is actual minus consensus, divided by the consensus, times 100. So $1.89 minus $1.51, divided by $1.51, times 100, is 25.2%. Positive means a beat. Zacks divides by the absolute value of the consensus, which only matters when a loss is expected. Work every surprise in percent. Then a big company and a small one read on one scale.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "Alphabet, first quarter 2024: EPS $1.89. The LSEG consensus was $1.51. What was the surprise, in percent?",
-   "subject": "F5.08#q09",
-   "suffix": "%"
+   "choices": [
+    "2.5%",
+    "20.1%",
+    "25.2%",
+    "38.0%"
+   ],
+   "kind": "mcq",
+   "q": "Alphabet, first quarter 2024: EPS $1.89. The LSEG consensus was $1.51. What was the surprise?",
+   "subject": "F5.08#q09"
   },
   "reveal_json": {
    "depth": {
@@ -15453,13 +15584,18 @@
      "fn": "pct_change",
      "result": 25.2
     },
-    "given": "Alphabet, first quarter 2024: EPS $1.89. The LSEG consensus was $1.51. What was the surprise, in percent?"
+    "given": "Alphabet, first quarter 2024: EPS $1.89. The LSEG consensus was $1.51. What was the surprise? 2.5% 20.1% 38.0% 25.2%"
    },
    "lesson_line": "Work every surprise in percent. Then a big company and a small one read on one scale.",
    "simple": "25.2%, because you take $1.89 minus $1.51 and then divide that gap by $1.51.",
    "tier": "core",
    "unit": "F5.08",
-   "why": "25.2%. The surprise is actual minus consensus, divided by the consensus, times 100. So $1.89 minus $1.51, divided by $1.51, times 100, is 25.2%. Positive means a beat. Zacks divides by the absolute value of the consensus, which only matters when a loss is expected."
+   "why": "25.2%. The surprise is actual minus consensus, divided by the consensus, times 100. So $1.89 minus $1.51, divided by $1.51, times 100, is 25.2%. Positive means a beat. Zacks divides by the absolute value of the consensus, which only matters when a loss is expected.",
+   "wrong": {
+    "2.5%": "Slipped a decimal place.",
+    "20.1%": "Divided the gap by the actual EPS instead of the consensus.",
+    "38.0%": "Gave the gap in cents as if it were a percent."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.earnings_desk",
@@ -15470,12 +15606,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.7",
-    "2.70",
-    "2.700"
-   ],
-   "answer": 2.7
+   "answer": "2.7 million"
   },
   "difficulty": 2,
   "id": "si_32fd41e5af59",
@@ -15483,10 +15614,15 @@
   "lesson_text": "2.7 million. Netflix forecast adding 2.5 million paid members and lost 0.2 million instead. The gap from plus 2.5 million to minus 0.2 million is 2.5 plus 0.2, or 2.7 million. It was Netflix's first decline in paid users in more than a decade. This gap is against Netflix's own forecast. StreetAccount's analysts expected even more, 2.73 million adds. Measure the miss against the company's own forecast too. Netflix missed its own badly.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How many million short was it?",
-   "subject": "F5.08#q10",
-   "suffix": "million"
+   "choices": [
+    "2.7 million",
+    "0.2 million",
+    "2.5 million",
+    "2.3 million"
+   ],
+   "kind": "mcq",
+   "q": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How far short was it?",
+   "subject": "F5.08#q10"
   },
   "reveal_json": {
    "depth": {
@@ -15532,13 +15668,18 @@
      "fn": "arith",
      "result": 2.7
     },
-    "given": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How many million short was it?"
+    "given": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How far short was it? 2.3 million 2.5 million 2.7 million 0.2 million"
    },
    "lesson_line": "Measure the miss against the company's own forecast too. Netflix missed its own badly.",
    "simple": "2.7 million, because it planned to add 2.5 million and lost 0.2 million instead, so you add the two.",
    "tier": "core",
    "unit": "F5.08",
-   "why": "2.7 million. Netflix forecast adding 2.5 million paid members and lost 0.2 million instead. The gap from plus 2.5 million to minus 0.2 million is 2.5 plus 0.2, or 2.7 million. It was Netflix's first decline in paid users in more than a decade. This gap is against Netflix's own forecast. StreetAccount's analysts expected even more, 2.73 million adds."
+   "why": "2.7 million. Netflix forecast adding 2.5 million paid members and lost 0.2 million instead. The gap from plus 2.5 million to minus 0.2 million is 2.5 plus 0.2, or 2.7 million. It was Netflix's first decline in paid users in more than a decade. This gap is against Netflix's own forecast. StreetAccount's analysts expected even more, 2.73 million adds.",
+   "wrong": {
+    "0.2 million": "Gave only the loss and ignored the forecast.",
+    "2.3 million": "Subtracted the loss from the forecast instead of adding.",
+    "2.5 million": "Gave the forecast and ignored the loss."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.earnings_desk",
@@ -15558,10 +15699,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A beat, though sales fell",
     "Can't tell without EPS",
     "A miss, because sales fell",
-    "In line with last year"
+    "In line with last year",
+    "A beat, though sales fell"
    ],
    "kind": "mcq",
    "q": "Meta, fourth quarter 2022: revenue $32.17 billion, down 4% from a year earlier. Analysts expected $31.53 billion. How does revenue read?",
@@ -15624,12 +15765,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "12.2",
-    "12.20",
-    "12.200"
-   ],
-   "answer": 12.2
+   "answer": "12.2%"
   },
   "difficulty": 2,
   "id": "si_f714e4437842",
@@ -15637,10 +15773,15 @@
   "lesson_text": "12.2%. Divide the shortfall by the consensus and multiply by 100. $1.48 minus $1.30, divided by $1.48, times 100, is 12.2%. That shortfall is the 18 cents CNBC reported. In Zacks's formula a miss is a negative surprise, so it reads minus 12.2%. Put the miss in percent, so you can weigh it against any other quarter.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "1.2%",
+    "12.2%",
+    "13.8%",
+    "18.0%"
+   ],
+   "kind": "mcq",
    "q": "Walmart, first quarter of fiscal 2023: adjusted EPS $1.30. The Refinitiv consensus was $1.48. By what percent did it miss?",
-   "subject": "F5.08#q12",
-   "suffix": "%"
+   "subject": "F5.08#q12"
   },
   "reveal_json": {
    "depth": {
@@ -15686,13 +15827,18 @@
      "fn": "arith",
      "result": 12.2
     },
-    "given": "Walmart, first quarter of fiscal 2023: adjusted EPS $1.30. The Refinitiv consensus was $1.48. By what percent did it miss?"
+    "given": "Walmart, first quarter of fiscal 2023: adjusted EPS $1.30. The Refinitiv consensus was $1.48. By what percent did it miss? 13.8% 18.0% 1.2% 12.2%"
    },
    "lesson_line": "Put the miss in percent, so you can weigh it against any other quarter.",
    "simple": "12.2%, because the 18-cent shortfall divided by the $1.48 estimate comes to about 12.2%.",
    "tier": "extended",
    "unit": "F5.08",
-   "why": "12.2%. Divide the shortfall by the consensus and multiply by 100. $1.48 minus $1.30, divided by $1.48, times 100, is 12.2%. That shortfall is the 18 cents CNBC reported. In Zacks's formula a miss is a negative surprise, so it reads minus 12.2%."
+   "why": "12.2%. Divide the shortfall by the consensus and multiply by 100. $1.48 minus $1.30, divided by $1.48, times 100, is 12.2%. That shortfall is the 18 cents CNBC reported. In Zacks's formula a miss is a negative surprise, so it reads minus 12.2%.",
+   "wrong": {
+    "1.2%": "Slipped a decimal place.",
+    "13.8%": "Divided the shortfall by the actual EPS instead of the consensus.",
+    "18.0%": "Gave the shortfall in cents as if it were a percent."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.earnings_desk",
@@ -15703,13 +15849,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3",
-    "3.0",
-    "3.00",
-    "3.000"
-   ],
-   "answer": 3.0
+   "answer": "$3.00"
   },
   "difficulty": 2,
   "id": "si_f577b68fed1a",
@@ -15717,8 +15857,13 @@
   "lesson_text": "$3.00. $1.76 plus $1.24 is $3.00. That is EPS without the $4.20 billion of restructuring charges, as Meta's release puts it. It is a what-if figure. Meta's reported EPS stays $1.76. When a big charge sits in EPS, work the number without it too. Then compare.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.52",
+    "$0.70",
+    "$2.18",
+    "$3.00"
+   ],
+   "kind": "mcq",
    "q": "Meta's Q4 2022 EPS was $1.76. Its release says that without restructuring charges, EPS would have been $1.24 higher. What EPS is that?",
    "subject": "F5.08#q13"
   },
@@ -15766,13 +15911,18 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "Meta's Q4 2022 EPS was $1.76. Its release says that without restructuring charges, EPS would have been $1.24 higher. What EPS is that?"
+    "given": "Meta's Q4 2022 EPS was $1.76. Its release says that without restructuring charges, EPS would have been $1.24 higher. What EPS is that? $0.52 $3.00 $0.70 $2.18"
    },
    "lesson_line": "When a big charge sits in EPS, work the number without it too. Then compare.",
    "simple": "$3.00, because you add the $1.24 the charges took off back onto the reported $1.76.",
    "tier": "extended",
    "unit": "F5.08",
-   "why": "$3.00. $1.76 plus $1.24 is $3.00. That is EPS without the $4.20 billion of restructuring charges, as Meta's release puts it. It is a what-if figure. Meta's reported EPS stays $1.76."
+   "why": "$3.00. $1.76 plus $1.24 is $3.00. That is EPS without the $4.20 billion of restructuring charges, as Meta's release puts it. It is a what-if figure. Meta's reported EPS stays $1.76.",
+   "wrong": {
+    "$0.52": "Subtracted the charges instead of adding them back.",
+    "$0.70": "Divided the charges by the reported EPS.",
+    "$2.18": "Multiplied the two numbers instead of adding."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.earnings_desk",
@@ -15794,8 +15944,8 @@
    "choices": [
     "The quarter's revenue miss",
     "Nothing: EPS beat the estimate",
-    "The adjusted EPS line",
-    "The full-year sales guide"
+    "The full-year sales guide",
+    "The adjusted EPS line"
    ],
    "kind": "mcq",
    "q": "Which line in this report worries you most?",
@@ -15904,8 +16054,8 @@
   "prompt_json": {
    "choices": [
     "A cut across the board",
-    "Neither line really moved",
     "Sales raised, profit cut",
+    "Neither line really moved",
     "A raise across the board"
    ],
    "kind": "mcq",
@@ -15983,12 +16133,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "28.7",
-    "28.70",
-    "28.700"
-   ],
-   "answer": 28.7
+   "answer": "28.7%"
   },
   "difficulty": 2,
   "id": "si_664764b580fb",
@@ -15996,10 +16141,15 @@
   "lesson_text": "28.7%. Divide the shortfall by the consensus and multiply by 100. $3.07 minus $2.19, divided by $3.07, times 100, is 28.7%. That shortfall is the 88 cents CNBC reported. In Zacks's formula a miss is a negative surprise, so it reads minus 28.7%. Size every miss in percent before you judge it. This one was deep.",
   "module": "F5",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "2.9%",
+    "28.7%",
+    "40.2%",
+    "88.0%"
+   ],
+   "kind": "mcq",
    "q": "Target, first quarter 2022: adjusted EPS $2.19. The Refinitiv consensus was $3.07. By what percent did it miss?",
-   "subject": "F5.08#q16",
-   "suffix": "%"
+   "subject": "F5.08#q16"
   },
   "reveal_json": {
    "depth": {
@@ -16045,13 +16195,18 @@
      "fn": "arith",
      "result": 28.7
     },
-    "given": "Target, first quarter 2022: adjusted EPS $2.19. The Refinitiv consensus was $3.07. By what percent did it miss?"
+    "given": "Target, first quarter 2022: adjusted EPS $2.19. The Refinitiv consensus was $3.07. By what percent did it miss? 40.2% 88.0% 28.7% 2.9%"
    },
    "lesson_line": "Size every miss in percent before you judge it. This one was deep.",
    "simple": "28.7%, because the 88-cent shortfall divided by the $3.07 estimate comes to about 28.7%.",
    "tier": "extended",
    "unit": "F5.08",
-   "why": "28.7%. Divide the shortfall by the consensus and multiply by 100. $3.07 minus $2.19, divided by $3.07, times 100, is 28.7%. That shortfall is the 88 cents CNBC reported. In Zacks's formula a miss is a negative surprise, so it reads minus 28.7%."
+   "why": "28.7%. Divide the shortfall by the consensus and multiply by 100. $3.07 minus $2.19, divided by $3.07, times 100, is 28.7%. That shortfall is the 88 cents CNBC reported. In Zacks's formula a miss is a negative surprise, so it reads minus 28.7%.",
+   "wrong": {
+    "2.9%": "Slipped a decimal place.",
+    "40.2%": "Divided the shortfall by the actual EPS instead of the consensus.",
+    "88.0%": "Gave the shortfall in cents as if it were a percent."
+   }
   },
   "review_status": "draft",
   "skill_id": "fund.earnings_desk",
@@ -16071,8 +16226,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A strong quarter all around",
     "Sales held; costs hit profit",
+    "A strong quarter all around",
     "A one-time charge hit EPS",
     "Shoppers pulled back sharply"
    ],
@@ -16178,10 +16333,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Members fell, more losses guided",
     "A currency gain inside the EPS",
     "The EPS beat over the estimate",
-    "The slight revenue miss"
+    "The slight revenue miss",
+    "Members fell, more losses guided"
    ],
    "kind": "mcq",
    "q": "What's the real news in this report?",
@@ -16301,8 +16456,8 @@
    "choices": [
     "How the stock moved after hours",
     "Whether revenue beat its estimate",
-    "Meta's EPS a year earlier",
-    "What the $2.22 estimate included"
+    "What the $2.22 estimate included",
+    "Meta's EPS a year earlier"
    ],
    "kind": "mcq",
    "q": "Before you call this EPS line a beat or a miss, what do you need to know?",
@@ -16626,8 +16781,8 @@
   "prompt_json": {
    "choices": [
     "Nothing: they're separate companies",
-    "Sales beat, so retail is fine",
     "A warning about Target's costs",
+    "Sales beat, so retail is fine",
     "Target should win Walmart's shoppers"
    ],
    "kind": "mcq",
@@ -16740,8 +16895,8 @@
   "prompt_json": {
    "choices": [
     "Alphabet's: dividends mean slower growth",
-    "Nike's: a revenue miss and a cut guide",
     "Neither: an EPS beat outweighs the rest",
+    "Nike's: a revenue miss and a cut guide",
     "Both: the market sells every beat"
    ],
    "kind": "mcq",
@@ -16895,9 +17050,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Midpoint $27.25B: between the two",
     "A miss: the bottom end is $26B",
     "Can't say: a range isn't one number",
-    "Midpoint $27.25B: between the two",
     "A beat: the top end is $28.5B"
    ],
    "kind": "mcq",

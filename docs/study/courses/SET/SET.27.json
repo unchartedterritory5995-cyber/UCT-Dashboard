@@ -1616,10 +1616,10 @@
    "key": "q19",
    "skill": "setup.slingshot",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ss.stop",
    "q": "You bought the trigger close at 93.86 with the stop at 91.69. What is the risk, in percent of the buy price?",
-   "answer": 2.31,
+   "answer": "2.31%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1629,7 +1629,7 @@
     },
     "round": 2
    },
-   "why": "2.31%. Risk is the buy price minus the stop, divided by the buy price: (93.86 minus 91.69) over 93.86. That sits inside the about 3% a stop usually stays within. It was URI's stop, 2.3%.",
+   "why": "2.31%. Risk is the buy price minus the stop, over the buy price: (93.86 - 91.69) / 93.86 = 2.31%. That sits inside the about 3% a stop usually stays within. It was URI's stop, 2.3%.",
    "lesson_line": "Know the risk in percent before the close prints. The stop sets the size.",
    "facts": [
     "h04",
@@ -1649,7 +1649,18 @@
      "computed key"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "2.17%",
+    "2.31%",
+    "23.1%",
+    "97.7%"
+   ],
+   "wrong": {
+    "2.17%": "Gave the gap in dollars as a percent, no divide.",
+    "23.1%": "Decimal slip, one place too far.",
+    "97.7%": "Divided the stop by the buy, no subtraction."
+   }
   },
   {
    "key": "q20",
@@ -1775,10 +1786,10 @@
    "key": "q24",
    "skill": "setup.slingshot",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ss.depth",
    "q": "Drive leg high 110.00, pullback low 101.20. How deep is the pullback, in percent?",
-   "answer": 8.0,
+   "answer": "8.0%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -1787,7 +1798,7 @@
     },
     "round": 1
    },
-   "why": "8%. The drive leg's highest high minus the pullback's lowest low, divided by that high: (110.00 minus 101.20) over 110.00. Scot1and: the setup targets the reversal of a shallow pullback. This measures the depth; it does not say how deep is too deep.",
+   "why": "8.0%. The drive's highest high minus the pullback's lowest low, over that high: (110.00 - 101.20) / 110.00 = 8.0%. Scot1and: the setup targets the reversal of a shallow pullback. This measures the depth. It does not say how deep is too deep.",
    "lesson_line": "Measure the depth from the drive's high down to the pullback's low.",
    "facts": [
     "c45",
@@ -1796,7 +1807,7 @@
    ],
    "house": true,
    "suffix": "%",
-   "simple": "Take the drive's high minus the pullback's low, divide by the high, and you get 8 percent.",
+   "simple": "Take the drive's high minus the pullback's low, divide by the high, and you get 8.0 percent.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1809,16 +1820,27 @@
     "D-107",
     "D-016"
    ],
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "0.8%",
+    "8.7%",
+    "8.0%",
+    "92.0%"
+   ],
+   "wrong": {
+    "8.7%": "Divided by the pullback low instead of the high.",
+    "0.8%": "Decimal slip, one place too short.",
+    "92.0%": "Gave the low as a share of the high, no subtraction."
+   }
   },
   {
    "key": "q25",
    "skill": "setup.slingshot",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ss.orderly",
    "q": "The pullback's high is 68.40, its low 66.10, and the 14-day ATR is 1.50. How many ATR is the range?",
-   "answer": 1.53,
+   "answer": "1.53 ATR",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1829,7 +1851,7 @@
     },
     "round": 2
    },
-   "why": "1.53 ATR. The pullback's high minus its low, divided by the ATR, comes to 1.53, inside the card's about 1.6. An orderly pullback also has no red body over 3.5% and no down day on heavy volume.",
+   "why": "1.53 ATR. The pullback's high minus its low, divided by the ATR: (68.40 - 66.10) / 1.50 = 1.53. That is inside the card's about 1.6. An orderly pullback also has no red body over 3.5% and no down day on heavy volume.",
    "lesson_line": "Range over ATR. Under about 1.6 and it is resting, not unwinding.",
    "facts": [
     "c06"
@@ -1845,16 +1867,27 @@
      "card numbers are proposed"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "0.65 ATR",
+    "2.30 ATR",
+    "15.33 ATR",
+    "1.53 ATR"
+   ],
+   "wrong": {
+    "0.65 ATR": "Flipped it: divided the ATR by the range.",
+    "2.30 ATR": "Gave the range in dollars, no divide.",
+    "15.33 ATR": "Decimal slip on the ATR."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.slingshot",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ss.trim_1",
    "q": "You bought at 20.46 with the stop at 19.96. One R is the risk per share. Where is 3R?",
-   "answer": 21.96,
+   "answer": "$21.96",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1864,7 +1897,7 @@
     },
     "round": 2
    },
-   "why": "21.96. One R is the fill minus the stop, 20.46 minus 19.96. Add three of those to the fill to get 3R. RELY, an earnings-gap Slingshot, ran on to 13.7R, stair-stepping up the 10-day. 3R is a mark, not a sell order.",
+   "why": "21.96. One R is the fill minus the stop. Add three R to the fill: 20.46 + 3 x (20.46 - 19.96) = 21.96. RELY, an earnings-gap Slingshot, ran on to 13.7R, stair-stepping up the 10-day. 3R is a mark, not a sell order.",
    "lesson_line": "Know your 3R before the open. It is a mark, not a sell order.",
    "facts": [
     "d03",
@@ -1882,7 +1915,18 @@
      "the 3R trim is the owner's rule (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$21.46",
+    "$20.96",
+    "$21.96",
+    "$18.96"
+   ],
+   "wrong": {
+    "$21.46": "Added three R to the stop, not the fill.",
+    "$20.96": "Added only one R, forgot the times three.",
+    "$18.96": "Subtracted three R instead of adding."
+   }
   },
   {
    "key": "q27",
@@ -2368,10 +2412,10 @@
    "key": "q40",
    "skill": "setup.slingshot",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ss.stop",
    "q": "Account 40,000. Risk 0.75%. Fill 269.73, stop 259.09. How many shares?",
-   "answer": 28,
+   "answer": "28 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2382,7 +2426,7 @@
     },
     "round": 0
    },
-   "why": "28 shares. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round. Those were MELI's fill and stop.",
+   "why": "28 shares. Risk in dollars is 40,000 x 0.75%. Divide by the fill minus the stop: 40,000 x 0.75% / (269.73 - 259.09), rounded down to 28. The stop sets the size, never the other way round. Those were MELI's fill and stop.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2403,7 +2447,18 @@
      "sizing formula is the owner's rule (A5)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "29 shares",
+    "28 shares",
+    "148 shares",
+    "282 shares"
+   ],
+   "wrong": {
+    "29 shares": "Rounded up, so the risk goes over 0.75%.",
+    "148 shares": "Divided the whole account by the fill price.",
+    "282 shares": "Moved the decimal on the risk percent."
+   }
   },
   {
    "key": "q41",
@@ -2572,10 +2627,10 @@
    "key": "q46",
    "skill": "setup.slingshot",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ss.position_adv",
    "q": "The stock trades 1,500,000 shares a day on average. The most shares we may own?",
-   "answer": 15000,
+   "answer": "15,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2600,7 +2655,18 @@
      "a number in the owner's rulebook (D42)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "1,500,000 shares",
+    "150,000 shares",
+    "1,500 shares",
+    "15,000 shares"
+   ],
+   "wrong": {
+    "150,000 shares": "Moved the decimal one place, ten times too many.",
+    "1,500 shares": "Moved the decimal one place, ten times too few.",
+    "1,500,000 shares": "Used the whole average volume, no cap at all."
+   }
   },
   {
    "key": "q47",
@@ -3035,10 +3101,10 @@
    "key": "q59",
    "skill": "setup.slingshot",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ss.trim_1",
    "q": "You bought at 13.94, stop 13.42. It trades to 15.50. How many R is that?",
-   "answer": 3.0,
+   "answer": "3.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -3048,7 +3114,7 @@
     },
     "round": 1
    },
-   "why": "3R. One R is the fill minus the stop. Divide the gain, the price minus the fill, by one R. FRO got there in 7 sessions. 3R is a mark to judge a sell by, not a sell order.",
+   "why": "3R. One R is the fill minus the stop. The gain is the price minus the fill. (15.50 - 13.94) / (13.94 - 13.42) = 3R. FRO got there in 7 sessions. 3R is a mark to judge a sell by, not a sell order.",
    "lesson_line": "Count in R, not dollars. 3R is a mark to judge by.",
    "facts": [
     "d10",
@@ -3069,7 +3135,18 @@
      "the 3R trim is the owner's rule (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "4.0R",
+    "1.6R",
+    "0.1R",
+    "3.0R"
+   ],
+   "wrong": {
+    "4.0R": "Measured the gain from the stop, not the fill.",
+    "1.6R": "Used the dollar gain as R, no divide.",
+    "0.1R": "Divided the gain by the fill price, not by one R."
+   }
   },
   {
    "key": "q60",
@@ -3711,7 +3788,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed (93.86-91.69)/93.86 = 2.312%, rounds to 2.31. h04 'about 3%' and d05 2.3% match."
+   "notes": "2.31 ok; wrongs verified (2.17 dollars, 23.1, 97.7). ok. Source why has the odd word Scot1and in q24 (pre-existing, left)."
   },
   "q20": {
    "status": "pass",
@@ -3741,19 +3818,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed (110.00-101.20)/110.00 = 8.0%. c45 gives the measure; the why disclaims how deep is too deep (D-107 held)."
+   "notes": "8.0 ok; 8.7 divides by the low (8.70), 92.0 low/high. ok. 'Scot1and' in the why is pre-existing source text, left alone."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 2.30/1.50 = 1.533, rounds to 1.53. c06 gives ATR(14) and about 1.6."
+   "notes": "1.53 ok; 0.65 flipped, 2.30 dollars, 15.33 slip. ok."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "21.96 ok; R is 0.50; wrongs verified."
   },
   "q27": {
    "status": "pass",
@@ -3838,7 +3915,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 40,000 x 0.0075 / 10.64 = 28.2, rounds down to 28; far under the 40% cap. d09 gives MELI's fill and stop."
+   "notes": "28 ok (28.2); 29 up, 148 = account/fill, 282 = risk at 7.5%. verified."
   },
   "q41": {
    "status": "pass",
@@ -3873,9 +3950,9 @@
   },
   "q46": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "15,000 ok; decimal slips and whole ADV. ok."
   },
   "q47": {
    "status": "cut",
@@ -3947,7 +4024,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "3.0 ok; 4.0 from stop (2.08/0.52), 1.6 dollars, 0.1 divide by fill. verified."
   },
   "q60": {
    "status": "cut",

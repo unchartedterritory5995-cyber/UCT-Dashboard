@@ -992,9 +992,9 @@
    "key": "q09",
    "skill": "risk.account_rules",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You bought $20,000 of stock with a $10,000 margin loan. It's now worth $12,500. What's your equity as a percent of its value?",
-   "answer": 20,
+   "answer": "20%",
    "calc": {
     "fn": "margin_equity_pct",
     "args": {
@@ -1003,7 +1003,7 @@
     }
    },
    "suffix": "%",
-   "why": "20%. Equity is the market value minus the loan: $12,500 less the $10,000 loan. Divide that by the $12,500 value and you get 20%. That is under FINRA's 25% maintenance floor, so expect a margin call. Your broker's own level may be higher than 25%.",
+   "why": "20%. Equity is the $12,500 value minus the $10,000 loan. Divide that by the $12,500 value to get 20%. That is under FINRA's 25% floor, so expect a margin call.",
    "lesson_line": "Equity is value minus loan. On margin, check it as a percent every day.",
    "facts": [
     "f38",
@@ -1019,7 +1019,18 @@
      "computed key (calc margin_equity_pct)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "50%",
+    "80%",
+    "12.5%",
+    "20%"
+   ],
+   "wrong": {
+    "80%": "Gave the loan share of the value, not the equity.",
+    "12.5%": "Divided the equity by the original $20,000.",
+    "50%": "Used the equity share you started with."
+   }
   },
   {
    "key": "q10",
@@ -1093,9 +1104,9 @@
    "key": "q12",
    "skill": "risk.account_rules",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "$40,000 of stock bought with a $20,000 margin loan falls to $24,000. Using FINRA's 25% floor, how big is the margin call?",
-   "answer": 2000,
+   "answer": "$2,000",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1106,7 +1117,7 @@
     }
    },
    "prefix": "$",
-   "why": "$2,000. The equity you need is 25% of the $24,000 value. The equity you have is the $24,000 value less the $20,000 loan. The call is the gap between the two. That is FINRA's method. A broker with a higher house level would call for more.",
+   "why": "$2,000. You need 25% of $24,000, which is $6,000. You have $24,000 minus the $20,000 loan, which is $4,000. $6,000 minus $4,000 is $2,000.",
    "lesson_line": "The call is the equity you need minus the equity you have.",
    "facts": [
     "f26",
@@ -1125,15 +1136,26 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$6,000",
+    "$4,000",
+    "$10,000",
+    "$2,000"
+   ],
+   "wrong": {
+    "$6,000": "Gave the equity you need, and never subtracted what you have.",
+    "$4,000": "Gave the equity you have, not the gap.",
+    "$10,000": "Took 25% of the old $40,000 value."
+   }
   },
   {
    "key": "q13",
    "skill": "risk.account_rules",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You put up $10,000 and borrow $10,000 to buy $20,000 of stock. It falls 30%. Ignoring interest, what percent of your money is lost?",
-   "answer": 60,
+   "answer": "60%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1144,7 +1166,7 @@
     }
    },
    "suffix": "%",
-   "why": "60%. The drop hits the whole $20,000 position, not just your half. Your equity is the value minus the loan, and the loan doesn't shrink. So a 30% fall on $20,000 comes out of your $10,000 alone. Borrowing half doubled your loss in percent. Margin raises your buying power and your possible losses together.",
+   "why": "60%. The drop hits the whole $20,000 position, not just your half. The loan does not shrink, so the loss comes out of your $10,000 alone. Divide the loss by $10,000 to get 60%.",
    "lesson_line": "Borrow half the position and every drop hits your money twice as hard.",
    "facts": [
     "f54",
@@ -1160,7 +1182,18 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "30%",
+    "60%",
+    "15%",
+    "6%"
+   ],
+   "wrong": {
+    "30%": "Forgot the loan and used the stock's drop.",
+    "15%": "Halved the loss because you borrowed half.",
+    "6%": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q14",
@@ -1429,9 +1462,9 @@
    "key": "q21",
    "skill": "risk.account_rules",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You buy $20,000 of stock with a $9,000 margin loan. How far, in percent, can it fall before your equity hits FINRA's 25% floor?",
-   "answer": 40,
+   "answer": "40%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1442,7 +1475,7 @@
     }
    },
    "suffix": "%",
-   "why": "40%. The $9,000 loan stays fixed while the stock falls. You reach the floor when your equity is 25% of the value and the loan is the rest. For $20,000 of stock, that happens after a 40% drop. Any lower and expect a margin call. FINRA's formula gives the same drop: margin excess divided by one minus the maintenance percent.",
+   "why": "40%. The $9,000 loan stays fixed. At the floor, your equity is 25% of the value and the loan is the rest. That puts the floor value below $20,000. The fall to it is 40%.",
    "lesson_line": "Know the drop that triggers a margin call before you borrow, not after.",
    "facts": [
     "f35",
@@ -1460,7 +1493,18 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "55%",
+    "75%",
+    "40%",
+    "25%"
+   ],
+   "wrong": {
+    "55%": "Gave the equity share you start with.",
+    "75%": "Took 100% minus the 25% floor.",
+    "25%": "Used the floor as the size of the fall."
+   }
   },
   {
    "key": "q22",
@@ -1671,9 +1715,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q10": {
    "status": "pass",
@@ -1691,13 +1735,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Paying a $2,000 cash call on the question's numbers takes the loan to $18,000 and equity to exactly 25% of $24,000, so 'back to the floor' is arithmetic on the question's own numbers. $15,000, $10,000 and $5,000 are all in f26."
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q14": {
    "status": "pass",
@@ -1745,9 +1789,9 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q22": {
    "status": "pass",

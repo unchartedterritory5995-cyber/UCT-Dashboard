@@ -966,9 +966,9 @@
    "key": "q10",
    "skill": "options.vega_iv",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your call has a vega of 0.12. IV rises 4 points, nothing else changes. About how much does the call gain, per share?",
-   "answer": 0.48,
+   "answer": "$0.48",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -993,7 +993,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$0.03",
+    "$4.12",
+    "$48.00",
+    "$0.48"
+   ],
+   "wrong": {
+    "$0.03": "Divided vega by the IV change instead of multiplying.",
+    "$4.12": "Added vega to the IV change instead of multiplying.",
+    "$48.00": "Gave the loss per contract, not per share."
+   }
   },
   {
    "key": "q11",
@@ -1015,9 +1026,9 @@
    "key": "q12",
    "skill": "options.vega_iv",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You hold one call with a vega of 0.08. IV drops 15 points after the news. About how much does that cost you, per contract?",
-   "answer": 120,
+   "answer": "$120",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1028,7 +1039,7 @@
      "multiplier": 100
     }
    },
-   "why": "$120 per contract. Vega times the IV drop in points gives the loss per share: 0.08 times 15. One contract covers 100 shares, so multiply by 100. Fidelity uses the same method: -8 x .0535 x 100 = -$42.80 per contract. It is an estimate, all things being equal. The stock and time move the price too.",
+   "why": "$120 per contract. Vega times the IV drop in points gives the loss per share: 0.08 times 15 is 1.20. One contract covers 100 shares, so multiply by 100 to get $120. Fidelity uses the same method: -8 x .0535 x 100 = -$42.80 per contract. It is an estimate, all things being equal. The stock and time move the price too.",
    "lesson_line": "Size the crush per contract: vega, times the IV drop in points, times 100.",
    "facts": [
     "f69",
@@ -1044,7 +1055,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$1.20",
+    "$120",
+    "$8",
+    "$1,500"
+   ],
+   "wrong": {
+    "$1.20": "Forgot each contract covers 100 shares.",
+    "$8": "Multiplied vega by 100 and skipped the IV drop.",
+    "$1,500": "Multiplied the IV drop by 100 and skipped vega."
+   }
   },
   {
    "key": "q13",
@@ -1157,9 +1179,9 @@
    "key": "q16",
    "skill": "options.vega_iv",
    "rung": 6,
-   "format": "numeric",
-   "q": "Over the past year a stock's IV ranged from 20% to 60%. Today it's 50%. Where does today sit in that range, in percent?",
-   "answer": 75,
+   "format": "mcq",
+   "q": "Over the past year a stock's IV ranged from 20% to 60%. Today it's 50%. Where does today sit in that range?",
+   "answer": "75%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1185,7 +1207,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "83%",
+    "25%",
+    "75%",
+    "30%"
+   ],
+   "wrong": {
+    "83%": "Divided today's IV by the high and skipped the low.",
+    "25%": "Measured the distance from the top of the range.",
+    "30%": "Gave the distance above the low and never divided by the range."
+   }
   },
   {
    "key": "q17",
@@ -1610,9 +1643,9 @@
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4."
   },
   "q11": {
    "status": "cut",
@@ -1628,9 +1661,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1. Why rewritten to show the steps."
   },
   "q13": {
    "status": "pass",
@@ -1654,7 +1687,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc (50-20)/(60-20)*100 = 75 correct; f72 confirmed today in Fidelity's slides (text extracted). Simple overreaches: 'its options are on the pricey side' judges 75 as high, but no cited fact sets where 'high' starts and the why does not say 75 is high. Simple now states only what the calc gives."
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3. Stem no longer names the unit the choices carry."
   },
   "q17": {
    "status": "pass",

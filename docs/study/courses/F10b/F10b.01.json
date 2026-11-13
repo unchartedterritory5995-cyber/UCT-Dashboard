@@ -1000,9 +1000,9 @@
    "key": "q09",
    "skill": "short.mechanics",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You short 200 shares at $45.00 and buy to cover at $39.00. What's your profit before costs?",
-   "answer": 1200,
+   "answer": "$1,200",
    "prefix": "$",
    "calc": {
     "fn": "short_pnl",
@@ -1012,7 +1012,7 @@
      "shares": 200
     }
    },
-   "why": "$1,200 before costs. A short's profit is the sale price minus the buy-back price, times the shares. You sold at $45.00 and bought back at $39.00, on 200 shares. The SEC's own example works the same way: sell at $60, buy back at $40, make $20 a share. Commissions and fees come out after that.",
+   "why": "Profit is the sale price minus the buy-back price, times the shares: $45.00 less $39.00, times 200 shares. The SEC's own example works the same way: sell at $60, buy back at $40, make $20 a share. Commissions and fees come out after that.",
    "lesson_line": "Short profit: sale price minus cover price, times shares. Then take off the costs.",
    "facts": [
     "f05",
@@ -1028,7 +1028,18 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$7,800",
+    "-$1,200",
+    "$1,200",
+    "$9,000"
+   ],
+   "wrong": {
+    "$7,800": "That is what the buy-back cost, not the profit.",
+    "-$1,200": "Treated the short like a long. A short makes money when the price falls.",
+    "$9,000": "That is what the sale brought in. Subtract the buy-back cost."
+   }
   },
   {
    "key": "q10",
@@ -1060,9 +1071,9 @@
    "key": "q11",
    "skill": "short.mechanics",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You short $20,000 of stock at a 12% yearly borrow fee. The price stays flat for a quarter of a year. What's the borrow cost?",
-   "answer": 600,
+   "answer": "$600",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1073,7 +1084,7 @@
      "years": 0.25
     }
    },
-   "why": "$600. The borrow fee is a yearly rate, charged only for the time the short is open. A quarter of a year at 12% on $20,000 is $600. The fee accrues daily, so your broker's day count can nudge the total a little. The question holds the price flat because the fee is charged on the value of the borrowed shares.",
+   "why": "The borrow fee is a yearly rate, charged only for the time the short is open. A year at 12% on $20,000 is $2,400. A quarter of a year is $600. The fee accrues daily, so your broker's day count can nudge the total a little. The question holds the price flat because the fee is charged on the value of the borrowed shares.",
    "lesson_line": "Borrow cost: position value times the yearly rate times the share of a year you hold.",
    "facts": [
     "f66",
@@ -1090,15 +1101,26 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$60",
+    "$1,200",
+    "$2,400",
+    "$600"
+   ],
+   "wrong": {
+    "$1,200": "Charged half a year, not a quarter.",
+    "$2,400": "Charged a full year. You held it for a quarter.",
+    "$60": "A decimal slip: ten times too small."
+   }
   },
   {
    "key": "q12",
    "skill": "short.mechanics",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You short 300 shares at $22.00. It rallies and you buy to cover at $25.50. How much did you lose?",
-   "answer": 1050,
+   "answer": "$1,050",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1109,7 +1131,7 @@
      "shares": 300
     }
    },
-   "why": "$1,050, before costs. When a short rises, your loss is the cover price minus the sale price, times the shares. You sold at $22.00 and paid $25.50 to cover, on 300 shares. The SEC's example: short at $60, cover at $80, lose $20 a share. A short's loss has no fixed cap, because a stock can keep rising.",
+   "why": "When a short rises, your loss is the cover price minus the sale price, times the shares: $25.50 less $22.00, times 300 shares. The SEC's example: short at $60, cover at $80, lose $20 a share. A short's loss has no fixed cap, because a stock can keep rising.",
    "lesson_line": "When a short goes up, every point costs you on every share.",
    "facts": [
     "f06",
@@ -1126,7 +1148,18 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$7,650",
+    "$1,050",
+    "$6,600",
+    "$105"
+   ],
+   "wrong": {
+    "$7,650": "That is what the buy-back cost, not the loss.",
+    "$6,600": "That is what the sale brought in, not the loss.",
+    "$105": "A decimal slip: ten times too small."
+   }
   },
   {
    "key": "q13",
@@ -1200,9 +1233,9 @@
    "key": "q15",
    "skill": "short.mechanics",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You're short 400 shares through the ex-dividend date. The stock pays a $0.75 dividend. What do you owe the lender?",
-   "answer": 300,
+   "answer": "$300",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1212,7 +1245,7 @@
      "shares": 400
     }
    },
-   "why": "$300. If the borrowed stock pays a dividend, you must pay it to the lender: $0.75 on each of 400 shares. It comes out of your account on the pay date. You owe it because you stayed short through the ex-dividend date. Cover before that date and you don't owe it.",
+   "why": "If the borrowed stock pays a dividend, you must pay it to the lender. That is $0.75 on each of 400 shares, or $300. It comes out of your account on the pay date. You owe it because you stayed short through the ex-dividend date. Cover before that date and you don't owe it.",
    "lesson_line": "Check the dividend calendar before you short. You pay the dividend, you don't collect it.",
    "facts": [
     "f10",
@@ -1228,7 +1261,18 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$0",
+    "$3,000",
+    "$533",
+    "$300"
+   ],
+   "wrong": {
+    "$0": "Thought a short seller owes nothing. You pay the dividend to the lender.",
+    "$3,000": "A decimal slip: ten times too big.",
+    "$533": "Divided the shares by the dividend. Multiply them."
+   }
   },
   {
    "key": "q16",
@@ -1713,9 +1757,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 1200. Choices real (7,800 buy-back, 9,000 sale, sign flip). Why did not show the per-share step; added."
   },
   "q10": {
    "status": "pass",
@@ -1725,15 +1769,15 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 600. Choices real. The answer sat in slot 3 for three of four questions; moved to slot 1. Why jumped to the answer; added the full-year step."
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 1050. Choices real (7,650 = 25.50 x 300, 6,600 = 22 x 300, 105 slip). Why skipped the multiplication; added."
   },
   "q13": {
    "status": "pass",
@@ -1749,9 +1793,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 300. Choices real (533 = 400 / 0.75). Moved the answer to slot 4 (three of four answers sat in slot 3). Why did not show 0.75 x 400; added."
   },
   "q16": {
    "status": "pass",

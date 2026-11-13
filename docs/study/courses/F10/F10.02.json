@@ -995,9 +995,9 @@
    "key": "q11",
    "skill": "orders.stops",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your sell trailing stop is $1.50 below the price. The stock climbs to a high of $31.20, then slips. Where is your stop now?",
-   "answer": 29.7,
+   "answer": "$29.70",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1007,7 +1007,7 @@
      "trail": 1.5
     }
    },
-   "why": "$29.70. A dollar trailing stop sits a set amount under the price and moves up as the stock rises. At the $31.20 high it sits $1.50 lower, at $29.70. When the stock slips, the stop stays put. It triggers only if the price falls to $29.70.",
+   "why": "A dollar trailing stop sits a set amount under the best price. The best price so far is the $31.20 high. Take $1.50 off it for $29.70. When the stock slips, the stop stays put. It triggers only if the price falls to $29.70.",
    "lesson_line": "A dollar trail sits a fixed amount under the best price since you set it.",
    "facts": [
     "f14",
@@ -1023,15 +1023,26 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$28.20",
+    "$32.70",
+    "$30.73",
+    "$29.70"
+   ],
+   "wrong": {
+    "$32.70": "Added the trail to the high. A sell stop trails below the price.",
+    "$30.73": "Read $1.50 as a percent of the high, not as dollars.",
+    "$28.20": "Dropped the stop another $1.50 after the slip. A trailing stop never moves down."
+   }
   },
   {
    "key": "q12",
    "skill": "orders.stops",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You bought at $40 with a 10% trailing stop. It peaks at $60, then falls and fills right at your stop. What's your gain?",
-   "answer": 35,
+   "answer": "35%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1042,7 +1053,7 @@
      "entry": 40
     }
    },
-   "why": "35%. The 10% trail is measured from the $60 peak, not your $40 entry. So the stop rose with the stock, far above where you bought. Filled right at that stop, you keep a 35% gain. A triggered trailing stop can fill away from its price, so the real gain can differ.",
+   "why": "The 10% trail is measured from the $60 peak. Take 10% off $60 to find the stop. Then compare that stop with your $40 entry, as a percent of the entry. That is a 35% gain. A triggered trailing stop can fill away from its price, so the real gain can differ.",
    "lesson_line": "A trailing stop turns open profit into a floor, as long as the fill comes near the stop.",
    "facts": [
     "f11",
@@ -1058,7 +1069,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "50%",
+    "35%",
+    "26%",
+    "135%"
+   ],
+   "wrong": {
+    "50%": "Counted the gain to the $60 peak. You get out at the stop, not at the peak.",
+    "26%": "Divided the gain by the stop price. Divide it by your $40 entry.",
+    "135%": "Gave the stop as a percent of cost and forgot to take off your whole cost."
+   }
   },
   {
    "key": "q13",
@@ -1180,9 +1202,9 @@
    "key": "q16",
    "skill": "orders.stops",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Entry $50, sell stop $48. It gaps open at $44 and the stop sells there. How many times your planned loss did you take?",
-   "answer": 3,
+   "answer": "3x",
    "suffix": "x",
    "calc": {
     "fn": "arith",
@@ -1193,7 +1215,7 @@
      "stop": 48
     }
    },
-   "why": "3 times. You planned to risk the drop from $50 to $48. The stock gapped open at $44, so the stop became a market order and sold there. That loss is three times as deep as the plan. A stop can't stop a gap. It sells around where the stock opens.",
+   "why": "Your planned risk was the drop from $50 to $48. The real loss was the drop from $50 to $44. Divide the real loss by the planned risk to get 3 times. The stock gapped open at $44, so the stop became a market order and sold there. A stop can't stop a gap.",
    "lesson_line": "A stop sets the plan. A gap can blow straight through it.",
    "facts": [
     "f38",
@@ -1214,7 +1236,18 @@
      "deeper rests on the owner's rulebook (A7)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "6x",
+    "2x",
+    "3x",
+    "0.3x"
+   ],
+   "wrong": {
+    "6x": "Used the dollar loss as the multiple. Divide it by the planned risk.",
+    "2x": "Counted only the part past the stop. The whole loss from entry counts.",
+    "0.3x": "Flipped the ratio: planned loss over real loss."
+   }
   },
   {
    "key": "q17",
@@ -1639,15 +1672,15 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Calc 29.70. Wrongs: +1.50 (wrong sign), 1.5% of high (30.73), second drop after slip (28.20). All real."
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Calc 35.0 shown. 50 = gain to peak, 26 = 14/54, 135 = 54/40. Why walks the steps in words (the validator bars new dollar figures)."
   },
   "q13": {
    "status": "pass",
@@ -1670,9 +1703,9 @@
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 3.0. Choices fine (6x dollar loss, 2x gap past stop, 0.3x flipped). Answer was in slot 1 for two of three questions here; moved to slot 3."
   },
   "q17": {
    "status": "pass",

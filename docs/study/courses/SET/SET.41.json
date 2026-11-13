@@ -1313,10 +1313,10 @@
    "key": "q16",
    "skill": "setup.trendline_break",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tl.trim_1",
    "q": "Bought at 26.97 with the stop at 26.73. Where is 3R?",
-   "answer": 27.69,
+   "answer": "$27.69",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1326,7 +1326,7 @@
     },
     "round": 2
    },
-   "why": "27.69. One R is the fill minus the stop, 26.97 minus 26.73. Add three of those to the fill and you get 27.69. That is a measuring stick, not a sell order. MSFT traded there the next session.",
+   "why": "27.69. One R is the fill minus the stop: 26.97 minus 26.73. Add three of those to the fill and you get 27.69. That is a measuring stick, not a sell order. MSFT traded there the next session.",
    "lesson_line": "Know your 3R before the open. It measures the move; the first sell is a judgment call.",
    "facts": [
     "d03",
@@ -1344,16 +1344,27 @@
      "+2 rests on the owner's rulebook (B19, a third at 3R)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$27.45",
+    "$26.25",
+    "$29.97",
+    "$27.69"
+   ],
+   "wrong": {
+    "$27.45": "Added three R to the stop instead of to the fill.",
+    "$26.25": "Subtracted three R. A long's target sits above the fill.",
+    "$29.97": "Added 3 dollars, not three R. R is the fill minus the stop."
+   }
   },
   {
    "key": "q17",
    "skill": "setup.trendline_break",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tl.no_chase",
    "q": "The line is at 50.00, and 1.5 ATR is 3.00. What is the most we pay?",
-   "answer": 52.0,
+   "answer": "$52.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1362,7 +1373,7 @@
     },
     "round": 2
    },
-   "why": "52.00. Our rule: never buy more than 4% above the buy point. On a trendline break that is the line's value, and 50.00 times 1.04 is 52.00. The card also caps a buy at 1.5 ATR over the line, whichever is smaller. Here 1.5 ATR is the wider cap, so the 4% decides.",
+   "why": "52.00. Our rule: never buy more than 4% above the buy point. On a trendline break that is the line's value, and 50.00 x 1.04 is 52.00. The card also caps a buy at 1.5 ATR over the line, whichever is smaller. Here 1.5 ATR is the wider cap, so the 4% decides.",
    "lesson_line": "Four percent over the line is the limit. Chasing costs size.",
    "facts": [
     "h11",
@@ -1381,7 +1392,18 @@
      "+1 fixed before (now gives the ATR so the 4% and the 1.5 ATR caps agree)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "$53.00",
+    "$52.00",
+    "$54.50",
+    "$48.00"
+   ],
+   "wrong": {
+    "$53.00": "Used the 1.5 ATR cap. The 4% cap is smaller, and the smaller cap decides.",
+    "$54.50": "Multiplied the 3.00 by 1.5 again. 1.5 ATR is already 3.00.",
+    "$48.00": "Took 4% off the line. The most we pay sits above it."
+   }
   },
   {
    "key": "q18",
@@ -1560,10 +1582,10 @@
    "key": "q24",
    "skill": "setup.trendline_break",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tl.stop_width",
    "q": "Bought at 109.23 with the stop at 106.79. How far below the buy is the stop, in percent?",
-   "answer": 2.23,
+   "answer": "2.23%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1573,7 +1595,7 @@
     },
     "round": 2
    },
-   "why": "2.23%. Take the buy minus the stop, divide by the buy, and times 100. That is inside the about 3% a stop usually sits within. Know this distance before you size the trade.",
+   "why": "2.23%. The gap is the buy minus the stop: 109.23 minus 106.79. Divide by the buy, 109.23, and show it as a percent. That is inside the about 3% a stop usually sits within. Know this distance before you size the trade.",
    "lesson_line": "Buy minus stop, over the buy. Know the distance before you size.",
    "facts": [
     "h04",
@@ -1591,7 +1613,18 @@
      "+2 rests on the owner's rulebook (A13)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "2.44%",
+    "22.34%",
+    "97.77%",
+    "2.23%"
+   ],
+   "wrong": {
+    "2.44%": "Read the dollar gap as a percent. Divide it by the buy first.",
+    "22.34%": "Slipped the decimal point one place right.",
+    "97.77%": "Divided the stop by the buy. That is how much of the price is left, not how far the stop is."
+   }
   },
   {
    "key": "q25",
@@ -1736,10 +1769,10 @@
    "key": "q29",
    "skill": "setup.trendline_break",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tl.trim_2",
    "q": "Bought at 26.97, stop 26.73. The stock trades to 28.17. How many R is that?",
-   "answer": 5.0,
+   "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -1749,7 +1782,7 @@
     },
     "round": 1
    },
-   "why": "5R. One R is the fill minus the stop. Divide the gain, 28.17 minus 26.97, by that R and you get 5.0. That is where the second third comes off. The rulebook calls that level adjustable.",
+   "why": "5R. One R is the fill minus the stop: 26.97 minus 26.73. Divide the gain, 28.17 minus 26.97, by that R and you get 5.0. That is where the second third comes off. The rulebook calls that level adjustable.",
    "lesson_line": "Count in R, not dollars. 5R is the second trim.",
    "facts": [
     "c21",
@@ -1767,7 +1800,18 @@
      "+2 rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "6.0R",
+    "5.0R",
+    "1.2R",
+    "4.4R"
+   ],
+   "wrong": {
+    "6.0R": "Measured the gain from the stop instead of from the fill.",
+    "1.2R": "Called the dollar gain R. Divide it by the risk per share.",
+    "4.4R": "Used the percent gain and called it R. R is gain over the stop distance."
+   }
   },
   {
    "key": "q30",
@@ -2200,10 +2244,10 @@
    "key": "q41",
    "skill": "setup.trendline_break",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tl.stop",
    "q": "Account 50,000. Risk 0.5%. Buy 109.23, stop 106.79. How many shares?",
-   "answer": 102,
+   "answer": "102 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2214,7 +2258,7 @@
     },
     "round": 0
    },
-   "why": "102. Account times risk percent, divided by the buy minus the stop, then rounded down. That gives 102 shares. Then cap it: the size is the smaller of that and the 40% position cap. Here 102 shares is well under the cap, so 102 stands.",
+   "why": "102 shares. The risk dollars are 50,000 x 0.5%. The stop distance is 109.23 minus 106.79. Divide the risk dollars by the stop distance, then round down to 102. Then cap it: the size is the smaller of that and the 40% position cap. Here 102 shares is well under the cap, so 102 stands.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2237,7 +2281,18 @@
      "+1 fixed before (risk cut from 1% to 0.5% to stay under the cap)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "183 shares",
+    "204 shares",
+    "102 shares",
+    "10,245 shares"
+   ],
+   "wrong": {
+    "204 shares": "Risked twice too much. Use the 0.5% the question gives.",
+    "183 shares": "That is the 40% position cap size. Risk sets the size, and it is smaller.",
+    "10,245 shares": "Forgot to turn the 0.5% into a decimal."
+   }
   },
   {
    "key": "q42",
@@ -3362,13 +3417,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic; why says measuring stick not sell order."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "50.00 x 1.04 = 52.00 (calc). 1.5 ATR = 3.00 is given, so c13's 'whichever is smaller' and C28's 4% agree. No ungrounded number in the why. Owner flag on the 1.5 ATR cap stands."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q18": {
    "status": "pass",
@@ -3408,9 +3463,9 @@
   },
   "q24": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q25": {
    "status": "pass",
@@ -3438,9 +3493,9 @@
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q30": {
    "status": "pass",
@@ -3512,7 +3567,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 50000 x 0.5% / 2.44 = 102.46, rounded down 102. Deeper example states the cap rule (h03, h40) with no computed number."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q42": {
    "status": "pass",

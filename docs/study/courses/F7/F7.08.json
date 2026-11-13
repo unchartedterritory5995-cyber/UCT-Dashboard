@@ -850,9 +850,9 @@
    "key": "q08",
    "skill": "history.detective",
    "rung": 4,
-   "format": "numeric",
-   "q": "The S&P 500 closed at a 2,930.75 peak in September 2018 and at 2,351.10 on December 24. How far did it fall, in %? One decimal.",
-   "answer": 19.8,
+   "format": "mcq",
+   "q": "The S&P 500 closed at a 2,930.75 peak in September 2018 and at 2,351.10 on December 24. How far did it fall?",
+   "answer": "19.8%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -861,7 +861,7 @@
     },
     "round": 1
    },
-   "suffix": "%",
+   "suffix": "",
    "why": "19.8%. Take 2,930.75 minus 2,351.10, divide by 2,930.75, and turn it into a percent. That is the fall from the September 2018 closing peak to the December 24 close. Worries about earnings, global growth, trade tensions and the Fed weighed on stocks. Investor.gov says a bear market is generally a fall of 20% or more over at least two months. On closing prices, this fall stopped just short of that line.",
    "lesson_line": "Measure from the closing peak. Late 2018 came within a hair of 20%, then turned.",
    "facts": [
@@ -881,7 +881,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "80.2%",
+    "1.98%",
+    "24.7%",
+    "19.8%"
+   ],
+   "wrong": {
+    "24.7%": "Divided the drop by the low, not the peak.",
+    "80.2%": "Gave what is left, not the fall.",
+    "1.98%": "Decimal slip."
+   }
   },
   {
    "key": "q09",
@@ -1216,9 +1227,9 @@
    "key": "q17",
    "skill": "history.detective",
    "rung": 7,
-   "format": "numeric",
-   "q": "The S&P 500 closed at 1,565.15 at its 2007 peak and 676.53 at its 2009 low. What gain gets it back to the peak? Nearest whole %.",
-   "answer": 131,
+   "format": "mcq",
+   "q": "The S&P 500 closed at 1,565.15 at its 2007 peak and 676.53 at its 2009 low. What gain gets it back to the peak?",
+   "answer": "131%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1227,8 +1238,8 @@
     },
     "round": 0
    },
-   "suffix": "%",
-   "why": "131%. From 676.53 back up to 1,565.15 is a gain of 131%. A 56.8% loss leaves less than half the money. So what is left must more than double just to get back to even. The gain needed grows much faster than the loss. It says nothing about how long the climb takes.",
+   "suffix": "",
+   "why": "131%. Subtract the low close, 676.53, from the peak close, 1,565.15. Divide that gain by the low, because you start from the low. A 56.8% loss leaves less than half the money. So what is left must more than double just to get back to even. The gain needed grows much faster than the loss. It says nothing about how long the climb takes.",
    "lesson_line": "Big losses need far bigger gains to repair. Cutting losses early is cheaper than climbing out.",
    "facts": [
     "f45",
@@ -1246,7 +1257,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "57%",
+    "43%",
+    "231%",
+    "131%"
+   ],
+   "wrong": {
+    "57%": "Used the size of the loss as the gain needed.",
+    "231%": "Stopped at the ratio and forgot to subtract one.",
+    "43%": "Gave what is left after the loss."
+   }
   },
   {
    "key": "q18",
@@ -1449,7 +1471,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed (2,930.75 - 2,351.10) / 2,930.75 = 19.78%, so 19.8; calc matches. Both closes are in the question and in f32/f33. Bear-market line from f31 is hedged ('generally'), consistent with the conflicts note. Method text has no ungrounded number."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q09": {
    "status": "pass",
@@ -1507,9 +1529,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Why did not walk the steps."
   },
   "q18": {
    "status": "pass",

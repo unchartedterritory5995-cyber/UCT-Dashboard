@@ -1100,9 +1100,9 @@
    "key": "q12",
    "skill": "history.data_calendar",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "152 million people have jobs. 8 million are unemployed. What is the unemployment rate?",
-   "answer": 5,
+   "answer": "5%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1111,7 +1111,7 @@
      "unemployed": 8
     }
    },
-   "suffix": "%",
+   "suffix": "",
    "why": "5%. The unemployment rate is the number unemployed as a percent of the labor force. The labor force is the employed plus the unemployed: 152 million plus 8 million. 8 million divided by that total is 5%. Dividing by only the 152 million with jobs gives a rate that is too high.",
    "lesson_line": "Unemployed divided by the labor force, not by the people with jobs.",
    "facts": [
@@ -1126,7 +1126,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "95%",
+    "19%",
+    "5.3%",
+    "5%"
+   ],
+   "wrong": {
+    "5.3%": "Divided by the 152 million with jobs, not the whole labor force.",
+    "95%": "Gave the employed share of the labor force.",
+    "19%": "Divided the employed by the unemployed."
+   }
   },
   {
    "key": "q13",
@@ -1211,9 +1222,9 @@
    "key": "q15",
    "skill": "history.data_calendar",
    "rung": 5,
-   "format": "numeric",
-   "q": "Forecasters expect CPI to rise 0.2%. It comes in at 0.5%. How big is the surprise, in percentage points?",
-   "answer": 0.3,
+   "format": "mcq",
+   "q": "Forecasters expect CPI to rise 0.2%. It comes in at 0.5%. How big is the surprise?",
+   "answer": "0.3 points",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1222,8 +1233,8 @@
      "forecast": 0.2
     }
    },
-   "suffix": "points",
-   "why": "0.3 points. The surprise is the actual print minus the consensus forecast: 0.5% less 0.2%. That gap, not the 0.5% itself, is what research finds moves stocks. A print above the forecast, like this one, is called hot.",
+   "suffix": "",
+   "why": "0.3 points. The surprise is the actual print minus the consensus forecast: 0.5% less 0.2%. That gap, not the 0.5% itself, is what research finds moves stocks. A print above the forecast is called hot.",
    "lesson_line": "Surprise equals actual minus forecast. Work it out the moment the number hits.",
    "facts": [
     "f54",
@@ -1238,7 +1249,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "2.5 points",
+    "0.7 points",
+    "0.3 points",
+    "0.5 points"
+   ],
+   "wrong": {
+    "0.7 points": "Added the forecast to the actual.",
+    "2.5 points": "Divided the actual by the forecast.",
+    "0.5 points": "Used the print and ignored the forecast."
+   }
   },
   {
    "key": "q16",
@@ -1708,9 +1730,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q13": {
    "status": "pass",
@@ -1727,9 +1749,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q16": {
    "status": "pass",

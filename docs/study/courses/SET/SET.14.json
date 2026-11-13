@@ -1606,10 +1606,10 @@
    "key": "q19",
    "skill": "setup.ema20_pullback",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "e20.trim_1",
    "q": "Bought the hold at 147.30 with the stop at 145.05. Where is 3R?",
-   "answer": 154.05,
+   "answer": "$154.05",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1619,7 +1619,7 @@
     },
     "round": 2
    },
-   "why": "154.05. One R is the fill minus the stop. Three of those added to the fill give 154.05. 3R is a yardstick, not a fixed sale point.",
+   "why": "One R is the fill minus the stop, 147.30 minus 145.05. Add three of those to the fill: 147.30 plus 3 times (147.30 minus 145.05) is 154.05. 3R is a yardstick, not a fixed sale point.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, and the first sell is a judgment.",
    "facts": [
     "r55"
@@ -1636,7 +1636,18 @@
      "rests on the owner's rulebook B19"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$149.55",
+    "$151.80",
+    "$156.30",
+    "$154.05"
+   ],
+   "wrong": {
+    "$149.55": "That adds one R, not three.",
+    "$151.80": "That counts 3R up from the stop, not from the fill.",
+    "$156.30": "That adds four R. Three R is three gaps, not four."
+   }
   },
   {
    "key": "q20",
@@ -1819,10 +1830,10 @@
    "key": "q25",
    "skill": "setup.ema20_pullback",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "e20.pullback_depth",
    "q": "The highest high of the last 11 sessions is 120.00, ATR is 3.00 and the hold session's low is 117.60. How deep is the pullback, in ATR?",
-   "answer": 0.8,
+   "answer": "0.80 ATR",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1833,7 +1844,7 @@
     },
     "round": 2
    },
-   "why": "0.8 ATR. The swing high minus the hold low, divided by the ATR of 3.00, gives 0.8. The card wants at least 1 ATR, so this is a drift along the line, not a pullback to it.",
+   "why": "The pullback is the swing high minus the hold low, divided by the ATR: (120.00 minus 117.60) divided by 3.00 is 0.8. The card wants at least 1 ATR, so this is a drift along the line, not a pullback to it.",
    "lesson_line": "Measure the dip in ATR. Under one, there was nothing to pull back from.",
    "facts": [
     "c03"
@@ -1850,16 +1861,27 @@
      "tied to held decision D-029"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "0.08 ATR",
+    "2.40 ATR",
+    "1.25 ATR",
+    "0.80 ATR"
+   ],
+   "wrong": {
+    "1.25 ATR": "That flips the division. Put the dip on top.",
+    "0.08 ATR": "That slips a decimal place.",
+    "2.40 ATR": "That is the dollar dip read as ATR. Divide it by the ATR."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.ema20_pullback",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "e20.stop",
    "q": "Fill 48.60. The hold candle's low is 47.45 and the stop sits three cents under it. Stop distance below the fill, in percent, to 2 decimals?",
-   "answer": 2.43,
+   "answer": "2.43%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1869,7 +1891,7 @@
     },
     "round": 2
    },
-   "why": "2.43%. The stop is three cents under the 47.45 low. Divide the gap from the fill by the fill, 48.60, and multiply by 100. That is inside the about 3% a stop usually stays within.",
+   "why": "The stop is three cents under the 47.45 low, so it sits at 47.45 minus 0.03. Divide the gap from the fill by the fill: (48.60 minus (47.45 minus 0.03)) divided by 48.60 is 2.43%. That is inside the about 3% a stop usually stays within.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h24",
@@ -1886,16 +1908,27 @@
      "rests on the owner's rulebook F62 and A13"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "1.18%",
+    "24.3%",
+    "2.43%",
+    "97.6%"
+   ],
+   "wrong": {
+    "1.18%": "That is the dollar amount read as a percent. Divide it first.",
+    "24.3%": "That slips a decimal place.",
+    "97.6%": "That is the stop as a share of the fill, not the gap."
+   }
   },
   {
    "key": "q27",
    "skill": "setup.ema20_pullback",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "e20.stop",
    "q": "Account 40,000. Risk 0.5%. Fill 95.90, stop 93.85. Shares from the risk math, rounded down?",
-   "answer": 97,
+   "answer": "97 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -1906,7 +1939,7 @@
     },
     "round": 0
    },
-   "why": "97. Risk is 0.5% of the 40,000 account. Divide that dollar risk by the stop distance, the fill minus the stop. Round the result down to 97. The size is the smaller of this and the position cap.",
+   "why": "Risk is 0.5% of the 40,000 account, which is 200. Divide that by the stop distance, 95.90 minus 93.85, and round down to 97. The size is the smaller of this and the position cap.",
    "lesson_line": "The stop sets the size. You never pick a size and back-fit a stop.",
    "facts": [
     "h03",
@@ -1925,7 +1958,18 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "200 shares",
+    "975 shares",
+    "97 shares",
+    "2 shares"
+   ],
+   "wrong": {
+    "975 shares": "That risks ten times the plan. A decimal slip.",
+    "2 shares": "That divides the dollar risk by the price, not by the stop distance.",
+    "200 shares": "That is the risk dollars read as shares. Divide by the risk per share."
+   }
   },
   {
    "key": "q28",
@@ -2426,10 +2470,10 @@
    "key": "q42",
    "skill": "setup.ema20_pullback",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "e20.trim_2",
    "q": "Bought at 28.79, stop 28.02. The stock trades to 32.64. How many R is that?",
-   "answer": 5.0,
+   "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -2439,7 +2483,7 @@
     },
     "round": 1
    },
-   "why": "5R. The gain divided by the fill minus the stop is 5. That is where the second third comes off.",
+   "why": "The gain is the exit minus the fill, 32.64 minus 28.79. One R is the fill minus the stop, 28.79 minus 28.02. The gain divided by one R is 5. That is where the second third comes off.",
    "lesson_line": "Count in R, not dollars. 5R is the second trim.",
    "facts": [
     "h20",
@@ -2457,7 +2501,18 @@
      "rests on the owner's rulebook E51, which is adjustable"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "6.0R",
+    "5.0R",
+    "3.9R",
+    "0.1R"
+   ],
+   "wrong": {
+    "6.0R": "That counts the gain from the stop, so it reads one R too high.",
+    "3.9R": "That is the dollar gain read as R. Divide it by the risk per share.",
+    "0.1R": "That divides the gain by the price, not by R."
+   }
   },
   {
    "key": "q43",
@@ -3049,10 +3104,10 @@
    "key": "q58",
    "skill": "setup.ema20_pullback",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "e20.no_chase",
    "q": "The trigger is 45.00 and the stock opens at 46.62, above it. How far above the trigger is the open, in percent?",
-   "answer": 3.6,
+   "answer": "3.6%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -3061,7 +3116,7 @@
     },
     "round": 2
    },
-   "why": "3.6%. The open's gain over the 45.00 trigger is 3.6%. That is inside the 4% line, so the fill at the open is allowed. The stop stays under the hold candle, so the distance grows and the shares shrink.",
+   "why": "The open's gain over the trigger is (46.62 minus 45.00) divided by 45.00, which is 3.6%. That is inside the 4% line, so the fill at the open is allowed. The stop stays under the hold candle, so the distance grows and the shares shrink.",
    "lesson_line": "Measure the gap against the trigger. Inside 4% you may take the open.",
    "facts": [
     "h11",
@@ -3082,7 +3137,18 @@
      "rests on the owner's rulebook C28"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "1.6%",
+    "36.0%",
+    "103.6%",
+    "3.6%"
+   ],
+   "wrong": {
+    "1.6%": "That is the dollar amount read as a percent. Divide it first.",
+    "36.0%": "That slips a decimal place.",
+    "103.6%": "That is the open as a share of the trigger, not the gain."
+   }
   },
   {
    "key": "q59",
@@ -3448,10 +3514,10 @@
    "key": "q68",
    "skill": "setup.ema20_pullback",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "e20.position_adv",
    "q": "A pullback stock trades 2,500,000 shares a day on average. What is the most shares our volume rule lets us hold?",
-   "answer": 25000,
+   "answer": "25,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3461,7 +3527,7 @@
     "round": 0
    },
    "suffix": " shares",
-   "why": "25,000 shares. One percent of 2,500,000 is 25,000. We never own more than 1% of a stock's average daily volume, whatever the risk math allows.",
+   "why": "We never own more than 1% of a stock's average daily volume. 1% of 2,500,000 is 2,500,000 times 0.01, or 25,000. That holds whatever the risk math allows.",
    "lesson_line": "One percent of the average daily volume is the ceiling.",
    "facts": [
     "h19"
@@ -3477,7 +3543,18 @@
      "rests on the owner's rulebook D42"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "250,000 shares",
+    "25,000 shares",
+    "2,500 shares",
+    "50,000 shares"
+   ],
+   "wrong": {
+    "250,000 shares": "That is ten times our line.",
+    "2,500 shares": "That is a tenth of our line. A decimal slip.",
+    "50,000 shares": "That is double our line."
+   }
   },
   {
    "key": "q69",
@@ -3700,8 +3777,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "fixed": true,
+   "notes": "Replaced the down-3R choice with a 4R overshoot so the answer is not the largest. Calc recomputed; the other wrong choices checked by hand."
   },
   "q20": {
    "status": "pass",
@@ -3736,20 +3813,20 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed (120.00 - 117.60) / 3.00 = 0.8. c03 verbatim (highest high of last 11 sessions to the hold low; at least 1 ATR). Proposed number, flagged."
+   "fixed": true,
+   "notes": "The answer 0.8 had one decimal while the others had two; all now two decimals. Calc recomputed; the other wrong choices checked by hand."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math right: (48.60-47.42)/48.60 = 2.428% -> 2.43. But the stem gives no precision and the scorer wants the 2-decimal value, so a member who types 2.4 is marked wrong. State the precision."
+   "fixed": false,
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "0.5% of 40,000 = 200; 200/2.05 = 97.56 -> 97; 97 x 95.90 = 9,302, 23% of the account, under the 40% cap (A7). Matches A5."
+   "fixed": true,
+   "notes": "98 was within rounding of 97.6 and made an adjacent pair; replaced with risk dollars read as shares. Why shows the 200. Calc recomputed; the other wrong choices checked by hand."
   },
   "q28": {
    "status": "pass",
@@ -3840,7 +3917,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed (32.64 - 28.79) / 0.77 = 5.0. E51 verbatim (a third at 5R, adjustable)."
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q43": {
    "status": "pass",
@@ -3939,7 +4016,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 46.62 / 45.00 - 1 = 3.6%; C28 and c35 (4%) verbatim; the stop-distance point is C28's own note."
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q59": {
    "status": "cut",
@@ -4000,7 +4077,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 2,500,000 x 1% = 25,000. D42 verbatim."
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q69": {
    "status": "pass",

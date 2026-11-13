@@ -1591,10 +1591,10 @@
    "key": "q15",
    "skill": "setup.opening_drive",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "od.stop_width",
-   "q": "The first 5-minute bar runs 272.80 to 277.23. You fill at 277.24 with the stop at 272.75. How far below the fill is the stop, in percent?",
-   "answer": 1.62,
+   "q": "The first 5-minute bar runs 272.80 to 277.23. You fill at 277.24 with the stop at 272.75. How far below the fill is the stop?",
+   "answer": "1.62%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1604,7 +1604,7 @@
     },
     "round": 2
    },
-   "why": "1.62%. Stop distance is the fill minus the stop, divided by the fill. That is LRCX on 2026-09-18. A tight first bar gives a close stop, inside the 1 to 3% we prefer. We accept up to 5%, so the range is a guide, not a hard cap.",
+   "why": "The stop distance is the fill minus the stop. Divide by the fill: (277.24 - 272.75) / 277.24 = 1.62%. That is LRCX on 2026-09-18. It sits inside the 1 to 3% we prefer. We accept up to 5%, so the range is a guide, not a hard cap.",
    "lesson_line": "Stop first, distance second, size last. A tight first bar makes a close stop.",
    "facts": [
     "h04",
@@ -1624,7 +1624,18 @@
      "stop width is tied to held decision D-005 and the rulebook's A13"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "4.49%",
+    "98.38%",
+    "16.19%",
+    "1.62%"
+   ],
+   "wrong": {
+    "4.49%": "Stopped at the dollar distance and never divided by the fill.",
+    "16.19%": "Decimal slip: moved the point one place too far.",
+    "98.38%": "The stop is 98.38% of the fill. That is what is left, not the gap."
+   }
   },
   {
    "key": "q16",
@@ -1782,10 +1793,10 @@
    "key": "q21",
    "skill": "setup.opening_drive",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "od.trim_1",
    "q": "Fill 581.57, stop 572.82. Where is 3R?",
-   "answer": 607.82,
+   "answer": "$607.82",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1795,7 +1806,7 @@
     },
     "round": 2
    },
-   "why": "607.82. One R is the fill minus the stop. Add three of those to the fill. That is the 3R price, a mark to measure with, not an order to sell. SITM got there at 9:50 the same day.",
+   "why": "One R is the fill minus the stop. Add three of them to the fill: 581.57 + 3 x (581.57 - 572.82) = 607.82. That is a mark to measure with, not an order to sell. SITM got there at 9:50 the same day.",
    "lesson_line": "Know your 3R price before the open. It is a mark, and the first sell is a judgment.",
    "facts": [
     "d11",
@@ -1816,7 +1827,18 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$599.07",
+    "$607.82",
+    "$590.32",
+    "$616.57"
+   ],
+   "wrong": {
+    "$599.07": "Counted 3R up from the stop, not from the fill.",
+    "$590.32": "Added only one R, one stop distance, to the fill.",
+    "$616.57": "Added four R, counting the fill itself as the first step."
+   }
   },
   {
    "key": "q22",
@@ -1848,10 +1870,10 @@
    "key": "q23",
    "skill": "setup.opening_drive",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "od.no_chase",
-   "q": "The first 5-minute high is 71.99. You look up and the stock trades 75.00. How far above the high is that, in percent?",
-   "answer": 4.18,
+   "q": "The first 5-minute high is 71.99. You look up and the stock trades 75.00. How far above the high is that?",
+   "answer": "4.18%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1860,7 +1882,7 @@
     },
     "round": 2
    },
-   "why": "4.18%. Take 75.00 minus 71.99 and divide by 71.99. That is past the 4% line, so the buy point has passed; use the second entry. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
+   "why": "Take the move above the high: 75.00 - 71.99 = 3.01. Divide by the high: 3.01 / 71.99 = 4.18%. That is past the 4% line, so the buy point has passed. Use the second entry. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
    "lesson_line": "Measure the chase before you buy it. Past 4%, the first pullback is the way in.",
    "facts": [
     "c03",
@@ -1878,7 +1900,18 @@
      "rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "41.81%",
+    "3.01%",
+    "4.01%",
+    "4.18%"
+   ],
+   "wrong": {
+    "41.81%": "Decimal slip: moved the point one place too far.",
+    "3.01%": "Stopped at the dollar move and never divided by the high.",
+    "4.01%": "Divided the 3.01 move by the 75.00 price, not by the high."
+   }
   },
   {
    "key": "q24",
@@ -2339,10 +2372,10 @@
    "key": "q37",
    "skill": "setup.opening_drive",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "od.stop",
    "q": "Account 100,000. Risk 0.4%. Fill 208.00, stop 205.66. How many shares?",
-   "answer": 170,
+   "answer": "170 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2353,7 +2386,7 @@
     },
     "round": 0
    },
-   "why": "170 shares. Account times risk percent gives the dollars at risk. Divide by the fill minus the stop, and round down. Then cap it: the size is the smaller of the risk-based size and the position cap. The stop sets the size, never the other way round. These are SANM's real fill and stop.",
+   "why": "Dollars at risk are the account times the risk: 100,000 x 0.4% = 400. Divide by the stop distance: 400 / (208.00 - 205.66) is just over 170, so round down to 170. Then cap it: the size is the smaller of the risk-based size and the position cap. The stop sets the size, never the other way round. These are SANM's real fill and stop.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2374,7 +2407,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "400 shares",
+    "1,709 shares",
+    "133 shares",
+    "170 shares"
+   ],
+   "wrong": {
+    "1,709 shares": "Risked four percent instead of 0.4%, ten times the dollars.",
+    "400 shares": "Never divided the 400 dollars by the stop distance.",
+    "133 shares": "Rounded the stop down to a whole dollar first, which widened the stop distance."
+   }
   },
   {
    "key": "q38",
@@ -3251,10 +3295,10 @@
    "key": "q60",
    "skill": "setup.opening_drive",
    "rung": 9,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "od.stop_gap",
    "q": "Fill 208.00, stop 205.66. A gap-down day opens below the stop. At what price is the loss 2R?",
-   "answer": 203.32,
+   "answer": "$203.32",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3264,7 +3308,7 @@
     },
     "round": 2
    },
-   "why": "203.32. One R is the fill minus the stop. Subtract two of those from the fill. On a gap through the stop, the low of the first 30-minute bar becomes the new stop. If the first 30 minutes take the loss past 2R, below 203.32, get out. This is the one case where the stop can sit lower than it was.",
+   "why": "One R is the fill minus the stop. Subtract two of them from the fill: 208.00 - 2 x (208.00 - 205.66) = 203.32. On a gap through the stop, the low of the first 30-minute bar becomes the new stop. If the first 30 minutes take the loss past 2R, below 203.32, get out. This is the one case where the stop can sit lower than it was.",
    "lesson_line": "Know the 2R price before the gap. The first 30-minute low must stay above it.",
    "facts": [
     "h07",
@@ -3286,7 +3330,18 @@
      "rests on the owner's rulebook (B20)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "$200.98",
+    "$203.32",
+    "$212.68",
+    "$205.66"
+   ],
+   "wrong": {
+    "$200.98": "Counted 2R down from the stop, not from the fill.",
+    "$212.68": "Added two R to the fill instead of subtracting it.",
+    "$205.66": "That is the stop itself, a loss of only one R."
+   }
   },
   {
    "key": "q61",
@@ -3438,10 +3493,10 @@
    "key": "q65",
    "skill": "setup.opening_drive",
    "rung": 9,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "od.position_adv",
    "q": "A stock trades 850,000 shares a day on average. By our volume rule, what is the most we would own, in shares?",
-   "answer": 8500,
+   "answer": "8,500 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3450,7 +3505,7 @@
     },
     "round": 0
    },
-   "why": "8,500 shares. We never own more than 1% of a stock's average daily volume, and 1% of 850,000 is 8,500. That is a ceiling, not a target. Illiquid stocks are not even watched.",
+   "why": "We never own more than 1% of a stock's average daily volume. One percent is 0.01, so 850,000 x 0.01 = 8,500 shares. That is a ceiling, not a target. Illiquid stocks are not even watched.",
    "lesson_line": "Size to the volume. One percent of the average day is the ceiling.",
    "facts": [
     "h19",
@@ -3467,7 +3522,18 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "841,500 shares",
+    "85,000 shares",
+    "17,000 shares",
+    "8,500 shares"
+   ],
+   "wrong": {
+    "85,000 shares": "Moved the decimal one place, which is ten percent, not one.",
+    "841,500 shares": "Took one percent off the volume instead of one percent of it.",
+    "17,000 shares": "Used two percent, not one."
+   }
   },
   {
    "key": "q66",
@@ -3630,19 +3696,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "notes": "Three digit-shifts of 1.62 put the answer mid-cluster. Replaced 0.16% with the what-is-left mistake."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "3R arithmetic kept; 3R framed as a mark, no sell rule."
+   "fixed": true,
+   "notes": "Answer was the highest choice. Replaced the add-three-dollars slip with a four-R overshoot."
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "The 0.42% note was wrong (a forgotten-percent slip gives 0.0418, not 0.42) and 41.81/4.18/0.42 was a digit ladder. Replaced with a divide-by-the-price mistake."
   },
   "q25": {
    "status": "pass",
@@ -3688,9 +3754,9 @@
   },
   "q37": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "170/1,709/17,094 was a digit ladder with the answer the smallest. Replaced 17,094 with a rounded-stop mistake that lands below the answer."
   },
   "q38": {
    "status": "pass",
@@ -3793,7 +3859,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc 208 - 2*(208 - 205.66) = 203.32 verified; h06/h07 ground the gap rule and its 2R ceiling, h02 the one exception."
+   "notes": "208.00 - 2 x 2.34 = 203.32 verified; wrongs are real; answer sits mid-range."
   },
   "q61": {
    "status": "pass",
@@ -3816,8 +3882,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc 1% of 850,000 = 8,500 from h19/c43; 'by our volume rule' keeps the position cap and risk size out."
+   "fixed": true,
+   "notes": "Same slip ladder as SET.53 q68; replaced the 850 slip with a two-percent mix-up."
   },
   "q02": {
    "status": "pass",

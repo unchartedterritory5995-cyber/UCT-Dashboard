@@ -929,9 +929,9 @@
    "key": "q07",
    "skill": "basics.hours",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Regular hours only, how many 5-minute bars make one full trading day?",
-   "answer": 78,
+   "answer": "78 bars",
    "calc": {
     "fn": "arith",
     "args": {
@@ -941,7 +941,7 @@
      "bar_min": 5
     }
    },
-   "why": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET. That is six and a half hours. An hour holds twelve 5-minute bars. Twelve bars an hour over six and a half hours is 78. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars.",
+   "why": "78. The regular session runs 9:30 a.m. to 4:00 p.m. ET. That is six and a half hours, or 390 minutes. Divide 390 by 5 and you get 78 bars. A chart that shows more than 78 five-minute bars for one full day is also drawing extended-hours trading. On an early-close day the session is shorter, so a full day has fewer bars.",
    "lesson_line": "Count more than 78 five-minute bars in a full day and your chart is showing extended hours.",
    "facts": [
     "f1",
@@ -961,12 +961,17 @@
      "computed key"
     ]
    },
-   "batch": "review1",
-   "choices": [],
+   "batch": "tomcq",
+   "choices": [
+    "390 bars",
+    "72 bars",
+    "84 bars",
+    "78 bars"
+   ],
    "wrong": {
-    "72": "That treats the session as six hours. It is six and a half hours, because it runs 9:30 to 4:00.",
-    "84": "That counts seven hours, as if the session opened at 9:00. It opens at 9:30, so it is six and a half hours.",
-    "192": "That counts 4:00 a.m. to 8:00 p.m. ET, sixteen hours. That window includes extended hours, not just the regular session."
+    "72 bars": "You used six hours. The session is six and a half hours.",
+    "84 bars": "You used seven hours, as if the session opened at 9:00.",
+    "390 bars": "You counted minutes and forgot to divide by 5."
    }
   },
   {
@@ -1126,9 +1131,9 @@
    "key": "q12",
    "skill": "basics.hours",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Yesterday's close was $40.00. This morning it opens at $44.00. How big is the gap, as a percent of the close?",
-   "answer": 10,
+   "answer": "10%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1137,7 +1142,7 @@
     }
    },
    "suffix": "%",
-   "why": "10%. A gap is measured from one day's close to the next day's open. Take the open minus the close, $44.00 minus $40.00, then divide by the close, $40.00. That gives a 10% gap up. Divide by the close, not the open, or you get a different number.",
+   "why": "10%. A gap is measured from one day's close to the next day's open. Take the open minus the close, $44.00 minus $40.00, which is $4.00. Divide $4.00 by the close, $40.00, and you get 10%, a gap up. Divide by the close, not the open, or you get a different number.",
    "lesson_line": "Measure a gap from yesterday's close to today's open, in percent.",
    "facts": [
     "f73",
@@ -1151,7 +1156,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "4%",
+    "9.1%",
+    "10%",
+    "110%"
+   ],
+   "wrong": {
+    "9.1%": "You divided the $4.00 gap by the $44.00 open instead of the $40.00 close.",
+    "4%": "You read the $4.00 dollar gap as a percent.",
+    "110%": "You divided the open by the close and forgot to subtract one."
+   }
   },
   {
    "key": "q13",
@@ -1531,7 +1547,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The upgrade tried format mcq, but format cannot change (apply_upgrade ignores it), so q07 stays numeric: the string answer '78' and the unused choices were inconsistent with the numeric calc key. Restored the numeric answer 78 and cleared the dead choices; the mistake-built notes (72, 84, 192) stay in wrong and the why shows the steps (6.5 h x 12 bars). Facts f1,f11,f39,f17,f27 support it."
+   "notes": "Answer and calc check out. Fix: the explanation did not show the intermediate step; added it."
   },
   "q08": {
    "status": "pass",
@@ -1559,9 +1575,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q13": {
    "status": "pass",

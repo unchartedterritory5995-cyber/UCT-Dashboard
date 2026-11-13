@@ -1339,10 +1339,10 @@
    "key": "q16",
    "skill": "setup.news_gapper",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ng.trim_1",
    "q": "Bought at 105.11 with the stop at 103.20. Where is 3R?",
-   "answer": 110.84,
+   "answer": "$110.84",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1352,7 +1352,7 @@
     },
     "round": 2
    },
-   "why": "110.84. One R is the fill minus the stop. Add three of those to the fill. 3R is a measuring mark, not a fixed sell. In our data TGT ran to 12.0R from these levels.",
+   "why": "$110.84. One R is the fill minus the stop, 105.11 minus 103.20. Add three of those to the 105.11 fill. 3R is a measuring mark, not a fixed sell.",
    "lesson_line": "Know your 3R before the open. It is a measuring mark, not a sell order.",
    "facts": [
     "r03",
@@ -1372,16 +1372,27 @@
      "rests on the owner's rulebook (B19 first trim)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$99.38",
+    "$108.93",
+    "$107.02",
+    "$110.84"
+   ],
+   "wrong": {
+    "$108.93": "Added three R to the stop, not the fill.",
+    "$107.02": "Added one R, not three.",
+    "$99.38": "Subtracted three R from the fill."
+   }
   },
   {
    "key": "q17",
    "skill": "setup.news_gapper",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ng.gap_holds",
    "q": "Gap day: low 100.00, high 110.00, close 107.00. Where in the range did it close, from 0 to 1?",
-   "answer": 0.7,
+   "answer": "0.70",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1392,13 +1403,13 @@
     },
     "round": 2
    },
-   "why": "0.7. The close minus the low, divided by the high minus the low. That is in the upper half, so this day meets the close test for a held gap. A held gap also needs the day never to trade back to the prior close.",
+   "why": "0.70. The close minus the low is 107 minus 100. Divide that by the range, 110 minus 100. That is in the upper half, so this day meets the close test for a held gap. A held gap also needs the day never to trade back to the prior close.",
    "lesson_line": "Close minus low, over the range. Upper half passes the close test.",
    "facts": [
     "c02"
    ],
    "house": true,
-   "simple": "The close is 0.7 of the way up the range. That is the upper half.",
+   "simple": "The close is 0.70 of the way up the range. That is the upper half.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1406,7 +1417,18 @@
      "a computed key"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "0.30",
+    "0.70",
+    "0.97",
+    "0.07"
+   ],
+   "wrong": {
+    "0.30": "Measured down from the high, not up from the low.",
+    "0.97": "Divided the close by the high and skipped the low.",
+    "0.07": "Divided by the low, not by the range."
+   }
   },
   {
    "key": "q18",
@@ -1567,10 +1589,10 @@
    "key": "q23",
    "skill": "setup.news_gapper",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ng.volume",
    "q": "The 50-day average volume is 4 million shares. The gap day trades 13 million. What is the multiple?",
-   "answer": 3.25,
+   "answer": "3.25x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1580,7 +1602,7 @@
     },
     "round": 2
    },
-   "why": "3.25. Divide gap-day volume by the 50-day average: 13 million over 4 million. That clears the line of at least 3 times. The line is for the close, and the stock must be on pace for it by the buy.",
+   "why": "3.25x. Divide gap-day volume by the 50-day average: 13 million over 4 million. That clears the line of at least 3 times. The line is for the close, and the stock must be on pace for it by the buy.",
    "lesson_line": "Volume multiple is today over the 50-day average.",
    "facts": [
     "c04",
@@ -1597,7 +1619,18 @@
      "the 3 times line is a proposed card number"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "9.00x",
+    "0.31x",
+    "3.25x",
+    "2.25x"
+   ],
+   "wrong": {
+    "0.31x": "Flipped it: divided the average by the gap-day volume.",
+    "9.00x": "Subtracted 4 from 13 instead of dividing.",
+    "2.25x": "Used the extra volume over the average, not the whole day."
+   }
   },
   {
    "key": "q24",
@@ -2218,10 +2251,10 @@
    "key": "q40",
    "skill": "setup.news_gapper",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ng.stop_pullback",
    "q": "Account 40,000. Risk 0.5%. Fill 105.11, stop 103.20. How many shares?",
-   "answer": 104,
+   "answer": "104 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2232,7 +2265,7 @@
     },
     "round": 0
    },
-   "why": "104. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size. Then the size is the smaller of this and the position cap.",
+   "why": "104 shares. Risk dollars are 0.5% of 40,000. Divide that by the fill minus the stop, 105.11 minus 103.20, and round down. The stop sets the size. Then the size is the smaller of this and the position cap.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2251,7 +2284,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "382 shares",
+    "10 shares",
+    "209 shares",
+    "104 shares"
+   ],
+   "wrong": {
+    "10 shares": "Slipped the decimal: used a tenth of the risk percent.",
+    "209 shares": "Risked double the risk percent.",
+    "382 shares": "Multiplied by the stop distance instead of dividing."
+   }
   },
   {
    "key": "q41",
@@ -2434,10 +2478,10 @@
    "key": "q46",
    "skill": "setup.news_gapper",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ng.stop_pullback",
    "q": "Fill 33.55, stop 32.59. How far is the stop from the fill, in percent?",
-   "answer": 2.9,
+   "answer": "2.9%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2447,7 +2491,7 @@
     },
     "round": 1
    },
-   "why": "2.9. The fill minus the stop, divided by the fill, shown as a percent. That sits inside the usual 3%, because our stop usually sits within about 3% of the buy. It is a loss on the position, not on the account.",
+   "why": "2.9%. The fill minus the stop is 33.55 minus 32.59. Divide that by the fill, 33.55, and show it as a percent. That sits inside the usual 3%, because our stop usually sits within about 3% of the buy. It is a loss on the position, not on the account.",
    "lesson_line": "Stop distance is the fill minus the stop, over the fill.",
    "facts": [
     "h04",
@@ -2464,7 +2508,18 @@
      "rests on the owner's rulebook (A13, the 3% habit)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "0.3%",
+    "2.9%",
+    "1.0%",
+    "97.1%"
+   ],
+   "wrong": {
+    "0.3%": "Slipped the decimal one place to the left.",
+    "1.0%": "Read the dollar gap as a percent.",
+    "97.1%": "Divided the stop by the fill and skipped the subtraction."
+   }
   },
   {
    "key": "q47",
@@ -3005,10 +3060,10 @@
    "key": "q61",
    "skill": "setup.news_gapper",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "rule.A5",
    "q": "Risk formula and position cap both allow 666 shares. The stock is $600, average daily volume 40,000 shares. Shares you may buy?",
-   "answer": 400,
+   "answer": "400 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3017,7 +3072,7 @@
     },
     "round": 0
    },
-   "why": "400. The risk formula and the position cap both allow 666 shares. We never own more than 1% of a stock's average daily volume, and 1% of 40,000 is 400. The smaller number wins.",
+   "why": "400 shares. The risk formula and the position cap both allow 666 shares. We never own more than 1% of a stock's average daily volume. 1% of 40,000 is 400. The smaller number wins.",
    "lesson_line": "Own the smaller of the risk size and 1% of average volume.",
    "facts": [
     "h03",
@@ -3037,7 +3092,18 @@
      "rests on the owner's rulebook (D42 and A5)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "666 shares",
+    "67 shares",
+    "400 shares",
+    "4,000 shares"
+   ],
+   "wrong": {
+    "67 shares": "Divided the volume by the price.",
+    "666 shares": "Took the risk size and forgot the volume cap.",
+    "4,000 shares": "Took ten percent of the volume, not one percent."
+   }
   },
   {
    "key": "q62",
@@ -3291,10 +3357,10 @@
    "key": "q68",
    "skill": "setup.news_gapper",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ng.base_before",
    "q": "In the 60 sessions before a gap, the high was 58.00 and the low was 46.00. How far is the high above the low, in percent?",
-   "answer": 26.1,
+   "answer": "26.1%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -3303,7 +3369,7 @@
     },
     "round": 1
    },
-   "why": "26.1%. The high minus the low, divided by the low. That is under the 35% line, so the 60 sessions were a quiet range, the setting our card prefers. A base of 4 weeks or more is the card's other preferred setting.",
+   "why": "26.1%. The high minus the low is 58.00 minus 46.00. Divide that by the low, 46.00, and show it as a percent. That is under the 35% line, so the 60 sessions were a quiet range, the setting our card prefers. A base of 4 weeks or more is the card's other preferred setting.",
    "lesson_line": "Quiet means the 60-session high is within 35% of the low.",
    "facts": [
     "c54",
@@ -3320,7 +3386,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "126.1%",
+    "20.7%",
+    "12.0%",
+    "26.1%"
+   ],
+   "wrong": {
+    "20.7%": "Divided by the high instead of the low.",
+    "12.0%": "Read the dollar gap as a percent.",
+    "126.1%": "Divided high by low and forgot to subtract one."
+   }
   },
   {
    "key": "q69",
@@ -3439,10 +3516,10 @@
    "key": "q72",
    "skill": "setup.news_gapper",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ng.stop_gap",
    "q": "You bought at 80.00 with the stop at 77.00. A gap-down day's first 30-minute low is 71.00. What is the loss, in R?",
-   "answer": 3,
+   "answer": "3R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3453,7 +3530,7 @@
     },
     "round": 1
    },
-   "why": "3R. One R is the buy minus the original stop. The loss to the first 30-minute low is three of those, past the 2R ceiling. If the first 30 minutes take the loss past 2R, get out.",
+   "why": "3R. One R is the buy minus the original stop, 80.00 minus 77.00. The loss to the low is 80.00 minus 71.00. Divide that loss by one R to get 3R, past the 2R ceiling. If the first 30 minutes take the loss past 2R, get out.",
    "lesson_line": "First 30 minutes past 2R: get out.",
    "facts": [
     "h33",
@@ -3470,7 +3547,18 @@
      "rests on the owner's rulebook (B20 gap rule)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "1R",
+    "3R",
+    "2R",
+    "9R"
+   ],
+   "wrong": {
+    "1R": "Counted only the original risk, not the whole loss.",
+    "2R": "Measured from the stop, not from the buy.",
+    "9R": "Used the dollar loss and never divided by the risk."
+   }
   },
   {
    "key": "q73",
@@ -3787,13 +3875,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: 3R price arithmetic kept; why/lesson_line/deeper no longer say the first third comes off at 3R as a hard rule"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(107 - 100) / (110 - 100) = 0.7. Reveal no longer previews q38's top-quarter rule."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q18": {
    "status": "cut",
@@ -3822,9 +3910,9 @@
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q24": {
    "status": "pass",
@@ -3914,9 +4002,9 @@
   },
   "q40": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 200/1.91 = 104. The 381 choice is a float artifact: 200 x 1.91 is exactly 382, so the multiply-by-the-distance mistake reads 382."
   },
   "q41": {
    "status": "pass",
@@ -3944,9 +4032,9 @@
   },
   "q46": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q47": {
    "status": "pass",
@@ -4010,7 +4098,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "400 = 1% of 40,000 (D42), smaller than 666 (A5). Consistent with the rulebook; $24M a day passes B23. Minor: criterion tag is rule.A5 while the deciding rule is D42 (ng.position_adv). Overlaps q70/q71 but not a leak."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q62": {
    "status": "pass",
@@ -4045,9 +4133,9 @@
   },
   "q68": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q69": {
    "status": "pass",
@@ -4071,7 +4159,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: loss in R after a gap through the stop, no sell plan keyed"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q73": {
    "status": "pass",

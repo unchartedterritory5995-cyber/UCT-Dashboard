@@ -1092,9 +1092,9 @@
    "key": "q10",
    "skill": "options.verticals",
    "rung": 4,
-   "format": "numeric",
-   "q": "You buy the 60/65 call spread for 1.75. What's the most it can make at expiry, per spread, in dollars?",
-   "answer": 325,
+   "format": "mcq",
+   "q": "You buy the 60/65 call spread for 1.75. What's the most it can make at expiry, per spread?",
+   "answer": "$325",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1126,15 +1126,26 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$500",
+    "$175",
+    "$675",
+    "$325"
+   ],
+   "wrong": {
+    "$500": "Uses the gap between the strikes and forgets the 1.75 debit.",
+    "$175": "Gives the debit you paid, not the most the spread can make.",
+    "$675": "Adds the debit to the gap instead of taking it off."
+   }
   },
   {
    "key": "q11",
    "skill": "options.verticals",
    "rung": 4,
-   "format": "numeric",
-   "q": "You sell 2 of the 30/35 call spreads for 1.40 each. What's the most you can lose at expiry, in dollars?",
-   "answer": 720,
+   "format": "mcq",
+   "q": "You sell 2 of the 30/35 call spreads for 1.40 each. What's the most you can lose at expiry?",
+   "answer": "$720",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1162,7 +1173,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$360",
+    "$1,000",
+    "$720",
+    "$280"
+   ],
+   "wrong": {
+    "$360": "Counts one spread instead of the 2 you sold.",
+    "$1,000": "Uses the full gap between the strikes and forgets the 1.40 credit.",
+    "$280": "That is the most you can make, the credit on 2 spreads. It is not the loss."
+   }
   },
   {
    "key": "q12",
@@ -1204,9 +1226,9 @@
    "key": "q13",
    "skill": "options.verticals",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You buy the 80/75 put spread for 2.10. At expiry, what stock price is break-even?",
-   "answer": 77.9,
+   "answer": "$77.90",
    "prefix": "$",
    "calc": {
     "fn": "option_breakeven",
@@ -1231,7 +1253,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$72.90",
+    "$77.90",
+    "$82.10",
+    "$80.00"
+   ],
+   "wrong": {
+    "$72.90": "Starts from the short 75 strike. Break-even runs off the strike you bought.",
+    "$82.10": "Adds the debit to the strike. That is the call formula.",
+    "$80.00": "Stops at the long strike and forgets the 2.10 debit."
+   }
   },
   {
    "key": "q14",
@@ -1415,9 +1448,9 @@
    "key": "q18",
    "skill": "options.verticals",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your plan risks $750. You sell the 25/20 put spread for 1.25. Fees aside, how many spreads keep the total max loss at $750?",
-   "answer": 2,
+   "answer": "2 spreads",
    "suffix": "spreads",
    "calc": {
     "fn": "arith",
@@ -1446,7 +1479,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "1 spread",
+    "6 spreads",
+    "2 spreads",
+    "7 spreads"
+   ],
+   "wrong": {
+    "6 spreads": "Sizes from the 1.25 credit as if it were the risk.",
+    "1 spread": "Sizes from the full width of the strikes and ignores the credit.",
+    "7 spreads": "Divides the $750 by 100 only and forgets the spread's real max loss."
+   }
   },
   {
    "key": "q19",
@@ -1702,9 +1746,9 @@
    "key": "q26",
    "skill": "options.verticals",
    "rung": 9,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You sell the 55/50 put spread for 0.50. One max loss erases how many max wins?",
-   "answer": 9,
+   "answer": "9 wins",
    "suffix": "wins",
    "calc": {
     "fn": "arith",
@@ -1715,7 +1759,7 @@
      "credit": 0.5
     }
    },
-   "why": "9. The most you can make is the 0.50 credit. The most you can lose is 55 minus 50, less the 0.50 credit. That loss is nine times the credit. The ratio says how big each outcome is, not how often it happens.",
+   "why": "9. The most you can make is the 0.50 credit. The most you can lose is 55 minus 50, less the 0.50 credit, which is 4.50. Divide 4.50 by 0.50 and you get 9. The ratio says how big each outcome is, not how often it happens.",
    "lesson_line": "A small credit on a wide spread risks a lot to make a little. Know the ratio before you sell.",
    "facts": [
     "f23",
@@ -1734,7 +1778,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "10 wins",
+    "5 wins",
+    "4.5 wins",
+    "9 wins"
+   ],
+   "wrong": {
+    "10 wins": "Uses the full width of the strikes and forgets to take off the credit.",
+    "5 wins": "Reads the 5-point width as the loss and never divides by the credit.",
+    "4.5 wins": "Uses the 4.50 loss in points as the count, with no division by the 0.50 credit."
+   }
   },
   {
    "key": "q27",
@@ -1865,15 +1920,15 @@
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
   },
   "q12": {
    "status": "pass",
@@ -1885,8 +1940,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc: 80 - 2.10 = 77.90 (f19, f87). 'On a debit spread' fixes the earlier false 'always'. Consistent with q17. No unsupported claim left."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
   },
   "q14": {
    "status": "pass",
@@ -1916,7 +1971,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc: 750 / ((25 - 20 - 1.25) x 100) = 2. Key right, and the sold side is now stated. A second defensible answer remains. Sizing lands EXACTLY on the budget, and the stem does not say fees are left out. Schwab (f82, verbatim on the page 2026-11-12) puts a credit spread's risk at the strike gap minus the credit, PLUS transaction costs. So 2 spreads risk slightly more than $750, and a fee-aware learner answers 1. Fix: 'Fees aside' in the stem, and the why says so. It is not against the rulebook: A6 (defined risk) and A5 (round down) both agree with 2 once fees are left out."
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
   },
   "q19": {
    "status": "pass",
@@ -1970,8 +2025,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc: (55 - 50 - 0.50) / 0.50 = 9. 'nine' is from the calc; 'before costs' rests on f82. The unsourced 'often wins' is gone."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4. Wrong-choice notes for the 5 and 4.5 wins were muddled; rewritten. Why rewritten to show the intermediate numbers."
   },
   "q27": {
    "status": "pass",

@@ -569,13 +569,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "300",
-    "300.0",
-    "300.00",
-    "300.000"
-   ],
-   "answer": 300.0
+   "answer": "300 shares"
   },
   "difficulty": 2,
   "id": "si_a0b84941d17d",
@@ -583,10 +577,15 @@
   "lesson_text": "300 shares. A standard contract covers 100 shares, so 3 contracts times 100 is 300. A contract adjusted after a split or a merger can cover a different number of shares. That is why the question says standard. Contracts times 100 is your share count. Know it before you buy.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "3 shares",
+    "100 shares",
+    "103 shares",
+    "300 shares"
+   ],
+   "kind": "mcq",
    "q": "You buy 3 standard call contracts on a stock. If you exercise all of them, how many shares do you buy?",
-   "subject": "F6.01#q10",
-   "suffix": "shares"
+   "subject": "F6.01#q10"
   },
   "reveal_json": {
    "depth": {
@@ -625,13 +624,18 @@
      "fn": "arith",
      "result": 300.0
     },
-    "given": "You buy 3 standard call contracts on a stock. If you exercise all of them, how many shares do you buy?"
+    "given": "You buy 3 standard call contracts on a stock. If you exercise all of them, how many shares do you buy? 3 shares 100 shares 300 shares 103 shares"
    },
    "lesson_line": "Contracts times 100 is your share count. Know it before you buy.",
    "simple": "You buy 300 shares, because each standard contract covers 100 shares and you have 3.",
    "tier": "core",
    "unit": "F6.01",
-   "why": "300 shares. A standard contract covers 100 shares, so 3 contracts times 100 is 300. A contract adjusted after a split or a merger can cover a different number of shares. That is why the question says standard."
+   "why": "300 shares. A standard contract covers 100 shares, so 3 contracts times 100 is 300. A contract adjusted after a split or a merger can cover a different number of shares. That is why the question says standard.",
+   "wrong": {
+    "100 shares": "Counted one contract instead of three.",
+    "103 shares": "Added the numbers instead of multiplying.",
+    "3 shares": "Forgot each contract covers 100 shares."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.calls_puts",
@@ -819,13 +823,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "6000",
-    "6000.0",
-    "6000.00",
-    "6000.000"
-   ],
-   "answer": 6000.0
+   "answer": "$6,000"
   },
   "difficulty": 2,
   "id": "si_0c789d65d1e0",
@@ -833,8 +831,13 @@
   "lesson_text": "$6,000. Exercising a put sells 100 shares per standard contract at the strike. Each of your two puts sells 100 shares at $30, so you receive 30 times 100 times 2, which is $6,000. Your 200 shares are what you deliver. Exercising a put sells 100 shares per contract at the strike. The cash is strike times 100 for each contract.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$600",
+    "$3,000",
+    "$6,000",
+    "$12,000"
+   ],
+   "kind": "mcq",
    "q": "You own 200 shares of XYZ and two standard XYZ 30 puts. If you exercise both puts, how much cash do you receive?",
    "subject": "F6.01#q14"
   },
@@ -876,13 +879,18 @@
      "fn": "arith",
      "result": 6000.0
     },
-    "given": "You own 200 shares of XYZ and two standard XYZ 30 puts. If you exercise both puts, how much cash do you receive?"
+    "given": "You own 200 shares of XYZ and two standard XYZ 30 puts. If you exercise both puts, how much cash do you receive? $3,000 $12,000 $600 $6,000"
    },
    "lesson_line": "Exercising a put sells 100 shares per contract at the strike. The cash is strike times 100 for each contract.",
    "simple": "You get $6,000, because each put sells 100 shares at 30 and you use two of them.",
    "tier": "extended",
    "unit": "F6.01",
-   "why": "$6,000. Exercising a put sells 100 shares per standard contract at the strike. Each of your two puts sells 100 shares at $30, so you receive 30 times 100 times 2, which is $6,000. Your 200 shares are what you deliver."
+   "why": "$6,000. Exercising a put sells 100 shares per standard contract at the strike. Each of your two puts sells 100 shares at $30, so you receive 30 times 100 times 2, which is $6,000. Your 200 shares are what you deliver.",
+   "wrong": {
+    "$12,000": "Multiplied the strike by the 200 shares you own and by the two puts.",
+    "$3,000": "Counted one put instead of two.",
+    "$600": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.calls_puts",
@@ -2737,13 +2745,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "720",
-    "720.0",
-    "720.00",
-    "720.000"
-   ],
-   "answer": 720.0
+   "answer": "$720"
   },
   "difficulty": 2,
   "id": "si_b6b9c15907db",
@@ -2751,8 +2753,13 @@
   "lesson_text": "$720. The 2.40 quote is per share, and a standard contract covers 100 shares. So 2.40 a share, times 100 shares, times 3 contracts, is $720. Commissions come on top. Quote, times 100, times contracts. Do that math before every order.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$7.20",
+    "$240",
+    "$720",
+    "$7,200"
+   ],
+   "kind": "mcq",
    "q": "You buy 3 call contracts quoted at 2.40. What's the total premium you pay, before commissions?",
    "subject": "F6.02#q10"
   },
@@ -2794,13 +2801,18 @@
      "fn": "arith",
      "result": 720.0
     },
-    "given": "You buy 3 call contracts quoted at 2.40. What's the total premium you pay, before commissions?"
+    "given": "You buy 3 call contracts quoted at 2.40. What's the total premium you pay, before commissions? $7,200 $240 $7.20 $720"
    },
    "lesson_line": "Quote, times 100, times contracts. Do that math before every order.",
    "simple": "You pay $720, because the 2.40 quote is per share, each contract covers 100 shares, and you buy 3.",
    "tier": "core",
    "unit": "F6.02",
-   "why": "$720. The 2.40 quote is per share, and a standard contract covers 100 shares. So 2.40 a share, times 100 shares, times 3 contracts, is $720. Commissions come on top."
+   "why": "$720. The 2.40 quote is per share, and a standard contract covers 100 shares. So 2.40 a share, times 100 shares, times 3 contracts, is $720. Commissions come on top.",
+   "wrong": {
+    "$240": "Forgot to multiply by the 3 contracts.",
+    "$7,200": "Slipped a decimal place.",
+    "$7.20": "Forgot each contract covers 100 shares."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.premium",
@@ -2959,22 +2971,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "175",
-    "175.0",
-    "175.00",
-    "175.000"
-   ],
-   "answer": 175.0
+   "answer": "$175"
   },
   "difficulty": 2,
   "id": "si_7343c626945d",
   "lesson_origin": "session",
-  "lesson_text": "$175. You sell one put at 2.80 and buy one lower-strike put at 1.05. The difference, times 100 shares, is the net credit. A bull put spread always opens as a credit, because the put you sell has the higher strike. Commissions come off that credit. Collect more than you pay and the trade opens as a credit.",
+  "lesson_text": "$175. You sell one put at 2.80 and buy one lower-strike put at 1.05. The difference is 2.80 minus 1.05, which is 1.75 a share. Times 100 shares, that is $175. A bull put spread always opens as a credit, because the put you sell has the higher strike. Commissions come off that credit. Collect more than you pay and the trade opens as a credit.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$1.75",
+    "$175",
+    "$280",
+    "$385"
+   ],
+   "kind": "mcq",
    "q": "You sell 1 put at 2.80 and buy 1 lower-strike put at 1.05, same expiry. What credit do you collect, before commissions?",
    "subject": "F6.02#q13"
   },
@@ -3024,13 +3035,18 @@
      "fn": "arith",
      "result": 175.0
     },
-    "given": "You sell 1 put at 2.80 and buy 1 lower-strike put at 1.05, same expiry. What credit do you collect, before commissions?"
+    "given": "You sell 1 put at 2.80 and buy 1 lower-strike put at 1.05, same expiry. What credit do you collect, before commissions? $385 $280 $175 $1.75"
    },
    "lesson_line": "Collect more than you pay and the trade opens as a credit.",
    "simple": "You collect $175, because you take in 2.80 and pay 1.05 a share, and one contract covers 100 shares.",
    "tier": "extended",
    "unit": "F6.02",
-   "why": "$175. You sell one put at 2.80 and buy one lower-strike put at 1.05. The difference, times 100 shares, is the net credit. A bull put spread always opens as a credit, because the put you sell has the higher strike. Commissions come off that credit."
+   "why": "$175. You sell one put at 2.80 and buy one lower-strike put at 1.05. The difference is 2.80 minus 1.05, which is 1.75 a share. Times 100 shares, that is $175. A bull put spread always opens as a credit, because the put you sell has the higher strike. Commissions come off that credit.",
+   "wrong": {
+    "$1.75": "Forgot each contract covers 100 shares.",
+    "$280": "Counted only the put you sold and ignored the one you bought.",
+    "$385": "Added the two premiums instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.premium",
@@ -3244,22 +3260,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "340",
-    "340.0",
-    "340.00",
-    "340.000"
-   ],
-   "answer": 340.0
+   "answer": "$340"
   },
   "difficulty": 2,
   "id": "si_541ead397b39",
   "lesson_origin": "session",
-  "lesson_text": "$340. Profit is the sale price minus the purchase price per share, times 100 shares, times the number of contracts. Here that is 2.05 minus 1.20, times 100, times 4. The premium you paid is already taken off, so this is your net before commissions. Profit is exit minus entry, times 100, times contracts. Take the premium off before you call it a win.",
+  "lesson_text": "$340. Profit per share is the sale price minus the purchase price: 2.05 minus 1.20. Times 100 shares is $85 a contract. Times 4 contracts is $340. The premium you paid is already taken off, so this is your net before commissions. Profit is exit minus entry, times 100, times contracts. Take the premium off before you call it a win.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$85",
+    "$340",
+    "$480",
+    "$820"
+   ],
+   "kind": "mcq",
    "q": "You bought 4 calls at 1.20 and sold them at 2.05. What's your profit before commissions?",
    "subject": "F6.02#q17"
   },
@@ -3302,13 +3317,18 @@
      "fn": "arith",
      "result": 340.0
     },
-    "given": "You bought 4 calls at 1.20 and sold them at 2.05. What's your profit before commissions?"
+    "given": "You bought 4 calls at 1.20 and sold them at 2.05. What's your profit before commissions? $85 $340 $820 $480"
    },
    "lesson_line": "Profit is exit minus entry, times 100, times contracts. Take the premium off before you call it a win.",
    "simple": "You made $340: the sale price minus the buy price, times 100 shares, times 4 contracts.",
    "tier": "extended",
    "unit": "F6.02",
-   "why": "$340. Profit is the sale price minus the purchase price per share, times 100 shares, times the number of contracts. Here that is 2.05 minus 1.20, times 100, times 4. The premium you paid is already taken off, so this is your net before commissions."
+   "why": "$340. Profit per share is the sale price minus the purchase price: 2.05 minus 1.20. Times 100 shares is $85 a contract. Times 4 contracts is $340. The premium you paid is already taken off, so this is your net before commissions.",
+   "wrong": {
+    "$480": "Gave the cost you paid, not the profit.",
+    "$820": "Used the sale proceeds and ignored what you paid.",
+    "$85": "Forgot to multiply by the 4 contracts."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.premium",
@@ -3405,12 +3425,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.2",
-    "1.20",
-    "1.200"
-   ],
-   "answer": 1.2
+   "answer": "1.2%"
   },
   "difficulty": 3,
   "id": "si_bac74cfbc04a",
@@ -3418,10 +3433,15 @@
   "lesson_text": "1.2%. The premium paid is 4 contracts, times 1.50 a share, times 100 shares. When options expire with no value, the loss can be the entire premium. Divide that premium by the $50,000 account and you get 1.2%. Commissions come on top. Know the premium as a percent of your account before you buy. That's your real risk.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.012%",
+    "0.3%",
+    "1.2%",
+    "12%"
+   ],
+   "kind": "mcq",
    "q": "Your account is $50,000. You buy 4 calls at 1.50 and they expire worthless. What percent of the account is gone, before commissions?",
-   "subject": "F6.02#q20",
-   "suffix": "%"
+   "subject": "F6.02#q20"
   },
   "reveal_json": {
    "deeper": {
@@ -3479,13 +3499,18 @@
      "fn": "arith",
      "result": 1.2
     },
-    "given": "Your account is $50,000. You buy 4 calls at 1.50 and they expire worthless. What percent of the account is gone, before commissions?"
+    "given": "Your account is $50,000. You buy 4 calls at 1.50 and they expire worthless. What percent of the account is gone, before commissions? 0.3% 12% 0.012% 1.2%"
    },
    "lesson_line": "Know the premium as a percent of your account before you buy. That's your real risk.",
    "simple": "1.2% is gone, because the calls expired worthless, and a buyer loses the whole premium paid.",
    "tier": "extended",
    "unit": "F6.02",
-   "why": "1.2%. The premium paid is 4 contracts, times 1.50 a share, times 100 shares. When options expire with no value, the loss can be the entire premium. Divide that premium by the $50,000 account and you get 1.2%. Commissions come on top."
+   "why": "1.2%. The premium paid is 4 contracts, times 1.50 a share, times 100 shares. When options expire with no value, the loss can be the entire premium. Divide that premium by the $50,000 account and you get 1.2%. Commissions come on top.",
+   "wrong": {
+    "0.012%": "Forgot each contract covers 100 shares.",
+    "0.3%": "Counted one contract instead of four.",
+    "12%": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.premium",
@@ -5036,12 +5061,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "7.5",
-    "7.50",
-    "7.500"
-   ],
-   "answer": 7.5
+   "answer": "$7.50"
   },
   "difficulty": 2,
   "id": "si_6b02e54b5d05",
@@ -5049,8 +5069,13 @@
   "lesson_text": "$7.50. A call's intrinsic value is the stock price minus the strike, when the stock is above the strike: 87.50 minus 80. If the stock were below 80, it would be zero, never negative. The disclosure document works it the same way: stock at 43, the 40 call is in the money by 3. Call intrinsic: stock minus strike, never below zero.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.00",
+    "$7.50",
+    "$75.00",
+    "$167.50"
+   ],
+   "kind": "mcq",
    "q": "The stock trades at 87.50. What is the 80 call's intrinsic value, per share?",
    "subject": "F6.03#q11"
   },
@@ -5091,13 +5116,18 @@
      "fn": "intrinsic",
      "result": 7.5
     },
-    "given": "The stock trades at 87.50. What is the 80 call's intrinsic value, per share?"
+    "given": "The stock trades at 87.50. What is the 80 call's intrinsic value, per share? $167.50 $0.00 $75.00 $7.50"
    },
    "lesson_line": "Call intrinsic: stock minus strike, never below zero.",
    "simple": "The intrinsic value is $7.50, because the stock is that far above the 80 strike.",
    "tier": "core",
    "unit": "F6.03",
-   "why": "$7.50. A call's intrinsic value is the stock price minus the strike, when the stock is above the strike: 87.50 minus 80. If the stock were below 80, it would be zero, never negative. The disclosure document works it the same way: stock at 43, the 40 call is in the money by 3."
+   "why": "$7.50. A call's intrinsic value is the stock price minus the strike, when the stock is above the strike: 87.50 minus 80. If the stock were below 80, it would be zero, never negative. The disclosure document works it the same way: stock at 43, the 40 call is in the money by 3.",
+   "wrong": {
+    "$0.00": "Used the put formula, strike minus stock, which gives nothing for a call.",
+    "$167.50": "Added the strike to the stock price instead of subtracting.",
+    "$75.00": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.value",
@@ -5108,13 +5138,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "9",
-    "9.0",
-    "9.00",
-    "9.000"
-   ],
-   "answer": 9.0
+   "answer": "$9.00"
   },
   "difficulty": 2,
   "id": "si_74c31d295c31",
@@ -5122,8 +5146,13 @@
   "lesson_text": "$9. A put's intrinsic value is the strike minus the stock price, when the stock is below the strike: 70 minus 61. If the stock were above 70, the put would have zero intrinsic value, never a negative one. Put intrinsic: strike minus stock, never below zero.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.00",
+    "$9.00",
+    "$90.00",
+    "$131.00"
+   ],
+   "kind": "mcq",
    "q": "With the stock at 61, what is the 70 put's intrinsic value, per share?",
    "subject": "F6.03#q12"
   },
@@ -5157,13 +5186,18 @@
      "fn": "intrinsic",
      "result": 9.0
     },
-    "given": "With the stock at 61, what is the 70 put's intrinsic value, per share?"
+    "given": "With the stock at 61, what is the 70 put's intrinsic value, per share? $131.00 $0.00 $9.00 $90.00"
    },
    "lesson_line": "Put intrinsic: strike minus stock, never below zero.",
    "simple": "The intrinsic value is $9, because the stock is that far below the 70 strike.",
    "tier": "core",
    "unit": "F6.03",
-   "why": "$9. A put's intrinsic value is the strike minus the stock price, when the stock is below the strike: 70 minus 61. If the stock were above 70, the put would have zero intrinsic value, never a negative one."
+   "why": "$9. A put's intrinsic value is the strike minus the stock price, when the stock is below the strike: 70 minus 61. If the stock were above 70, the put would have zero intrinsic value, never a negative one.",
+   "wrong": {
+    "$0.00": "Used the call formula, stock minus strike, which gives nothing for a put.",
+    "$131.00": "Added the stock price to the strike instead of subtracting.",
+    "$90.00": "Slipped a decimal place."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.value",
@@ -5310,21 +5344,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.4",
-    "1.40",
-    "1.400"
-   ],
-   "answer": 1.4
+   "answer": "$1.40"
   },
   "difficulty": 2,
   "id": "si_bebcbd97e22a",
   "lesson_origin": "session",
-  "lesson_text": "$1.40. First find intrinsic value: the stock minus the strike, 52 minus 50. Then take it off the 3.40 premium. What is left is time value, since time value is any premium above intrinsic value. Premium minus intrinsic equals time value. Do it on every quote.",
+  "lesson_text": "$1.40. First find intrinsic value: the stock minus the strike, 52 minus 50, which is 2. Take that off the 3.40 premium: 3.40 minus 2 is 1.40. What is left is time value, since time value is any premium above intrinsic value. Premium minus intrinsic equals time value. Do it on every quote.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$1.40",
+    "$2.00",
+    "$3.40",
+    "$5.40"
+   ],
+   "kind": "mcq",
    "q": "The stock is at 52. The 50 call costs 3.40. How much of that is time value, per share?",
    "subject": "F6.03#q15"
   },
@@ -5366,13 +5400,18 @@
      "fn": "extrinsic",
      "result": 1.4
     },
-    "given": "The stock is at 52. The 50 call costs 3.40. How much of that is time value, per share?"
+    "given": "The stock is at 52. The 50 call costs 3.40. How much of that is time value, per share? $2.00 $3.40 $5.40 $1.40"
    },
    "lesson_line": "Premium minus intrinsic equals time value. Do it on every quote.",
    "simple": "$1.40, because time value is what is left of the 3.40 after the in-the-money part.",
    "tier": "extended",
    "unit": "F6.03",
-   "why": "$1.40. First find intrinsic value: the stock minus the strike, 52 minus 50. Then take it off the 3.40 premium. What is left is time value, since time value is any premium above intrinsic value."
+   "why": "$1.40. First find intrinsic value: the stock minus the strike, 52 minus 50, which is 2. Take that off the 3.40 premium: 3.40 minus 2 is 1.40. What is left is time value, since time value is any premium above intrinsic value.",
+   "wrong": {
+    "$2.00": "Gave the intrinsic value instead of the time value.",
+    "$3.40": "Gave the whole premium and took nothing off.",
+    "$5.40": "Added the intrinsic value to the premium instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.value",
@@ -5686,21 +5725,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.4",
-    "0.40",
-    "0.400"
-   ],
-   "answer": 0.4
+   "answer": "$0.40"
   },
   "difficulty": 2,
   "id": "si_64419a9b10a0",
   "lesson_origin": "session",
-  "lesson_text": "$0.40. Intrinsic value is the stock minus the strike: 150 minus 100. Take that off the 50.40 premium, and 0.40 is left as time value. A deep in-the-money option normally has very little time value. Nearly all of its price is intrinsic value. Deep in the money, the premium is almost all intrinsic value.",
+  "lesson_text": "$0.40. Intrinsic value is the stock minus the strike: 150 minus 100 is 50. Take that off the 50.40 premium, and 0.40 is left as time value. A deep in-the-money option normally has very little time value. Nearly all of its price is intrinsic value. Deep in the money, the premium is almost all intrinsic value.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.04",
+    "$0.40",
+    "$4.00",
+    "$50.00"
+   ],
+   "kind": "mcq",
    "q": "The 100 call is 50.40 with the stock at 150. How much time value is in it, per share?",
    "subject": "F6.03#q20"
   },
@@ -5735,13 +5774,18 @@
      "fn": "extrinsic",
      "result": 0.4
     },
-    "given": "The 100 call is 50.40 with the stock at 150. How much time value is in it, per share?"
+    "given": "The 100 call is 50.40 with the stock at 150. How much time value is in it, per share? $4.00 $0.40 $0.04 $50.00"
    },
    "lesson_line": "Deep in the money, the premium is almost all intrinsic value.",
    "simple": "Only $0.40 is time value, because the call is deep in the money and nearly all its price is intrinsic value.",
    "tier": "extended",
    "unit": "F6.03",
-   "why": "$0.40. Intrinsic value is the stock minus the strike: 150 minus 100. Take that off the 50.40 premium, and 0.40 is left as time value. A deep in-the-money option normally has very little time value. Nearly all of its price is intrinsic value."
+   "why": "$0.40. Intrinsic value is the stock minus the strike: 150 minus 100 is 50. Take that off the 50.40 premium, and 0.40 is left as time value. A deep in-the-money option normally has very little time value. Nearly all of its price is intrinsic value.",
+   "wrong": {
+    "$0.04": "Slipped a decimal place the other way.",
+    "$4.00": "Slipped a decimal place.",
+    "$50.00": "Gave the intrinsic value instead of the time value."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.value",
@@ -5848,13 +5892,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "46",
-    "46.0",
-    "46.00",
-    "46.000"
-   ],
-   "answer": 46.0
+   "answer": "$46"
   },
   "difficulty": 3,
   "id": "si_e6d4d37b0ba8",
@@ -5862,8 +5900,13 @@
   "lesson_text": "$46. At expiry, a call buyer's real cost for the shares is the strike plus the premium: 40 plus 6. The stock is at 45, so it must rise $1 just to get back to even. Intrinsic value is 45 minus 40, so that $1 is the time value you paid. This break-even is for expiry. Before then, the call still holds time value you can sell. Hold an in-the-money call to expiry and the stock must rise by the time value just to break even.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$34",
+    "$40",
+    "$46",
+    "$51"
+   ],
+   "kind": "mcq",
    "q": "The stock is at 45. You buy the 40 call for 6.00. What stock price at expiry gets you back to even?",
    "subject": "F6.03#q22"
   },
@@ -5907,13 +5950,18 @@
      "fn": "option_breakeven",
      "result": 46.0
     },
-    "given": "The stock is at 45. You buy the 40 call for 6.00. What stock price at expiry gets you back to even?"
+    "given": "The stock is at 45. You buy the 40 call for 6.00. What stock price at expiry gets you back to even? $51 $40 $46 $34"
    },
    "lesson_line": "Hold an in-the-money call to expiry and the stock must rise by the time value just to break even.",
    "simple": "The stock must reach $46, the strike plus the $6 you paid, for you to break even at expiry.",
    "tier": "extended",
    "unit": "F6.03",
-   "why": "$46. At expiry, a call buyer's real cost for the shares is the strike plus the premium: 40 plus 6. The stock is at 45, so it must rise $1 just to get back to even. Intrinsic value is 45 minus 40, so that $1 is the time value you paid. This break-even is for expiry. Before then, the call still holds time value you can sell."
+   "why": "$46. At expiry, a call buyer's real cost for the shares is the strike plus the premium: 40 plus 6. The stock is at 45, so it must rise $1 just to get back to even. Intrinsic value is 45 minus 40, so that $1 is the time value you paid. This break-even is for expiry. Before then, the call still holds time value you can sell.",
+   "wrong": {
+    "$34": "Subtracted the premium from the strike, the put formula.",
+    "$40": "Used the strike alone and ignored the premium.",
+    "$51": "Added the premium to the stock price instead of the strike."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.value",
@@ -7100,12 +7148,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.9",
-    "0.90",
-    "0.900"
-   ],
-   "answer": 0.9
+   "answer": "$0.90"
   },
   "difficulty": 2,
   "id": "si_681becbb526a",
@@ -7113,8 +7156,13 @@
   "lesson_text": "$0.90. Multiply the delta by the stock's move: 0.45 times $2 is $0.90 a share. This holds everything else still. It is an estimate, not a promise. Option move is roughly delta times stock move. Run it before you buy.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.90",
+    "$1.55",
+    "$2.45",
+    "$4.44"
+   ],
+   "kind": "mcq",
    "q": "Your call has a 0.45 delta. The stock rises $2, nothing else changes. About how much should the call gain, per share?",
    "subject": "F6.04#q09"
   },
@@ -7162,13 +7210,18 @@
      "fn": "arith",
      "result": 0.9
     },
-    "given": "Your call has a 0.45 delta. The stock rises $2, nothing else changes. About how much should the call gain, per share?"
+    "given": "Your call has a 0.45 delta. The stock rises $2, nothing else changes. About how much should the call gain, per share? $1.55 $4.44 $2.45 $0.90"
    },
    "lesson_line": "Option move is roughly delta times stock move. Run it before you buy.",
    "simple": "Multiply the delta by the stock's move, so 0.45 times $2 is about $0.90 a share.",
    "tier": "core",
    "unit": "F6.04",
-   "why": "$0.90. Multiply the delta by the stock's move: 0.45 times $2 is $0.90 a share. This holds everything else still. It is an estimate, not a promise."
+   "why": "$0.90. Multiply the delta by the stock's move: 0.45 times $2 is $0.90 a share. This holds everything else still. It is an estimate, not a promise.",
+   "wrong": {
+    "$1.55": "Subtracted the delta from the move instead of multiplying.",
+    "$2.45": "Added the delta to the move instead of multiplying.",
+    "$4.44": "Divided the move by the delta."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.delta",
@@ -7570,22 +7623,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "660",
-    "660.0",
-    "660.00",
-    "660.000"
-   ],
-   "answer": 660.0
+   "answer": "$660"
   },
   "difficulty": 2,
   "id": "si_4eec902dc716",
   "lesson_origin": "session",
-  "lesson_text": "$660. Take 0.55 times the $4 move, times 100 shares a contract, times 3 contracts. That is an estimate, not a promise. Dollar estimate: delta times move times 100 times contracts. The bigger the move, the rougher it gets.",
+  "lesson_text": "$660. Take 0.55 times the $4 move, times 100 shares a contract. That is $220 for one contract. Times 3 contracts is $660. That is an estimate, not a promise. Dollar estimate: delta times move times 100 times contracts. The bigger the move, the rougher it gets.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$6.60",
+    "$220",
+    "$660",
+    "$1,200"
+   ],
+   "kind": "mcq",
    "q": "You own 3 calls at a 0.55 delta. The stock rises $4, nothing else changes. About how much should the position gain?",
    "subject": "F6.04#q15"
   },
@@ -7644,13 +7696,18 @@
      "fn": "arith",
      "result": 660.0
     },
-    "given": "You own 3 calls at a 0.55 delta. The stock rises $4, nothing else changes. About how much should the position gain?"
+    "given": "You own 3 calls at a 0.55 delta. The stock rises $4, nothing else changes. About how much should the position gain? $220 $1,200 $660 $6.60"
    },
    "lesson_line": "Dollar estimate: delta times move times 100 times contracts. The bigger the move, the rougher it gets.",
    "simple": "Multiply delta by the move, then by 100 shares and by 3 contracts, to get about $660.",
    "tier": "extended",
    "unit": "F6.04",
-   "why": "$660. Take 0.55 times the $4 move, times 100 shares a contract, times 3 contracts. That is an estimate, not a promise."
+   "why": "$660. Take 0.55 times the $4 move, times 100 shares a contract. That is $220 for one contract. Times 3 contracts is $660. That is an estimate, not a promise.",
+   "wrong": {
+    "$1,200": "Treated the calls like shares, a delta of one.",
+    "$220": "Counted one contract instead of three.",
+    "$6.60": "Forgot each contract covers 100 shares."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.delta",
@@ -8883,20 +8940,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.48",
-    "2.480"
-   ],
-   "answer": 2.48
+   "answer": "$2.48"
   },
   "difficulty": 2,
   "id": "si_6a1abcc19ed0",
   "lesson_origin": "session",
-  "lesson_text": "About $2.48. Theta is the value lost per day with everything else unchanged. Three days at 0.04 each come off the 2.60. That simple sum is a fair estimate here: the option has 60 days left, and the hold is short. Theta is not fixed, though. It changes as expiry gets close. Days times theta gives a quick estimate while expiry is still far off.",
+  "lesson_text": "About $2.48. Theta is the value lost per day with everything else unchanged. Three days at 0.04 each is 0.12. Take 0.12 off the 2.60 and you get 2.48. That simple sum is a fair estimate here: the option has 60 days left, and the hold is short. Theta is not fixed, though. It changes as expiry gets close. Days times theta gives a quick estimate while expiry is still far off.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.12",
+    "$2.48",
+    "$2.56",
+    "$2.72"
+   ],
+   "kind": "mcq",
    "q": "An option with 60 days left is worth 2.60. Its theta is -0.04. Three days pass, nothing else changes. About what is it worth?",
    "subject": "F6.05#q09"
   },
@@ -8945,13 +9003,18 @@
      "fn": "arith",
      "result": 2.48
     },
-    "given": "An option with 60 days left is worth 2.60. Its theta is -0.04. Three days pass, nothing else changes. About what is it worth?"
+    "given": "An option with 60 days left is worth 2.60. Its theta is -0.04. Three days pass, nothing else changes. About what is it worth? $2.72 $0.12 $2.56 $2.48"
    },
    "lesson_line": "Days times theta gives a quick estimate while expiry is still far off.",
    "simple": "About $2.48, because three days of decay at 0.04 a day come off the 2.60 price.",
    "tier": "core",
    "unit": "F6.05",
-   "why": "About $2.48. Theta is the value lost per day with everything else unchanged. Three days at 0.04 each come off the 2.60. That simple sum is a fair estimate here: the option has 60 days left, and the hold is short. Theta is not fixed, though. It changes as expiry gets close."
+   "why": "About $2.48. Theta is the value lost per day with everything else unchanged. Three days at 0.04 each is 0.12. Take 0.12 off the 2.60 and you get 2.48. That simple sum is a fair estimate here: the option has 60 days left, and the hold is short. Theta is not fixed, though. It changes as expiry gets close.",
+   "wrong": {
+    "$0.12": "Gave the decay alone and forgot to take it off the price.",
+    "$2.56": "Took off one day of decay instead of three.",
+    "$2.72": "Added the decay instead of taking it off."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.theta",
@@ -9127,11 +9190,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.95",
-    "0.950"
-   ],
-   "answer": 0.95
+   "answer": "$0.95"
   },
   "difficulty": 2,
   "id": "si_ecaa393fbcee",
@@ -9139,8 +9198,13 @@
   "lesson_text": "$0.95 a share. The 45 call falls from 1.71 with 35 days left to 0.76 with 7 days left, and 1.71 minus 0.76 is 0.95. Then the last week alone takes the other 0.76, down to 0.00 at expiry. So one week costs nearly as much as the four before it. This is one example table from Cboe's Options Institute, not a rule for every option. The last week costs nearly as much as the four weeks before it.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.76",
+    "$0.95",
+    "$1.71",
+    "$2.47"
+   ],
+   "kind": "mcq",
    "q": "Cboe's theta table: a 45 call is 1.71 with 35 days left and 0.76 with 7 days left. What did those four weeks cost, per share?",
    "subject": "F6.05#q12"
   },
@@ -9181,13 +9245,18 @@
      "fn": "arith",
      "result": 0.95
     },
-    "given": "Cboe's theta table: a 45 call is 1.71 with 35 days left and 0.76 with 7 days left. What did those four weeks cost, per share?"
+    "given": "Cboe's theta table: a 45 call is 1.71 with 35 days left and 0.76 with 7 days left. What did those four weeks cost, per share? $2.47 $0.76 $0.95 $1.71"
    },
    "lesson_line": "The last week costs nearly as much as the four weeks before it.",
    "simple": "The four weeks cost $0.95 a share, and then the last week alone costs another 0.76.",
    "tier": "extended",
    "unit": "F6.05",
-   "why": "$0.95 a share. The 45 call falls from 1.71 with 35 days left to 0.76 with 7 days left, and 1.71 minus 0.76 is 0.95. Then the last week alone takes the other 0.76, down to 0.00 at expiry. So one week costs nearly as much as the four before it. This is one example table from Cboe's Options Institute, not a rule for every option."
+   "why": "$0.95 a share. The 45 call falls from 1.71 with 35 days left to 0.76 with 7 days left, and 1.71 minus 0.76 is 0.95. Then the last week alone takes the other 0.76, down to 0.00 at expiry. So one week costs nearly as much as the four before it. This is one example table from Cboe's Options Institute, not a rule for every option.",
+   "wrong": {
+    "$0.76": "Gave the value left, not what the four weeks cost.",
+    "$1.71": "Gave the starting price, not the cost.",
+    "$2.47": "Added the two prices instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.theta",
@@ -9744,24 +9813,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "20",
-    "20.0",
-    "20.00",
-    "20.000"
-   ],
-   "answer": 20.0
+   "answer": "20%"
   },
   "difficulty": 3,
   "id": "si_5f0b6b4dc8ff",
   "lesson_origin": "session",
-  "lesson_text": "20%. A theta of -0.02 means about two cents a share for the day. Against a 0.10 premium, that is a fifth of the option in one day. A far out-of-the-money option's price is all time value. If the call is still out of the money at expiry, all of it is gone. A small theta can still be a big bite of a cheap option. Judge theta against the premium. A few cents on a cheap option can be a big bite.",
+  "lesson_text": "20%. A theta of -0.02 means about two cents a share for the day. Divide that by the 0.10 premium: 0.02 over 0.10 is 20%. A far out-of-the-money option's price is all time value. If the call is still out of the money at expiry, all of it is gone. A small theta can still be a big bite of a cheap option. Judge theta against the premium. A few cents on a cheap option can be a big bite.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "2%",
+    "5%",
+    "20%",
+    "80%"
+   ],
+   "kind": "mcq",
    "q": "A far out-of-the-money call expiring Friday costs 0.10. Its theta is -0.02. What share of its price does one day of decay take?",
-   "subject": "F6.05#q22",
-   "suffix": "%"
+   "subject": "F6.05#q22"
   },
   "reveal_json": {
    "deeper": {
@@ -9803,13 +9871,18 @@
      "fn": "arith",
      "result": 20.0
     },
-    "given": "A far out-of-the-money call expiring Friday costs 0.10. Its theta is -0.02. What share of its price does one day of decay take?"
+    "given": "A far out-of-the-money call expiring Friday costs 0.10. Its theta is -0.02. What share of its price does one day of decay take? 2% 20% 5% 80%"
    },
    "lesson_line": "Judge theta against the premium. A few cents on a cheap option can be a big bite.",
    "simple": "One day takes 20% of the price, because 0.02 is a fifth of a 0.10 premium.",
    "tier": "expert",
    "unit": "F6.05",
-   "why": "20%. A theta of -0.02 means about two cents a share for the day. Against a 0.10 premium, that is a fifth of the option in one day. A far out-of-the-money option's price is all time value. If the call is still out of the money at expiry, all of it is gone. A small theta can still be a big bite of a cheap option."
+   "why": "20%. A theta of -0.02 means about two cents a share for the day. Divide that by the 0.10 premium: 0.02 over 0.10 is 20%. A far out-of-the-money option's price is all time value. If the call is still out of the money at expiry, all of it is gone. A small theta can still be a big bite of a cheap option.",
+   "wrong": {
+    "2%": "Read two cents as 2% and never set it against the price.",
+    "5%": "Flipped the ratio and divided the price by the theta.",
+    "80%": "Gave the share of the price left after the day."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.theta",
@@ -10810,11 +10883,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.48",
-    "0.480"
-   ],
-   "answer": 0.48
+   "answer": "$0.48"
   },
   "difficulty": 2,
   "id": "si_dc436f42b8ca",
@@ -10822,8 +10891,13 @@
   "lesson_text": "$0.48 per share. Multiply vega by the change in IV in points: 0.12 times 4 is 0.48. This is OIC's own method: in its example, .15 times 2 adds about $.30. It is an estimate, all things being equal. It works the other way too: a 4-point drop would take about $0.48. IV change in points, times vega, is the rough dollar effect per share.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.03",
+    "$0.48",
+    "$4.12",
+    "$48.00"
+   ],
+   "kind": "mcq",
    "q": "Your call has a vega of 0.12. IV rises 4 points, nothing else changes. About how much does the call gain, per share?",
    "subject": "F6.06#q10"
   },
@@ -10864,13 +10938,18 @@
      "fn": "arith",
      "result": 0.48
     },
-    "given": "Your call has a vega of 0.12. IV rises 4 points, nothing else changes. About how much does the call gain, per share?"
+    "given": "Your call has a vega of 0.12. IV rises 4 points, nothing else changes. About how much does the call gain, per share? $0.03 $4.12 $48.00 $0.48"
    },
    "lesson_line": "IV change in points, times vega, is the rough dollar effect per share.",
    "simple": "About $0.48 a share, because vega of 0.12 times a 4-point rise in IV is 0.48.",
    "tier": "core",
    "unit": "F6.06",
-   "why": "$0.48 per share. Multiply vega by the change in IV in points: 0.12 times 4 is 0.48. This is OIC's own method: in its example, .15 times 2 adds about $.30. It is an estimate, all things being equal. It works the other way too: a 4-point drop would take about $0.48."
+   "why": "$0.48 per share. Multiply vega by the change in IV in points: 0.12 times 4 is 0.48. This is OIC's own method: in its example, .15 times 2 adds about $.30. It is an estimate, all things being equal. It works the other way too: a 4-point drop would take about $0.48.",
+   "wrong": {
+    "$0.03": "Divided vega by the IV change instead of multiplying.",
+    "$4.12": "Added vega to the IV change instead of multiplying.",
+    "$48.00": "Gave the loss per contract, not per share."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.vega_iv",
@@ -10881,22 +10960,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "120",
-    "120.0",
-    "120.00",
-    "120.000"
-   ],
-   "answer": 120.0
+   "answer": "$120"
   },
   "difficulty": 2,
   "id": "si_98bcd7a0af47",
   "lesson_origin": "session",
-  "lesson_text": "$120 per contract. Vega times the IV drop in points gives the loss per share: 0.08 times 15. One contract covers 100 shares, so multiply by 100. Fidelity uses the same method: -8 x .0535 x 100 = -$42.80 per contract. It is an estimate, all things being equal. The stock and time move the price too. Size the crush per contract: vega, times the IV drop in points, times 100.",
+  "lesson_text": "$120 per contract. Vega times the IV drop in points gives the loss per share: 0.08 times 15 is 1.20. One contract covers 100 shares, so multiply by 100 to get $120. Fidelity uses the same method: -8 x .0535 x 100 = -$42.80 per contract. It is an estimate, all things being equal. The stock and time move the price too. Size the crush per contract: vega, times the IV drop in points, times 100.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$1.20",
+    "$8",
+    "$120",
+    "$1,500"
+   ],
+   "kind": "mcq",
    "q": "You hold one call with a vega of 0.08. IV drops 15 points after the news. About how much does that cost you, per contract?",
    "subject": "F6.06#q12"
   },
@@ -10945,13 +11023,18 @@
      "fn": "arith",
      "result": 120.0
     },
-    "given": "You hold one call with a vega of 0.08. IV drops 15 points after the news. About how much does that cost you, per contract?"
+    "given": "You hold one call with a vega of 0.08. IV drops 15 points after the news. About how much does that cost you, per contract? $1.20 $120 $8 $1,500"
    },
    "lesson_line": "Size the crush per contract: vega, times the IV drop in points, times 100.",
    "simple": "About $120, because 0.08 times 15 is the loss per share, and one contract covers 100 shares.",
    "tier": "extended",
    "unit": "F6.06",
-   "why": "$120 per contract. Vega times the IV drop in points gives the loss per share: 0.08 times 15. One contract covers 100 shares, so multiply by 100. Fidelity uses the same method: -8 x .0535 x 100 = -$42.80 per contract. It is an estimate, all things being equal. The stock and time move the price too."
+   "why": "$120 per contract. Vega times the IV drop in points gives the loss per share: 0.08 times 15 is 1.20. One contract covers 100 shares, so multiply by 100 to get $120. Fidelity uses the same method: -8 x .0535 x 100 = -$42.80 per contract. It is an estimate, all things being equal. The stock and time move the price too.",
+   "wrong": {
+    "$1,500": "Multiplied the IV drop by 100 and skipped vega.",
+    "$1.20": "Forgot each contract covers 100 shares.",
+    "$8": "Multiplied vega by 100 and skipped the IV drop."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.vega_iv",
@@ -11248,13 +11331,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "75",
-    "75.0",
-    "75.00",
-    "75.000"
-   ],
-   "answer": 75.0
+   "answer": "75%"
   },
   "difficulty": 2,
   "id": "si_424581a13ec4",
@@ -11262,10 +11339,15 @@
   "lesson_text": "75%. Take today's IV minus the year's low. Divide by the year's high minus the low, then times 100. So (50 - 20) / (60 - 20) times 100 is 75. Schwab's worked example uses the same idea: a 15 to 45 range with IV at 30 gives 50%. A high reading means the options are relatively expensive for this stock. Names differ: Schwab calls this IVR or Current IV Percentile, and Fidelity's IV percentile also compares with the last 52 weeks. Check how your platform defines it. Judge IV against the stock's own year. Near the top of its range, you're paying up.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "Over the past year a stock's IV ranged from 20% to 60%. Today it's 50%. Where does today sit in that range, in percent?",
-   "subject": "F6.06#q16",
-   "suffix": "%"
+   "choices": [
+    "25%",
+    "30%",
+    "75%",
+    "83%"
+   ],
+   "kind": "mcq",
+   "q": "Over the past year a stock's IV ranged from 20% to 60%. Today it's 50%. Where does today sit in that range?",
+   "subject": "F6.06#q16"
   },
   "reveal_json": {
    "depth": {
@@ -11305,13 +11387,18 @@
      "fn": "arith",
      "result": 75.0
     },
-    "given": "Over the past year a stock's IV ranged from 20% to 60%. Today it's 50%. Where does today sit in that range, in percent?"
+    "given": "Over the past year a stock's IV ranged from 20% to 60%. Today it's 50%. Where does today sit in that range? 83% 25% 75% 30%"
    },
    "lesson_line": "Judge IV against the stock's own year. Near the top of its range, you're paying up.",
    "simple": "Today sits 75% of the way from the year's low to its high, so its IV is in the upper part of its range.",
    "tier": "extended",
    "unit": "F6.06",
-   "why": "75%. Take today's IV minus the year's low. Divide by the year's high minus the low, then times 100. So (50 - 20) / (60 - 20) times 100 is 75. Schwab's worked example uses the same idea: a 15 to 45 range with IV at 30 gives 50%. A high reading means the options are relatively expensive for this stock. Names differ: Schwab calls this IVR or Current IV Percentile, and Fidelity's IV percentile also compares with the last 52 weeks. Check how your platform defines it."
+   "why": "75%. Take today's IV minus the year's low. Divide by the year's high minus the low, then times 100. So (50 - 20) / (60 - 20) times 100 is 75. Schwab's worked example uses the same idea: a 15 to 45 range with IV at 30 gives 50%. A high reading means the options are relatively expensive for this stock. Names differ: Schwab calls this IVR or Current IV Percentile, and Fidelity's IV percentile also compares with the last 52 weeks. Check how your platform defines it.",
+   "wrong": {
+    "25%": "Measured the distance from the top of the range.",
+    "30%": "Gave the distance above the low and never divided by the range.",
+    "83%": "Divided today's IV by the high and skipped the low."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.vega_iv",
@@ -12767,12 +12854,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.5",
-    "0.50",
-    "0.500"
-   ],
-   "answer": 0.5
+   "answer": "0.50"
   },
   "difficulty": 2,
   "id": "si_6fa8e56316da",
@@ -12780,7 +12862,13 @@
   "lesson_text": "About 0.50. Gamma is how much delta is expected to change for a $1 move. For a $1 rise, add the gamma to the old delta: 0.45 plus 0.05. It is an estimate, and results will usually not be exact. Stock up $1: the new delta is about the old delta plus the gamma.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.40",
+    "0.45",
+    "0.50",
+    "0.95"
+   ],
+   "kind": "mcq",
    "q": "A call has a delta of 0.45 and a gamma of 0.05. The stock rises $1. About what is the new delta?",
    "subject": "F6.07#q08"
   },
@@ -12829,13 +12917,18 @@
      "fn": "arith",
      "result": 0.5
     },
-    "given": "A call has a delta of 0.45 and a gamma of 0.05. The stock rises $1. About what is the new delta?"
+    "given": "A call has a delta of 0.45 and a gamma of 0.05. The stock rises $1. About what is the new delta? 0.40 0.95 0.45 0.50"
    },
    "lesson_line": "Stock up $1: the new delta is about the old delta plus the gamma.",
    "simple": "About 0.50, because the stock rose $1, so you add the 0.05 gamma to the 0.45 delta.",
    "tier": "core",
    "unit": "F6.07",
-   "why": "About 0.50. Gamma is how much delta is expected to change for a $1 move. For a $1 rise, add the gamma to the old delta: 0.45 plus 0.05. It is an estimate, and results will usually not be exact."
+   "why": "About 0.50. Gamma is how much delta is expected to change for a $1 move. For a $1 rise, add the gamma to the old delta: 0.45 plus 0.05. It is an estimate, and results will usually not be exact.",
+   "wrong": {
+    "0.40": "Subtracted the gamma instead of adding it.",
+    "0.45": "Kept the old delta and ignored the gamma.",
+    "0.95": "Slipped a decimal place on the gamma."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.gamma",
@@ -13015,24 +13108,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "39",
-    "39.0",
-    "39.00",
-    "39.000"
-   ],
-   "answer": 39.0
+   "answer": "39 shares"
   },
   "difficulty": 2,
   "id": "si_abbe72a59002",
   "lesson_origin": "session",
-  "lesson_text": "39 shares. Delta can be read as share exposure: a .40 delta call acts like about 40 shares. After a $1 rise, add the gamma to the delta: 0.35 plus 0.04. One contract covers 100 shares, so the call now acts like about 39 shares. It is an estimate, not an exact count. A call's share exposure grows as the stock rises. Gamma sets the pace.",
+  "lesson_text": "39 shares. Delta can be read as share exposure: a .40 delta call acts like about 40 shares. After a $1 rise, add the gamma to the delta: 0.35 plus 0.04. One contract covers 100 shares, so multiply by 100 to get about 39 shares. It is an estimate, not an exact count. A call's share exposure grows as the stock rises. Gamma sets the pace.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "4 shares",
+    "35 shares",
+    "39 shares",
+    "390 shares"
+   ],
+   "kind": "mcq",
    "q": "Your call has a delta of 0.35 and a gamma of 0.04. The stock rises $1. One contract now acts like how many shares?",
-   "subject": "F6.07#q11",
-   "suffix": "shares"
+   "subject": "F6.07#q11"
   },
   "reveal_json": {
    "deeper": {
@@ -13090,13 +13182,18 @@
      "fn": "arith",
      "result": 39.0
     },
-    "given": "Your call has a delta of 0.35 and a gamma of 0.04. The stock rises $1. One contract now acts like how many shares?"
+    "given": "Your call has a delta of 0.35 and a gamma of 0.04. The stock rises $1. One contract now acts like how many shares? 35 shares 4 shares 39 shares 390 shares"
    },
    "lesson_line": "A call's share exposure grows as the stock rises. Gamma sets the pace.",
    "simple": "39 shares, because the delta rises by the gamma, and one contract covers 100 shares.",
    "tier": "extended",
    "unit": "F6.07",
-   "why": "39 shares. Delta can be read as share exposure: a .40 delta call acts like about 40 shares. After a $1 rise, add the gamma to the delta: 0.35 plus 0.04. One contract covers 100 shares, so the call now acts like about 39 shares. It is an estimate, not an exact count."
+   "why": "39 shares. Delta can be read as share exposure: a .40 delta call acts like about 40 shares. After a $1 rise, add the gamma to the delta: 0.35 plus 0.04. One contract covers 100 shares, so multiply by 100 to get about 39 shares. It is an estimate, not an exact count.",
+   "wrong": {
+    "35 shares": "Used the old delta and ignored the gamma.",
+    "390 shares": "Slipped a decimal place.",
+    "4 shares": "Used the gamma alone."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.gamma",
@@ -14645,13 +14742,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "15",
-    "15.0",
-    "15.00",
-    "15.000"
-   ],
-   "answer": 15.0
+   "answer": "$15.00"
   },
   "difficulty": 1,
   "id": "si_b17e0246234b",
@@ -14659,9 +14750,14 @@
   "lesson_text": "$15. The one-year, one standard deviation move is the price times the IV: $50 times 30%. It is a size, not a direction, so it means $15 either way. Under a bell-curve model it holds about 68% of outcomes, not all of them. For a shorter window, scale it down with the square root of time. Price times IV is the one-year move. Every shorter window starts from there.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "A $50 stock has an implied volatility of 30%. What is its one-year, one standard deviation move, in dollars?",
+   "choices": [
+    "$1.50",
+    "$15.00",
+    "$35.00",
+    "$65.00"
+   ],
+   "kind": "mcq",
+   "q": "A $50 stock has an implied volatility of 30%. What is its one-year, one standard deviation move?",
    "subject": "F6.08#q05"
   },
   "reveal_json": {
@@ -14729,13 +14825,18 @@
      "fn": "arith",
      "result": 15.0
     },
-    "given": "A $50 stock has an implied volatility of 30%. What is its one-year, one standard deviation move, in dollars?"
+    "given": "A $50 stock has an implied volatility of 30%. What is its one-year, one standard deviation move? $65.00 $35.00 $1.50 $15.00"
    },
    "lesson_line": "Price times IV is the one-year move. Every shorter window starts from there.",
    "simple": "$15, because the one-year move is the stock price times the IV, and 30% of $50 is $15.",
    "tier": "core",
    "unit": "F6.08",
-   "why": "$15. The one-year, one standard deviation move is the price times the IV: $50 times 30%. It is a size, not a direction, so it means $15 either way. Under a bell-curve model it holds about 68% of outcomes, not all of them. For a shorter window, scale it down with the square root of time."
+   "why": "$15. The one-year, one standard deviation move is the price times the IV: $50 times 30%. It is a size, not a direction, so it means $15 either way. Under a bell-curve model it holds about 68% of outcomes, not all of them. For a shorter window, scale it down with the square root of time.",
+   "wrong": {
+    "$1.50": "Slipped a decimal place.",
+    "$35.00": "Gave the bottom of the range instead of its size.",
+    "$65.00": "Gave the top of the range instead of its size."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.expected_move",
@@ -14980,20 +15081,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "8.03",
-    "8.030"
-   ],
-   "answer": 8.03
+   "answer": "$8.03"
   },
   "difficulty": 2,
   "id": "si_8ff51503dfb7",
   "lesson_origin": "session",
-  "lesson_text": "$8.03. Start with the one-year move, $80 times 35%. Then multiply by the square root of 30 over 365, because the window is counted in calendar days. That gives about $8.03. It is one standard deviation, so about a 68% chance the stock ends the 30 days within $8.03 of $80, either way. A tool that counts trading days puts trading days over 252, not calendar days. Calendar days go over 365. Take the square root, then multiply it by the one-year move.",
+  "lesson_text": "$8.03. Start with the one-year move, $80 times 35%, which is $28. Then multiply by the square root of 30 over 365, because the window is counted in calendar days. That gives about $8.03. It is one standard deviation, so about a 68% chance the stock ends the 30 days within $8.03 of $80, either way. A tool that counts trading days puts trading days over 252, not calendar days. Calendar days go over 365. Take the square root, then multiply it by the one-year move.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$2.30",
+    "$8.03",
+    "$9.66",
+    "$28.00"
+   ],
+   "kind": "mcq",
    "q": "An $80 stock has an implied volatility of 35%. What is its one standard deviation move over the next 30 calendar days?",
    "subject": "F6.08#q09"
   },
@@ -15059,13 +15161,18 @@
      "fn": "arith",
      "result": 8.03
     },
-    "given": "An $80 stock has an implied volatility of 35%. What is its one standard deviation move over the next 30 calendar days?"
+    "given": "An $80 stock has an implied volatility of 35%. What is its one standard deviation move over the next 30 calendar days? $28.00 $2.30 $8.03 $9.66"
    },
    "lesson_line": "Calendar days go over 365. Take the square root, then multiply it by the one-year move.",
    "simple": "$8.03, because you take the yearly move of $80 times 35% and shrink it by the square root of 30 over 365.",
    "tier": "core",
    "unit": "F6.08",
-   "why": "$8.03. Start with the one-year move, $80 times 35%. Then multiply by the square root of 30 over 365, because the window is counted in calendar days. That gives about $8.03. It is one standard deviation, so about a 68% chance the stock ends the 30 days within $8.03 of $80, either way. A tool that counts trading days puts trading days over 252, not calendar days."
+   "why": "$8.03. Start with the one-year move, $80 times 35%, which is $28. Then multiply by the square root of 30 over 365, because the window is counted in calendar days. That gives about $8.03. It is one standard deviation, so about a 68% chance the stock ends the 30 days within $8.03 of $80, either way. A tool that counts trading days puts trading days over 252, not calendar days.",
+   "wrong": {
+    "$2.30": "Scaled by the days over 365 and skipped the square root.",
+    "$28.00": "Used the full one-year move with no scaling for 30 days.",
+    "$9.66": "Divided by 252 trading days when the window is in calendar days."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.expected_move",
@@ -15076,22 +15183,22 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.2",
-    "1.20",
-    "1.200"
-   ],
-   "answer": 1.2
+   "answer": "$1.20"
   },
   "difficulty": 2,
   "id": "si_2fc7f2acb453",
   "lesson_origin": "session",
-  "lesson_text": "$1.20. Multiply $48 by 40% for the one-year move, then divide by 16 for one trading day. The 16 is the square root of about 252 trading days. The result is one day's standard deviation: a size, not a direction. A day that stays inside it is an ordinary day for this stock. Price times IV, divided by 16. That's a normal day's move, up or down.",
+  "lesson_text": "$1.20. Multiply $48 by 40% for the one-year move, which is $19.20. Then divide by 16 for one trading day. The 16 is the square root of about 252 trading days. The result is one day's standard deviation: a size, not a direction. A day that stays inside it is an ordinary day for this stock. Price times IV, divided by 16. That's a normal day's move, up or down.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "A $48 stock has an implied volatility of 40%. Using the Rule of 16, what is one day's expected move, in dollars?",
+   "choices": [
+    "$0.08",
+    "$1.20",
+    "$4.80",
+    "$19.20"
+   ],
+   "kind": "mcq",
+   "q": "A $48 stock has an implied volatility of 40%. Using the Rule of 16, what is one day's expected move?",
    "subject": "F6.08#q10"
   },
   "reveal_json": {
@@ -15145,13 +15252,18 @@
      "fn": "arith",
      "result": 1.2
     },
-    "given": "A $48 stock has an implied volatility of 40%. Using the Rule of 16, what is one day's expected move, in dollars?"
+    "given": "A $48 stock has an implied volatility of 40%. Using the Rule of 16, what is one day's expected move? $19.20 $1.20 $4.80 $0.08"
    },
    "lesson_line": "Price times IV, divided by 16. That's a normal day's move, up or down.",
    "simple": "$1.20, because $48 times 40% is the yearly move, and dividing by 16 turns it into one trading day.",
    "tier": "core",
    "unit": "F6.08",
-   "why": "$1.20. Multiply $48 by 40% for the one-year move, then divide by 16 for one trading day. The 16 is the square root of about 252 trading days. The result is one day's standard deviation: a size, not a direction. A day that stays inside it is an ordinary day for this stock."
+   "why": "$1.20. Multiply $48 by 40% for the one-year move, which is $19.20. Then divide by 16 for one trading day. The 16 is the square root of about 252 trading days. The result is one day's standard deviation: a size, not a direction. A day that stays inside it is an ordinary day for this stock.",
+   "wrong": {
+    "$0.08": "Divided by 252 instead of 16.",
+    "$19.20": "Skipped the division by 16.",
+    "$4.80": "Divided by the square root of 16 instead of 16."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.expected_move",
@@ -15247,13 +15359,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "48",
-    "48.0",
-    "48.00",
-    "48.000"
-   ],
-   "answer": 48.0
+   "answer": "48%"
   },
   "difficulty": 2,
   "id": "si_b05c3c559822",
@@ -15261,10 +15367,15 @@
   "lesson_text": "48%. The Rule of 16 runs both ways. Divide the yearly IV by 16 for one day, or multiply a daily move by 16 for the yearly IV. 3% times 16 is 48%. The 16 comes from about 252 trading days, so treat the answer as a quick estimate. Daily move times 16 is the IV. A stock priced for 3% a day carries about 48% IV.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.19%",
+    "12%",
+    "48%",
+    "756%"
+   ],
+   "kind": "mcq",
    "q": "A stock's options price a one-day move of about 3%. Using the Rule of 16, about what implied volatility is that?",
-   "subject": "F6.08#q12",
-   "suffix": "%"
+   "subject": "F6.08#q12"
   },
   "reveal_json": {
    "depth": {
@@ -15302,13 +15413,18 @@
      "fn": "arith",
      "result": 48.0
     },
-    "given": "A stock's options price a one-day move of about 3%. Using the Rule of 16, about what implied volatility is that?"
+    "given": "A stock's options price a one-day move of about 3%. Using the Rule of 16, about what implied volatility is that? 0.19% 12% 48% 756%"
    },
    "lesson_line": "Daily move times 16 is the IV. A stock priced for 3% a day carries about 48% IV.",
    "simple": "About 48%, because the Rule of 16 works both ways, so a 3% daily move times 16 gives the yearly IV.",
    "tier": "extended",
    "unit": "F6.08",
-   "why": "48%. The Rule of 16 runs both ways. Divide the yearly IV by 16 for one day, or multiply a daily move by 16 for the yearly IV. 3% times 16 is 48%. The 16 comes from about 252 trading days, so treat the answer as a quick estimate."
+   "why": "48%. The Rule of 16 runs both ways. Divide the yearly IV by 16 for one day, or multiply a daily move by 16 for the yearly IV. 3% times 16 is 48%. The 16 comes from about 252 trading days, so treat the answer as a quick estimate.",
+   "wrong": {
+    "0.19%": "Divided by 16 instead of multiplying.",
+    "12%": "Multiplied by the square root of 16 instead of 16.",
+    "756%": "Multiplied by 252 instead of 16."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.expected_move",
@@ -15398,24 +15514,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "16",
-    "16.0",
-    "16.00",
-    "16.000"
-   ],
-   "answer": 16.0
+   "answer": "16%"
   },
   "difficulty": 2,
   "id": "si_1ac5776a58f5",
   "lesson_origin": "session",
-  "lesson_text": "About 16%. About 68% of outcomes end inside one standard deviation. The rest end outside, split about evenly: about 16% above and about 16% below. Fidelity's earnings class uses the same split. The math assumes a bell curve, so treat the split as approximate. About 16% of outcomes end above the range, and about 16% end below it.",
+  "lesson_text": "About 16%. About 68% of outcomes end inside one standard deviation. That leaves 100 minus 68, or 32, outside. Split it evenly: about 16% above and about 16% below. Fidelity's earnings class uses the same split. The math assumes a bell curve, so treat the split as approximate. About 16% of outcomes end above the range, and about 16% end below it.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "16%",
+    "32%",
+    "34%",
+    "84%"
+   ],
+   "kind": "mcq",
    "q": "A one standard deviation range holds about 68% of outcomes. About what percent of the time does the stock end above it?",
-   "subject": "F6.08#q14",
-   "suffix": "%"
+   "subject": "F6.08#q14"
   },
   "reveal_json": {
    "depth": {
@@ -15467,13 +15582,18 @@
      "fn": "arith",
      "result": 16.0
     },
-    "given": "A one standard deviation range holds about 68% of outcomes. About what percent of the time does the stock end above it?"
+    "given": "A one standard deviation range holds about 68% of outcomes. About what percent of the time does the stock end above it? 32% 34% 84% 16%"
    },
    "lesson_line": "About 16% of outcomes end above the range, and about 16% end below it.",
    "simple": "About 16%, because what falls outside the range splits about evenly above it and below it.",
    "tier": "extended",
    "unit": "F6.08",
-   "why": "About 16%. About 68% of outcomes end inside one standard deviation. The rest end outside, split about evenly: about 16% above and about 16% below. Fidelity's earnings class uses the same split. The math assumes a bell curve, so treat the split as approximate."
+   "why": "About 16%. About 68% of outcomes end inside one standard deviation. That leaves 100 minus 68, or 32, outside. Split it evenly: about 16% above and about 16% below. Fidelity's earnings class uses the same split. The math assumes a bell curve, so treat the split as approximate.",
+   "wrong": {
+    "32%": "Counted both tails instead of one.",
+    "34%": "Halved the 68% instead of the part outside it.",
+    "84%": "Gave the chance of ending at or below the top."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.expected_move",
@@ -15484,12 +15604,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "170.8",
-    "170.80",
-    "170.800"
-   ],
-   "answer": 170.8
+   "answer": "$170.80"
   },
   "difficulty": 2,
   "id": "si_da5a8f305672",
@@ -15497,8 +15612,13 @@
   "lesson_text": "$170.80. Many option traders use the at-the-money straddle price as the expected move for the report. Add it to the stock price for the top, $162.50 plus $8.30, and take it away for the bottom. This quick read suits options with very little time left, as here, where it generally agrees with the IV math. It gives a size, not a direction, and the stock can finish outside it. Stock price plus and minus the straddle is the quick range priced for the report.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$8.30",
+    "$154.20",
+    "$170.80",
+    "$179.10"
+   ],
+   "kind": "mcq",
    "q": "A stock trades at $162.50 into tonight's report. The 162.50 straddle expiring tomorrow costs $8.30. Where does the priced range top out?",
    "subject": "F6.08#q15"
   },
@@ -15574,13 +15694,18 @@
      "fn": "arith",
      "result": 170.8
     },
-    "given": "A stock trades at $162.50 into tonight's report. The 162.50 straddle expiring tomorrow costs $8.30. Where does the priced range top out?"
+    "given": "A stock trades at $162.50 into tonight's report. The 162.50 straddle expiring tomorrow costs $8.30. Where does the priced range top out? $154.20 $170.80 $179.10 $8.30"
    },
    "lesson_line": "Stock price plus and minus the straddle is the quick range priced for the report.",
    "simple": "$170.80, because traders often use the straddle price as the expected move, so you add $8.30 to $162.50.",
    "tier": "extended",
    "unit": "F6.08",
-   "why": "$170.80. Many option traders use the at-the-money straddle price as the expected move for the report. Add it to the stock price for the top, $162.50 plus $8.30, and take it away for the bottom. This quick read suits options with very little time left, as here, where it generally agrees with the IV math. It gives a size, not a direction, and the stock can finish outside it."
+   "why": "$170.80. Many option traders use the at-the-money straddle price as the expected move for the report. Add it to the stock price for the top, $162.50 plus $8.30, and take it away for the bottom. This quick read suits options with very little time left, as here, where it generally agrees with the IV math. It gives a size, not a direction, and the stock can finish outside it.",
+   "wrong": {
+    "$154.20": "Took the straddle off the price and gave the bottom of the range.",
+    "$179.10": "Added the straddle twice.",
+    "$8.30": "Gave the straddle alone, not the top of the range."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.expected_move",
@@ -17120,11 +17245,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "53.49",
-    "53.490"
-   ],
-   "answer": 53.49
+   "answer": "$53.49"
   },
   "difficulty": 2,
   "id": "si_9ce2d8b41fcf",
@@ -17132,8 +17253,13 @@
   "lesson_text": "$53.49. Held to expiry, a long call breaks even when the stock equals the strike plus what the call cost: 52.50 plus 0.99. Between 52.50 and that line, the call is in the money but the trade still loses. This line is for expiry. Before then, the call also carries time value. Strike plus premium is the line. Your target has to clear it.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$50.99",
+    "$51.51",
+    "$52.50",
+    "$53.49"
+   ],
+   "kind": "mcq",
    "q": "The stock is at 50. You buy the 52.50 call for 0.99. Held to expiry, what stock price gets you back to even?",
    "subject": "F6.09#q09"
   },
@@ -17167,13 +17293,18 @@
      "fn": "option_breakeven",
      "result": 53.49
     },
-    "given": "The stock is at 50. You buy the 52.50 call for 0.99. Held to expiry, what stock price gets you back to even?"
+    "given": "The stock is at 50. You buy the 52.50 call for 0.99. Held to expiry, what stock price gets you back to even? $51.51 $52.50 $53.49 $50.99"
    },
    "lesson_line": "Strike plus premium is the line. Your target has to clear it.",
    "simple": "$53.49, because a call held to expiry breaks even at the strike plus the price you paid.",
    "tier": "core",
    "unit": "F6.09",
-   "why": "$53.49. Held to expiry, a long call breaks even when the stock equals the strike plus what the call cost: 52.50 plus 0.99. Between 52.50 and that line, the call is in the money but the trade still loses. This line is for expiry. Before then, the call also carries time value."
+   "why": "$53.49. Held to expiry, a long call breaks even when the stock equals the strike plus what the call cost: 52.50 plus 0.99. Between 52.50 and that line, the call is in the money but the trade still loses. This line is for expiry. Before then, the call also carries time value.",
+   "wrong": {
+    "$50.99": "Adds the premium to today's stock price, not to the strike.",
+    "$51.51": "Takes the premium off the strike. That is the put formula.",
+    "$52.50": "Stops at the strike and forgets the 0.99 the call cost."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.strike",
@@ -17184,13 +17315,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "78",
-    "78.0",
-    "78.00",
-    "78.000"
-   ],
-   "answer": 78.0
+   "answer": "78%"
   },
   "difficulty": 2,
   "id": "si_0bac83fa139a",
@@ -17198,10 +17323,15 @@
   "lesson_text": "About 78%. Schwab reads a 0.22 delta as about a 22% chance of finishing in the money. That is about a 78% chance of expiring worthless. It is a rough estimate, not a fact. OIC says only that some traders view delta this way, and delta keeps changing during the day. Read a strike's delta as rough odds of finishing in the money. Rough, never exact.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "A call shows a 0.22 delta. Read as rough odds, what's the chance it expires worthless, in percent?",
-   "subject": "F6.09#q10",
-   "suffix": "%"
+   "choices": [
+    "2.2%",
+    "22%",
+    "78%",
+    "99.78%"
+   ],
+   "kind": "mcq",
+   "q": "A call shows a 0.22 delta. Read as rough odds, what's the chance it expires worthless?",
+   "subject": "F6.09#q10"
   },
   "reveal_json": {
    "deeper": {
@@ -17263,13 +17393,18 @@
      "fn": "arith",
      "result": 78.0
     },
-    "given": "A call shows a 0.22 delta. Read as rough odds, what's the chance it expires worthless, in percent?"
+    "given": "A call shows a 0.22 delta. Read as rough odds, what's the chance it expires worthless? 78% 22% 2.2% 99.78%"
    },
    "lesson_line": "Read a strike's delta as rough odds of finishing in the money. Rough, never exact.",
    "simple": "About 78%, because a 0.22 delta reads as roughly a 22% chance of finishing in the money.",
    "tier": "core",
    "unit": "F6.09",
-   "why": "About 78%. Schwab reads a 0.22 delta as about a 22% chance of finishing in the money. That is about a 78% chance of expiring worthless. It is a rough estimate, not a fact. OIC says only that some traders view delta this way, and delta keeps changing during the day."
+   "why": "About 78%. Schwab reads a 0.22 delta as about a 22% chance of finishing in the money. That is about a 78% chance of expiring worthless. It is a rough estimate, not a fact. OIC says only that some traders view delta this way, and delta keeps changing during the day.",
+   "wrong": {
+    "2.2%": "Slips a decimal place on the 0.22 delta.",
+    "22%": "That is the chance of finishing in the money, not of expiring worthless.",
+    "99.78%": "Subtracts 0.22 from 100 without turning the delta into a percent."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.strike",
@@ -17830,11 +17965,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "5.55",
-    "5.550"
-   ],
-   "answer": 5.55
+   "answer": "$5.55"
   },
   "difficulty": 3,
   "id": "si_ab91e33e68ec",
@@ -17842,8 +17973,13 @@
   "lesson_text": "$5.55 a share. The put lets you sell at 45 however low the stock goes. So the worst case is 50 minus 45, plus the 0.55 the put cost. OIC: stock bought at the strike loses only the premium. Bought higher, the loss grows by exactly that gap. The floor lasts until the put expires. With a put, the worst case is your cost minus the strike, plus what the put cost.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.55",
+    "$4.45",
+    "$5.00",
+    "$5.55"
+   ],
+   "kind": "mcq",
    "q": "You own shares bought at 50 and buy the 45 put for 0.55. Held to expiry, what's your worst-case loss per share?",
    "subject": "F6.09#q20"
   },
@@ -17895,13 +18031,18 @@
      "fn": "arith",
      "result": 5.55
     },
-    "given": "You own shares bought at 50 and buy the 45 put for 0.55. Held to expiry, what's your worst-case loss per share?"
+    "given": "You own shares bought at 50 and buy the 45 put for 0.55. Held to expiry, what's your worst-case loss per share? $5.00 $4.45 $0.55 $5.55"
    },
    "lesson_line": "With a put, the worst case is your cost minus the strike, plus what the put cost.",
    "simple": "$5.55, because the put lets you sell at 45, so you lose 50 minus 45 plus the 0.55 the put cost.",
    "tier": "extended",
    "unit": "F6.09",
-   "why": "$5.55 a share. The put lets you sell at 45 however low the stock goes. So the worst case is 50 minus 45, plus the 0.55 the put cost. OIC: stock bought at the strike loses only the premium. Bought higher, the loss grows by exactly that gap. The floor lasts until the put expires."
+   "why": "$5.55 a share. The put lets you sell at 45 however low the stock goes. So the worst case is 50 minus 45, plus the 0.55 the put cost. OIC: stock bought at the strike loses only the premium. Bought higher, the loss grows by exactly that gap. The floor lasts until the put expires.",
+   "wrong": {
+    "$0.55": "Counts only the premium. That holds only if you bought the stock at the strike.",
+    "$4.45": "Takes the premium off the loss when it should be added.",
+    "$5.00": "Skips the 0.55 the put cost."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.strike",
@@ -18076,13 +18217,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "50",
-    "50.0",
-    "50.00",
-    "50.000"
-   ],
-   "answer": 50.0
+   "answer": "50%"
   },
   "difficulty": 3,
   "id": "si_f10ee4668777",
@@ -18090,10 +18225,15 @@
   "lesson_text": "50%. The spread is 0.20 minus 0.10, which is half the 0.20 ask. Schwab says many traders look for spreads of 10% or less of the ask. A spread this wide costs you going in and again going out. Check it before you buy a cheap far strike. On a cheap far strike, check the spread as a percent of the ask before you buy.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "10%",
+    "50%",
+    "67%",
+    "100%"
+   ],
+   "kind": "mcq",
    "q": "A far out-of-the-money call is quoted 0.10 bid, 0.20 ask. How wide is the spread, as a percent of the ask?",
-   "subject": "F6.09#q24",
-   "suffix": "%"
+   "subject": "F6.09#q24"
   },
   "reveal_json": {
    "deeper": {
@@ -18135,13 +18275,18 @@
      "fn": "arith",
      "result": 50.0
     },
-    "given": "A far out-of-the-money call is quoted 0.10 bid, 0.20 ask. How wide is the spread, as a percent of the ask?"
+    "given": "A far out-of-the-money call is quoted 0.10 bid, 0.20 ask. How wide is the spread, as a percent of the ask? 100% 67% 50% 10%"
    },
    "lesson_line": "On a cheap far strike, check the spread as a percent of the ask before you buy.",
    "simple": "50%, because the gap between the 0.10 bid and the 0.20 ask is half the ask.",
    "tier": "expert",
    "unit": "F6.09",
-   "why": "50%. The spread is 0.20 minus 0.10, which is half the 0.20 ask. Schwab says many traders look for spreads of 10% or less of the ask. A spread this wide costs you going in and again going out. Check it before you buy a cheap far strike."
+   "why": "50%. The spread is 0.20 minus 0.10, which is half the 0.20 ask. Schwab says many traders look for spreads of 10% or less of the ask. A spread this wide costs you going in and again going out. Check it before you buy a cheap far strike.",
+   "wrong": {
+    "10%": "Reads the 0.10 spread in dollars as 10 percent.",
+    "100%": "Divides the spread by the 0.10 bid instead of the ask.",
+    "67%": "Divides the spread by the midpoint, not the ask."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.strike",
@@ -18238,13 +18383,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1",
-    "1.0",
-    "1.00",
-    "1.000"
-   ],
-   "answer": 1.0
+   "answer": "$1.00"
   },
   "difficulty": 3,
   "id": "si_df105bfc1134",
@@ -18252,8 +18391,13 @@
   "lesson_text": "$1. Held to expiry, the call breaks even at the strike plus the premium: 110 plus 1.00. So the stock must beat your target by the 1.00 you paid before the trade makes a cent. At exactly 110 the call is at the money, has no intrinsic value and expires worthless. Held to expiry, a strike at your target loses even when the target hits. Break-even has to sit below it.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.00",
+    "$0.10",
+    "$1.00",
+    "$100.00"
+   ],
+   "kind": "mcq",
    "q": "Your target is 110 by expiry. You buy the 110 call for 1.00. Held to expiry, how far past your target must the stock go to break even?",
    "subject": "F6.09#q26"
   },
@@ -18305,13 +18449,18 @@
      "fn": "arith",
      "result": 1.0
     },
-    "given": "Your target is 110 by expiry. You buy the 110 call for 1.00. Held to expiry, how far past your target must the stock go to break even?"
+    "given": "Your target is 110 by expiry. You buy the 110 call for 1.00. Held to expiry, how far past your target must the stock go to break even? $1.00 $0.00 $100.00 $0.10"
    },
    "lesson_line": "Held to expiry, a strike at your target loses even when the target hits. Break-even has to sit below it.",
-   "simple": "$1, because the call's break-even is the strike plus the 1.00 you paid, which sits above your 110 target.",
+   "simple": "$1.00, because the call's break-even is the strike plus the 1.00 you paid, which sits above your 110 target.",
    "tier": "expert",
    "unit": "F6.09",
-   "why": "$1. Held to expiry, the call breaks even at the strike plus the premium: 110 plus 1.00. So the stock must beat your target by the 1.00 you paid before the trade makes a cent. At exactly 110 the call is at the money, has no intrinsic value and expires worthless."
+   "why": "$1. Held to expiry, the call breaks even at the strike plus the premium: 110 plus 1.00. So the stock must beat your target by the 1.00 you paid before the trade makes a cent. At exactly 110 the call is at the money, has no intrinsic value and expires worthless.",
+   "wrong": {
+    "$0.00": "Treats the 110 strike as the break-even and ignores the premium.",
+    "$0.10": "Slips a decimal place on the 1.00 premium.",
+    "$100.00": "Mixes up the dollars on a whole contract with the price per share."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.strike",
@@ -19320,13 +19469,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "24",
-    "24.0",
-    "24.00",
-    "24.000"
-   ],
-   "answer": 24.0
+   "answer": "24 days"
   },
   "difficulty": 2,
   "id": "si_36eb963f4508",
@@ -19334,10 +19477,15 @@
   "lesson_text": "24 days. 45 days left minus a 21-day plan (3 weeks) leaves 24. OIC says time value starts to drain fast around 30 days before expiry. So you would end the plan inside that stretch. To sell with about a month left, buy further out. Subtract the plan from the days left. If under a month remains at the end, buy further out.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "21 days",
+    "24 days",
+    "42 days",
+    "66 days"
+   ],
+   "kind": "mcq",
    "q": "You buy a call with 45 days left for a 3-week plan. How many days will be left when the plan ends?",
-   "subject": "F6.10#q09",
-   "suffix": "days"
+   "subject": "F6.10#q09"
   },
   "reveal_json": {
    "depth": {
@@ -19376,13 +19524,18 @@
      "fn": "arith",
      "result": 24.0
     },
-    "given": "You buy a call with 45 days left for a 3-week plan. How many days will be left when the plan ends?"
+    "given": "You buy a call with 45 days left for a 3-week plan. How many days will be left when the plan ends? 42 days 66 days 24 days 21 days"
    },
    "lesson_line": "Subtract the plan from the days left. If under a month remains at the end, buy further out.",
    "simple": "24 days are left, and that is already inside the last 30 days, when time value drains fast.",
    "tier": "core",
    "unit": "F6.10",
-   "why": "24 days. 45 days left minus a 21-day plan (3 weeks) leaves 24. OIC says time value starts to drain fast around 30 days before expiry. So you would end the plan inside that stretch. To sell with about a month left, buy further out."
+   "why": "24 days. 45 days left minus a 21-day plan (3 weeks) leaves 24. OIC says time value starts to drain fast around 30 days before expiry. So you would end the plan inside that stretch. To sell with about a month left, buy further out.",
+   "wrong": {
+    "21 days": "Gives the length of the plan, not the days left after it.",
+    "42 days": "Takes 3 weeks off as if it were 3 days.",
+    "66 days": "Adds the plan to the days left instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.expiry",
@@ -19814,12 +19967,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3.2",
-    "3.20",
-    "3.200"
-   ],
-   "answer": 3.2
+   "answer": "3.2x"
   },
   "difficulty": 2,
   "id": "si_eebd0e642f73",
@@ -19827,10 +19975,15 @@
   "lesson_text": "3.2. Divide 2.95 by 0.93 and round to one decimal. In OIC's model of an at-the-money call, 50 days costs only about three times what 5 days costs. Yet it has ten times the time. So per day, the shortest options carry the dearest time. Weeklies are cheaper in dollars, not per day. Per day, short-dated time is the most expensive time. Weeklies are cheap only in dollars.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.3x",
+    "2.0x",
+    "3.2x",
+    "10.0x"
+   ],
+   "kind": "mcq",
    "q": "A 5-day at-the-money call costs $0.93. The 50-day one costs $2.95, with ten times the time. How many times the 5-day price is it?",
-   "subject": "F6.10#q15",
-   "suffix": "x"
+   "subject": "F6.10#q15"
   },
   "reveal_json": {
    "deeper": {
@@ -19872,13 +20025,18 @@
      "fn": "arith",
      "result": 3.2
     },
-    "given": "A 5-day at-the-money call costs $0.93. The 50-day one costs $2.95, with ten times the time. How many times the 5-day price is it?"
+    "given": "A 5-day at-the-money call costs $0.93. The 50-day one costs $2.95, with ten times the time. How many times the 5-day price is it? 10.0x 0.3x 2.0x 3.2x"
    },
    "lesson_line": "Per day, short-dated time is the most expensive time. Weeklies are cheap only in dollars.",
    "simple": "It costs about 3.2 times as much, so short-dated time costs more per day than long-dated time.",
    "tier": "extended",
    "unit": "F6.10",
-   "why": "3.2. Divide 2.95 by 0.93 and round to one decimal. In OIC's model of an at-the-money call, 50 days costs only about three times what 5 days costs. Yet it has ten times the time. So per day, the shortest options carry the dearest time. Weeklies are cheaper in dollars, not per day."
+   "why": "3.2. Divide 2.95 by 0.93 and round to one decimal. In OIC's model of an at-the-money call, 50 days costs only about three times what 5 days costs. Yet it has ten times the time. So per day, the shortest options carry the dearest time. Weeklies are cheaper in dollars, not per day.",
+   "wrong": {
+    "0.3x": "Divides the short price by the long one, upside down.",
+    "10.0x": "Assumes the price grows in step with the time. Ten times the time, ten times the price.",
+    "2.0x": "Subtracts the two prices instead of dividing them."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.expiry",
@@ -21471,11 +21629,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "38.25",
-    "38.250"
-   ],
-   "answer": 38.25
+   "answer": "$38.25"
   },
   "difficulty": 2,
   "id": "si_17bc2203ff96",
@@ -21483,8 +21637,13 @@
   "lesson_text": "$38.25. A long put breaks even at expiry at the strike minus the premium: 40 minus 1.75. Below $38.25 the put makes a net profit at expiry. Between $38.25 and $40 it is in the money but still a net loss. Take the premium off the strike. The stock has to finish below that for a put to profit.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$36.50",
+    "$38.25",
+    "$40.00",
+    "$41.75"
+   ],
+   "kind": "mcq",
    "q": "You buy the 40 put for 1.75. At expiry, what stock price is your break-even?",
    "subject": "F6.11#q11"
   },
@@ -21525,13 +21684,18 @@
      "fn": "option_breakeven",
      "result": 38.25
     },
-    "given": "You buy the 40 put for 1.75. At expiry, what stock price is your break-even?"
+    "given": "You buy the 40 put for 1.75. At expiry, what stock price is your break-even? $41.75 $40.00 $36.50 $38.25"
    },
    "lesson_line": "Take the premium off the strike. The stock has to finish below that for a put to profit.",
    "simple": "Your break-even is $38.25, because the put must finish below the strike by more than the 1.75 you paid.",
    "tier": "core",
    "unit": "F6.11",
-   "why": "$38.25. A long put breaks even at expiry at the strike minus the premium: 40 minus 1.75. Below $38.25 the put makes a net profit at expiry. Between $38.25 and $40 it is in the money but still a net loss."
+   "why": "$38.25. A long put breaks even at expiry at the strike minus the premium: 40 minus 1.75. Below $38.25 the put makes a net profit at expiry. Between $38.25 and $40 it is in the money but still a net loss.",
+   "wrong": {
+    "$36.50": "Takes the premium off twice.",
+    "$40.00": "Stops at the strike and forgets the 1.75 the put cost.",
+    "$41.75": "Adds the premium to the strike. That is the call formula."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.directional",
@@ -21542,13 +21706,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "700",
-    "700.0",
-    "700.00",
-    "700.000"
-   ],
-   "answer": 700.0
+   "answer": "$700"
   },
   "difficulty": 2,
   "id": "si_fb05f9870678",
@@ -21556,9 +21714,14 @@
   "lesson_text": "$700. At expiry each call is worth only its in-the-money amount, 56 minus 50. Take off the 2.50 premium you paid. Then multiply by 100 shares a contract and by 2 contracts. At expiry: value minus premium, times 100, times contracts. Always net out what you paid.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "You own 2 of the 50 calls, bought at 2.50. At expiry the stock is 56. What's your profit, in dollars?",
+   "choices": [
+    "$350",
+    "$700",
+    "$1,200",
+    "$1,700"
+   ],
+   "kind": "mcq",
+   "q": "You own 2 of the 50 calls, bought at 2.50. At expiry the stock is 56. What's your profit?",
    "subject": "F6.11#q14"
   },
   "reveal_json": {
@@ -21601,13 +21764,18 @@
      "fn": "option_payoff",
      "result": 700.0
     },
-    "given": "You own 2 of the 50 calls, bought at 2.50. At expiry the stock is 56. What's your profit, in dollars?"
+    "given": "You own 2 of the 50 calls, bought at 2.50. At expiry the stock is 56. What's your profit? $350 $1,200 $700 $1,700"
    },
    "lesson_line": "At expiry: value minus premium, times 100, times contracts. Always net out what you paid.",
    "simple": "You make $700: each call is worth 56 minus 50 at expiry, less the 2.50 paid, times 100 shares, times 2.",
    "tier": "extended",
    "unit": "F6.11",
-   "why": "$700. At expiry each call is worth only its in-the-money amount, 56 minus 50. Take off the 2.50 premium you paid. Then multiply by 100 shares a contract and by 2 contracts."
+   "why": "$700. At expiry each call is worth only its in-the-money amount, 56 minus 50. Take off the 2.50 premium you paid. Then multiply by 100 shares a contract and by 2 contracts.",
+   "wrong": {
+    "$1,200": "Forgets to take off the 2.50 premium.",
+    "$1,700": "Adds the premium instead of taking it off.",
+    "$350": "Counts one contract instead of 2."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.directional",
@@ -21704,23 +21872,22 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3750",
-    "3750.0",
-    "3750.00",
-    "3750.000"
-   ],
-   "answer": 3750.0
+   "answer": "$3,750"
   },
   "difficulty": 2,
   "id": "si_8602e1dd2b06",
   "lesson_origin": "session",
-  "lesson_text": "$3,750. A long put's best case is the stock going to zero. Its profit is then the strike minus the premium: 40 minus 2.50, times 100 shares. That is the ceiling. A long call's profit has no cap. A put's upside has a ceiling: strike minus premium. A call's doesn't.",
+  "lesson_text": "$3,750. A long put's best case is the stock going to zero. The put is then worth the 40 strike. Take off the 2.50 premium to get 37.50 a share. Times 100 shares is 3,750. That is the ceiling. A long call's profit has no cap. A put's upside has a ceiling: strike minus premium. A call's doesn't.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "You buy the 40 put for 2.50. If the stock went to zero, what would one contract make, in dollars?",
+   "choices": [
+    "$37.50",
+    "$3,750",
+    "$4,000",
+    "$4,250"
+   ],
+   "kind": "mcq",
+   "q": "You buy the 40 put for 2.50. If the stock went to zero, what would one contract make?",
    "subject": "F6.11#q16"
   },
   "reveal_json": {
@@ -21770,13 +21937,18 @@
      "fn": "option_payoff",
      "result": 3750.0
     },
-    "given": "You buy the 40 put for 2.50. If the stock went to zero, what would one contract make, in dollars?"
+    "given": "You buy the 40 put for 2.50. If the stock went to zero, what would one contract make? $4,000 $3,750 $4,250 $37.50"
    },
    "lesson_line": "A put's upside has a ceiling: strike minus premium. A call's doesn't.",
    "simple": "One contract makes $3,750: at zero the put is worth the strike, less the 2.50 you paid, times 100 shares.",
    "tier": "extended",
    "unit": "F6.11",
-   "why": "$3,750. A long put's best case is the stock going to zero. Its profit is then the strike minus the premium: 40 minus 2.50, times 100 shares. That is the ceiling. A long call's profit has no cap."
+   "why": "$3,750. A long put's best case is the stock going to zero. The put is then worth the 40 strike. Take off the 2.50 premium to get 37.50 a share. Times 100 shares is 3,750. That is the ceiling. A long call's profit has no cap.",
+   "wrong": {
+    "$37.50": "Forgets that one contract covers 100 shares.",
+    "$4,000": "Forgets to take off the 2.50 the put cost.",
+    "$4,250": "Adds the premium instead of taking it off."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.directional",
@@ -23665,13 +23837,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "325",
-    "325.0",
-    "325.00",
-    "325.000"
-   ],
-   "answer": 325.0
+   "answer": "$325"
   },
   "difficulty": 2,
   "id": "si_55c78317a664",
@@ -23679,9 +23845,14 @@
   "lesson_text": "$325. A call spread pays at most the gap between its strikes: 65 minus 60, or 5. Take off the 1.75 debit, then multiply by the 100 shares one contract covers. It needs the stock at 65 or higher at expiry to pay that much. Debit spread max gain: the gap between the strikes, minus what you paid.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "You buy the 60/65 call spread for 1.75. What's the most it can make at expiry, per spread, in dollars?",
+   "choices": [
+    "$175",
+    "$325",
+    "$500",
+    "$675"
+   ],
+   "kind": "mcq",
+   "q": "You buy the 60/65 call spread for 1.75. What's the most it can make at expiry, per spread?",
    "subject": "F6.12#q10"
   },
   "reveal_json": {
@@ -23740,13 +23911,18 @@
      "fn": "arith",
      "result": 325.0
     },
-    "given": "You buy the 60/65 call spread for 1.75. What's the most it can make at expiry, per spread, in dollars?"
+    "given": "You buy the 60/65 call spread for 1.75. What's the most it can make at expiry, per spread? $500 $175 $675 $325"
    },
    "lesson_line": "Debit spread max gain: the gap between the strikes, minus what you paid.",
    "simple": "$325: the 5 points between the strikes, less the 1.75 you paid, times 100 shares.",
    "tier": "core",
    "unit": "F6.12",
-   "why": "$325. A call spread pays at most the gap between its strikes: 65 minus 60, or 5. Take off the 1.75 debit, then multiply by the 100 shares one contract covers. It needs the stock at 65 or higher at expiry to pay that much."
+   "why": "$325. A call spread pays at most the gap between its strikes: 65 minus 60, or 5. Take off the 1.75 debit, then multiply by the 100 shares one contract covers. It needs the stock at 65 or higher at expiry to pay that much.",
+   "wrong": {
+    "$175": "Gives the debit you paid, not the most the spread can make.",
+    "$500": "Uses the gap between the strikes and forgets the 1.75 debit.",
+    "$675": "Adds the debit to the gap instead of taking it off."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.verticals",
@@ -23757,13 +23933,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "720",
-    "720.0",
-    "720.00",
-    "720.000"
-   ],
-   "answer": 720.0
+   "answer": "$720"
   },
   "difficulty": 2,
   "id": "si_cbeb492436de",
@@ -23771,9 +23941,14 @@
   "lesson_text": "$720. A credit spread can lose at most the gap between its strikes, less the credit. Here that is 35 minus 30, less the 1.40 credit, times 100 shares for each spread. You sold 2, so double it. Credit spread max loss: the gap between the strikes, minus the credit. That's your real risk.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "You sell 2 of the 30/35 call spreads for 1.40 each. What's the most you can lose at expiry, in dollars?",
+   "choices": [
+    "$280",
+    "$360",
+    "$720",
+    "$1,000"
+   ],
+   "kind": "mcq",
+   "q": "You sell 2 of the 30/35 call spreads for 1.40 each. What's the most you can lose at expiry?",
    "subject": "F6.12#q11"
   },
   "reveal_json": {
@@ -23816,13 +23991,18 @@
      "fn": "arith",
      "result": 720.0
     },
-    "given": "You sell 2 of the 30/35 call spreads for 1.40 each. What's the most you can lose at expiry, in dollars?"
+    "given": "You sell 2 of the 30/35 call spreads for 1.40 each. What's the most you can lose at expiry? $360 $1,000 $720 $280"
    },
    "lesson_line": "Credit spread max loss: the gap between the strikes, minus the credit. That's your real risk.",
    "simple": "$720: each spread can lose the gap between the strikes less the 1.40 credit, times 100, and you sold 2.",
    "tier": "core",
    "unit": "F6.12",
-   "why": "$720. A credit spread can lose at most the gap between its strikes, less the credit. Here that is 35 minus 30, less the 1.40 credit, times 100 shares for each spread. You sold 2, so double it."
+   "why": "$720. A credit spread can lose at most the gap between its strikes, less the credit. Here that is 35 minus 30, less the 1.40 credit, times 100 shares for each spread. You sold 2, so double it.",
+   "wrong": {
+    "$1,000": "Uses the full gap between the strikes and forgets the 1.40 credit.",
+    "$280": "That is the most you can make, the credit on 2 spreads. It is not the loss.",
+    "$360": "Counts one spread instead of the 2 you sold."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.verticals",
@@ -23916,12 +24096,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "77.9",
-    "77.90",
-    "77.900"
-   ],
-   "answer": 77.9
+   "answer": "$77.90"
   },
   "difficulty": 2,
   "id": "si_b388ece3771f",
@@ -23929,8 +24104,13 @@
   "lesson_text": "$77.90. A bear put spread breaks even at expiry at the long put's strike minus the debit: 80 minus 2.10. Below that price the spread makes money. Don't start from the short 75 strike. On a debit spread, break-even runs off the strike you bought. Debit put spread break-even: the long strike minus the debit.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$72.90",
+    "$77.90",
+    "$80.00",
+    "$82.10"
+   ],
+   "kind": "mcq",
    "q": "You buy the 80/75 put spread for 2.10. At expiry, what stock price is break-even?",
    "subject": "F6.12#q13"
   },
@@ -23971,13 +24151,18 @@
      "fn": "option_breakeven",
      "result": 77.9
     },
-    "given": "You buy the 80/75 put spread for 2.10. At expiry, what stock price is break-even?"
+    "given": "You buy the 80/75 put spread for 2.10. At expiry, what stock price is break-even? $72.90 $77.90 $82.10 $80.00"
    },
    "lesson_line": "Debit put spread break-even: the long strike minus the debit.",
    "simple": "$77.90: take the 2.10 you paid off the 80 strike of the put you bought.",
    "tier": "extended",
    "unit": "F6.12",
-   "why": "$77.90. A bear put spread breaks even at expiry at the long put's strike minus the debit: 80 minus 2.10. Below that price the spread makes money. Don't start from the short 75 strike. On a debit spread, break-even runs off the strike you bought."
+   "why": "$77.90. A bear put spread breaks even at expiry at the long put's strike minus the debit: 80 minus 2.10. Below that price the spread makes money. Don't start from the short 75 strike. On a debit spread, break-even runs off the strike you bought.",
+   "wrong": {
+    "$72.90": "Starts from the short 75 strike. Break-even runs off the strike you bought.",
+    "$80.00": "Stops at the long strike and forgets the 2.10 debit.",
+    "$82.10": "Adds the debit to the strike. That is the call formula."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.verticals",
@@ -24332,13 +24517,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2",
-    "2.0",
-    "2.00",
-    "2.000"
-   ],
-   "answer": 2.0
+   "answer": "2 spreads"
   },
   "difficulty": 2,
   "id": "si_1c68317925d0",
@@ -24346,10 +24525,15 @@
   "lesson_text": "2. Size from the max loss, not the credit. Each spread can lose 25 minus 20, less the 1.25 credit, times 100 shares. Two of those max losses add up to the $750 exactly, before fees. Size a credit spread from its max loss, never from the credit.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "1 spread",
+    "2 spreads",
+    "6 spreads",
+    "7 spreads"
+   ],
+   "kind": "mcq",
    "q": "Your plan risks $750. You sell the 25/20 put spread for 1.25. Fees aside, how many spreads keep the total max loss at $750?",
-   "subject": "F6.12#q18",
-   "suffix": "spreads"
+   "subject": "F6.12#q18"
   },
   "reveal_json": {
    "depth": {
@@ -24398,13 +24582,18 @@
      "fn": "arith",
      "result": 2.0
     },
-    "given": "Your plan risks $750. You sell the 25/20 put spread for 1.25. Fees aside, how many spreads keep the total max loss at $750?"
+    "given": "Your plan risks $750. You sell the 25/20 put spread for 1.25. Fees aside, how many spreads keep the total max loss at $750? 1 spread 6 spreads 2 spreads 7 spreads"
    },
    "lesson_line": "Size a credit spread from its max loss, never from the credit.",
    "simple": "2 spreads: work out one spread's max loss, then fit as many as the $750 allows.",
    "tier": "extended",
    "unit": "F6.12",
-   "why": "2. Size from the max loss, not the credit. Each spread can lose 25 minus 20, less the 1.25 credit, times 100 shares. Two of those max losses add up to the $750 exactly, before fees."
+   "why": "2. Size from the max loss, not the credit. Each spread can lose 25 minus 20, less the 1.25 credit, times 100 shares. Two of those max losses add up to the $750 exactly, before fees.",
+   "wrong": {
+    "1 spread": "Sizes from the full width of the strikes and ignores the credit.",
+    "6 spreads": "Sizes from the 1.25 credit as if it were the risk.",
+    "7 spreads": "Divides the $750 by 100 only and forgets the spread's real max loss."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.verticals",
@@ -24425,9 +24614,9 @@
   "prompt_json": {
    "choices": [
     "100/105: up $300 a spread",
-    "100/110: up $680 a spread",
     "110/120: up $915 a spread",
-    "100/105: up $500 a spread"
+    "100/105: up $500 a spread",
+    "100/110: up $680 a spread"
    ],
    "kind": "mcq",
    "q": "The stock closes at 110 on expiry day. Which spread made the most?",
@@ -24663,10 +24852,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Close the spread before the bell",
     "Sell 100 shares now to cover",
     "Sell only the long call",
-    "Hold it: max profit locked in",
-    "Close the spread before the bell"
+    "Hold it: max profit locked in"
    ],
    "kind": "mcq",
    "q": "Which move takes the weekend assignment risk off the table?",
@@ -24862,8 +25051,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Leaves the short call uncovered",
     "Nothing, both are out of the money",
+    "Leaves the short call uncovered",
     "Cuts your max loss to zero",
     "Locks in your max profit"
    ],
@@ -24939,24 +25128,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "9",
-    "9.0",
-    "9.00",
-    "9.000"
-   ],
-   "answer": 9.0
+   "answer": "9 wins"
   },
   "difficulty": 3,
   "id": "si_724f4b1bfb4c",
   "lesson_origin": "session",
-  "lesson_text": "9. The most you can make is the 0.50 credit. The most you can lose is 55 minus 50, less the 0.50 credit. That loss is nine times the credit. The ratio says how big each outcome is, not how often it happens. A small credit on a wide spread risks a lot to make a little. Know the ratio before you sell.",
+  "lesson_text": "9. The most you can make is the 0.50 credit. The most you can lose is 55 minus 50, less the 0.50 credit, which is 4.50. Divide 4.50 by 0.50 and you get 9. The ratio says how big each outcome is, not how often it happens. A small credit on a wide spread risks a lot to make a little. Know the ratio before you sell.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "9 wins",
+    "10 wins",
+    "4.5 wins",
+    "5 wins"
+   ],
+   "kind": "mcq",
    "q": "You sell the 55/50 put spread for 0.50. One max loss erases how many max wins?",
-   "subject": "F6.12#q26",
-   "suffix": "wins"
+   "subject": "F6.12#q26"
   },
   "reveal_json": {
    "deeper": {
@@ -25006,13 +25194,18 @@
      "fn": "arith",
      "result": 9.0
     },
-    "given": "You sell the 55/50 put spread for 0.50. One max loss erases how many max wins?"
+    "given": "You sell the 55/50 put spread for 0.50. One max loss erases how many max wins? 10 wins 5 wins 4.5 wins 9 wins"
    },
    "lesson_line": "A small credit on a wide spread risks a lot to make a little. Know the ratio before you sell.",
    "simple": "9: the most you can make is 0.50, and the most you can lose is nine times that.",
    "tier": "expert",
    "unit": "F6.12",
-   "why": "9. The most you can make is the 0.50 credit. The most you can lose is 55 minus 50, less the 0.50 credit. That loss is nine times the credit. The ratio says how big each outcome is, not how often it happens."
+   "why": "9. The most you can make is the 0.50 credit. The most you can lose is 55 minus 50, less the 0.50 credit, which is 4.50. Divide 4.50 by 0.50 and you get 9. The ratio says how big each outcome is, not how often it happens.",
+   "wrong": {
+    "10 wins": "Uses the full width of the strikes and forgets to take off the credit.",
+    "4.5 wins": "Uses the 4.50 loss in points as the count, with no division by the 0.50 credit.",
+    "5 wins": "Reads the 5-point width as the loss and never divides by the credit."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.verticals",
@@ -25033,9 +25226,9 @@
   "prompt_json": {
    "choices": [
     "Nothing: spreads settle in cash",
-    "100 shares, bought at 40",
     "Nothing: the long put covers it",
-    "Short 100 shares at 35"
+    "Short 100 shares at 35",
+    "100 shares, bought at 40"
    ],
    "kind": "mcq",
    "q": "What are you most likely holding on Monday?",
@@ -26002,12 +26195,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3.5",
-    "3.50",
-    "3.500"
-   ],
-   "answer": 3.5
+   "answer": "$3.50"
   },
   "difficulty": 2,
   "id": "si_e0b94c8eaf87",
@@ -26015,8 +26203,13 @@
   "lesson_text": "$3.50. OIC's maximum gain is the strike minus the stock purchase price plus the premium received: 50 minus 48 plus 1.50. You reach it once the stock is at the strike at expiry. Above 50, the trade does no better, and the extra goes to the call buyer. Covered call max profit: strike minus cost plus premium. Know it before you sell.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.50",
+    "$1.50",
+    "$2.00",
+    "$3.50"
+   ],
+   "kind": "mcq",
    "q": "You buy a stock at 48 and sell the 50 call for 1.50. What is the most you can make per share at expiry?",
    "subject": "F6.13#q10"
   },
@@ -26051,13 +26244,18 @@
      "fn": "arith",
      "result": 3.5
     },
-    "given": "You buy a stock at 48 and sell the 50 call for 1.50. What is the most you can make per share at expiry?"
+    "given": "You buy a stock at 48 and sell the 50 call for 1.50. What is the most you can make per share at expiry? $2.00 $1.50 $0.50 $3.50"
    },
    "lesson_line": "Covered call max profit: strike minus cost plus premium. Know it before you sell.",
    "simple": "The most you can make is $3.50 a share: the 50 strike minus the 48 you paid, plus the 1.50 premium.",
    "tier": "core",
    "unit": "F6.13",
-   "why": "$3.50. OIC's maximum gain is the strike minus the stock purchase price plus the premium received: 50 minus 48 plus 1.50. You reach it once the stock is at the strike at expiry. Above 50, the trade does no better, and the extra goes to the call buyer."
+   "why": "$3.50. OIC's maximum gain is the strike minus the stock purchase price plus the premium received: 50 minus 48 plus 1.50. You reach it once the stock is at the strike at expiry. Above 50, the trade does no better, and the extra goes to the call buyer.",
+   "wrong": {
+    "$0.50": "Takes the premium off instead of adding it.",
+    "$1.50": "Counts only the premium and ignores the gain on the shares up to 50.",
+    "$2.00": "Forgets the 1.50 premium you received."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.income",
@@ -26125,12 +26323,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "43.8",
-    "43.80",
-    "43.800"
-   ],
-   "answer": 43.8
+   "answer": "$43.80"
   },
   "difficulty": 2,
   "id": "si_a04502a39071",
@@ -26138,8 +26331,13 @@
   "lesson_text": "$43.80. Assigned, you pay the 45 strike, and the 1.20 premium you kept comes off: 45 minus 1.20. OIC calls this the effective purchase price, the strike less the premium. It is also the trade's break-even. Today's price of 47 does not enter into it. Strike minus premium is the put seller's real cost if assigned, and the break-even.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$43.80",
+    "$45.00",
+    "$45.80",
+    "$46.20"
+   ],
+   "kind": "mcq",
    "q": "XYZ is at 47. You sell the 45 put for 1.20, and later you're assigned. What is your real cost per share?",
    "subject": "F6.13#q12"
   },
@@ -26180,13 +26378,18 @@
      "fn": "arith",
      "result": 43.8
     },
-    "given": "XYZ is at 47. You sell the 45 put for 1.20, and later you're assigned. What is your real cost per share?"
+    "given": "XYZ is at 47. You sell the 45 put for 1.20, and later you're assigned. What is your real cost per share? $46.20 $45.00 $45.80 $43.80"
    },
    "lesson_line": "Strike minus premium is the put seller's real cost if assigned, and the break-even.",
    "simple": "Your real cost is $43.80 a share, because you pay the 45 strike but the 1.20 premium you kept lowers it.",
    "tier": "extended",
    "unit": "F6.13",
-   "why": "$43.80. Assigned, you pay the 45 strike, and the 1.20 premium you kept comes off: 45 minus 1.20. OIC calls this the effective purchase price, the strike less the premium. It is also the trade's break-even. Today's price of 47 does not enter into it."
+   "why": "$43.80. Assigned, you pay the 45 strike, and the 1.20 premium you kept comes off: 45 minus 1.20. OIC calls this the effective purchase price, the strike less the premium. It is also the trade's break-even. Today's price of 47 does not enter into it.",
+   "wrong": {
+    "$45.00": "Stops at the strike and forgets the 1.20 premium you kept.",
+    "$45.80": "Starts from today's price of 47 instead of the strike.",
+    "$46.20": "Adds the premium to the strike instead of taking it off."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.income",
@@ -26790,13 +26993,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "13",
-    "13.0",
-    "13.00",
-    "13.000"
-   ],
-   "answer": 13.0
+   "answer": "$13"
   },
   "difficulty": 3,
   "id": "si_025e78841770",
@@ -26804,8 +27001,13 @@
   "lesson_text": "$13. The shares alone made 70 minus 50. The covered call stopped at strike minus cost plus premium: 55 minus 50 plus 2. The difference is the gain above the strike that went to the call buyer, less the 2 premium you were paid. The premium is your pay for the upside above the strike. Know that price before you sell.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$7",
+    "$13",
+    "$15",
+    "$17"
+   ],
+   "kind": "mcq",
    "q": "Bought at 50, sold the 55 call for 2. The stock closes at 70 at expiry. How much more per share would the shares alone have made?",
    "subject": "F6.13#q20"
   },
@@ -26851,13 +27053,18 @@
      "fn": "arith",
      "result": 13.0
     },
-    "given": "Bought at 50, sold the 55 call for 2. The stock closes at 70 at expiry. How much more per share would the shares alone have made?"
+    "given": "Bought at 50, sold the 55 call for 2. The stock closes at 70 at expiry. How much more per share would the shares alone have made? $15 $7 $13 $17"
    },
    "lesson_line": "The premium is your pay for the upside above the strike. Know that price before you sell.",
    "simple": "The shares alone would have made $13 more a share, because the call stopped your gain at the 55 strike.",
    "tier": "extended",
    "unit": "F6.13",
-   "why": "$13. The shares alone made 70 minus 50. The covered call stopped at strike minus cost plus premium: 55 minus 50 plus 2. The difference is the gain above the strike that went to the call buyer, less the 2 premium you were paid."
+   "why": "$13. The shares alone made 70 minus 50. The covered call stopped at strike minus cost plus premium: 55 minus 50 plus 2. The difference is the gain above the strike that went to the call buyer, less the 2 premium you were paid.",
+   "wrong": {
+    "$15": "Counts the move above the strike and forgets the premium you were paid.",
+    "$17": "Adds the premium instead of taking it off.",
+    "$7": "Gives what the covered call made, not how much more the shares made."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.income",
@@ -28046,13 +28253,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "400",
-    "400.0",
-    "400.00",
-    "400.000"
-   ],
-   "answer": 400.0
+   "answer": "$400"
   },
   "difficulty": 2,
   "id": "si_56881d0442a2",
@@ -28060,9 +28261,14 @@
   "lesson_text": "$400. A long straddle's maximum loss is the two premiums paid. Here that is 2.10 plus 1.90, times 100 shares a contract. You lose all of it only if the stock closes exactly at 50 at expiry, where both options expire worthless. Any close away from 50 gets some of it back. A long straddle's max loss is both premiums. Know that dollar number before you buy.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "You buy the 50 call at 2.10 and the 50 put at 1.90. Before fees, what's the most one straddle can lose, in dollars?",
+   "choices": [
+    "$4.00",
+    "$210",
+    "$400",
+    "$4,000"
+   ],
+   "kind": "mcq",
+   "q": "You buy the 50 call at 2.10 and the 50 put at 1.90. Before fees, what's the most one straddle can lose?",
    "subject": "F6.14#q09"
   },
   "reveal_json": {
@@ -28109,13 +28315,18 @@
      "fn": "arith",
      "result": 400.0
     },
-    "given": "You buy the 50 call at 2.10 and the 50 put at 1.90. Before fees, what's the most one straddle can lose, in dollars?"
+    "given": "You buy the 50 call at 2.10 and the 50 put at 1.90. Before fees, what's the most one straddle can lose? $210 $4.00 $4,000 $400"
    },
    "lesson_line": "A long straddle's max loss is both premiums. Know that dollar number before you buy.",
    "simple": "The most you can lose is $400: both premiums, 2.10 plus 1.90, times 100 shares, if both options expire worthless.",
    "tier": "core",
    "unit": "F6.14",
-   "why": "$400. A long straddle's maximum loss is the two premiums paid. Here that is 2.10 plus 1.90, times 100 shares a contract. You lose all of it only if the stock closes exactly at 50 at expiry, where both options expire worthless. Any close away from 50 gets some of it back."
+   "why": "$400. A long straddle's maximum loss is the two premiums paid. Here that is 2.10 plus 1.90, times 100 shares a contract. You lose all of it only if the stock closes exactly at 50 at expiry, where both options expire worthless. Any close away from 50 gets some of it back.",
+   "wrong": {
+    "$210": "Counts only the call's premium.",
+    "$4,000": "Slips a decimal place on the 100 shares.",
+    "$4.00": "Forgets that one contract covers 100 shares."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.vol_spreads",
@@ -28208,12 +28419,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "185.5",
-    "185.50",
-    "185.500"
-   ],
-   "answer": 185.5
+   "answer": "$185.50"
   },
   "difficulty": 2,
   "id": "si_a290a19e7ef7",
@@ -28221,8 +28427,13 @@
   "lesson_text": "$185.50. A long strangle's lower break-even at expiry is the put strike minus the total premium paid. Count both legs: 2.40 plus 2.10 is 4.50. So 190 minus 4.50 is 185.50. Below that at expiry, the put is worth more than the whole trade cost. A strangle's break-evens sit outside its strikes by the total premium. Count both legs.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$185.50",
+    "$187.90",
+    "$190.00",
+    "$214.50"
+   ],
+   "kind": "mcq",
    "q": "You buy the 210 call for 2.40 and the 190 put for 2.10. Where is the lower break-even at expiry?",
    "subject": "F6.14#q11"
   },
@@ -28256,13 +28467,18 @@
      "fn": "option_breakeven",
      "result": 185.5
     },
-    "given": "You buy the 210 call for 2.40 and the 190 put for 2.10. Where is the lower break-even at expiry?"
+    "given": "You buy the 210 call for 2.40 and the 190 put for 2.10. Where is the lower break-even at expiry? $187.90 $214.50 $185.50 $190.00"
    },
    "lesson_line": "A strangle's break-evens sit outside its strikes by the total premium. Count both legs.",
    "simple": "The lower break-even is $185.50, the put strike of 190 minus both premiums you paid.",
    "tier": "core",
    "unit": "F6.14",
-   "why": "$185.50. A long strangle's lower break-even at expiry is the put strike minus the total premium paid. Count both legs: 2.40 plus 2.10 is 4.50. So 190 minus 4.50 is 185.50. Below that at expiry, the put is worth more than the whole trade cost."
+   "why": "$185.50. A long strangle's lower break-even at expiry is the put strike minus the total premium paid. Count both legs: 2.40 plus 2.10 is 4.50. So 190 minus 4.50 is 185.50. Below that at expiry, the put is worth more than the whole trade cost.",
+   "wrong": {
+    "$187.90": "Counts only the put's 2.10 premium. Both legs count.",
+    "$190.00": "Stops at the put strike and forgets the premiums.",
+    "$214.50": "That is the upper break-even, off the call strike."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.vol_spreads",
@@ -28362,13 +28578,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "115",
-    "115.0",
-    "115.00",
-    "115.000"
-   ],
-   "answer": 115.0
+   "answer": "$115"
   },
   "difficulty": 2,
   "id": "si_a5c1e804b927",
@@ -28376,8 +28586,13 @@
   "lesson_text": "$115. A long calendar's maximum loss is the net debit paid. Here that is 3.10 minus 1.95, times 100 shares. You lose all of it if both calls reach the same value. A big drop makes both worthless, and a big rally sends both deep in the money. Either way, the loss is the debit, no more. A long calendar risks its debit. I size it as if all of it can go.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$1.15",
+    "$115",
+    "$310",
+    "$505"
+   ],
+   "kind": "mcq",
    "q": "You sell the March 60 call at 1.95 and buy the May 60 call at 3.10. Before fees, what's the most one spread can lose?",
    "subject": "F6.14#q13"
   },
@@ -28446,13 +28661,18 @@
      "fn": "arith",
      "result": 115.0
     },
-    "given": "You sell the March 60 call at 1.95 and buy the May 60 call at 3.10. Before fees, what's the most one spread can lose?"
+    "given": "You sell the March 60 call at 1.95 and buy the May 60 call at 3.10. Before fees, what's the most one spread can lose? $505 $115 $310 $1.15"
    },
    "lesson_line": "A long calendar risks its debit. I size it as if all of it can go.",
    "simple": "The most you can lose is $115, the net debit you paid: 3.10 minus 1.95, times 100 shares.",
    "tier": "extended",
    "unit": "F6.14",
-   "why": "$115. A long calendar's maximum loss is the net debit paid. Here that is 3.10 minus 1.95, times 100 shares. You lose all of it if both calls reach the same value. A big drop makes both worthless, and a big rally sends both deep in the money. Either way, the loss is the debit, no more."
+   "why": "$115. A long calendar's maximum loss is the net debit paid. Here that is 3.10 minus 1.95, times 100 shares. You lose all of it if both calls reach the same value. A big drop makes both worthless, and a big rally sends both deep in the money. Either way, the loss is the debit, no more.",
+   "wrong": {
+    "$1.15": "Forgets that one contract covers 100 shares.",
+    "$310": "Counts only the 3.10 call you bought. The 1.95 you took in comes off.",
+    "$505": "Adds the two premiums. You sell one call and buy the other."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.vol_spreads",
@@ -28616,13 +28836,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "6",
-    "6.0",
-    "6.00",
-    "6.000"
-   ],
-   "answer": 6.0
+   "answer": "6%"
   },
   "difficulty": 2,
   "id": "si_0cb6fe94b0bf",
@@ -28630,10 +28844,15 @@
   "lesson_text": "6%. The break-evens at expiry are the strike plus and minus the 12.00 you paid. Each sits 12 points from 200, and 12 is 6% of 200. Because the strike equals the stock price, the ratio is exact here. It is the move needed to break even, not a forecast of the move. At the money, the straddle's price over the stock price is the move it needs at expiry to break even.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "3%",
+    "6%",
+    "12%",
+    "17%"
+   ],
+   "kind": "mcq",
    "q": "Stock at 200. The 200 straddle costs 12.00. What percent move at expiry gets it back to even?",
-   "subject": "F6.14#q16",
-   "suffix": "%"
+   "subject": "F6.14#q16"
   },
   "reveal_json": {
    "deeper": {
@@ -28675,13 +28894,18 @@
      "fn": "arith",
      "result": 6.0
     },
-    "given": "Stock at 200. The 200 straddle costs 12.00. What percent move at expiry gets it back to even?"
+    "given": "Stock at 200. The 200 straddle costs 12.00. What percent move at expiry gets it back to even? 3% 12% 6% 17%"
    },
    "lesson_line": "At the money, the straddle's price over the stock price is the move it needs at expiry to break even.",
    "simple": "It needs a 6% move, because the 12.00 you paid is 6% of the 200 stock price.",
    "tier": "extended",
    "unit": "F6.14",
-   "why": "6%. The break-evens at expiry are the strike plus and minus the 12.00 you paid. Each sits 12 points from 200, and 12 is 6% of 200. Because the strike equals the stock price, the ratio is exact here. It is the move needed to break even, not a forecast of the move."
+   "why": "6%. The break-evens at expiry are the strike plus and minus the 12.00 you paid. Each sits 12 points from 200, and 12 is 6% of 200. Because the strike equals the stock price, the ratio is exact here. It is the move needed to break even, not a forecast of the move.",
+   "wrong": {
+    "12%": "Reads the 12.00 cost as 12 percent.",
+    "17%": "Flips the ratio. It divides the stock price by the cost.",
+    "3%": "Splits the cost between the call and the put."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.vol_spreads",
@@ -29588,13 +29812,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2",
-    "2.0",
-    "2.00",
-    "2.000"
-   ],
-   "answer": 2.0
+   "answer": "2 contracts"
   },
   "difficulty": 2,
   "id": "si_d8536d990462",
@@ -29602,7 +29820,13 @@
   "lesson_text": "2 contracts. Our stop on an option is the premium paid, so each contract can lose its full $450. Your risk is 1% of $100,000. Divide that by the $450 a contract and round down to whole contracts. One more contract would go past your risk. On a straddle, the whole premium is the risk. Size the contracts from it.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "2 contracts",
+    "3 contracts",
+    "22 contracts",
+    "222 contracts"
+   ],
+   "kind": "mcq",
    "q": "Account $100,000, risk 1% a trade. Our stop on an option is the premium paid. A straddle costs $450 a contract. How many can you buy?",
    "subject": "F6.14#q27"
   },
@@ -29644,13 +29868,18 @@
      "fn": "shares_from_risk",
      "result": 2.0
     },
-    "given": "Account $100,000, risk 1% a trade. Our stop on an option is the premium paid. A straddle costs $450 a contract. How many can you buy?"
+    "given": "Account $100,000, risk 1% a trade. Our stop on an option is the premium paid. A straddle costs $450 a contract. How many can you buy? 3 contracts 222 contracts 22 contracts 2 contracts"
    },
    "lesson_line": "On a straddle, the whole premium is the risk. Size the contracts from it.",
    "simple": "2 contracts, because each one can lose its full $450, and 1% of the account covers two of them, rounded down.",
    "tier": "extended",
    "unit": "F6.14",
-   "why": "2 contracts. Our stop on an option is the premium paid, so each contract can lose its full $450. Your risk is 1% of $100,000. Divide that by the $450 a contract and round down to whole contracts. One more contract would go past your risk."
+   "why": "2 contracts. Our stop on an option is the premium paid, so each contract can lose its full $450. Your risk is 1% of $100,000. Divide that by the $450 a contract and round down to whole contracts. One more contract would go past your risk.",
+   "wrong": {
+    "22 contracts": "Slips a decimal place on the 1% risk.",
+    "222 contracts": "Divides the whole account by $450, not 1% of it.",
+    "3 contracts": "Rounds up. A third contract goes past your risk."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.vol_spreads",
@@ -30665,23 +30894,22 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "280",
-    "280.0",
-    "280.00",
-    "280.000"
-   ],
-   "answer": 280.0
+   "answer": "$280"
   },
   "difficulty": 2,
   "id": "si_7f1770cbbad6",
   "lesson_origin": "session",
-  "lesson_text": "$280. A short iron condor's max profit is the net credit, kept when the stock finishes between the short strikes. Each contract covers 100 shares. So it is 1.40 times 100, times 2 contracts. Commissions come out of that. Max profit on a short condor is the credit, times 100, times your contracts.",
+  "lesson_text": "$280. A short iron condor's max profit is the net credit, kept when the stock finishes between the short strikes. Each contract covers 100 shares. So it is 1.40 times 100, which is 140, times 2 contracts, which is 280. Commissions come out of that. Max profit on a short condor is the credit, times 100, times your contracts.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "You sell 2 iron condors for a 1.40 credit each. What is your maximum profit, in dollars?",
+   "choices": [
+    "$2.80",
+    "$140",
+    "$280",
+    "$2,800"
+   ],
+   "kind": "mcq",
+   "q": "You sell 2 iron condors for a 1.40 credit each. What is your maximum profit?",
    "subject": "F6.15#q09"
   },
   "reveal_json": {
@@ -30721,13 +30949,18 @@
      "fn": "arith",
      "result": 280.0
     },
-    "given": "You sell 2 iron condors for a 1.40 credit each. What is your maximum profit, in dollars?"
+    "given": "You sell 2 iron condors for a 1.40 credit each. What is your maximum profit? $140 $2.80 $2,800 $280"
    },
    "lesson_line": "Max profit on a short condor is the credit, times 100, times your contracts.",
    "simple": "$280, because the credit is your max profit and each contract covers 100 shares, so 1.40 times 100 times 2.",
    "tier": "core",
    "unit": "F6.15",
-   "why": "$280. A short iron condor's max profit is the net credit, kept when the stock finishes between the short strikes. Each contract covers 100 shares. So it is 1.40 times 100, times 2 contracts. Commissions come out of that."
+   "why": "$280. A short iron condor's max profit is the net credit, kept when the stock finishes between the short strikes. Each contract covers 100 shares. So it is 1.40 times 100, which is 140, times 2 contracts, which is 280. Commissions come out of that.",
+   "wrong": {
+    "$140": "Counts one condor instead of 2.",
+    "$2,800": "Slips a decimal place on the 100 shares.",
+    "$2.80": "Forgets that one contract covers 100 shares."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.condors_flies",
@@ -30738,21 +30971,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3.4",
-    "3.40",
-    "3.400"
-   ],
-   "answer": 3.4
+   "answer": "$3.40"
   },
   "difficulty": 2,
   "id": "si_499100049ee2",
   "lesson_origin": "session",
-  "lesson_text": "$3.40 a share. The max loss comes when the stock finishes beyond a long strike. Then one side is fully in the money and the other expires worthless. Both sides are the same width here: 65 minus 60 on the calls, 50 minus 45 on the puts. Take that width less the 1.60 credit. Short condor max loss: one side's width minus the credit, per share.",
+  "lesson_text": "$3.40 a share. The max loss comes when the stock finishes beyond a long strike. Then one side is fully in the money and the other expires worthless. Both sides are the same width here: 65 minus 60 is 5, and 50 minus 45 is 5. Take 5 less the 1.60 credit to get 3.40. Short condor max loss: one side's width minus the credit, per share.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$1.60",
+    "$3.40",
+    "$5.00",
+    "$6.60"
+   ],
+   "kind": "mcq",
    "q": "Buy the 45 put, sell the 50 put, sell the 60 call, buy the 65 call. Credit 1.60. What's the max loss per share?",
    "subject": "F6.15#q10"
   },
@@ -30808,13 +31041,18 @@
      "fn": "arith",
      "result": 3.4
     },
-    "given": "Buy the 45 put, sell the 50 put, sell the 60 call, buy the 65 call. Credit 1.60. What's the max loss per share?"
+    "given": "Buy the 45 put, sell the 50 put, sell the 60 call, buy the 65 call. Credit 1.60. What's the max loss per share? $5.00 $3.40 $6.60 $1.60"
    },
    "lesson_line": "Short condor max loss: one side's width minus the credit, per share.",
    "simple": "$3.40, because at worst one side finishes fully in the money, so you lose 65 minus 60, less the 1.60 credit.",
    "tier": "core",
    "unit": "F6.15",
-   "why": "$3.40 a share. The max loss comes when the stock finishes beyond a long strike. Then one side is fully in the money and the other expires worthless. Both sides are the same width here: 65 minus 60 on the calls, 50 minus 45 on the puts. Take that width less the 1.60 credit."
+   "why": "$3.40 a share. The max loss comes when the stock finishes beyond a long strike. Then one side is fully in the money and the other expires worthless. Both sides are the same width here: 65 minus 60 is 5, and 50 minus 45 is 5. Take 5 less the 1.60 credit to get 3.40.",
+   "wrong": {
+    "$1.60": "That is the most you can make, the credit. It is not the loss.",
+    "$5.00": "Uses the width of one side and forgets the 1.60 credit.",
+    "$6.60": "Adds the credit to the width instead of taking it off."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.condors_flies",
@@ -30921,11 +31159,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "91.85",
-    "91.850"
-   ],
-   "answer": 91.85
+   "answer": "$91.85"
   },
   "difficulty": 2,
   "id": "si_afadc5528f75",
@@ -30933,8 +31167,13 @@
   "lesson_text": "$91.85. The upper break-even is the short call strike plus the credit: 90 plus 1.85. The lower one is the short put strike minus the credit. The wings at 75 and 95 don't move the break-evens. They only cap the loss. Condor break-evens: short call plus the credit above, short put minus the credit below.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$78.15",
+    "$88.15",
+    "$91.85",
+    "$96.85"
+   ],
+   "kind": "mcq",
    "q": "You sell the 80 put and the 90 call, with wings at 75 and 95, for a 1.85 credit. What's the upper break-even at expiry?",
    "subject": "F6.15#q12"
   },
@@ -30975,13 +31214,18 @@
      "fn": "arith",
      "result": 91.85
     },
-    "given": "You sell the 80 put and the 90 call, with wings at 75 and 95, for a 1.85 credit. What's the upper break-even at expiry?"
+    "given": "You sell the 80 put and the 90 call, with wings at 75 and 95, for a 1.85 credit. What's the upper break-even at expiry? $96.85 $88.15 $91.85 $78.15"
    },
    "lesson_line": "Condor break-evens: short call plus the credit above, short put minus the credit below.",
    "simple": "$91.85, because the stock must rise past the short call by the full credit before you start to lose.",
    "tier": "extended",
    "unit": "F6.15",
-   "why": "$91.85. The upper break-even is the short call strike plus the credit: 90 plus 1.85. The lower one is the short put strike minus the credit. The wings at 75 and 95 don't move the break-evens. They only cap the loss."
+   "why": "$91.85. The upper break-even is the short call strike plus the credit: 90 plus 1.85. The lower one is the short put strike minus the credit. The wings at 75 and 95 don't move the break-evens. They only cap the loss.",
+   "wrong": {
+    "$78.15": "That is the lower break-even, off the short put.",
+    "$88.15": "Takes the credit off the short call instead of adding it.",
+    "$96.85": "Starts from the 95 wing, not the short call."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.condors_flies",
@@ -31077,21 +31321,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3.9",
-    "3.90",
-    "3.900"
-   ],
-   "answer": 3.9
+   "answer": "$3.90"
   },
   "difficulty": 2,
   "id": "si_025a3b54dce1",
   "lesson_origin": "session",
-  "lesson_text": "$3.90 a share. A long call butterfly peaks with the stock exactly at the body at expiry. At 45, the 40 call is worth 45 minus 40, and the two 45 calls and the 50 call expire worthless. Take off the 1.10 debit. A close anywhere else pays less, and outside the wings you lose the 1.10. Long butterfly max profit: the wing width minus the debit, and only right at the body.",
+  "lesson_text": "$3.90 a share. A long call butterfly peaks with the stock exactly at the body at expiry. At 45, the 40 call is worth 45 minus 40, which is 5. The two 45 calls and the 50 call expire worthless. Take off the 1.10 debit to get 3.90. A close anywhere else pays less. Long butterfly max profit: the wing width minus the debit, and only right at the body.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$3.90",
+    "$5.00",
+    "$6.10",
+    "$8.90"
+   ],
+   "kind": "mcq",
    "q": "You buy one 40 call, sell two 45 calls and buy one 50 call, for 1.10. What's the max profit per share at expiry?",
    "subject": "F6.15#q14"
   },
@@ -31150,13 +31394,18 @@
      "fn": "arith",
      "result": 3.9
     },
-    "given": "You buy one 40 call, sell two 45 calls and buy one 50 call, for 1.10. What's the max profit per share at expiry?"
+    "given": "You buy one 40 call, sell two 45 calls and buy one 50 call, for 1.10. What's the max profit per share at expiry? $8.90 $5.00 $6.10 $3.90"
    },
    "lesson_line": "Long butterfly max profit: the wing width minus the debit, and only right at the body.",
    "simple": "$3.90, because at exactly 45 only the 40 call is worth anything, and you subtract the 1.10 you paid.",
    "tier": "extended",
    "unit": "F6.15",
-   "why": "$3.90 a share. A long call butterfly peaks with the stock exactly at the body at expiry. At 45, the 40 call is worth 45 minus 40, and the two 45 calls and the 50 call expire worthless. Take off the 1.10 debit. A close anywhere else pays less, and outside the wings you lose the 1.10."
+   "why": "$3.90 a share. A long call butterfly peaks with the stock exactly at the body at expiry. At 45, the 40 call is worth 45 minus 40, which is 5. The two 45 calls and the 50 call expire worthless. Take off the 1.10 debit to get 3.90. A close anywhere else pays less.",
+   "wrong": {
+    "$5.00": "Uses the wing width and forgets the 1.10 debit.",
+    "$6.10": "Adds the debit to the wing width instead of taking it off.",
+    "$8.90": "Uses the whole 40-to-50 span instead of one wing."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.condors_flies",
@@ -31167,13 +31416,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2250",
-    "2250.0",
-    "2250.00",
-    "2250.000"
-   ],
-   "answer": 2250.0
+   "answer": "$2,250"
   },
   "difficulty": 2,
   "id": "si_a78c1ec035f1",
@@ -31181,9 +31424,14 @@
   "lesson_text": "$2,250. The sides differ: the puts run 95 to 100, the calls 110 to 120. Only one side can lose at expiry, so the worst case is the wider call side. Take its width minus the 2.50 credit, times 100 shares, times 3 condors. Schwab puts it as the width of the widest spread minus the net credit. When the sides differ in width, the wider side sets the max loss.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "3 iron condors: buy the 95 put, sell the 100 put, sell the 110 call, buy the 120 call. Credit 2.50 each. Max loss in dollars?",
+   "choices": [
+    "$750",
+    "$2,250",
+    "$3,000",
+    "$3,750"
+   ],
+   "kind": "mcq",
+   "q": "3 iron condors: buy the 95 put, sell the 100 put, sell the 110 call, buy the 120 call. Credit 2.50 each. Max loss?",
    "subject": "F6.15#q15"
   },
   "reveal_json": {
@@ -31235,13 +31483,18 @@
      "fn": "arith",
      "result": 2250.0
     },
-    "given": "3 iron condors: buy the 95 put, sell the 100 put, sell the 110 call, buy the 120 call. Credit 2.50 each. Max loss in dollars?"
+    "given": "3 iron condors: buy the 95 put, sell the 100 put, sell the 110 call, buy the 120 call. Credit 2.50 each. Max loss? $750 $3,000 $2,250 $3,750"
    },
    "lesson_line": "When the sides differ in width, the wider side sets the max loss.",
    "simple": "$2,250, because the wider call side sets the max loss: 120 minus 110, less the 2.50 credit, times 100, times 3.",
    "tier": "extended",
    "unit": "F6.15",
-   "why": "$2,250. The sides differ: the puts run 95 to 100, the calls 110 to 120. Only one side can lose at expiry, so the worst case is the wider call side. Take its width minus the 2.50 credit, times 100 shares, times 3 condors. Schwab puts it as the width of the widest spread minus the net credit."
+   "why": "$2,250. The sides differ: the puts run 95 to 100, the calls 110 to 120. Only one side can lose at expiry, so the worst case is the wider call side. Take its width minus the 2.50 credit, times 100 shares, times 3 condors. Schwab puts it as the width of the widest spread minus the net credit.",
+   "wrong": {
+    "$3,000": "Uses the wider side and forgets the 2.50 credit.",
+    "$3,750": "Adds the credit to the wider side instead of taking it off.",
+    "$750": "Uses the narrower put side."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.condors_flies",
@@ -33127,13 +33380,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "120",
-    "120.0",
-    "120.00",
-    "120.000"
-   ],
-   "answer": 120.0
+   "answer": "$120"
   },
   "difficulty": 2,
   "id": "si_2bf110fb9287",
@@ -33141,8 +33388,13 @@
   "lesson_text": "$120. That is 3 contracts of 100 shares at $0.40 a share. The holder exercised before the ex-date, so the holder is entitled to the dividend. OIC says an assigned call writer, covered or not, must deliver the stock plus the dividend. With no shares, you are short the stock going into the ex-date, so the dividend comes out of your account. Short calls with no shares, assigned before the ex-date, leave you owing the dividend too.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0",
+    "$1.20",
+    "$40",
+    "$120"
+   ],
+   "kind": "mcq",
    "q": "Short 3 calls, no shares. Exercised the day before the ex-date, and you're assigned. Dividend: $0.40 a share. What dividend do you owe?",
    "subject": "F6.16#q13"
   },
@@ -33201,13 +33453,18 @@
      "fn": "arith",
      "result": 120.0
     },
-    "given": "Short 3 calls, no shares. Exercised the day before the ex-date, and you're assigned. Dividend: $0.40 a share. What dividend do you owe?"
+    "given": "Short 3 calls, no shares. Exercised the day before the ex-date, and you're assigned. Dividend: $0.40 a share. What dividend do you owe? $0 $1.20 $40 $120"
    },
    "lesson_line": "Short calls with no shares, assigned before the ex-date, leave you owing the dividend too.",
    "simple": "You owe $120, because an assigned call writer must hand over the shares plus the dividend on each one.",
    "tier": "extended",
    "unit": "F6.16",
-   "why": "$120. That is 3 contracts of 100 shares at $0.40 a share. The holder exercised before the ex-date, so the holder is entitled to the dividend. OIC says an assigned call writer, covered or not, must deliver the stock plus the dividend. With no shares, you are short the stock going into the ex-date, so the dividend comes out of your account."
+   "why": "$120. That is 3 contracts of 100 shares at $0.40 a share. The holder exercised before the ex-date, so the holder is entitled to the dividend. OIC says an assigned call writer, covered or not, must deliver the stock plus the dividend. With no shares, you are short the stock going into the ex-date, so the dividend comes out of your account.",
+   "wrong": {
+    "$0": "Thinks only a shareholder owes the dividend. An assigned call writer owes it too.",
+    "$1.20": "Forgets that one contract covers 100 shares.",
+    "$40": "Counts one contract instead of 3."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.assignment",
@@ -35007,13 +35264,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1080",
-    "1080.0",
-    "1080.00",
-    "1080.000"
-   ],
-   "answer": 1080.0
+   "answer": "$1,080"
   },
   "difficulty": 2,
   "id": "si_c6a818ad48b0",
@@ -35021,9 +35272,14 @@
   "lesson_text": "$1,080. Three contracts at $3.60, times 100 shares, is $1,080. That matches what all 6 cost at $1.80, since half as many at twice the price is the same money. So if the 3 you kept go to zero, the trade breaks even, fees aside. An option buyer can't lose more than the premium paid. Sell half at a double and your cost is back. The worst case on the rest is zero.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "You bought 6 calls at $1.80. They double to $3.60, and you sell 3. How much cash comes back, in dollars?",
+   "choices": [
+    "$10.80",
+    "$540",
+    "$1,080",
+    "$2,160"
+   ],
+   "kind": "mcq",
+   "q": "You bought 6 calls at $1.80. They double to $3.60, and you sell 3. How much cash comes back?",
    "subject": "F6.17#q09"
   },
   "reveal_json": {
@@ -35066,13 +35322,18 @@
      "fn": "arith",
      "result": 1080.0
     },
-    "given": "You bought 6 calls at $1.80. They double to $3.60, and you sell 3. How much cash comes back, in dollars?"
+    "given": "You bought 6 calls at $1.80. They double to $3.60, and you sell 3. How much cash comes back? $10.80 $540 $2,160 $1,080"
    },
    "lesson_line": "Sell half at a double and your cost is back. The worst case on the rest is zero.",
    "simple": "$1,080 comes back, because 3 contracts at $3.60 times 100 equals what all 6 cost you at the start.",
    "tier": "core",
    "unit": "F6.17",
-   "why": "$1,080. Three contracts at $3.60, times 100 shares, is $1,080. That matches what all 6 cost at $1.80, since half as many at twice the price is the same money. So if the 3 you kept go to zero, the trade breaks even, fees aside. An option buyer can't lose more than the premium paid."
+   "why": "$1,080. Three contracts at $3.60, times 100 shares, is $1,080. That matches what all 6 cost at $1.80, since half as many at twice the price is the same money. So if the 3 you kept go to zero, the trade breaks even, fees aside. An option buyer can't lose more than the premium paid.",
+   "wrong": {
+    "$10.80": "Forgets that one contract covers 100 shares.",
+    "$2,160": "Counts all 6 contracts. You sold only 3.",
+    "$540": "Sells the 3 at the old $1.80 price."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.manage",
@@ -35168,12 +35429,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.6",
-    "1.60",
-    "1.600"
-   ],
-   "answer": 1.6
+   "answer": "$1.60"
   },
   "difficulty": 2,
   "id": "si_616d2e0643ee",
@@ -35181,8 +35437,13 @@
   "lesson_text": "$1.60, half of $3.20. E*TRADE says some traders close if they double their money or lose 50%. That is a plan some traders use, not our rule. For us, the premium paid is the stop. Cutting at half is a plan some traders use. Our rule for options: the premium paid is the stop.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$1.60",
+    "$2.70",
+    "$4.80",
+    "$6.40"
+   ],
+   "kind": "mcq",
    "q": "E*TRADE says some traders close an option at a 50% loss. On a call bought for $3.20, at what option price do they exit?",
    "subject": "F6.17#q11"
   },
@@ -35215,13 +35476,18 @@
      "fn": "arith",
      "result": 1.6
     },
-    "given": "E*TRADE says some traders close an option at a 50% loss. On a call bought for $3.20, at what option price do they exit?"
+    "given": "E*TRADE says some traders close an option at a 50% loss. On a call bought for $3.20, at what option price do they exit? $4.80 $6.40 $2.70 $1.60"
    },
    "lesson_line": "Cutting at half is a plan some traders use. Our rule for options: the premium paid is the stop.",
    "simple": "$1.60, because a 50% loss on a $3.20 call leaves it worth half that price.",
    "tier": "core",
    "unit": "F6.17",
-   "why": "$1.60, half of $3.20. E*TRADE says some traders close if they double their money or lose 50%. That is a plan some traders use, not our rule. For us, the premium paid is the stop."
+   "why": "$1.60, half of $3.20. E*TRADE says some traders close if they double their money or lose 50%. That is a plan some traders use, not our rule. For us, the premium paid is the stop.",
+   "wrong": {
+    "$2.70": "Takes 50 cents off instead of 50 percent.",
+    "$4.80": "Adds 50 percent instead of taking it off.",
+    "$6.40": "That is the double-your-money exit, not the 50% loss exit."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.manage",
@@ -35315,13 +35581,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "350",
-    "350.0",
-    "350.00",
-    "350.000"
-   ],
-   "answer": 350.0
+   "answer": "$350"
   },
   "difficulty": 2,
   "id": "si_b0ebbd96764c",
@@ -35329,8 +35589,13 @@
   "lesson_text": "$350. You sell the 50 call for $7.00 and buy the 55 call for $3.50. The difference, times 100 shares, is cash back in your account. The Options Industry Council calls this buying a more distant strike for a credit. You stay in the move with less money on the table, but the premium on the new call can still be lost. Rolling a winner up takes cash off the table and keeps you in the move.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$3.50",
+    "$350",
+    "$700",
+    "$1,050"
+   ],
+   "kind": "mcq",
    "q": "Your 50 call is worth $7.00. You sell it and buy the 55 call for $3.50. How much cash comes back, per contract?",
    "subject": "F6.17#q13"
   },
@@ -35378,13 +35643,18 @@
      "fn": "arith",
      "result": 350.0
     },
-    "given": "Your 50 call is worth $7.00. You sell it and buy the 55 call for $3.50. How much cash comes back, per contract?"
+    "given": "Your 50 call is worth $7.00. You sell it and buy the 55 call for $3.50. How much cash comes back, per contract? $3.50 $1,050 $350 $700"
    },
    "lesson_line": "Rolling a winner up takes cash off the table and keeps you in the move.",
    "simple": "$350 comes back, because you take in $7.00 and pay $3.50 for the higher strike, times 100 shares.",
    "tier": "extended",
    "unit": "F6.17",
-   "why": "$350. You sell the 50 call for $7.00 and buy the 55 call for $3.50. The difference, times 100 shares, is cash back in your account. The Options Industry Council calls this buying a more distant strike for a credit. You stay in the move with less money on the table, but the premium on the new call can still be lost."
+   "why": "$350. You sell the 50 call for $7.00 and buy the 55 call for $3.50. The difference, times 100 shares, is cash back in your account. The Options Industry Council calls this buying a more distant strike for a credit. You stay in the move with less money on the table, but the premium on the new call can still be lost.",
+   "wrong": {
+    "$1,050": "Adds the two prices instead of taking the difference.",
+    "$3.50": "Forgets that one contract covers 100 shares.",
+    "$700": "Counts only the cash from selling the 50 call."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.manage",
@@ -35546,13 +35816,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "220",
-    "220.0",
-    "220.00",
-    "220.000"
-   ],
-   "answer": 220.0
+   "answer": "$220"
   },
   "difficulty": 2,
   "id": "si_17257c8c4f46",
@@ -35560,8 +35824,13 @@
   "lesson_text": "$220. You sell the expiring call at the $0.90 bid and buy the later one for $3.10. The difference, times 100 shares, is $220 you pay. More time means more time value, so the later expiry costs more. That $220 is new money at risk, and it can be lost. Rolling a long option out isn't free. Every month you add is paid for, and it can be lost.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$2.20",
+    "$220",
+    "$310",
+    "$400"
+   ],
+   "kind": "mcq",
    "q": "Your call expiring Friday is bid $0.90. The same strike two months out costs $3.10. What does rolling out cost, per contract?",
    "subject": "F6.17#q16"
   },
@@ -35626,13 +35895,18 @@
      "fn": "arith",
      "result": 220.0
     },
-    "given": "Your call expiring Friday is bid $0.90. The same strike two months out costs $3.10. What does rolling out cost, per contract?"
+    "given": "Your call expiring Friday is bid $0.90. The same strike two months out costs $3.10. What does rolling out cost, per contract? $400 $220 $310 $2.20"
    },
    "lesson_line": "Rolling a long option out isn't free. Every month you add is paid for, and it can be lost.",
    "simple": "$220, because you get $0.90 for the old call and pay $3.10 for the new one, times 100 shares.",
    "tier": "extended",
    "unit": "F6.17",
-   "why": "$220. You sell the expiring call at the $0.90 bid and buy the later one for $3.10. The difference, times 100 shares, is $220 you pay. More time means more time value, so the later expiry costs more. That $220 is new money at risk, and it can be lost."
+   "why": "$220. You sell the expiring call at the $0.90 bid and buy the later one for $3.10. The difference, times 100 shares, is $220 you pay. More time means more time value, so the later expiry costs more. That $220 is new money at risk, and it can be lost.",
+   "wrong": {
+    "$2.20": "Forgets that one contract covers 100 shares.",
+    "$310": "Counts only the new call and forgets the $0.90 you get back.",
+    "$400": "Adds the two prices. You sell one call and buy the other."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.manage",
@@ -35643,13 +35917,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "25",
-    "25.0",
-    "25.00",
-    "25.000"
-   ],
-   "answer": 25.0
+   "answer": "$25"
   },
   "difficulty": 2,
   "id": "si_40257a9c8d4d",
@@ -35657,8 +35925,13 @@
   "lesson_text": "$25. On a credit spread, the $1.20 credit is the most you can make. Closing now costs $0.25, so holding can add at most that $0.25 a share, times 100. For that $25, you keep the spread's full risk until expiry. tastylive makes the same point about a short option near max profit. Near max profit, a short spread pays little to hold and keeps all its risk.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.25",
+    "$25",
+    "$95",
+    "$120"
+   ],
+   "kind": "mcq",
    "q": "You sold a put spread for $1.20. It costs $0.25 to close now. Hold to expiry instead: what's the most extra you can make per spread?",
    "subject": "F6.17#q17"
   },
@@ -35705,13 +35978,18 @@
      "fn": "arith",
      "result": 25.0
     },
-    "given": "You sold a put spread for $1.20. It costs $0.25 to close now. Hold to expiry instead: what's the most extra you can make per spread?"
+    "given": "You sold a put spread for $1.20. It costs $0.25 to close now. Hold to expiry instead: what's the most extra you can make per spread? $95 $120 $25 $0.25"
    },
    "lesson_line": "Near max profit, a short spread pays little to hold and keeps all its risk.",
    "simple": "$25 is the most extra, because only the $0.25 it costs to close is left to earn, times 100.",
    "tier": "extended",
    "unit": "F6.17",
-   "why": "$25. On a credit spread, the $1.20 credit is the most you can make. Closing now costs $0.25, so holding can add at most that $0.25 a share, times 100. For that $25, you keep the spread's full risk until expiry. tastylive makes the same point about a short option near max profit."
+   "why": "$25. On a credit spread, the $1.20 credit is the most you can make. Closing now costs $0.25, so holding can add at most that $0.25 a share, times 100. For that $25, you keep the spread's full risk until expiry. tastylive makes the same point about a short option near max profit.",
+   "wrong": {
+    "$0.25": "Forgets that one contract covers 100 shares.",
+    "$120": "Thinks you can still make the whole credit. Most of it is already made.",
+    "$95": "Gives what closing now already earns, not what is left to make."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.manage",
@@ -37532,13 +37810,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "6200",
-    "6200.0",
-    "6200.00",
-    "6200.000"
-   ],
-   "answer": 6200.0
+   "answer": "6,200"
   },
   "difficulty": 2,
   "id": "si_525f91851761",
@@ -37546,7 +37818,13 @@
   "lesson_text": "6,200. Both sides opening adds 1,000. Both sides closing takes away 800. So 6,000 plus 1,000 minus 800 is 6,200. A trade with one side opening and one closing would leave it unchanged. Exercises would take contracts away too, but the question rules them out. Both-open trades add to open interest. Both-close trades and exercises take away. Open-close trades just change hands.",
   "module": "F6",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "5,200",
+    "6,200",
+    "7,000",
+    "7,800"
+   ],
+   "kind": "mcq",
    "q": "Open interest is 6,000. Today's only activity: 1,000 contracts where both sides open, 800 where both close. What's the new open interest?",
    "subject": "F6.18#q12"
   },
@@ -37595,13 +37873,18 @@
      "fn": "arith",
      "result": 6200.0
     },
-    "given": "Open interest is 6,000. Today's only activity: 1,000 contracts where both sides open, 800 where both close. What's the new open interest?"
+    "given": "Open interest is 6,000. Today's only activity: 1,000 contracts where both sides open, 800 where both close. What's the new open interest? 7,800 7,000 5,200 6,200"
    },
    "lesson_line": "Both-open trades add to open interest. Both-close trades and exercises take away. Open-close trades just change hands.",
    "simple": "The new open interest is 6,200, because the 1,000 new contracts add to it and the 800 closed ones come off.",
    "tier": "extended",
    "unit": "F6.18",
-   "why": "6,200. Both sides opening adds 1,000. Both sides closing takes away 800. So 6,000 plus 1,000 minus 800 is 6,200. A trade with one side opening and one closing would leave it unchanged. Exercises would take contracts away too, but the question rules them out."
+   "why": "6,200. Both sides opening adds 1,000. Both sides closing takes away 800. So 6,000 plus 1,000 minus 800 is 6,200. A trade with one side opening and one closing would leave it unchanged. Exercises would take contracts away too, but the question rules them out.",
+   "wrong": {
+    "5,200": "Takes off the closes and forgets to add the opens.",
+    "7,000": "Adds the opens and forgets to take off the closes.",
+    "7,800": "Adds both the opens and the closes."
+   }
   },
   "review_status": "draft",
   "skill_id": "options.flow",

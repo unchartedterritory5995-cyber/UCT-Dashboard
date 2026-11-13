@@ -820,9 +820,9 @@
    "key": "q11",
    "skill": "orders.market_limit",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A stock just cleared its $40.00 breakout level. You'll pay at most 1% above it. What limit price caps your buy?",
-   "answer": 40.4,
+   "answer": "$40.40",
    "calc": {
     "fn": "arith",
     "args": {
@@ -832,7 +832,7 @@
     }
    },
    "prefix": "$",
-   "why": "$40.40. Add 1% to $40.00. A buy limit at $40.40 can only fill at $40.40 or lower, so it holds you to your cap. It may not fill if the price runs past $40.40 first.",
+   "why": "Take 1% of the $40.00 level and add it on. That gives $40.40. A buy limit at $40.40 can only fill at $40.40 or lower. It may not fill if the price runs past $40.40 first.",
    "lesson_line": "A buy limit turns the most you'll pay into a hard cap.",
    "facts": [
     "f05",
@@ -847,7 +847,18 @@
      "touches owner rule E57 (entries are market orders): flagged"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$39.60",
+    "$41.00",
+    "$40.40",
+    "$40.04"
+   ],
+   "wrong": {
+    "$39.60": "Took 1% off the level. A buy cap goes above the breakout, not below it.",
+    "$41.00": "Added a flat $1.00 instead of 1% of $40.00.",
+    "$40.04": "A decimal slip: that adds a tenth of the 1% you meant."
+   }
   },
   {
    "key": "q12",
@@ -1053,9 +1064,9 @@
    "key": "q17",
    "skill": "orders.market_limit",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A stock closed at $25.00. After overnight news, it opened at $27.25. How far above the close did it open, in percent?",
-   "answer": 9,
+   "answer": "9.0%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1064,7 +1075,7 @@
     }
    },
    "suffix": "%",
-   "why": "9%. Divide the rise from $25.00 to $27.25 by the $25.00 close, and write it as a percent. A market buy sent while the market is closed fills at the next open, so it pays that gap. A stock can open far above or below its last close.",
+   "why": "Divide the rise from $25.00 to $27.25 by the $25.00 close, and write it as a percent. That is 9%. A market buy sent while the market is closed fills at the next open, so it pays that gap. A stock can open far above or below its last close.",
    "lesson_line": "A market buy at the open pays whatever the gap is. Know that before you send it.",
    "facts": [
     "f31",
@@ -1081,7 +1092,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "109%",
+    "8.3%",
+    "2.3%",
+    "9.0%"
+   ],
+   "wrong": {
+    "8.3%": "Divided the rise by the $27.25 open. The move started at the close, so divide by $25.00.",
+    "2.3%": "Used the dollar rise as a percent. Divide it by the close first.",
+    "109%": "Gave the ratio 27.25 / 25.00 as a percent and forgot to take off the start."
+   }
   },
   {
    "key": "q18",
@@ -1398,9 +1420,9 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "40 x 1.01 = 40.40. $39.60 is the wrong sign, $41.00 a flat $1, $40.04 a 0.1% slip. Why walks the steps."
   },
   "q12": {
    "status": "pass",
@@ -1438,8 +1460,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc re-run: (27.25 - 25) / 25 = 9%. Every number comes from the stem or the calc. Deeper's 'smaller number' (2.25/27.25 = 8.3%) is right and gives no new number. The why repeats f31, which is q16's key, but only as the reason after answering, and q16 comes before q17. Describes the market buy and does not recommend a premarket buy, so no E58 conflict."
+   "fixed": true,
+   "notes": "Calc 9.0. 9.0% was the only whole number and two wrongs were digit twins of it (0.9%); swapped 0.9% for 109% (the ratio 27.25/25 read as a percent) and moved the answer to slot 4."
   },
   "q18": {
    "status": "pass",

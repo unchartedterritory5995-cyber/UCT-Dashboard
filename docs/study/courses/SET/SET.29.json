@@ -1757,10 +1757,10 @@
    "key": "q17",
    "skill": "setup.failed_hs",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fh.depth",
    "q": "Head 47.22, neckline 40.82. How tall is the pattern, head to neckline, as a percent of the head?",
-   "answer": 13.6,
+   "answer": "13.6%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -1769,7 +1769,7 @@
     },
     "round": 1
    },
-   "why": "13.6%. Head minus neckline, divided by the head: 47.22 minus 40.82, divided by 47.22, rounded to one decimal. That is the height of FDX's 2003 top. StockCharts measures a top's height from the neckline to the top of the head.",
+   "why": "13.6%. Head minus neckline, divided by the head: (47.22 - 40.82) / 47.22 = 13.6%. That is the height of FDX's 2003 top. StockCharts measures a top's height from the neckline to the top of the head.",
    "lesson_line": "Measure the top from the head to the neckline, as a percent of the head.",
    "facts": [
     "d01",
@@ -1785,7 +1785,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "15.7%",
+    "13.6%",
+    "6.4%",
+    "86.4%"
+   ],
+   "wrong": {
+    "15.7%": "Divided by the neckline instead of the head.",
+    "6.4%": "Gave the gap in dollars as a percent, no divide.",
+    "86.4%": "Gave the neckline as a share of the head."
+   }
   },
   {
    "key": "q18",
@@ -1968,10 +1979,10 @@
    "key": "q23",
    "skill": "setup.failed_hs",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fh.failure_b",
    "q": "Neckline 63.38, the lowest low of the break 61.50. How deep was the undercut, in percent?",
-   "answer": 3.0,
+   "answer": "3.0%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1981,7 +1992,7 @@
     },
     "round": 1
    },
-   "why": "3.0%. Neckline minus the low, divided by the neckline: 63.38 minus 61.50, divided by 63.38. A brief undercut under 6% is the A+ form. 6% to 10% grades lower, and a fall of more than 10% means the top worked. BXP's two-week undercut measured 3.0%, and at best that trade reached 18.8R.",
+   "why": "3.0%. Neckline minus the low, divided by the neckline: (63.38 - 61.50) / 63.38 = 3.0%. A brief undercut under 6% is the A+ form. 6% to 10% grades lower, and a fall of more than 10% means the top worked. BXP's two-week undercut measured 3.0%, and at best that trade reached 18.8R.",
    "lesson_line": "Measure the undercut from the neckline. Shallow and brief is the one you want.",
    "facts": [
     "d07",
@@ -2001,7 +2012,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "1.9%",
+    "0.3%",
+    "97.0%",
+    "3.0%"
+   ],
+   "wrong": {
+    "1.9%": "Gave the gap in dollars as a percent, no divide.",
+    "0.3%": "Decimal slip, one place too short.",
+    "97.0%": "Gave the low as a share of the neckline."
+   }
   },
   {
    "key": "q24",
@@ -2339,10 +2361,10 @@
    "key": "q33",
    "skill": "setup.failed_hs",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fh.trim_1",
    "q": "Bought at 22.71 with the stop at 22.30. Where is 3R?",
-   "answer": 23.94,
+   "answer": "$23.94",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2352,7 +2374,7 @@
     },
     "round": 2
    },
-   "why": "23.94. One R is the fill minus the stop, so 3R is the fill plus three times that gap. 3R is a yardstick for the trade, not a sell order. MGM's trade reached 3R in 5 days.",
+   "why": "23.94. One R is the fill minus the stop. 3R is the fill plus three times that gap: 22.71 + 3 x (22.71 - 22.30) = 23.94. 3R is a yardstick, not a sell order. MGM's trade reached 3R in 5 days.",
    "lesson_line": "Know your 3R once you are filled. It shows how far the trade has run.",
    "facts": [
     "r06",
@@ -2369,7 +2391,18 @@
      "a computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$23.53",
+    "$23.12",
+    "$23.94",
+    "$21.48"
+   ],
+   "wrong": {
+    "$23.53": "Added three R to the stop, not the fill.",
+    "$23.12": "Added only one R, forgot the times three.",
+    "$21.48": "Subtracted three R instead of adding."
+   }
   },
   {
    "key": "q34",
@@ -2729,10 +2762,10 @@
    "key": "q43",
    "skill": "setup.failed_hs",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fh.trim_2",
    "q": "Bought at 184.97, stop 182.98. The stock trades 194.00. How many R is that?",
-   "answer": 4.5,
+   "answer": "4.5R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -2742,7 +2775,7 @@
     },
     "round": 1
    },
-   "why": "4.5R. The gain per share divided by the fill minus the stop: 194.00 minus 184.97, divided by 184.97 minus 182.98. Count the gain in R, not in dollars. MUSA reached 39.0R at best.",
+   "why": "4.5R. The gain per share over the fill minus the stop: (194.00 - 184.97) / (184.97 - 182.98) = 4.5R. Count the gain in R, not in dollars. MUSA reached 39.0R at best.",
    "lesson_line": "Count in R, not dollars: the gain per share over the risk per share.",
    "facts": [
     "d13"
@@ -2758,7 +2791,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "5.5R",
+    "4.5R",
+    "9.0R",
+    "2.0R"
+   ],
+   "wrong": {
+    "5.5R": "Measured the gain from the stop, not the fill.",
+    "9.0R": "Used the dollar gain as R, no divide.",
+    "2.0R": "Used the risk in dollars as the R count."
+   }
   },
   {
    "key": "q44",
@@ -2873,10 +2917,10 @@
    "key": "q47",
    "skill": "setup.failed_hs",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fh.prior_trend",
    "q": "The lowest low of the six months before the left shoulder was 160.00; the head is 202.20. The advance, in percent?",
-   "answer": 26.4,
+   "answer": "26.4%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -2885,7 +2929,7 @@
     },
     "round": 1
    },
-   "why": "26.4%. The advance is the head over the lowest low before it, minus one: 202.20 over 160.00. Our card asks for a head at least 25% above the lowest low of the 6 months before the left shoulder, so this one passes. Edwards and Magee want a strong rally climaxing an extensive advance, and the number alone does not make a top.",
+   "why": "26.4%. The advance is how far the head sits above the lowest low before it: (202.20 - 160.00) / 160.00 = 26.4%. Our card asks for a head at least 25% above that low, so this one passes. Edwards and Magee want a strong rally climaxing an extensive advance. The number alone does not make a top.",
    "lesson_line": "Measure the run into the top. A top needs something to reverse.",
    "facts": [
     "c10",
@@ -2905,7 +2949,18 @@
      "the 25% line is our card's proposed number"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "42.2%",
+    "20.9%",
+    "26.4%",
+    "79.1%"
+   ],
+   "wrong": {
+    "20.9%": "Divided by the head instead of the low.",
+    "42.2%": "Gave the gap in dollars as a percent.",
+    "79.1%": "Gave the low as a share of the head."
+   }
   },
   {
    "key": "q48",
@@ -3091,10 +3146,10 @@
    "key": "q53",
    "skill": "setup.failed_hs",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "fh.stop",
    "q": "Account 100,000. Risk 0.25%. Fill 123.69, stop 122.25. How many shares? Round down.",
-   "answer": 173,
+   "answer": "173 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -3105,7 +3160,7 @@
     },
     "round": 0
    },
-   "why": "173 shares. Risk in dollars is 100,000 times 0.25%. Divide that by the fill minus the stop, 123.69 minus 122.25, and round down. Then the size is the smaller of that and the position cap. The stop sets the size, never the other way round. That was TOL's trade, with the stop 1.2% away.",
+   "why": "173 shares. Risk in dollars is 100,000 x 0.25%. Divide by the fill minus the stop: 100,000 x 0.25% / (123.69 - 122.25), rounded down to 173. The size is the smaller of that and the position cap. That was TOL's trade, with the stop 1.2% away.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -3127,7 +3182,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "174 shares",
+    "808 shares",
+    "1,736 shares",
+    "173 shares"
+   ],
+   "wrong": {
+    "174 shares": "Rounded up, so the risk goes over 0.25%.",
+    "808 shares": "Divided the whole account by the fill price.",
+    "1,736 shares": "Moved the decimal on the risk percent."
+   }
   },
   {
    "key": "q54",
@@ -3966,7 +4032,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc re-derived: (47.22-40.82)/47.22 = 13.55 -> 13.6, numbers from d01. New fact sc05 verified on the StockCharts page, quote verbatim and under 40 words. Base (percent of the head) is stated in the stem."
+   "notes": "13.6 ok; 15.7 over neckline, 6.4 dollars, 86.4 share. verified."
   },
   "q18": {
    "status": "cut",
@@ -4002,7 +4068,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc re-derived: (63.38-61.50)/63.38 = 2.97 -> 3.0. d07/d08 back the BXP facts; c07/c05 lines are proposed, flagged."
+   "notes": "3.0 ok (2.97); wrongs verified."
   },
   "q24": {
    "status": "pass",
@@ -4065,7 +4131,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic kept (22.71+3x0.41=23.94); why softened to yardstick"
+   "notes": "23.94 ok; wrongs verified."
   },
   "q34": {
    "status": "pass",
@@ -4127,7 +4193,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc: 9.03 / 1.99 = 4.54 -> 4.5. Numbers from d13."
+   "notes": "4.5 ok (4.54); 5.5 from stop, 9.0 dollars, 2.0 risk dollars. verified."
   },
   "q44": {
    "status": "cut",
@@ -4149,9 +4215,9 @@
   },
   "q47": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "26.4 ok; wrongs verified."
   },
   "q48": {
    "status": "pass",
@@ -4187,7 +4253,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc: 250 / 1.44 = 173.6 -> 173 rounded down. Stem now says round down. Numbers from d15 and the question. Invented 100,000 account flagged for the owner."
+   "notes": "173 ok (173.6); 174 up, 808 = account/fill, 1,736 slip. verified."
   },
   "q54": {
    "status": "pass",

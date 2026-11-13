@@ -958,10 +958,10 @@
    "key": "q11",
    "skill": "process.playbook",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Your Kicker page: entry $20.00, stop $19.30. What is the 3R price?",
-   "answer": 22.1,
+   "answer": "$22.10",
    "calc": {
     "fn": "arith",
     "args": {
@@ -971,7 +971,7 @@
     }
    },
    "prefix": "$",
-   "why": "$22.10. R is your risk per share, from the $20.00 entry down to the $19.30 stop. Three times that risk, added to the entry, gives $22.10. It is a mark on the page, not an order to sell. The first sell is a judgment, usually day 3 or later.",
+   "why": "$22.10. R is your risk per share, the $20.00 entry minus the $19.30 stop. The 3R price is the entry plus 3 times R: $20.00 plus 3 times ($20.00 minus $19.30) is $22.10. It is a mark on the page, not an order to sell. The first sell is a judgment, usually day 3 or later.",
    "lesson_line": "Write the 3R price on the page in dollars. Then judge the first sell as the trade runs.",
    "facts": [
     "r01",
@@ -990,7 +990,18 @@
      "fixed before (re-keyed from 2R to 3R on 2026-11-09)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$23.00",
+    "$21.40",
+    "$20.60",
+    "$22.10"
+   ],
+   "wrong": {
+    "$21.40": "You added the 3R to the stop instead of to the entry.",
+    "$20.60": "You used a fixed 3% above entry instead of three times your own risk.",
+    "$23.00": "You treated 3R as a $3 gain instead of three times your risk."
+   }
   },
   {
    "key": "q12",
@@ -1436,8 +1447,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ok"
+   "fixed": true,
+   "notes": "Answer and calc check out. Fix: the explanation did not show the intermediate step; added it."
   },
   "q12": {
    "status": "pass",

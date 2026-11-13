@@ -1400,9 +1400,9 @@
    "key": "q11",
    "skill": "history.sectors",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "In 2022 the energy index returned 64.56% and the S&P 500 returned -18.11%. By how many points did energy beat it?",
-   "answer": 82.67,
+   "answer": "82.67 points",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1412,7 +1412,7 @@
     },
     "round": 2
    },
-   "suffix": "points",
+   "suffix": "",
    "why": "82.67 points. Here you measure the gap between the two returns, in percentage points. Energy gained 64.56% and the market lost 18.11%, so the gap is 64.56 plus 18.11. Taking away a loss adds it. Both are total returns with dividends. The gap shows how far energy beat the market, not what anyone earned.",
    "lesson_line": "Judge a group against the market, not on its own. Measure the gap.",
    "facts": [
@@ -1432,7 +1432,18 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "46.45 points",
+    "64.56 points",
+    "8.27 points",
+    "82.67 points"
+   ],
+   "wrong": {
+    "46.45 points": "Took away the loss instead of adding it.",
+    "64.56 points": "Used only energy's return.",
+    "8.27 points": "Decimal slip."
+   }
   },
   {
    "key": "q12",
@@ -1973,7 +1984,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 64.56 - (-18.11) = 82.67, recomputed by the validator. Why and trap only restate the calc and f24/f35/g16; no unsourced definition. 'An easy slip' is not a sourced claim of what most people do. Fine."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q12": {
    "status": "pass",

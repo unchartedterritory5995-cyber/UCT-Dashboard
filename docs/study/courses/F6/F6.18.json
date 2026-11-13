@@ -1103,9 +1103,9 @@
    "key": "q12",
    "skill": "options.flow",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Open interest is 6,000. Today's only activity: 1,000 contracts where both sides open, 800 where both close. What's the new open interest?",
-   "answer": 6200,
+   "answer": "6,200",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1132,7 +1132,18 @@
      "fixed before (exercise wording)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "7,800",
+    "7,000",
+    "5,200",
+    "6,200"
+   ],
+   "wrong": {
+    "7,800": "Adds both the opens and the closes.",
+    "7,000": "Adds the opens and forgets to take off the closes.",
+    "5,200": "Takes off the closes and forgets to add the opens."
+   }
   },
   {
    "key": "q13",
@@ -1731,9 +1742,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
   },
   "q13": {
    "status": "pass",

@@ -671,24 +671,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "75",
-    "75.0",
-    "75.00",
-    "75.000"
-   ],
-   "answer": 75.0
+   "answer": "75%"
   },
   "difficulty": 2,
   "id": "si_5ea313037716",
   "lesson_origin": "session",
-  "lesson_text": "75%. Six of your eight breaks were the same mistake, and 6 out of 8 is 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers. Look back for the mistake that repeats. That one is your pattern.",
+  "lesson_text": "75%. Divide the same-mistake breaks by all breaks: 6 out of 8 is 0.75. Times 100 gives 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers. Look back for the mistake that repeats. That one is your pattern.",
   "module": "F8",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.75%",
+    "25%",
+    "75%",
+    "133%"
+   ],
+   "kind": "mcq",
    "q": "Of your 8 plan breaks this month, 6 were the same mistake. What percent of your breaks was that one mistake?",
-   "subject": "F8.01#q09",
-   "suffix": "%"
+   "subject": "F8.01#q09"
   },
   "reveal_json": {
    "depth": {
@@ -727,13 +726,18 @@
      "fn": "arith",
      "result": 75.0
     },
-    "given": "Of your 8 plan breaks this month, 6 were the same mistake. What percent of your breaks was that one mistake?"
+    "given": "Of your 8 plan breaks this month, 6 were the same mistake. What percent of your breaks was that one mistake? 25% 0.75% 133% 75%"
    },
    "lesson_line": "Look back for the mistake that repeats. That one is your pattern.",
    "simple": "75%, because 6 of your 8 breaks were the same mistake, and that repeat is the pattern to map first.",
    "tier": "core",
    "unit": "F8.01",
-   "why": "75%. Six of your eight breaks were the same mistake, and 6 out of 8 is 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers."
+   "why": "75%. Divide the same-mistake breaks by all breaks: 6 out of 8 is 0.75. Times 100 gives 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers.",
+   "wrong": {
+    "0.75%": "Decimal slip.",
+    "133%": "Divided the 8 breaks by the 6.",
+    "25%": "Gave the share of the other breaks."
+   }
   },
   "review_status": "draft",
   "skill_id": "psych.pattern",
@@ -2229,13 +2233,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "4",
-    "4.0",
-    "4.00",
-    "4.000"
-   ],
-   "answer": 4.0
+   "answer": "4 times"
   },
   "difficulty": 2,
   "id": "si_e16270ca2d2d",
@@ -2243,10 +2241,15 @@
   "lesson_text": "4 times. Risk per share is entry minus stop. The plan risked $30 minus $29 a share. The chase risks $33 minus $29 a share. Same stop, four times the risk per share. Our rule keeps the dollar risk, so the shares shrink. And $33 is more than 4% above $30, so our rule skips it. Chasing doesn't move your stop. It widens your risk per share. Past 4% above the buy point, we don't buy.",
   "module": "F8",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "3 times",
+    "1.1 times",
+    "4 times",
+    "0.25 times"
+   ],
+   "kind": "mcq",
    "q": "Plan: buy at $30, stop at $29. You chase it to $33, same stop. Your risk per share is how many times the plan's?",
-   "subject": "F8.02#q08",
-   "suffix": "times"
+   "subject": "F8.02#q08"
   },
   "reveal_json": {
    "depth": {
@@ -2293,13 +2296,18 @@
      "fn": "arith",
      "result": 4.0
     },
-    "given": "Plan: buy at $30, stop at $29. You chase it to $33, same stop. Your risk per share is how many times the plan's?"
+    "given": "Plan: buy at $30, stop at $29. You chase it to $33, same stop. Your risk per share is how many times the plan's? 3 times 0.25 times 1.1 times 4 times"
    },
    "lesson_line": "Chasing doesn't move your stop. It widens your risk per share. Past 4% above the buy point, we don't buy.",
    "simple": "4 times, because your stop sat a dollar under the plan price but four dollars under where you bought.",
    "tier": "core",
    "unit": "F8.02",
-   "why": "4 times. Risk per share is entry minus stop. The plan risked $30 minus $29 a share. The chase risks $33 minus $29 a share. Same stop, four times the risk per share. Our rule keeps the dollar risk, so the shares shrink. And $33 is more than 4% above $30, so our rule skips it."
+   "why": "4 times. Risk per share is entry minus stop. The plan risked $30 minus $29 a share. The chase risks $33 minus $29 a share. Same stop, four times the risk per share. Our rule keeps the dollar risk, so the shares shrink. And $33 is more than 4% above $30, so our rule skips it.",
+   "wrong": {
+    "0.25 times": "Flipped the ratio.",
+    "1.1 times": "Divided one price by the other.",
+    "3 times": "Compared the two prices, 33 less 30, not the two risks."
+   }
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -2380,9 +2388,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "Buy once it clears $25.40",
     "Buy half now, half at $25.40",
     "Buy now, $25.10 is close enough",
-    "Buy once it clears $25.40",
     "Buy now before it gets away"
    ],
    "kind": "mcq",
@@ -2608,13 +2616,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "9",
-    "9.0",
-    "9.00",
-    "9.000"
-   ],
-   "answer": 9.0
+   "answer": "9.0%"
   },
   "difficulty": 2,
   "id": "si_7306a8cc46f5",
@@ -2622,10 +2624,15 @@
   "lesson_text": "9%. That's $43.60 minus $40, divided by $40. Our rule: never buy more than 4% above the buy point, so we don't buy this one. The further past the buy point you buy, the greater the risk of being shaken out. The stop stays under the buy point, so the distance grows and the shares shrink. Measure how far past the buy point you are before you buy. Past 4%, let it go.",
   "module": "F8",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "The buy point was $40. You missed it, and the stock now trades at $43.60. How far past the buy point is it, in percent?",
-   "subject": "F8.02#q14",
-   "suffix": "%"
+   "choices": [
+    "0.9%",
+    "3.6%",
+    "8.3%",
+    "9.0%"
+   ],
+   "kind": "mcq",
+   "q": "The buy point was $40. You missed it, and the stock now trades at $43.60. How far past the buy point is it?",
+   "subject": "F8.02#q14"
   },
   "reveal_json": {
    "deeper": {
@@ -2673,13 +2680,18 @@
      "fn": "pct_change",
      "result": 9.0
     },
-    "given": "The buy point was $40. You missed it, and the stock now trades at $43.60. How far past the buy point is it, in percent?"
+    "given": "The buy point was $40. You missed it, and the stock now trades at $43.60. How far past the buy point is it? 8.3% 9.0% 3.6% 0.9%"
    },
    "lesson_line": "Measure how far past the buy point you are before you buy. Past 4%, let it go.",
    "simple": "9%, because $43.60 is well above the $40 buy point, far past our 4% limit for a buy.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "9%. That's $43.60 minus $40, divided by $40. Our rule: never buy more than 4% above the buy point, so we don't buy this one. The further past the buy point you buy, the greater the risk of being shaken out. The stop stays under the buy point, so the distance grows and the shares shrink."
+   "why": "9%. That's $43.60 minus $40, divided by $40. Our rule: never buy more than 4% above the buy point, so we don't buy this one. The further past the buy point you buy, the greater the risk of being shaken out. The stop stays under the buy point, so the distance grows and the shares shrink.",
+   "wrong": {
+    "0.9%": "Decimal slip.",
+    "3.6%": "Used the dollar gap as a percent.",
+    "8.3%": "Divided the gain by the current price, not the buy point."
+   }
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -2701,8 +2713,8 @@
    "choices": [
     "Buy now with the old stop at $39",
     "Wait for a new high, then buy",
-    "Wait for a pullback, higher low",
-    "Buy double size to catch up"
+    "Buy double size to catch up",
+    "Wait for a pullback, higher low"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -2797,9 +2809,9 @@
   "prompt_json": {
    "choices": [
     "Busy days are just harder markets",
+    "The extra trades are FOMO trades",
     "His position size was too small",
-    "He needs a faster trading platform",
-    "The extra trades are FOMO trades"
+    "He needs a faster trading platform"
    ],
    "kind": "mcq",
    "q": "A trader's win rate drops on the days he trades most. What does coach Brett Steenbarger often find behind it?",
@@ -2862,13 +2874,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "91",
-    "91.0",
-    "91.00",
-    "91.000"
-   ],
-   "answer": 91.0
+   "answer": "91%"
   },
   "difficulty": 3,
   "id": "si_ef29719f29e6",
@@ -2876,10 +2882,15 @@
   "lesson_text": "91%. That's $120.75 minus $10.97, divided by $120.75, rounded. The run came on social media hype, from around $5 to about $120 in under three weeks. Many who arrived late endured significant pain. This measures how far down a buyer at the top was a few weeks later, not a final result. When the hype is everywhere, you're probably late. Many who came late here endured significant pain.",
   "module": "F8",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top, in %?",
-   "subject": "F8.02#q18",
-   "suffix": "%"
+   "choices": [
+    "9%",
+    "91%",
+    "110%",
+    "1,001%"
+   ],
+   "kind": "mcq",
+   "q": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top?",
+   "subject": "F8.02#q18"
   },
   "reveal_json": {
    "deeper": {
@@ -2921,13 +2932,18 @@
      "fn": "arith",
      "result": 91.0
     },
-    "given": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top, in %?"
+    "given": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top? 9% 1,001% 110% 91%"
    },
    "lesson_line": "When the hype is everywhere, you're probably late. Many who came late here endured significant pain.",
    "simple": "About 91%, because the stock fell from $120.75 to $10.97 within a few weeks of its top.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "91%. That's $120.75 minus $10.97, divided by $120.75, rounded. The run came on social media hype, from around $5 to about $120 in under three weeks. Many who arrived late endured significant pain. This measures how far down a buyer at the top was a few weeks later, not a final result."
+   "why": "91%. That's $120.75 minus $10.97, divided by $120.75, rounded. The run came on social media hype, from around $5 to about $120 in under three weeks. Many who arrived late endured significant pain. This measures how far down a buyer at the top was a few weeks later, not a final result.",
+   "wrong": {
+    "1,001%": "Divided the drop by the later price, not the top.",
+    "110%": "Used the dollar drop as a percent.",
+    "9%": "Gave what was left, not the fall."
+   }
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -2948,8 +2964,8 @@
   "prompt_json": {
    "choices": [
     "Short it, it has to fall now",
-    "I'm late; wait for a real setup",
     "Buy now, add more as it rises",
+    "I'm late; wait for a real setup",
     "The buzz proves it will go higher"
    ],
    "kind": "mcq",
@@ -3031,12 +3047,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "10.3",
-    "10.30",
-    "10.300"
-   ],
-   "answer": 10.3
+   "answer": "10.3%"
   },
   "difficulty": 3,
   "id": "si_c830708c6520",
@@ -3044,10 +3055,15 @@
   "lesson_text": "10.3%. That's $54 minus $48.45, divided by $54. Our default stop sits a few cents under the day's low or the prior day's low. After a big gap up, the prior day's low is far away. The size comes from the stop, so the same dollar risk buys far fewer shares. If the honest stop does not fit the risk, skip the trade. After a gap, measure the stop before you buy. A wide stop means a small position.",
   "module": "F8",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "q": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it, in %?",
-   "subject": "F8.02#q20",
-   "suffix": "%"
+   "choices": [
+    "8%",
+    "10.3%",
+    "11.5%",
+    "89.7%"
+   ],
+   "kind": "mcq",
+   "q": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it?",
+   "subject": "F8.02#q20"
   },
   "reveal_json": {
    "deeper": {
@@ -3096,13 +3112,18 @@
      "fn": "arith",
      "result": 10.3
     },
-    "given": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it, in %?"
+    "given": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it? 8% 89.7% 10.3% 11.5%"
    },
    "lesson_line": "After a gap, measure the stop before you buy. A wide stop means a small position.",
    "simple": "About 10.3%, because a stop a few cents under yesterday's $48.50 low sits far below today's $54 open.",
    "tier": "expert",
    "unit": "F8.02",
-   "why": "10.3%. That's $54 minus $48.45, divided by $54. Our default stop sits a few cents under the day's low or the prior day's low. After a big gap up, the prior day's low is far away. The size comes from the stop, so the same dollar risk buys far fewer shares. If the honest stop does not fit the risk, skip the trade."
+   "why": "10.3%. That's $54 minus $48.45, divided by $54. Our default stop sits a few cents under the day's low or the prior day's low. After a big gap up, the prior day's low is far away. The size comes from the stop, so the same dollar risk buys far fewer shares. If the honest stop does not fit the risk, skip the trade.",
+   "wrong": {
+    "11.5%": "Divided by the stop price, not the entry.",
+    "8%": "Used the size of the gap up as the stop distance.",
+    "89.7%": "Gave the stop as a share of the entry."
+   }
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -3124,8 +3145,8 @@
    "choices": [
     "Use wider stops on the chases",
     "Trade more names so you miss less",
-    "Grade each day on your process",
-    "Buy before the signal to beat it"
+    "Buy before the signal to beat it",
+    "Grade each day on your process"
    ],
    "kind": "mcq",
    "q": "What fix goes at the root?",
@@ -3300,10 +3321,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "No, it's a pullback near support",
     "Yes, only new highs are safe",
     "Yes, it already broke out at $40",
-    "No, any dip after a breakout is a buy",
-    "No, it's a pullback near support"
+    "No, any dip after a breakout is a buy"
    ],
    "kind": "mcq",
    "q": "You buy the turn near $41, stop just under the pullback low. Is it a chase?",
@@ -3393,9 +3414,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Step back; no new trades today",
     "Take a short break, then trade it",
     "Buy, this one will make it back",
+    "Step back; no new trades today",
     "Enter, but with a very tight stop"
    ],
    "kind": "mcq",
@@ -3551,8 +3572,8 @@
   "prompt_json": {
    "choices": [
     "Up to 10% above buy point",
-    "Up to 5% above buy point",
     "Up to 4% above the buy point",
+    "Up to 5% above buy point",
     "Any, if the shares shrink"
    ],
    "kind": "mcq",
@@ -3632,8 +3653,8 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Buy half now, half on a dip",
     "Buy now with a market order",
+    "Buy half now, half on a dip",
     "Wait for a pullback to buy",
     "Buy with a limit order at $50"
    ],
@@ -3746,10 +3767,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Skip today and plan it tonight",
     "Buy at market before it runs",
     "Buy now, set a stop later",
-    "Short it, the gap is too big"
+    "Short it, the gap is too big",
+    "Skip today and plan it tonight"
    ],
    "kind": "mcq",
    "q": "What does our rule say to do?",
@@ -4722,23 +4743,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.5",
-    "0.50",
-    "0.500"
-   ],
-   "answer": 0.5
+   "answer": "0.5R"
   },
   "difficulty": 2,
   "id": "si_0ea0d9c685f1",
   "lesson_origin": "session",
-  "lesson_text": "0.5R. Your gain per share was half of the $2 you risked per share, so you made 0.5R. One loss at the full stop costs 1R, twice this win. So it takes two exits like this one to pay for a single full stop-out. Measure exits in R. It takes two half-R wins to pay for one full-R loss.",
+  "lesson_text": "0.5R. Your gain was $41 minus $40, or $1 a share. Your risk was $2 a share. $1 divided by $2 is 0.5R. One loss at the full stop costs 1R, twice this win. So it takes two exits like this to pay for one full stop-out. Measure exits in R. It takes two half-R wins to pay for one full-R loss.",
   "module": "F8",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.05R",
+    "0.5R",
+    "1R",
+    "2R"
+   ],
+   "kind": "mcq",
    "q": "Entry $40, stop $38, so 1R is $2 a share. You sell at $41 out of nerves. How many R did you make?",
-   "subject": "F8.03#q11",
-   "suffix": "R"
+   "subject": "F8.03#q11"
   },
   "reveal_json": {
    "depth": {
@@ -4770,13 +4791,18 @@
      "fn": "r_multiple",
      "result": 0.5
     },
-    "given": "Entry $40, stop $38, so 1R is $2 a share. You sell at $41 out of nerves. How many R did you make?"
+    "given": "Entry $40, stop $38, so 1R is $2 a share. You sell at $41 out of nerves. How many R did you make? 1R 0.05R 2R 0.5R"
    },
    "lesson_line": "Measure exits in R. It takes two half-R wins to pay for one full-R loss.",
    "simple": "You made 0.5R, because your gain was half of the $2 a share you risked.",
    "tier": "extended",
    "unit": "F8.03",
-   "why": "0.5R. Your gain per share was half of the $2 you risked per share, so you made 0.5R. One loss at the full stop costs 1R, twice this win. So it takes two exits like this one to pay for a single full stop-out."
+   "why": "0.5R. Your gain was $41 minus $40, or $1 a share. Your risk was $2 a share. $1 divided by $2 is 0.5R. One loss at the full stop costs 1R, twice this win. So it takes two exits like this to pay for one full stop-out.",
+   "wrong": {
+    "0.05R": "Decimal slip.",
+    "1R": "Counted the $1 gain as 1R.",
+    "2R": "Flipped the ratio, risk over gain."
+   }
   },
   "review_status": "draft",
   "skill_id": "psych.fear",
@@ -6890,24 +6916,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "5",
-    "5.0",
-    "5.00",
-    "5.000"
-   ],
-   "answer": 5.0
+   "answer": "5%"
   },
   "difficulty": 2,
   "id": "si_345020c84d6a",
   "lesson_origin": "session",
-  "lesson_text": "5%. Three losses at 1% each, then a doubled trade that loses twice the usual 1%. One revenge trade did the damage of two normal ones. CIBC warns that the second loss can be even larger than the first. Doubling up after losses doesn't dig you out faster. It digs the hole faster.",
+  "lesson_text": "5%. Three losses at 1% each is 3%. The doubled trade risks 2%, and it loses too. 3% plus 2% is 5%. One revenge trade did the damage of two normal ones. CIBC warns the second loss can be even larger than the first. Doubling up after losses doesn't dig you out faster. It digs the hole faster.",
   "module": "F8",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "3%",
+    "4%",
+    "5%",
+    "6%"
+   ],
+   "kind": "mcq",
    "q": "You risk 1% a trade and lose three in a row. You double your risk to win it back, and that one stops out too. What's the day's total loss?",
-   "subject": "F8.04#q15",
-   "suffix": "%"
+   "subject": "F8.04#q15"
   },
   "reveal_json": {
    "deeper": {
@@ -6949,13 +6974,18 @@
      "fn": "arith",
      "result": 5.0
     },
-    "given": "You risk 1% a trade and lose three in a row. You double your risk to win it back, and that one stops out too. What's the day's total loss?"
+    "given": "You risk 1% a trade and lose three in a row. You double your risk to win it back, and that one stops out too. What's the day's total loss? 4% 3% 6% 5%"
    },
    "lesson_line": "Doubling up after losses doesn't dig you out faster. It digs the hole faster.",
    "simple": "You're down 5%, because three 1% losses plus a doubled trade that loses twice as much add up to 5%.",
    "tier": "extended",
    "unit": "F8.04",
-   "why": "5%. Three losses at 1% each, then a doubled trade that loses twice the usual 1%. One revenge trade did the damage of two normal ones. CIBC warns that the second loss can be even larger than the first."
+   "why": "5%. Three losses at 1% each is 3%. The doubled trade risks 2%, and it loses too. 3% plus 2% is 5%. One revenge trade did the damage of two normal ones. CIBC warns the second loss can be even larger than the first.",
+   "wrong": {
+    "3%": "Left out the doubled trade.",
+    "4%": "Counted the doubled trade as a normal 1%.",
+    "6%": "Doubled the whole three-loss total, not one trade."
+   }
   },
   "review_status": "draft",
   "skill_id": "psych.tilt",
@@ -7467,22 +7497,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "600",
-    "600.0",
-    "600.00",
-    "600.000"
-   ],
-   "answer": 600.0
+   "answer": "$600"
   },
   "difficulty": 2,
   "id": "si_a122c4a0c4ab",
   "lesson_origin": "session",
-  "lesson_text": "$600. Our limit is 8% of the month's starting value, here $40,000. Take away the $2,600 you've already lost, and $600 is left. A trade whose stop would lose more than that could carry you past the line. At the line, no new trades for the rest of the month. Know your room before every trade. When it's gone, no new trades until next month.",
+  "lesson_text": "$600. Our limit is 8% of the month's starting value: 8% of $40,000 is $3,200. Take away the $2,600 already lost, and $600 is left. A trade whose stop would lose more than that could carry you past the line. Know your room before every trade. When it's gone, no new trades until next month.",
   "module": "F8",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$392",
+    "$600",
+    "$3,200",
+    "$5,800"
+   ],
+   "kind": "mcq",
    "q": "Our loss limit is 8% a month. The month began at $40,000, and you're down $2,600. How much more can you lose before new trades stop?",
    "subject": "F8.04#q23"
   },
@@ -7534,13 +7563,18 @@
      "fn": "arith",
      "result": 600.0
     },
-    "given": "Our loss limit is 8% a month. The month began at $40,000, and you're down $2,600. How much more can you lose before new trades stop?"
+    "given": "Our loss limit is 8% a month. The month began at $40,000, and you're down $2,600. How much more can you lose before new trades stop? $3,200 $392 $600 $5,800"
    },
    "lesson_line": "Know your room before every trade. When it's gone, no new trades until next month.",
    "simple": "You can lose $600 more, because 8% of $40,000, minus the $2,600 already lost, leaves $600.",
    "tier": "core",
    "unit": "F8.04",
-   "why": "$600. Our limit is 8% of the month's starting value, here $40,000. Take away the $2,600 you've already lost, and $600 is left. A trade whose stop would lose more than that could carry you past the line. At the line, no new trades for the rest of the month."
+   "why": "$600. Our limit is 8% of the month's starting value: 8% of $40,000 is $3,200. Take away the $2,600 already lost, and $600 is left. A trade whose stop would lose more than that could carry you past the line.",
+   "wrong": {
+    "$3,200": "Forgot to subtract the loss already taken.",
+    "$392": "Took 8% of the current balance, not the starting value.",
+    "$5,800": "Added the loss to the limit instead of subtracting."
+   }
   },
   "review_status": "draft",
   "skill_id": "psych.tilt",
@@ -8634,13 +8668,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "4",
-    "4.0",
-    "4.00",
-    "4.000"
-   ],
-   "answer": 4.0
+   "answer": "4 times"
   },
   "difficulty": 2,
   "id": "si_caca828f9d01",
@@ -8648,10 +8676,15 @@
   "lesson_text": "4 times. Your normal risk is 1% of $60,000, and $2,400 is four of those. Your rule is a percent of the account, so check every trade in percent. Measure every position against your rule in percent. Dollars can fool you.",
   "module": "F8",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "24 times",
+    "4 times",
+    "2.4 times",
+    "0.04 times"
+   ],
+   "kind": "mcq",
    "q": "Your rule is 1% risk on a $60,000 account. Feeling hot, you set up a trade risking $2,400. How many times your normal risk is that?",
-   "subject": "F8.05#q09",
-   "suffix": "times"
+   "subject": "F8.05#q09"
   },
   "reveal_json": {
    "depth": {
@@ -8691,13 +8724,18 @@
      "fn": "arith",
      "result": 4.0
     },
-    "given": "Your rule is 1% risk on a $60,000 account. Feeling hot, you set up a trade risking $2,400. How many times your normal risk is that?"
+    "given": "Your rule is 1% risk on a $60,000 account. Feeling hot, you set up a trade risking $2,400. How many times your normal risk is that? 24 times 2.4 times 0.04 times 4 times"
    },
    "lesson_line": "Measure every position against your rule in percent. Dollars can fool you.",
    "simple": "It is 4 times your normal risk, since $2,400 is four times 1% of $60,000.",
    "tier": "core",
    "unit": "F8.05",
-   "why": "4 times. Your normal risk is 1% of $60,000, and $2,400 is four of those. Your rule is a percent of the account, so check every trade in percent."
+   "why": "4 times. Your normal risk is 1% of $60,000, and $2,400 is four of those. Your rule is a percent of the account, so check every trade in percent.",
+   "wrong": {
+    "0.04 times": "Divided the risk by the account only.",
+    "2.4 times": "Slipped a decimal place in the division.",
+    "24 times": "Divided $2,400 by 100 instead of by the normal risk."
+   }
   },
   "review_status": "draft",
   "skill_id": "psych.euphoria",
@@ -8793,8 +8831,8 @@
   "prompt_json": {
    "choices": [
     "$1,500 up",
-    "$500 down",
     "$1,000 up",
+    "$500 down",
     "$2,000 down"
    ],
    "kind": "mcq",
@@ -8874,9 +8912,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "Whether each trade met your rules",
     "Whether to raise risk on each one",
     "Whether you can add more names",
-    "Whether each trade met your rules",
     "Whether those extra trades made money"
    ],
    "kind": "mcq",
@@ -8964,10 +9002,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Can't tell skill from tailwind yet",
     "Size up while the run lasts",
     "My picking has jumped a level",
-    "Luck, so my method is weak"
+    "Luck, so my method is weak",
+    "Can't tell skill from tailwind yet"
    ],
    "kind": "mcq",
    "q": "What's the honest read on your run?",
@@ -9061,10 +9099,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "Treating profit as play money",
     "Holding a loser to get back to even",
     "Missing the move by waiting",
-    "Risking more than this month's gain",
-    "Treating profit as play money"
+    "Risking more than this month's gain"
    ],
    "kind": "mcq",
    "q": "What's the trap?",
@@ -9137,9 +9175,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Took on above-average risk",
     "Traded more, at their usual risk",
     "Cut risk to protect the gain",
+    "Took on above-average risk",
     "Traded as they would any day"
    ],
    "kind": "mcq",
@@ -9278,13 +9316,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3200",
-    "3200.0",
-    "3200.00",
-    "3200.000"
-   ],
-   "answer": 3200.0
+   "answer": "3,200 shares"
   },
   "difficulty": 3,
   "id": "si_4934c9cb077e",
@@ -9292,10 +9324,15 @@
   "lesson_text": "3,200 shares. 100 shares doubled five times is 3,200. Doubling after wins can work for a while in a strong trend. But doubling down on a winning bet exposes you to a single large loss that may wipe out the earlier gains. Size that doubles on every win can hand the whole streak back in one loss.",
   "module": "F8",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "600 shares",
+    "1,600 shares",
+    "3,200 shares",
+    "6,400 shares"
+   ],
+   "kind": "mcq",
    "q": "A friend starts at 100 shares and doubles his size after every win. He wins five in a row. How many shares on trade six?",
-   "subject": "F8.05#q17",
-   "suffix": "shares"
+   "subject": "F8.05#q17"
   },
   "reveal_json": {
    "deeper": {
@@ -9336,13 +9373,18 @@
      "fn": "arith",
      "result": 3200.0
     },
-    "given": "A friend starts at 100 shares and doubles his size after every win. He wins five in a row. How many shares on trade six?"
+    "given": "A friend starts at 100 shares and doubles his size after every win. He wins five in a row. How many shares on trade six? 1,600 shares 6,400 shares 3,200 shares 600 shares"
    },
    "lesson_line": "Size that doubles on every win can hand the whole streak back in one loss.",
    "simple": "He trades 3,200 shares, and one loss at that size can wipe out all five wins.",
    "tier": "expert",
    "unit": "F8.05",
-   "why": "3,200 shares. 100 shares doubled five times is 3,200. Doubling after wins can work for a while in a strong trend. But doubling down on a winning bet exposes you to a single large loss that may wipe out the earlier gains."
+   "why": "3,200 shares. 100 shares doubled five times is 3,200. Doubling after wins can work for a while in a strong trend. But doubling down on a winning bet exposes you to a single large loss that may wipe out the earlier gains.",
+   "wrong": {
+    "1,600 shares": "Doubled four times, one win short.",
+    "6,400 shares": "Doubled six times, once on trade six itself.",
+    "600 shares": "Added 100 shares per win instead of doubling."
+   }
   },
   "review_status": "draft",
   "skill_id": "psych.euphoria",
@@ -9363,8 +9405,8 @@
   "prompt_json": {
    "choices": [
     "Okay if those setups were all A+",
-    "Proof you can handle bigger risk now",
     "A rule break that happened to pay",
+    "Proof you can handle bigger risk now",
     "Fine, since every trade made money"
    ],
    "kind": "mcq",
@@ -9463,9 +9505,9 @@
   "prompt_json": {
    "choices": [
     "Your grading was too strict before",
-    "Your wins are inflating your grades",
     "The market is full of A+ setups",
-    "You're finally seeing setups clearly"
+    "You're finally seeing setups clearly",
+    "Your wins are inflating your grades"
    ],
    "kind": "mcq",
    "q": "What should you suspect first?",
@@ -9550,8 +9592,8 @@
    "choices": [
     "It still fits under your 2% cap",
     "The quarter's profit covers it",
-    "You feel sure about the next one",
-    "A rule for it written before the run"
+    "A rule for it written before the run",
+    "You feel sure about the next one"
    ],
    "kind": "mcq",
    "q": "What would make that a plan and not euphoria?",

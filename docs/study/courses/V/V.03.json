@@ -2405,10 +2405,10 @@
    "key": "q25",
    "skill": "vocab.candle_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "hammer",
    "q": "Open $50.00, high $50.50, low $49.00, close $50.40. How many times the body is the lower shadow?",
-   "answer": 2.5,
+   "answer": "2.5x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2419,7 +2419,7 @@
     }
    },
    "suffix": "x",
-   "why": "2.5x. The body runs from the $50.00 open to the $50.40 close. The lower shadow runs from the bottom of the body, the $50.00 open, down to the $49.00 low. Divide the shadow by the body and you get 2.5. ChartSchool says the long shadow should generally be at least twice the body, so this one qualifies. Shape alone does not make a hammer: it also needs a decline before it.",
+   "why": "2.5x. The body runs from the $50.00 open to the $50.40 close. The lower shadow runs from the $50.00 open down to the $49.00 low. Divide: ($50.00 - $49.00) / ($50.40 - $50.00) = 2.5. ChartSchool says the long shadow should generally be at least twice the body, so this one qualifies. Shape alone does not make a hammer: it also needs a decline before it.",
    "lesson_line": "Measure the shadow against the body. Generally it should be at least twice the body.",
    "facts": [
     "f40",
@@ -2437,7 +2437,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "3.5x",
+    "0.4x",
+    "2.5x",
+    "3.75x"
+   ],
+   "wrong": {
+    "3.5x": "Measured the shadow from the $50.40 close, not the body bottom.",
+    "0.4x": "Flipped it: divided the body by the shadow.",
+    "3.75x": "Used the whole high-to-low range, not just the lower shadow."
+   }
   },
   {
    "key": "q26",
@@ -2678,10 +2689,10 @@
    "key": "q32",
    "skill": "vocab.candle_terms",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "term": "dark cloud cover",
    "q": "A long white candle opens at $30.00 and closes at $34.00. Below what price must the next black candle close for a dark cloud cover?",
-   "answer": 32,
+   "answer": "$32.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2691,7 +2702,7 @@
     }
    },
    "prefix": "$",
-   "why": "$32.00. The dark cloud's line is the midpoint of the white body, halfway between the $30.00 open and the $34.00 close. The black candle must open above the white close and close below $32.00. A close above the midpoint might still be a reversal, but it is not counted as a bearish dark cloud.",
+   "why": "$32.00. The dark cloud's line is the midpoint of the white body: ($30.00 + $34.00) / 2 = $32.00. The black candle must open above the white close and close below $32.00. A close above the midpoint might still be a reversal, but it is not counted as a bearish dark cloud.",
    "lesson_line": "Find the first body's midpoint before you name a dark cloud. A close above it doesn't count.",
    "facts": [
     "f84",
@@ -2706,7 +2717,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$34.00",
+    "$30.00",
+    "$31.00",
+    "$32.00"
+   ],
+   "wrong": {
+    "$34.00": "That is the white close. A close there is no dip into the body.",
+    "$30.00": "That is the white open. It asks for a full engulf, not the midpoint.",
+    "$31.00": "Took a quarter of the way up the body, not half."
+   }
   },
   {
    "key": "q33",
@@ -3560,10 +3582,10 @@
    "key": "q57",
    "skill": "vocab.candle_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "real body",
-   "q": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body, in dollars?",
-   "answer": 1.2,
+   "q": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body?",
+   "answer": "$1.20",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3588,16 +3610,27 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$1.90",
+    "$1.20",
+    "$0.40",
+    "$0.30"
+   ],
+   "wrong": {
+    "$1.90": "Used high minus low, which counts the shadows.",
+    "$0.40": "That is the lower shadow: open minus low.",
+    "$0.30": "That is the upper shadow: high minus close."
+   }
   },
   {
    "key": "q58",
    "skill": "vocab.candle_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "upper shadow",
-   "q": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow, in dollars?",
-   "answer": 2.1,
+   "q": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow?",
+   "answer": "$2.10",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3623,16 +3656,27 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$2.40",
+    "$2.10",
+    "$2.60",
+    "$0.30"
+   ],
+   "wrong": {
+    "$2.40": "Measured from the open, which is the bottom of this body.",
+    "$2.60": "Used high minus low, the whole range.",
+    "$0.30": "That is the body, not the upper shadow."
+   }
   },
   {
    "key": "q59",
    "skill": "vocab.candle_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "lower shadow",
-   "q": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow, in dollars?",
-   "answer": 2.4,
+   "q": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow?",
+   "answer": "$2.40",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3662,7 +3706,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$0.70",
+    "$3.00",
+    "$2.40",
+    "$0.60"
+   ],
+   "wrong": {
+    "$3.00": "Measured from the open, which adds the body to the shadow.",
+    "$0.60": "That is the body, not the lower shadow.",
+    "$0.70": "Measured up from the close to the high, which is not the lower shadow."
+   }
   },
   {
    "key": "q60",
@@ -3893,9 +3948,9 @@
   },
   "q25": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "(50-49)/(50.40-50)=2.5; 3.5, 0.4, 3.75 recomputed; fine."
   },
   "q26": {
    "status": "pass",
@@ -3937,9 +3992,9 @@
   },
   "q32": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "$2.00 was not a price at all, so it fell by elimination and left the answer the middle of 30/32/34. Replaced with a quarter-body line."
   },
   "q33": {
    "status": "pass",
@@ -4089,21 +4144,21 @@
   },
   "q57": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Content passes; reordered only to vary the answer slot."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "27.40 - 25.30 = 2.10 matches the calc. The close is the body's top (f4). Simple 20 words."
+   "notes": "27.40-25.30=2.10 verified; wrongs real."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Filled candle, bottom of body = close $59.40; 59.40 - 57.00 = 2.40, calc matches (rounds to 2.4). Grounded by f5 and f3/f99/f178."
+   "fixed": true,
+   "notes": "$3.00 and $3.10 were near-duplicates so the odd one out was the answer. Replaced $3.10 with a close-to-high slip."
   },
   "q60": {
    "status": "pass",

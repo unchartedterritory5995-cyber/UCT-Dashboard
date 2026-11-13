@@ -813,9 +813,9 @@
    "key": "q05",
    "skill": "options.expected_move",
    "rung": 2,
-   "format": "numeric",
-   "q": "A $50 stock has an implied volatility of 30%. What is its one-year, one standard deviation move, in dollars?",
-   "answer": 15,
+   "format": "mcq",
+   "q": "A $50 stock has an implied volatility of 30%. What is its one-year, one standard deviation move?",
+   "answer": "$15.00",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -844,7 +844,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$65.00",
+    "$35.00",
+    "$1.50",
+    "$15.00"
+   ],
+   "wrong": {
+    "$65.00": "Gave the top of the range instead of its size.",
+    "$35.00": "Gave the bottom of the range instead of its size.",
+    "$1.50": "Slipped a decimal place."
+   }
   },
   {
    "key": "q06",
@@ -942,9 +953,9 @@
    "key": "q09",
    "skill": "options.expected_move",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "An $80 stock has an implied volatility of 35%. What is its one standard deviation move over the next 30 calendar days?",
-   "answer": 8.03,
+   "answer": "$8.03",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -955,7 +966,7 @@
      "days": 30
     }
    },
-   "why": "$8.03. Start with the one-year move, $80 times 35%. Then multiply by the square root of 30 over 365, because the window is counted in calendar days. That gives about $8.03. It is one standard deviation, so about a 68% chance the stock ends the 30 days within $8.03 of $80, either way. A tool that counts trading days puts trading days over 252, not calendar days.",
+   "why": "$8.03. Start with the one-year move, $80 times 35%, which is $28. Then multiply by the square root of 30 over 365, because the window is counted in calendar days. That gives about $8.03. It is one standard deviation, so about a 68% chance the stock ends the 30 days within $8.03 of $80, either way. A tool that counts trading days puts trading days over 252, not calendar days.",
    "lesson_line": "Calendar days go over 365. Take the square root, then multiply it by the one-year move.",
    "facts": [
     "f58",
@@ -976,15 +987,26 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$28.00",
+    "$2.30",
+    "$8.03",
+    "$9.66"
+   ],
+   "wrong": {
+    "$28.00": "Used the full one-year move with no scaling for 30 days.",
+    "$2.30": "Scaled by the days over 365 and skipped the square root.",
+    "$9.66": "Divided by 252 trading days when the window is in calendar days."
+   }
   },
   {
    "key": "q10",
    "skill": "options.expected_move",
    "rung": 4,
-   "format": "numeric",
-   "q": "A $48 stock has an implied volatility of 40%. Using the Rule of 16, what is one day's expected move, in dollars?",
-   "answer": 1.2,
+   "format": "mcq",
+   "q": "A $48 stock has an implied volatility of 40%. Using the Rule of 16, what is one day's expected move?",
+   "answer": "$1.20",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -994,7 +1016,7 @@
      "iv": 40
     }
    },
-   "why": "$1.20. Multiply $48 by 40% for the one-year move, then divide by 16 for one trading day. The 16 is the square root of about 252 trading days. The result is one day's standard deviation: a size, not a direction. A day that stays inside it is an ordinary day for this stock.",
+   "why": "$1.20. Multiply $48 by 40% for the one-year move, which is $19.20. Then divide by 16 for one trading day. The 16 is the square root of about 252 trading days. The result is one day's standard deviation: a size, not a direction. A day that stays inside it is an ordinary day for this stock.",
    "lesson_line": "Price times IV, divided by 16. That's a normal day's move, up or down.",
    "facts": [
     "f3",
@@ -1011,7 +1033,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$19.20",
+    "$1.20",
+    "$4.80",
+    "$0.08"
+   ],
+   "wrong": {
+    "$19.20": "Skipped the division by 16.",
+    "$4.80": "Divided by the square root of 16 instead of 16.",
+    "$0.08": "Divided by 252 instead of 16."
+   }
   },
   {
    "key": "q11",
@@ -1062,9 +1095,9 @@
    "key": "q12",
    "skill": "options.expected_move",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A stock's options price a one-day move of about 3%. Using the Rule of 16, about what implied volatility is that?",
-   "answer": 48,
+   "answer": "48%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1088,7 +1121,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "0.19%",
+    "12%",
+    "48%",
+    "756%"
+   ],
+   "wrong": {
+    "0.19%": "Divided by 16 instead of multiplying.",
+    "12%": "Multiplied by the square root of 16 instead of 16.",
+    "756%": "Multiplied by 252 instead of 16."
+   }
   },
   {
    "key": "q13",
@@ -1139,9 +1183,9 @@
    "key": "q14",
    "skill": "options.expected_move",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A one standard deviation range holds about 68% of outcomes. About what percent of the time does the stock end above it?",
-   "answer": 16,
+   "answer": "16%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1150,7 +1194,7 @@
      "inside": 68
     }
    },
-   "why": "About 16%. About 68% of outcomes end inside one standard deviation. The rest end outside, split about evenly: about 16% above and about 16% below. Fidelity's earnings class uses the same split. The math assumes a bell curve, so treat the split as approximate.",
+   "why": "About 16%. About 68% of outcomes end inside one standard deviation. That leaves 100 minus 68, or 32, outside. Split it evenly: about 16% above and about 16% below. Fidelity's earnings class uses the same split. The math assumes a bell curve, so treat the split as approximate.",
    "lesson_line": "About 16% of outcomes end above the range, and about 16% end below it.",
    "facts": [
     "f22",
@@ -1167,15 +1211,26 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "32%",
+    "34%",
+    "84%",
+    "16%"
+   ],
+   "wrong": {
+    "32%": "Counted both tails instead of one.",
+    "34%": "Halved the 68% instead of the part outside it.",
+    "84%": "Gave the chance of ending at or below the top."
+   }
   },
   {
    "key": "q15",
    "skill": "options.expected_move",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A stock trades at $162.50 into tonight's report. The 162.50 straddle expiring tomorrow costs $8.30. Where does the priced range top out?",
-   "answer": 170.8,
+   "answer": "$170.80",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1205,7 +1260,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$154.20",
+    "$170.80",
+    "$179.10",
+    "$8.30"
+   ],
+   "wrong": {
+    "$154.20": "Took the straddle off the price and gave the bottom of the range.",
+    "$179.10": "Added the straddle twice.",
+    "$8.30": "Gave the straddle alone, not the top of the range."
+   }
   },
   {
    "key": "q16",
@@ -1688,8 +1754,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 50*30/100 = 15; f65/f66 back price times IV; f32 now cited for the bell-curve line."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4. Stem no longer names the unit the choices carry."
   },
   "q06": {
    "status": "pass",
@@ -1712,14 +1778,14 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 80*0.35*sqrt(30/365) = 8.027, key 8.03. Stem names calendar days, so the 365 convention is set by the question (f58). Last sentence now correct (trading days over 252)."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1. Why rewritten to show the steps. Stem no longer names the unit the choices carry."
   },
   "q11": {
    "status": "pass",
@@ -1730,8 +1796,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 3*16 = 48. Inverse of the Rule of 16 is plain arithmetic on f11/f73/f44. No longer leaked by q22 (q22 gives no IV). q07 shows 16%->1% and 32%->2%, a different pair, so no answer leak."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
   },
   "q13": {
    "status": "pass",
@@ -1742,14 +1808,14 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer: (100-68)/2 = 16, matches calc and f56 ('16 percent on either side'). 'Above' rules out 32. Skew caveat covered by 'about' and the conflicts note. Lesson line now uses the grounded 16%. Minor, accepted: stem states 68%, q03's answer, but w1 teaches it first."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 162.5+8.3 = 170.8; straddle-as-range from f51/f54/f72, one-day option so f74 applies; f34 cited for finishing outside."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2."
   },
   "q16": {
    "status": "pass",

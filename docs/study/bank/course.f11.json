@@ -958,22 +958,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "108",
-    "108.0",
-    "108.00",
-    "108.000"
-   ],
-   "answer": 108.0
+   "answer": "$108"
   },
   "difficulty": 3,
   "id": "si_6391bf3109e9",
   "lesson_origin": "session",
-  "lesson_text": "$108 a day. Buy at the ask and sell at the bid, and each round trip gives up the spread on every share. That is $0.03 x 300 shares x 12 trips = $108. The SEC works it the same way: 200 shares bought at $60 and sold at $59.50 lose $100. Commissions and fees come on top. Every round trip pays the spread. More trades a day, more cost.",
+  "lesson_text": "Buy at the ask and sell at the bid, and each round trip gives up the spread on every share. $0.03 x 300 shares = $9 a round trip. $9 x 12 trips = $108 a day. The SEC works it the same way: 200 shares bought at $60 and sold at $59.50 lose $100. Commissions and fees come on top. Every round trip pays the spread. More trades a day, more cost.",
   "module": "F11",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$9",
+    "$108",
+    "$216",
+    "$1,080"
+   ],
+   "kind": "mcq",
    "q": "You make 12 round trips a day (buy, then sell), 300 shares each, and give up a $0.03 spread each time. What does the spread cost you a day?",
    "subject": "F11.01#q15"
   },
@@ -1025,13 +1024,18 @@
      "fn": "arith",
      "result": 108.0
     },
-    "given": "You make 12 round trips a day (buy, then sell), 300 shares each, and give up a $0.03 spread each time. What does the spread cost you a day?"
+    "given": "You make 12 round trips a day (buy, then sell), 300 shares each, and give up a $0.03 spread each time. What does the spread cost you a day? $9 $216 $1,080 $108"
    },
    "lesson_line": "Every round trip pays the spread. More trades a day, more cost.",
    "simple": "$108, because each of the 12 round trips gives up $0.03 on each of the 300 shares.",
    "tier": "extended",
    "unit": "F11.01",
-   "why": "$108 a day. Buy at the ask and sell at the bid, and each round trip gives up the spread on every share. That is $0.03 x 300 shares x 12 trips = $108. The SEC works it the same way: 200 shares bought at $60 and sold at $59.50 lose $100. Commissions and fees come on top."
+   "why": "Buy at the ask and sell at the bid, and each round trip gives up the spread on every share. $0.03 x 300 shares = $9 a round trip. $9 x 12 trips = $108 a day. The SEC works it the same way: 200 shares bought at $60 and sold at $59.50 lose $100. Commissions and fees come on top.",
+   "wrong": {
+    "$1,080": "A decimal slip: ten times too big.",
+    "$216": "Charged the spread twice per round trip. Each round trip pays it once.",
+    "$9": "That is the cost of one round trip. You make 12 a day."
+   }
   },
   "review_status": "draft",
   "skill_id": "styles.horizons",
@@ -2555,22 +2559,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "53",
-    "53.0",
-    "53.00",
-    "53.000"
-   ],
-   "answer": 53.0
+   "answer": "$53.00"
   },
   "difficulty": 2,
   "id": "si_48d557bbe18b",
   "lesson_origin": "session",
-  "lesson_text": "$53. The base pivot is the simple average of the prior high, low and close. Here that is (56 + 48 + 55) / 3 = 53. For 1- to 15-minute charts, ChartSchool takes those from the prior day. Once set, the pivots stay fixed all day. They don't carry over: tomorrow's pivot comes from today's bar. Intraday pivots come from yesterday's bar and last one session. They're day-trader levels.",
+  "lesson_text": "The base pivot is the simple average of the prior high, low and close. 56 + 48 + 55 = 159. 159 / 3 = 53. For 1- to 15-minute charts, ChartSchool takes those from the prior day. Once set, the pivots stay fixed all day. Tomorrow's pivot comes from today's bar. Intraday pivots come from yesterday's bar and last one session. They're day-trader levels.",
   "module": "F11",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$52.00",
+    "$53.00",
+    "$55.00",
+    "$159.00"
+   ],
+   "kind": "mcq",
    "q": "Yesterday's high was $56, the low $48 and the close $55. What's today's base pivot point for your 5-minute chart?",
    "subject": "F11.02#q09"
   },
@@ -2619,13 +2622,18 @@
      "fn": "arith",
      "result": 53.0
     },
-    "given": "Yesterday's high was $56, the low $48 and the close $55. What's today's base pivot point for your 5-minute chart?"
+    "given": "Yesterday's high was $56, the low $48 and the close $55. What's today's base pivot point for your 5-minute chart? $55.00 $159.00 $52.00 $53.00"
    },
    "lesson_line": "Intraday pivots come from yesterday's bar and last one session. They're day-trader levels.",
    "simple": "$53, because the base pivot is the plain average of yesterday's high, low and close.",
    "tier": "core",
    "unit": "F11.02",
-   "why": "$53. The base pivot is the simple average of the prior high, low and close. Here that is (56 + 48 + 55) / 3 = 53. For 1- to 15-minute charts, ChartSchool takes those from the prior day. Once set, the pivots stay fixed all day. They don't carry over: tomorrow's pivot comes from today's bar."
+   "why": "The base pivot is the simple average of the prior high, low and close. 56 + 48 + 55 = 159. 159 / 3 = 53. For 1- to 15-minute charts, ChartSchool takes those from the prior day. Once set, the pivots stay fixed all day. Tomorrow's pivot comes from today's bar.",
+   "wrong": {
+    "$159.00": "Added the three prices and forgot to divide by 3.",
+    "$52.00": "Averaged just the high and low. The close goes in too.",
+    "$55.00": "Used only the close. The pivot averages the high, low and close."
+   }
   },
   "review_status": "draft",
   "skill_id": "styles.setups_fit",
@@ -2733,13 +2741,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "150",
-    "150.0",
-    "150.00",
-    "150.000"
-   ],
-   "answer": 150.0
+   "answer": "150 days"
   },
   "difficulty": 2,
   "id": "si_50956b5088ab",
@@ -2747,10 +2749,15 @@
   "lesson_text": "About 150 days: 30 weeks of 5 sessions each. So Weinstein's 30-week line sits close to a 150-day average on a daily chart. Close, not equal. A weekly bar closes on Friday, so the weekly average uses one close a week, and a short week has fewer sessions. A weekly line has a rough daily twin. Know where the long-term holders' line sits.",
   "module": "F11",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "6 days",
+    "30 days",
+    "150 days",
+    "210 days"
+   ],
+   "kind": "mcq",
    "q": "Weinstein's average is 30 weeks long. A normal week has 5 trading days. About how many days does it cover on a daily chart?",
-   "subject": "F11.02#q11",
-   "suffix": "days"
+   "subject": "F11.02#q11"
   },
   "reveal_json": {
    "deeper": {
@@ -2792,13 +2799,18 @@
      "fn": "arith",
      "result": 150.0
     },
-    "given": "Weinstein's average is 30 weeks long. A normal week has 5 trading days. About how many days does it cover on a daily chart?"
+    "given": "Weinstein's average is 30 weeks long. A normal week has 5 trading days. About how many days does it cover on a daily chart? 210 days 6 days 150 days 30 days"
    },
    "lesson_line": "A weekly line has a rough daily twin. Know where the long-term holders' line sits.",
    "simple": "About 150 days, because 30 weeks times 5 trading days a week comes to 150.",
    "tier": "extended",
    "unit": "F11.02",
-   "why": "About 150 days: 30 weeks of 5 sessions each. So Weinstein's 30-week line sits close to a 150-day average on a daily chart. Close, not equal. A weekly bar closes on Friday, so the weekly average uses one close a week, and a short week has fewer sessions."
+   "why": "About 150 days: 30 weeks of 5 sessions each. So Weinstein's 30-week line sits close to a 150-day average on a daily chart. Close, not equal. A weekly bar closes on Friday, so the weekly average uses one close a week, and a short week has fewer sessions.",
+   "wrong": {
+    "210 days": "Counted every calendar day in a week. Only trading days count.",
+    "30 days": "Read 30 weeks as 30 days.",
+    "6 days": "Divided the weeks by the days in a week. Multiply them."
+   }
   },
   "review_status": "draft",
   "skill_id": "styles.setups_fit",
@@ -4682,24 +4694,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "800",
-    "800.0",
-    "800.00",
-    "800.000"
-   ],
-   "answer": 800.0
+   "answer": "800 shares"
   },
   "difficulty": 2,
   "id": "si_4aaf0f926752",
   "lesson_origin": "session",
-  "lesson_text": "800 shares. Shares are the dollars you'll risk divided by the distance from entry to stop. Here that is $200 over $18.60 minus $18.35. Our rule then caps any position at 40% of the account, and 800 shares at $18.60 stays under it. It's the same formula as a swing trade. Day trade or swing trade: shares are dollars at risk over risk per share.",
+  "lesson_text": "Shares are the dollars you'll risk divided by the distance from entry to stop. That distance is $18.60 minus $18.35. $200 divided by it gives 800 shares. Our rule then caps any position at 40% of the account, and 800 shares at $18.60 stays under it. It's the same formula as a swing trade. Day trade or swing trade: shares are dollars at risk over risk per share.",
   "module": "F11",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "10 shares",
+    "80 shares",
+    "800 shares",
+    "1,075 shares"
+   ],
+   "kind": "mcq",
    "q": "A day trade in a $50,000 account: entry $18.60, stop $18.35, just under the first 10-minute low. You'll risk $200. How many shares?",
-   "subject": "F11.03#q09",
-   "suffix": "shares"
+   "subject": "F11.03#q09"
   },
   "reveal_json": {
    "depth": {
@@ -4753,13 +4764,18 @@
      "fn": "arith",
      "result": 800.0
     },
-    "given": "A day trade in a $50,000 account: entry $18.60, stop $18.35, just under the first 10-minute low. You'll risk $200. How many shares?"
+    "given": "A day trade in a $50,000 account: entry $18.60, stop $18.35, just under the first 10-minute low. You'll risk $200. How many shares? 1,075 shares 10 shares 80 shares 800 shares"
    },
    "lesson_line": "Day trade or swing trade: shares are dollars at risk over risk per share.",
    "simple": "800 shares, because you divide the $200 you risk by the gap between your entry and your stop.",
    "tier": "core",
    "unit": "F11.03",
-   "why": "800 shares. Shares are the dollars you'll risk divided by the distance from entry to stop. Here that is $200 over $18.60 minus $18.35. Our rule then caps any position at 40% of the account, and 800 shares at $18.60 stays under it. It's the same formula as a swing trade."
+   "why": "Shares are the dollars you'll risk divided by the distance from entry to stop. That distance is $18.60 minus $18.35. $200 divided by it gives 800 shares. Our rule then caps any position at 40% of the account, and 800 shares at $18.60 stays under it. It's the same formula as a swing trade.",
+   "wrong": {
+    "1,075 shares": "Filled the 40% account cap instead of sizing from the $200 risk.",
+    "10 shares": "Divided the $200 by the $18.60 entry price. Divide by the risk per share.",
+    "80 shares": "A decimal slip: ten times too small."
+   }
   },
   "review_status": "draft",
   "skill_id": "styles.method_by_style",
@@ -4897,21 +4913,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "42.4",
-    "42.40",
-    "42.400"
-   ],
-   "answer": 42.4
+   "answer": "$42.40"
   },
   "difficulty": 2,
   "id": "si_d54a8df31bd1",
   "lesson_origin": "session",
-  "lesson_text": "$42.40. R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later. 3R is three times your risk per share, added to the entry.",
+  "lesson_text": "R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry, which gives $42.40. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later. 3R is three times your risk per share, added to the entry.",
   "module": "F11",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$37.60",
+    "$41.60",
+    "$42.40",
+    "$43.00"
+   ],
+   "kind": "mcq",
    "q": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R?",
    "subject": "F11.03#q11"
   },
@@ -4959,13 +4975,18 @@
      "fn": "arith",
      "result": 42.4
     },
-    "given": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R?"
+    "given": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R? $43.00 $37.60 $42.40 $41.60"
    },
    "lesson_line": "3R is three times your risk per share, added to the entry.",
    "simple": "$42.40, because you add three times your risk per share, the entry minus the stop, to the $40.00 entry.",
    "tier": "extended",
    "unit": "F11.03",
-   "why": "$42.40. R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later."
+   "why": "R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry, which gives $42.40. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later.",
+   "wrong": {
+    "$37.60": "Went three times the risk below the entry. A long's 3R sits above it.",
+    "$41.60": "That is only two times the risk. 3R takes three times it.",
+    "$43.00": "Added a flat $3.00, not three times the risk."
+   }
   },
   "review_status": "draft",
   "skill_id": "styles.method_by_style",
@@ -5301,24 +5322,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "10",
-    "10.0",
-    "10.00",
-    "10.000"
-   ],
-   "answer": 10.0
+   "answer": "10% of the portfolio"
   },
   "difficulty": 3,
   "id": "si_480629b022a7",
   "lesson_origin": "session",
-  "lesson_text": "10% of the portfolio. Divide the 2% loss cap by the 20% stop. A 10% position that falls 20% loses 2% of the portfolio. A wide long-term stop fits the cap because the position is sized down to match. This is Hirsch's practice, not our stop. Our stop usually sits within about 3% of the buy. A wide stop on a long hold is fine. The size shrinks so the risk doesn't grow.",
+  "lesson_text": "Divide the 2% loss cap by the 20% stop to get 10%. A 10% position that falls 20% loses 2% of the portfolio. A wide long-term stop fits the cap because the position is sized down to match. This is Hirsch's practice, not our stop. Our stop usually sits within about 3% of the buy. A wide stop on a long hold is fine. The size shrinks so the risk doesn't grow.",
   "module": "F11",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "40% of the portfolio",
+    "2% of the portfolio",
+    "20% of the portfolio",
+    "10% of the portfolio"
+   ],
+   "kind": "mcq",
    "q": "Jeffrey Hirsch allows stops up to 20%, but no position may lose over 2% of the portfolio. With a 20% stop, how big can the position be?",
-   "subject": "F11.03#q15",
-   "suffix": "% of the portfolio"
+   "subject": "F11.03#q15"
   },
   "reveal_json": {
    "deeper": {
@@ -5374,13 +5394,18 @@
      "fn": "arith",
      "result": 10.0
     },
-    "given": "Jeffrey Hirsch allows stops up to 20%, but no position may lose over 2% of the portfolio. With a 20% stop, how big can the position be?"
+    "given": "Jeffrey Hirsch allows stops up to 20%, but no position may lose over 2% of the portfolio. With a 20% stop, how big can the position be? 20% of the portfolio 10% of the portfolio 2% of the portfolio 40% of the portfolio"
    },
    "lesson_line": "A wide stop on a long hold is fine. The size shrinks so the risk doesn't grow.",
    "simple": "10% of the portfolio, because a 20% stop on a 10% position loses 2% of the portfolio, inside Hirsch's cap.",
    "tier": "extended",
    "unit": "F11.03",
-   "why": "10% of the portfolio. Divide the 2% loss cap by the 20% stop. A 10% position that falls 20% loses 2% of the portfolio. A wide long-term stop fits the cap because the position is sized down to match. This is Hirsch's practice, not our stop. Our stop usually sits within about 3% of the buy."
+   "why": "Divide the 2% loss cap by the 20% stop to get 10%. A 10% position that falls 20% loses 2% of the portfolio. A wide long-term stop fits the cap because the position is sized down to match. This is Hirsch's practice, not our stop. Our stop usually sits within about 3% of the buy.",
+   "wrong": {
+    "2% of the portfolio": "That is the loss cap, not the position size.",
+    "20% of the portfolio": "That is the stop width, not the position size.",
+    "40% of the portfolio": "Multiplied the 2% cap by the 20% stop. Divide them."
+   }
   },
   "review_status": "draft",
   "skill_id": "styles.method_by_style",
@@ -5401,9 +5426,9 @@
   "prompt_json": {
    "choices": [
     "The position trader, for holding",
+    "Neither: two clocks, two stops",
     "Both, the stops should match",
-    "The swing trader, for selling",
-    "Neither: two clocks, two stops"
+    "The swing trader, for selling"
    ],
    "kind": "mcq",
    "q": "Who broke their plan?",
@@ -5473,8 +5498,8 @@
   "prompt_json": {
    "choices": [
     "Just under the $47.00 low",
-    "$48.25, 3.5% under entry",
     "$45.00, 10% under entry",
+    "$48.25, 3.5% under entry",
     "$48.50, 3% under entry"
    ],
    "kind": "mcq",
@@ -5539,9 +5564,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
+    "Risk is now 2.5%, over our ceiling",
     "Risk fell, the stop is farther away",
     "Risk is now 10%, same as the stop",
-    "Risk is now 2.5%, over our ceiling",
     "None, the size didn't change"
    ],
    "kind": "mcq",
@@ -5634,9 +5659,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Cap the size, far under 400%",
     "Tighten the stop even further",
     "Widen the stop to shrink the size",
+    "Cap the size, far under 400%",
     "Buy the full 400%, on margin"
    ],
    "kind": "mcq",
@@ -5759,8 +5784,8 @@
    "choices": [
     "A new style for each trade",
     "Day trades, closed by the bell",
-    "Swing trades: days to a few weeks",
-    "Position trades up to a year"
+    "Position trades up to a year",
+    "Swing trades: days to a few weeks"
    ],
    "kind": "mcq",
    "q": "By our own rule, which style do our trades use?",
@@ -8581,22 +8606,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "260",
-    "260.0",
-    "260.00",
-    "260.000"
-   ],
-   "answer": 260.0
+   "answer": "$260"
   },
   "difficulty": 2,
   "id": "si_6625c58a64ef",
   "lesson_origin": "session",
-  "lesson_text": "$260. Buy at the ask and sell at the bid, and you give up the whole spread on every share. The 9:31 spread is far wider than the 10:30 one. The gap between the two spreads, times 1,000 shares, is the extra cost. Spreads are typically widest at the open. In a thin stock, the first minutes can be the priciest time to trade. Check the spread first.",
+  "lesson_text": "Buy at the ask and sell at the bid, and you give up the whole spread on every share. On 1,000 shares the 9:31 spread costs $300 and the 10:30 spread costs $40. The extra cost at 9:31 is the gap, $260. Spreads are typically widest at the open. In a thin stock, the first minutes can be the priciest time to trade. Check the spread first.",
   "module": "F11",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$40",
+    "$260",
+    "$300",
+    "$340"
+   ],
+   "kind": "mcq",
    "q": "Thin stock. 9:31: $24.80 bid, $25.10 ask. 10:30: $24.98 bid, $25.02 ask. Buy 1,000 at the ask, sell at the bid. Extra cost at 9:31 vs 10:30?",
    "subject": "F11.05#q11"
   },
@@ -8640,13 +8664,18 @@
      "fn": "arith",
      "result": 260.0
     },
-    "given": "Thin stock. 9:31: $24.80 bid, $25.10 ask. 10:30: $24.98 bid, $25.02 ask. Buy 1,000 at the ask, sell at the bid. Extra cost at 9:31 vs 10:30?"
+    "given": "Thin stock. 9:31: $24.80 bid, $25.10 ask. 10:30: $24.98 bid, $25.02 ask. Buy 1,000 at the ask, sell at the bid. Extra cost at 9:31 vs 10:30? $300 $40 $340 $260"
    },
    "lesson_line": "In a thin stock, the first minutes can be the priciest time to trade. Check the spread first.",
    "simple": "It costs $260 more, because the 9:31 spread is far wider than the 10:30 one on 1,000 shares.",
    "tier": "extended",
    "unit": "F11.05",
-   "why": "$260. Buy at the ask and sell at the bid, and you give up the whole spread on every share. The 9:31 spread is far wider than the 10:30 one. The gap between the two spreads, times 1,000 shares, is the extra cost. Spreads are typically widest at the open."
+   "why": "Buy at the ask and sell at the bid, and you give up the whole spread on every share. On 1,000 shares the 9:31 spread costs $300 and the 10:30 spread costs $40. The extra cost at 9:31 is the gap, $260. Spreads are typically widest at the open.",
+   "wrong": {
+    "$300": "Only the 9:31 cost. Subtract the 10:30 cost to get the extra.",
+    "$340": "Added the two spreads. The extra cost is their difference.",
+    "$40": "Only the 10:30 cost, on 1,000 shares."
+   }
   },
   "review_status": "draft",
   "skill_id": "styles.time_of_day",
@@ -8729,13 +8758,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "3",
-    "3.0",
-    "3.00",
-    "3.000"
-   ],
-   "answer": 3.0
+   "answer": "3 sessions"
   },
   "difficulty": 2,
   "id": "si_98b29f78c114",
@@ -8743,7 +8766,13 @@
   "lesson_text": "3. NYSE is closed for Thanksgiving on Thursday, Nov. 26, 2026. On Friday, Nov. 27 it closes early, at 1:00 p.m., so that is not a full session. That leaves Monday through Wednesday. These are the 2026 dates: check the NYSE calendar each year. Check the holiday calendar every Sunday. A short week changes when your plans can act.",
   "module": "F11",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "5 sessions",
+    "2 sessions",
+    "4 sessions",
+    "3 sessions"
+   ],
+   "kind": "mcq",
    "q": "It's Sunday, Nov. 22, 2026. How many full NYSE sessions does the coming week hold?",
    "subject": "F11.05#q13"
   },
@@ -8778,13 +8807,18 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "It's Sunday, Nov. 22, 2026. How many full NYSE sessions does the coming week hold?"
+    "given": "It's Sunday, Nov. 22, 2026. How many full NYSE sessions does the coming week hold? 2 sessions 5 sessions 3 sessions 4 sessions"
    },
    "lesson_line": "Check the holiday calendar every Sunday. A short week changes when your plans can act.",
    "simple": "Three, because the market is shut on Thanksgiving Thursday and closes early on the Friday after.",
    "tier": "extended",
    "unit": "F11.05",
-   "why": "3. NYSE is closed for Thanksgiving on Thursday, Nov. 26, 2026. On Friday, Nov. 27 it closes early, at 1:00 p.m., so that is not a full session. That leaves Monday through Wednesday. These are the 2026 dates: check the NYSE calendar each year."
+   "why": "3. NYSE is closed for Thanksgiving on Thursday, Nov. 26, 2026. On Friday, Nov. 27 it closes early, at 1:00 p.m., so that is not a full session. That leaves Monday through Wednesday. These are the 2026 dates: check the NYSE calendar each year.",
+   "wrong": {
+    "2 sessions": "Dropped Wednesday as well. Only Thursday and Friday are affected.",
+    "4 sessions": "Missed that Friday closes early, so it is not a full session.",
+    "5 sessions": "Counted every weekday. Thursday is a holiday and Friday is short."
+   }
   },
   "review_status": "draft",
   "skill_id": "styles.time_of_day",
@@ -8805,9 +8839,9 @@
   "prompt_json": {
    "choices": [
     "Nothing, it's a normal full session",
+    "The close is at 1:00 p.m. that day",
     "The market is shut the whole day",
-    "The market opens late that day",
-    "The close is at 1:00 p.m. that day"
+    "The market opens late that day"
    ],
    "kind": "mcq",
    "q": "What's the problem with that alert?",
@@ -9009,8 +9043,8 @@
   "prompt_json": {
    "choices": [
     "The jobs report comes out",
-    "The Russell indexes rebalance",
     "It's an early 1:00 p.m. close",
+    "The Russell indexes rebalance",
     "Standard monthly options expire"
    ],
    "kind": "mcq",
@@ -9143,9 +9177,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
+    "Index funds rebalancing at close",
     "A breakout pulling in many new buyers",
     "Big buyers quietly loading up",
-    "Index funds rebalancing at close",
     "Monthly options expiring that day"
    ],
    "kind": "mcq",
@@ -9236,10 +9270,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Act on the close, if it still holds",
     "Wait and buy Monday's open",
     "Skip it, Fridays are bad to buy",
-    "Buy now, it's over the line"
+    "Buy now, it's over the line",
+    "Act on the close, if it still holds"
    ],
    "kind": "mcq",
    "q": "What does our plan say to do?",
@@ -9516,8 +9550,8 @@
    "choices": [
     "Wait out the first half hour",
     "Skip it, the open is too wild",
-    "Buy now, set stop once it calms",
-    "Buy now, with the stop and size set"
+    "Buy now, with the stop and size set",
+    "Buy now, set stop once it calms"
    ],
    "kind": "mcq",
    "q": "What do our rules say to do?",

@@ -1112,9 +1112,9 @@
    "key": "q11",
    "skill": "fund.post_earnings",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Average daily volume is 800,000 shares. On the earnings gap day it trades 3,200,000. How many times average is that?",
-   "answer": 4,
+   "answer": "4x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1143,7 +1143,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "3x",
+    "0.25x",
+    "4x",
+    "40x"
+   ],
+   "wrong": {
+    "3x": "Counted only the extra volume above the average.",
+    "0.25x": "Flipped the ratio and divided the average by the day's volume.",
+    "40x": "Slipped a decimal place."
+   }
   },
   {
    "key": "q12",
@@ -1345,9 +1356,9 @@
    "key": "q17",
    "skill": "fund.post_earnings",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Account $40,000, risking 0.5% ($200). Entry $63.50, stop $58.80. How many shares can you buy?",
-   "answer": 42,
+   "answer": "42 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -1357,7 +1368,7 @@
      "stop": 58.8
     }
    },
-   "why": "42 shares. The risk per share is the entry minus the stop, $63.50 minus $58.80. Divide the $200 you risk by that, then round down to whole shares. Never round up, or you risk more than you planned. A wide earnings day means a far stop and fewer shares, while the dollars at risk stay the same.",
+   "why": "42 shares. Risk per share is the entry minus the stop, $63.50 minus $58.80. Divide the $200 you risk by that and you get a little over 42. Round down to 42 shares. Never round up, or you risk more than you planned. A wide earnings day means a far stop and fewer shares, while the dollars at risk stay the same.",
    "lesson_line": "A far stop means fewer shares. The dollars at risk stay the same.",
    "facts": [
     "f58",
@@ -1373,7 +1384,18 @@
      "rests on the owner's rulebook (A5: shares from the stop, rounded down)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "43 shares",
+    "425 shares",
+    "8,510 shares",
+    "42 shares"
+   ],
+   "wrong": {
+    "43 shares": "Rounded up, so you risk more than you planned.",
+    "425 shares": "Slipped a decimal place on the risk percent.",
+    "8,510 shares": "Divided the account by the risk per share and skipped the dollars you risk."
+   }
   },
   {
    "key": "q18",
@@ -1837,8 +1859,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 3,200,000 / 800,000 = 4. Every bar (30-day, 1.5x 50-day, 3-5x) is in f40, f44, f72. The deeper no longer says 4x clears all bars."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
   },
   "q12": {
    "status": "pass",
@@ -1873,9 +1895,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4. Why rewritten to show the steps."
   },
   "q18": {
    "status": "cut",

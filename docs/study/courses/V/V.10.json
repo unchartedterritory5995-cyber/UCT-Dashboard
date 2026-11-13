@@ -2929,10 +2929,10 @@
    "key": "q38",
    "skill": "vocab.macro_terms",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Basis point",
    "q": "Oct. 1, 2026: the 10-year Treasury yielded 5.24%. Oct. 30: 4.94%. How many basis points did it fall?",
-   "answer": 30,
+   "answer": "30 basis points",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2942,7 +2942,7 @@
     }
    },
    "suffix": "basis points",
-   "why": "30 basis points. The yield fell from 5.24% to 4.94%, which is 30 hundredths of a percentage point. Each hundredth of a percentage point is one basis point.",
+   "why": "30 basis points. The yield fell from 5.24% to 4.94%. 5.24 less 4.94 is 0.30 of a percentage point. Each hundredth of a point is one basis point, so 0.30 times 100 is 30.",
    "lesson_line": "Quote yield moves in basis points. It avoids the percent-of-a-percent mix-up.",
    "facts": [
     "f128",
@@ -2962,7 +2962,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "1,018 basis points",
+    "0.3 basis points",
+    "30 basis points",
+    "300 basis points"
+   ],
+   "wrong": {
+    "0.3 basis points": "Left the 0.30 as is and skipped converting to hundredths.",
+    "1,018 basis points": "Added the two yields instead of subtracting.",
+    "300 basis points": "Slipped a decimal place."
+   }
   },
   {
    "key": "q39",
@@ -3815,10 +3826,10 @@
    "key": "q62",
    "skill": "vocab.macro_terms",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "term": "10-year minus 2-year spread",
-   "q": "Oct. 30, 2026: the 2-year Treasury yields 4.56%, the 10-year 4.94%. What is the 10-year minus 2-year spread, in basis points?",
-   "answer": 38,
+   "q": "Oct. 30, 2026: the 2-year Treasury yields 4.56%, the 10-year 4.94%. What is the 10-year minus 2-year spread?",
+   "answer": "38 basis points",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3828,7 +3839,7 @@
     }
    },
    "suffix": "basis points",
-   "why": "38 basis points. FRED's series is the 10-year Treasury yield minus the 2-year. On Oct. 30, 2026 that was 4.94% minus 4.56%. Positive means the curve slopes up from 2 to 10 years. Below zero, that part of the curve is inverted.",
+   "why": "38 basis points. FRED's series is the 10-year Treasury yield minus the 2-year: 4.94 less 4.56 is 0.38 of a point. Times 100, that is 38 basis points. Positive means the curve slopes up from 2 to 10 years. Below zero, that part of the curve is inverted.",
    "lesson_line": "Track the 10-year minus 2-year spread in basis points. Below zero, that part of the curve is inverted.",
    "facts": [
     "f138",
@@ -3850,7 +3861,18 @@
      "fixed before (nickname dropped)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "-38 basis points",
+    "38 basis points",
+    "0.38 basis points",
+    "950 basis points"
+   ],
+   "wrong": {
+    "-38 basis points": "Subtracted the 10-year from the 2-year, the wrong order.",
+    "0.38 basis points": "Left the 0.38 as is and skipped converting to hundredths.",
+    "950 basis points": "Added the two yields instead of subtracting."
+   }
   },
   {
    "key": "q63",
@@ -4146,7 +4168,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (5.24 - 4.94) x 100 = 30 from f128/f129 (10-year column per f127). Deeper trap grounded in f150; no longer restates q61's 10%-to-11% example."
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q39": {
    "status": "pass",
@@ -4294,7 +4316,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (4.94 - 4.56) x 100 = 38 from f129 (2 Yr and 10 Yr per f127), order per f138. Deeper no longer carries an ungrounded 'minus 38'."
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q63": {
    "status": "pass",

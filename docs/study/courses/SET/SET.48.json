@@ -1278,10 +1278,10 @@
    "key": "q15",
    "skill": "setup.bear_gap",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bg.gap_day",
    "q": "Prior close 50.00. The gap day closes at 47.00. The close is down what percent?",
-   "answer": 6.0,
+   "answer": "6.0%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1306,16 +1306,27 @@
      "computed key"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "6.4%",
+    "3.0%",
+    "6.0%",
+    "94.0%"
+   ],
+   "wrong": {
+    "6.4%": "Divided by the close, not the prior close.",
+    "3.0%": "Used the dollar drop as a percent.",
+    "94.0%": "Gave the close as a share of the prior close."
+   }
   },
   {
    "key": "q16",
    "skill": "setup.bear_gap",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bg.full_window",
    "q": "A full window: the gap day's high is 44.00 and yesterday's low is 46.00. How wide is the window?",
-   "answer": 2.0,
+   "answer": "$2.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1343,7 +1354,18 @@
      "fixed before (LDOS's prior close was read as its low)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "$1.00",
+    "$2.00",
+    "$4.00",
+    "$0.20"
+   ],
+   "wrong": {
+    "$1.00": "Stopped at the middle, half the gap.",
+    "$4.00": "Counted the gap twice.",
+    "$0.20": "Slipped the decimal point a place."
+   }
   },
   {
    "key": "q17",
@@ -3149,10 +3171,10 @@
    "key": "q71",
    "skill": "setup.bear_gap",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bg.position_adv",
    "q": "Average daily volume is 1,200,000 shares. Under our volume cap, what is the most shares we can own?",
-   "answer": 12000,
+   "answer": "12,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3178,7 +3200,18 @@
      "computed key"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "120,000 shares",
+    "1,200 shares",
+    "24,000 shares",
+    "12,000 shares"
+   ],
+   "wrong": {
+    "120,000 shares": "Slipped the decimal point up a place.",
+    "1,200 shares": "Slipped the decimal point down a place.",
+    "24,000 shares": "Doubled the cap."
+   }
   },
   {
    "key": "q72",
@@ -3347,10 +3380,10 @@
    "key": "q77",
    "skill": "setup.bear_gap",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "bg.p_climax_day",
    "q": "A climax day ranges 40.00 to 48.00 and closes at 45.00. Where in its range did it close, in percent?",
-   "answer": 62.5,
+   "answer": "62.5%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3377,7 +3410,18 @@
      "computed key"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "37.5%",
+    "62.5%",
+    "12.5%",
+    "11.1%"
+   ],
+   "wrong": {
+    "37.5%": "Measured down from the high, not up from the low.",
+    "12.5%": "Divided by the low, not the range.",
+    "11.1%": "Divided by the close, not the range."
+   }
   },
   {
    "key": "q78",
@@ -3616,9 +3660,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "6.0% = 3/50. 6.4% is 3/47 (divided by the close), 3.0% dollar drop, 94.0% close as a share. All real."
   },
   "q17": {
    "status": "pass",
@@ -3757,7 +3801,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 46.00 - 44.00 = 2.00 recomputed. Lesson line supported by c32. It restates q18's key (zone from the gap day's high to the prior low), but q18 is the lower rung, so it reinforces, not gives away."
+   "notes": "46-44 = 2.00. $1.00 half, $4.00 doubled, $0.20 decimal slip. Fine."
   },
   "q20": {
    "status": "pass",
@@ -3977,9 +4021,9 @@
   },
   "q71": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "1% of 1,200,000 = 12,000. 120,000 and 1,200 decimal slips, 24,000 a 2% cap. Fine."
   },
   "q72": {
    "status": "pass",
@@ -4014,8 +4058,8 @@
   "q77": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "(45-40)/8 = 62.5%. 37.5% from the high, 12.5% = 5/40, 11.1% = 5/45. All verified."
   },
   "q78": {
    "status": "pass",

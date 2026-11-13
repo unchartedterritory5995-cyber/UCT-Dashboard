@@ -1581,10 +1581,10 @@
    "key": "q02",
    "skill": "vocab.risk_terms",
    "rung": 2,
-   "format": "numeric",
+   "format": "mcq",
    "term": "R",
    "q": "You buy at $50 with your stop at $46. What is your R per share?",
-   "answer": 4,
+   "answer": "$4",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1609,7 +1609,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$46",
+    "$0.40",
+    "$54",
+    "$4"
+   ],
+   "wrong": {
+    "$46": "Gave the stop price instead of the gap between entry and stop.",
+    "$54": "Added the risk to your entry instead of taking the stop off.",
+    "$0.40": "Slipped a decimal place."
+   }
   },
   {
    "key": "q03",
@@ -1754,10 +1765,10 @@
    "key": "q07",
    "skill": "vocab.risk_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "R-multiple",
    "q": "You buy at $80 with a stop at $76. You sell at $92. What R-multiple did you make?",
-   "answer": 3,
+   "answer": "3R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -1767,7 +1778,7 @@
     }
    },
    "suffix": "R",
-   "why": "3R. Your gain per share is $92 less $80. Your risk per share is $80 less $76. The gain is three times the risk, so the trade made 3R. Tharp's drill works the same way. Buy at $40, stop at $35, sell at $50: a $10 gain on $5 of risk is 2R.",
+   "why": "3R. Gain per share is $92 less $80, or $12. Risk per share is $80 less $76, or $4. $12 divided by $4 is 3R. Tharp's drill works the same way: buy at $40, stop at $35, sell at $50 is a $10 gain on $5 of risk, or 2R.",
    "lesson_line": "Divide what you made by what you risked. That's the R-multiple.",
    "facts": [
     "f41",
@@ -1782,7 +1793,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "12R",
+    "0.33R",
+    "4R",
+    "3R"
+   ],
+   "wrong": {
+    "12R": "Gave the gain per share and never divided by the risk.",
+    "4R": "Gave the risk per share instead of the multiple.",
+    "0.33R": "Divided the risk by the gain, upside down."
+   }
   },
   {
    "key": "q08",
@@ -1931,10 +1953,10 @@
    "key": "q12",
    "skill": "vocab.risk_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Expectancy",
    "q": "You win 40% of your trades. Winners average 3R and losers 1R. What is your expectancy per trade?",
-   "answer": 0.6,
+   "answer": "0.6R",
    "calc": {
     "fn": "expectancy_r",
     "args": {
@@ -1944,7 +1966,7 @@
     }
    },
    "suffix": "R",
-   "why": "0.6R. Weight each result by how often it happens, then add. Winners come 40% of the time at +3R. Losers come the rest of the time at -1R. Tharp calls expectancy the mean R-multiple. Investopedia's expected value is the same sum: each outcome times its chance, added up.",
+   "why": "0.6R. Weight each result by how often it happens. Wins: 40% times 3R is 1.2R. Losses: 60% times 1R is 0.6R. Take 1.2R less 0.6R and you get 0.6R. Tharp calls expectancy the mean R-multiple. Investopedia's expected value is the same sum.",
    "lesson_line": "Expectancy needs both: how often you win, and how big the wins and losses are.",
    "facts": [
     "f97",
@@ -1959,7 +1981,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "1.2R",
+    "2R",
+    "0.6R",
+    "1.4R"
+   ],
+   "wrong": {
+    "1.2R": "Counted the 40% wins and ignored the losses.",
+    "2R": "Took the 3R win less the 1R loss and ignored how often each happens.",
+    "1.4R": "Swapped the rates, so winners came 60% of the time."
+   }
   },
   {
    "key": "q13",
@@ -2224,10 +2257,10 @@
    "key": "q20",
    "skill": "vocab.risk_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Risk/reward ratio",
    "q": "Entry $20, stop $19, target $23. How many dollars can you make for each dollar you risk?",
-   "answer": 3,
+   "answer": "$3",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2238,7 +2271,7 @@
     }
    },
    "prefix": "$",
-   "why": "$3. The target is $23 less $20 away. The stop is $20 less $19 away. The target is three times as far. Investopedia writes that as 1:3 risk/reward: three units of reward for every unit of risk.",
+   "why": "$3. The target is $23 less $20, or $3 away. The stop is $20 less $19, or $1 away. $3 of reward for $1 of risk is $3 for each dollar. Investopedia writes that as 1:3 risk/reward: three units of reward for every unit of risk.",
    "lesson_line": "Divide the distance to the target by the distance to the stop.",
    "facts": [
     "f91",
@@ -2252,7 +2285,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$4",
+    "$0.33",
+    "$3",
+    "$1.15"
+   ],
+   "wrong": {
+    "$4": "Measured the reward from the stop instead of from your entry.",
+    "$0.33": "Divided the risk by the reward, upside down.",
+    "$1.15": "Divided the target price by the entry price."
+   }
   },
   {
    "key": "q21",
@@ -2334,10 +2378,10 @@
    "key": "q23",
    "skill": "vocab.risk_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Position sizing",
    "q": "Account $40,000, risking 1% a trade. Entry $25, stop $23.50. How many shares do you buy?",
-   "answer": 266,
+   "answer": "266 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2348,7 +2392,7 @@
     }
    },
    "suffix": "shares",
-   "why": "266 shares. Take 1% of $40,000. Divide it by the risk per share, $25 less $23.50. Round down, never up. Investopedia's method is the same: account risk divided by trade risk gives the share count. Our rule then caps it: the size is the smaller of this and the position cap, 40% of the account. Here the cap does not bind.",
+   "why": "266 shares. 1% of $40,000 is $400. Risk per share is $25 less $23.50. Divide the $400 by the risk per share and round down, never up. Investopedia's method is the same. Our rule caps size at 40% of the account, and here the cap does not bind.",
    "lesson_line": "Dollars at risk divided by risk per share. Round down, never up.",
    "facts": [
     "f69",
@@ -2366,7 +2410,18 @@
      "rests on the owner's rulebook (A5, A7)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "400 shares",
+    "2,666 shares",
+    "1,600 shares",
+    "266 shares"
+   ],
+   "wrong": {
+    "400 shares": "Treated the $400 of risk as a share count.",
+    "1,600 shares": "Spent the whole account on shares, ignoring the stop.",
+    "2,666 shares": "Slipped a decimal place."
+   }
   },
   {
    "key": "q24",
@@ -2751,10 +2806,10 @@
    "key": "q34",
    "skill": "vocab.risk_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Drawdown",
    "q": "Your account is down 20% from its peak. What gain takes it back to the high?",
-   "answer": 25,
+   "answer": "25%",
    "calc": {
     "fn": "gain_to_recover",
     "args": {
@@ -2762,7 +2817,7 @@
     }
    },
    "suffix": "%",
-   "why": "25%. After a loss you climb back from a smaller base, so the gain has to be bigger than the loss. A given percent loss always needs a bigger percent gain to break even.",
+   "why": "25%. Say the account was $100. Down 20% leaves $80. To get back to $100 you need $20 on a base of $80. $20 divided by $80 is 25%. You climb back from a smaller base, so the gain is bigger than the loss.",
    "lesson_line": "Down 20% needs up 25%. The deeper the hole, the steeper the climb.",
    "facts": [
     "f142",
@@ -2779,7 +2834,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "20%",
+    "25%",
+    "16.7%",
+    "80%"
+   ],
+   "wrong": {
+    "20%": "Assumed the gain needed equals the loss.",
+    "16.7%": "Worked out the fall that follows a 20% gain, the reverse trip.",
+    "80%": "Gave the share of the account you still have."
+   }
   },
   {
    "key": "q35",
@@ -3116,10 +3182,10 @@
    "key": "q44",
    "skill": "vocab.risk_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Portfolio heat",
    "q": "You hold four trades. Each one risks 1.5% of the account to its stop. What is your portfolio heat?",
-   "answer": 6,
+   "answer": "6%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3129,7 +3195,7 @@
     }
    },
    "suffix": "%",
-   "why": "6%. Add up what every open trade loses if its stop is hit: four trades at 1.5% each. Seykota and Druz: 2% on each of five positions is a total heat of 10%. Heat adds up even when each trade looks small.",
+   "why": "6%. Add up what every open trade loses if its stop is hit. Four trades at 1.5% each is 4 times 1.5%, or 6%. Seykota and Druz: 2% on each of five positions is a total heat of 10%. Heat adds up even when each trade looks small.",
    "lesson_line": "Know your total heat before you add one more trade.",
    "facts": [
     "f65",
@@ -3144,7 +3210,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "1.5%",
+    "6%",
+    "5.5%",
+    "4%"
+   ],
+   "wrong": {
+    "1.5%": "Counted one trade's risk and skipped the other three.",
+    "5.5%": "Added the 4 trades to the 1.5% instead of multiplying.",
+    "4%": "Gave the number of trades as the percent."
+   }
   },
   {
    "key": "q45",
@@ -3297,10 +3374,10 @@
    "key": "q49",
    "skill": "vocab.risk_terms",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Open risk",
    "q": "You own 100 shares bought at $50. They now trade at $62, and your stop is $55. What is your open risk?",
-   "answer": 700,
+   "answer": "$700",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3311,7 +3388,7 @@
     }
    },
    "prefix": "$",
-   "why": "$700. Open risk runs from today's $62 down to your $55 stop, times 100 shares. Your stop sits above your $50 entry, so a fill at the stop would still be a profit. But the open gain above $55 is still at risk.",
+   "why": "$700. Open risk runs from today's $62 down to your $55 stop: $7 a share. Times 100 shares is $700. Your stop sits above your $50 entry, so a fill at the stop would still be a profit. But the open gain above $55 is still at risk.",
    "lesson_line": "Open profit above your stop is still at risk.",
    "facts": [
     "f47",
@@ -3329,7 +3406,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$1,200",
+    "$700",
+    "$500",
+    "$7"
+   ],
+   "wrong": {
+    "$1,200": "Gave the open gain from your entry, not the risk down to the stop.",
+    "$500": "Gave the profit locked in above your entry, not the open risk.",
+    "$7": "Gave the risk per share and skipped the 100 shares."
+   }
   },
   {
    "key": "q50",
@@ -3482,10 +3570,10 @@
    "key": "q54",
    "skill": "vocab.risk_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Trailing stop",
    "q": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop?",
-   "answer": 68,
+   "answer": "$68",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3495,7 +3583,7 @@
     }
    },
    "prefix": "$",
-   "why": "$68. The stop trails 20% under the $85 high, and it stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down.",
+   "why": "$68. The stop trails 20% under the $85 high. 20% of $85 is $17. $85 less $17 is $68. It stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down.",
    "lesson_line": "A trailing stop measures from the high, not from your entry.",
    "facts": [
     "f36",
@@ -3515,7 +3603,18 @@
      "deeper cites the owner's rulebook (E52)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$65",
+    "$17",
+    "$68",
+    "$102"
+   ],
+   "wrong": {
+    "$65": "Took 20 dollars off the high, not 20 percent.",
+    "$17": "Worked out 20% of the high and never took it off.",
+    "$102": "Added 20% to the high instead of subtracting."
+   }
   },
   {
    "key": "q55",
@@ -3847,10 +3946,10 @@
    "key": "q64",
    "skill": "vocab.risk_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Chandelier Exit",
    "q": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down?",
-   "answer": 72.5,
+   "answer": "$72.50",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3861,7 +3960,7 @@
     }
    },
    "prefix": "$",
-   "why": "$72.50. StockCharts' long Chandelier Exit is the 22-day high minus three times the 22-day ATR: $80 less three times $2.50. It is a trailing stop based on ATR, so it hangs under the high and its distance grows with volatility.",
+   "why": "$72.50. StockCharts' long Chandelier Exit is the 22-day high minus three times the 22-day ATR. Three times $2.50 is $7.50. $80 less $7.50 is $72.50. It is a trailing stop based on ATR, so it hangs under the high and its distance grows with volatility.",
    "lesson_line": "Chandelier Exit: the 22-day high minus three ATRs, by default.",
    "facts": [
     "f114",
@@ -3877,7 +3976,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$77.50",
+    "$72.50",
+    "$7.50",
+    "$87.50"
+   ],
+   "wrong": {
+    "$77.50": "Went down only one ATR instead of three.",
+    "$7.50": "Gave the three ATRs and never took them off the high.",
+    "$87.50": "Added three ATRs to the high instead of subtracting."
+   }
   },
   {
    "key": "q65",
@@ -4151,7 +4261,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 50-46=4 matches. Tharp's $50/$40 example is f16 verbatim. Clean."
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q03": {
    "status": "pass",
@@ -4181,7 +4291,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Plain R arithmetic; keep."
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q08": {
    "status": "cut",
@@ -4211,7 +4321,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Expectancy arithmetic with 3R as average win; keep."
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q13": {
    "status": "pass",
@@ -4260,8 +4370,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (23-20)/(20-19) = 3 matches; 1:3 wording from f92. No overlap with q21 after the previous trim."
+   "fixed": true,
+   "notes": "Calc 3.0 matches. Wrong choices real (4 = reward from stop, 0.33 inverted, 1.15 = 23/20). Why gave no figures for the two distances; added the steps."
   },
   "q21": {
    "status": "pass",
@@ -4277,9 +4387,9 @@
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q24": {
    "status": "pass",
@@ -4345,7 +4455,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc gain_to_recover(20)=25 matches. The 10/11 and 50/100 pairs are gone. The general 'loss needs a bigger gain' line is f142 and is inherent to the drawdown cluster."
+   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
   },
   "q35": {
    "status": "pass",
@@ -4404,9 +4514,9 @@
   },
   "q44": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 6.0 matches. 6% was the only whole number among 1.5%, 5.5%, 0.4%: a tell. Swapped 0.4% for 4% (trade count read as a percent) and added the multiply step to the why."
   },
   "q45": {
    "status": "pass",
@@ -4436,8 +4546,8 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (62-55)*100=700 matches; deeper no longer repeats q48's lesson line. 'Raising the stop shrinks open risk' follows from f47's definition."
+   "fixed": true,
+   "notes": "Calc 700 matches; wrong choices real (1,200 = gain from entry, 500 = locked profit, 7 = per share). Why skipped the per-share step; added it."
   },
   "q50": {
    "status": "pass",
@@ -4465,9 +4575,9 @@
   },
   "q54": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 68.0 matches; wrong choices real (65 = 85-20, 17 = the 20%, 102 = 85*1.2). Why did not show 20% of 85; added the steps."
   },
   "q55": {
    "status": "pass",
@@ -4527,9 +4637,9 @@
   },
   "q64": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 72.5 matches; wrong choices real (77.50 = one ATR, 7.50 = the offset, 87.50 = added). Why did not show 3 x 2.50; added."
   },
   "q65": {
    "status": "pass",

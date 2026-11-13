@@ -1775,11 +1775,11 @@
    "key": "q20",
    "skill": "setup.high_tight_flag",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "htf.trim_1",
    "q": "Bought at 27.50 with the stop at 26.59. Where is 3R?",
-   "answer": 30.23,
-   "why": "30.23. One R is the fill minus the stop. Add three of those to the fill: 27.50 plus three times (27.50 minus 26.59) is 30.23. 3R is a yardstick, not an automatic sale. SRPT got there on day 5.",
+   "answer": "$30.23",
+   "why": "One R is the fill minus the stop, 27.50 minus 26.59. Add three of those to the fill: 27.50 plus 3 times (27.50 minus 26.59) is 30.23. 3R is a yardstick, not an automatic sale. SRPT got there on day 5.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, not an automatic sale.",
    "facts": [
     "d01",
@@ -1809,7 +1809,18 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$28.41",
+    "$31.14",
+    "$29.32",
+    "$30.23"
+   ],
+   "wrong": {
+    "$28.41": "That adds one R, not three.",
+    "$29.32": "That counts 3R up from the stop, not from the fill.",
+    "$31.14": "That adds four R. Three R is three gaps, not four."
+   }
   },
   {
    "key": "q21",
@@ -1881,11 +1892,11 @@
    "key": "q23",
    "skill": "setup.high_tight_flag",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "htf.pole_size",
    "q": "The lowest low of the 40 sessions was 12.40 and the pole high is 26.00. How far did price rise, in percent?",
-   "answer": 109.7,
-   "why": "109.7%. The pole is the high over the low, minus one: 26.00 over 12.40 is a rise of 109.7%. That is more than a double. Measure from the lowest low of the 40 sessions ending at the pole high. IBD looks for 100% to 120%. Bulkowski wants at least 90%.",
+   "answer": "109.7%",
+   "why": "The rise is the high over the low, minus one: 26.00 divided by 12.40, less one, is 109.7%. That is more than a double. Measure from the lowest low of the 40 sessions ending at the pole high. IBD looks for 100% to 120%. Bulkowski wants at least 90%.",
    "lesson_line": "Measure the pole before you look at the flag.",
    "facts": [
     "i01",
@@ -1913,17 +1924,28 @@
    "depends_on": [
     "D-048"
    ],
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "209.7%",
+    "109.7%",
+    "52.3%",
+    "13.6%"
+   ],
+   "wrong": {
+    "209.7%": "That forgets to take off one. It is the ratio, not the rise.",
+    "52.3%": "That divides the rise by the high. Divide by the low, where it started.",
+    "13.6%": "That is the dollar amount read as a percent. Divide it first."
+   }
   },
   {
    "key": "q24",
    "skill": "setup.high_tight_flag",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "htf.flag_depth",
    "q": "Pattern high 100.00, flag low 84.00. How deep is the flag, in percent?",
-   "answer": 16.0,
-   "why": "16%. Depth is the pattern high minus the flag low, divided by the high. Here that is 100.00 minus 84.00, over 100.00. IBD says the flag usually pulls back 10% to 20%, sometimes 25%.",
+   "answer": "16.0%",
+   "why": "Depth is the pattern high minus the flag low, divided by the high: (100.00 minus 84.00) divided by 100.00 is 16%. IBD says the flag usually pulls back 10% to 20%, sometimes 25%.",
    "lesson_line": "Depth is high to low on price, divided by the high.",
    "facts": [
     "c02",
@@ -1951,17 +1973,28 @@
    "depends_on": [
     "D-050"
    ],
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "19.0%",
+    "84.0%",
+    "1.6%",
+    "16.0%"
+   ],
+   "wrong": {
+    "19.0%": "That divides by the low. Depth is measured against the high.",
+    "84.0%": "That is the low as a share of the high, not the drop.",
+    "1.6%": "That slips a decimal place."
+   }
   },
   {
    "key": "q25",
    "skill": "setup.high_tight_flag",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "htf.stop",
    "q": "Fill 14.65, stop 14.24. How far below the fill is the stop, in percent?",
-   "answer": 2.8,
-   "why": "2.8%. Take the fill minus the stop, 14.65 minus 14.24, and divide it by the fill, 14.65. That is 2.8%. Our stop usually sits within about 3% of the buy. This was SOFI's stop.",
+   "answer": "2.8%",
+   "why": "Take the fill minus the stop and divide by the fill: (14.65 minus 14.24) divided by 14.65 is 2.8%. Our stop usually sits within about 3% of the buy. This was SOFI's stop.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h04",
@@ -1988,17 +2021,28 @@
      "rests on the owner's rulebook (A13)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "28.0%",
+    "0.4%",
+    "2.8%",
+    "97.2%"
+   ],
+   "wrong": {
+    "0.4%": "That is the dollar amount read as a percent. Divide it first.",
+    "28.0%": "That slips a decimal place.",
+    "97.2%": "That is the stop as a share of the fill, not the gap."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.high_tight_flag",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "htf.trim_2",
    "q": "Bought at 264.95, stop 255.06. The stock trades to 314.40. How many R is that?",
-   "answer": 5.0,
-   "why": "5R. The gain is 314.40 minus 264.95. One R is 264.95 minus 255.06. The gain divided by one R is 5.0. Selling at about 5 to 10R is often best, but the sell is a judgment. BIDU got there.",
+   "answer": "5.0R",
+   "why": "The gain is 314.40 minus 264.95. One R is 264.95 minus 255.06. The gain divided by one R is 5.0. Selling at about 5 to 10R is often best, but the sell is a judgment. BIDU got there.",
    "lesson_line": "Count in R, not dollars. About 5R to 10R is often a good place to sell.",
    "facts": [
     "r03",
@@ -2024,17 +2068,28 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "6.0R",
+    "49.5R",
+    "5.0R",
+    "0.2R"
+   ],
+   "wrong": {
+    "6.0R": "That counts the gain from the stop, so it reads one R too high.",
+    "49.5R": "That is the dollar gain read as R. Divide it by the risk per share.",
+    "0.2R": "That divides the gain by the price, not by R."
+   }
   },
   {
    "key": "q27",
    "skill": "setup.high_tight_flag",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "htf.no_adds",
    "q": "Account 100,000. Risk 0.5%. Fill 132.97, stop 128.10. How many shares?",
-   "answer": 102,
-   "why": "102 shares. The risk budget is 0.5% of 100,000. Divide it by the fill minus the stop, 132.97 minus 128.10, and round down. That gives 102 shares, the full size at one price with one stop.",
+   "answer": "102 shares",
+   "why": "The risk budget is 0.5% of 100,000, which is 500. Divide it by the fill minus the stop, 132.97 minus 128.10, and round down. That gives 102 shares, the full size at one price with one stop.",
    "lesson_line": "The stop sets the size. Never the other way round.",
    "facts": [
     "h03",
@@ -2066,17 +2121,28 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "500 shares",
+    "1,026 shares",
+    "102 shares",
+    "300 shares"
+   ],
+   "wrong": {
+    "1,026 shares": "That risks ten times the budget. A decimal slip.",
+    "300 shares": "That is the 40% position cap size. The stop gives a smaller size.",
+    "500 shares": "That is the risk dollars read as shares. Divide by the risk per share."
+   }
   },
   {
    "key": "q28",
    "skill": "setup.high_tight_flag",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "htf.not_stretched",
    "q": "The 10-day average is 50.00. Above what price is a buy too stretched?",
-   "answer": 55.0,
-   "why": "55.00. Skip a long that is more than 10% above its 10-day average. 10% over 50.00 is 50.00 times 1.10, or 55.00. About 5% over the average is the A+ zone, and 8% to 10% is B-.",
+   "answer": "$55.00",
+   "why": "Skip a long that is more than 10% above its 10-day average. 10% over 50.00 is 50.00 times 1.10, or 55.00. About 5% over the average is the A+ zone, and 8% to 10% is B-.",
    "lesson_line": "Read the stretch in percent before you read the pattern.",
    "facts": [
     "h13",
@@ -2102,7 +2168,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "$45.00",
+    "$60.00",
+    "$52.50",
+    "$55.00"
+   ],
+   "wrong": {
+    "$60.00": "That adds 10 dollars, not 10 percent.",
+    "$52.50": "That is 5% over, the A+ zone, not the limit.",
+    "$45.00": "That is 10% under the average. The limit sits above it."
+   }
   },
   {
    "key": "q29",
@@ -2691,11 +2768,11 @@
    "key": "q44",
    "skill": "setup.high_tight_flag",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "htf.no_target",
    "q": "Pole low 10.00, pole high 20.00, flag low 17.00. Where is Bulkowski's reference level?",
-   "answer": 22.0,
-   "why": "22.00. Bulkowski: take half of the pole and add it to the bottom of the flag. The pole runs from 10.00 to 20.00, so half of it is added to the flag low of 17.00. His rule was met by 82% of his perfect trades. For us it is a reference only. We sell by R and the trail.",
+   "answer": "$22.00",
+   "why": "Bulkowski: take half of the pole and add it to the bottom of the flag. The pole runs from 10.00 to 20.00, so half of it is (20.00 minus 10.00) divided by 2. Add that to the flag low: 17.00 plus that half is 22.00. His rule was met by 82% of his perfect trades. For us it is a reference only. We sell by R and the trail.",
    "lesson_line": "Know the level if you like. It is never the reason to sell.",
    "facts": [
     "b09",
@@ -2721,7 +2798,18 @@
      "+2 computed key"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "$25.00",
+    "$27.00",
+    "$15.00",
+    "$22.00"
+   ],
+   "wrong": {
+    "$25.00": "That adds half the pole to the pole high, not to the flag low.",
+    "$27.00": "That adds the whole pole to the flag low, not half.",
+    "$15.00": "That adds half the pole to the pole low, not to the flag low."
+   }
   },
   {
    "key": "q45",
@@ -3930,11 +4018,11 @@
    "key": "q75",
    "skill": "setup.high_tight_flag",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "htf.stop_not_flag_low",
    "q": "You buy at 100.00 and the flag low is 88.00. How far under your fill is a stop at the flag low, in percent?",
-   "answer": 12.0,
-   "why": "12.0%. The fill minus the stop, divided by the fill: 100.00 minus 88.00 is 12.00, and 12.00 divided by 100.00 is 12.0%. Our stop usually sits within about 3% of the buy, so the flag low is about four times too wide. It kills the idea but is not the stop.",
+   "answer": "12.0%",
+   "why": "The fill minus the stop, divided by the fill: (100.00 minus 88.00) divided by 100.00 is 12.0%. Our stop usually sits within about 3% of the buy, so the flag low is about four times too wide. It kills the idea but is not the stop.",
    "lesson_line": "The flag low ends the idea. The stop is much closer.",
    "facts": [
     "c04",
@@ -3961,7 +4049,18 @@
      "rests on the owner's rulebook (A13)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "13.6%",
+    "12.0%",
+    "88.0%",
+    "1.2%"
+   ],
+   "wrong": {
+    "13.6%": "That divides by the stop. Divide by the fill.",
+    "88.0%": "That is the stop as a share of the fill, not the gap.",
+    "1.2%": "That slips a decimal place."
+   }
   },
   {
    "key": "q76",
@@ -3997,11 +4096,11 @@
    "key": "q77",
    "skill": "setup.high_tight_flag",
    "rung": 2,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "htf.stop",
    "q": "Bought at 60.00, stop at 57.50. What is 1R, in dollars a share?",
-   "answer": 2.5,
-   "why": "2.50. One R is the risk you take on the trade, the fill minus the stop. Here that is 60.00 minus 57.50. A 3R winner is three times that.",
+   "answer": "$2.50",
+   "why": "One R is the risk you take on the trade, the fill minus the stop. Here that is 60.00 minus 57.50, which is 2.50 a share. A 3R winner is three times that.",
    "lesson_line": "1R is what you risk on each share: fill minus stop.",
    "simple": "1R is what you risk on each share, the fill minus the stop, so 60.00 minus 57.50.",
    "facts": [
@@ -4025,7 +4124,18 @@
      "rests on a published definition (Van Tharp R-multiple)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "$7.50",
+    "$2.50",
+    "$57.50",
+    "$0.25"
+   ],
+   "wrong": {
+    "$7.50": "That is three R, three times the risk. One R is one share's risk.",
+    "$57.50": "That is the stop price, not the distance to it.",
+    "$0.25": "That slips a decimal place."
+   }
   },
   {
    "key": "q78",
@@ -4271,8 +4381,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "fixed": true,
+   "notes": "$82.50 (3 x the fill) is not a real trader mistake and the answer was the largest; replaced with a 4R overshoot. Calc recomputed; the other wrong choices checked by hand."
   },
   "q21": {
    "status": "pass",
@@ -4290,37 +4400,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q25": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
+   "fixed": true,
+   "notes": "103 was the nearest-rounded 102.7, an adjacent pair; replaced with risk dollars read as shares. Why shows the 500. Calc recomputed; the other wrong choices checked by hand."
   },
   "q28": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q29": {
    "status": "pass",
@@ -4416,9 +4526,9 @@
   },
   "q44": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q45": {
    "status": "pass",
@@ -4609,9 +4719,9 @@
   },
   "q75": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q76": {
    "status": "pass",
@@ -4623,7 +4733,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: 1R definition"
+   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
   },
   "q78": {
    "status": "cut",

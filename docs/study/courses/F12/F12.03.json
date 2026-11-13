@@ -841,9 +841,9 @@
    "key": "q10",
    "skill": "process.journal",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your log: entry $40, initial stop $39, exit $41.50. What R goes in the result field?",
-   "answer": 1.5,
+   "answer": "1.5R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -867,7 +867,18 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "2.5R",
+    "0.67R",
+    "1.5R",
+    "3.8R"
+   ],
+   "wrong": {
+    "2.5R": "Measured the gain from the $39 stop. Measure it from your $40 entry.",
+    "0.67R": "Flipped it: risk over gain.",
+    "3.8R": "Took the gain as a percent of the entry and called it R."
+   }
   },
   {
    "key": "q11",
@@ -959,9 +970,9 @@
    "key": "q14",
    "skill": "process.journal",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your plan said buy at $50. You filled at $51. How far above plan was the fill, in percent?",
-   "answer": 2,
+   "answer": "2%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -989,7 +1000,18 @@
      "deeper cites the owner's rulebook (C28)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "1%",
+    "20%",
+    "102%",
+    "2%"
+   ],
+   "wrong": {
+    "1%": "Read the dollar gap as a percent. Divide it by the $50 plan price.",
+    "20%": "A decimal slip: ten times too big.",
+    "102%": "Gave the fill as a percent of the plan price and forgot to take off the start."
+   }
   },
   {
    "key": "q15",
@@ -1430,7 +1452,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: (41.5-40)/(40-39) = 1.5. Every number is in the stem or calc; R definition from f36, multiple from f37. 2.5% stop sits inside A13's ~3%. Teaches the initial-stop yardstick that q15 applies, but no longer states the moved-stop answer."
+   "notes": "1.5/1 = 1.5R. 2.5R gain from stop, 0.67R flipped, 3.8R gain percent (3.75%). Why shows it."
   },
   "q11": {
    "status": "pass",
@@ -1452,9 +1474,9 @@
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 2.0. The 4% choice was a rule from the lesson, not a math mistake; replaced it with 102% (the 51/50 ratio read as a percent). Moved the answer to slot 4."
   },
   "q15": {
    "status": "pass",

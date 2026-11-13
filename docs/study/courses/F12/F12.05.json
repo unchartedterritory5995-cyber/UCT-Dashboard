@@ -974,9 +974,9 @@
    "key": "q09",
    "skill": "process.review",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Ten breakout trades, in R: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's the win rate?",
-   "answer": 40,
+   "answer": "40%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1000,15 +1000,26 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "67%",
+    "60%",
+    "50%",
+    "40%"
+   ],
+   "wrong": {
+    "60%": "You counted the six losers instead of the four winners.",
+    "50%": "You counted the -0.5 loss as a win because it lost less than 1R.",
+    "67%": "You divided the 4 wins by the losing trades instead of by all 10."
+   }
   },
   {
    "key": "q10",
    "skill": "process.review",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Same ten trades: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's the average R per trade?",
-   "answer": 0.4,
+   "answer": "0.4R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1027,7 +1038,7 @@
     }
    },
    "suffix": "R",
-   "why": "+0.4R a trade. Add the ten results and divide by ten. That average R is the expectancy so far: what the setup has paid per dollar risked. It is positive even though six of the ten lost, because the wins ran bigger than the losses. Ten trades is a first read, not proof. Tharp wants more than thirty results before a sample means much.",
+   "why": "+0.4R a trade. Add the ten results to get 4R, then divide by the ten trades to get 0.4R. That average R is the expectancy so far: what the setup has paid per dollar risked. It is positive even though six of the ten lost, because the wins ran bigger than the losses. Ten trades is a first read, not proof. Tharp wants more than thirty results before a sample means much.",
    "lesson_line": "Average R, not win rate, tells you what a setup has paid. A 40% win rate can still earn.",
    "facts": [
     "f54",
@@ -1043,7 +1054,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "1.6R",
+    "4.0R",
+    "0.4R",
+    "2.5R"
+   ],
+   "wrong": {
+    "4.0R": "You added the ten results and forgot to divide by ten.",
+    "1.6R": "You dropped the minus signs and averaged the size of every trade.",
+    "2.5R": "You averaged only the four winners and left out the losers."
+   }
   },
   {
    "key": "q11",
@@ -1130,9 +1152,9 @@
    "key": "q13",
    "skill": "process.review",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your last 20 trades: 6 broke a rule and lost 7R in total. The other 14 made +9R. What did all 20 make, in R?",
-   "answer": 2,
+   "answer": "+2R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1142,7 +1164,7 @@
     }
    },
    "suffix": "R",
-   "why": "+2R. The 14 clean trades made +9R and the 6 rule breaks lost 7R, so all 20 made +2R. The mistakes gave back most of what the clean trades earned. Steenbarger's end-of-day review checks whether you followed your rules and how following them could have helped. Pricing each kind of mistake in R shows what it really costs.",
+   "why": "+2R. The 14 clean trades made +9R. The 6 rule breaks lost 7R. So the 20 trades made 9R minus 7R, which is +2R. The mistakes gave back most of what the clean trades earned. Steenbarger's end-of-day review checks whether you followed your rules and how following them could have helped. Pricing each kind of mistake in R shows what it really costs.",
    "lesson_line": "Add up your mistakes in R. That shows what each kind really costs.",
    "facts": [
     "f23",
@@ -1161,15 +1183,26 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "+16R",
+    "+2R",
+    "+9R",
+    "-2R"
+   ],
+   "wrong": {
+    "+16R": "You added the 7R as if the rule breaks made money.",
+    "+9R": "You counted only the 14 clean trades and left out the 6 rule breaks.",
+    "-2R": "You took the 9R away from the 7R, the wrong way round."
+   }
   },
   {
    "key": "q14",
    "skill": "process.review",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your last ten losses, sized in R: 1, 1, 1.2, 0.8, 1, 2.5, 1, 1, 1, 1.5. How big is the average loss?",
-   "answer": 1.2,
+   "answer": "1.2R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1188,7 +1221,7 @@
     }
    },
    "suffix": "R",
-   "why": "1.2R. Add the ten loss sizes and divide by ten. R is the risk you planned at entry, so a loss taken at the stop is 1R. Three of these ran past it: 1.2, 2.5 and 1.5. Tharp names two ways a loss runs past plan: not taking the loss you planned, or a gap. His goal is to keep every loss at 1R or less. The 0.8 loss was smaller than planned, which is fine.",
+   "why": "1.2R. The ten losses add up to 12R, and 12 divided by 10 is 1.2R. R is the risk you planned at entry, so a loss taken at the stop is 1R. Three of these ran past it: 1.2, 2.5 and 1.5. Tharp names two ways a loss runs past plan: not taking the loss you planned, or a gap. His goal is to keep every loss at 1R or less. The 0.8 loss was smaller than planned, which is fine.",
    "lesson_line": "An average loss above 1R is a leak. Find the trades that ran past the stop.",
    "facts": [
     "f49",
@@ -1208,7 +1241,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "12.0R",
+    "1.0R",
+    "1.7R",
+    "1.2R"
+   ],
+   "wrong": {
+    "1.0R": "You assumed every loss was the planned 1R and ignored the ones that ran past it.",
+    "1.7R": "You averaged only the three losses that ran past plan: 1.2, 2.5 and 1.5.",
+    "12.0R": "You added the ten losses and forgot to divide by ten."
+   }
   },
   {
    "key": "q15",
@@ -1720,15 +1764,15 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q11": {
    "status": "pass",
@@ -1747,13 +1791,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Rederived: +9R + (-7R) = +2R; calc matches, every number in the why and simple is in the question. Question 108 chars. 'Gave back most' (7 of 9) is fair. f23 quote matches the why's paraphrase; f52 covers pricing in R. Deeper's tags (chased entry, late exit, added to a loser) agree with A5 (no adding) and C28. Does not give away q23's split (different numbers and a different ask)."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q15": {
    "status": "pass",

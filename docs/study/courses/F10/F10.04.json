@@ -906,9 +906,9 @@
    "key": "q09",
    "skill": "orders.slippage",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your buy stop at $50.00 triggers on a breakout. You're filled at $50.40. What was your slippage, in percent?",
-   "answer": 0.8,
+   "answer": "0.8%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -917,7 +917,7 @@
     }
    },
    "suffix": "%",
-   "why": "0.8%. Fill minus trigger, divided by the trigger: $50.40 less $50.00, over $50.00. When the stop price is reached, a stop order becomes a market order. A market order often fills away from the last price, because of demand and the liquidity there. So a fast breakout can fill it above the trigger.",
+   "why": "Slippage is fill minus trigger, over the trigger: $50.40 less $50.00, over $50.00. That is 0.8%. A stop becomes a market order at the trigger. A fast breakout can fill it above the trigger.",
    "lesson_line": "Slippage % is the gap between fill and planned price, over the planned price. Log it on every trade.",
    "facts": [
     "f08",
@@ -933,15 +933,26 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "0.4%",
+    "0.08%",
+    "8.0%",
+    "0.8%"
+   ],
+   "wrong": {
+    "0.4%": "Read the cents gap as a percent. Divide it by the $50.00 trigger.",
+    "8.0%": "A decimal slip: 0.8% written as 8%.",
+    "0.08%": "A decimal slip the other way: 0.8% written as 0.08%."
+   }
   },
   {
    "key": "q10",
    "skill": "orders.slippage",
    "rung": 4,
-   "format": "numeric",
-   "q": "A stock trades about 300,000 shares a day. You want 2,000 shares. What percent of a day's volume is that? Round to two decimals.",
-   "answer": 0.67,
+   "format": "mcq",
+   "q": "A stock trades about 300,000 shares a day. You want 2,000 shares. What percent of a day's volume is that?",
+   "answer": "0.67%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -951,7 +962,7 @@
     }
    },
    "suffix": "%",
-   "why": "0.67%. 2,000 divided by 300,000, as a percent, rounded to two decimals. That is small next to a whole day. But the day's volume never sits on the quote at once. Usually only a small number of shares shows at the best bid or ask. An order that is large next to daily volume is hard to fill.",
+   "why": "Divide your 2,000 shares by the 300,000 a day, then write it as a percent. That is 0.67%. That is small next to a whole day. But the day's volume never sits on the quote at once. An order that is large next to daily volume is hard to fill.",
    "lesson_line": "Daily volume is spread across the session. A market order meets only what's offered right now.",
    "facts": [
     "f58",
@@ -967,7 +978,18 @@
      "fixed before (rounding instruction added)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "6.7%",
+    "0.0067%",
+    "150%",
+    "0.67%"
+   ],
+   "wrong": {
+    "6.7%": "A decimal slip: the point moved one place too far.",
+    "0.0067%": "Divided but forgot to turn the answer into a percent.",
+    "150%": "Flipped it: divided the day's volume by your order."
+   }
   },
   {
    "key": "q11",
@@ -1115,9 +1137,9 @@
    "key": "q15",
    "skill": "orders.slippage",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You hold 500 shares. Your sell stop at $38.00 fills at $37.70 in a fast drop. What did slippage cost you, in dollars?",
-   "answer": 150,
+   "answer": "$150",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1128,7 +1150,7 @@
     }
    },
    "prefix": "$",
-   "why": "$150. $38.00 less $37.70, times 500 shares. When the stop price is reached, a stop order becomes a market order. In a fast market it can fill well below the stop. FINRA's own example: a $50 sell stop can get less, potentially significantly less, than $50.",
+   "why": "Slippage per share is the stop minus the fill: $38.00 less $37.70. Multiply by your 500 shares to get $150. When the stop price is reached, a stop order becomes a market order. In a fast market it can fill well below the stop. FINRA's own example: a $50 sell stop can get less, potentially significantly less, than $50.",
    "lesson_line": "A stop is a trigger, not a price. Slippage times shares is real money.",
    "facts": [
     "f09",
@@ -1144,15 +1166,26 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$1,500",
+    "$0.30",
+    "$150",
+    "$18,850"
+   ],
+   "wrong": {
+    "$1,500": "A decimal slip: ten times too big.",
+    "$0.30": "That is the slippage on one share. You sold 500 shares.",
+    "$18,850": "That is what the 500 shares sold for, not what slippage cost."
+   }
   },
   {
    "key": "q16",
    "skill": "orders.slippage",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Offers: 400 at $25.00, 600 at $25.05, 1,000 at $25.10. Your 2,000-share market buy takes all three. Slippage vs $25.00, in percent?",
-   "answer": 0.26,
+   "answer": "0.26%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1166,7 +1199,7 @@
     }
    },
    "suffix": "%",
-   "why": "0.26%. Multiply each price by its shares, add them up and divide by 2,000. That is your average fill. Then take its gap over $25.00 as a percent of $25.00. A large market order can fill at different prices when one price lacks enough shares. A quote covers only a set number of shares.",
+   "why": "Multiply each price by its shares, add them up and divide by 2,000. That is your average fill. Then take its gap over $25.00 as a percent of $25.00. That is 0.26%. A large market order can fill at different prices when one price lacks enough shares.",
    "lesson_line": "Read the offers before you send size. You can estimate slippage before you click.",
    "facts": [
     "f07",
@@ -1185,7 +1218,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "0.40%",
+    "0.20%",
+    "0.26%",
+    "0.65%"
+   ],
+   "wrong": {
+    "0.40%": "Used the last price, $25.10, instead of the average of all three fills.",
+    "0.20%": "Averaged the three prices without weighting by shares.",
+    "0.65%": "A decimal slip in the gap between the average fill and $25.00."
+   }
   },
   {
    "key": "q17",
@@ -1303,9 +1347,9 @@
    "key": "q20",
    "skill": "orders.slippage",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You risk $400 with a stop $1.00 below entry, so you buy 400 shares. A fast drop fills your stop $0.25 lower. What do you lose?",
-   "answer": 500,
+   "answer": "$500",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1316,7 +1360,7 @@
     }
    },
    "suffix": "",
-   "why": "$500. Each share loses the $1.00 down to the stop plus $0.25 of slippage, times 400 shares. When the stop price is reached, a stop order becomes a market order. There is no guarantee it fills at or near the stop price. So the real loss can run past the $400 you planned.",
+   "why": "Each share loses the $1.00 down to the stop plus $0.25 of slippage. Multiply that by your 400 shares to get $500. When the stop price is reached, a stop order becomes a market order. There is no guarantee it fills at or near the stop price. So the real loss can run past the $400 you planned.",
    "lesson_line": "Your planned risk assumes the stop price. A fill below the stop makes the real loss bigger.",
    "facts": [
     "f61",
@@ -1339,7 +1383,18 @@
     ]
    },
    "prefix": "$",
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$400",
+    "$100",
+    "$1.25",
+    "$500"
+   ],
+   "wrong": {
+    "$400": "Used the planned risk. The slippage adds to it.",
+    "$100": "Counted only the $0.25 of slippage on 400 shares.",
+    "$1.25": "That is the loss on one share. You hold 400 shares."
+   }
   },
   {
    "key": "q21",
@@ -1513,10 +1568,10 @@
    "key": "q25",
    "skill": "orders.slippage",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "A $50 stock averages 800,000 shares a day. Our cap is 1% of average daily volume. What is the most shares you can own?",
-   "answer": 8000,
+   "answer": "8,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1526,7 +1581,7 @@
     }
    },
    "suffix": "shares",
-   "why": "8,000 shares. Our rule: never own more than 1% of a stock's average daily volume. Take 1% of 800,000. An order that is large next to daily volume is hard to fill.",
+   "why": "Our rule: never own more than 1% of a stock's average daily volume. Take 1% of 800,000 to get 8,000 shares. The $50 price does not change that. An order that is large next to daily volume is hard to fill.",
    "simple": "8,000 shares, because our rule caps you at 1% of the 800,000 shares that trade on an average day.",
    "lesson_line": "Never own more than 1% of a stock's average daily volume. Orders large next to daily volume are hard to fill.",
    "facts": [
@@ -1543,7 +1598,18 @@
      "new in wave6"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "80,000 shares",
+    "8,000 shares",
+    "800 shares",
+    "16,000 shares"
+   ],
+   "wrong": {
+    "80,000 shares": "A decimal slip: that is ten times the cap.",
+    "800 shares": "A decimal slip: that is a tenth of the cap.",
+    "16,000 shares": "Divided the 800,000 by the $50 price. The price does not enter the cap."
+   }
   }
  ],
  "conflicts": [
@@ -1631,15 +1697,15 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 0.8. Choices real. The 0.08% note was vague; made it name the slip."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "0.67 shown. 6.7% point slip, 0.0067% forgot x100 (2000/300000), 150% flipped. Why walks the steps."
   },
   "q11": {
    "status": "pass",
@@ -1667,15 +1733,15 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "(38-37.70) x 500 = 150. $1,500 slip, $0.30 per share, $18,850 sale proceeds (500 x 37.70). All real."
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Calc 0.26 (avg fill 25.065). 0.40 = last price, 0.20 = simple average, 0.65 = gap read 10x too big. Why walks the weighted average in words."
   },
   "q17": {
    "status": "pass",
@@ -1699,7 +1765,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Computed independently: 400 x (1.00 + 0.25) = 500. Sizing 400/1.00 = 400 matches rulebook A5. Every number is in the question or calc. Why grounded in f08/f44/f09, deeper in f27. It does not give away q15 or q21."
+   "notes": "400 x 1.25 = 500. $400 planned risk, $100 slippage only, $1.25 per share. All real."
   },
   "q21": {
    "status": "pass",
@@ -1730,7 +1796,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Computed independently: 1% of 800,000 = 8,000. h3 quotes rulebook D42 word for word. Consistent with B23: $50 x 800,000 = $40M a day, above the $20M floor. The $50 is a harmless distractor. Under A5/A7 the account cap could only lower the size, never raise it, and the stem names the 1% cap as the rule in play, so 8,000 is the only reading. It does not answer q10."
+   "notes": "800,000 x 1% = 8,000. 80,000 and 800 slips, 16,000 = ADV / $50 price. Real."
   }
  }
 }

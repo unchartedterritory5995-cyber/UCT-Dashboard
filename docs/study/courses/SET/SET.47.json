@@ -1394,10 +1394,10 @@
    "key": "q16",
    "skill": "setup.news_failure",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "nf.stop",
    "q": "Bought at 86.36 with the stop at 81.48. How far under the buy is the stop, in percent?",
-   "answer": 5.7,
+   "answer": "5.7%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1407,7 +1407,7 @@
     },
     "round": 1
    },
-   "why": "5.7%. The distance from 86.36 down to 81.48 is 5.7% of the buy. Our stop usually sits within about 3% of the buy, so this one is wide. The size comes from the stop, so a wider stop means a smaller size. If the honest stop does not fit the risk, skip the trade. AAOI's stop was exactly this wide.",
+   "why": "5.7%. The gap is the buy minus the stop: 86.36 minus 81.48. Divide that gap by the 86.36 buy and multiply by 100. That is 5.7%. Our stop usually sits within about 3% of the buy, so this one is wide. A wider stop means a smaller size. AAOI's stop was exactly this wide.",
    "lesson_line": "Wide stop, small size. Measure the stop in percent first.",
    "facts": [
     "hA13",
@@ -1429,16 +1429,27 @@
      "rests on the owner's rulebook (A3, A13)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "6.0%",
+    "0.6%",
+    "4.9%",
+    "5.7%"
+   ],
+   "wrong": {
+    "6.0%": "Divided the gap by the stop, not the buy.",
+    "4.9%": "Used the dollar gap as a percent.",
+    "0.6%": "Slipped the decimal point a place."
+   }
   },
   {
    "key": "q17",
    "skill": "setup.news_failure",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "nf.trim_1",
    "q": "Bought at 40.00 with the stop at 38.00. Where is 3R?",
-   "answer": 46.0,
+   "answer": "$46.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1448,7 +1459,7 @@
     },
     "round": 2
    },
-   "why": "46.00. One R is the buy minus the stop: 40.00 minus 38.00. Add three of those to the buy. 3R is a mark to measure by, not an automatic sale.",
+   "why": "46.00. One R is the buy minus the stop: 40.00 minus 38.00. Multiply that by three and add it to the 40.00 buy to get 46.00. 3R is a mark to measure by, not an automatic sale.",
    "lesson_line": "Know your 3R before you buy. It is your measuring mark.",
    "facts": [
     "r10",
@@ -1471,7 +1482,18 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$41.20",
+    "$42.00",
+    "$48.00",
+    "$46.00"
+   ],
+   "wrong": {
+    "$41.20": "Took 3% over the buy, not three R.",
+    "$42.00": "Added one R, not three.",
+    "$48.00": "Added four R, one too many."
+   }
   },
   {
    "key": "q18",
@@ -2315,10 +2337,10 @@
    "key": "q42",
    "skill": "setup.news_failure",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "nf.trim_1",
    "q": "Bought at 41.89 with the stop at 38.18. The 3R price is what percent over the buy?",
-   "answer": 26.6,
+   "answer": "26.6%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2351,7 +2373,18 @@
      "rests on the owner's rulebook (A13, B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "11.1%",
+    "8.9%",
+    "29.2%",
+    "26.6%"
+   ],
+   "wrong": {
+    "8.9%": "Counted one R, forgot the three.",
+    "29.2%": "Divided by the stop, not the buy.",
+    "11.1%": "Read the dollar size of 3R as a percent."
+   }
   },
   {
    "key": "q43",
@@ -3261,11 +3294,11 @@
    "key": "q67",
    "skill": "setup.news_failure",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "nf.trim_2",
    "q": "Bought at 86.36 with the stop at 81.48. Where is 5R?",
-   "answer": 110.76,
-   "why": "110.76. One R is the buy minus the stop: 86.36 minus 81.48. Add five of those to the buy. 5R is another mark to measure by. Selling into a push, at about 5 to 10R, is often best.",
+   "answer": "$110.76",
+   "why": "110.76. One R is the buy minus the stop: 86.36 minus 81.48. Multiply that by five and add it to the 86.36 buy to get 110.76. 5R is another mark to measure by. Selling into a push, at about 5 to 10R, is often best.",
    "lesson_line": "Know your 5R before the open. It is a mark to measure by.",
    "facts": [
     "r11",
@@ -3291,7 +3324,18 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$105.88",
+    "$91.24",
+    "$115.64",
+    "$110.76"
+   ],
+   "wrong": {
+    "$105.88": "Added five R to the stop, not the buy.",
+    "$91.24": "Added one R, not five.",
+    "$115.64": "Added six R, one too many."
+   }
   },
   {
    "key": "q68",
@@ -3581,13 +3625,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (86.36-81.48)/86.36*100 = 5.65 -> 5.7, matches dAAOIb; A13, A3 and m3 grounded. D-005 owner flag stands."
+   "notes": "5.7% = 4.88/86.36. 6.0% is 4.88/81.48 (wrong base), 4.9% dollar gap, 0.6% decimal slip. All real."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Drop n15 ('Sell a third at 3R') citation; arithmetic otherwise fine."
+   "notes": "46.00 correct (40+3*2). But the answer was the largest choice, so test-wise it stands out. Swapped the sign-error choice for a one-R-too-many count slip and wrote the steps into the why."
   },
   "q18": {
    "status": "pass",
@@ -3737,8 +3781,8 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Arithmetic fine; drop the third-at-3R facts it does not use."
+   "fixed": false,
+   "notes": "26.6% = 3*3.71/41.89. 8.9% one R, 29.2% divided by stop (11.13/38.18), 11.1% dollar size as a percent. All real."
   },
   "q43": {
    "status": "cut",
@@ -3908,8 +3952,8 @@
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "5R arithmetic; 5 to 10R judgment cited."
+   "fixed": true,
+   "notes": "110.76 correct (86.36+5*4.88). Answer was the largest choice; replaced the subtract-5R choice with a six-R count slip (115.64) and wrote the steps into the why."
   },
   "q68": {
    "status": "pass",

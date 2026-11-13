@@ -956,9 +956,9 @@
   {
    "key": "q08",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Plan: buy at $30, stop at $29. You chase it to $33, same stop. Your risk per share is how many times the plan's?",
-   "answer": 4,
+   "answer": "4 times",
    "calc": {
     "fn": "arith",
     "args": {
@@ -968,7 +968,7 @@
      "plan": 30
     }
    },
-   "suffix": "times",
+   "suffix": "",
    "why": "4 times. Risk per share is entry minus stop. The plan risked $30 minus $29 a share. The chase risks $33 minus $29 a share. Same stop, four times the risk per share. Our rule keeps the dollar risk, so the shares shrink. And $33 is more than 4% above $30, so our rule skips it.",
    "lesson_line": "Chasing doesn't move your stop. It widens your risk per share. Past 4% above the buy point, we don't buy.",
    "facts": [
@@ -988,7 +988,18 @@
      "+1 fixed before (question wording changed by the checker)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "3 times",
+    "0.25 times",
+    "1.1 times",
+    "4 times"
+   ],
+   "wrong": {
+    "3 times": "Compared the two prices, 33 less 30, not the two risks.",
+    "1.1 times": "Divided one price by the other.",
+    "0.25 times": "Flipped the ratio."
+   }
   },
   {
    "key": "q09",
@@ -1155,9 +1166,9 @@
   {
    "key": "q14",
    "rung": 6,
-   "format": "numeric",
-   "q": "The buy point was $40. You missed it, and the stock now trades at $43.60. How far past the buy point is it, in percent?",
-   "answer": 9,
+   "format": "mcq",
+   "q": "The buy point was $40. You missed it, and the stock now trades at $43.60. How far past the buy point is it?",
+   "answer": "9.0%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1165,7 +1176,7 @@
      "end": 43.6
     }
    },
-   "suffix": "%",
+   "suffix": "",
    "why": "9%. That's $43.60 minus $40, divided by $40. Our rule: never buy more than 4% above the buy point, so we don't buy this one. The further past the buy point you buy, the greater the risk of being shaken out. The stop stays under the buy point, so the distance grows and the shares shrink.",
    "lesson_line": "Measure how far past the buy point you are before you buy. Past 4%, let it go.",
    "facts": [
@@ -1188,7 +1199,18 @@
      "+1 fixed before (why reworded by the checker)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "8.3%",
+    "9.0%",
+    "3.6%",
+    "0.9%"
+   ],
+   "wrong": {
+    "8.3%": "Divided the gain by the current price, not the buy point.",
+    "0.9%": "Decimal slip.",
+    "3.6%": "Used the dollar gap as a percent."
+   }
   },
   {
    "key": "q15",
@@ -1312,9 +1334,9 @@
   {
    "key": "q18",
    "rung": 7,
-   "format": "numeric",
-   "q": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top, in %?",
-   "answer": 91,
+   "format": "mcq",
+   "q": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top?",
+   "answer": "91%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1324,7 +1346,7 @@
     },
     "round": 0
    },
-   "suffix": "%",
+   "suffix": "",
    "why": "91%. That's $120.75 minus $10.97, divided by $120.75, rounded. The run came on social media hype, from around $5 to about $120 in under three weeks. Many who arrived late endured significant pain. This measures how far down a buyer at the top was a few weeks later, not a final result.",
    "lesson_line": "When the hype is everywhere, you're probably late. Many who came late here endured significant pain.",
    "facts": [
@@ -1345,7 +1367,18 @@
      "+1 fixed before (question reworded by the checker)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "9%",
+    "1,001%",
+    "110%",
+    "91%"
+   ],
+   "wrong": {
+    "9%": "Gave what was left, not the fall.",
+    "1,001%": "Divided the drop by the later price, not the top.",
+    "110%": "Used the dollar drop as a percent."
+   }
   },
   {
    "key": "q19",
@@ -1390,10 +1423,10 @@
   {
    "key": "q20",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
-   "q": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it, in %?",
-   "answer": 10.3,
+   "q": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it?",
+   "answer": "10.3%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1403,7 +1436,7 @@
     },
     "round": 1
    },
-   "suffix": "%",
+   "suffix": "",
    "why": "10.3%. That's $54 minus $48.45, divided by $54. Our default stop sits a few cents under the day's low or the prior day's low. After a big gap up, the prior day's low is far away. The size comes from the stop, so the same dollar risk buys far fewer shares. If the honest stop does not fit the risk, skip the trade.",
    "lesson_line": "After a gap, measure the stop before you buy. A wide stop means a small position.",
    "facts": [
@@ -1426,7 +1459,18 @@
      "+1 restated in this batch"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "8%",
+    "89.7%",
+    "10.3%",
+    "11.5%"
+   ],
+   "wrong": {
+    "11.5%": "Divided by the stop price, not the entry.",
+    "89.7%": "Gave the stop as a share of the entry.",
+    "8%": "Used the size of the gap up as the stop distance."
+   }
   },
   {
    "key": "q21",
@@ -1826,7 +1870,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (33-29)/(30-29)=4 correct. '$33 is more than 4% above $30' follows from the question's numbers (10%). Consistent with C28."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q09": {
    "status": "pass",
@@ -1861,8 +1905,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "pct_change 40 to 43.6 = 9. Why and trap state C28 as ours and credit the correction to Rhodes (f37). Grounded."
+   "fixed": true,
+   "notes": "Tell: 9% was the only whole number among one-decimal choices. Made all four one decimal."
   },
   "q15": {
    "status": "pass",
@@ -1885,8 +1929,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc (120.75-10.97)/120.75*100 = 90.9, rounds to 91; numbers from f18. Two defects: (1) the question asks 'how far down' with no unit while sister numerics (q14, q20) say 'in %'; a dollar answer ($109.78) is a fair reading, so 'in %' added (136 chars). (2) the lesson line 'Late buyers take the worst of the fall' is the same overreach the last checker removed from the deeper example (the latest buyers bought on the way down); now uses f18's own words."
+   "fixed": false,
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q19": {
    "status": "pass",
@@ -1898,7 +1942,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Question 136 chars. Calc (54-48.45)/54*100 = 10.28, round 1 = 10.3. Stop placement matches A3/F62 (h13). Why and trap teach size-from-stop and skip-if-it-doesn't-fit (h12). Integrator note: A13 (stop usually within about 3% of the buy) would sharpen the 'skip' point if the file ever carries it as a fact."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q21": {
    "status": "pass",

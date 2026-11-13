@@ -1288,10 +1288,10 @@
    "key": "q14",
    "skill": "setup.weinstein_4b",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "w4b.trim_1",
    "q": "Bought at 22.12 with the stop at 21.49. Where is 3R?",
-   "answer": 24.01,
+   "answer": "$24.01",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1301,7 +1301,7 @@
     },
     "round": 2
    },
-   "why": "24.01. One R is the fill minus the stop. Add three of those to the fill and you get 24.01. That is a measuring stick, not a sell order. This is PENN's buy.",
+   "why": "One R is 22.12 minus 21.49. Add three of those to the buy of 22.12 and you get 24.01. That is a measuring stick, not a sell order. This is PENN's buy.",
    "lesson_line": "Know your 3R before the open. It measures the move; it is not a sell order.",
    "facts": [
     "c28",
@@ -1319,16 +1319,27 @@
      "the 3R trim is the owner's hard rule (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$23.38",
+    "$22.75",
+    "$24.64",
+    "$24.01"
+   ],
+   "wrong": {
+    "$23.38": "Added the three R to the stop, not to the buy.",
+    "$22.75": "Added only one R.",
+    "$24.64": "Counted four R instead of three."
+   }
   },
   {
    "key": "q15",
    "skill": "setup.weinstein_4b",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "w4b.cycle_low",
    "q": "The 52-week high is 60.00 and the cycle low is 31.50. How far under the high is the low, in percent?",
-   "answer": 47.5,
+   "answer": "47.5%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -1337,7 +1348,7 @@
     },
     "round": 1
    },
-   "why": "47.5%. The high minus the low, divided by the high.",
+   "why": "The drop is 60.00 minus 31.50. Divide that drop by the high of 60.00. The answer is 47.5%.",
    "lesson_line": "Depth is high minus low, over the high. Measure it.",
    "facts": [
     "c01"
@@ -1357,16 +1368,27 @@
    "depends_on": [
     "D-070"
    ],
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "52.5%",
+    "47.5%",
+    "90.5%",
+    "28.5%"
+   ],
+   "wrong": {
+    "52.5%": "Found where the low sits as a share of the high, not the drop.",
+    "90.5%": "Divided the drop by the low instead of the high.",
+    "28.5%": "Read the dollar drop as a percent."
+   }
   },
   {
    "key": "q16",
    "skill": "setup.weinstein_4b",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "w4b.higher_low",
    "q": "The cycle low is 20.00 and the higher low is 21.40. How far above the cycle low is it, in percent?",
-   "answer": 7.0,
+   "answer": "7.0%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1375,14 +1397,14 @@
     },
     "round": 1
    },
-   "why": "7%. The step up is the higher low minus the cycle low, divided by the cycle low. Our working rule wants at least 3%, so this clears it. It also needs to be set at least 10 sessions after the low, after a rally of 5% or more.",
+   "why": "The step up is 21.40 minus 20.00. Divide it by the cycle low of 20.00 to get 7.0%. Our working rule wants at least 3%, so this clears it. It also needs to be set at least 10 sessions after the low, after a rally of 5% or more.",
    "lesson_line": "Measure the step up from the cycle low.",
    "facts": [
     "c04"
    ],
    "suffix": "%",
    "house": true,
-   "simple": "The higher low is 7% above the cycle low, which clears our 3% minimum.",
+   "simple": "The higher low is 7.0% above the cycle low, which clears our 3% minimum.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -1392,7 +1414,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "6.5%",
+    "107.0%",
+    "0.07%",
+    "7.0%"
+   ],
+   "wrong": {
+    "6.5%": "Divided the step up by the higher low instead of the cycle low.",
+    "0.07%": "Forgot to multiply by one hundred.",
+    "107.0%": "Gave the higher low as a share of the cycle low, not the step up."
+   }
   },
   {
    "key": "q17",
@@ -1659,10 +1692,10 @@
    "key": "q25",
    "skill": "setup.weinstein_4b",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "w4b.trim_2",
    "q": "Bought at 12.37, stop 12.06. The stock trades to 13.92. How many R is that?",
-   "answer": 5.0,
+   "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -1672,7 +1705,7 @@
     },
     "round": 1
    },
-   "why": "5R. One R is the fill minus the stop. The gain is 13.92 minus 12.37, and that gain is five times one R. The default plan sells the second third at 5R. This is AMD's buy.",
+   "why": "One R is the buy minus the stop: 12.37 minus 12.06. The gain is 13.92 minus 12.37. Divide the gain by one R to get 5.0R. The default plan sells the second third at 5R. This is AMD's buy.",
    "lesson_line": "Count in R, not dollars. 5R is the second trim.",
    "facts": [
     "c29",
@@ -1690,7 +1723,18 @@
      "the 5R trim is the owner's adjustable default (E51)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "1.55R",
+    "5.0R",
+    "6.0R",
+    "0.2R"
+   ],
+   "wrong": {
+    "1.55R": "Called the dollar gain the R multiple.",
+    "6.0R": "Measured the gain from the stop instead of the buy.",
+    "0.2R": "Flipped the division: risk over gain."
+   }
   },
   {
    "key": "q26",
@@ -2192,10 +2236,10 @@
    "key": "q39",
    "skill": "setup.weinstein_4b",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "w4b.stop",
    "q": "Account 50,000. Risk 1%. Buy 22.12, stop 21.49. How many shares does the risk allow?",
-   "answer": 793,
+   "answer": "793 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2206,7 +2250,7 @@
     },
     "round": 0
    },
-   "why": "793 shares. Risk is 1% of 50,000. Divide that by the buy minus the stop, 22.12 minus 21.49, and round down. The stop sets the size. The final size is the smaller of this and the position cap.",
+   "why": "Risk is 1% of 50,000. Divide that by the buy minus the stop, 22.12 minus 21.49, and round down to 793 shares. The stop sets the size. The final size is the smaller of this and the position cap.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2224,7 +2268,18 @@
      "rests on the owner's rulebook (A3 and A5)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "7,936 shares",
+    "22 shares",
+    "793 shares",
+    "79 shares"
+   ],
+   "wrong": {
+    "22 shares": "Divided the risk dollars by the buy price, not the stop distance.",
+    "7,936 shares": "Slipped a decimal and risked ten times too much.",
+    "79 shares": "Slipped a decimal the other way and risked a tenth too little."
+   }
   },
   {
    "key": "q40",
@@ -3727,19 +3782,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic; measuring stick wording."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(60-31.5)/60 = 47.5%. Calc and key agree; method is plain."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "21.4/20 = 1.07, so 7.0%. 3%, 10 sessions and 5% rally all in c04."
+   "fixed": true,
+   "notes": "Recomputed 7.0%. Answer was the only whole number, a tell; swapped the dollar-as-percent choice for the ratio mistake."
   },
   "q17": {
    "status": "pass",
@@ -3792,9 +3847,9 @@
   },
   "q25": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q26": {
    "status": "pass",
@@ -3879,7 +3934,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "500 / 0.63 = 793.65, rounded down 793. 793 x 22.12 is about 35% of 50,000, under the 40% cap, so the cap does not change the key."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q40": {
    "status": "cut",

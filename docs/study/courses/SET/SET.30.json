@@ -1848,10 +1848,10 @@
    "key": "q19",
    "skill": "setup.parabolic_long",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pl.context_decline",
    "q": "The 50-day is 180.00, ATR 4.00, the close before the climax day 150.00. How many ATR under the 50-day is it?",
-   "answer": 7.5,
+   "answer": "7.5 ATR",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1882,7 +1882,18 @@
    "depends_on": [
     "D-118"
    ],
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "30.0 ATR",
+    "120.0 ATR",
+    "0.1 ATR",
+    "7.5 ATR"
+   ],
+   "wrong": {
+    "30.0 ATR": "Gave the gap in dollars, no divide.",
+    "120.0 ATR": "Multiplied by the ATR instead of dividing.",
+    "0.1 ATR": "Flipped it: divided the ATR by the gap."
+   }
   },
   {
    "key": "q20",
@@ -2052,10 +2063,10 @@
    "key": "q25",
    "skill": "setup.parabolic_long",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pl.context_unwind",
    "q": "The peak four sessions ago was 88.00 and today's low is 50.00. How far has it fallen, in percent?",
-   "answer": 43.2,
+   "answer": "43.2%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -2064,7 +2075,7 @@
     },
     "round": 1
    },
-   "why": "43.2%. The peak minus the low, divided by the peak: (88.00 minus 50.00) divided by 88.00. Kullamagi's premise for the long is a parabolic short that fell 50-60% or more in a few days. That is his bar. Our own DB example fell only 19.7% in 9 sessions, with four boxes ticked.",
+   "why": "43.2%. The peak minus the low, over the peak: (88.00 - 50.00) / 88.00 = 43.2%. Kullamagi's premise for the long is a parabolic short that fell 50-60% or more in a few days. That is his bar. Our own DB example fell only 19.7% in 9 sessions, with four boxes ticked.",
    "lesson_line": "Measure the fall from the peak to the climax low. Percent, then structure.",
    "facts": [
     "k01",
@@ -2085,16 +2096,27 @@
    "depends_on": [
     "D-118"
    ],
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "76.0%",
+    "43.2%",
+    "38.0%",
+    "56.8%"
+   ],
+   "wrong": {
+    "76.0%": "Divided by the low instead of the peak.",
+    "38.0%": "Gave the drop in dollars as a percent.",
+    "56.8%": "Gave the low as a share of the peak."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.parabolic_long",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pl.room_to_target",
    "q": "Entry 20.50, stop 19.80, the 9 EMA at 21.70. How many R to the 9 EMA?",
-   "answer": 1.7,
+   "answer": "1.7R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -2104,7 +2126,7 @@
     },
     "round": 1
    },
-   "why": "1.7R. The 9 EMA minus the entry, divided by the entry minus the stop: (21.70 minus 20.50) divided by (20.50 minus 19.80). Our card wants the 9 EMA at least 2R above the entry. At 1.7R there is no room to the target, so we pass.",
+   "why": "1.7R. The 9 EMA minus the entry, over the entry minus the stop: (21.70 - 20.50) / (20.50 - 19.80) = 1.7R. Our card wants the 9 EMA at least 2R above the entry. At 1.7R there is no room to the target, so we pass.",
    "lesson_line": "Measure the room to the 9 EMA before you buy. Under 2R, pass.",
    "facts": [
     "c08",
@@ -2121,7 +2143,18 @@
      "the 2R room is the card's proposal"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "1.2R",
+    "2.7R",
+    "1.7R",
+    "0.6R"
+   ],
+   "wrong": {
+    "2.7R": "Measured the room from the stop, not the entry.",
+    "1.2R": "Used the dollar room as R, no divide.",
+    "0.6R": "Flipped it: divided the risk by the room."
+   }
   },
   {
    "key": "q27",
@@ -2688,10 +2721,10 @@
    "key": "q42",
    "skill": "setup.parabolic_long",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pl.stop",
    "q": "Account 40,000. Risk 0.5%. Fill 76.76, stop 73.20. How many shares?",
-   "answer": 56,
+   "answer": "56 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2702,7 +2735,7 @@
     },
     "round": 0
    },
-   "why": "56 shares. Account times risk percent, divided by the fill minus the stop, rounded down: 40,000 times 0.5%, divided by (76.76 minus 73.2), is just over 56, so 56. A 4.6% stop means fewer shares, not a tighter stop. A position cap can only make the size smaller.",
+   "why": "56 shares. Risk in dollars is 40,000 x 0.5%. Divide by the fill minus the stop: 40,000 x 0.5% / (76.76 - 73.20), rounded down to 56. A 4.6% stop means fewer shares, not a tighter stop. A position cap can only make the size smaller.",
    "lesson_line": "The stop sets the size. Never the other way round.",
    "facts": [
     "h03",
@@ -2720,7 +2753,18 @@
      "rests on the owner's rulebook (A3, A5)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "57 shares",
+    "521 shares",
+    "561 shares",
+    "56 shares"
+   ],
+   "wrong": {
+    "57 shares": "Rounded up, so the risk goes over 0.5%.",
+    "521 shares": "Divided the whole account by the fill price.",
+    "561 shares": "Moved the decimal on the risk percent."
+   }
   },
   {
    "key": "q43",
@@ -3232,10 +3276,10 @@
    "key": "q55",
    "skill": "setup.parabolic_long",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pl.stop_width",
    "q": "Fill 20.50. The climax low is 19.00 and the stop sits five cents under it. How far below the fill is the stop, in percent?",
-   "answer": 7.56,
+   "answer": "7.56%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3245,7 +3289,7 @@
     },
     "round": 2
    },
-   "why": "7.56%. The fill minus the stop, divided by the fill, where the stop is five cents under the 19.00 low. That is between 3% and 8%, so we keep the honest stop and size down by the formula; over about 8% we would skip. SLG's stop was 7.2% away and it reached 3R in 6 sessions.",
+   "why": "7.56%. The stop is five cents under the 19.00 low. The fill minus the stop, over the fill: (20.50 - (19.00 - 0.05)) / 20.50 = 7.56%. That is between 3% and 8%, so we keep the honest stop and size down by the formula. Over about 8% we would skip. SLG's stop was 7.2% away and it reached 3R in 6 sessions.",
    "lesson_line": "Measure the honest stop before the size. Wide but under 8% is fewer shares, not no trade.",
    "facts": [
     "c17",
@@ -3267,7 +3311,18 @@
      "the 8% skip line is the card's proposal, a number that can change"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "7.32%",
+    "8.18%",
+    "7.56%",
+    "1.55%"
+   ],
+   "wrong": {
+    "7.32%": "Forgot the five cents under the low.",
+    "8.18%": "Divided by the stop instead of the fill.",
+    "1.55%": "Gave the gap in dollars as a percent, no divide."
+   }
   },
   {
    "key": "q56",
@@ -3519,10 +3574,10 @@
    "key": "q62",
    "skill": "setup.parabolic_long",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "pl.prior_run",
    "q": "The run's low was 20.00 and the peak 34.00. The run before the unwind, in percent?",
-   "answer": 70.0,
+   "answer": "70.0%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -3550,7 +3605,18 @@
      "+2 a computed key (pct_change, recomputed by the validator)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "41.2%",
+    "70.0%",
+    "14.0%",
+    "170.0%"
+   ],
+   "wrong": {
+    "41.2%": "Divided by the peak instead of the low.",
+    "14.0%": "Gave the gap in dollars as a percent.",
+    "170.0%": "Gave the ratio as a percent, forgot to subtract one."
+   }
   },
   {
    "key": "q63",
@@ -4018,7 +4084,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(180-150)/4 = 7.5; d01 shows the card's ATR stretch; no cut-off stated."
+   "notes": "7.5 ok; 30.0 dollars, 120.0 multiply, 0.1 flipped. 120.0 is a little silly but a real slip; left."
   },
   "q20": {
    "status": "pass",
@@ -4054,13 +4120,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(88-50)/88 = 43.18, rounds to 43.2; k01 and d03 are quoted; no ours-vs-his cut-off claimed."
+   "notes": "43.2 ok; 76.0 over low, 38.0 dollars, 56.8 low/peak. verified."
   },
   "q26": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "1.7 ok (1.71); 2.7 from stop, 1.2 dollars, 0.6 flipped. verified."
   },
   "q27": {
    "status": "pass",
@@ -4155,9 +4221,9 @@
   },
   "q42": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "56 ok (56.2); 57 up, 521 = account/fill, 561 = 5% risk. verified."
   },
   "q43": {
    "status": "pass",
@@ -4237,7 +4303,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep (3R yardstick). NOTE: 3-8% stop wording conflicts with D-005 (past 5% mostly wait), outside this chunk's D-013 scope"
+   "notes": "7.56 ok; 7.32 forgot cents, 8.18 over stop, 1.55 dollars. verified."
   },
   "q56": {
    "status": "pass",
@@ -4279,9 +4345,9 @@
   },
   "q62": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "70.0 ok; 41.2 over peak, 14.0 dollars, 170.0 ratio. verified."
   },
   "q63": {
    "status": "pass",

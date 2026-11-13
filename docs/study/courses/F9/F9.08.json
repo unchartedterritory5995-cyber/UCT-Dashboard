@@ -638,10 +638,10 @@
    "key": "q09",
    "skill": "risk.our_rules",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Account $50,000, risk 1%. Entry $40, stop $38.30. Under our rule, how many shares?",
-   "answer": 294,
+   "answer": "294 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -652,7 +652,7 @@
     }
    },
    "suffix": " shares",
-   "why": "294 shares. 1% of $50,000 is the dollars you will risk. Divide that by the distance from the $40 entry to the $38.30 stop. The math leaves a fraction of a share, so round down, never up. Then check the cap: 294 shares at $40 is well under 40% of $50,000, so the risk size stands.",
+   "why": "294 shares. 1% of $50,000 is $500 at risk. The stop distance is $40 minus $38.30. Divide the $500 by that distance and round down to 294, never up. The cap allows 500 shares, so the smaller 294 wins.",
    "lesson_line": "Dollars at risk divided by the stop distance. Round down. Then check the cap.",
    "facts": [
     "h01",
@@ -668,16 +668,27 @@
      "a computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "500 shares",
+    "13 shares",
+    "2,941 shares",
+    "294 shares"
+   ],
+   "wrong": {
+    "500 shares": "Used the position cap as the size and skipped the risk math.",
+    "13 shares": "Divided the risk dollars by the stop price, not the stop distance.",
+    "2,941 shares": "Decimal slip: the risk dollars came out ten times too big."
+   }
   },
   {
    "key": "q10",
    "skill": "risk.our_rules",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Account $50,000, risk 1%. Entry $50, stop $49.50. Under our rules, how many shares do you buy?",
-   "answer": 400,
+   "answer": "400 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -688,7 +699,7 @@
     }
    },
    "suffix": " shares",
-   "why": "400 shares. The risk math alone would put the whole account in one stock: 1% of $50,000 over the distance from $50 to $49.50. The cap wins: 40% of $50,000 at the $50 entry is 400 shares. The size is always the smaller of the two. You end up risking less than the 1% you planned, and that's fine.",
+   "why": "400 shares. The risk math is 1% of $50,000 over the distance from $50 to $49.50. That gives 1,000 shares, the whole account at $50. The cap wins: 40% of $50,000 at the $50 entry is 400 shares. The size is the smaller of the two.",
    "lesson_line": "Risk math, then the cap. The smaller number is your size.",
    "facts": [
     "h01",
@@ -710,16 +721,27 @@
      "fixed before (the question led with 'Our 40% cap applies')"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "500 shares",
+    "1,000 shares",
+    "400 shares",
+    "40 shares"
+   ],
+   "wrong": {
+    "1,000 shares": "Stopped at the risk math and skipped the cap.",
+    "500 shares": "Took the dollars at risk as the share count.",
+    "40 shares": "Decimal slip on the cap: took a tenth of it."
+   }
   },
   {
    "key": "q11",
    "skill": "risk.our_rules",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Account $80,000. The setup is an A and you use the top of its range. How many dollars are at risk?",
-   "answer": 800,
+   "answer": "$800",
    "calc": {
     "fn": "arith",
     "args": {
@@ -744,16 +766,27 @@
      "a computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$400",
+    "$600",
+    "$8,000",
+    "$800"
+   ],
+   "wrong": {
+    "$400": "Took the bottom of the A range, not the top.",
+    "$600": "Took the middle of the A range, not the top.",
+    "$8,000": "Decimal slip: ten times too much of the account."
+   }
   },
   {
    "key": "q12",
    "skill": "risk.our_rules",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "A stock trades 4 million shares a day on average. Under our rule, what's the most shares you may own?",
-   "answer": 40000,
+   "answer": "40,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -781,7 +814,18 @@
      "the share-volume reading of D42 still awaits the owner's confirmation (conflicts line)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "400,000 shares",
+    "40,000 shares",
+    "4,000,000 shares",
+    "4,000 shares"
+   ],
+   "wrong": {
+    "400,000 shares": "Decimal slip: ten times the volume cap.",
+    "4,000,000 shares": "Used the whole average daily volume as the limit.",
+    "4,000 shares": "Decimal slip the other way: a tenth of the cap."
+   }
   },
   {
    "key": "q13",
@@ -899,10 +943,10 @@
    "key": "q16",
    "skill": "risk.our_rules",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Account $60,000. Our market reading is Green, so margin is allowed. What's the most all your positions together can be worth?",
-   "answer": 120000,
+   "answer": "$120,000",
    "calc": {
     "fn": "arith",
     "args": {
@@ -929,7 +973,18 @@
      "a computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$60,000",
+    "$180,000",
+    "$120,000",
+    "$12,000"
+   ],
+   "wrong": {
+    "$60,000": "Used the limit for a market that is not Green.",
+    "$180,000": "Added the margin on top of the 200% and counted the account twice.",
+    "$12,000": "Decimal slip: took 20% of the account, not 200%."
+   }
   },
   {
    "key": "q17",
@@ -1409,26 +1464,26 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc floors 500 / 1.70 = 294.1 to 294 (courses_lib _shares_from_risk uses math.floor). Cap check 294 x $40 under 40% of $50,000 holds. The 4.25% stop is wider than the usual ~3% (h06) but A13 is a guide, not a rule."
+   "fixed": true,
+   "notes": "Math right (500/1.70=294.1; cap 500; 13; 2941). Why never says the cap allows 500 shares, the 500-share choice's mistake."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Risk math 500 / 0.50 = 1,000 shares = $50,000, the whole account; cap 40% x 50,000 / 50 = 400. Key and why grounded (h01, h03)."
+   "notes": "Math right (500/0.50=1000; cap 400). Upgrade why already walks the steps."
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "800 = 1% of 80,000; 400/600 are range slips; 8,000 decimal. Original why walks the steps."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rests on reading D42 as share volume, the plain meaning of 'average daily volume'; the owner flag stays open. 'can move the price' matches f06's 'have the potential'."
+   "notes": "40,000 = 1% of 4M; wrongs are 10x, 100x, 0.1x slips; original why fine."
   },
   "q13": {
    "status": "cut",
@@ -1450,9 +1505,9 @@
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "120,000 = 200% of 60,000; 60,000 = 100%; 180,000 = 60k+120k; 12,000 = 20%. Why walks steps."
   },
   "q17": {
    "status": "pass",

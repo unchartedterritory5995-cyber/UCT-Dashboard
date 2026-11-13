@@ -640,9 +640,9 @@
   {
    "key": "q04",
    "rung": 2,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your account peaked at $50,000. It's now $42,500. What's your drawdown?",
-   "answer": 15,
+   "answer": "15%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -651,7 +651,7 @@
     }
    },
    "suffix": "%",
-   "why": "15%. Drawdown is the drop from the peak divided by the peak. Take the fall from $50,000 to $42,500 and divide it by $50,000. Divide by the peak, never by the low.",
+   "why": "15%. The drop runs from $50,000 to $42,500. Divide it by the $50,000 peak to get 15%. Divide by the peak, never by the low.",
    "lesson_line": "Drawdown is the peak minus the low, divided by the peak.",
    "facts": [
     "f02",
@@ -666,7 +666,18 @@
      "computed key (calc drawdown_pct)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "17.6%",
+    "85%",
+    "1.5%",
+    "15%"
+   ],
+   "wrong": {
+    "17.6%": "Divided the drop by the low instead of the peak.",
+    "85%": "Gave the account's share of its peak, not the drop.",
+    "1.5%": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q05",
@@ -799,9 +810,9 @@
   {
    "key": "q09",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You started the year at $40,000, ran it to $50,000, and now sit at $45,000. What's your drawdown?",
-   "answer": 10,
+   "answer": "10%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -810,7 +821,7 @@
     }
    },
    "suffix": "%",
-   "why": "10%. Drawdown runs from the peak, $50,000, not from the $40,000 start. The drop to $45,000 is 10% of the peak. You can be up on the year and in a drawdown at once.",
+   "why": "10%. Drawdown runs from the $50,000 peak. The drop to $45,000, divided by the peak, is 10%. You can be up on the year and in a drawdown.",
    "lesson_line": "Divide the drop by the high, wherever you started.",
    "facts": [
     "f12",
@@ -827,14 +838,25 @@
      "computed key (calc drawdown_pct)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "0%",
+    "10%",
+    "11.1%",
+    "12.5%"
+   ],
+   "wrong": {
+    "0%": "Thought you are not in a drawdown because you are up on the year.",
+    "11.1%": "Divided the drop by the current $45,000, not the peak.",
+    "12.5%": "Measured the move from the $40,000 start."
+   }
   },
   {
    "key": "q10",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your account fell from $50,000 to $40,000. What percent gain takes it back to $50,000?",
-   "answer": 25,
+   "answer": "25%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -843,7 +865,7 @@
     }
    },
    "suffix": "%",
-   "why": "25%. The climb back starts from $40,000, not $50,000. Going from $40,000 to $50,000 is a 25% gain. So a 20% drop needs a 25% climb, because the gain is earned on less money.",
+   "why": "25%. The climb back starts from $40,000. The gain you need, divided by $40,000, is 25%. A 20% drop needs a 25% climb.",
    "lesson_line": "Gains are earned on what's left. That's why every loss costs more to fix.",
    "facts": [
     "f07",
@@ -859,7 +881,18 @@
      "computed key (calc pct_change)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "20%",
+    "80%",
+    "25%",
+    "125%"
+   ],
+   "wrong": {
+    "20%": "Used the same percent as the drop.",
+    "80%": "Took the $40,000 over $50,000 ratio as the gain.",
+    "125%": "Took the $50,000 over $40,000 ratio and never took off the starting amount."
+   }
   },
   {
    "key": "q11",
@@ -1018,10 +1051,10 @@
   {
    "key": "q15",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Your account is $90,000, down 10% from its high. Under our drawdown ladder, what's the most you put in one stock?",
-   "answer": 4500,
+   "answer": "$4,500",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1031,7 +1064,7 @@
     }
    },
    "prefix": "$",
-   "why": "$4,500. After a 10% drawdown, our max position is 5% of the account. 5% of the $90,000 account is $4,500. Find your rung on the ladder first, then turn the percent into dollars.",
+   "why": "$4,500. After a 10% drawdown, our max position is 5% of the account. 5% of $90,000 is $4,500.",
    "lesson_line": "Find your step on the ladder first. Then turn the percent into dollars.",
    "facts": [
     "h02",
@@ -1049,7 +1082,18 @@
      "fixed before (my to our)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$5,000",
+    "$9,000",
+    "$450",
+    "$4,500"
+   ],
+   "wrong": {
+    "$9,000": "Used the 10% drawdown as the cap.",
+    "$450": "Decimal slip: moved the decimal one place.",
+    "$5,000": "Took 5% of the account's old high, not the current $90,000."
+   }
   },
   {
    "key": "q16",
@@ -1122,9 +1166,9 @@
   {
    "key": "q18",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "On Black Monday, October 19, 1987, the Dow fell 22.6% in one day. What gain did it need to win that back? Use one decimal.",
-   "answer": 29.2,
+   "answer": "29.2%",
    "calc": {
     "fn": "gain_to_recover",
     "args": {
@@ -1133,7 +1177,7 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "29.2%. On October 19, 1987, the Dow fell 22.6% in one day. Reversing it needed a 29.2% gain, because the climb back starts from the lower level. Every loss needs a bigger percent gain than itself.",
+   "why": "29.2%. After a 22.6% fall you hold less than you did. The gain you need is the 22.6% you lost, divided by what is left. That is 29.2%.",
    "lesson_line": "Every drop needs a bigger gain to undo it. Even a single day's.",
    "facts": [
     "f21",
@@ -1153,7 +1197,18 @@
      "fixed before (f14 added)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "22.6%",
+    "2.9%",
+    "45.2%",
+    "29.2%"
+   ],
+   "wrong": {
+    "22.6%": "Used the same percent as the loss.",
+    "2.9%": "Decimal slip: moved the decimal one place.",
+    "45.2%": "Doubled the loss."
+   }
   },
   {
    "key": "q19",
@@ -1231,9 +1286,9 @@
   {
    "key": "q21",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "q": "From your high, you take ten losses in a row, each 2% of what's left. To the nearest percent, what gain gets you back to the high?",
-   "answer": 22,
+   "answer": "22%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1244,7 +1299,7 @@
     "round": 0
    },
    "suffix": "%",
-   "why": "22%. Each 2% loss comes off a smaller account, and the climb back is earned on the smaller account too. So the gain you need is bigger than the hole. That's the cost of one cold streak at 2% a trade.",
+   "why": "22%. Each loss is 2% of what is left, ten times over. The account ends up well below the high. The gain you need, divided by that smaller account, is 22%.",
    "lesson_line": "Ten 2% losses in a row need about a 22% gain to undo.",
    "facts": [
     "f14",
@@ -1263,7 +1318,18 @@
      "fixed before (wording)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "20%",
+    "22%",
+    "18%",
+    "25%"
+   ],
+   "wrong": {
+    "20%": "Added up ten 2% losses.",
+    "18%": "Gave the size of the hole, not the climb back.",
+    "25%": "Treated it like a flat 20% loss."
+   }
   },
   {
    "key": "q22",
@@ -1475,10 +1541,10 @@
    "key": "q28",
    "skill": "risk.drawdown",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "You started the month at $60,000. At what account value does our monthly loss limit stop new trades for the month?",
-   "answer": 55200,
+   "answer": "$55,200",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1488,7 +1554,7 @@
     }
    },
    "prefix": "$",
-   "why": "$55,200. Our monthly limit is 8% down from the month's starting value, and 8% below $60,000 is $55,200. Hit it and there are no new trades until the calendar month ends. It runs from the month's start, not the account's high.",
+   "why": "$55,200. Our monthly limit is 8% below the month's start. 8% of $60,000 is $4,800. Take that off $60,000 to get $55,200.",
    "lesson_line": "Monthly limit: 8% down from where the month started, and the month is closed to new trades.",
    "facts": [
     "h09"
@@ -1502,7 +1568,18 @@
      "rests on the owner's rulebook (B16)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$4,800",
+    "$64,800",
+    "$55,200",
+    "$59,520"
+   ],
+   "wrong": {
+    "$4,800": "Gave the loss amount, not the account value.",
+    "$64,800": "Added the 8% instead of taking it off.",
+    "$59,520": "Decimal slip: took a tenth of the limit off."
+   }
   },
   {
    "key": "q29",
@@ -1549,10 +1626,10 @@
    "key": "q30",
    "skill": "risk.drawdown",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Your account peaked at $80,000 and fell 10%. Under our rule, at what value does the normal cap come back?",
-   "answer": 76000,
+   "answer": "$76,000",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1562,7 +1639,7 @@
     }
    },
    "prefix": "$",
-   "why": "$76,000. The normal cap returns once the account is back within 5% of its peak, and 5% under $80,000 is $76,000. Until then, the ladder's smaller caps still apply.",
+   "why": "$76,000. The normal cap returns within 5% of the peak. 5% of $80,000 is $4,000. Take that off $80,000 to get $76,000.",
    "lesson_line": "Full size again within 5% of the peak. Not at the peak, not at the first green week.",
    "facts": [
     "h06",
@@ -1577,7 +1654,18 @@
      "rests on the owner's rulebook (B14) and the reading that exactly 5% down counts as within 5%"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$4,000",
+    "$72,000",
+    "$76,000",
+    "$79,600"
+   ],
+   "wrong": {
+    "$72,000": "Took 10% off the peak, the size of the fall.",
+    "$4,000": "Gave the 5% gap, not the account value.",
+    "$79,600": "Decimal slip: took a tenth of the 5% off."
+   }
   },
   {
    "key": "q31",
@@ -1764,9 +1852,9 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q05": {
    "status": "pass",
@@ -1796,13 +1884,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (50000-45000)/50000 = 10%. New lesson_line teaches the method and no longer copies q02's line."
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q11": {
    "status": "pass",
@@ -1832,7 +1920,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 90000*5/100 = 4500. 10% down -> 5% (h04); h14 (D43) supports sizing from the current account value. Owner flag on percent-of-today kept."
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q16": {
    "status": "pass",
@@ -1850,7 +1938,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 1/0.774-1 = 29.2%, matches f19 verbatim; 'needed' now matches f19's 'is required'. Date and 22.6% from f21 (Tier 1)."
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q19": {
    "status": "pass",
@@ -1868,7 +1956,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 1/0.98^10-1 = 22.4% -> 22. Stem 130 chars, now says 'of what's left' so the compounding is plain. Does not reveal q13's 18%; q13 (rung 5) comes first."
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q22": {
    "status": "pass",
@@ -1910,7 +1998,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 60000*(100-8)/100 = 55200. h09 grounds the 8%, the month's start and the calendar month. Lesson-level, not this question: B16 is first taught in q27's reveal (rung 4) and no walkthrough carries it; the resolver's integrator item (add a w4 or w3 step citing h08/h09) must land."
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q29": {
    "status": "pass",
@@ -1922,7 +2010,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 80000*95/100 = 76000. h06 'within 5% of its peak'; exactly 5% counts per the owner's B14 words ('full size okat at 5% drawdown again on the way up'). The false 'climb the rungs 5%, 8%, 10%' line is gone."
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q31": {
    "status": "pass",

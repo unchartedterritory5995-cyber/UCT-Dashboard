@@ -1190,9 +1190,9 @@
    "key": "q15",
    "skill": "psych.tilt",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You risk 1% a trade and lose three in a row. You double your risk to win it back, and that one stops out too. What's the day's total loss?",
-   "answer": 5,
+   "answer": "5%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1201,8 +1201,8 @@
      "risk": 1
     }
    },
-   "suffix": "%",
-   "why": "5%. Three losses at 1% each, then a doubled trade that loses twice the usual 1%. One revenge trade did the damage of two normal ones. CIBC warns that the second loss can be even larger than the first.",
+   "suffix": "",
+   "why": "5%. Three losses at 1% each is 3%. The doubled trade risks 2%, and it loses too. 3% plus 2% is 5%. One revenge trade did the damage of two normal ones. CIBC warns the second loss can be even larger than the first.",
    "lesson_line": "Doubling up after losses doesn't dig you out faster. It digs the hole faster.",
    "facts": [
     "f10",
@@ -1220,7 +1220,18 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "4%",
+    "3%",
+    "6%",
+    "5%"
+   ],
+   "wrong": {
+    "3%": "Left out the doubled trade.",
+    "4%": "Counted the doubled trade as a normal 1%.",
+    "6%": "Doubled the whole three-loss total, not one trade."
+   }
   },
   {
    "key": "q16",
@@ -1512,10 +1523,10 @@
    "key": "q23",
    "skill": "psych.tilt",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Our loss limit is 8% a month. The month began at $40,000, and you're down $2,600. How much more can you lose before new trades stop?",
-   "answer": 600,
+   "answer": "$600",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1526,7 +1537,7 @@
     }
    },
    "prefix": "$",
-   "why": "$600. Our limit is 8% of the month's starting value, here $40,000. Take away the $2,600 you've already lost, and $600 is left. A trade whose stop would lose more than that could carry you past the line. At the line, no new trades for the rest of the month.",
+   "why": "$600. Our limit is 8% of the month's starting value: 8% of $40,000 is $3,200. Take away the $2,600 already lost, and $600 is left. A trade whose stop would lose more than that could carry you past the line.",
    "lesson_line": "Know your room before every trade. When it's gone, no new trades until next month.",
    "simple": "You can lose $600 more, because 8% of $40,000, minus the $2,600 already lost, leaves $600.",
    "facts": [
@@ -1547,7 +1558,18 @@
      "replaces q10, which keyed a daily limit our rulebook (B15) does not use"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$3,200",
+    "$392",
+    "$600",
+    "$5,800"
+   ],
+   "wrong": {
+    "$3,200": "Forgot to subtract the loss already taken.",
+    "$392": "Took 8% of the current balance, not the starting value.",
+    "$5,800": "Added the loss to the limit instead of subtracting."
+   }
   },
   {
    "key": "q24",
@@ -1771,7 +1793,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 3x1 + 2x1 = 5 checks. New deeper trap rests on f52 and the question's own numbers. Naming the break-even pull after answering does not give q04's stem away."
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q16": {
    "status": "pass",
@@ -1821,7 +1843,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I worked it before reading the key: 8% of $40,000 is $3,200, and $3,200 minus $2,600 leaves $600. The calc matches. It agrees with B16 (h03: 8% down in a calendar month, from the month's starting value, means no new trades for the rest of the month), which I checked word for word in sizing_rule.md section 9. The stem fixes the clock (month) and the base (the month began at $40,000), so a peak-to-trough reading is ruled out. Every number in the why, simple and deeper comes from the stem, the calc or h03. The deeper counter rests on f25 and h02 (B15) and makes no claim about frequency. It overla"
+   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
   },
   "q24": {
    "status": "pass",

@@ -2436,10 +2436,10 @@
    "key": "q39",
    "skill": "vocab.process_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Win rate",
    "q": "You made 25 trades: 10 winners and 15 losers. What's your win rate?",
-   "answer": 40,
+   "answer": "40%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2449,7 +2449,7 @@
     }
    },
    "suffix": "%",
-   "why": "40%. StockCharts defines win rate as winners divided by winners plus losers. Here that is 10 winners out of 25 trades, or 40%. The bottom number counts every trade, losers included. Dividing winners by losers gives a different ratio, not a win rate.",
+   "why": "Win rate is winners divided by all trades. All trades are 10 winners plus 15 losers, which is 25. So 10 out of 25 is 40%. StockCharts defines win rate this way. Dividing winners by losers gives a different ratio.",
    "lesson_line": "Count every trade in the bottom number, losers included.",
    "facts": [
     "f37",
@@ -2463,7 +2463,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "66.7%",
+    "28.6%",
+    "60%",
+    "40%"
+   ],
+   "wrong": {
+    "66.7%": "Divided winners by losers, so the losers were left out of the bottom number.",
+    "28.6%": "Counted the winners twice in the bottom number.",
+    "60%": "Used the losers, not the winners, on top."
+   }
   },
   {
    "key": "q40",
@@ -2539,10 +2550,10 @@
    "key": "q42",
    "skill": "vocab.process_terms",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Average win",
    "q": "Your three winning trades made $300, $500 and $400. What's your average win?",
-   "answer": 400,
+   "answer": "$400",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2553,7 +2564,7 @@
     }
    },
    "prefix": "$",
-   "why": "$400. Add up the three winning trades and divide by how many there were. Steenbarger's monthly review tracks average win size next to average loss size. StockCharts: you want the average gain to outpace the average loss.",
+   "why": "Add the three wins: $300 plus $500 plus $400 is $1,200. Divide by the 3 trades, which gives $400. Steenbarger's monthly review tracks average win size next to average loss size. StockCharts: you want the average gain to outpace the average loss.",
    "lesson_line": "Average win and average loss are the sizes that give win rate its meaning.",
    "facts": [
     "f42",
@@ -2567,7 +2578,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$1,200",
+    "$400",
+    "$600",
+    "$300"
+   ],
+   "wrong": {
+    "$1,200": "Added the three wins and forgot to divide.",
+    "$600": "Divided the total by two instead of three.",
+    "$300": "Divided the total by four instead of three."
+   }
   },
   {
    "key": "q43",
@@ -2610,10 +2632,10 @@
    "key": "q44",
    "skill": "vocab.process_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Payoff ratio",
    "q": "Your average win is 6%. Your average loss is 2%. What's your payoff ratio?",
-   "answer": 3,
+   "answer": "3.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2622,7 +2644,7 @@
      "loss": 2
     }
    },
-   "why": "3. Fidelity's payoff ratio is the average percentage profit per trade divided by the average percentage loss per trade. Here that is 6% divided by 2%. Your average win is three times your average loss. On its own it doesn't say you make money. StockCharts: you also need to know how often the strategy wins.",
+   "why": "Payoff ratio is the average win divided by the average loss. Fidelity defines it in percentage terms. Here that is 6% divided by 2%, which is 3. Your average win is three times your average loss. On its own it doesn't say you make money. StockCharts: you also need to know how often the strategy wins.",
    "lesson_line": "Know both sizes. A win rate only means something next to this number.",
    "facts": [
     "f30",
@@ -2638,7 +2660,18 @@
      "fixed before (definition sources)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "0.33",
+    "3.00",
+    "4.00",
+    "12.00"
+   ],
+   "wrong": {
+    "0.33": "Flipped it: loss divided by win.",
+    "4.00": "Subtracted the loss from the win instead of dividing.",
+    "12.00": "Multiplied the win by the loss instead of dividing."
+   }
   },
   {
    "key": "q45",
@@ -2678,10 +2711,10 @@
    "key": "q46",
    "skill": "vocab.process_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Profit factor",
    "q": "Your winners made $9,000 in total. Your losers lost $6,000 in total. What's your profit factor?",
-   "answer": 1.5,
+   "answer": "1.50",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2690,7 +2723,7 @@
      "gross_loss": 6000
     }
    },
-   "why": "1.5. Profit factor is gross profit divided by gross loss: $9,000 divided by $6,000. StockCharts says anything over 1 shows a profitable trading strategy. Here the winners made 1.5 times what the losers lost. It uses totals, so it does not tell you how often you won.",
+   "why": "Profit factor is gross profit divided by gross loss. Gross profit is $9,000 and gross loss is $6,000. Then 9,000 divided by 6,000 is 1.5. StockCharts says anything over 1 shows a profitable trading strategy. It uses totals, so it does not tell you how often you won.",
    "lesson_line": "Over 1, the winners paid for the losers. Under 1, they didn't.",
    "facts": [
     "f29",
@@ -2705,7 +2738,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "2.50",
+    "0.67",
+    "1.50",
+    "0.60"
+   ],
+   "wrong": {
+    "0.67": "Flipped it: gross loss divided by gross profit.",
+    "2.50": "Divided the gross total of both sides by the loss.",
+    "0.60": "Divided profit by the combined total of wins and losses."
+   }
   },
   {
    "key": "q47",
@@ -2784,10 +2828,10 @@
    "key": "q50",
    "skill": "vocab.process_terms",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "term": "Negative expectancy",
    "q": "Win rate 70%. Average win $100. Average loss $400. What's your expectancy per trade, in dollars?",
-   "answer": -50,
+   "answer": "-50 dollars",
    "calc": {
     "fn": "expectancy_r",
     "args": {
@@ -2797,7 +2841,7 @@
     }
    },
    "prefix": "$",
-   "why": "-$50 a trade. Schwab defines expectancy as your average gain or loss per trade. You win 70% of the time and still lose $50 a trade on average. The average loss is far bigger than the average win. StockCharts: some traders like high winning percentages and small profits. Here the losses are too big for that style to pay.",
+   "why": "Expectancy is win rate times average win, minus loss rate times average loss. Winners add 70% of $100, which is $70. The other trades lose, and the loss rate is 100% minus 70%. That share of the $400 loss costs more than $70. The net is -$50 a trade.",
    "lesson_line": "A high win rate can still lose money. Check the size of the losses.",
    "facts": [
     "f15",
@@ -2817,7 +2861,18 @@
      "fixed before (reveal wording)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "-300 dollars",
+    "+70 dollars",
+    "-50 dollars",
+    "-250 dollars"
+   ],
+   "wrong": {
+    "-300 dollars": "Took average win minus average loss and ignored the win rate.",
+    "+70 dollars": "Counted only the winners and left out the losing side.",
+    "-250 dollars": "Swapped the win rate and loss rate in the formula."
+   }
   },
   {
    "key": "q51",
@@ -3683,9 +3738,9 @@
   },
   "q39": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "10/25=40 confirmed. 66.7=10/15, 28.6=10/35, 60=15/25 are all real slips. Why walks steps."
   },
   "q40": {
    "status": "pass",
@@ -3701,9 +3756,9 @@
   },
   "q42": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "(300+500+400)/3=400. 1200 no divide, 600 /2, 300 /4 are real. Why walks steps."
   },
   "q43": {
    "status": "pass",
@@ -3713,9 +3768,9 @@
   },
   "q44": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "6/2=3. 0.33 flipped, 4 subtracted, 12 multiplied; all real. Why shows 6% / 2%."
   },
   "q45": {
    "status": "pass",
@@ -3725,9 +3780,9 @@
   },
   "q46": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "9000/6000=1.5. 0.67 flipped, 2.50=15000/6000, 0.60=9000/15000; all real. Why shows steps."
   },
   "q47": {
    "status": "pass",
@@ -3750,8 +3805,8 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 0.7*100 - 0.3*400 = -50 checked. Simple 22 words. 'Several' wins replaces the ungrounded ratio. Tharp line on f96."
+   "fixed": true,
+   "notes": "Calc -50 confirmed (0.7*100 - 0.3*400 = 70-120). Choices and notes check out (-300 = 100-400, +70 winners only, -250 = 0.3*100 - 0.7*400). Why skipped the loser-side math (30% of 400 = 120); rewrote to show every step."
   },
   "q51": {
    "status": "cut",

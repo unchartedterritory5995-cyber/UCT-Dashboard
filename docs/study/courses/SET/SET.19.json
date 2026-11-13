@@ -1383,10 +1383,10 @@
    "key": "q16",
    "skill": "setup.power_earnings_gap",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "peg.trim_1",
    "q": "Bought at 48.93 with the stop at 48.20. One R is the gap between them. Where is 3R?",
-   "answer": 51.12,
+   "answer": "$51.12",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1396,14 +1396,14 @@
     },
     "round": 2
    },
-   "why": "51.12. One R is the fill minus the stop. Three of those added to the fill is the 3R price.",
+   "why": "$51.12. One R is the fill minus the stop: 48.93 - 48.20. Add three of those to the fill: 48.93 + 3 x (48.93 - 48.20) = 51.12.",
    "lesson_line": "Know your 3R price before the open.",
    "facts": [
     "h05",
     "d05"
    ],
    "house": true,
-   "prefix": "$",
+   "prefix": "",
    "simple": "Add three times the gap between the fill and the stop to the fill, which gives 51.12.",
    "tier": "core",
    "risk": {
@@ -1414,16 +1414,28 @@
      "fixed before: the BIDU 27.7R claim was dropped"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "$49.66",
+    "$50.39",
+    "$51.12",
+    "$51.93"
+   ],
+   "wrong": {
+    "$50.39": "Counted 3R up from the stop, which is only two R above the fill.",
+    "$49.66": "Added one R, not three.",
+    "$51.93": "Added three dollars to the fill. 3R is three times the risk, not three dollars."
+   },
+   "suffix": ""
   },
   {
    "key": "q17",
    "skill": "setup.power_earnings_gap",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "peg.close_a",
    "q": "The PEG day's low is 70.00, high 76.00, close 74.80. Where in the range did it close, from 0 to 1?",
-   "answer": 0.8,
+   "answer": "0.80",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1434,14 +1446,14 @@
     },
     "round": 2
    },
-   "why": "0.8. The close minus the low, divided by the high minus the low. Stewie wants a close at or near the highs, and 0.8 is in the top quarter. Our card cues that as an A, but grading is a judgment call.",
+   "why": "0.80. The close above the low is 74.80 - 70.00. The range is 76.00 - 70.00. So (74.80 - 70.00) / (76.00 - 70.00) = 0.80. Stewie wants a close at or near the highs, and 0.80 is in the top quarter. Our card cues that as an A, but grading is a judgment call.",
    "lesson_line": "Close minus low, over the range. The top quarter is a strong close.",
    "facts": [
     "c09",
     "st2"
    ],
    "house": true,
-   "simple": "The close sits 0.8 of the way from the low to the high, which is inside the top quarter.",
+   "simple": "The close sits 0.80 of the way from the low to the high, which is inside the top quarter.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1453,7 +1465,20 @@
    "depends_on": [
     "D-039"
    ],
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "0.98",
+    "0.20",
+    "0.06",
+    "0.80"
+   ],
+   "wrong": {
+    "0.98": "Divided the close by the high. That ignores the low.",
+    "0.20": "Measured down from the high instead of up from the low.",
+    "0.06": "Divided by the close, not by the day's range."
+   },
+   "prefix": "",
+   "suffix": ""
   },
   {
    "key": "q18",
@@ -1629,10 +1654,10 @@
    "key": "q23",
    "skill": "setup.power_earnings_gap",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "peg.gap_a_cue",
    "q": "Prior close 50.00, today's open 55.60. How big is the gap, in percent?",
-   "answer": 11.2,
+   "answer": "11.2%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1641,13 +1666,13 @@
     },
     "round": 1
    },
-   "why": "11.2. The open minus the prior close, divided by the prior close. A gap of 10% or more is a strong cue on our card, a guide and not a rule.",
+   "why": "11.2%. The gap is the open minus the prior close, over the prior close: (55.60 - 50.00) / 50.00 = 11.2%. A gap of 10% or more is a strong cue on our card, a guide and not a rule.",
    "lesson_line": "Gap percent is open over prior close. Ten percent is a strong cue.",
    "facts": [
     "c10"
    ],
    "house": true,
-   "suffix": "%",
+   "suffix": "",
    "simple": "The open is 11.2 percent above the prior close, which is over the 10 percent cue on our card.",
    "tier": "core",
    "risk": {
@@ -1657,7 +1682,19 @@
      "the 10% A cue is proposed and the gap floor is held under D-033"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "5.6%",
+    "11.2%",
+    "10.1%",
+    "1.1%"
+   ],
+   "wrong": {
+    "5.6%": "Used the dollar gap as if it were the percent.",
+    "10.1%": "Divided the gap by the open, not by the prior close.",
+    "1.1%": "A decimal slip, one place too far left."
+   },
+   "prefix": ""
   },
   {
    "key": "q24",
@@ -1691,10 +1728,10 @@
    "key": "q25",
    "skill": "setup.power_earnings_gap",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "peg.stop_pause",
    "q": "Fill 90.25, stop 88.19. How far is the stop from the fill, in percent?",
-   "answer": 2.3,
+   "answer": "2.3%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1704,7 +1741,7 @@
     },
     "round": 1
    },
-   "why": "2.3. The fill minus the stop, divided by the fill, comes to 2.3%. We prefer a stop 1 to 3% away, and up to 5% is acceptable. This is inside that range. These are LULU's levels.",
+   "why": "2.3%. The stop's distance is the gap over the fill: (90.25 - 88.19) / 90.25 x 100 = 2.3%. We prefer a stop 1 to 3% away, and up to 5% is acceptable. This is inside that range. These are LULU's levels.",
    "lesson_line": "Stop distance is the fill minus the stop, over the fill.",
    "facts": [
     "h04",
@@ -1713,7 +1750,7 @@
     "r01"
    ],
    "house": true,
-   "suffix": "%",
+   "suffix": "",
    "simple": "The stop sits 2.3 percent under the 90.25 fill, which is inside the range we prefer.",
    "tier": "core",
    "risk": {
@@ -1723,7 +1760,19 @@
      "the stop range is the owner's ruling D-005"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "2.1%",
+    "97.7%",
+    "0.23%",
+    "2.3%"
+   ],
+   "wrong": {
+    "97.7%": "Gave the stop as a share of the fill, not the gap between them.",
+    "0.23%": "A decimal slip, one place too far left.",
+    "2.1%": "Used the dollar gap as if it were the percent."
+   },
+   "prefix": ""
   },
   {
    "key": "q26",
@@ -2243,10 +2292,10 @@
    "key": "q40",
    "skill": "setup.power_earnings_gap",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "peg.stop_pause",
    "q": "Account 50,000. Risk 0.5%. Fill 90.25, stop 88.19. How many shares?",
-   "answer": 121,
+   "answer": "121 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2257,7 +2306,7 @@
     },
     "round": 0
    },
-   "why": "121. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, and the position cap can only make it smaller.",
+   "why": "121 shares. Dollars at risk are 50,000 x 0.5%. Risk per share is the fill minus the stop: 90.25 - 88.19. Divide the first by the second and round down to 121. The position cap can only make it smaller.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2265,7 +2314,7 @@
     "d08"
    ],
    "house": true,
-   "suffix": " shares",
+   "suffix": "",
    "simple": "The dollars we risk, divided by how far the stop sits under the fill, gives 121 shares.",
    "tier": "extended",
    "risk": {
@@ -2276,7 +2325,19 @@
      "fixed before: risk cut to 0.5% to stay under the cap"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "109 shares",
+    "554 shares",
+    "121 shares",
+    "1,213 shares"
+   ],
+   "wrong": {
+    "554 shares": "Divided the account by the price and ignored the stop.",
+    "1,213 shares": "Typed the risk as ten times too big, so the share count came out ten times too big.",
+    "109 shares": "Divided the risk dollars by the stop's percent, not by the dollars per share."
+   },
+   "prefix": ""
   },
   {
    "key": "q41",
@@ -2504,10 +2565,10 @@
    "key": "q47",
    "skill": "setup.power_earnings_gap",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "peg.position_adv",
    "q": "The stock's average daily volume is 400,000 shares. What is the most you should own?",
-   "answer": 4000,
+   "answer": "4,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2516,14 +2577,14 @@
     },
     "round": 0
    },
-   "why": "4,000. We never own more than 1% of a stock's average daily volume. One percent of 400,000 shares is 4,000 shares. This is a ceiling, and the risk-based size may be smaller.",
+   "why": "4,000 shares. We never own more than 1% of a stock's average daily volume, and 400,000 / 100 = 4,000. This is a ceiling, and the risk-based size may be smaller.",
    "lesson_line": "Never more than one percent of a day's average volume.",
    "facts": [
     "c30",
     "h19"
    ],
    "house": true,
-   "suffix": " shares",
+   "suffix": "",
    "simple": "One percent of 400,000 shares a day is 4,000 shares, the most we hold.",
    "tier": "extended",
    "risk": {
@@ -2533,7 +2594,19 @@
      "rests on the owner's rulebook D42"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "40,000 shares",
+    "4,000 shares",
+    "8,000 shares",
+    "400 shares"
+   ],
+   "wrong": {
+    "40,000 shares": "Took ten times the right share of the volume.",
+    "8,000 shares": "Doubled the 1% rule. The ceiling is 1% of the average daily volume.",
+    "400 shares": "Took a tenth of the right share of the volume."
+   },
+   "prefix": ""
   },
   {
    "key": "q48",
@@ -2698,10 +2771,10 @@
    "key": "q52",
    "skill": "setup.power_earnings_gap",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "peg.trim_2",
    "q": "Bought at 61.35, stop 60.21. A third sells at 67.05. How many R is that?",
-   "answer": 5.0,
+   "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -2711,7 +2784,7 @@
     },
     "round": 1
    },
-   "why": "5R. One R is the fill minus the stop. The sale at 67.05 is five of those above the fill, so the second third comes off at 5R.",
+   "why": "5R. One R is the fill minus the stop: 61.35 - 60.21. The gain per share is the sale minus the fill: 67.05 - 61.35. So (67.05 - 61.35) / (61.35 - 60.21) = 5.0, and that third banks 5R.",
    "lesson_line": "Count every exit in R. The second third is 5R.",
    "facts": [
     "h20",
@@ -2719,7 +2792,7 @@
     "d13"
    ],
    "house": true,
-   "suffix": "R",
+   "suffix": "",
    "simple": "The sale is five times the fill-to-stop gap above the fill, so it is 5R.",
    "deeper": {
     "example": "ILMN: 6.5x volume out of a tight uptrend, then a three-day pause 3.2% deep that held the PEG-day close. It reached 3R in 5 sessions."
@@ -2732,7 +2805,19 @@
      "rests on the owner's rulebook E51 second third at 5R"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "5.7R",
+    "6.0R",
+    "0.2R",
+    "5.0R"
+   ],
+   "wrong": {
+    "5.7R": "Used the dollar gain without dividing by one R.",
+    "6.0R": "Measured the gain from the stop, not from the fill.",
+    "0.2R": "Flipped the division: one R over the gain."
+   },
+   "prefix": ""
   },
   {
    "key": "q53",
@@ -3578,13 +3663,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: 3R price arithmetic only, no sell keyed"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(74.8-70)/6=0.8 verified; top-quarter claim from c09; grading hedged."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q18": {
    "status": "pass",
@@ -3613,14 +3698,14 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(55.6-50)/50=11.2% verified; c10 only, hedged as a card cue."
+   "fixed": true,
+   "notes": "Calc 11.2 ok. The 1.1% note said 'read the ratio as a percent', which would give 0.1%."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "edit agrees with D-005; quote verbatim"
+   "fixed": true,
+   "notes": "Calc 2.3 ok. The 0.23% note said 'forgot to multiply by 100', which would give 0.023%."
   },
   "q26": {
    "status": "pass",
@@ -3697,9 +3782,9 @@
   },
   "q40": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 121 ok. 108 shares came from a rounded 2.3%; with the exact 2.2825% the mistake gives 109, so a solver using exact figures would not find 108."
   },
   "q41": {
    "status": "pass",
@@ -3739,9 +3824,9 @@
   },
   "q47": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q49": {
    "status": "pass",
@@ -3765,8 +3850,8 @@
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(67.05-61.35)/1.14=5.0 verified; ILMN example matches d12/d13."
+   "fixed": true,
+   "notes": "Calc 5.0 ok. The why said 'the second third', which the stem never states; rewrote it to walk the steps for the one third sold."
   },
   "q53": {
    "status": "pass",

@@ -1166,9 +1166,9 @@
    "key": "q09",
    "skill": "fund.earnings_desk",
    "rung": 4,
-   "format": "numeric",
-   "q": "Alphabet, first quarter 2024: EPS $1.89. The LSEG consensus was $1.51. What was the surprise, in percent?",
-   "answer": 25.2,
+   "format": "mcq",
+   "q": "Alphabet, first quarter 2024: EPS $1.89. The LSEG consensus was $1.51. What was the surprise?",
+   "answer": "25.2%",
    "suffix": "%",
    "calc": {
     "fn": "pct_change",
@@ -1193,15 +1193,26 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "2.5%",
+    "20.1%",
+    "38.0%",
+    "25.2%"
+   ],
+   "wrong": {
+    "20.1%": "Divided the gap by the actual EPS instead of the consensus.",
+    "38.0%": "Gave the gap in cents as if it were a percent.",
+    "2.5%": "Slipped a decimal place."
+   }
   },
   {
    "key": "q10",
    "skill": "fund.earnings_desk",
    "rung": 4,
-   "format": "numeric",
-   "q": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How many million short was it?",
-   "answer": 2.7,
+   "format": "mcq",
+   "q": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How far short was it?",
+   "answer": "2.7 million",
    "suffix": "million",
    "calc": {
     "fn": "arith",
@@ -1227,7 +1238,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "2.3 million",
+    "2.5 million",
+    "2.7 million",
+    "0.2 million"
+   ],
+   "wrong": {
+    "2.3 million": "Subtracted the loss from the forecast instead of adding.",
+    "2.5 million": "Gave the forecast and ignored the loss.",
+    "0.2 million": "Gave only the loss and ignored the forecast."
+   }
   },
   {
    "key": "q11",
@@ -1267,9 +1289,9 @@
    "key": "q12",
    "skill": "fund.earnings_desk",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Walmart, first quarter of fiscal 2023: adjusted EPS $1.30. The Refinitiv consensus was $1.48. By what percent did it miss?",
-   "answer": 12.2,
+   "answer": "12.2%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1296,15 +1318,26 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "13.8%",
+    "18.0%",
+    "1.2%",
+    "12.2%"
+   ],
+   "wrong": {
+    "13.8%": "Divided the shortfall by the actual EPS instead of the consensus.",
+    "18.0%": "Gave the shortfall in cents as if it were a percent.",
+    "1.2%": "Slipped a decimal place."
+   }
   },
   {
    "key": "q13",
    "skill": "fund.earnings_desk",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Meta's Q4 2022 EPS was $1.76. Its release says that without restructuring charges, EPS would have been $1.24 higher. What EPS is that?",
-   "answer": 3,
+   "answer": "$3.00",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1330,7 +1363,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$0.52",
+    "$3.00",
+    "$0.70",
+    "$2.18"
+   ],
+   "wrong": {
+    "$0.52": "Subtracted the charges instead of adding them back.",
+    "$2.18": "Multiplied the two numbers instead of adding.",
+    "$0.70": "Divided the charges by the reported EPS."
+   }
   },
   {
    "key": "q14",
@@ -1414,9 +1458,9 @@
    "key": "q16",
    "skill": "fund.earnings_desk",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Target, first quarter 2022: adjusted EPS $2.19. The Refinitiv consensus was $3.07. By what percent did it miss?",
-   "answer": 28.7,
+   "answer": "28.7%",
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1443,7 +1487,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "40.2%",
+    "88.0%",
+    "28.7%",
+    "2.9%"
+   ],
+   "wrong": {
+    "40.2%": "Divided the shortfall by the actual EPS instead of the consensus.",
+    "88.0%": "Gave the shortfall in cents as if it were a percent.",
+    "2.9%": "Slipped a decimal place."
+   }
   },
   {
    "key": "q17",
@@ -1878,15 +1933,15 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1. Stem no longer names the unit the choices carry."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer: 2.5 + 0.2 = 2.7 (f11/f16), calc matches. Why grounded: f17 first decline in over a decade, f15 StreetAccount 2.73m. Does not give q08's statement away, and q08 does not give 2.7."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3. Stem no longer names the unit the choices carry."
   },
   "q11": {
    "status": "pass",
@@ -1896,15 +1951,15 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4."
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. The answer was the only round figure, so one distractor became a round-ish real mistake."
   },
   "q14": {
    "status": "pass",
@@ -1920,9 +1975,9 @@
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
   },
   "q17": {
    "status": "pass",

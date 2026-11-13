@@ -640,22 +640,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1200",
-    "1200.0",
-    "1200.00",
-    "1200.000"
-   ],
-   "answer": 1200.0
+   "answer": "$1,200"
   },
   "difficulty": 2,
   "id": "si_956369e67e7e",
   "lesson_origin": "session",
-  "lesson_text": "$1,200 before costs. A short's profit is the sale price minus the buy-back price, times the shares. You sold at $45.00 and bought back at $39.00, on 200 shares. The SEC's own example works the same way: sell at $60, buy back at $40, make $20 a share. Commissions and fees come out after that. Short profit: sale price minus cover price, times shares. Then take off the costs.",
+  "lesson_text": "Profit is the sale price minus the buy-back price, times the shares: $45.00 less $39.00, times 200 shares. The SEC's own example works the same way: sell at $60, buy back at $40, make $20 a share. Commissions and fees come out after that. Short profit: sale price minus cover price, times shares. Then take off the costs.",
   "module": "F10b",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "-$1,200",
+    "$1,200",
+    "$7,800",
+    "$9,000"
+   ],
+   "kind": "mcq",
    "q": "You short 200 shares at $45.00 and buy to cover at $39.00. What's your profit before costs?",
    "subject": "F10b.01#q09"
   },
@@ -703,13 +702,18 @@
      "fn": "short_pnl",
      "result": 1200.0
     },
-    "given": "You short 200 shares at $45.00 and buy to cover at $39.00. What's your profit before costs?"
+    "given": "You short 200 shares at $45.00 and buy to cover at $39.00. What's your profit before costs? $7,800 -$1,200 $1,200 $9,000"
    },
    "lesson_line": "Short profit: sale price minus cover price, times shares. Then take off the costs.",
    "simple": "$1,200, because you sold at $45.00 and bought back lower at $39.00, on all 200 shares.",
    "tier": "core",
    "unit": "F10b.01",
-   "why": "$1,200 before costs. A short's profit is the sale price minus the buy-back price, times the shares. You sold at $45.00 and bought back at $39.00, on 200 shares. The SEC's own example works the same way: sell at $60, buy back at $40, make $20 a share. Commissions and fees come out after that."
+   "why": "Profit is the sale price minus the buy-back price, times the shares: $45.00 less $39.00, times 200 shares. The SEC's own example works the same way: sell at $60, buy back at $40, make $20 a share. Commissions and fees come out after that.",
+   "wrong": {
+    "$7,800": "That is what the buy-back cost, not the profit.",
+    "$9,000": "That is what the sale brought in. Subtract the buy-back cost.",
+    "-$1,200": "Treated the short like a long. A short makes money when the price falls."
+   }
   },
   "review_status": "draft",
   "skill_id": "short.mechanics",
@@ -795,22 +799,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "600",
-    "600.0",
-    "600.00",
-    "600.000"
-   ],
-   "answer": 600.0
+   "answer": "$600"
   },
   "difficulty": 2,
   "id": "si_15e912f7368c",
   "lesson_origin": "session",
-  "lesson_text": "$600. The borrow fee is a yearly rate, charged only for the time the short is open. A quarter of a year at 12% on $20,000 is $600. The fee accrues daily, so your broker's day count can nudge the total a little. The question holds the price flat because the fee is charged on the value of the borrowed shares. Borrow cost: position value times the yearly rate times the share of a year you hold.",
+  "lesson_text": "The borrow fee is a yearly rate, charged only for the time the short is open. A year at 12% on $20,000 is $2,400. A quarter of a year is $600. The fee accrues daily, so your broker's day count can nudge the total a little. The question holds the price flat because the fee is charged on the value of the borrowed shares. Borrow cost: position value times the yearly rate times the share of a year you hold.",
   "module": "F10b",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$60",
+    "$600",
+    "$1,200",
+    "$2,400"
+   ],
+   "kind": "mcq",
    "q": "You short $20,000 of stock at a 12% yearly borrow fee. The price stays flat for a quarter of a year. What's the borrow cost?",
    "subject": "F10b.01#q11"
   },
@@ -859,13 +862,18 @@
      "fn": "arith",
      "result": 600.0
     },
-    "given": "You short $20,000 of stock at a 12% yearly borrow fee. The price stays flat for a quarter of a year. What's the borrow cost?"
+    "given": "You short $20,000 of stock at a 12% yearly borrow fee. The price stays flat for a quarter of a year. What's the borrow cost? $60 $1,200 $2,400 $600"
    },
    "lesson_line": "Borrow cost: position value times the yearly rate times the share of a year you hold.",
    "simple": "$600, because a 12% yearly fee on $20,000 is charged only for the quarter of a year you hold it.",
    "tier": "core",
    "unit": "F10b.01",
-   "why": "$600. The borrow fee is a yearly rate, charged only for the time the short is open. A quarter of a year at 12% on $20,000 is $600. The fee accrues daily, so your broker's day count can nudge the total a little. The question holds the price flat because the fee is charged on the value of the borrowed shares."
+   "why": "The borrow fee is a yearly rate, charged only for the time the short is open. A year at 12% on $20,000 is $2,400. A quarter of a year is $600. The fee accrues daily, so your broker's day count can nudge the total a little. The question holds the price flat because the fee is charged on the value of the borrowed shares.",
+   "wrong": {
+    "$1,200": "Charged half a year, not a quarter.",
+    "$2,400": "Charged a full year. You held it for a quarter.",
+    "$60": "A decimal slip: ten times too small."
+   }
   },
   "review_status": "draft",
   "skill_id": "short.mechanics",
@@ -876,22 +884,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1050",
-    "1050.0",
-    "1050.00",
-    "1050.000"
-   ],
-   "answer": 1050.0
+   "answer": "$1,050"
   },
   "difficulty": 2,
   "id": "si_d17cf6e32b59",
   "lesson_origin": "session",
-  "lesson_text": "$1,050, before costs. When a short rises, your loss is the cover price minus the sale price, times the shares. You sold at $22.00 and paid $25.50 to cover, on 300 shares. The SEC's example: short at $60, cover at $80, lose $20 a share. A short's loss has no fixed cap, because a stock can keep rising. When a short goes up, every point costs you on every share.",
+  "lesson_text": "When a short rises, your loss is the cover price minus the sale price, times the shares: $25.50 less $22.00, times 300 shares. The SEC's example: short at $60, cover at $80, lose $20 a share. A short's loss has no fixed cap, because a stock can keep rising. When a short goes up, every point costs you on every share.",
   "module": "F10b",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$105",
+    "$1,050",
+    "$6,600",
+    "$7,650"
+   ],
+   "kind": "mcq",
    "q": "You short 300 shares at $22.00. It rallies and you buy to cover at $25.50. How much did you lose?",
    "subject": "F10b.01#q12"
   },
@@ -947,13 +954,18 @@
      "fn": "arith",
      "result": 1050.0
     },
-    "given": "You short 300 shares at $22.00. It rallies and you buy to cover at $25.50. How much did you lose?"
+    "given": "You short 300 shares at $22.00. It rallies and you buy to cover at $25.50. How much did you lose? $7,650 $1,050 $6,600 $105"
    },
    "lesson_line": "When a short goes up, every point costs you on every share.",
    "simple": "$1,050, because you paid $25.50 to buy back shares you sold at $22.00, on all 300 shares.",
    "tier": "extended",
    "unit": "F10b.01",
-   "why": "$1,050, before costs. When a short rises, your loss is the cover price minus the sale price, times the shares. You sold at $22.00 and paid $25.50 to cover, on 300 shares. The SEC's example: short at $60, cover at $80, lose $20 a share. A short's loss has no fixed cap, because a stock can keep rising."
+   "why": "When a short rises, your loss is the cover price minus the sale price, times the shares: $25.50 less $22.00, times 300 shares. The SEC's example: short at $60, cover at $80, lose $20 a share. A short's loss has no fixed cap, because a stock can keep rising.",
+   "wrong": {
+    "$105": "A decimal slip: ten times too small.",
+    "$6,600": "That is what the sale brought in, not the loss.",
+    "$7,650": "That is what the buy-back cost, not the loss."
+   }
   },
   "review_status": "draft",
   "skill_id": "short.mechanics",
@@ -1125,22 +1137,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "300",
-    "300.0",
-    "300.00",
-    "300.000"
-   ],
-   "answer": 300.0
+   "answer": "$300"
   },
   "difficulty": 2,
   "id": "si_4162a1df9347",
   "lesson_origin": "session",
-  "lesson_text": "$300. If the borrowed stock pays a dividend, you must pay it to the lender: $0.75 on each of 400 shares. It comes out of your account on the pay date. You owe it because you stayed short through the ex-dividend date. Cover before that date and you don't owe it. Check the dividend calendar before you short. You pay the dividend, you don't collect it.",
+  "lesson_text": "If the borrowed stock pays a dividend, you must pay it to the lender. That is $0.75 on each of 400 shares, or $300. It comes out of your account on the pay date. You owe it because you stayed short through the ex-dividend date. Cover before that date and you don't owe it. Check the dividend calendar before you short. You pay the dividend, you don't collect it.",
   "module": "F10b",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0",
+    "$300",
+    "$533",
+    "$3,000"
+   ],
+   "kind": "mcq",
    "q": "You're short 400 shares through the ex-dividend date. The stock pays a $0.75 dividend. What do you owe the lender?",
    "subject": "F10b.01#q15"
   },
@@ -1188,13 +1199,18 @@
      "fn": "arith",
      "result": 300.0
     },
-    "given": "You're short 400 shares through the ex-dividend date. The stock pays a $0.75 dividend. What do you owe the lender?"
+    "given": "You're short 400 shares through the ex-dividend date. The stock pays a $0.75 dividend. What do you owe the lender? $0 $3,000 $533 $300"
    },
    "lesson_line": "Check the dividend calendar before you short. You pay the dividend, you don't collect it.",
    "simple": "$300, because a short seller pays the lender the $0.75 dividend on each of the 400 shares.",
    "tier": "extended",
    "unit": "F10b.01",
-   "why": "$300. If the borrowed stock pays a dividend, you must pay it to the lender: $0.75 on each of 400 shares. It comes out of your account on the pay date. You owe it because you stayed short through the ex-dividend date. Cover before that date and you don't owe it."
+   "why": "If the borrowed stock pays a dividend, you must pay it to the lender. That is $0.75 on each of 400 shares, or $300. It comes out of your account on the pay date. You owe it because you stayed short through the ex-dividend date. Cover before that date and you don't owe it.",
+   "wrong": {
+    "$0": "Thought a short seller owes nothing. You pay the dividend to the lender.",
+    "$3,000": "A decimal slip: ten times too big.",
+    "$533": "Divided the shares by the dividend. Multiply them."
+   }
   },
   "review_status": "draft",
   "skill_id": "short.mechanics",
@@ -2928,13 +2944,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "8",
-    "8.0",
-    "8.00",
-    "8.000"
-   ],
-   "answer": 8.0
+   "answer": "8 days"
   },
   "difficulty": 2,
   "id": "si_14949d7b36a5",
@@ -2942,10 +2952,15 @@
   "lesson_text": "8 days. Days to cover is short interest divided by average daily share volume. Here that is 6,000,000 by 750,000. The shorts would need about 8 normal days to buy back. It says how slow the exit is, not whether a squeeze will come. Days to cover equals short interest over average daily volume. The bigger it is, the slower the exit.",
   "module": "F10b",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.1 days",
+    "5.25 days",
+    "8 days",
+    "80 days"
+   ],
+   "kind": "mcq",
    "q": "Short interest is 6,000,000 shares. Average daily volume is 750,000 shares. What is days to cover?",
-   "subject": "F10b.02#q09",
-   "suffix": "days"
+   "subject": "F10b.02#q09"
   },
   "reveal_json": {
    "depth": {
@@ -2984,13 +2999,18 @@
      "fn": "arith",
      "result": 8.0
     },
-    "given": "Short interest is 6,000,000 shares. Average daily volume is 750,000 shares. What is days to cover?"
+    "given": "Short interest is 6,000,000 shares. Average daily volume is 750,000 shares. What is days to cover? 0.1 days 5.25 days 80 days 8 days"
    },
    "lesson_line": "Days to cover equals short interest over average daily volume. The bigger it is, the slower the exit.",
    "simple": "8 days. Divide 6,000,000 shares short by 750,000 shares a day of volume.",
    "tier": "core",
    "unit": "F10b.02",
-   "why": "8 days. Days to cover is short interest divided by average daily share volume. Here that is 6,000,000 by 750,000. The shorts would need about 8 normal days to buy back. It says how slow the exit is, not whether a squeeze will come."
+   "why": "8 days. Days to cover is short interest divided by average daily share volume. Here that is 6,000,000 by 750,000. The shorts would need about 8 normal days to buy back. It says how slow the exit is, not whether a squeeze will come.",
+   "wrong": {
+    "0.1 days": "Flipped it: divided the daily volume by the short interest.",
+    "5.25 days": "Subtracted the two figures. Days to cover divides them.",
+    "80 days": "A decimal slip: ten times too big."
+   }
   },
   "review_status": "draft",
   "skill_id": "short.risk",
@@ -3105,24 +3125,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "133",
-    "133.0",
-    "133.00",
-    "133.000"
-   ],
-   "answer": 133.0
+   "answer": "133 shares"
   },
   "difficulty": 2,
   "id": "si_eeb62238ed3b",
   "lesson_origin": "session",
-  "lesson_text": "133 shares. Risk 0.5% of $40,000. On a short, risk per share is the buy stop minus the entry: $31.50 minus $30.00. Divide the dollars at risk by that, and round down to whole shares. Stop first, then size. On a short, risk per share runs up to the buy stop.",
+  "lesson_text": "Risk 0.5% of $40,000 to get the dollars at risk. On a short, risk per share is the buy stop minus the entry: $31.50 minus $30.00. Divide the dollars at risk by that, and round down to 133 whole shares. Stop first, then size. On a short, risk per share runs up to the buy stop.",
   "module": "F10b",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "7 shares",
+    "133 shares",
+    "400 shares",
+    "1,333 shares"
+   ],
+   "kind": "mcq",
    "q": "Account $40,000, risking 0.5%. You short at $30.00 with a buy stop at $31.50. How many shares?",
-   "subject": "F10b.02#q11",
-   "suffix": "shares"
+   "subject": "F10b.02#q11"
   },
   "reveal_json": {
    "depth": {
@@ -3169,13 +3188,18 @@
      "fn": "shares_from_risk",
      "result": 133.0
     },
-    "given": "Account $40,000, risking 0.5%. You short at $30.00 with a buy stop at $31.50. How many shares?"
+    "given": "Account $40,000, risking 0.5%. You short at $30.00 with a buy stop at $31.50. How many shares? 133 shares 7 shares 1,333 shares 400 shares"
    },
    "lesson_line": "Stop first, then size. On a short, risk per share runs up to the buy stop.",
    "simple": "133 shares. Divide the dollars you risk by the distance up to your stop, then round down.",
    "tier": "extended",
    "unit": "F10b.02",
-   "why": "133 shares. Risk 0.5% of $40,000. On a short, risk per share is the buy stop minus the entry: $31.50 minus $30.00. Divide the dollars at risk by that, and round down to whole shares."
+   "why": "Risk 0.5% of $40,000 to get the dollars at risk. On a short, risk per share is the buy stop minus the entry: $31.50 minus $30.00. Divide the dollars at risk by that, and round down to 133 whole shares.",
+   "wrong": {
+    "1,333 shares": "A decimal slip: ten times too big.",
+    "400 shares": "Divided the dollars at risk by the 0.5 risk percent. Divide by the stop distance.",
+    "7 shares": "Divided the dollars at risk by the $30.00 entry price. Divide by the risk per share."
+   }
   },
   "review_status": "draft",
   "skill_id": "short.risk",
@@ -3186,23 +3210,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2.5",
-    "2.50",
-    "2.500"
-   ],
-   "answer": 2.5
+   "answer": "2.5R"
   },
   "difficulty": 2,
   "id": "si_d28921300e49",
   "lesson_origin": "session",
-  "lesson_text": "2.5R. On a short, your risk is the distance from entry up to the buy stop: $50.00 to $52.00. Your gain is the distance from entry down to where you bought back: $50.00 to $45.00. The gain divided by the risk is the R. R works the same on a short, flipped: the risk sits above you, the profit below.",
+  "lesson_text": "On a short, your risk is the distance from entry up to the buy stop: $50.00 to $52.00. Your gain is the distance from entry down to where you bought back: $50.00 to $45.00. The gain divided by the risk is the R: $5.00 over $2.00, or 2.5R. R works the same on a short, flipped: the risk sits above you, the profit below.",
   "module": "F10b",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "-2.5R",
+    "0.4R",
+    "2.5R",
+    "5.0R"
+   ],
+   "kind": "mcq",
    "q": "You short at $50.00 with a buy stop at $52.00. You cover at $45.00. How many R did you make?",
-   "subject": "F10b.02#q12",
-   "suffix": "R"
+   "subject": "F10b.02#q12"
   },
   "reveal_json": {
    "depth": {
@@ -3242,13 +3266,18 @@
      "fn": "r_multiple",
      "result": 2.5
     },
-    "given": "You short at $50.00 with a buy stop at $52.00. You cover at $45.00. How many R did you make?"
+    "given": "You short at $50.00 with a buy stop at $52.00. You cover at $45.00. How many R did you make? -2.5R 5.0R 0.4R 2.5R"
    },
    "lesson_line": "R works the same on a short, flipped: the risk sits above you, the profit below.",
    "simple": "2.5R. Your gain down to $45.00 is 2.5 times your risk up to the $52.00 stop.",
    "tier": "extended",
    "unit": "F10b.02",
-   "why": "2.5R. On a short, your risk is the distance from entry up to the buy stop: $50.00 to $52.00. Your gain is the distance from entry down to where you bought back: $50.00 to $45.00. The gain divided by the risk is the R."
+   "why": "On a short, your risk is the distance from entry up to the buy stop: $50.00 to $52.00. Your gain is the distance from entry down to where you bought back: $50.00 to $45.00. The gain divided by the risk is the R: $5.00 over $2.00, or 2.5R.",
+   "wrong": {
+    "-2.5R": "Treated the short like a long. Buying back lower is a gain on a short.",
+    "0.4R": "Flipped it: risk over gain.",
+    "5.0R": "Used the dollar gain as the R. Divide it by the risk."
+   }
   },
   "review_status": "draft",
   "skill_id": "short.risk",
@@ -3342,22 +3371,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1600",
-    "1600.0",
-    "1600.00",
-    "1600.000"
-   ],
-   "answer": 1600.0
+   "answer": "$1,600"
   },
   "difficulty": 2,
   "id": "si_53ea194ea248",
   "lesson_origin": "session",
-  "lesson_text": "$1,600. Good news gapped the stock open above your buy stop. A triggered stop becomes a market order, so it filled at $29.00, not $26.00. The loss is $29.00 minus $25.00, times 400 shares. Your stop set the planned loss, not the worst one. Your stop sets the planned loss, not the worst one. On a short, a gap up decides the rest.",
+  "lesson_text": "Good news gapped the stock open above your buy stop. A triggered stop becomes a market order, so it filled at $29.00, not $26.00. The loss is $29.00 minus $25.00, times 400 shares, which is $1,600. Your stop set the planned loss, not the worst one. Your stop sets the planned loss, not the worst one. On a short, a gap up decides the rest.",
   "module": "F10b",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$400",
+    "$1,200",
+    "$1,600",
+    "$11,600"
+   ],
+   "kind": "mcq",
    "q": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00, and your stop fills there. What did you lose?",
    "subject": "F10b.02#q14"
   },
@@ -3413,13 +3441,18 @@
      "fn": "arith",
      "result": 1600.0
     },
-    "given": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00, and your stop fills there. What did you lose?"
+    "given": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00, and your stop fills there. What did you lose? $400 $11,600 $1,200 $1,600"
    },
    "lesson_line": "Your stop sets the planned loss, not the worst one. On a short, a gap up decides the rest.",
    "simple": "$1,600. The gap filled your stop at $29.00 instead of $26.00, so the loss was far bigger than planned.",
    "tier": "extended",
    "unit": "F10b.02",
-   "why": "$1,600. Good news gapped the stock open above your buy stop. A triggered stop becomes a market order, so it filled at $29.00, not $26.00. The loss is $29.00 minus $25.00, times 400 shares. Your stop set the planned loss, not the worst one."
+   "why": "Good news gapped the stock open above your buy stop. A triggered stop becomes a market order, so it filled at $29.00, not $26.00. The loss is $29.00 minus $25.00, times 400 shares, which is $1,600. Your stop set the planned loss, not the worst one.",
+   "wrong": {
+    "$1,200": "Counted only the gap past the stop. The loss starts at your $25.00 entry.",
+    "$11,600": "That is the cost to buy back the 400 shares, not the loss.",
+    "$400": "That was the planned loss at the $26.00 stop. The fill was at $29.00."
+   }
   },
   "review_status": "draft",
   "skill_id": "short.risk",
@@ -3430,22 +3463,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "6000",
-    "6000.0",
-    "6000.00",
-    "6000.000"
-   ],
-   "answer": 6000.0
+   "answer": "$6,000"
   },
   "difficulty": 2,
   "id": "si_26b4e913adbc",
   "lesson_origin": "session",
-  "lesson_text": "$6,000. FINRA's minimum on a short at $5 or more is 30% of its current value or $5 a share, whichever is greater. At $20 and at $40, 30% of the value beats $5 a share. So the minimum doubles with the price. That is only FINRA's floor. A broker can ask for more, and the loss on the move comes out of the same account. A short's margin grows as the stock rises. Miss the call and the broker can close it for you.",
+  "lesson_text": "FINRA's minimum on a short at $5 or more is 30% of its current value or $5 a share, whichever is greater. At $20, 30% of the value is $6,000. At $40, it is $12,000. So the minimum rises by $6,000. That is only FINRA's floor. A broker can ask for more, and the loss on the move comes out of the same account. A short's margin grows as the stock rises. Miss the call and the broker can close it for you.",
   "module": "F10b",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$5,000",
+    "$6,000",
+    "$12,000",
+    "$20,000"
+   ],
+   "kind": "mcq",
    "q": "Short 1,000 shares. FINRA minimum: 30% of value or $5 a share, whichever is more. It goes $20 to $40. How much does the minimum rise?",
    "subject": "F10b.02#q15"
   },
@@ -3512,13 +3544,18 @@
      "fn": "arith",
      "result": 6000.0
     },
-    "given": "Short 1,000 shares. FINRA minimum: 30% of value or $5 a share, whichever is more. It goes $20 to $40. How much does the minimum rise?"
+    "given": "Short 1,000 shares. FINRA minimum: 30% of value or $5 a share, whichever is more. It goes $20 to $40. How much does the minimum rise? $6,000 $20,000 $12,000 $5,000"
    },
    "lesson_line": "A short's margin grows as the stock rises. Miss the call and the broker can close it for you.",
    "simple": "$6,000. Here 30% of the value beats $5 a share, so the minimum doubles as the price goes from $20 to $40.",
    "tier": "extended",
    "unit": "F10b.02",
-   "why": "$6,000. FINRA's minimum on a short at $5 or more is 30% of its current value or $5 a share, whichever is greater. At $20 and at $40, 30% of the value beats $5 a share. So the minimum doubles with the price. That is only FINRA's floor. A broker can ask for more, and the loss on the move comes out of the same account."
+   "why": "FINRA's minimum on a short at $5 or more is 30% of its current value or $5 a share, whichever is greater. At $20, 30% of the value is $6,000. At $40, it is $12,000. So the minimum rises by $6,000. That is only FINRA's floor. A broker can ask for more, and the loss on the move comes out of the same account.",
+   "wrong": {
+    "$12,000": "That is the minimum at $40. The question asks how much it rises.",
+    "$20,000": "That is the stock's $20 move on 1,000 shares, not the margin rise.",
+    "$5,000": "Used the $5 a share floor. At these prices 30% of the value is more."
+   }
   },
   "review_status": "draft",
   "skill_id": "short.risk",
@@ -4076,13 +4113,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1642",
-    "1642.0",
-    "1642.00",
-    "1642.000"
-   ],
-   "answer": 1642.0
+   "answer": "1,642%"
   },
   "difficulty": 3,
   "id": "si_87a77f9bdeaf",
@@ -4090,10 +4121,15 @@
   "lesson_text": "1,642%. The loss is the rise from $19.95 to $347.51, as a share of the $19.95 sale price. A stock can only drop to zero, so a long loses at most 100% of its cost. A short has no such limit. This short, GameStop in January 2021, lost many times what it sold for. There's no ceiling on a short's loss. A long can lose at most what it cost.",
   "module": "F10b",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "94%",
+    "164%",
+    "1,642%",
+    "1,742%"
+   ],
+   "kind": "mcq",
    "q": "You short at the $19.95 close on January 12, 2021. It closes at $347.51 on January 27. What's your loss on the move, as a % of the sale?",
-   "subject": "F10b.02#q22",
-   "suffix": "%"
+   "subject": "F10b.02#q22"
   },
   "reveal_json": {
    "deeper": {
@@ -4155,13 +4191,18 @@
      "fn": "pct_change",
      "result": 1642.0
     },
-    "given": "You short at the $19.95 close on January 12, 2021. It closes at $347.51 on January 27. What's your loss on the move, as a % of the sale?"
+    "given": "You short at the $19.95 close on January 12, 2021. It closes at $347.51 on January 27. What's your loss on the move, as a % of the sale? 1,742% 164% 94% 1,642%"
    },
    "lesson_line": "There's no ceiling on a short's loss. A long can lose at most what it cost.",
    "simple": "1,642%. The stock rose from $19.95 to $347.51, so the short lost many times what it sold for.",
    "tier": "expert",
    "unit": "F10b.02",
-   "why": "1,642%. The loss is the rise from $19.95 to $347.51, as a share of the $19.95 sale price. A stock can only drop to zero, so a long loses at most 100% of its cost. A short has no such limit. This short, GameStop in January 2021, lost many times what it sold for."
+   "why": "1,642%. The loss is the rise from $19.95 to $347.51, as a share of the $19.95 sale price. A stock can only drop to zero, so a long loses at most 100% of its cost. A short has no such limit. This short, GameStop in January 2021, lost many times what it sold for.",
+   "wrong": {
+    "1,742%": "Forgot to take off the original price. The loss is the rise, not the new price as a share of the old.",
+    "164%": "A decimal slip: ten times too small.",
+    "94%": "Divided the rise by the $347.51 close. Divide by the $19.95 sale price."
+   }
   },
   "review_status": "draft",
   "skill_id": "short.risk",

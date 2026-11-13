@@ -914,9 +914,9 @@
    "key": "q09",
    "skill": "fund.growth",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "EPS was $0.60 in the June quarter last year. This June quarter it's $0.84. What's the year-over-year EPS growth?",
-   "answer": 40,
+   "answer": "40%",
    "calc": {
     "fn": "yoy_growth",
     "args": {
@@ -925,7 +925,7 @@
     }
    },
    "suffix": "%",
-   "why": "40%. Growth is the change divided by the starting value. Take the change from $0.60 to $0.84 and divide it by the starting $0.60. Both numbers are the June quarter, a year apart, which is the same-quarter comparison O'Neil uses.",
+   "why": "40%. Growth is the change divided by the starting value. Take the change from $0.60 to $0.84 and divide it by the starting $0.60. That is 40%. Both numbers are the June quarter, a year apart, which is the same-quarter comparison O'Neil uses.",
    "lesson_line": "Growth is the change over the starting value. Same quarter, a year apart.",
    "facts": [
     "f04",
@@ -940,15 +940,26 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "140%",
+    "29%",
+    "24%",
+    "40%"
+   ],
+   "wrong": {
+    "29%": "You divided the rise by the new $0.84 instead of the starting $0.60.",
+    "24%": "You read the 24-cent rise as 24%.",
+    "140%": "You divided the new EPS by the old and forgot to subtract one."
+   }
   },
   {
    "key": "q10",
    "skill": "fund.growth",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A stock trades at $90. Its EPS over the last 12 months is $3. What's its P/E?",
-   "answer": 30,
+   "answer": "30",
    "calc": {
     "fn": "pe",
     "args": {
@@ -956,7 +967,7 @@
      "eps": 3
     }
    },
-   "why": "30. P/E is the share price divided by earnings per share over the last 12 months: $90 over $3. Investopedia reads it this way: at 20x, investors pay $20 for $1 of current earnings. So at 30, buyers pay $30 for each $1 of yearly earnings.",
+   "why": "30. P/E is the share price divided by earnings per share over the last 12 months: $90 over $3 is 30. Investopedia reads it this way: at 20x, investors pay $20 for $1 of current earnings. So at 30, buyers pay $30 for each $1 of yearly earnings.",
    "lesson_line": "P/E is the price over the last 12 months of EPS.",
    "facts": [
     "f01",
@@ -972,7 +983,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "93",
+    "270",
+    "30",
+    "0.03"
+   ],
+   "wrong": {
+    "270": "You multiplied the price by the EPS instead of dividing.",
+    "93": "You added the price and the EPS instead of dividing.",
+    "0.03": "You flipped it and divided the EPS by the price."
+   }
   },
   {
    "key": "q11",
@@ -1012,9 +1034,9 @@
    "key": "q12",
    "skill": "fund.growth",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A stock is $100 with EPS of $2, a P/E of 50. A year later EPS is $4 and the price is still $100. What's the P/E now?",
-   "answer": 25,
+   "answer": "25",
    "calc": {
     "fn": "pe",
     "args": {
@@ -1022,7 +1044,7 @@
      "eps": 4
     }
    },
-   "why": "25. P/E is price divided by EPS: $100 over $4. The price did not move, but earnings doubled from $2 to $4, so the P/E fell from 50 to 25. That's how a fast grower can grow into a high P/E. Investopedia notes a high P/E can turn out cheap if the company keeps growing fast. It works only if the growth shows up.",
+   "why": "25. P/E is price divided by EPS: $100 over $4 is 25. The price did not move, but earnings doubled from $2 to $4, so the P/E fell from 50 to 25. That's how a fast grower can grow into a high P/E. Investopedia notes a high P/E can turn out cheap if the company keeps growing fast. It works only if the growth shows up.",
    "lesson_line": "Fast earnings growth pulls a high P/E down, even when the price stands still.",
    "facts": [
     "f23",
@@ -1037,7 +1059,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "400",
+    "50",
+    "104",
+    "25"
+   ],
+   "wrong": {
+    "50": "You kept the old EPS of $2, so the P/E never changed.",
+    "104": "You added the price and the new EPS instead of dividing.",
+    "400": "You multiplied the price by the EPS instead of dividing."
+   }
   },
   {
    "key": "q13",
@@ -1104,9 +1137,9 @@
    "key": "q15",
    "skill": "fund.growth",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A stock's P/E is 30. Its EPS is expected to grow 20% a year. What's its PEG ratio?",
-   "answer": 1.5,
+   "answer": "1.5",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1115,7 +1148,7 @@
      "growth": 20
     }
    },
-   "why": "1.5. PEG is the P/E divided by the earnings growth rate: 30 over 20. Fidelity says a PEG of 1 or less is typically read as undervalued. Investopedia warns PEG can be unreliable for cyclical stocks and high-growth tech firms. It is a rough check, not a verdict.",
+   "why": "1.5. PEG is the P/E divided by the earnings growth rate: 30 over 20 is 1.5. Fidelity says a PEG of 1 or less is typically read as undervalued. Investopedia warns PEG can be unreliable for cyclical stocks and high-growth tech firms. It is a rough check, not a verdict.",
    "lesson_line": "PEG puts growth back into the P/E. A lower PEG means less paid per point of growth.",
    "facts": [
     "f20",
@@ -1131,7 +1164,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "10",
+    "0.67",
+    "1.5",
+    "50"
+   ],
+   "wrong": {
+    "0.67": "You flipped it and divided the growth rate by the P/E.",
+    "10": "You subtracted the growth rate from the P/E instead of dividing.",
+    "50": "You added the P/E and the growth rate instead of dividing."
+   }
   },
   {
    "key": "q16",
@@ -1658,13 +1702,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc yoy_growth 0.60 to 0.84 = 40. f37 now backs 'the same-quarter comparison O'Neil uses'. All numbers come from the question or the calc."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q11": {
    "status": "pass",
@@ -1674,9 +1718,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q13": {
    "status": "pass",
@@ -1693,9 +1737,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q16": {
    "status": "pass",

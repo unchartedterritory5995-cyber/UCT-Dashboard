@@ -1050,9 +1050,9 @@
    "key": "q09",
    "skill": "styles.setups_fit",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Yesterday's high was $56, the low $48 and the close $55. What's today's base pivot point for your 5-minute chart?",
-   "answer": 53,
+   "answer": "$53.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1063,7 +1063,7 @@
     }
    },
    "prefix": "$",
-   "why": "$53. The base pivot is the simple average of the prior high, low and close. Here that is (56 + 48 + 55) / 3 = 53. For 1- to 15-minute charts, ChartSchool takes those from the prior day. Once set, the pivots stay fixed all day. They don't carry over: tomorrow's pivot comes from today's bar.",
+   "why": "The base pivot is the simple average of the prior high, low and close. 56 + 48 + 55 = 159. 159 / 3 = 53. For 1- to 15-minute charts, ChartSchool takes those from the prior day. Once set, the pivots stay fixed all day. Tomorrow's pivot comes from today's bar.",
    "lesson_line": "Intraday pivots come from yesterday's bar and last one session. They're day-trader levels.",
    "facts": [
     "f17",
@@ -1079,7 +1079,18 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$55.00",
+    "$159.00",
+    "$52.00",
+    "$53.00"
+   ],
+   "wrong": {
+    "$55.00": "Used only the close. The pivot averages the high, low and close.",
+    "$52.00": "Averaged just the high and low. The close goes in too.",
+    "$159.00": "Added the three prices and forgot to divide by 3."
+   }
   },
   {
    "key": "q10",
@@ -1125,9 +1136,9 @@
    "key": "q11",
    "skill": "styles.setups_fit",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Weinstein's average is 30 weeks long. A normal week has 5 trading days. About how many days does it cover on a daily chart?",
-   "answer": 150,
+   "answer": "150 days",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1156,7 +1167,18 @@
      "fixed before (lesson line softened)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "210 days",
+    "6 days",
+    "150 days",
+    "30 days"
+   ],
+   "wrong": {
+    "210 days": "Counted every calendar day in a week. Only trading days count.",
+    "6 days": "Divided the weeks by the days in a week. Multiply them.",
+    "30 days": "Read 30 weeks as 30 days."
+   }
   },
   {
    "key": "q12",
@@ -1690,9 +1712,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "(56+48+55)/3 = 53. 55 close only, 52 high/low only, 159 forgot to divide. Why shows the steps."
   },
   "q10": {
    "status": "pass",
@@ -1704,7 +1726,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "150 checked: calc 30 x 5. The 'short week' wording follows from the question's 'normal week'. f29 backs the Friday close."
+   "notes": "30 x 5 = 150. 210 calendar days, 6 divided, 30 days/weeks slip. Why is fine."
   },
   "q12": {
    "status": "pass",

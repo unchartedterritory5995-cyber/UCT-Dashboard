@@ -895,9 +895,9 @@
    "key": "q08",
    "skill": "options.gamma",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A call has a delta of 0.45 and a gamma of 0.05. The stock rises $1. About what is the new delta?",
-   "answer": 0.5,
+   "answer": "0.50",
    "calc": {
     "fn": "arith",
     "args": {
@@ -923,7 +923,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "0.40",
+    "0.95",
+    "0.45",
+    "0.50"
+   ],
+   "wrong": {
+    "0.40": "Subtracted the gamma instead of adding it.",
+    "0.95": "Slipped a decimal place on the gamma.",
+    "0.45": "Kept the old delta and ignored the gamma."
+   }
   },
   {
    "key": "q09",
@@ -1013,9 +1024,9 @@
    "key": "q11",
    "skill": "options.gamma",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your call has a delta of 0.35 and a gamma of 0.04. The stock rises $1. One contract now acts like how many shares?",
-   "answer": 39,
+   "answer": "39 shares",
    "suffix": "shares",
    "calc": {
     "fn": "arith",
@@ -1027,7 +1038,7 @@
      "shares_per_contract": 100
     }
    },
-   "why": "39 shares. Delta can be read as share exposure: a .40 delta call acts like about 40 shares. After a $1 rise, add the gamma to the delta: 0.35 plus 0.04. One contract covers 100 shares, so the call now acts like about 39 shares. It is an estimate, not an exact count.",
+   "why": "39 shares. Delta can be read as share exposure: a .40 delta call acts like about 40 shares. After a $1 rise, add the gamma to the delta: 0.35 plus 0.04. One contract covers 100 shares, so multiply by 100 to get about 39 shares. It is an estimate, not an exact count.",
    "lesson_line": "A call's share exposure grows as the stock rises. Gamma sets the pace.",
    "facts": [
     "f41",
@@ -1047,7 +1058,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "35 shares",
+    "4 shares",
+    "39 shares",
+    "390 shares"
+   ],
+   "wrong": {
+    "35 shares": "Used the old delta and ignored the gamma.",
+    "4 shares": "Used the gamma alone.",
+    "390 shares": "Slipped a decimal place."
+   }
   },
   {
    "key": "q12",
@@ -1585,8 +1607,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc checked: 0.45 + 0.05 x 1 = 0.50. The why rests on f1, f3 and f24, and no longer gives q09 the method for a drop."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
   },
   "q09": {
    "status": "pass",
@@ -1603,8 +1625,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc checked: (0.35 + 0.04) x 100 = 39. f37 grounds the 100 shares, f6 the 'in reverse' line in the deeper, and f24 the estimate wording. The deeper leaves out f41's ungrounded .03."
+   "fixed": true,
+   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
   },
   "q12": {
    "status": "pass",

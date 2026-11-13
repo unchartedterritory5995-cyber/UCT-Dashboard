@@ -1596,11 +1596,11 @@
    "key": "q16",
    "skill": "setup.wedge_pop",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wp.base_tight",
    "q": "The last 5 sessions averaged a 2.10 range; the 10 before averaged 3.00. What is the last 5 divided by the 10 before?",
-   "answer": 0.7,
-   "why": "0.7. Divide the last 5 sessions' average range, 2.10, by the average range of the 10 before, 3.00. Our card wants a ratio under 0.85, so this base is tightening.",
+   "answer": "0.70x",
+   "why": "0.70. Divide the last 5 sessions' average range by the average range of the 10 before: 2.10 / 3.00 = 0.70. Our card wants a ratio under 0.85, so this base is tightening.",
    "lesson_line": "Measure the shrink. Do not eyeball it.",
    "facts": [
     "c06"
@@ -1615,8 +1615,8 @@
     },
     "round": 2
    },
-   "suffix": "x",
-   "simple": "0.7, found by dividing 2.10 by 3.00. That is under 0.85, so the ranges are shrinking.",
+   "suffix": "",
+   "simple": "0.70, found by dividing 2.10 by 3.00. That is under 0.85, so the ranges are shrinking.",
    "deeper": {
     "trap": "Trap: eyeballing the shrink. Measure it: the last 5 sessions' average range over the 10 before. Our card wants it under 0.85."
    },
@@ -1628,17 +1628,29 @@
      "the 0.85 cut-off is a proposed criterion on the card"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "1.43x",
+    "0.70x",
+    "0.50x",
+    "0.30x"
+   ],
+   "wrong": {
+    "1.43x": "Flipped it: the 10 before divided by the last 5.",
+    "0.50x": "Divided the session counts, 5 by 10, not the ranges.",
+    "0.30x": "That is the shrink, one minus 0.70, not the ratio."
+   },
+   "prefix": ""
   },
   {
    "key": "q17",
    "skill": "setup.wedge_pop",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wp.pop_close",
    "q": "The pop day ran 100.00 to 106.00 and closed at 104.00. Where did it close, in percent of its range from the low?",
-   "answer": 66.7,
-   "why": "66.7%. Take the close minus the low, then divide by the day's range. Our card wants the pop day to close in the top 40% of its range, so a close 66.7% of the way up passes. The close is known only at the close, so it grades the pop.",
+   "answer": "66.7%",
+   "why": "66.7%. The close above the low is 104 - 100. The range is 106 - 100. So (104 - 100) / (106 - 100) x 100 = 66.7%. Our card wants the pop day to close in the top 40% of its range, so this passes. The close is known only at the close, so it grades the pop.",
    "lesson_line": "Where the pop closes grades it. Near the high is what you want.",
    "facts": [
     "c09",
@@ -1655,7 +1667,7 @@
     },
     "round": 1
    },
-   "suffix": "%",
+   "suffix": "",
    "simple": "66.7%, found as the close minus the low over the day's range. That is inside the top 40%, so it passes.",
    "tier": "core",
    "risk": {
@@ -1665,17 +1677,29 @@
      "the top-40% cut-off is a proposed criterion on the card"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "98.1%",
+    "66.7%",
+    "33.3%",
+    "3.8%"
+   ],
+   "wrong": {
+    "98.1%": "Divided the close by the high. That ignores the low.",
+    "33.3%": "Measured down from the high instead of up from the low.",
+    "3.8%": "Divided by the close, not by the day's range."
+   },
+   "prefix": ""
   },
   {
    "key": "q18",
    "skill": "setup.wedge_pop",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wp.trim_1",
    "q": "Bought at 175.52 with the stop at 171.31. Where is 3R?",
-   "answer": 188.15,
-   "why": "188.15. One R is the fill minus the stop, 175.52 minus 171.31. Add three of those to the fill. 3R is a measuring stick, not an order to sell. The first sell is a judgment.",
+   "answer": "$188.15",
+   "why": "$188.15. One R is the fill minus the stop: 175.52 - 171.31. Add three of those to the fill: 175.52 + 3 x (175.52 - 171.31) = 188.15. 3R is a measuring stick, not an order to sell. The first sell is a judgment.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
     "d05",
@@ -1692,7 +1716,7 @@
     },
     "round": 2
    },
-   "prefix": "$",
+   "prefix": "",
    "simple": "188.15 is the fill plus three times the gap between the fill and the stop. It is a measuring stick, not a sell order.",
    "deeper": {
     "example": "STLD, March 2026, was this very trade: bought at 175.52 with the stop at 171.31. 3R took six sessions, then the stock ran from 175 to 280 in ten weeks."
@@ -1705,7 +1729,19 @@
      "the first sell is the owner's D-013 judgment, not a fixed 3R sale"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$183.94",
+    "$192.36",
+    "$179.73",
+    "$188.15"
+   ],
+   "wrong": {
+    "$183.94": "Counted 3R up from the stop, which is only two R above the fill.",
+    "$192.36": "Added four R, counting the fill as the first one.",
+    "$179.73": "Added one R, not three."
+   },
+   "suffix": ""
   },
   {
    "key": "q19",
@@ -1877,11 +1913,11 @@
    "key": "q24",
    "skill": "setup.wedge_pop",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wp.not_stretched",
    "q": "Your fill would be 55.40. The 10-day average is 50.00. How far above it, in percent?",
-   "answer": 10.8,
-   "why": "10.8%. A fill of 55.40 sits 10.8% above the 10-day average of 50.00. We skip a long that is more than 10% above its 10-day average. It is too stretched to buy.",
+   "answer": "10.8%",
+   "why": "10.8%. The fill is above the average by (55.40 - 50.00) / 50.00 = 10.8%. We skip a long that is more than 10% above its 10-day average. It is too stretched to buy.",
    "lesson_line": "Read the stretch in percent before you buy. Past 10% over the 10-day, I pass.",
    "facts": [
     "h13",
@@ -1896,7 +1932,7 @@
     },
     "round": 1
    },
-   "suffix": "%",
+   "suffix": "",
    "simple": "10.8%, which is past the 10% limit above the 10-day average, so the stock is too stretched and we skip it.",
    "tier": "core",
    "risk": {
@@ -1906,17 +1942,29 @@
      "rests on the owner's rulebook C29"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "9.7%",
+    "5.4%",
+    "10.8%",
+    "1.08%"
+   ],
+   "wrong": {
+    "9.7%": "Divided by the fill, not the average. That lands under the limit and wrongly lets the buy through.",
+    "5.4%": "Used the dollar gap as if it were the percent.",
+    "1.08%": "A decimal slip, one place too far left."
+   },
+   "prefix": ""
   },
   {
    "key": "q25",
    "skill": "setup.wedge_pop",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wp.stop_width",
    "q": "Fill 24.58, stop 23.68. How far below the fill is the stop, in percent?",
-   "answer": 3.66,
-   "why": "3.66%. The fill minus the stop, over the fill. Our stop usually sits within about 3%. Wider than that, the card says a smaller position or a pass, never a tighter stop to fit. This is CROX in 2007, the widest stop of our ten.",
+   "answer": "3.66%",
+   "why": "3.66%. The stop's distance is the gap over the fill: (24.58 - 23.68) / 24.58 x 100 = 3.66%. Our stop usually sits within about 3%. Wider than that, the card says a smaller position or a pass, never a tighter stop to fit. This is CROX in 2007, the widest stop of our ten.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h04",
@@ -1934,7 +1982,7 @@
     },
     "round": 2
    },
-   "suffix": "%",
+   "suffix": "",
    "simple": "3.66%, a bit wider than our usual 3%. The card then says a smaller size or a pass, never a tighter stop.",
    "deeper": {
     "trap": "Trap: tightening the stop so the trade fits. The card says never. A stop that has to be 8% or more away is B- at best."
@@ -1947,17 +1995,29 @@
      "rests on the owner's rulebook A13"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "36.6%",
+    "3.80%",
+    "0.90%",
+    "3.66%"
+   ],
+   "wrong": {
+    "3.80%": "Divided by the stop, not by the fill.",
+    "0.90%": "Used the dollar gap as if it were the percent.",
+    "36.6%": "A decimal slip. The stop is a few percent away, not a third."
+   },
+   "prefix": ""
   },
   {
    "key": "q26",
    "skill": "setup.wedge_pop",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wp.stop",
    "q": "Account 200,000. Risk 0.25%. Fill 181.80, stop 179.58. How many shares?",
-   "answer": 225,
-   "why": "225 shares. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, and the position cap can still shrink it. A risk of 0.25% is the low end for B- or lower setups.",
+   "answer": "225 shares",
+   "why": "225 shares. Dollars at risk are 200,000 x 0.25%. Risk per share is the fill minus the stop: 181.80 - 179.58. Divide the first by the second and round down to 225. The position cap can still shrink it. A risk of 0.25% is the low end for B- or lower setups.",
    "lesson_line": "Dollars at risk, divided by the distance to the stop, rounded down, is the share count.",
    "facts": [
     "h03",
@@ -1976,7 +2036,7 @@
     },
     "round": 0
    },
-   "suffix": " shares",
+   "suffix": "",
    "simple": "225 shares, because the dollars at risk divided by the gap between the fill and the stop give 225 after rounding down.",
    "tier": "core",
    "risk": {
@@ -1986,7 +2046,19 @@
      "rests on the owner's rulebook A5"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "2,252 shares",
+    "1,100 shares",
+    "409 shares",
+    "225 shares"
+   ],
+   "wrong": {
+    "2,252 shares": "Typed the risk as ten times too big, so the share count came out ten times too big.",
+    "1,100 shares": "Divided the account by the price and ignored the stop.",
+    "409 shares": "Divided the risk dollars by the stop's percent, not by the dollars per share."
+   },
+   "prefix": ""
   },
   {
    "key": "q27",
@@ -2655,11 +2727,11 @@
    "key": "q44",
    "skill": "setup.wedge_pop",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wp.liquidity",
    "q": "A $14 stock averages 1,600,000 shares a day over 50 days. How many dollars a day is that, in millions?",
-   "answer": 22.4,
-   "why": "$22.4 million. Price times shares traded a day. We need $10 or more and at least $20 million a day on the 50-day average. This stock clears both tests, so it is on the list.",
+   "answer": "$22.4 million",
+   "why": "$22.4 million. Dollars a day are price times shares: 14 x 1,600,000 / 1,000,000 = 22.4 million. We need $10 or more and at least $20 million a day on the 50-day average. This stock clears both tests, so it is on the list.",
    "lesson_line": "Price times shares is the dollars. Twenty million a day or it is not on the list.",
    "facts": [
     "h09",
@@ -2675,8 +2747,8 @@
     },
     "round": 1
    },
-   "prefix": "$",
-   "suffix": " million",
+   "prefix": "",
+   "suffix": "",
    "simple": "$22.4 million, which is price times shares and clears the $20 million a day we need.",
    "tier": "extended",
    "risk": {
@@ -2686,7 +2758,18 @@
      "rests on the owner's rulebook B23"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "$224 million",
+    "$0.11 million",
+    "$22.4 million",
+    "$1,120 million"
+   ],
+   "wrong": {
+    "$224 million": "A decimal slip. That is ten times too big.",
+    "$0.11 million": "Divided the shares by the price instead of multiplying.",
+    "$1,120 million": "Multiplied by the 50 days of the average. The 50 days only set the average."
+   }
   },
   {
    "key": "q45",
@@ -2821,11 +2904,11 @@
    "key": "q48",
    "skill": "setup.wedge_pop",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "wp.stop_gap",
    "q": "Bought at 60.00, stop 59.00. It gaps down; the first 30-minute low is 57.30. How many R would a stop there lose?",
-   "answer": 2.7,
-   "why": "2.7R. The loss from 60.00 down to 57.30, over the risk of 60.00 minus 59.00. On a gap through the stop, the first 30-minute low is the new stop. There is a ceiling: if that takes the loss past 2R, get out.",
+   "answer": "2.7R",
+   "why": "2.7R. One R is the buy minus the stop: 60.00 - 59.00. The loss at a stop of 57.30 is 60.00 - 57.30. So (60.00 - 57.30) / (60.00 - 59.00) = 2.7R. On a gap through the stop, the first 30-minute low is the new stop. There is a ceiling: if that takes the loss past 2R, get out.",
    "lesson_line": "On a gap, the first 30 minutes decide. Past 2R, I am out.",
    "facts": [
     "h06",
@@ -2842,7 +2925,7 @@
     },
     "round": 1
    },
-   "suffix": "R",
+   "suffix": "",
    "simple": "2.7R, which is past the 2R ceiling, so we get out.",
    "deeper": {
     "trap": "Trap: treating the first 30-minute low as a safe new stop. It is the new stop only while the loss stays within 2R. Here it would be 2.7R, so the answer is to get out, not to wait."
@@ -2855,7 +2938,19 @@
      "rests on the owner's rulebook B20"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "1.7R",
+    "2.7R",
+    "2.0R",
+    "3.7R"
+   ],
+   "wrong": {
+    "1.7R": "Measured the fall from the stop, not from the fill.",
+    "2.0R": "That is the ceiling, not the loss. The loss at 57.30 is bigger.",
+    "3.7R": "Added the risk of one R on top of the gap."
+   },
+   "prefix": ""
   },
   {
    "key": "q49",
@@ -3824,19 +3919,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2.10/3.00 = 0.7; direction named in the stem; 0.85 from c06. Pass."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(104-100)/6 = 66.7 passes the top-40% test (c09). Pass."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q23": {
    "status": "pass",
@@ -3846,21 +3941,21 @@
   },
   "q24": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Calc 10.8 ok. The 1.08% note said 'read the ratio as a percent', which would give 0.108%."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(24.58-23.68)/24.58 = 3.66. Teaches the wide-stop rule that q38 and q45 also test; owner flag already covers it. Pass."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "500 / 2.22 = 225.2, rounded down to 225; 0.25% from h33; about 20% of the account, under the 40% cap. Pass."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q30": {
    "status": "pass",
@@ -3884,8 +3979,8 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "14 x 1,600,000 = 22,400,000 = 22.4 million; calc args correct. h09/c39 quotes verified; $14 is over $10 and 22.4 over 20 so it clears both. No ambiguity (dollar volume is defined by the stem). Thresholds appear only in the why, and q15 (rung 2) comes first."
+   "fixed": true,
+   "notes": "Calc 22.4 ok. $224 million and $2.24 million were both digit-shifts of the answer (a tell). Replaced $2.24 million with the real slip of multiplying by the 50 days ($1,120 million); answer moved to another slot."
   },
   "q46": {
    "status": "pass",
@@ -3901,9 +3996,9 @@
   },
   "q48": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q51": {
    "status": "pass",

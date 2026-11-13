@@ -1124,9 +1124,9 @@
    "key": "q09",
    "skill": "options.condors_flies",
    "rung": 4,
-   "format": "numeric",
-   "q": "You sell 2 iron condors for a 1.40 credit each. What is your maximum profit, in dollars?",
-   "answer": 280,
+   "format": "mcq",
+   "q": "You sell 2 iron condors for a 1.40 credit each. What is your maximum profit?",
+   "answer": "$280",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1136,7 +1136,7 @@
      "contracts": 2
     }
    },
-   "why": "$280. A short iron condor's max profit is the net credit, kept when the stock finishes between the short strikes. Each contract covers 100 shares. So it is 1.40 times 100, times 2 contracts. Commissions come out of that.",
+   "why": "$280. A short iron condor's max profit is the net credit, kept when the stock finishes between the short strikes. Each contract covers 100 shares. So it is 1.40 times 100, which is 140, times 2 contracts, which is 280. Commissions come out of that.",
    "lesson_line": "Max profit on a short condor is the credit, times 100, times your contracts.",
    "facts": [
     "f61",
@@ -1151,15 +1151,26 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$140",
+    "$2.80",
+    "$2,800",
+    "$280"
+   ],
+   "wrong": {
+    "$140": "Counts one condor instead of 2.",
+    "$2.80": "Forgets that one contract covers 100 shares.",
+    "$2,800": "Slips a decimal place on the 100 shares."
+   }
   },
   {
    "key": "q10",
    "skill": "options.condors_flies",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Buy the 45 put, sell the 50 put, sell the 60 call, buy the 65 call. Credit 1.60. What's the max loss per share?",
-   "answer": 3.4,
+   "answer": "$3.40",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1170,7 +1181,7 @@
      "credit": 1.6
     }
    },
-   "why": "$3.40 a share. The max loss comes when the stock finishes beyond a long strike. Then one side is fully in the money and the other expires worthless. Both sides are the same width here: 65 minus 60 on the calls, 50 minus 45 on the puts. Take that width less the 1.60 credit.",
+   "why": "$3.40 a share. The max loss comes when the stock finishes beyond a long strike. Then one side is fully in the money and the other expires worthless. Both sides are the same width here: 65 minus 60 is 5, and 50 minus 45 is 5. Take 5 less the 1.60 credit to get 3.40.",
    "lesson_line": "Short condor max loss: one side's width minus the credit, per share.",
    "facts": [
     "f08",
@@ -1187,7 +1198,18 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$5.00",
+    "$3.40",
+    "$6.60",
+    "$1.60"
+   ],
+   "wrong": {
+    "$5.00": "Uses the width of one side and forgets the 1.60 credit.",
+    "$6.60": "Adds the credit to the width instead of taking it off.",
+    "$1.60": "That is the most you can make, the credit. It is not the loss."
+   }
   },
   {
    "key": "q11",
@@ -1230,9 +1252,9 @@
    "key": "q12",
    "skill": "options.condors_flies",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You sell the 80 put and the 90 call, with wings at 75 and 95, for a 1.85 credit. What's the upper break-even at expiry?",
-   "answer": 91.85,
+   "answer": "$91.85",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1257,7 +1279,18 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$96.85",
+    "$88.15",
+    "$91.85",
+    "$78.15"
+   ],
+   "wrong": {
+    "$88.15": "Takes the credit off the short call instead of adding it.",
+    "$96.85": "Starts from the 95 wing, not the short call.",
+    "$78.15": "That is the lower break-even, off the short put."
+   }
   },
   {
    "key": "q13",
@@ -1308,9 +1341,9 @@
    "key": "q14",
    "skill": "options.condors_flies",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You buy one 40 call, sell two 45 calls and buy one 50 call, for 1.10. What's the max profit per share at expiry?",
-   "answer": 3.9,
+   "answer": "$3.90",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1321,7 +1354,7 @@
      "debit": 1.1
     }
    },
-   "why": "$3.90 a share. A long call butterfly peaks with the stock exactly at the body at expiry. At 45, the 40 call is worth 45 minus 40, and the two 45 calls and the 50 call expire worthless. Take off the 1.10 debit. A close anywhere else pays less, and outside the wings you lose the 1.10.",
+   "why": "$3.90 a share. A long call butterfly peaks with the stock exactly at the body at expiry. At 45, the 40 call is worth 45 minus 40, which is 5. The two 45 calls and the 50 call expire worthless. Take off the 1.10 debit to get 3.90. A close anywhere else pays less.",
    "lesson_line": "Long butterfly max profit: the wing width minus the debit, and only right at the body.",
    "facts": [
     "f32",
@@ -1341,15 +1374,26 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$8.90",
+    "$5.00",
+    "$6.10",
+    "$3.90"
+   ],
+   "wrong": {
+    "$8.90": "Uses the whole 40-to-50 span instead of one wing.",
+    "$5.00": "Uses the wing width and forgets the 1.10 debit.",
+    "$6.10": "Adds the debit to the wing width instead of taking it off."
+   }
   },
   {
    "key": "q15",
    "skill": "options.condors_flies",
    "rung": 6,
-   "format": "numeric",
-   "q": "3 iron condors: buy the 95 put, sell the 100 put, sell the 110 call, buy the 120 call. Credit 2.50 each. Max loss in dollars?",
-   "answer": 2250,
+   "format": "mcq",
+   "q": "3 iron condors: buy the 95 put, sell the 100 put, sell the 110 call, buy the 120 call. Credit 2.50 each. Max loss?",
+   "answer": "$2,250",
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1380,7 +1424,18 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$750",
+    "$3,000",
+    "$2,250",
+    "$3,750"
+   ],
+   "wrong": {
+    "$750": "Uses the narrower put side.",
+    "$3,000": "Uses the wider side and forgets the 2.50 credit.",
+    "$3,750": "Adds the credit to the wider side instead of taking it off."
+   }
   },
   {
    "key": "q16",
@@ -1866,15 +1921,15 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3. Why rewritten to show the intermediate numbers."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (65-60)-1.60 = 3.40 rechecked by hand; both sides 5 wide in the question. Added f122 supports 'beyond a long strike'."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2. Why rewritten to show the intermediate numbers."
   },
   "q11": {
    "status": "pass",
@@ -1884,9 +1939,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
   },
   "q13": {
    "status": "pass",
@@ -1898,14 +1953,14 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (45-40)-1.10 = 3.90 rechecked; OIC f32 formula uses high minus middle, equal to middle minus low by f31. New deeper trap (one wing, not the 40-to-50 span) no longer duplicates q21's key."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4. Why rewritten to show the intermediate numbers."
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
   },
   "q16": {
    "status": "pass",

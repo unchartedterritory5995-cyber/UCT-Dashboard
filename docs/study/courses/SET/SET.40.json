@@ -1247,11 +1247,11 @@
    "key": "q09",
    "skill": "setup.inside_day",
    "rung": 2,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "id.gap_over",
    "q": "The inside day's high is 50.00. What is the highest open we would still buy?",
-   "answer": 52.0,
-   "why": "52.00. The open can be at most 4% over the inside day's high: 50.00 times 1.04.",
+   "answer": "$52.00",
+   "why": "52.00. The open can be at most 4% over the inside day's high: 50.00 x 1.04, which is 52.00.",
    "lesson_line": "Four percent over the high is the line. Work it out before the open.",
    "facts": [
     "c13",
@@ -1277,7 +1277,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "$48.00",
+    "$54.00",
+    "$52.00",
+    "$50.20"
+   ],
+   "wrong": {
+    "$54.00": "Added 4 dollars, not 4 percent.",
+    "$48.00": "Took 4% off the high. The limit sits above the high.",
+    "$50.20": "Slipped the decimal point in the 4%."
+   }
   },
   {
    "key": "q10",
@@ -1485,10 +1496,10 @@
    "key": "q16",
    "skill": "setup.inside_day",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "id.trim_1",
    "q": "Bought at 20.71 with the stop at 20.47. Where is 3R?",
-   "answer": 21.43,
+   "answer": "$21.43",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1498,7 +1509,7 @@
     },
     "round": 2
    },
-   "why": "21.43. One R is the fill minus the stop. Add three of those to the fill, 20.71. We use 3R as a measuring stick, not a sell order. JBLU got there the next day.",
+   "why": "21.43. One R is the fill minus the stop: 20.71 minus 20.47. Add three of those to the fill, 20.71. We use 3R as a measuring stick, not a sell order. JBLU got there the next day.",
    "lesson_line": "A small stop makes 3R a small move. Know the number before the open.",
    "facts": [
     "d01",
@@ -1515,7 +1526,18 @@
      "a computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$21.19",
+    "$19.99",
+    "$23.71",
+    "$21.43"
+   ],
+   "wrong": {
+    "$21.19": "Added three R to the stop instead of to the fill.",
+    "$19.99": "Subtracted three R. A long's target sits above the fill.",
+    "$23.71": "Added 3 dollars, not three R. R is the fill minus the stop."
+   }
   },
   {
    "key": "q17",
@@ -1726,10 +1748,10 @@
    "key": "q23",
    "skill": "setup.inside_day",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "id.stop",
    "q": "Bought at 41.09 with the stop at 40.45. How far below the buy is the stop, in percent?",
-   "answer": 1.56,
+   "answer": "1.56%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1739,7 +1761,7 @@
     },
     "round": 2
    },
-   "why": "1.56%. The buy minus the stop, divided by the buy: 41.09 minus 40.45, over 41.09. That is well inside the 3% habit for the stop. ATI's inside day gave a small stop.",
+   "why": "1.56%. The gap is the buy minus the stop: 41.09 minus 40.45. Divide by the buy, 41.09, and show it as a percent. That is well inside the 3% habit for the stop. ATI's inside day gave a small stop.",
    "lesson_line": "Trigger minus stop, over the trigger. Inside days give small stops.",
    "facts": [
     "d05",
@@ -1756,16 +1778,27 @@
      "a computed key"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "0.64%",
+    "15.58%",
+    "1.56%",
+    "98.44%"
+   ],
+   "wrong": {
+    "0.64%": "Read the dollar gap as a percent. Divide it by the buy first.",
+    "15.58%": "Slipped the decimal point one place right.",
+    "98.44%": "Divided the stop by the buy. That is how much of the price is left, not how far the stop is."
+   }
   },
   {
    "key": "q24",
    "skill": "setup.inside_day",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "id.close_upper_half",
    "q": "The inside day ran 20.00 to 21.00 and closed at 20.80. Where in its range did it close, 0 to 1?",
-   "answer": 0.8,
+   "answer": "0.80",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1776,7 +1809,7 @@
     },
     "round": 2
    },
-   "why": "0.8, near the high. Close minus low, over high minus low. A close in the upper half of the inside day's range is preferred. It is a grading cue, not a rule.",
+   "why": "0.8, near the high. Close minus low: 20.80 minus 20.00. Divide by high minus low: 21.00 minus 20.00. A close in the upper half of the inside day's range is preferred. It is a grading cue, not a rule.",
    "lesson_line": "Close minus low, over high minus low. Near the top is the picture we like.",
    "facts": [
     "c37"
@@ -1795,7 +1828,18 @@
    "depends_on": [
     "D-039"
    ],
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "0.20",
+    "0.80",
+    "0.99",
+    "0.04"
+   ],
+   "wrong": {
+    "0.20": "Measured from the high down. The question counts up from the low.",
+    "0.99": "Divided the close by the high. Use the range: close minus low, over high minus low.",
+    "0.04": "Divided by the low instead of by the range."
+   }
   },
   {
    "key": "q25",
@@ -2024,10 +2068,10 @@
    "key": "q31",
    "skill": "setup.inside_day",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "id.trim_2",
    "q": "Bought at 55.02, stop 54.28. The stock trades to 58.72. How many R is that?",
-   "answer": 5.0,
+   "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -2037,7 +2081,7 @@
     },
     "round": 1
    },
-   "why": "5R. One R is the fill minus the stop. The gain over the fill, divided by that, is five.",
+   "why": "5R. One R is the fill minus the stop: 55.02 minus 54.28. The gain is 58.72 minus 55.02. The gain divided by that R is five.",
    "lesson_line": "Count in R, not dollars: the gain divided by the risk.",
    "facts": [
     "h20",
@@ -2055,7 +2099,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "0.2R",
+    "6.0R",
+    "3.7R",
+    "5.0R"
+   ],
+   "wrong": {
+    "6.0R": "Measured the gain from the stop instead of from the fill.",
+    "3.7R": "Called the dollar gain R. Divide it by the risk per share.",
+    "0.2R": "Inverted it: R divided by the gain instead of gain divided by R."
+   }
   },
   {
    "key": "q32",
@@ -2358,10 +2413,10 @@
    "key": "q40",
    "skill": "setup.inside_day",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "id.stop",
    "q": "Account 50,000. Risk 0.25%. Trigger 38.00, stop 37.53. How many shares, rounded down?",
-   "answer": 265,
+   "answer": "265 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2372,7 +2427,7 @@
     },
     "round": 0
    },
-   "why": "265. Account times risk percent, divided by the trigger minus the stop, rounded down. That is well under the cap of 40% of the account, so the risk-based size stands. VST's stop was 37.53.",
+   "why": "265 shares. The risk dollars are 50,000 x 0.25%. The stop distance is 38.00 minus 37.53. Divide the risk dollars by the stop distance and round down. That is well under the cap of 40% of the account, so the risk-based size stands. VST's stop was 37.53.",
    "lesson_line": "Risk dollars over the stop distance, rounded down. Then check the cap.",
    "facts": [
     "h03",
@@ -2392,7 +2447,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "526 shares",
+    "1,063 shares",
+    "3 shares",
+    "265 shares"
+   ],
+   "wrong": {
+    "526 shares": "That is the 40% position cap size. Risk sets the size, and it is smaller.",
+    "1,063 shares": "Risked four times too much. Use the 0.25% the question gives.",
+    "3 shares": "Divided the risk dollars by the trigger price, not by the stop distance."
+   }
   },
   {
    "key": "q41",
@@ -2634,10 +2700,10 @@
    "key": "q48",
    "skill": "setup.inside_day",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "id.stop_wide",
    "q": "Buy 50.00, stop 48.40. How far below the buy is the stop, in percent?",
-   "answer": 3.2,
+   "answer": "3.2%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2647,7 +2713,7 @@
     },
     "round": 2
    },
-   "why": "3.2%. Take the buy minus the stop, 50.00 minus 48.40, and divide by the buy. We prefer a stop 1 to 3% away, and 3.5% is good. This one is a touch past the preferred range. Up to 5% is acceptable, so we take it and the stop sets the size.",
+   "why": "3.2%. The gap is the buy minus the stop: 50.00 minus 48.40. Divide by the buy, 50.00, and show it as a percent. We prefer a stop 1 to 3% away, and 3.5% is good. This one is a touch past the preferred range. Up to 5% is acceptable, so we take it and the stop sets the size.",
    "lesson_line": "Measure the stop as a percent of the buy. Past 5%, wait for a tighter trigger.",
    "facts": [
     "r11"
@@ -2664,7 +2730,18 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "1.6%",
+    "3.2%",
+    "32.0%",
+    "96.8%"
+   ],
+   "wrong": {
+    "1.6%": "Read the dollar gap as a percent. Divide it by the buy first.",
+    "96.8%": "Divided the stop by the buy. That is how much of the price is left, not how far the stop is.",
+    "32.0%": "Slipped the decimal point one place right."
+   }
   },
   {
    "key": "q49",
@@ -3494,7 +3571,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "50.00 x 1.04 = 52.00; c13/h11."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q10": {
    "status": "pass",
@@ -3537,7 +3614,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic only; why calls 3R a measuring stick; h05 dropped."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q17": {
    "status": "pass",
@@ -3577,15 +3654,15 @@
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q24": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q25": {
    "status": "pass",
@@ -3628,7 +3705,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(58.72 - 55.02) / (55.02 - 54.28) = 3.70 / 0.74 = 5.0."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q32": {
    "status": "pass",
@@ -3682,7 +3759,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "50,000 x 0.25% = 125; 125 / 0.47 = 265.96, rounded down 265; 265 x 38 is about 20%, under the 40% cap."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q41": {
    "status": "pass",
@@ -3730,7 +3807,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "edited by writer, agrees with ruling"
+   "notes": "Wrong choice 32% breaks the one-decimal format of the others; made it 32.0%."
   },
   "q49": {
    "status": "pass",

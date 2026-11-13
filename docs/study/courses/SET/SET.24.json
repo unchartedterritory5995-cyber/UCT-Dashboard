@@ -1352,10 +1352,10 @@
    "key": "q18",
    "skill": "setup.two_b_reversal",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tb.trim_1",
    "q": "Bought at 49.58 with the stop at 49.15. Where is 3R?",
-   "answer": 50.87,
+   "answer": "$50.87",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1365,7 +1365,7 @@
     },
     "round": 2
    },
-   "why": "50.87. One R is the fill minus the stop. Add three of those to the fill. This is the RL trade, which reached 3R on day 1. 3R is a yardstick, not a fixed sell.",
+   "why": "$50.87. One R is the fill minus the stop, 49.58 minus 49.15. Add three of those to the 49.58 fill. This is the RL trade, which reached 3R on day 1. 3R is a yardstick, not a fixed sell.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
     "dRL",
@@ -1381,7 +1381,18 @@
      "a computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$51.30",
+    "$48.29",
+    "$50.44",
+    "$50.87"
+   ],
+   "wrong": {
+    "$48.29": "Subtracted three R from the fill.",
+    "$50.44": "Added three R to the stop, not the fill.",
+    "$51.30": "Counted four R, one too many."
+   }
   },
   {
    "key": "q19",
@@ -1523,10 +1534,10 @@
    "key": "q23",
    "skill": "setup.two_b_reversal",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tb.depth",
    "q": "The prior swing low is 50.00 and the undercut low is 48.80. How deep is the undercut, in percent?",
-   "answer": 2.4,
+   "answer": "2.4%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -1535,7 +1546,7 @@
     },
     "round": 1
    },
-   "why": "2.4%. The undercut is measured from the prior low to the lowest low of the undercut: 50.00 minus 48.80, over 50.00, is 2.4%. That is inside the 3% line, so the stop fits. Deeper undercuts only with a smaller size or a later, tighter entry.",
+   "why": "2.4%. The drop is the prior low minus the undercut low, 50.00 minus 48.80. Divide that by the prior low, 50.00, to get 2.4%. That is inside the 3% line, so the stop fits. Deeper undercuts only with a smaller size or a later, tighter entry.",
    "lesson_line": "Measure the undercut against the old low, and keep it inside 3%.",
    "facts": [
     "t_depth"
@@ -1550,16 +1561,27 @@
      "a computed key"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "24.0%",
+    "1.2%",
+    "2.4%",
+    "97.6%"
+   ],
+   "wrong": {
+    "1.2%": "Read the dollar gap as a percent.",
+    "24.0%": "Slipped the decimal one place to the right.",
+    "97.6%": "Divided the undercut low by the prior low and skipped the subtraction."
+   }
   },
   {
    "key": "q24",
    "skill": "setup.two_b_reversal",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tb.stop_dist",
    "q": "Filled at 49.58 with the stop at 49.15. How far is the stop from the fill, in percent?",
-   "answer": 0.87,
+   "answer": "0.87%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1569,7 +1591,7 @@
     },
     "round": 2
    },
-   "why": "0.87%. Take the fill minus the stop, 49.58 minus 49.15, and divide by the fill. That is 0.87%, well inside the 3% line where the stop usually sits. This is the RL trade.",
+   "why": "0.87%. The fill minus the stop is 49.58 minus 49.15. Divide that by the fill, 49.58, to get 0.87%. That is well inside the 3% line where the stop usually sits. This is the RL trade.",
    "lesson_line": "Measure the stop. It usually sits within about 3% of the buy.",
    "facts": [
     "h04",
@@ -1586,7 +1608,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "99.13%",
+    "0.43%",
+    "8.67%",
+    "0.87%"
+   ],
+   "wrong": {
+    "0.43%": "Read the dollar gap as a percent.",
+    "8.67%": "Slipped the decimal one place to the right.",
+    "99.13%": "Divided the stop by the fill and skipped the subtraction."
+   }
   },
   {
    "key": "q25",
@@ -2021,10 +2054,10 @@
    "key": "q36",
    "skill": "setup.two_b_reversal",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tb.trim_2",
    "q": "Bought at 42.89 with the stop at 42.37. Where is 5R?",
-   "answer": 45.49,
+   "answer": "$45.49",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2034,7 +2067,7 @@
     },
     "round": 2
    },
-   "why": "45.49. One R is the fill minus the stop. Add five of those to the fill. This is the DINO trade. 5R is a yardstick, and selling at about 5 to 10R is often best.",
+   "why": "$45.49. One R is the fill minus the stop, 42.89 minus 42.37. Add five of those to the 42.89 fill. This is the DINO trade. 5R is a yardstick, and selling at about 5 to 10R is often best.",
    "lesson_line": "Know 3R and 5R before the open.",
    "facts": [
     "dDINO",
@@ -2050,7 +2083,18 @@
      "a computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$40.29",
+    "$45.49",
+    "$44.97",
+    "$46.01"
+   ],
+   "wrong": {
+    "$40.29": "Subtracted five R from the fill.",
+    "$44.97": "Added five R to the stop, not the fill.",
+    "$46.01": "Counted six R, one too many."
+   }
   },
   {
    "key": "q37",
@@ -3218,11 +3262,11 @@
    "key": "q66",
    "skill": "setup.two_b_reversal",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tb.position_adv",
    "q": "Our rule: own at most 1% of average daily volume. A stock averages 120,000 shares a day. How many shares at most?",
-   "answer": 1200,
-   "why": "1,200 shares. We never own more than 1% of a stock's average daily volume. One percent of 120,000 is 1,200.",
+   "answer": "1,200 shares",
+   "why": "1,200 shares. We never own more than 1% of a stock's average daily volume. 1% of 120,000 is 1,200.",
    "lesson_line": "Cap every position at 1% of average daily volume.",
    "facts": [
     "h19",
@@ -3246,7 +3290,18 @@
      "rests on the owner's rulebook D42; a computed key"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "600 shares",
+    "120 shares",
+    "1,200 shares",
+    "12,000 shares"
+   ],
+   "wrong": {
+    "120 shares": "Slipped the decimal: took a tenth of one percent.",
+    "600 shares": "Used half a percent, mixing it up with the risk percent.",
+    "12,000 shares": "Took ten percent of the volume, not one percent."
+   }
   },
   {
    "key": "q67",
@@ -3278,11 +3333,11 @@
    "key": "q68",
    "skill": "setup.two_b_reversal",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tb.not_stretched",
    "q": "Entry 41.50, 10-day average 38.20. How far above the 10-day average is the entry, in percent?",
-   "answer": 8.6,
-   "why": "8.6%. Divide the entry by the average, subtract 1 and multiply by 100: 41.50 over 38.20 is 8.6% above. That is under the 10% line, so the stretch test passes. Skip a long that is more than 10% above its 10-day average.",
+   "answer": "8.6%",
+   "why": "8.6%. The entry minus the average is 41.50 minus 38.20. Divide that by the average, 38.20, to get 8.6%. That is under the 10% line, so the stretch test passes. Skip a long that is more than 10% above its 10-day average.",
    "lesson_line": "Check the stretch: no more than 10% over the 10-day.",
    "facts": [
     "h13",
@@ -3309,7 +3364,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "108.6%",
+    "3.3%",
+    "8.0%",
+    "8.6%"
+   ],
+   "wrong": {
+    "3.3%": "Read the dollar gap as a percent.",
+    "8.0%": "Divided by the entry, not by the 10-day average.",
+    "108.6%": "Divided entry by average and forgot to subtract one."
+   }
   },
   {
    "key": "q69",
@@ -3346,11 +3412,11 @@
    "key": "q70",
    "skill": "setup.two_b_reversal",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "tb.breakeven",
    "q": "Bought at 28.62 with the stop at 28.16. At what price is 2R, where the breakeven window opens?",
-   "answer": 29.54,
-   "why": "29.54. One R is the fill minus the stop. Add two of those to the fill. Our rule moves the stop to breakeven anywhere from 2R to 5R, ideally, and at the first trim by default.",
+   "answer": "$29.54",
+   "why": "$29.54. One R is the fill minus the stop, 28.62 minus 28.16. Add two of those to the 28.62 fill. Our rule moves the stop to breakeven anywhere from 2R to 5R, ideally, and at the first trim by default.",
    "lesson_line": "Breakeven comes between 2R and 5R, by default at the first trim.",
    "facts": [
     "h05",
@@ -3378,7 +3444,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "$29.08",
+    "$29.54",
+    "$30.00",
+    "$27.70"
+   ],
+   "wrong": {
+    "$29.08": "Added two R to the stop, not the fill.",
+    "$30.00": "Counted three R, one too many.",
+    "$27.70": "Subtracted two R from the fill."
+   }
   },
   {
    "key": "q71",
@@ -3622,7 +3699,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q19": {
    "status": "pass",
@@ -3650,15 +3727,15 @@
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(49.58-49.15)/49.58=0.867, 0.87 percent. Matches dRL and h04."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q25": {
    "status": "pass",
@@ -3732,7 +3809,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q37": {
    "status": "pass",
@@ -3915,7 +3992,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1 percent of 120,000 is 1,200. Rule in the stem, h19 and t_adv."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q67": {
    "status": "pass",
@@ -3925,9 +4002,9 @@
   },
   "q68": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q69": {
    "status": "cut",
@@ -3939,7 +4016,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "28.62+2x0.46=29.54. Matches h05, t_be and dSHOP."
+   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
   },
   "q71": {
    "status": "pass",

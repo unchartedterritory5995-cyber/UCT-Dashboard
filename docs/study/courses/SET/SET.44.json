@@ -1753,10 +1753,10 @@
    "key": "q19",
    "skill": "setup.holy_grail",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "hg.trim_1",
    "q": "Bought at 36.72 with the stop at 36.03. Where is 3R?",
-   "answer": 38.79,
+   "answer": "$38.79",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1766,7 +1766,7 @@
     },
     "round": 2
    },
-   "why": "38.79. One R is the fill minus the stop: 36.72 minus 36.03. Add three of those R to the fill, never to the stop. That is the 3R mark, a yardstick and not a sell order. In this CI trade from October 2000, price reached 3R in 2 sessions.",
+   "why": "One R is 36.72 minus 36.03. Add three of those to the fill of 36.72, never to the stop, to get 38.79. That is the 3R mark, a yardstick and not a sell order. In this CI trade from October 2000, price reached 3R in 2 sessions.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
     "r70",
@@ -1784,7 +1784,18 @@
      "+2 rests on the owner's rulebook (sizing_rule.md section 9)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$39.48",
+    "$38.10",
+    "$37.41",
+    "$38.79"
+   ],
+   "wrong": {
+    "$38.10": "Added the three R to the stop, not to the fill.",
+    "$37.41": "Added only one R.",
+    "$39.48": "Counted four R instead of three."
+   }
   },
   {
    "key": "q20",
@@ -1921,10 +1932,10 @@
    "key": "q24",
    "skill": "setup.holy_grail",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "hg.stop_width",
    "q": "Fill 50.27, stop 48.75. How far below the fill is the stop, in percent?",
-   "answer": 3.02,
+   "answer": "3.02%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1934,7 +1945,7 @@
     },
     "round": 2
    },
-   "why": "3.02%. Take the fill minus the stop, then divide by the fill. Our stop usually sits within about 3% of the buy, and this one sits right at that habit. It is a habit, not a hard cap. This was AMBA in June 2016, where the line held to the cent.",
+   "why": "The gap is 50.27 minus 48.75. Divide it by the fill of 50.27 to get 3.02%. Our stop usually sits within about 3% of the buy, and this one sits right at that habit. It is a habit, not a hard cap. This was AMBA in June 2016, where the line held to the cent.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h04",
@@ -1955,7 +1966,18 @@
      "+2 rests on the owner's rulebook (sizing_rule.md section 9) (the about 3% habit, A13)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "3.12%",
+    "3.02%",
+    "1.52%",
+    "30.24%"
+   ],
+   "wrong": {
+    "3.12%": "Divided by the stop instead of the fill.",
+    "1.52%": "Read the dollar gap as a percent.",
+    "30.24%": "Slipped a decimal."
+   }
   },
   {
    "key": "q25",
@@ -2377,10 +2399,10 @@
    "key": "q36",
    "skill": "setup.holy_grail",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "hg.stop",
    "q": "Account 50,000, at its high. Risk 0.5%. Fill 38.93, stop 38.14. How many shares?",
-   "answer": 316,
+   "answer": "316 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2391,7 +2413,7 @@
     },
     "round": 0
    },
-   "why": "316 shares. Take the account times the risk percent. Divide by the fill minus the stop. Round down, never up. The account is at its high, so the normal 40% position cap applies, and this size sits well under it. The stop sets the size.",
+   "why": "Risk dollars are 0.5% of 50,000. Divide that by the fill minus the stop, 38.93 minus 38.14. Round down to 316 shares. The account is at its high, so the normal 40% position cap applies, and this size sits well under it. The stop sets the size.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2412,7 +2434,18 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "632 shares",
+    "6 shares",
+    "3,164 shares",
+    "316 shares"
+   ],
+   "wrong": {
+    "632 shares": "Doubled the risk dollars.",
+    "6 shares": "Divided the risk dollars by the fill, not the stop distance.",
+    "3,164 shares": "Slipped a decimal and risked ten times too much."
+   }
   },
   {
    "key": "q37",
@@ -2689,10 +2722,10 @@
    "key": "q44",
    "skill": "setup.holy_grail",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "hg.depth",
    "q": "The momentum-high close was 40.00 and the swing low is 37.60. How deep is the pullback, in percent?",
-   "answer": 6.0,
+   "answer": "6.0%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -2701,7 +2734,7 @@
     },
     "round": 1
    },
-   "why": "6.0%. Take the momentum-high close less the swing low, then divide by the high: 40.00 less 37.60, divided by 40.00, is 6.0%. Our card sets no depth rule beyond the line itself, and the touch low must hold above the 50-day. AMBA's 7.8% was the deepest of our ten examples, and the line still held to the cent.",
+   "why": "The drop is 40.00 less 37.60. Divide it by the high of 40.00 to get 6.0%. Our card sets no depth rule beyond the line itself, and the touch low must hold above the 50-day. AMBA's 7.8% was the deepest of our ten examples, and the line still held to the cent.",
    "lesson_line": "Measure the dip, then look at the 50-day. Depth is a picture, not a gate.",
    "facts": [
     "c10",
@@ -2717,7 +2750,18 @@
      "computed key (drawdown_pct)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "tomcq",
+   "choices": [
+    "6.4%",
+    "2.4%",
+    "6.0%",
+    "94.0%"
+   ],
+   "wrong": {
+    "6.4%": "Divided the drop by the low instead of the high.",
+    "2.4%": "Read the dollar drop as a percent.",
+    "94.0%": "Found where the low sits as a share of the high, not the drop."
+   }
   },
   {
    "key": "q45",
@@ -3733,7 +3777,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic; softened."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q20": {
    "status": "pass",
@@ -3763,7 +3807,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 1.52 / 50.27 = 3.02% correct; AMBA date and 'to the cent' from d07/d08; 'a habit, not a hard cap' is a fair reading of h04's 'usually'."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q25": {
    "status": "pass",
@@ -3835,7 +3879,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc floor(50000 x 0.5% / 0.79) = 316 correct; 316 x 38.93 is about 25% of the account, under the 40% cap (h30/h31); 0.5% risk is inside A1."
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q37": {
    "status": "pass",
@@ -3883,9 +3927,9 @@
   },
   "q44": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
   },
   "q45": {
    "status": "pass",

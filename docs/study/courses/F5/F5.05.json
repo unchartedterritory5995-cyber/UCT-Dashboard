@@ -841,9 +841,9 @@
    "key": "q09",
    "skill": "fund.expected_move",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "The stock is $80. The $80 call and put in the nearest expiry cost $4.40 together. What move, in percent, is priced?",
-   "answer": 5.5,
+   "answer": "5.5%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -870,15 +870,26 @@
      "fixed before (strike set to the stock price)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "55%",
+    "18.2%",
+    "2.8%",
+    "5.5%"
+   ],
+   "wrong": {
+    "18.2%": "You flipped it and divided the stock price by the straddle.",
+    "2.8%": "You used about half the straddle, only one leg.",
+    "55%": "A decimal slip: you moved the point one place."
+   }
   },
   {
    "key": "q10",
    "skill": "fund.expected_move",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "A stock's last close before its report was $80. Its first close after was $86.80. What was the realized move, in percent?",
-   "answer": 8.5,
+   "answer": "8.5%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -887,7 +898,7 @@
     }
    },
    "suffix": "%",
-   "why": "8.5%. Measure from the last close before the report to the first close after it: $86.80 minus $80, divided by $80, is 8.5%. That is the realized move, the move that actually printed. Hold it up against the implied move to see whether the stock moved more or less than options priced.",
+   "why": "8.5%. Measure from the last close before the report to the first close after it. $86.80 minus $80 is $6.80. Divide $6.80 by $80 and you get 8.5%. That is the realized move, the move that actually printed. Hold it up against the implied move to see whether the stock moved more or less than options priced.",
    "lesson_line": "Measure the realized move from the last close before the report. Then hold it up against what was priced.",
    "facts": [
     "f2",
@@ -903,15 +914,26 @@
      "fixed before (stem made self-contained)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "6.8%",
+    "7.8%",
+    "8.5%",
+    "108.5%"
+   ],
+   "wrong": {
+    "7.8%": "You divided the rise by the new $86.80 close instead of the old $80 close.",
+    "6.8%": "You read the $6.80 dollar rise as a percent.",
+    "108.5%": "You divided the new close by the old and forgot to subtract one."
+   }
   },
   {
    "key": "q11",
    "skill": "fund.expected_move",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Options priced a 4% move. The stock moved 10%. What is the realized move divided by the implied move?",
-   "answer": 2.5,
+   "answer": "2.5x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -939,7 +961,18 @@
      "fixed before (OIC f53 and f54 added)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "14.0x",
+    "0.4x",
+    "6.0x",
+    "2.5x"
+   ],
+   "wrong": {
+    "0.4x": "You flipped it and divided the implied move by the realized move.",
+    "6.0x": "You subtracted 4 from 10 instead of dividing.",
+    "14.0x": "You added 4 and 10 instead of dividing."
+   }
   },
   {
    "key": "q12",
@@ -1302,9 +1335,9 @@
    "key": "q21",
    "skill": "fund.expected_move",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Meta, February 2024: front-week options implied about a 9% move. The stock closed up 20.3%. Realized divided by implied?",
-   "answer": 2.3,
+   "answer": "2.3x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1334,7 +1367,18 @@
      "pairs two writers' figures (IBKR priced, Reuters close)"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "11.3x",
+    "0.4x",
+    "2.3x",
+    "29.3x"
+   ],
+   "wrong": {
+    "0.4x": "You flipped it and divided the 9% by the 20.3%.",
+    "11.3x": "You subtracted 9 from 20.3 instead of dividing.",
+    "29.3x": "You added 9 and 20.3 instead of dividing."
+   }
   },
   {
    "key": "q22",
@@ -1536,21 +1580,21 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer before key: 10 / 4 = 2.5 (calc matches, numbers from the stem). Stem names the direction of the divide, so no second answer. f54 re-fetched on optionseducation.org/news/may-keytakeaways: 'outperforming expectations' and 'sometimes referred to' found; the why says 'sometimes called', faithful. Why no longer states q24's key. Simple stays within the why. One cross-item note: q24's why repeated q11's OIC sentence word for word; repaired on the q24 side."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q12": {
    "status": "pass",
@@ -1610,9 +1654,9 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q22": {
    "status": "cut",

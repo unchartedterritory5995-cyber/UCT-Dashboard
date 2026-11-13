@@ -900,9 +900,9 @@
    "key": "q11",
    "skill": "options.directional",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You buy the 40 put for 1.75. At expiry, what stock price is your break-even?",
-   "answer": 38.25,
+   "answer": "$38.25",
    "prefix": "$",
    "calc": {
     "fn": "option_breakeven",
@@ -928,7 +928,18 @@
      "fixed before (lesson line wording)"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$41.75",
+    "$40.00",
+    "$36.50",
+    "$38.25"
+   ],
+   "wrong": {
+    "$41.75": "Adds the premium to the strike. That is the call formula.",
+    "$40.00": "Stops at the strike and forgets the 1.75 the put cost.",
+    "$36.50": "Takes the premium off twice."
+   }
   },
   {
    "key": "q12",
@@ -996,9 +1007,9 @@
    "key": "q14",
    "skill": "options.directional",
    "rung": 5,
-   "format": "numeric",
-   "q": "You own 2 of the 50 calls, bought at 2.50. At expiry the stock is 56. What's your profit, in dollars?",
-   "answer": 700,
+   "format": "mcq",
+   "q": "You own 2 of the 50 calls, bought at 2.50. At expiry the stock is 56. What's your profit?",
+   "answer": "$700",
    "prefix": "$",
    "calc": {
     "fn": "option_payoff",
@@ -1026,7 +1037,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$350",
+    "$1,200",
+    "$700",
+    "$1,700"
+   ],
+   "wrong": {
+    "$350": "Counts one contract instead of 2.",
+    "$1,200": "Forgets to take off the 2.50 premium.",
+    "$1,700": "Adds the premium instead of taking it off."
+   }
   },
   {
    "key": "q15",
@@ -1079,9 +1101,9 @@
    "key": "q16",
    "skill": "options.directional",
    "rung": 5,
-   "format": "numeric",
-   "q": "You buy the 40 put for 2.50. If the stock went to zero, what would one contract make, in dollars?",
-   "answer": 3750,
+   "format": "mcq",
+   "q": "You buy the 40 put for 2.50. If the stock went to zero, what would one contract make?",
+   "answer": "$3,750",
    "prefix": "$",
    "calc": {
     "fn": "option_payoff",
@@ -1094,7 +1116,7 @@
      "multiplier": 100
     }
    },
-   "why": "$3,750. A long put's best case is the stock going to zero. Its profit is then the strike minus the premium: 40 minus 2.50, times 100 shares. That is the ceiling. A long call's profit has no cap.",
+   "why": "$3,750. A long put's best case is the stock going to zero. The put is then worth the 40 strike. Take off the 2.50 premium to get 37.50 a share. Times 100 shares is 3,750. That is the ceiling. A long call's profit has no cap.",
    "lesson_line": "A put's upside has a ceiling: strike minus premium. A call's doesn't.",
    "facts": [
     "f19",
@@ -1110,7 +1132,18 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "tomcq",
+   "choices": [
+    "$4,000",
+    "$3,750",
+    "$4,250",
+    "$37.50"
+   ],
+   "wrong": {
+    "$4,000": "Forgets to take off the 2.50 the put cost.",
+    "$4,250": "Adds the premium instead of taking it off.",
+    "$37.50": "Forgets that one contract covers 100 shares."
+   }
   },
   {
    "key": "q17",
@@ -1672,9 +1705,9 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
   },
   "q12": {
    "status": "cut",
@@ -1703,8 +1736,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (56-50-2.50) x 100 x 2 = 700 recomputed. Simple 21 words, matches f11."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
   },
   "q15": {
    "status": "pass",
@@ -1716,8 +1749,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (40-0-2.50) x 100 = 3,750 recomputed; f19, f20. Simple separates value from profit."
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1. Why rewritten to show the intermediate numbers."
   },
   "q17": {
    "status": "cut",

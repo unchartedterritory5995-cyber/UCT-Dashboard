@@ -2624,10 +2624,10 @@
    "key": "q25",
    "skill": "vocab.pattern_terms",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "term": "cup with handle",
    "q": "Cup low $40. Right lip and breakout $50. Add the cup's depth to the breakout: what's the textbook target?",
-   "answer": 60,
+   "answer": "$60",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2638,7 +2638,7 @@
     }
    },
    "prefix": "$",
-   "why": "$60. Measure the cup's depth from the right peak to the bottom, $50 less $40, and add it to the $50 breakout. StockCharts, Fidelity and Investopedia all use this method. Fidelity says to use it only as a guideline. It estimates the move. It is not a promise that price will get there.",
+   "why": "$60. The cup's depth runs from the right peak to the bottom: $50 - $40 = $10. Add it to the $50 breakout: $50 + $10 = $60. StockCharts, Fidelity and Investopedia all use this method. Fidelity says to use it only as a guideline. It estimates the move. It is not a promise that price will get there.",
    "lesson_line": "Cup target: the cup's depth added to the breakout. A guide, not a promise.",
    "facts": [
     "f21",
@@ -2655,7 +2655,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$50",
+    "$10",
+    "$60",
+    "$90"
+   ],
+   "wrong": {
+    "$10": "That is the cup's depth alone, not the target.",
+    "$50": "Added the depth to the $40 cup low, not the breakout.",
+    "$90": "Added the $40 cup low to the breakout instead of the depth."
+   }
   },
   {
    "key": "q26",
@@ -2776,10 +2787,10 @@
    "key": "q29",
    "skill": "vocab.pattern_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "flagpole",
    "q": "The flagpole runs from $20 to $30. The flag breaks out at $28. Add the pole's length to the breakout: what's the target?",
-   "answer": 38,
+   "answer": "$38",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2790,7 +2801,7 @@
     }
    },
    "prefix": "$",
-   "why": "$38. The pole's length, $30 less $20, added to the $28 breakout. StockCharts applies the flagpole length to the breakout to estimate the move, and Investopedia sets the pennant target the same way. Bulkowski says a target is an estimate only.",
+   "why": "$38. The pole's length is $30 - $20 = $10. Add it to the $28 breakout: $28 + $10 = $38. StockCharts applies the flagpole length to the breakout to estimate the move, and Investopedia sets the pennant target the same way. Bulkowski says a target is an estimate only.",
    "lesson_line": "Flag target: the pole's length added to the breakout.",
    "facts": [
     "f47",
@@ -2805,7 +2816,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$40",
+    "$38",
+    "$58",
+    "$10"
+   ],
+   "wrong": {
+    "$40": "Added the length to the pole top, not the breakout.",
+    "$58": "Added the $30 pole top to the breakout instead of the length.",
+    "$10": "That is the pole's length alone, not the target."
+   }
   },
   {
    "key": "q30",
@@ -2904,10 +2926,10 @@
    "key": "q33",
    "skill": "vocab.pattern_terms",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "term": "wedge",
    "q": "On a rising wedge, at least how many touches across both lines do Bulkowski and Fidelity's guide want?",
-   "answer": 5,
+   "answer": "5 touches",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2930,7 +2952,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "3 touches",
+    "4 touches",
+    "5 touches",
+    "6 touches"
+   ],
+   "wrong": {
+    "3 touches": "Counted one line only, not both.",
+    "4 touches": "Two on each line is not enough, one line needs three.",
+    "6 touches": "Three on each line is more than the guide asks."
+   }
   },
   {
    "key": "q34",
@@ -3164,10 +3197,10 @@
    "key": "q40",
    "skill": "vocab.pattern_terms",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "term": "double bottom",
-   "q": "First low $50.00, second low $49.00. How far below the first low is the second, in percent?",
-   "answer": 2,
+   "q": "First low $50.00, second low $49.00. How far below the first low is the second?",
+   "answer": "2%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3177,7 +3210,7 @@
     }
    },
    "suffix": "%",
-   "why": "2%. $49.00 sits 2% under the $50.00 first low. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it.",
+   "why": "2%. The gap is $50.00 - $49.00 = $1.00. Divide by the first low: $1.00 / $50.00 = 2%. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it.",
    "lesson_line": "Two lows within about 3% of each other still count as roughly equal.",
    "facts": [
     "f108",
@@ -3193,7 +3226,18 @@
      "fixed before (checker edited the lesson line)"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "0.02%",
+    "1%",
+    "98%",
+    "2%"
+   ],
+   "wrong": {
+    "1%": "Used the $1.00 gap as a percent and never divided by $50.",
+    "98%": "Took the second low as a share of the first, not the gap.",
+    "0.02%": "Forgot to multiply by 100 after dividing."
+   }
   },
   {
    "key": "q41",
@@ -3279,10 +3323,10 @@
    "key": "q43",
    "skill": "vocab.pattern_terms",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "term": "head and shoulders",
    "q": "Head at $60, neckline at $50. Measure head to neckline and subtract that from the neckline. What's the target?",
-   "answer": 40,
+   "answer": "$40",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3292,7 +3336,7 @@
     }
    },
    "prefix": "$",
-   "why": "$40. The head sits $60 less $50 above the neckline. StockCharts subtracts that distance from the neckline, and Fidelity's guide projects it down from the neckline. StockCharts adds that any price target is a rough guide and other factors count. The target only applies after the neckline breaks.",
+   "why": "$40. The head sits $60 - $50 = $10 above the neckline. StockCharts subtracts that distance from the neckline: $50 - $10 = $40. Fidelity's guide projects it down from the neckline too. StockCharts adds that any price target is a rough guide and other factors count. The target only applies after the neckline breaks.",
    "lesson_line": "Head-to-neckline height, projected down from the neckline. A guide, not a promise.",
    "facts": [
     "f129",
@@ -3312,7 +3356,18 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "tomcq",
+   "choices": [
+    "$50",
+    "$40",
+    "$60",
+    "$10"
+   ],
+   "wrong": {
+    "$50": "Took the head height off the $60 head, not the neckline.",
+    "$60": "Added the head height to the neckline instead of subtracting.",
+    "$10": "That is the head height alone, not the target."
+   }
   },
   {
    "key": "q44",
@@ -4348,8 +4403,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 50 + (50 - 40) = 60; numbers from the question; f21, f31, f33, f38, f186 support. Lesson-level overlap with q51 (target is a guide) is the theme the Resolver kept across q25/q29/q43/q59; q51 sits outside this chunk."
+   "fixed": true,
+   "notes": "Content passes; reordered only to vary the answer slot."
   },
   "q26": {
    "status": "pass",
@@ -4372,9 +4427,9 @@
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "28 + (30-20) = 38 verified; wrongs real."
   },
   "q30": {
    "status": "pass",
@@ -4398,7 +4453,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5 from f66 (Bulkowski, rising wedge page) and f63 (Fidelity, wedges); calc 3 + 2 = 5 recomputes. The stem names whose rule it is, so StockCharts' looser count (conflicts) does not make a second answer."
+   "notes": "3+2=5; wrongs real."
   },
   "q34": {
    "status": "pass",
@@ -4439,9 +4494,9 @@
   },
   "q40": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Content passes; reordered only to vary the answer slot."
   },
   "q41": {
    "status": "pass",
@@ -4457,9 +4512,9 @@
   },
   "q43": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Content passes; reordered only to vary the answer slot."
   },
   "q44": {
    "status": "pass",

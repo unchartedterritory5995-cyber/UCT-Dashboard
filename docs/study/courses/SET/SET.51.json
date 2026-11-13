@@ -1295,10 +1295,10 @@
    "key": "q13",
    "skill": "setup.mean_reversion",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "mr.mark_atr_drop",
    "q": "Prior close 60.00, ATR(14) 1.80, day's low 55.90. How many ATR is the drop?",
-   "answer": 2.28,
+   "answer": "2.28 ATR",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1327,7 +1327,18 @@
      "rests on a proposed card criterion the owner has not ruled on"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "6.83 ATR",
+    "4.10 ATR",
+    "0.44 ATR",
+    "2.28 ATR"
+   ],
+   "wrong": {
+    "4.10 ATR": "Gave the dollar drop and skipped the ATR division.",
+    "0.44 ATR": "Flipped the division, ATR over the drop.",
+    "6.83 ATR": "Used the percent drop as ATR."
+   }
   },
   {
    "key": "q14",
@@ -1610,10 +1621,10 @@
    "key": "q22",
    "skill": "setup.mean_reversion",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "mr.prior_trend_a",
    "q": "The 63-day low was 32.00. The close before the slide began was 41.60. What was the run?",
-   "answer": 30.0,
+   "answer": "30.0%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1640,16 +1651,27 @@
      "rests on a proposed card criterion the owner has not ruled on (day before the flush or before the slide began)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "23.1%",
+    "130.0%",
+    "30.0%",
+    "9.6%"
+   ],
+   "wrong": {
+    "23.1%": "Divided by the close, not the low.",
+    "130.0%": "Gave the close as a share of the low.",
+    "9.6%": "Used the dollar gain as a percent."
+   }
   },
   {
    "key": "q23",
    "skill": "setup.mean_reversion",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "mr.mark_blowoff",
    "q": "The highest close of the last 10 sessions was 33.00. Today closes at 19.50. How far down is that?",
-   "answer": 40.9,
+   "answer": "40.9%",
    "calc": {
     "fn": "drawdown_pct",
     "args": {
@@ -1675,16 +1697,27 @@
      "rests on a proposed card criterion the owner has not ruled on"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "69.2%",
+    "40.9%",
+    "59.1%",
+    "13.5%"
+   ],
+   "wrong": {
+    "69.2%": "Divided by today's close, not the high.",
+    "59.1%": "Gave today's close as a share of the high.",
+    "13.5%": "Used the dollar drop as a percent."
+   }
   },
   {
    "key": "q24",
    "skill": "setup.mean_reversion",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "mr.stop",
    "q": "You buy at 109.13. The lower of the flush low and the turn day's low is 106.93. The stop sits 5 cents under it. Stop width in percent?",
-   "answer": 2.06,
+   "answer": "2.06%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1711,16 +1744,27 @@
      "rests on the owner's rulebook (sizing_rule.md section 9)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "2.25%",
+    "20.60%",
+    "97.94%",
+    "2.06%"
+   ],
+   "wrong": {
+    "2.25%": "Used the dollar gap as a percent.",
+    "20.60%": "Slipped the decimal point a place.",
+    "97.94%": "Gave the stop as a share of the buy."
+   }
   },
   {
    "key": "q25",
    "skill": "setup.mean_reversion",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "mr.trim_1",
    "q": "You buy at 26.76 with the stop at 26.00. What price is 3R?",
-   "answer": 29.04,
+   "answer": "$29.04",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1749,16 +1793,27 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$28.28",
+    "$27.52",
+    "$29.04",
+    "$29.76"
+   ],
+   "wrong": {
+    "$27.52": "Added one R, not three.",
+    "$28.28": "Added three R to the stop, not the fill.",
+    "$29.76": "Added 3 dollars, not three R."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.mean_reversion",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "mr.stop",
    "q": "Account 50,000. You risk 0.5% on the trade. Buy at 26.76, stop at 26.00. How many shares?",
-   "answer": 328,
+   "answer": "328 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -1769,7 +1824,7 @@
     },
     "round": 0
    },
-   "why": "328 shares. The dollar risk is the account times the risk percent. Divide it by the entry minus the stop, 26.76 minus 26.00, and round down. Then cap it: the size is the smaller of that and the 40% position cap. Here 328 shares is well under 40% of 50,000, so the cap does not bind.",
+   "why": "328 shares. The dollar risk is 50,000 times 0.5%. Divide it by the buy minus the stop, 26.76 minus 26.00, and round down. Then cap it at 40% of the account. Here 328 shares is well under that, so the cap does not bind.",
    "lesson_line": "Risk dollars divided by risk per share, rounded down, then capped.",
    "facts": [
     "h31",
@@ -1787,16 +1842,27 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "657 shares",
+    "328 shares",
+    "747 shares",
+    "3,289 shares"
+   ],
+   "wrong": {
+    "657 shares": "Doubled the risk percent.",
+    "747 shares": "Sized to the 40% cap, not to the risk.",
+    "3,289 shares": "Used ten times the risk percent."
+   }
   },
   {
    "key": "q27",
    "skill": "setup.mean_reversion",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "mr.stop_gap",
    "q": "Bought at 50.00, stop at 48.00. A gap-down day makes a first 30-minute low of 46.50. How many R is the loss at that low?",
-   "answer": 1.75,
+   "answer": "1.75R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1828,7 +1894,18 @@
      "rests on the owner's rulebook (sizing_rule.md section 9)"
     ]
    },
-   "batch": "wave5"
+   "batch": "tomcq",
+   "choices": [
+    "3.50R",
+    "0.57R",
+    "1.75R",
+    "2.33R"
+   ],
+   "wrong": {
+    "3.50R": "Gave the dollar loss and skipped the R division.",
+    "0.57R": "Flipped the division, risk over the loss.",
+    "2.33R": "Divided by the stop-to-low gap, not the risk."
+   }
   },
   {
    "key": "q28",
@@ -3246,10 +3323,10 @@
    "key": "q64",
    "skill": "setup.mean_reversion",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "mr.trim_2",
    "q": "Bought at 109.13 with the stop at 106.88. What price is 5R?",
-   "answer": 120.38,
+   "answer": "$120.38",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3259,7 +3336,7 @@
     },
     "round": 2
    },
-   "why": "120.38. One R is the fill minus the stop, 109.13 minus 106.88. Add five of them to the fill. In an R-based plan, a later sell can sit at 5R. On KRYS, 5R printed two sessions after the turn day.",
+   "why": "120.38. One R is the fill minus the stop: 109.13 minus 106.88. Multiply that by five and add it to the fill. In an R-based plan, a later sell can sit at 5R. On KRYS, 5R printed two sessions after the turn day.",
    "lesson_line": "One R is the fill minus the stop. 5R is five of them above the fill.",
    "facts": [
     "h20",
@@ -3282,7 +3359,18 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$114.13",
+    "$120.38",
+    "$118.13",
+    "$122.63"
+   ],
+   "wrong": {
+    "$114.13": "Added 5 dollars, not five R.",
+    "$118.13": "Added five R to the stop, not the fill.",
+    "$122.63": "Added six R, one too many."
+   }
   },
   {
    "key": "q65",
@@ -3527,7 +3615,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed with CALCS: 2.2778 -> 2.28. Low-based drop matches cB's 'intraday ... drop from the prior close' and the dossier scan's rule."
+   "notes": "4.10/1.80 = 2.28. 4.10 skipped ATR, 0.44 flipped, 6.83 = 4.1/60 percent. Verified."
   },
   "q14": {
    "status": "pass",
@@ -3583,37 +3671,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed: (41.60-32.00)/32.00 = 30.0%. Anchor 'before the slide' matches dMe and the card's measure field; 25% from cA. Risk already records the open anchor."
+   "notes": "9.6/32 = 30%. 23.1 = 9.6/41.6, 130.0 share, 9.6 dollar gain. Verified."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed: 40.909 -> 40.9. Why makes mark 5 conditional on a post-blow-off name (cF). Clean."
+   "notes": "13.5/33 = 40.9%. 69.2 = 13.5/19.5, 59.1 = 19.5/33, 13.5 dollar. Verified."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed: 2.0618 -> 2.06. 106.93 minus 5 cents = 106.88 matches dKR and the dossier's 5-cent stop rule. Stem 131 chars."
+   "notes": "Stop 106.88, gap 2.25, /109.13 = 2.06%. 2.25 dollar gap, 20.60 slip, 97.94 share. Verified."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "notes": "26.76+3*0.76 = 29.04. 27.52 one R, 28.28 added to the stop, 29.76 +3 dollars (above the answer, so no max tell). Verified."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed with shares_from_risk: 328. 328 x 26.76 is about 17.6% of 50,000, under the 40% cap (h32); no computed number is printed besides the key. 0.5% risk is inside A1."
+   "notes": "500/0.76 = 328.9, down to 328. 657 doubled risk, 747 = 20000/26.76 cap, 3,289 ten times. Verified."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed: 1.75R, under B20's 2R ceiling (h06, h07), so 46.50 is the new stop. Different trade from q60; neither states the other's key."
+   "notes": "3.5/2 = 1.75R. 3.50 dollar loss, 0.57 = 2/3.5 flipped, 2.33 = 3.5/1.5. Verified."
   },
   "q28": {
    "status": "pass",
@@ -3857,8 +3945,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "fixed": true,
+   "notes": "120.38 correct (109.13+5*2.25). Answer was the largest and the list was sorted ascending; replaced the one-R choice with a six-R count slip (122.63), shuffled, added the step values to the why."
   },
   "q65": {
    "status": "pass",

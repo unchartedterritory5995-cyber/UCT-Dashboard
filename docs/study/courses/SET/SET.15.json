@@ -1311,10 +1311,10 @@
    "key": "q15",
    "skill": "setup.ema_crossback",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "xbk.trim_1",
    "q": "Bought at 96.51, stop at 94.17 (1R is the gap between them). Where is 3R?",
-   "answer": 103.53,
+   "answer": "$103.53",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1324,14 +1324,14 @@
     },
     "round": 2
    },
-   "why": "103.53. One R is the fill minus the stop, 96.51 minus 94.17. Add three of those to the fill. 3R is a measuring stick, not an order to sell. The first sell is a judgment.",
+   "why": "$103.53. One R is the fill minus the stop: 96.51 - 94.17. Add three of those to the fill: 96.51 + 3 x (96.51 - 94.17) = 103.53. 3R is a measuring stick, not an order to sell. The first sell is a judgment.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
     "d06",
     "r54"
    ],
    "house": true,
-   "prefix": "$",
+   "prefix": "",
    "simple": "3R is the fill plus three times the gap down to the stop, which is 103.53 here. It is a measuring stick.",
    "tier": "core",
    "risk": {
@@ -1341,16 +1341,28 @@
      "the first sell is the owner's D-013 judgment, not a fixed 3R sale"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$105.87",
+    "$101.19",
+    "$99.51",
+    "$103.53"
+   ],
+   "wrong": {
+    "$101.19": "Counted 3R up from the stop, which is only two R above the fill.",
+    "$99.51": "Added three dollars to the fill. 3R is three times the risk, not three dollars.",
+    "$105.87": "Added four R, counting the fill as the first one."
+   },
+   "suffix": ""
   },
   {
    "key": "q16",
    "skill": "setup.ema_crossback",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "xbk.stop_width",
    "q": "Fill 116.55, stop 112.39. How far under the fill is the stop, in percent?",
-   "answer": 3.6,
+   "answer": "3.6%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1360,14 +1372,14 @@
     },
     "round": 1
    },
-   "why": "3.6. The stop sits 3.6% under the fill: the gap between 116.55 and 112.39, divided by the fill. We prefer stops of 1 to 3% and call 3.5% good. Up to 5% is acceptable, so this one is wider than we like but still fine to take.",
+   "why": "3.6%. The stop's distance is the gap over the fill: (116.55 - 112.39) / 116.55 x 100 = 3.6%. We prefer stops of 1 to 3% and call 3.5% good. Up to 5% is acceptable, so this one is wider than we like but fine to take.",
    "lesson_line": "Measure the stop in percent. We like 1 to 3%, and up to 5% is fine.",
    "facts": [
     "r51",
     "d05"
    ],
    "house": true,
-   "suffix": "%",
+   "suffix": "",
    "simple": "The stop is 3.6% under the fill, a little past the 3.5% we call good, but under 5%.",
    "tier": "core",
    "risk": {
@@ -1378,16 +1390,28 @@
      "fixed before (the old why leaned on size down past 3%)"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "4.2%",
+    "0.36%",
+    "96.4%",
+    "3.6%"
+   ],
+   "wrong": {
+    "4.2%": "Used the dollar gap as if it were the percent.",
+    "0.36%": "A decimal slip, one place too far left.",
+    "96.4%": "Gave the stop as a share of the fill, not the gap between them."
+   },
+   "prefix": ""
   },
   {
    "key": "q17",
    "skill": "setup.ema_crossback",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "xbk.stop",
    "q": "Account 90,000, risk 0.6%, buy 116.55, stop 112.39. The position cap is not reached. How many shares?",
-   "answer": 129.0,
+   "answer": "129 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -1398,7 +1422,7 @@
     },
     "round": 0
    },
-   "why": "129. Dollars at risk are the account times the risk percent. Divide that by the risk per share, the buy minus the stop, and round down to whole shares. The shares come from the stop, and the position cap can only make the size smaller.",
+   "why": "129 shares. Dollars at risk are 90,000 x 0.6%. Risk per share is the buy minus the stop: 116.55 - 112.39. Divide the first by the second and round down to 129. The position cap can only make the size smaller.",
    "lesson_line": "Shares come from the stop: dollars at risk divided by risk per share.",
    "facts": [
     "h03",
@@ -1415,16 +1439,29 @@
      "rests on the owner's rulebook (A5, size from the stop)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "151 shares",
+    "1,298 shares",
+    "772 shares",
+    "129 shares"
+   ],
+   "wrong": {
+    "151 shares": "Divided the risk dollars by the stop's percent, not by the dollars per share.",
+    "772 shares": "Divided the account by the price and ignored the stop.",
+    "1,298 shares": "Typed the risk as ten times too big, so the share count came out ten times too big."
+   },
+   "prefix": "",
+   "suffix": ""
   },
   {
    "key": "q18",
    "skill": "setup.ema_crossback",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "xbk.hold_day",
    "q": "A hold day's high is 64.00, its low 61.00, its close 63.40. How far up its range did it close, in percent (0 is the low, 100 the high)?",
-   "answer": 80.0,
+   "answer": "80%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1435,13 +1472,13 @@
     },
     "round": 0
    },
-   "why": "80. The close sits 80% of the way up the range. That is the close minus the low, divided by the range from low to high. It is in the upper half, where a hold day must close.",
+   "why": "80%. The close above the low is 63.4 - 61. The range is 64 - 61. So (63.4 - 61) / (64 - 61) x 100 = 80%. That is in the upper half, where a hold day must close.",
    "lesson_line": "A strong hold day closes in the upper half of its range.",
    "facts": [
     "x03"
    ],
    "house": true,
-   "suffix": "%",
+   "suffix": "",
    "simple": "The close is 80% of the way up the day's range, so it sits in the upper half.",
    "tier": "core",
    "risk": {
@@ -1451,16 +1488,28 @@
      "the hold day is a proposed criterion (xbk.hold_day)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "99%",
+    "20%",
+    "3.8%",
+    "80%"
+   ],
+   "wrong": {
+    "99%": "Divided the close by the high. That ignores the low.",
+    "20%": "Measured down from the high instead of up from the low.",
+    "3.8%": "Divided by the close, not by the day's range."
+   },
+   "prefix": ""
   },
   {
    "key": "q19",
    "skill": "setup.ema_crossback",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "xbk.depth",
    "q": "The 20 EMA is 100.00 and the hold day's low is 99.20. How far under the 20 EMA is the low, in percent?",
-   "answer": 0.8,
+   "answer": "0.8%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1470,14 +1519,14 @@
     },
     "round": 1
    },
-   "why": "0.8. The low sits 0.8% under the 20 EMA: 100.00 minus 99.20, divided by 100.00. That is inside the zone, which runs down to about 1% under the 20 EMA.",
+   "why": "0.8%. The low is under the 20 EMA by (100.00 - 99.20) / 100.00 x 100 = 0.8%. That is inside the zone, which runs down to about 1% under the 20 EMA.",
    "lesson_line": "The zone reaches about 1% under the 20 EMA. Measure it.",
    "facts": [
     "x04",
     "d20"
    ],
    "house": true,
-   "suffix": "%",
+   "suffix": "",
    "simple": "The low is 0.8% under the 20 EMA, which is inside the zone that ends about 1% under it.",
    "deeper": {
     "counter": "The zone is a range, not a single line. It runs from the 9 EMA down to about 1% under the 20 EMA. A deeper undercut falls outside it. Another hold day had its low 2.1% under the 20 EMA, so it was outside."
@@ -1490,7 +1539,19 @@
      "the zone depth is a proposed criterion (xbk.depth)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "99.2%",
+    "8%",
+    "0.8%",
+    "0.008%"
+   ],
+   "wrong": {
+    "99.2%": "Gave the low as a share of the 20 EMA, not how far under it sits.",
+    "8%": "A decimal slip. The low is under one percent below the line.",
+    "0.008%": "Forgot to multiply by 100."
+   },
+   "prefix": ""
   },
   {
    "key": "q20",
@@ -3433,10 +3494,10 @@
    "key": "q71",
    "skill": "setup.ema_crossback",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "xbk.not_stretched",
    "q": "A crossback trigger gaps and would fill at 54.60. The 10-day average is 49.00. How far above it, in percent?",
-   "answer": 11.4,
+   "answer": "11.4%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -3445,8 +3506,8 @@
     },
     "round": 1
    },
-   "suffix": "%",
-   "why": "11.4%. The fill of 54.60 is 11.4% above the 10-day average of 49.00: the gap divided by the average. That is more than 10% above the 10-day average, so we skip it as too stretched to buy.",
+   "suffix": "",
+   "why": "11.4%. The fill is above the average by (54.60 - 49.00) / 49.00 = 11.4%. That is more than 10% above the 10-day average, so we skip it as too stretched to buy.",
    "lesson_line": "More than 10% over the 10-day is a chase. Skip it.",
    "facts": [
     "h13",
@@ -3462,7 +3523,19 @@
      "rests on the owner's rulebook (C29, the 10% stretch rule)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "1.1%",
+    "5.6%",
+    "10.3%",
+    "11.4%"
+   ],
+   "wrong": {
+    "5.6%": "Used the dollar gap as if it were the percent.",
+    "10.3%": "Divided the gap by the fill, not by the 10-day average.",
+    "1.1%": "A decimal slip, one place too far left."
+   },
+   "prefix": ""
   },
   {
    "key": "q72",
@@ -3513,10 +3586,10 @@
    "key": "q73",
    "skill": "setup.ema_crossback",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "xbk.position_adv",
    "q": "A crossback stock trades 4,000,000 shares a day on average. What is the most shares our volume rule lets us hold?",
-   "answer": 40000,
+   "answer": "40,000 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3525,8 +3598,8 @@
     },
     "round": 0
    },
-   "suffix": "shares",
-   "why": "40,000 shares. We never own more than 1% of a stock's average daily volume, and 1% of 4,000,000 is 40,000. The risk math or the position cap may allow more, but this ceiling still holds.",
+   "suffix": "",
+   "why": "40,000 shares. We never own more than 1% of a stock's average daily volume, and 4,000,000 x 0.01 = 40,000. The risk math or the position cap may allow more, but this ceiling still holds.",
    "lesson_line": "One percent of the average daily volume is the ceiling.",
    "facts": [
     "h19"
@@ -3542,7 +3615,19 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "400,000 shares",
+    "80,000 shares",
+    "4,000 shares",
+    "40,000 shares"
+   ],
+   "wrong": {
+    "400,000 shares": "Took ten times the right share of the volume.",
+    "80,000 shares": "Doubled the 1% rule. The ceiling is 1% of the average daily volume.",
+    "4,000 shares": "Took a tenth of the right share of the volume."
+   },
+   "prefix": ""
   },
   {
    "key": "q74",
@@ -3656,10 +3741,10 @@
    "key": "q78",
    "skill": "setup.ema_crossback",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "xbk.breakeven",
    "q": "Bought at 40.82, stop 40.17. What is the earliest price the stop may go to breakeven?",
-   "answer": 42.12,
+   "answer": "$42.12",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3670,7 +3755,7 @@
     "round": 2
    },
    "suffix": "",
-   "why": "42.12. Breakeven comes once the trade reaches 2R: the fill plus two times the distance from the fill to the stop. The rule allows breakeven anywhere from 2R to 5R, so 2R is the earliest.",
+   "why": "$42.12. One R is the fill minus the stop: 40.82 - 40.17. Breakeven comes at 2R: 40.82 + 2 x (40.82 - 40.17) = 42.12. The rule allows breakeven anywhere from 2R to 5R, so 2R is the earliest.",
    "lesson_line": "Count in R. From 2R the stop can move up to your entry.",
    "facts": [
     "h05",
@@ -3687,8 +3772,19 @@
      "rests on the owner's rulebook (B19, breakeven from 2R)"
     ]
    },
-   "prefix": "$",
-   "batch": "wave2"
+   "prefix": "",
+   "batch": "tomcq",
+   "choices": [
+    "$41.47",
+    "$42.77",
+    "$42.12",
+    "$44.07"
+   ],
+   "wrong": {
+    "$41.47": "That is one R up, too early. The earliest breakeven is 2R.",
+    "$42.77": "That is three R up, later than the earliest.",
+    "$44.07": "That is five R up, the latest breakeven, not the earliest."
+   }
   },
   {
    "key": "q79",
@@ -3729,10 +3825,10 @@
    "key": "q80",
    "skill": "setup.ema_crossback",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "xbk.trim_2",
    "q": "You hold 120 shares and sell a third of the 120 at each of two trims. How many shares are left to trail?",
-   "answer": 40,
+   "answer": "40 shares",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3741,8 +3837,8 @@
     },
     "round": 0
    },
-   "suffix": "shares",
-   "why": "40 shares. A third of 120 is 40. Two trims sell two thirds, so one third is left. When each sell comes is a judgment, but the sum is the same.",
+   "suffix": "",
+   "why": "40 shares. A third of 120 is 40. Two trims sell 2 x 40, and 120 - 2 x 40 = 40 are left to trail. When each sell comes is a judgment, but the sum is the same.",
    "lesson_line": "Two thirds sold leaves one third to trail.",
    "facts": [
     "r54"
@@ -3757,7 +3853,19 @@
      "when each sell comes is the owner's D-013 judgment"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "60 shares",
+    "80 shares",
+    "53 shares",
+    "40 shares"
+   ],
+   "wrong": {
+    "80 shares": "Counted one trim only. Two trims sell two thirds.",
+    "53 shares": "Took the second third of what was left, not of the 120.",
+    "60 shares": "Sold half once, not a third twice."
+   },
+   "prefix": ""
   },
   {
    "key": "q81",
@@ -4038,31 +4146,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R arithmetic kept, text no longer says a third sells at 3R"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "edit verified against rulings, quotes word for word"
+   "fixed": true,
+   "notes": "Two wrong choices (0.36%, 36%) were decimal shifts of the answer, so the 3-6 digits gave it away; the 0.36% note misdescribed the slip. Swapped 36% for the stop-as-share-of-fill mistake (96.4%)."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q20": {
    "status": "pass",
@@ -4380,8 +4488,8 @@
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "fixed": true,
+   "notes": "Calc 11.4 ok. The 1.1% note said 'read the ratio as a percent', which would give 0.1%, not 1.1%."
   },
   "q72": {
    "status": "pass",
@@ -4394,7 +4502,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q74": {
    "status": "cut",
@@ -4424,7 +4532,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q79": {
    "status": "pass",
@@ -4435,8 +4543,8 @@
   "q80": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "arithmetic only"
+   "fixed": true,
+   "notes": "Calc 40 ok. The 60-shares note was wrong: two halves would leave 30; 60 is one half sold."
   },
   "q81": {
    "status": "pass",

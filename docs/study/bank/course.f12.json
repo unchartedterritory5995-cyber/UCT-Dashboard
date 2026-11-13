@@ -813,21 +813,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "48.5",
-    "48.50",
-    "48.500"
-   ],
-   "answer": 48.5
+   "answer": "$48.50"
   },
   "difficulty": 2,
   "id": "si_41795bc6d2ac",
   "lesson_origin": "session",
-  "lesson_text": "$48.50. That's 3% below the $50 support. It is Schwab's sample exit, not a rule we teach. Investopedia says to build stop prices into your plan so every trade has exact exit points. Written as a price, there's nothing left to work out when it hits. Turn every exit rule into a price before you buy.",
+  "lesson_text": "Take 3% off the $50 support to get $48.50. It is Schwab's sample exit, not a rule we teach. Investopedia says to build stop prices into your plan so every trade has exact exit points. Written as a price, there's nothing left to work out when it hits. Turn every exit rule into a price before you buy.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$47.00",
+    "$48.50",
+    "$49.85",
+    "$51.50"
+   ],
+   "kind": "mcq",
    "q": "Schwab's sample exit: price falls 3% below a recent support level. Support is $50. At what price do you get out?",
    "subject": "F12.01#q13"
   },
@@ -861,13 +861,18 @@
      "fn": "arith",
      "result": 48.5
     },
-    "given": "Schwab's sample exit: price falls 3% below a recent support level. Support is $50. At what price do you get out?"
+    "given": "Schwab's sample exit: price falls 3% below a recent support level. Support is $50. At what price do you get out? $51.50 $47.00 $49.85 $48.50"
    },
    "lesson_line": "Turn every exit rule into a price before you buy.",
    "simple": "$48.50, because 3% below $50 is $48.50, and now the exit is a price you can type in.",
    "tier": "extended",
    "unit": "F12.01",
-   "why": "$48.50. That's 3% below the $50 support. It is Schwab's sample exit, not a rule we teach. Investopedia says to build stop prices into your plan so every trade has exact exit points. Written as a price, there's nothing left to work out when it hits."
+   "why": "Take 3% off the $50 support to get $48.50. It is Schwab's sample exit, not a rule we teach. Investopedia says to build stop prices into your plan so every trade has exact exit points. Written as a price, there's nothing left to work out when it hits.",
+   "wrong": {
+    "$47.00": "Took a flat $3.00 off, not 3% of $50.",
+    "$49.85": "A decimal slip: that is a tenth of the 3% drop.",
+    "$51.50": "Went 3% above support. An exit below support sits under it."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.plan",
@@ -2322,24 +2327,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1",
-    "1.0",
-    "1.00",
-    "1.000"
-   ],
-   "answer": 1.0
+   "answer": "1%"
   },
   "difficulty": 2,
   "id": "si_30f65cc7443f",
   "lesson_origin": "session",
-  "lesson_text": "1%. Take the drop, 6,000 minus 5,940, and divide it by the starting level of 6,000. Percent change is always measured from where you started, here yesterday's 4:00 p.m. level. One ES future tracks the 500 stocks, so the drop hints at a weaker open. SPY and the biggest index stocks tend to move with the futures, but premarket prices may not hold. Read futures in percent, not points. Points mean little until you size them against the level.",
+  "lesson_text": "The drop is 6,000 minus 5,940, or 60 points. Divide it by the starting level of 6,000 to get 1%. Percent change is always measured from where you started, here yesterday's 4:00 p.m. level. One ES future tracks the 500 stocks, so the drop hints at a weaker open. SPY and the biggest index stocks tend to move with the futures, but premarket prices may not hold. Read futures in percent, not points. Points mean little until you size them against the level.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.1%",
+    "1%",
+    "10%",
+    "60%"
+   ],
+   "kind": "mcq",
    "q": "S&P 500 futures were at 6,000 at 4:00 p.m. yesterday. At 8:45 a.m. today they're at 5,940. How far down are they, in percent?",
-   "subject": "F12.02#q09",
-   "suffix": "%"
+   "subject": "F12.02#q09"
   },
   "reveal_json": {
    "depth": {
@@ -2399,13 +2403,18 @@
      "fn": "arith",
      "result": 1.0
     },
-    "given": "S&P 500 futures were at 6,000 at 4:00 p.m. yesterday. At 8:45 a.m. today they're at 5,940. How far down are they, in percent?"
+    "given": "S&P 500 futures were at 6,000 at 4:00 p.m. yesterday. At 8:45 a.m. today they're at 5,940. How far down are they, in percent? 60% 10% 0.1% 1%"
    },
    "lesson_line": "Read futures in percent, not points. Points mean little until you size them against the level.",
    "simple": "Down 1%, because the fall from 6,000 to 5,940 is one percent of where the futures started.",
    "tier": "core",
    "unit": "F12.02",
-   "why": "1%. Take the drop, 6,000 minus 5,940, and divide it by the starting level of 6,000. Percent change is always measured from where you started, here yesterday's 4:00 p.m. level. One ES future tracks the 500 stocks, so the drop hints at a weaker open. SPY and the biggest index stocks tend to move with the futures, but premarket prices may not hold."
+   "why": "The drop is 6,000 minus 5,940, or 60 points. Divide it by the starting level of 6,000 to get 1%. Percent change is always measured from where you started, here yesterday's 4:00 p.m. level. One ES future tracks the 500 stocks, so the drop hints at a weaker open. SPY and the biggest index stocks tend to move with the futures, but premarket prices may not hold.",
+   "wrong": {
+    "0.1%": "A decimal slip: ten times too small.",
+    "10%": "A decimal slip: ten times too big.",
+    "60%": "Read the 60-point drop as 60%. Divide it by the starting level."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.routine",
@@ -4408,12 +4417,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.5",
-    "1.50",
-    "1.500"
-   ],
-   "answer": 1.5
+   "answer": "1.5R"
   },
   "difficulty": 2,
   "id": "si_935a0b99f977",
@@ -4421,10 +4425,15 @@
   "lesson_text": "1.5R. R is the initial risk, set by your initial stop: from $40 down to $39. The gain ran from $40 up to $41.50, one and a half times that distance. Van Tharp's glossary says every profit or loss can be stated as a multiple of that initial risk. Log every result in R, measured against the initial stop.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.67R",
+    "1.5R",
+    "2.5R",
+    "3.8R"
+   ],
+   "kind": "mcq",
    "q": "Your log: entry $40, initial stop $39, exit $41.50. What R goes in the result field?",
-   "subject": "F12.03#q10",
-   "suffix": "R"
+   "subject": "F12.03#q10"
   },
   "reveal_json": {
    "depth": {
@@ -4456,13 +4465,18 @@
      "fn": "r_multiple",
      "result": 1.5
     },
-    "given": "Your log: entry $40, initial stop $39, exit $41.50. What R goes in the result field?"
+    "given": "Your log: entry $40, initial stop $39, exit $41.50. What R goes in the result field? 2.5R 0.67R 1.5R 3.8R"
    },
    "lesson_line": "Log every result in R, measured against the initial stop.",
    "simple": "Log 1.5R, because the gain was one and a half times the risk from entry to the initial stop.",
    "tier": "extended",
    "unit": "F12.03",
-   "why": "1.5R. R is the initial risk, set by your initial stop: from $40 down to $39. The gain ran from $40 up to $41.50, one and a half times that distance. Van Tharp's glossary says every profit or loss can be stated as a multiple of that initial risk."
+   "why": "1.5R. R is the initial risk, set by your initial stop: from $40 down to $39. The gain ran from $40 up to $41.50, one and a half times that distance. Van Tharp's glossary says every profit or loss can be stated as a multiple of that initial risk.",
+   "wrong": {
+    "0.67R": "Flipped it: risk over gain.",
+    "2.5R": "Measured the gain from the $39 stop. Measure it from your $40 entry.",
+    "3.8R": "Took the gain as a percent of the entry and called it R."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.journal",
@@ -4660,13 +4674,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2",
-    "2.0",
-    "2.00",
-    "2.000"
-   ],
-   "answer": 2.0
+   "answer": "2%"
   },
   "difficulty": 2,
   "id": "si_cb968a97d59e",
@@ -4674,10 +4682,15 @@
   "lesson_text": "2%. Measure the gap from the planned $50 to the $51 fill, as a share of the planned $50. Log the planned entry and the real fill as two fields. Schwab's review asks whether your entries were performed effectively, and these two fields answer it. Log the planned entry and the real fill. The gap is your execution.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "1%",
+    "2%",
+    "20%",
+    "102%"
+   ],
+   "kind": "mcq",
    "q": "Your plan said buy at $50. You filled at $51. How far above plan was the fill, in percent?",
-   "subject": "F12.03#q14",
-   "suffix": "%"
+   "subject": "F12.03#q14"
   },
   "reveal_json": {
    "deeper": {
@@ -4718,13 +4731,18 @@
      "fn": "pct_change",
      "result": 2.0
     },
-    "given": "Your plan said buy at $50. You filled at $51. How far above plan was the fill, in percent?"
+    "given": "Your plan said buy at $50. You filled at $51. How far above plan was the fill, in percent? 1% 20% 102% 2%"
    },
    "lesson_line": "Log the planned entry and the real fill. The gap is your execution.",
    "simple": "The fill was 2% above plan, because the gap from $50 to $51 is 2% of the planned price.",
    "tier": "extended",
    "unit": "F12.03",
-   "why": "2%. Measure the gap from the planned $50 to the $51 fill, as a share of the planned $50. Log the planned entry and the real fill as two fields. Schwab's review asks whether your entries were performed effectively, and these two fields answer it."
+   "why": "2%. Measure the gap from the planned $50 to the $51 fill, as a share of the planned $50. Log the planned entry and the real fill as two fields. Schwab's review asks whether your entries were performed effectively, and these two fields answer it.",
+   "wrong": {
+    "1%": "Read the dollar gap as a percent. Divide it by the $50 plan price.",
+    "102%": "Gave the fill as a percent of the plan price and forgot to take off the start.",
+    "20%": "A decimal slip: ten times too big."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.journal",
@@ -6603,21 +6621,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.6",
-    "0.60",
-    "0.600"
-   ],
-   "answer": 0.6
+   "answer": "$0.60"
   },
   "difficulty": 2,
   "id": "si_8cb63048d573",
   "lesson_origin": "session",
-  "lesson_text": "$0.60 of reward for each $1 of risk. From $53 the target is closer to you than the stop. At your planned $50, the target was much further away than the stop. The chart did not change, only your entry did. Risk per share is the entry minus the stop, as in Schwab's example. Chasing turned good reward for the risk into poor, and that is graded under how you traded it. Our own rule is never to buy more than 4% above the buy point, and $53 is past it. Chasing doesn't change the chart. It changes what you get paid for the risk.",
+  "lesson_text": "Reward is the $56 target minus your $53 entry, or $3. Risk is the $53 entry minus the $48 stop, as in Schwab's example. Divide the reward by that risk to get $0.60 of reward for each $1 of risk. At your planned $50, the target was much further away than the stop. The chart did not change, only your entry did. Chasing turned good reward for the risk into poor, and that is graded under how you traded it. Our own rule is never to buy more than 4% above the buy point, and $53 is past it. Chasing doesn't change the chart. It changes what you get paid for the risk.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$0.38",
+    "$0.60",
+    "$1.67",
+    "$3.00"
+   ],
+   "kind": "mcq",
    "q": "Plan: buy at $50, stop $48, target $56. You chase and fill at $53, same stop and target. Reward per $1 of risk now?",
    "subject": "F12.04#q13"
   },
@@ -6669,13 +6687,18 @@
      "fn": "arith",
      "result": 0.6
     },
-    "given": "Plan: buy at $50, stop $48, target $56. You chase and fill at $53, same stop and target. Reward per $1 of risk now?"
+    "given": "Plan: buy at $50, stop $48, target $56. You chase and fill at $53, same stop and target. Reward per $1 of risk now? $3.00 $0.38 $1.67 $0.60"
    },
    "lesson_line": "Chasing doesn't change the chart. It changes what you get paid for the risk.",
    "simple": "Just $0.60, because from $53 the target is closer to you than the stop is.",
    "tier": "extended",
    "unit": "F12.04",
-   "why": "$0.60 of reward for each $1 of risk. From $53 the target is closer to you than the stop. At your planned $50, the target was much further away than the stop. The chart did not change, only your entry did. Risk per share is the entry minus the stop, as in Schwab's example. Chasing turned good reward for the risk into poor, and that is graded under how you traded it. Our own rule is never to buy more than 4% above the buy point, and $53 is past it."
+   "why": "Reward is the $56 target minus your $53 entry, or $3. Risk is the $53 entry minus the $48 stop, as in Schwab's example. Divide the reward by that risk to get $0.60 of reward for each $1 of risk. At your planned $50, the target was much further away than the stop. The chart did not change, only your entry did. Chasing turned good reward for the risk into poor, and that is graded under how you traded it. Our own rule is never to buy more than 4% above the buy point, and $53 is past it.",
+   "wrong": {
+    "$0.38": "Divided the reward by the whole stretch from stop to target. Divide by the risk.",
+    "$1.67": "Flipped it: risk over reward.",
+    "$3.00": "That is the reward for the risk at your planned $50 entry, before you chased."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.grading",
@@ -8338,13 +8361,7 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "40",
-    "40.0",
-    "40.00",
-    "40.000"
-   ],
-   "answer": 40.0
+   "answer": "40%"
   },
   "difficulty": 2,
   "id": "si_d298b9a115a8",
@@ -8352,10 +8369,15 @@
   "lesson_text": "40%. Win rate is the share of closed trades that make money. The winners here are +2, +3, +2.5 and +2.5, so 4 of the 10 trades won. 4 divided by 10 is 40%. Win rate only counts winners. It says nothing about how big the wins and losses were, so always read it next to the average win and loss. Count the winners and divide by all the trades. Then check how big they were.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "40%",
+    "50%",
+    "60%",
+    "67%"
+   ],
+   "kind": "mcq",
    "q": "Ten breakout trades, in R: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's the win rate?",
-   "subject": "F12.05#q09",
-   "suffix": "%"
+   "subject": "F12.05#q09"
   },
   "reveal_json": {
    "depth": {
@@ -8387,13 +8409,18 @@
      "fn": "arith",
      "result": 40.0
     },
-    "given": "Ten breakout trades, in R: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's the win rate?"
+    "given": "Ten breakout trades, in R: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's the win rate? 67% 60% 50% 40%"
    },
    "lesson_line": "Count the winners and divide by all the trades. Then check how big they were.",
    "simple": "40 percent, because 4 of the 10 trades made money.",
    "tier": "core",
    "unit": "F12.05",
-   "why": "40%. Win rate is the share of closed trades that make money. The winners here are +2, +3, +2.5 and +2.5, so 4 of the 10 trades won. 4 divided by 10 is 40%. Win rate only counts winners. It says nothing about how big the wins and losses were, so always read it next to the average win and loss."
+   "why": "40%. Win rate is the share of closed trades that make money. The winners here are +2, +3, +2.5 and +2.5, so 4 of the 10 trades won. 4 divided by 10 is 40%. Win rate only counts winners. It says nothing about how big the wins and losses were, so always read it next to the average win and loss.",
+   "wrong": {
+    "50%": "You counted the -0.5 loss as a win because it lost less than 1R.",
+    "60%": "You counted the six losers instead of the four winners.",
+    "67%": "You divided the 4 wins by the losing trades instead of by all 10."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.review",
@@ -8404,23 +8431,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "0.4",
-    "0.40",
-    "0.400"
-   ],
-   "answer": 0.4
+   "answer": "0.4R"
   },
   "difficulty": 2,
   "id": "si_af60b365c188",
   "lesson_origin": "session",
-  "lesson_text": "+0.4R a trade. Add the ten results and divide by ten. That average R is the expectancy so far: what the setup has paid per dollar risked. It is positive even though six of the ten lost, because the wins ran bigger than the losses. Ten trades is a first read, not proof. Tharp wants more than thirty results before a sample means much. Average R, not win rate, tells you what a setup has paid. A 40% win rate can still earn.",
+  "lesson_text": "+0.4R a trade. Add the ten results to get 4R, then divide by the ten trades to get 0.4R. That average R is the expectancy so far: what the setup has paid per dollar risked. It is positive even though six of the ten lost, because the wins ran bigger than the losses. Ten trades is a first read, not proof. Tharp wants more than thirty results before a sample means much. Average R, not win rate, tells you what a setup has paid. A 40% win rate can still earn.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "0.4R",
+    "1.6R",
+    "2.5R",
+    "4.0R"
+   ],
+   "kind": "mcq",
    "q": "Same ten trades: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's the average R per trade?",
-   "subject": "F12.05#q10",
-   "suffix": "R"
+   "subject": "F12.05#q10"
   },
   "reveal_json": {
    "depth": {
@@ -8468,13 +8495,18 @@
      "fn": "arith",
      "result": 0.4
     },
-    "given": "Same ten trades: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's the average R per trade?"
+    "given": "Same ten trades: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's the average R per trade? 1.6R 4.0R 0.4R 2.5R"
    },
    "lesson_line": "Average R, not win rate, tells you what a setup has paid. A 40% win rate can still earn.",
    "simple": "Plus 0.4R a trade. Six of the ten lost, but the winners were bigger than the losers.",
    "tier": "core",
    "unit": "F12.05",
-   "why": "+0.4R a trade. Add the ten results and divide by ten. That average R is the expectancy so far: what the setup has paid per dollar risked. It is positive even though six of the ten lost, because the wins ran bigger than the losses. Ten trades is a first read, not proof. Tharp wants more than thirty results before a sample means much."
+   "why": "+0.4R a trade. Add the ten results to get 4R, then divide by the ten trades to get 0.4R. That average R is the expectancy so far: what the setup has paid per dollar risked. It is positive even though six of the ten lost, because the wins ran bigger than the losses. Ten trades is a first read, not proof. Tharp wants more than thirty results before a sample means much.",
+   "wrong": {
+    "1.6R": "You dropped the minus signs and averaged the size of every trade.",
+    "2.5R": "You averaged only the four winners and left out the losers.",
+    "4.0R": "You added the ten results and forgot to divide by ten."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.review",
@@ -8679,24 +8711,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "2",
-    "2.0",
-    "2.00",
-    "2.000"
-   ],
-   "answer": 2.0
+   "answer": "+2R"
   },
   "difficulty": 2,
   "id": "si_405aae776967",
   "lesson_origin": "session",
-  "lesson_text": "+2R. The 14 clean trades made +9R and the 6 rule breaks lost 7R, so all 20 made +2R. The mistakes gave back most of what the clean trades earned. Steenbarger's end-of-day review checks whether you followed your rules and how following them could have helped. Pricing each kind of mistake in R shows what it really costs. Add up your mistakes in R. That shows what each kind really costs.",
+  "lesson_text": "+2R. The 14 clean trades made +9R. The 6 rule breaks lost 7R. So the 20 trades made 9R minus 7R, which is +2R. The mistakes gave back most of what the clean trades earned. Steenbarger's end-of-day review checks whether you followed your rules and how following them could have helped. Pricing each kind of mistake in R shows what it really costs. Add up your mistakes in R. That shows what each kind really costs.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "-2R",
+    "+2R",
+    "+9R",
+    "+16R"
+   ],
+   "kind": "mcq",
    "q": "Your last 20 trades: 6 broke a rule and lost 7R in total. The other 14 made +9R. What did all 20 make, in R?",
-   "subject": "F12.05#q13",
-   "suffix": "R"
+   "subject": "F12.05#q13"
   },
   "reveal_json": {
    "deeper": {
@@ -8745,13 +8776,18 @@
      "fn": "arith",
      "result": 2.0
     },
-    "given": "Your last 20 trades: 6 broke a rule and lost 7R in total. The other 14 made +9R. What did all 20 make, in R?"
+    "given": "Your last 20 trades: 6 broke a rule and lost 7R in total. The other 14 made +9R. What did all 20 make, in R? +16R +2R +9R -2R"
    },
    "lesson_line": "Add up your mistakes in R. That shows what each kind really costs.",
    "simple": "Plus 2R, because the rule breaks gave back 7R of the 9R the clean trades made.",
    "tier": "extended",
    "unit": "F12.05",
-   "why": "+2R. The 14 clean trades made +9R and the 6 rule breaks lost 7R, so all 20 made +2R. The mistakes gave back most of what the clean trades earned. Steenbarger's end-of-day review checks whether you followed your rules and how following them could have helped. Pricing each kind of mistake in R shows what it really costs."
+   "why": "+2R. The 14 clean trades made +9R. The 6 rule breaks lost 7R. So the 20 trades made 9R minus 7R, which is +2R. The mistakes gave back most of what the clean trades earned. Steenbarger's end-of-day review checks whether you followed your rules and how following them could have helped. Pricing each kind of mistake in R shows what it really costs.",
+   "wrong": {
+    "+16R": "You added the 7R as if the rule breaks made money.",
+    "+9R": "You counted only the 14 clean trades and left out the 6 rule breaks.",
+    "-2R": "You took the 9R away from the 7R, the wrong way round."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.review",
@@ -8762,23 +8798,23 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "1.2",
-    "1.20",
-    "1.200"
-   ],
-   "answer": 1.2
+   "answer": "1.2R"
   },
   "difficulty": 2,
   "id": "si_fe8e75f90ff7",
   "lesson_origin": "session",
-  "lesson_text": "1.2R. Add the ten loss sizes and divide by ten. R is the risk you planned at entry, so a loss taken at the stop is 1R. Three of these ran past it: 1.2, 2.5 and 1.5. Tharp names two ways a loss runs past plan: not taking the loss you planned, or a gap. His goal is to keep every loss at 1R or less. The 0.8 loss was smaller than planned, which is fine. An average loss above 1R is a leak. Find the trades that ran past the stop.",
+  "lesson_text": "1.2R. The ten losses add up to 12R, and 12 divided by 10 is 1.2R. R is the risk you planned at entry, so a loss taken at the stop is 1R. Three of these ran past it: 1.2, 2.5 and 1.5. Tharp names two ways a loss runs past plan: not taking the loss you planned, or a gap. His goal is to keep every loss at 1R or less. The 0.8 loss was smaller than planned, which is fine. An average loss above 1R is a leak. Find the trades that ran past the stop.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
+   "choices": [
+    "1.0R",
+    "1.2R",
+    "1.7R",
+    "12.0R"
+   ],
+   "kind": "mcq",
    "q": "Your last ten losses, sized in R: 1, 1, 1.2, 0.8, 1, 2.5, 1, 1, 1, 1.5. How big is the average loss?",
-   "subject": "F12.05#q14",
-   "suffix": "R"
+   "subject": "F12.05#q14"
   },
   "reveal_json": {
    "deeper": {
@@ -8836,13 +8872,18 @@
      "fn": "arith",
      "result": 1.2
     },
-    "given": "Your last ten losses, sized in R: 1, 1, 1.2, 0.8, 1, 2.5, 1, 1, 1, 1.5. How big is the average loss?"
+    "given": "Your last ten losses, sized in R: 1, 1, 1.2, 0.8, 1, 2.5, 1, 1, 1, 1.5. How big is the average loss? 12.0R 1.0R 1.7R 1.2R"
    },
    "lesson_line": "An average loss above 1R is a leak. Find the trades that ran past the stop.",
    "simple": "1.2R. Some losses ran past the planned 1R stop, so the average sits above 1R.",
    "tier": "extended",
    "unit": "F12.05",
-   "why": "1.2R. Add the ten loss sizes and divide by ten. R is the risk you planned at entry, so a loss taken at the stop is 1R. Three of these ran past it: 1.2, 2.5 and 1.5. Tharp names two ways a loss runs past plan: not taking the loss you planned, or a gap. His goal is to keep every loss at 1R or less. The 0.8 loss was smaller than planned, which is fine."
+   "why": "1.2R. The ten losses add up to 12R, and 12 divided by 10 is 1.2R. R is the risk you planned at entry, so a loss taken at the stop is 1R. Three of these ran past it: 1.2, 2.5 and 1.5. Tharp names two ways a loss runs past plan: not taking the loss you planned, or a gap. His goal is to keep every loss at 1R or less. The 0.8 loss was smaller than planned, which is fine.",
+   "wrong": {
+    "1.0R": "You assumed every loss was the planned 1R and ignored the ones that ran past it.",
+    "1.7R": "You averaged only the three losses that ran past plan: 1.2, 2.5 and 1.5.",
+    "12.0R": "You added the ten losses and forgot to divide by ten."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.review",
@@ -10672,21 +10713,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "22.1",
-    "22.10",
-    "22.100"
-   ],
-   "answer": 22.1
+   "answer": "$22.10"
   },
   "difficulty": 2,
   "id": "si_4273ac05d702",
   "lesson_origin": "session",
-  "lesson_text": "$22.10. R is your risk per share, from the $20.00 entry down to the $19.30 stop. Three times that risk, added to the entry, gives $22.10. It is a mark on the page, not an order to sell. The first sell is a judgment, usually day 3 or later. Write the 3R price on the page in dollars. Then judge the first sell as the trade runs.",
+  "lesson_text": "$22.10. R is your risk per share, the $20.00 entry minus the $19.30 stop. The 3R price is the entry plus 3 times R: $20.00 plus 3 times ($20.00 minus $19.30) is $22.10. It is a mark on the page, not an order to sell. The first sell is a judgment, usually day 3 or later. Write the 3R price on the page in dollars. Then judge the first sell as the trade runs.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$20.60",
+    "$21.40",
+    "$22.10",
+    "$23.00"
+   ],
+   "kind": "mcq",
    "q": "Your Kicker page: entry $20.00, stop $19.30. What is the 3R price?",
    "subject": "F12.06#q11"
   },
@@ -10723,13 +10764,18 @@
      "fn": "arith",
      "result": 22.1
     },
-    "given": "Your Kicker page: entry $20.00, stop $19.30. What is the 3R price?"
+    "given": "Your Kicker page: entry $20.00, stop $19.30. What is the 3R price? $23.00 $21.40 $20.60 $22.10"
    },
    "lesson_line": "Write the 3R price on the page in dollars. Then judge the first sell as the trade runs.",
    "simple": "The 3R price is $22.10, because three times the risk from $20.00 to $19.30 is added to the entry.",
    "tier": "extended",
    "unit": "F12.06",
-   "why": "$22.10. R is your risk per share, from the $20.00 entry down to the $19.30 stop. Three times that risk, added to the entry, gives $22.10. It is a mark on the page, not an order to sell. The first sell is a judgment, usually day 3 or later."
+   "why": "$22.10. R is your risk per share, the $20.00 entry minus the $19.30 stop. The 3R price is the entry plus 3 times R: $20.00 plus 3 times ($20.00 minus $19.30) is $22.10. It is a mark on the page, not an order to sell. The first sell is a judgment, usually day 3 or later.",
+   "wrong": {
+    "$20.60": "You used a fixed 3% above entry instead of three times your own risk.",
+    "$21.40": "You added the 3R to the stop instead of to the entry.",
+    "$23.00": "You treated 3R as a $3 gain instead of three times your risk."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.playbook",
@@ -12758,22 +12804,21 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "800",
-    "800.0",
-    "800.00",
-    "800.000"
-   ],
-   "answer": 800.0
+   "answer": "$800"
   },
   "difficulty": 2,
   "id": "si_18158f8df455",
   "lesson_origin": "session",
-  "lesson_text": "$800. Risk from entry is the shares times the distance from entry to stop: 200 shares times the drop from $50 to $46. The $48 stop risked half that. Lowering the stop doubled the risk without buying a single new share. Our stop only moves up, never down or wider. Every dollar you lower the stop adds a dollar of risk on every share.",
+  "lesson_text": "$800. Risk from entry is the shares times the distance from entry to stop. That is 200 shares times the drop from $50 to $46, which is $800. The old $48 stop risked $400, half as much. Lowering the stop doubled the risk without buying a single new share. Our stop only moves up, never down or wider. Every dollar you lower the stop adds a dollar of risk on every share.",
   "module": "F12",
   "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
+   "choices": [
+    "$400",
+    "$800",
+    "$1,200",
+    "$9,200"
+   ],
+   "kind": "mcq",
    "q": "You hold 200 shares bought at $50, stop $48. You lower the stop to $46. What's your risk from entry now?",
    "subject": "F12.07#q13"
   },
@@ -12821,13 +12866,18 @@
      "fn": "risk_dollars",
      "result": 800.0
     },
-    "given": "You hold 200 shares bought at $50, stop $48. You lower the stop to $46. What's your risk from entry now?"
+    "given": "You hold 200 shares bought at $50, stop $48. You lower the stop to $46. What's your risk from entry now? $1,200 $400 $9,200 $800"
    },
    "lesson_line": "Every dollar you lower the stop adds a dollar of risk on every share.",
    "simple": "$800, because 200 shares each now risk the drop from $50 to $46.",
    "tier": "extended",
    "unit": "F12.07",
-   "why": "$800. Risk from entry is the shares times the distance from entry to stop: 200 shares times the drop from $50 to $46. The $48 stop risked half that. Lowering the stop doubled the risk without buying a single new share. Our stop only moves up, never down or wider."
+   "why": "$800. Risk from entry is the shares times the distance from entry to stop. That is 200 shares times the drop from $50 to $46, which is $800. The old $48 stop risked $400, half as much. Lowering the stop doubled the risk without buying a single new share. Our stop only moves up, never down or wider.",
+   "wrong": {
+    "$1,200": "You added the old risk and the new risk together.",
+    "$400": "You counted the old $48 stop's risk and never updated it to the new $46 stop.",
+    "$9,200": "You priced the shares at the stop, 200 times $46, instead of the risk."
+   }
   },
   "review_status": "draft",
   "skill_id": "process.mistakes",

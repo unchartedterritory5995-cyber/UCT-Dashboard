@@ -702,9 +702,9 @@
    "key": "q03",
    "skill": "risk.expectancy",
    "rung": 2,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You risk $1.50 a share. You sell for a gain of $4.50 a share. What R-multiple is that?",
-   "answer": 3,
+   "answer": "3R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -714,7 +714,7 @@
     }
    },
    "suffix": "R",
-   "why": "3R. The R-multiple is the gain per share divided by the risk per share. $4.50 divided by $1.50 is 3. Keep both sides in the same unit, per share against per share.",
+   "why": "3R. The R-multiple is gain per share divided by risk per share. $4.50 divided by $1.50 is 3.",
    "lesson_line": "R-multiple is the gain per share divided by the risk per share.",
    "facts": [
     "f17",
@@ -728,7 +728,18 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "0.33R",
+    "6R",
+    "4.5R",
+    "3R"
+   ],
+   "wrong": {
+    "0.33R": "Flipped it: divided the risk by the gain.",
+    "4.5R": "Used the dollar gain as the R-multiple.",
+    "6R": "Added the gain and the risk."
+   }
   },
   {
    "key": "q04",
@@ -867,9 +878,9 @@
    "key": "q09",
    "skill": "risk.expectancy",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You closed 40 trades. 18 of them made money. What's your win rate?",
-   "answer": 45,
+   "answer": "45%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -879,7 +890,7 @@
     }
    },
    "suffix": "%",
-   "why": "45%. Win rate is the share of closed trades that made money: 18 out of 40. It tells you how often you win, not how much. Open trades don't count until they close.",
+   "why": "45%. Win rate is winners divided by closed trades: 18 out of 40. That is 45%. It tells you how often you win, not how much.",
    "lesson_line": "Win rate tells you how often. It doesn't tell you how much.",
    "facts": [
     "f23",
@@ -893,7 +904,18 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "55%",
+    "18%",
+    "45%",
+    "222%"
+   ],
+   "wrong": {
+    "55%": "Counted the losers instead of the winners.",
+    "18%": "Used the winner count as the percent.",
+    "222%": "Flipped it: divided 40 by 18."
+   }
   },
   {
    "key": "q10",
@@ -937,9 +959,9 @@
    "key": "q11",
    "skill": "risk.expectancy",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your system wins 30% of its trades. Winners average +3R and losers -1R. What's the expectancy per trade?",
-   "answer": 0.2,
+   "answer": "0.2R",
    "calc": {
     "fn": "expectancy_r",
     "args": {
@@ -949,7 +971,7 @@
     }
    },
    "suffix": "R",
-   "why": "+0.2R a trade. Win rate times average win, minus loss rate times average loss. Count the loss as a size, 1R, since the formula already subtracts it. The loss rate is whatever is left after the wins. Here the big winners more than pay for the many smaller losers.",
+   "why": "0.2R. Win rate times average win is 30% of 3R, which is 0.9R. The loss rate is what is left, times 1R. Subtract that from 0.9R to get 0.2R.",
    "lesson_line": "A system that wins 30% at 3R and loses 1R averages +0.2R a trade.",
    "facts": [
     "f29",
@@ -967,16 +989,27 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "0.9R",
+    "0.2R",
+    "1.6R",
+    "1R"
+   ],
+   "wrong": {
+    "0.9R": "Counted only the wins and skipped the losses.",
+    "1.6R": "Added the losses instead of subtracting them.",
+    "1R": "Averaged +3R and -1R and ignored the win rate."
+   }
   },
   {
    "key": "q12",
    "skill": "risk.expectancy",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "house": true,
    "q": "Our plan has the entry at $40 and the stop at $38. At what price is the trade up 5R?",
-   "answer": 50,
+   "answer": "$50",
    "calc": {
     "fn": "arith",
     "args": {
@@ -986,7 +1019,7 @@
     }
    },
    "prefix": "$",
-   "why": "$50. R is the $40 to $38 distance per share. Add five of those to the entry and the trade is up 5R. Selling at about 5 to 10R is often best for the first sell, so this is a price worth knowing.",
+   "why": "$50. R is the $40 to $38 distance per share. Add five of those to the $40 entry to get $50.",
    "lesson_line": "A target price is the entry plus R times the multiple.",
    "facts": [
     "r03",
@@ -1003,15 +1036,26 @@
      "rewritten 2026-11-09 to the rulebook"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$45",
+    "$30",
+    "$48",
+    "$50"
+   ],
+   "wrong": {
+    "$45": "Added 5 dollars instead of 5R.",
+    "$30": "Subtracted the 5R instead of adding it.",
+    "$48": "Counted 5R up from the $38 stop, not from the entry."
+   }
   },
   {
    "key": "q13",
    "skill": "risk.expectancy",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You bought at $30 with a stop at $28. You skipped the stop and sold at $22. How many R did you lose?",
-   "answer": 4,
+   "answer": "4R",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1022,7 +1066,7 @@
     }
    },
    "suffix": "R",
-   "why": "4R. Your R was the $30 to $28 distance. You sold at $22, four of those distances below your entry. You planned to lose 1R and lost four times that. The plan sets R, and the result in R counts what really happened.",
+   "why": "4R. R is the $30 to $28 distance, which is $2. The loss is $30 minus $22, which is $8. Divide $8 by $2 to get 4R.",
    "lesson_line": "Skip the stop and your loss is whatever the stock decides.",
    "facts": [
     "f06",
@@ -1042,7 +1086,18 @@
      "fixed before (why and lesson line)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "8R",
+    "4R",
+    "3R",
+    "0.25R"
+   ],
+   "wrong": {
+    "8R": "Used the $8 loss as the R-multiple.",
+    "3R": "Measured the fall from the $28 stop, not the $30 entry.",
+    "0.25R": "Flipped it: divided the risk by the loss."
+   }
   },
   {
    "key": "q14",
@@ -1171,9 +1226,9 @@
    "key": "q17",
    "skill": "risk.expectancy",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your expectancy is +0.35R. You risk $200 a trade. On average, what do 100 trades make?",
-   "answer": 7000,
+   "answer": "$7,000",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1184,7 +1239,7 @@
     }
    },
    "prefix": "$",
-   "why": "$7,000 on average. Expectancy is what you make per dollar risked: 0.35R a trade, at $200 a trade, over 100 trades. It's an average, not a promise. Any one stretch of 100 trades can land above or below it.",
+   "why": "$7,000 on average. Each trade makes 0.35R, and R is your $200 risk. Multiply 0.35 by $200, then by 100 trades, to get $7,000. It is an average, not a promise.",
    "lesson_line": "Expectancy times risk per trade times trades. That's the average payoff, never a guarantee.",
    "facts": [
     "f16",
@@ -1199,15 +1254,26 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$20,000",
+    "$35",
+    "$7,000",
+    "$70"
+   ],
+   "wrong": {
+    "$70": "Worked out one trade only, not 100.",
+    "$20,000": "Ignored the expectancy and added up the risk.",
+    "$35": "Forgot the $200 risk and multiplied 0.35 by 100 trades."
+   }
   },
   {
    "key": "q18",
    "skill": "risk.expectancy",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your system loses 55% of its trades, and each trade is independent. What's the chance the next 6 all lose? Round to one decimal.",
-   "answer": 2.8,
+   "answer": "2.8%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1217,7 +1283,7 @@
     "round": 1
    },
    "suffix": "%",
-   "why": "2.8%. Independent chances multiply, so it's six 0.55s multiplied together. That's rare for any six trades you name in advance. It only holds because the question says each trade is independent.",
+   "why": "2.8%. Independent chances multiply, so multiply 0.55 by itself six times. That comes to 2.8%. It only holds if each trade is independent.",
    "lesson_line": "For a run of independent losses, multiply the chances. Six trades you name in advance rarely all lose.",
    "facts": [
     "f38",
@@ -1233,7 +1299,18 @@
      "fixed before (source moved to the archived page)"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "28%",
+    "3.3%",
+    "0.8%",
+    "2.8%"
+   ],
+   "wrong": {
+    "3.3%": "Multiplied 0.55 by 6 instead of raising it to the sixth power.",
+    "0.8%": "Used the win rate instead of the loss rate.",
+    "28%": "Decimal slip: moved the decimal one place."
+   }
   },
   {
    "key": "q19",
@@ -1746,7 +1823,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q04": {
    "status": "pass",
@@ -1781,9 +1858,9 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q10": {
    "status": "pass",
@@ -1794,20 +1871,20 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ok"
+   "fixed": true,
+   "notes": "Why did not show the 0.9 and 0.7 steps."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Deeper now ends on f09's 12R; $60, $55, $5 all in f08/f09."
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q14": {
    "status": "pass",
@@ -1831,14 +1908,14 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "0.35*200*100 = 7000. Simple says the average trade, not each trade, so it no longer contradicts q14."
+   "fixed": true,
+   "notes": "$70/$700/$7,000 were a pure decimal-shift family that points at the answer; replaced $700 with the real slip of forgetting the $200 risk ($35). Answer moved to slot 2."
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
   },
   "q19": {
    "status": "pass",

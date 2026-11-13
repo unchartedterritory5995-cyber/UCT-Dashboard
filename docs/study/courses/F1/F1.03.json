@@ -656,9 +656,9 @@
    "key": "q08",
    "skill": "basics.spread",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Bid $24.98, ask $25.02. What is the spread in dollars?",
-   "answer": 0.04,
+   "answer": "$0.04",
    "calc": {
     "fn": "spread",
     "args": {
@@ -685,7 +685,18 @@
      "computed key"
     ]
    },
-   "batch": "review1"
+   "batch": "tomcq",
+   "choices": [
+    "$25.00",
+    "$0.02",
+    "$0.40",
+    "$0.04"
+   ],
+   "wrong": {
+    "$0.02": "You took half the spread, the distance from the middle to one side.",
+    "$0.40": "A decimal slip: you moved the point one place.",
+    "$25.00": "You gave the middle price, bid plus ask halved, not ask minus bid."
+   }
   },
   {
    "key": "q09",
@@ -724,9 +735,9 @@
    "key": "q10",
    "skill": "basics.spread",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Bid $9.80, ask $10.20. You buy 500 shares at the ask and sell right away at the bid. What did the spread cost you?",
-   "answer": 200,
+   "answer": "$200",
    "calc": {
     "fn": "arith",
     "args": {
@@ -737,7 +748,7 @@
     }
    },
    "prefix": "$",
-   "why": "$200. You paid the $10.20 ask and sold at the $9.80 bid. You gave up the full spread on each of the 500 shares. The SEC's own example works the same way: 200 shares bought at $60 and sold at $59.50 lose $100. A quick round trip at an unchanged quote costs the spread.",
+   "why": "$200. You paid the $10.20 ask and sold at the $9.80 bid. That loses $0.40 a share, and $0.40 times 500 shares is $200. The SEC's own example works the same way: 200 shares bought at $60 and sold at $59.50 lose $100. A quick round trip at an unchanged quote costs the spread.",
    "lesson_line": "Buy at the ask, sell at the bid, and you pay the spread. Wide spreads make quick exits expensive.",
    "facts": [
     "f4"
@@ -751,7 +762,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$0.40",
+    "$100",
+    "$200",
+    "$2,000"
+   ],
+   "wrong": {
+    "$100": "You counted only half the spread, as if you lost to the middle price.",
+    "$0.40": "You gave the spread per share and forgot to multiply by 500 shares.",
+    "$2,000": "A decimal slip: you moved the point one place."
+   }
   },
   {
    "key": "q11",
@@ -838,9 +860,9 @@
    "key": "q13",
    "skill": "basics.spread",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "q": "Your market buy for 1,000 shares fills 400 at $30.10 and 600 at $30.15. What is your average price?",
-   "answer": 30.13,
+   "answer": "$30.13",
    "calc": {
     "fn": "avg_price",
     "args": {
@@ -857,7 +879,7 @@
     }
    },
    "prefix": "$",
-   "why": "$30.13. Multiply each fill's shares by its price, add them up, and divide by the 1,000 shares. More shares filled at $30.15 than at $30.10, so the average sits closer to $30.15. That average, not the ask you first saw, is your real cost.",
+   "why": "$30.13. The fills cost 400 times $30.10 plus 600 times $30.15, which is $30,130 in all. Divide that by the 1,000 shares and you get $30.13. More shares filled at $30.15 than at $30.10, so the average sits closer to $30.15. That average, not the ask you first saw, is your real cost.",
    "lesson_line": "When your order fills at several prices, your real cost is the average, not the ask you saw.",
    "facts": [
     "f11"
@@ -871,7 +893,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "$30,130",
+    "$30.10",
+    "$15,065",
+    "$30.13"
+   ],
+   "wrong": {
+    "$30.10": "You used only the first fill's price.",
+    "$30,130": "You gave the total cost and forgot to divide by the 1,000 shares.",
+    "$15,065": "You divided the $30,130 total by the number of fills instead of the 1,000 shares."
+   }
   },
   {
    "key": "q14",
@@ -1128,9 +1161,9 @@
    "key": "q21",
    "skill": "basics.spread",
    "rung": 9,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You buy at the $20.30 ask. The bid is $20.00. Your stop is $0.40 under your fill. What percent of that $0.40 is the spread?",
-   "answer": 75,
+   "answer": "75%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1141,7 +1174,7 @@
     }
    },
    "suffix": "%",
-   "why": "75%. The spread is $20.30 minus $20.00. Divide it by the $0.40 stop distance. Sell right after you buy and you would get about the bid. That is already most of the way to your stop, before the stock moves. I'd skip a name this wide.",
+   "why": "75%. The spread is the $20.30 ask minus the $20.00 bid. Divide it by the $0.40 stop distance and you get 75%. Sell right after you buy and you would get about the bid. That is already most of the way to your stop, before the stock moves. I'd skip a name this wide.",
    "lesson_line": "If the spread eats most of your stop room, the trade is broken before it starts.",
    "facts": [
     "f4",
@@ -1158,7 +1191,18 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "tomcq",
+   "choices": [
+    "1.5%",
+    "133%",
+    "75%",
+    "30%"
+   ],
+   "wrong": {
+    "133%": "You flipped the division and divided the $0.40 stop distance by the spread.",
+    "1.5%": "You divided the spread by the $20.30 price, not by the stop distance.",
+    "30%": "You read the 30-cent spread as 30% without dividing."
+   }
   },
   {
    "key": "q22",
@@ -1311,7 +1355,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "He asked for the bid and ask explained: why now defines both in the learnings' own words (f41) and shows the subtraction 25.02 - 24.98 = 0.04. Math right. Format stays numeric, as the unit allows."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q09": {
    "status": "cut",
@@ -1321,9 +1365,9 @@
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q11": {
    "status": "pass",
@@ -1339,9 +1383,9 @@
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer and calc check out. Fix: a wrong choice was a trap that made the answer easy to spot or was not a mistake the question's numbers can produce; swapped it. the explanation did not show the intermediate step; added it."
   },
   "q14": {
    "status": "cut",
@@ -1389,7 +1433,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed (20.30 - 20.00) / 0.40 * 100 = 75. Every number comes from the question or the calc. The numbers fit B23 ($10 or more) and A13 (stop within about 3%: 0.40 / 20.30 is about 2%). The bid as the real exit rests on f7, and the round-trip loss on f4. 'I'd skip a name this wide' is first-person judgment, which the voice rule allows."
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
   },
   "q22": {
    "status": "pass",

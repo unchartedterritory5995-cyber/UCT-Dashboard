@@ -1050,9 +1050,9 @@
    "key": "q15",
    "skill": "styles.horizons",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "q": "You make 12 round trips a day (buy, then sell), 300 shares each, and give up a $0.03 spread each time. What does the spread cost you a day?",
-   "answer": 108,
+   "answer": "$108",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1063,7 +1063,7 @@
     }
    },
    "prefix": "$",
-   "why": "$108 a day. Buy at the ask and sell at the bid, and each round trip gives up the spread on every share. That is $0.03 x 300 shares x 12 trips = $108. The SEC works it the same way: 200 shares bought at $60 and sold at $59.50 lose $100. Commissions and fees come on top.",
+   "why": "Buy at the ask and sell at the bid, and each round trip gives up the spread on every share. $0.03 x 300 shares = $9 a round trip. $9 x 12 trips = $108 a day. The SEC works it the same way: 200 shares bought at $60 and sold at $59.50 lose $100. Commissions and fees come on top.",
    "lesson_line": "Every round trip pays the spread. More trades a day, more cost.",
    "facts": [
     "f16",
@@ -1083,7 +1083,18 @@
      "the SEC bulletin page (investor.gov) refused WebFetch today"
     ]
    },
-   "batch": "wave9"
+   "batch": "tomcq",
+   "choices": [
+    "$9",
+    "$216",
+    "$1,080",
+    "$108"
+   ],
+   "wrong": {
+    "$9": "That is the cost of one round trip. You make 12 a day.",
+    "$216": "Charged the spread twice per round trip. Each round trip pays it once.",
+    "$1,080": "A decimal slip: ten times too big."
+   }
   },
   {
    "key": "q16",
@@ -1450,7 +1461,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the deeper changed; f3 (FINRA 'might erode') and f21 (Schwab) quoted fairly. Calc 0.03 x 300 x 12 = 108 rechecked."
+   "notes": "0.03 x 300 x 12 = 108. $9 one round trip, $216 double count, $1,080 slip. Why shows the steps."
   },
   "q16": {
    "status": "pass",

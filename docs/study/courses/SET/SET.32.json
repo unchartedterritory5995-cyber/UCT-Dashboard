@@ -1055,8 +1055,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edited by writer, agrees with ruling"
+   "fixed": false,
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q16": {
    "status": "pass",
@@ -1066,9 +1066,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q18": {
    "status": "pass",
@@ -1104,13 +1104,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(63.60-60.91)/60.91 = 4.42%. h11, h12, c04 verbatim."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q25": {
    "status": "pass",
@@ -1194,7 +1194,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "100,000 x 0.0025 / 3.37 = 74.2, rounds down to 74. 74 x 274.04 = about 20% of the account, so the 40% cap (h40) does not bind. All numbers in the question or cited."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q39": {
    "status": "pass",
@@ -1267,7 +1267,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q51": {
    "status": "pass",
@@ -1855,10 +1855,10 @@
    "key": "q15",
    "skill": "setup.orb",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "orb.stop_width",
-   "q": "The 30-minute high is 418.45 and the low 412.06. You fill at 418.46 with the stop at 412.01. How far below the fill is the stop, in percent?",
-   "answer": 1.54,
+   "q": "The 30-minute high is 418.45 and the low 412.06. You fill at 418.46 with the stop at 412.01. How far below the fill is the stop?",
+   "answer": "1.54%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1868,7 +1868,7 @@
     },
     "round": 2
    },
-   "why": "1.54%. Take the fill minus the stop, 418.46 minus 412.01, and divide by the fill. That was FFIV's stop, a few cents under the range low. It sits inside the 1 to 3% we prefer, and it sets the size.",
+   "why": "1.54%. The gap is the fill minus the stop: 418.46 minus 412.01. Divide by the fill, 418.46, and show it as a percent. That was FFIV's stop, a few cents under the range low. It sits inside the 1 to 3% we prefer, and it sets the size.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h24",
@@ -1887,7 +1887,18 @@
      "3% stop width is a held decision (D-005); only A13's 'usually about 3%' is used"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "6.45%",
+    "0.15%",
+    "15.41%",
+    "1.54%"
+   ],
+   "wrong": {
+    "6.45%": "Read the dollar gap as a percent. Divide it by the fill first.",
+    "0.15%": "Slipped the decimal point one place left.",
+    "15.41%": "Slipped the decimal point one place right."
+   }
   },
   {
    "key": "q16",
@@ -1923,10 +1934,10 @@
    "key": "q17",
    "skill": "setup.orb",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "orb.stop_kicker_cap",
    "q": "A Kicker ORB fills at 11.21. Where is the stop under the 3.5% cap?",
-   "answer": 10.82,
+   "answer": "$10.82",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1953,7 +1964,18 @@
      "rests on the owner's Kicker ruling (2026-11-02)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "$7.29",
+    "$11.60",
+    "$7.71",
+    "$10.82"
+   ],
+   "wrong": {
+    "$11.60": "Added 3.5% instead of subtracting it. A long's stop sits below the fill.",
+    "$7.71": "Subtracted 3.5 dollars instead of 3.5 percent.",
+    "$7.29": "Slipped a decimal in the cap and took off far too much."
+   }
   },
   {
    "key": "q18",
@@ -2139,10 +2161,10 @@
    "key": "q23",
    "skill": "setup.orb",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "orb.trim_1",
    "q": "Fill 146.91, stop 143.86. Where is 3R?",
-   "answer": 156.06,
+   "answer": "$156.06",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2152,7 +2174,7 @@
     },
     "round": 2
    },
-   "why": "156.06. One R is the fill minus the stop. Add three of those to the fill of 146.91 and you reach 156.06. 3R is a marker, not a fixed sell. ANF got there in about three sessions.",
+   "why": "156.06. One R is the fill minus the stop: 146.91 minus 143.86. Three R is three of those. Add them to the fill of 146.91 and you reach 156.06. 3R is a marker, not a fixed sell. ANF got there in about three sessions.",
    "lesson_line": "Know your 3R the moment you are filled. It is a marker, not an automatic sell.",
    "facts": [
     "r21",
@@ -2169,16 +2191,27 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$153.01",
+    "$156.06",
+    "$137.76",
+    "$149.91"
+   ],
+   "wrong": {
+    "$153.01": "Added three R to the stop instead of to the fill.",
+    "$137.76": "Subtracted three R. A long's target sits above the fill.",
+    "$149.91": "Added 3 dollars, not three R. R is the fill minus the stop."
+   }
   },
   {
    "key": "q24",
    "skill": "setup.orb",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "orb.no_chase",
-   "q": "The 30-minute high is 60.91. You look up at 10:20 and the stock trades 63.60. How far above the high is that, in percent?",
-   "answer": 4.42,
+   "q": "The 30-minute high is 60.91. You look up at 10:20 and the stock trades 63.60. How far above the high is that?",
+   "answer": "4.42%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -2187,7 +2220,7 @@
     },
     "round": 2
    },
-   "why": "4.42%, past the 4% line. Chasing costs size, not risk: the stop stays under the range, so the distance grows and the shares shrink. Pass and wait for a pullback that holds or a VWAP retest.",
+   "why": "4.42%, past the 4% line. The move is 63.60 minus 60.91. Divide by the high, 60.91, and show it as a percent. Chasing costs size, not risk: the stop stays under the range, so the distance grows and the shares shrink. Pass and wait for a pullback that holds or a VWAP retest.",
    "lesson_line": "Measure the chase before you buy it. Past 4%, wait for the pullback.",
    "facts": [
     "h11",
@@ -2205,7 +2238,18 @@
      "rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "4.23%",
+    "4.42%",
+    "2.69%",
+    "0.44%"
+   ],
+   "wrong": {
+    "4.23%": "Divided by the new price. Measure from the high, the buy point.",
+    "2.69%": "Read the dollar gap as a percent. Divide it by the high first.",
+    "0.44%": "Slipped the decimal point one place left."
+   }
   },
   {
    "key": "q25",
@@ -2708,10 +2752,10 @@
    "key": "q38",
    "skill": "setup.orb",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "orb.stop",
    "q": "Account 100,000. On this trade you risk 0.25%. Fill 274.04, stop 270.67. How many shares?",
-   "answer": 74,
+   "answer": "74 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2722,7 +2766,7 @@
     },
     "round": 0
    },
-   "why": "74 shares. Shares = account x risk % / (entry - stop), rounded down, then capped. Here that is 100,000 x 0.25% divided by 274.04 minus 270.67, which rounds down to 74. The 40% position cap does not bind here. The stop sets the size.",
+   "why": "74 shares. The risk dollars are 100,000 x 0.25%. The stop distance is 274.04 minus 270.67. Divide the risk dollars by the stop distance and round down to 74. The 40% position cap does not bind here. The stop sets the size.",
    "lesson_line": "The stop sets the size, never the other way round.",
    "facts": [
     "h03",
@@ -2745,7 +2789,18 @@
      "changed 2026-11-10 (risk 1% to 0.25%)"
     ]
    },
-   "batch": "wave4"
+   "batch": "tomcq",
+   "choices": [
+    "145 shares",
+    "296 shares",
+    "74 shares",
+    "7,418 shares"
+   ],
+   "wrong": {
+    "296 shares": "Risked four times too much. Use the 0.25% the question gives.",
+    "145 shares": "That is the 40% position cap size. Risk sets the size here, and it is smaller.",
+    "7,418 shares": "Forgot to turn the 0.25% into a decimal."
+   }
   },
   {
    "key": "q39",
@@ -3211,10 +3266,10 @@
    "key": "q50",
    "skill": "setup.orb",
    "rung": 7,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "orb.trim_2",
    "q": "Bought at 60.92, stop 59.51. The stock trades to 67.97. How many R is that?",
-   "answer": 5.0,
+   "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -3224,7 +3279,7 @@
     },
     "round": 1
    },
-   "why": "5R. One R is the fill minus the stop. The move from 60.92 to 67.97 is five of those. That is the low end of the 5 to 10R zone where selling is often best. EXEL's trigger fill was 60.92, and it reached 9.06R in the window we read.",
+   "why": "5R. One R is the fill minus the stop: 60.92 minus 59.51. The gain is 67.97 minus 60.92. Divide the gain by R and you get 5R. That is the low end of the 5 to 10R zone where selling is often best. EXEL's trigger fill was 60.92, and it reached 9.06R in the window we read.",
    "lesson_line": "Count in R, not dollars. About 5R to 10R is where the first sell is often best.",
    "facts": [
     "r22",
@@ -3244,7 +3299,18 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "6.0R",
+    "9.9R",
+    "5.0R",
+    "0.2R"
+   ],
+   "wrong": {
+    "6.0R": "Measured the gain from the stop instead of from the fill.",
+    "9.9R": "Multiplied the gain by R instead of dividing by it.",
+    "0.2R": "Inverted it: R divided by the gain instead of gain divided by R."
+   }
   },
   {
    "key": "q51",

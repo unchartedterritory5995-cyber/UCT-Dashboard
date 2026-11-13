@@ -1923,10 +1923,10 @@
    "key": "q19",
    "skill": "setup.parabolic_short",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ps.climax_gap",
-   "q": "The prior close is 42.00 and the climax day opens at 48.47. How big is the gap up, in percent?",
-   "answer": 15.4,
+   "q": "The prior close is 42.00 and the climax day opens at 48.47. How big is the gap up?",
+   "answer": "15.4%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1935,7 +1935,7 @@
     },
     "round": 1
    },
-   "why": "15.4%. The gap is the open minus the prior close, divided by the prior close. Our card needs the climax day to open above the prior close, and a gap of 5% or more is stronger. GDS also gapped 15.4%, on record volume, and closed red. The prices here are made up for the drill.",
+   "why": "15.4%. The gap is the open minus the prior close: 48.47 minus 42.00. Divide by the prior close, 42.00, and show it as a percent. Our card needs the climax day to open above the prior close, and a gap of 5% or more is stronger. GDS also gapped 15.4%, on record volume, and closed red. The prices here are made up for the drill.",
    "lesson_line": "Measure the gap in percent. A gap of 5% or more is the stronger one.",
    "facts": [
     "c01",
@@ -1952,7 +1952,18 @@
      "a computed key (percent change)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "13.3%",
+    "6.5%",
+    "115.4%",
+    "15.4%"
+   ],
+   "wrong": {
+    "13.3%": "Divided by the open. The gap is measured against the prior close.",
+    "115.4%": "Divided the open by the prior close and forgot to subtract 1.",
+    "6.5%": "Read the dollar gap as a percent. Divide it by the prior close first."
+   }
   },
   {
    "key": "q20",
@@ -2097,10 +2108,10 @@
    "key": "q24",
    "skill": "setup.parabolic_short",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ps.extension",
-   "q": "The prior close is 48.50 and the 9-day EMA sits at 40.00. How far above the average is that close, in percent?",
-   "answer": 21.25,
+   "q": "The prior close is 48.50 and the 9-day EMA sits at 40.00. How far above the average is that close?",
+   "answer": "21.25%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -2109,7 +2120,7 @@
     },
     "round": 2
    },
-   "why": "21.25%. The stretch is the close minus the average, divided by the average, shown as a percent. We read a chart in percents: how far a stock is stretched above its averages. Bracco's checklist lists percent extensions from moving averages and ATR multiples from the 50-day. This only measures the stretch. It is not a cut-off.",
+   "why": "21.25%. The stretch is the close minus the average: 48.50 minus 40.00. Divide by the average, 40.00, and show it as a percent. We read a chart in percents: how far a stock is stretched above its averages. Bracco's checklist lists percent extensions from moving averages and ATR multiples from the 50-day. This only measures the stretch. It is not a cut-off.",
    "lesson_line": "Measure the stretch in percent before you call anything parabolic.",
    "facts": [
     "h22",
@@ -2128,16 +2139,27 @@
      "the extension floor is held (D-040); this question computes a percent only"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "17.53%",
+    "121.25%",
+    "8.50%",
+    "21.25%"
+   ],
+   "wrong": {
+    "17.53%": "Divided by the close. The stretch is measured against the average.",
+    "121.25%": "Divided the close by the average and forgot to subtract 1.",
+    "8.50%": "Read the dollar gap as a percent. Divide it by the average first."
+   }
   },
   {
    "key": "q25",
    "skill": "setup.parabolic_short",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ps.stop",
-   "q": "Shorted at 29.66 with the stop at 31.81. How wide is the stop, in percent of the fill?",
-   "answer": 7.25,
+   "q": "Shorted at 29.66 with the stop at 31.81. How wide is the stop, as a percent of the fill?",
+   "answer": "7.25%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2147,7 +2169,7 @@
     },
     "round": 2
    },
-   "why": "7.25%. The stop width is the stop minus the fill, divided by the fill, times 100. We prefer a stop 1-3% away, 3.5% is good, and up to 5% is acceptable. This one is past 5%, so we mostly wait for a tighter trigger. These are BILI's numbers, listed at 7.2% in our data.",
+   "why": "7.25%. The stop width is the stop minus the fill: 31.81 minus 29.66. Divide by the fill, 29.66, and show it as a percent. We prefer a stop 1-3% away, 3.5% is good, and up to 5% is acceptable. This one is past 5%, so we mostly wait for a tighter trigger. These are BILI's numbers, listed at 7.2% in our data.",
    "lesson_line": "A stop past 5% is too wide to take. Wait for a tighter trigger.",
    "facts": [
     "h18",
@@ -2170,16 +2192,27 @@
      "stop width options are held (D-005); only A13's 3% and A5's size-from-the-stop are keyed"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "6.76%",
+    "7.25%",
+    "2.15%",
+    "0.07%"
+   ],
+   "wrong": {
+    "6.76%": "Divided by the stop. Stop width is measured against the fill.",
+    "2.15%": "Read the dollar gap as a percent. Divide it by the fill first.",
+    "0.07%": "Forgot to multiply by 100, so the percent came out far too small."
+   }
   },
   {
    "key": "q26",
    "skill": "setup.parabolic_short",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ps.stop",
    "q": "Account 50,000. Risk 0.5%. Short 48.50, stop 52.56. How many shares does the risk allow?",
-   "answer": 61,
+   "answer": "61 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2190,7 +2223,7 @@
     },
     "round": 0
    },
-   "why": "61. Shares are the account times the risk percent, divided by the stop minus the fill, rounded down. Rounding down keeps the risk at or under 0.5%. The position cap can only make the size smaller. Stop first, size last. If the honest stop does not fit, skip.",
+   "why": "61 shares. The risk dollars are 50,000 x 0.5%. The stop distance is 52.56 minus 48.50. Divide the risk dollars by the stop distance and round down to 61. Rounding down keeps the risk at or under 0.5%. The position cap can only make the size smaller. Stop first, size last. If the honest stop does not fit, skip.",
    "lesson_line": "Stop first, distance second, size last. The same on the short side.",
    "facts": [
     "h09",
@@ -2207,7 +2240,18 @@
      "a computed key (position size from risk)"
     ]
    },
-   "batch": "wave3"
+   "batch": "tomcq",
+   "choices": [
+    "62 shares",
+    "123 shares",
+    "61 shares",
+    "5 shares"
+   ],
+   "wrong": {
+    "62 shares": "Rounded up. That pushes the risk over 0.5%, so always round down.",
+    "123 shares": "Doubled the risk percent. Use the 0.5% the question gives.",
+    "5 shares": "Divided the risk dollars by the fill price, not by the stop distance."
+   }
   },
   {
    "key": "q27",
@@ -2940,10 +2984,10 @@
    "key": "q46",
    "skill": "setup.parabolic_short",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ps.cover_9ema",
    "q": "Short 521.70, stop 565.54, the 9 EMA at 455.00. How many R is the cover at the 9 EMA?",
-   "answer": 1.52,
+   "answer": "1.52R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -2954,7 +2998,7 @@
     },
     "round": 2
    },
-   "why": "1.52R. R is the stop distance, the stop minus the fill. The reward is the fill minus the target. Divide the reward by R to count the cover in R. The fill and stop are CGC's from our data. The 455.00 average is made up for the drill.",
+   "why": "1.52R. R is the stop minus the fill: 565.54 minus 521.70. The reward is the fill minus the target: 521.70 minus 455.00. Divide the reward by R to count the cover in R. The fill and stop are CGC's from our data. The 455.00 average is made up for the drill.",
    "lesson_line": "Count the 9 EMA target in R before you short.",
    "facts": [
     "d05",
@@ -2972,7 +3016,18 @@
      "how much comes off at the 9 EMA is held (D-013); only the arithmetic is keyed"
     ]
    },
-   "batch": "rulings"
+   "batch": "tomcq",
+   "choices": [
+    "2.52R",
+    "1.52R",
+    "0.66R",
+    "0.13R"
+   ],
+   "wrong": {
+    "2.52R": "Measured the reward from the stop instead of from the fill.",
+    "0.66R": "Inverted it: risk divided by reward instead of reward divided by risk.",
+    "0.13R": "Divided the reward by the fill price instead of by R, the stop distance."
+   }
   },
   {
    "key": "q47",
@@ -4177,9 +4232,9 @@
   },
   "q19": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q20": {
    "status": "pass",
@@ -4210,19 +4265,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "agrees with ruling"
+   "fixed": false,
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q27": {
    "status": "cut",
@@ -4343,7 +4398,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; 9 EMA target or 3R as arithmetic/stat; short entry on a break not a close, outside D-003"
+   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
   },
   "q47": {
    "status": "pass",

@@ -1787,10 +1787,10 @@
    "key": "q16",
    "skill": "setup.episodic_pivot",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ep.gap_floor",
    "q": "Prior close 40.00, today's open 44.80. How big is the gap, in percent?",
-   "answer": 12.0,
+   "answer": "12.0%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1799,15 +1799,15 @@
     },
     "round": 1
    },
-   "why": "12%. The gap is the open minus the prior close, divided by the prior close. Kullamagi defines his EP as a gap up of 10% or more, with big volume by the first minutes after the open. The gap alone does not make an EP: it also needs a named catalyst.",
+   "why": "12.0%. The gap is the open minus the prior close, over the prior close: (44.80 - 40.00) / 40.00 = 12%. Kullamagi defines his EP as a gap up of 10% or more, with big volume by the first minutes after the open. The gap alone does not make an EP: it also needs a named catalyst.",
    "lesson_line": "Measure the gap from the prior close to the open. Then check the volume.",
    "facts": [
     "k01",
     "k02",
     "c01"
    ],
-   "suffix": "%",
-   "simple": "Take the open minus the prior close, divide by the prior close, and you get 12%.",
+   "suffix": "",
+   "simple": "Take the open minus the prior close, divide by the prior close, and you get 12.0%.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1816,7 +1816,19 @@
      "the gap floor is a held decision (D-033)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "10.7%",
+    "4.8%",
+    "1.2%",
+    "12.0%"
+   ],
+   "wrong": {
+    "10.7%": "Divided the gap by the open, not by the prior close.",
+    "4.8%": "Used the dollar gap as if it were the percent.",
+    "1.2%": "A decimal slip. The gap is far more than a percent."
+   },
+   "prefix": ""
   },
   {
    "key": "q17",
@@ -2047,10 +2059,10 @@
    "key": "q23",
    "skill": "setup.episodic_pivot",
    "rung": 3,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ep.volume",
    "q": "The 50-day average volume is 2 million shares. The gap day traded 5.5 million. What is the multiple?",
-   "answer": 2.75,
+   "answer": "2.75x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2060,7 +2072,7 @@
     },
     "round": 2
    },
-   "why": "2.75 times. Divide the gap day's volume, 5.5 million, by the 50-day average, 2 million. That is under the 3 times our card wants, in the B- row for 2 to 3 times. Bonde's scan asks for 3 times the 50-day average.",
+   "why": "2.75 times. Divide the gap day's volume by the 50-day average: 5.5 million / 2 million = 2.75. That is under the 3 times our card wants, in the B- row for 2 to 3 times. Bonde's scan asks for 3 times the 50-day average.",
    "lesson_line": "Divide the day's volume by the average. Three times is the floor.",
    "facts": [
     "c03",
@@ -2068,7 +2080,7 @@
     "b07"
    ],
    "house": true,
-   "suffix": "x",
+   "suffix": "",
    "simple": "5.5 million divided by 2 million is 2.75 times, which is under the 3 times our card wants.",
    "tier": "core",
    "risk": {
@@ -2077,7 +2089,19 @@
      "computed key"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "3.50x",
+    "2.75x",
+    "0.36x",
+    "7.50x"
+   ],
+   "wrong": {
+    "3.50x": "Took the difference of the two volumes, not the ratio.",
+    "0.36x": "Flipped it: the average divided by the gap day's volume.",
+    "7.50x": "Added the two volumes instead of dividing."
+   },
+   "prefix": ""
   },
   {
    "key": "q24",
@@ -2124,10 +2148,10 @@
    "key": "q25",
    "skill": "setup.episodic_pivot",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ep.neglect",
    "q": "Neglect check. The close 126 sessions ago was 20.00 and the close before the gap is 24.00. How far is it up, in percent?",
-   "answer": 20.0,
+   "answer": "20.0%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -2136,7 +2160,7 @@
     },
     "round": 1
    },
-   "why": "20%. The close before the gap divided by the close 126 sessions earlier, minus one: 24.00 against 20.00. Our card's neglect line is at most 25% over 126 sessions, so this passes that half of the test. The card also asks for at most 15% over 63 sessions.",
+   "why": "20%. The close before the gap is 24.00 and the close 126 sessions earlier is 20.00. So (24.00 - 20.00) / 20.00 = 20%. Our card's neglect line is at most 25% over 126 sessions, so this passes that half of the test. The card also asks for at most 15% over 63 sessions.",
    "lesson_line": "Neglect is measured, not felt. Six months back, count how far it has come.",
    "facts": [
     "c05",
@@ -2145,7 +2169,7 @@
     "d27"
    ],
    "house": true,
-   "suffix": "%",
+   "suffix": "",
    "simple": "Take 24.00 over 20.00 and subtract one to get the percent up. That is 20%, under the 25% neglect line.",
    "deeper": {
     "example": "CRM, August 2020, was up 25.5% over 126 sessions and 19.3% over 63. Both are past the card's lines of 25% and 15%, so it was not neglected. It was an established leader at highs, not an EP."
@@ -2158,7 +2182,19 @@
      "rests on a proposed card line (ep.neglect)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "4.0%",
+    "120.0%",
+    "16.7%",
+    "20.0%"
+   ],
+   "wrong": {
+    "120.0%": "Gave the ratio and forgot to subtract one.",
+    "16.7%": "Divided the rise by the later close, not the earlier one.",
+    "4.0%": "Used the dollar rise as if it were the percent."
+   },
+   "prefix": ""
   },
   {
    "key": "q26",
@@ -2374,10 +2410,10 @@
    "key": "q32",
    "skill": "setup.episodic_pivot",
    "rung": 5,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ep.trim_1",
    "q": "Bought at 50.00 with the stop at 49.00. Where is 3R?",
-   "answer": 53.0,
+   "answer": "$53.00",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2387,13 +2423,13 @@
     },
     "round": 2
    },
-   "why": "53.00. One R is the fill minus the stop. Add three of those to the fill. 3R is a measuring mark, not a fixed sell.",
+   "why": "$53.00. One R is the fill minus the stop: 50.00 - 49.00. Add three of those to the fill: 50.00 + 3 x (50.00 - 49.00) = 53.00. 3R is a measuring mark, not a fixed sell.",
    "lesson_line": "Know your 3R price before the open. It is a measuring mark, not a sell order.",
    "facts": [
     "r54"
    ],
    "house": true,
-   "prefix": "$",
+   "prefix": "",
    "simple": "One R is the gap between your fill and your stop. Add three of those to the fill to find 3R.",
    "tier": "extended",
    "risk": {
@@ -2402,7 +2438,19 @@
      "computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "$47.00",
+    "$51.00",
+    "$53.00",
+    "$52.00"
+   ],
+   "wrong": {
+    "$47.00": "Took 3R off the fill. That is the price for a short, not a long.",
+    "$51.00": "Added one R, not three.",
+    "$52.00": "Counted 3R up from the stop, which is only two R above the fill."
+   },
+   "suffix": ""
   },
   {
    "key": "q33",
@@ -2666,10 +2714,10 @@
    "key": "q40",
    "skill": "setup.episodic_pivot",
    "rung": 6,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ep.stop_delayed",
    "q": "Account 40,000. Risk 0.5%. Fill 38.40, stop 37.80. How many shares?",
-   "answer": 333,
+   "answer": "333 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
@@ -2680,7 +2728,7 @@
     },
     "round": 0
    },
-   "why": "333 shares. Risk in dollars is the account times the risk percent. Divide by the fill minus the stop and round down. The position stays under the 40% cap, because the size is the smaller of the risk size and the cap.",
+   "why": "333 shares. Risk in dollars is 40,000 x 0.5%. Risk per share is the fill minus the stop: 38.40 - 37.80. Divide the first by the second and round down to 333. The position stays under the 40% cap, because the size is the smaller of the risk size and the cap.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2688,7 +2736,7 @@
     "h37"
    ],
    "house": true,
-   "suffix": " shares",
+   "suffix": "",
    "simple": "Divide the dollars you risk by the gap between fill and stop, then round down. That gives 333 shares.",
    "tier": "extended",
    "risk": {
@@ -2699,7 +2747,19 @@
      "fixed before (the cap broke at 1% risk)"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "416 shares",
+    "333 shares",
+    "1,042 shares",
+    "3,333 shares"
+   ],
+   "wrong": {
+    "416 shares": "That is the 40% cap alone. The size is the smaller of the risk size and the cap.",
+    "1,042 shares": "Divided the account by the price and ignored the stop.",
+    "3,333 shares": "Typed the risk as ten times too big, so the share count came out ten times too big."
+   },
+   "prefix": ""
   },
   {
    "key": "q41",
@@ -3192,10 +3252,10 @@
    "key": "q53",
    "skill": "setup.episodic_pivot",
    "rung": 8,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ep.trim_1",
    "q": "Bought at 227.60, stop 224.95. You sell a third at 235.55. How many R did that third bank?",
-   "answer": 3.0,
+   "answer": "3.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
@@ -3205,14 +3265,14 @@
     },
     "round": 1
    },
-   "why": "3R. The gain divided by the fill minus the stop. ENPH got there the session after the day-3 entry.",
+   "why": "3R. One R is the fill minus the stop: 227.60 - 224.95. The gain per share is 235.55 - 227.60. So (235.55 - 227.60) / (227.60 - 224.95) = 3.0. ENPH got there the session after the day-3 entry.",
    "lesson_line": "Count every exit in R, on the shares it covered.",
    "facts": [
     "d05",
     "d06"
    ],
    "house": true,
-   "suffix": "R",
+   "suffix": "",
    "simple": "Divide the gain per share by the risk per share. Selling at 235.55 banks 3R.",
    "deeper": {
     "trap": "The 3R belongs to the third you sold. The other two thirds are still open, so the whole trade has not banked 3R yet. Count each exit in R on the shares it covered."
@@ -3225,7 +3285,19 @@
      "rests on the owner's rulebook (B19, first trim)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "tomcq",
+   "choices": [
+    "8.0R",
+    "4.0R",
+    "0.3R",
+    "3.0R"
+   ],
+   "wrong": {
+    "8.0R": "Used the dollar gain without dividing by one R.",
+    "4.0R": "Measured the gain from the stop, not from the fill.",
+    "0.3R": "Flipped the division: one R over the gain."
+   },
+   "prefix": ""
   },
   {
    "key": "q54",
@@ -3777,10 +3849,10 @@
    "key": "q67",
    "skill": "setup.episodic_pivot",
    "rung": 4,
-   "format": "numeric",
+   "format": "mcq",
    "criterion": "ep.inv_no_volume",
    "q": "Average daily volume is 2,000,000 shares. By 10:00 the stock has traded 1,500,000. What multiple of average is that?",
-   "answer": 0.75,
+   "answer": "0.75x",
    "calc": {
     "fn": "arith",
     "args": {
@@ -3790,7 +3862,7 @@
     },
     "round": 2
    },
-   "why": "0.75 times. Divide the 1,500,000 shares traded by the 2,000,000 average. Our card wants the full average daily volume traded within the first 30 minutes. Anything under a full day's average means the volume is not there, so the day-one buy is off.",
+   "why": "0.75 times. Divide the 1,500,000 shares traded by the 2,000,000 average: 1,500,000 / 2,000,000 = 0.75. Our card wants the full average daily volume traded within the first 30 minutes. Anything under a full day's average means the volume is not there, so the day-one buy is off.",
    "lesson_line": "Short of a full day's volume by 10:00 means no day-one buy.",
    "facts": [
     "c21",
@@ -3798,7 +3870,7 @@
     "k04"
    ],
    "house": true,
-   "suffix": "x",
+   "suffix": "",
    "simple": "1,500,000 divided by 2,000,000 is 0.75, so the stock has not traded a full average day by 10:00.",
    "tier": "core",
    "risk": {
@@ -3808,7 +3880,19 @@
      "card line is proposed"
     ]
    },
-   "batch": "wave2"
+   "batch": "tomcq",
+   "choices": [
+    "0.25x",
+    "1.33x",
+    "0.75x",
+    "3.50x"
+   ],
+   "wrong": {
+    "0.25x": "That is the part still to trade: one minus 0.75.",
+    "1.33x": "Flipped it: the average divided by the volume so far.",
+    "3.50x": "Added the two volumes instead of dividing."
+   },
+   "prefix": ""
   },
   {
    "key": "q68",
@@ -4072,9 +4156,9 @@
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q17": {
    "status": "pass",
@@ -4115,9 +4199,9 @@
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q24": {
    "status": "pass",
@@ -4129,7 +4213,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q26": {
    "status": "pass",
@@ -4171,7 +4255,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: 3R price arithmetic kept; why/lesson_line no longer say 'hard rule trims a third at 3R'; B19 citation swapped for "
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q33": {
    "status": "pass",
@@ -4219,7 +4303,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "40000*0.5%=200; 200/0.60=333.33, down to 333. Position 333*38.40=12,787 = 32% of the account, under the 40% cap (h37, A7). Calc args match the stem; no overlap."
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q41": {
    "status": "pass",
@@ -4300,7 +4384,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: arithmetic kept; lesson_line no longer says the first third is 3R; B19 citation dropped"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q54": {
    "status": "pass",
@@ -4386,9 +4470,9 @@
   },
   "q67": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
   },
   "q68": {
    "status": "cut",
