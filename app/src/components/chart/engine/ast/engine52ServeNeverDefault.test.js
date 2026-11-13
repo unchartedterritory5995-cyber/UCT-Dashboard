@@ -218,6 +218,10 @@ describe('3. guards of the static reader (each refuses what it cannot prove)', (
     'through an alias': [...TP, 'theme = TP.new(color.red)', 'alias = theme', 'if close > open', '    alias.frame := color.green'],
     'passed to a helper that writes it': [...TP, 'theme = TP.new(color.red)', 'f(TP t) =>', '    t.frame := color.green', 'if close > open', '    f(theme)'],
     'a method that writes it': [...TP, 'method paint(TP t) =>', '    t.frame := color.green', 'theme = TP.new(color.red)', 'if close > open', '    theme.paint()'],
+    // re-review G2: the same assignments at the TOP level (no block), where the reassigned-name
+    // ledger does not hold the dotted name
+    'a top-level field assignment (A)': [...TP, 'theme = TP.new(color.red)', 'theme.frame := color.green'],
+    'a top-level field assignment on a `var` (B)': [...TP, 'var theme = TP.new(color.red)', 'theme.frame := color.green'],
     // re-review N7 / N10: a user method NAMED get / size is a call like any other
     'a user method named get (N7)': [...TP, 'method get(TP t) =>', '    t.frame := color.green', '    t.frame', 'theme = TP.new(color.red)', 'if close > open', '    x = theme.get()'],
     'a user method named size (N10)': [...TP, 'method size(TP t) =>', '    t.frame := color.green', '    t.frame', 'theme = TP.new(color.red)', 'if close > open', '    x = theme.size()'],
@@ -241,6 +245,7 @@ describe('3. guards of the static reader (each refuses what it cannot prove)', (
     'an alias through a field read (N8)': [...NEST, 'inner = outer.inner', 'if close > open', '    inner.frame := color.green'],
     'a field passed as an argument (N9)': [...NEST, 'f(TP t) =>', '    t.frame := color.green', 'if close > open', '    f(outer.inner)'],
     'a deep field assignment (N4)': [...NEST, 'if close > open', '    outer.inner.frame := color.green'],
+    'a top-level deep field assignment (N4, G2)': [...NEST, 'outer.inner.frame := color.green'],
   }
   for (const [what, pre] of Object.entries(nestedCases)) {
     it(`a nested UDT field is not read at its seed: ${what}`, () => {
