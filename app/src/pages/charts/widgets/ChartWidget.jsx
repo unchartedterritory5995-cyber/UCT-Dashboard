@@ -17,7 +17,6 @@ import useSingleStockEtfs from '../../../hooks/useSingleStockEtfs'
 import { singleStockEtfsKey, singleStockEtfsFetcher } from '../../../hooks/singleStockEtfsKey'
 import { useSymbolResource } from '../../../lib/symbolResourceWarm'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
-import AdjustmentLabel from '../../../components/chart/AdjustmentLabel'
 import ChartDetailDock from './ChartDetailDock'
 import { normalizeDock } from './chartDock'
 import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './chartFeatures'
@@ -829,9 +828,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           tfBarAfterTf: <ChartDateNav paneRef={paneRef} themeVars={menuVars} />,
           tfBarRight: (
             <>
-              {/* TERM-055: says when prices are split-adjusted (splits only; renders nothing
-                  unless the adjustment-basis endpoint knows a split was applied). */}
-              {!isThemeIndex && <AdjustmentLabel sym={sym} tf={tf} className={styles.adjustmentLabel} />}
+              {/* TERM-055 split-adjustment label + "As traded" toggle: removed from the chart
+                  header (owner 2026-11-13). components/chart/AdjustmentLabel.jsx is kept
+                  intact so it can be re-seated here later. */}
               {/* /charts integrated header (owner 11-11): no leveraged-ETF switcher; the
                   ETF holdings button keeps its seat. Elsewhere: both, unchanged. */}
               {/* /charts chart widget: leverage + holdings live in the symbol menu (▾). */}
