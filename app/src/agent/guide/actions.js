@@ -1,3 +1,5 @@
+import { HIDDEN_WIDGETS } from '../../widgets/registry'
+
 // ── UCT Agent PRODUCT GUIDE: the action families ────────────────────────────────────────────────────────────
 //
 // registry.js teaches a feature; a family here teaches MANY small actions that share a surface: everything on the
@@ -223,10 +225,13 @@ export const TAB_ACTIONS = [
 
 // ── widgets: each row is one control of one widget ──
 const W = {
-  alerts: 'Alerts', news: 'News & Catalysts', tradeExchangeNews: 'News', calendar: 'Calendar', breadth: 'Breadth', optionsflow: 'Options Flow', themes: 'Theme Tracker', fundamentals: 'Fundamentals', profile: 'Stock Profile',
+  alerts: 'Alerts', news: 'News & Catalysts', tradeExchangeNews: 'News', calendar: 'UCT Terminal', breadth: 'Breadth', optionsflow: 'Options Flow', themes: 'Theme Tracker', fundamentals: 'Fundamentals', profile: 'Stock Profile',
   nhnl: 'New Highs / Lows', scatter: 'Market Map', aisearch: 'AI Search', notebook: 'Notebook', volumescan: 'Volume Surge', scanner: 'Scanner',
 }
-const widget = (id, type, label, re, target, name, say, alt) => ({ id, label, re, steps: point(type, W[type], typeof target === 'string' ? inCell(type, target) : target, name, say, alt) })
+const widget = (id, type, label, re, target, name, say, alt) => ({ id, type, label, re, steps: point(type, W[type], typeof target === 'string' ? inCell(type, target) : target, name, say, alt) })
+// ⚰️ A widget the owner hid from the Widgets menu (registry HIDDEN_WIDGETS, 2026-11-13) has no
+// "Open Widgets ▾ → click it" path, so its walkthroughs are withheld (controls.js does the same
+// through inMenu). Un-hiding the widget brings them back.
 export const WIDGET_ACTIONS = [
   widget('alertsList', 'alerts', 'Seeing your alerts', /\b(see|view|show|list|where are|find)\b.*\bmy alerts\b|\bmy alerts\b/, 'alerts.row', 'your alerts', 'These are your alerts. Click one to show its ticker on the linked chart.', 'You have no alerts yet. The form at the top of this widget sets one.'),
   widget('scanPick', 'scanner', 'Picking a preset scan', /\b(pick|choose|open|run|use)\b.*\b(preset |prebuilt )?scans?\b|\bpreset scans?\b/, 'scanner.list', 'the scans', 'Click a scan to run it. Its results open in this widget.', 'This widget has a scan open. ‹ takes you back to the list of scans.'),
@@ -268,7 +273,7 @@ export const WIDGET_ACTIONS = [
   widget('noteNew', 'notebook', 'Creating a note here', /\bnotebook\b.*\b(new|create|add)\b|\b(new|create|add)\b.*\bnote\b.*\bnotebook\b/, 'notebook.new', 'New', 'Click New to start a note here.'),
   widget('noteSearch', 'notebook', 'Finding a note', /\b(search|find|open)\b.*\bnotes?\b/, { widgetType: 'notebook', aria: 'Search notes' }, 'the search box', 'Search here, or click a note in the list.'),
   widget('volumeScope', 'volumescan', 'What the scanner watches', /\bvolume (surge|scan\w*)\b.*\b(watch\w*|scope|list|choose)\b/, 'volumeScan.scope', 'the scope', 'Click this to choose what the scanner watches.'),
-]
+].filter(a => !HIDDEN_WIDGETS.includes(a.type))
 
 // ── a drawing's own menu (components/chart/ChartDrawingOverlay.jsx DrawingContextMenu, from drawingSettingsSchema.js) ──
 const drawRow = (label) => ({ within: 'chart.drawingMenu', label })

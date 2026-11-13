@@ -41,18 +41,18 @@ describe('tradeExchangeNews registration', () => {
   it("leaves UCT Agent's widget list exactly the pre-release baseline", () => {
     // The Research Library (2026-11-01) is picker-only for the same reason.
     expect(PICKER_ONLY_WIDGETS).toEqual(['tradeExchangeNews', 'researchLibrary'])
-    // ...minus the widgets hidden from /charts by the owner (2026-11-13), which the Agent may not add either.
-    const baseline = WORKSPACE_MENU_TYPES_ALL.filter((id) => !['indexes', 'marketcontext', 'tradeExchangeNews', 'researchLibrary', ...HIDDEN_WIDGETS].includes(id))
+    const baseline = WORKSPACE_MENU_TYPES_ALL.filter((id) => !['indexes', 'marketcontext', 'tradeExchangeNews', 'researchLibrary'].includes(id))
     expect(WORKSPACE_MENU_TYPES).toEqual(baseline)                       // default browser, as in production
     expect(WORKSPACE_MENU_TYPES).not.toContain('tradeExchangeNews')
-    expect(WORKSPACE_PICKER_TYPES.filter((id) => !PICKER_ONLY_WIDGETS.includes(id))).toEqual(WORKSPACE_MENU_TYPES)
+    // Member menus additionally drop the owner's hidden widgets (2026-11-13); the Agent keeps them.
+    expect(WORKSPACE_PICKER_TYPES.filter((id) => !PICKER_ONLY_WIDGETS.includes(id))).toEqual(WORKSPACE_MENU_TYPES.filter((id) => !HIDDEN_WIDGETS.includes(id)))
   })
 
-  it('leaves News & Catalysts registered and bound, but hidden from every add menu (owner 2026-11-13)', () => {
+  it('leaves News & Catalysts registered and bound, but hidden from every member add menu (owner 2026-11-13)', () => {
     expect(WIDGET_REGISTRY.news.labels).toEqual({ header: 'News', menu: 'News & Catalysts', tab: 'News' })
     expect(WIDGET_REGISTRY.news.menus).toMatchObject({ workspace: true, tab: true, mobile: false, journal: false })
     expect(HIDDEN_WIDGETS).toContain('news')
-    expect(WORKSPACE_MENU_TYPES).not.toContain('news')
+    expect(WORKSPACE_MENU_TYPES).toContain('news')                        // admin-only Agent keeps it
     expect(WORKSPACE_PICKER_TYPES).not.toContain('news')
     expect(WORKSPACE_WIDGETS.news.component.name).toBe('NewsWidget')
     expect(labelMap('menu').news).toBe('News & Catalysts')

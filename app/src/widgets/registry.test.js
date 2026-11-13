@@ -311,8 +311,12 @@ describe('widget registry — metadata pins', () => {
     ])
     expect(TAB_PICKER_TYPES).toEqual(WORKSPACE_PICKER_TYPES)
     expect(WORKSPACE_PICKER_TYPES.length).toBeLessThan(WORKSPACE_MENU_TYPES_ALL.length)
-    // UCT Agent's lists are the member lists minus PICKER_ONLY_WIDGETS (UCT News).
-    expect(WORKSPACE_MENU_TYPES).toEqual(WORKSPACE_PICKER_TYPES.filter(id => !PICKER_ONLY_WIDGETS.includes(id)))
+    // UCT Agent's lists are the released set minus PICKER_ONLY_WIDGETS (UCT News); the
+    // owner's HIDDEN_WIDGETS leave member menus only — the admin-only Agent keeps them.
+    expect(WORKSPACE_MENU_TYPES).toEqual(
+      WORKSPACE_MENU_TYPES_ALL.filter(id => !UNRELEASED_CAPTURE_WIDGETS.includes(id) && !PICKER_ONLY_WIDGETS.includes(id)),
+    )
+    for (const id of HIDDEN_WIDGETS) expect(WORKSPACE_MENU_TYPES).toContain(id)
     expect(TAB_MENU_TYPES).toEqual(WORKSPACE_MENU_TYPES)
   })
 
