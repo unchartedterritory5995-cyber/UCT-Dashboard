@@ -1,0 +1,14 @@
+[
+ {
+  "id": "HG-07",
+  "say": "how do I leave replay mode",
+  "feature": "panelAction",
+  "title": "Leaving replay"
+ },
+ {
+  "id": "HG-08",
+  "say": "how do I stop the replay and go back to live",
+  "feature": "panelAction",
+  "title": "Leaving replay"
+ }
+]

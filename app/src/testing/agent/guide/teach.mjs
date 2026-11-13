@@ -77,7 +77,15 @@ const STATE = `(async () => {
   const box = (b) => b && [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]
   // the ringed control's own parts: a row's handlers sit on one of its cells (a list row's menu is on its symbol cell)
   const kids = el ? [...el.children].slice(0, 8).map(k => k.getBoundingClientRect()).filter(b => b.width > 4 && b.height > 4).map(b => ({ x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) })) : []
-  return { kids, pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), picker: /one of your (own )?lists|Click (a|the) list/i.test(step.text), chartRef: st.chartRef || null }
+  // the field a typing step means: the ringed control, or the ONE field inside it a person can type in, as shown on screen
+  // (a formula box's wrapper holds a hidden model textarea and the visible code editor, a contenteditable)
+  const editable = (x) => { const b = x.getBoundingClientRect(); return b.width > 4 && b.height > 4 && x.getAttribute('aria-hidden') !== 'true' && x.tabIndex !== -1 }
+  const typeIn = el && !el.matches?.('input,textarea,select') ? [...el.querySelectorAll('textarea, input:not([type=hidden]):not([type=radio]):not([type=checkbox]), [contenteditable="true"]')].filter(editable) : []
+  const fieldEl = el?.matches?.('input,textarea,select') ? el : typeIn.length === 1 ? typeIn[0] : null
+  // the ringed control is under something else at the ring's centre (a sheet's sticky footer): a person scrolls before clicking
+  const hitAt = r && el ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null
+  const covered = !!(hitAt && el && !el.contains(hitAt) && !hitAt.contains(el) && !(el.labels && [...el.labels].some(l => l.contains(hitAt))))
+  return { covered, kids, pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), fieldAt: fieldEl ? (() => { const b = fieldEl.getBoundingClientRect(); return { x: Math.round(b.left + Math.min(b.width / 2, 60)), y: Math.round(b.top + Math.min(b.height / 2, 14)) } })() : null, picker: /one of your (own )?lists|Click (a|the) list/i.test(step.text), chartRef: st.chartRef || null }
 })()`
 
 // ⭐ REGION-AWARE INPUT. A right-click the card asks for lands on the REGION it names. Candidate points come from the chart
@@ -106,6 +114,24 @@ const REGIONS = `((ref, text) => {
       for (let i = 0; i < hits.length && out.length < 16; i += Math.max(1, Math.floor(hits.length / 16))) out.push(hits[i])
     }
   }
+  // (no \b here: REGIONS is a template string, where \b is a backspace)
+  // a candle, the watermark, or the empty chart: the location-aware row keys to which one is under the pointer, so a person
+  // tries points down the plot until the row they were told about is offered
+  else if (/ a candle/.test(' ' + t)) {
+    const cvs = [...cell.querySelectorAll('.tv-lightweight-charts canvas')].filter(cv => { const b = cv.getBoundingClientRect(); return b.width > p0.width * 0.8 && Math.abs(b.top - p0.top) < 4 })
+    const cv = cvs[0]
+    if (cv && cv.width) {
+      try {
+        const ctx = cv.getContext('2d'); const lb = cv.getBoundingClientRect(); const k = cv.width / lb.width
+        for (const fx of [0.92, 0.08, 0.85, 0.15, 0.78, 0.22, 0.7, 0.3, 0.5]) {
+          const x = Math.round(lb.width * fx * k); const d = ctx.getImageData(x, 0, 1, cv.height).data
+          for (let y = 0; y < cv.height; y++) { const r = d[y * 4], g = d[y * 4 + 1], bl = d[y * 4 + 2]; if (Math.max(r, g, bl) - Math.min(r, g, bl) > 70) { let e = y; while (e + 1 < cv.height && Math.max(d[(e + 1) * 4], d[(e + 1) * 4 + 1], d[(e + 1) * 4 + 2]) - Math.min(d[(e + 1) * 4], d[(e + 1) * 4 + 1], d[(e + 1) * 4 + 2]) > 70) e++; out.push({ x: Math.round(lb.left + x / k), y: Math.round(lb.top + (y + e) / 2 / k) }); break } }
+        }
+      } catch (e) { /* a canvas the page cannot read: the scan below */ }
+    }
+    for (const fx of [0.5, 0.75, 0.25]) for (let fy = 0.05; fy <= 0.951; fy += 0.05) out.push(at(p0, fx, fy))
+  }
+  else if (/ a candle|watermark|empty part/.test(' ' + t)) { for (const fx of [0.5, 0.75, 0.25]) for (let fy = 0.05; fy <= 0.951; fy += 0.05) out.push(at(p0, fx, fy)); if (/watermark/.test(t)) { const c = at(p0, 0.5, 0.5); out.sort((m, n) => Math.hypot(m.x - c.x, m.y - c.y) - Math.hypot(n.x - c.x, n.y - c.y)) } }
   else if (/moving average/.test(t)) { for (const fx of [0.6, 0.8, 0.4]) for (let fy = 0.05; fy <= 0.95; fy += 0.01) out.push(at(p0, fx, fy)) }
   else { for (const fy of [0.4, 0.5, 0.3, 0.6]) out.push(at(p0, 0.5, fy)) }
   return out
@@ -129,12 +155,15 @@ async function rightClickRegion(s) {
     // the member leaving the guide (GuideOverlay's own rule)
     if (await p.b.evaluate(`!!document.querySelector('[role="menu"],[data-guide$="Menu"]')`)) await p.b.key('Escape')
     await sleep(200)
+    // a menu Escape does not close (the desktop chart menu has no Escape handler: ChartWidget closes on its backdrop): a
+    // person clicks away, so the next right-click opens a menu instead of landing on the backdrop and closing this one
+    if (await p.b.evaluate(`!!document.querySelector('[data-guide="chart.contextMenu"]')`)) { await p.b.click(2, 2); await sleep(200) }
   }
   return false
 }
 
 try {
-  p = await open(R, { prefs: boardFor(given), fixtures: fixturesFor(given), query: queryFor(given), ls: given.ls || null, width: 1600, height: 950 })
+  p = await open(R, { prefs: boardFor(given), fixtures: fixturesFor(given), query: queryFor(given), ls: given.ls || null, iaCatalog: given.iaCatalog || null, width: 1600, height: 950 })
   // a desktop member has a mouse: headless Chrome reports no hover, and the drawing layer only hit-tests under a hovering pointer
   // (ChartDrawingOverlay's matchMedia('(hover: hover)')). Emulated, then the page loads again with it
   // (CDP's media emulation has no hover feature, so the page is told what a desktop with a mouse answers)
@@ -146,6 +175,8 @@ try {
   await p.openPanel()
   // ⭐ GIVEN: the state the case needs, built in the page through the app's own routes and stores (guide/given.mjs)
   if (given.setup) { const said = await p.b.evaluate(given.setup); rec.setup = said; await sleep(1200) }
+  // ⭐ DECLARED GIVENS' member acts (givens.mjs prelude): real input on the app's own control, before the words are typed
+  if (given.declared?.length) { const { runPreludes } = await import('./givens.mjs'); const acts = await runPreludes(given.declared, { b: p.b, sleep }); if (acts.length) { rec.prelude = acts; await sleep(800) } }
   await p.say(c.say)
   await p.idle(20000)
   await sleep(800)
@@ -183,14 +214,31 @@ try {
       await p.b.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers: m, windowsVirtualKeyCode: k.charCodeAt(0) })
       await sleep(1300); continue
     }
-    // a field the card asks to type into ("Type a name for the list"): a person types something there
-    if (s.field && /\btype\b/i.test(s.stepText || '')) {
-      await p.b.click(s.ring.x, s.ring.y); await sleep(200); await p.b.type('Teach list'); await sleep(900)
+    // a field the card asks to type into ("Type a name for the list"): a person types something there, and the card's own
+    // example when it gives one ("Type a yes-or-no formula, such as close > open.")
+    if ((s.field || s.fieldAt) && /\btype\b/i.test(s.stepText || '')) {
+      const example = /\bsuch as ([^.;]+?)(?:[.;]\s|[.;]?$)/i.exec(s.stepText || '')?.[1] || 'Teach list'
+      // real keys on the focused field, one character at a time (a code editor such as CodeMirror reads key input, not a value)
+      const at = s.fieldAt || s.ring; await p.b.click(at.x, at.y); await sleep(200)
+      for (const ch of example) {
+        await p.b.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, text: ch, unmodifiedText: ch })
+        await p.b.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch })
+      }
+      await sleep(900)
       const after = await p.b.evaluate(STATE)
       if (after && after.index === s.index && after.next) { await p.button(after.next, '[data-testid="guide-card"]'); await sleep(900) }
       continue
     }
     if (s.right) { if (!(await rightClickRegion(s))) { rec.why = `step ${s.index + 1}: no point of the region it names opened the menu row it needs`; break } await sleep(600); continue }
+    // covered at the ring's centre: the mouse wheel over it, as a person scrolls a sheet until the control is clear (at most 6)
+    let at = s
+    for (let k = 0; at && at.covered && at.index === s.index && k < 6; k++) {
+      await p.b.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: at.ring.x, y: at.ring.y, deltaX: 0, deltaY: 160 })
+      await sleep(500)
+      at = await p.b.evaluate(STATE)
+      rec.scrolled = (rec.scrolled || 0) + 1
+    }
+    if (at && at.index === s.index && at.ring) s.ring = at.ring
     if (!s.field) await p.b.click(s.ring.x, s.ring.y)
     await sleep(1300)
     const after = await p.b.evaluate(STATE)

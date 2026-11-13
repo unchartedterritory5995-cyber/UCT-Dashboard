@@ -1,0 +1,32 @@
+[
+ {
+  "id": "HG-11",
+  "say": "how do I set an alert on the MACD histogram",
+  "feature": "alertAction",
+  "title": "Which line an alert watches"
+ },
+ {
+  "id": "HG-12",
+  "say": "how do I pick which line my alert watches",
+  "feature": "alertAction",
+  "title": "Which line an alert watches"
+ },
+ {
+  "id": "HG-13",
+  "say": "how do I make an alert on a yes/no signal fire only once",
+  "feature": "alertAction",
+  "title": "When a signal alert fires"
+ },
+ {
+  "id": "HG-14",
+  "say": "why won't my alert fire",
+  "feature": "alertAction",
+  "title": "Why an alert can’t fire"
+ },
+ {
+  "id": "HG-15",
+  "say": "why is my indicator alert never going off",
+  "feature": "alertAction",
+  "title": "Why an alert can’t fire"
+ }
+]

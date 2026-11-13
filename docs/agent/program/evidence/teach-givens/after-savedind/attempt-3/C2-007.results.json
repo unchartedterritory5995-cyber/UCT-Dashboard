@@ -1,0 +1,73 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:21:51.944Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "C2-007",
+   "say": "how do I add own saved indicator",
+   "feature": "indicatorManage",
+   "title": "Adding your own indicator",
+   "given": [
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open this chart’s settings with the gear.",
+     "onPrimary": true,
+     "pr": [
+      730,
+      139,
+      26,
+      26
+     ],
+     "rr": [
+      726,
+      135,
+      34,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Open the Indicators tab.",
+     "onPrimary": true,
+     "pr": [
+      635,
+      247,
+      62,
+      36
+     ],
+     "rr": [
+      631,
+      243,
+      70,
+      44
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Open Your indicators and click one to add it to this chart.",
+     "onPrimary": true,
+     "pr": [
+      718,
+      400,
+      86,
+      24
+     ],
+     "rr": [
+      714,
+      396,
+      94,
+      32
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}

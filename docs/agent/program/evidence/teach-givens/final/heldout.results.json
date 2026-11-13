@@ -1,0 +1,1326 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T08:19:16.360Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "HG-01",
+   "say": "how do I copy the AI search answer",
+   "feature": "control",
+   "title": "Copying an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This copies the answer’s text.",
+     "onPrimary": true,
+     "pr": [
+      523,
+      203,
+      46,
+      20
+     ],
+     "rr": [
+      519,
+      199,
+      54,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-02",
+   "say": "show me how to keep this AI answer for later",
+   "feature": "control",
+   "title": "Saving an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This saves the answer so you can reopen it later from Saved answers.",
+     "onPrimary": true,
+     "pr": [
+      636,
+      203,
+      45,
+      20
+     ],
+     "rr": [
+      632,
+      199,
+      53,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-03",
+   "say": "show me how to copy what the AI search said",
+   "feature": "control",
+   "title": "Copying an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This copies the answer’s text.",
+     "onPrimary": true,
+     "pr": [
+      523,
+      203,
+      46,
+      20
+     ],
+     "rr": [
+      519,
+      199,
+      54,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-04",
+   "say": "how do I send my AI search chat to the journal",
+   "feature": "control",
+   "title": "Sending AI Search to the Journal",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This sends the AI Search widget to your Journal. The arrow beside it chooses where it goes.",
+     "onPrimary": true,
+     "pr": [
+      851,
+      106,
+      17,
+      17
+     ],
+     "rr": [
+      847,
+      102,
+      25,
+      25
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-05",
+   "say": "how do I rename my note",
+   "feature": "control",
+   "title": "Editing a note",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click the title or the text and type: the note saves as you go.",
+     "onPrimary": true,
+     "pr": [
+      509,
+      135,
+      389,
+      34
+     ],
+     "rr": [
+      505,
+      131,
+      397,
+      42
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-06",
+   "say": "how do I change the text of this note",
+   "feature": "control",
+   "title": "Editing a note",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click the title or the text and type: the note saves as you go.",
+     "onPrimary": true,
+     "pr": [
+      509,
+      135,
+      389,
+      34
+     ],
+     "rr": [
+      505,
+      131,
+      397,
+      42
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-07",
+   "say": "how do I leave replay mode",
+   "feature": "panelAction",
+   "title": "Leaving replay",
+   "given": [
+    "declared"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Tools ▾.",
+     "onPrimary": true,
+     "pr": [
+      340,
+      17,
+      81,
+      26
+     ],
+     "rr": [
+      336,
+      13,
+      89,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Replay Mode.",
+     "onPrimary": true,
+     "pr": [
+      341,
+      104,
+      198,
+      31
+     ],
+     "rr": [
+      337,
+      100,
+      206,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click Exit replay to go back to the live chart.",
+     "onPrimary": true,
+     "pr": [
+      647,
+      584,
+      80,
+      32
+     ],
+     "rr": [
+      643,
+      580,
+      88,
+      40
+     ]
+    }
+   ],
+   "prelude": [
+    "replayRunning: started (to 2026-09-11)"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-08",
+   "say": "how do I stop the replay and go back to live",
+   "feature": "panelAction",
+   "title": "Leaving replay",
+   "given": [
+    "declared"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Tools ▾.",
+     "onPrimary": true,
+     "pr": [
+      340,
+      17,
+      81,
+      26
+     ],
+     "rr": [
+      336,
+      13,
+      89,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Replay Mode.",
+     "onPrimary": true,
+     "pr": [
+      341,
+      104,
+      198,
+      31
+     ],
+     "rr": [
+      337,
+      100,
+      206,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click Exit replay to go back to the live chart.",
+     "onPrimary": true,
+     "pr": [
+      647,
+      584,
+      80,
+      32
+     ],
+     "rr": [
+      643,
+      580,
+      88,
+      40
+     ]
+    }
+   ],
+   "prelude": [
+    "replayRunning: started (to 2026-09-11)"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-09",
+   "say": "how do I add one of my own indicators to the chart",
+   "feature": "indicatorManage",
+   "title": "Adding your own indicator",
+   "given": [
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open this chart’s settings with the gear.",
+     "onPrimary": true,
+     "pr": [
+      730,
+      139,
+      26,
+      26
+     ],
+     "rr": [
+      726,
+      135,
+      34,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Open the Indicators tab.",
+     "onPrimary": true,
+     "pr": [
+      635,
+      247,
+      62,
+      36
+     ],
+     "rr": [
+      631,
+      243,
+      70,
+      44
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Open Your indicators and click one to add it to this chart.",
+     "onPrimary": true,
+     "pr": [
+      718,
+      400,
+      86,
+      24
+     ],
+     "rr": [
+      714,
+      396,
+      94,
+      32
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-10",
+   "say": "how do I put my saved indicator on this chart",
+   "feature": "indicatorManage",
+   "title": "Adding your own indicator",
+   "given": [
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open this chart’s settings with the gear.",
+     "onPrimary": true,
+     "pr": [
+      730,
+      139,
+      26,
+      26
+     ],
+     "rr": [
+      726,
+      135,
+      34,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Open the Indicators tab.",
+     "onPrimary": true,
+     "pr": [
+      635,
+      247,
+      62,
+      36
+     ],
+     "rr": [
+      631,
+      243,
+      70,
+      44
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Open Your indicators and click one to add it to this chart.",
+     "onPrimary": true,
+     "pr": [
+      718,
+      400,
+      86,
+      24
+     ],
+     "rr": [
+      714,
+      396,
+      94,
+      32
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-11",
+   "say": "how do I set an alert on the MACD histogram",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose which line of the indicator to watch.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      292,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      288,
+      226,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-12",
+   "say": "how do I pick which line my alert watches",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose which line of the indicator to watch.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      292,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      288,
+      226,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-13",
+   "say": "how do I make an alert on a yes/no signal fire only once",
+   "feature": "alertAction",
+   "title": "When a signal alert fires",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose when it fires: when it becomes true, becomes false, or while it is true.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      295,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      291,
+      226,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-14",
+   "say": "why won't my alert fire",
+   "feature": "alertAction",
+   "title": "Why an alert can’t fire",
+   "given": [
+    "iaCatalog",
+    "declared",
+    "declaredSetups",
+    "setup"
+   ],
+   "pass": false,
+   "steps": [],
+   "setup": "blockedAlert: created",
+   "why": "no walkthrough: Harness\n3:16 AM\nwhy won't my alert fire // UCT Agent\n3:16 AM\n\nthe script had no plan for this turn",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-15",
+   "say": "why is my indicator alert never going off",
+   "feature": "alertAction",
+   "title": "Why an alert can’t fire",
+   "given": [
+    "iaCatalog",
+    "declared",
+    "declaredSetups",
+    "setup"
+   ],
+   "pass": false,
+   "steps": [],
+   "setup": "blockedAlert: created",
+   "why": "no walkthrough: Harness\n3:16 AM\nwhy is my indicator alert never going off // UCT Agent\n3:16 AM\n\nthe script had no plan for this turn",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-16",
+   "say": "how do I find out why my alert won't fire",
+   "feature": "alertAction",
+   "title": "Why an alert can’t fire",
+   "given": [
+    "iaCatalog",
+    "declared",
+    "declaredSetups",
+    "setup"
+   ],
+   "note": "added after the alert AFTER run: HG-14/15 never reached the guide (why-questions are not routed), so blockedAlert had no held-out coverage",
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "This line says why the alert can’t fire.",
+     "onPrimary": true,
+     "pr": [
+      200,
+      551,
+      213,
+      32
+     ],
+     "rr": [
+      196,
+      547,
+      221,
+      40
+     ]
+    }
+   ],
+   "setup": "blockedAlert: created",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-17",
+   "say": "show me why my indicator alert can't fire",
+   "feature": "alertAction",
+   "title": "Why an alert can’t fire",
+   "given": [
+    "iaCatalog",
+    "declared",
+    "declaredSetups",
+    "setup"
+   ],
+   "note": "added after the alert AFTER run, same reason",
+   "pass": false,
+   "steps": [],
+   "setup": "blockedAlert: created",
+   "why": "no walkthrough: Harness\n3:16 AM\nshow me why my indicator alert can't fire // UCT Agent\n3:16 AM\n\nthe script had no plan for this turn",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-18",
+   "say": "how do I copy the AI search response",
+   "feature": "control",
+   "title": "Copying an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "note": "answer-named-indirectly family (HG-03 class), written before the words.js change",
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This copies the answer’s text.",
+     "onPrimary": true,
+     "pr": [
+      523,
+      203,
+      46,
+      20
+     ],
+     "rr": [
+      519,
+      199,
+      54,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-19",
+   "say": "show me how to save the response I got from AI search",
+   "feature": "control",
+   "title": "Saving an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "note": "answer-named-indirectly family (HG-03 class), written before the words.js change",
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This saves the answer so you can reopen it later from Saved answers.",
+     "onPrimary": true,
+     "pr": [
+      636,
+      203,
+      45,
+      20
+     ],
+     "rr": [
+      632,
+      199,
+      53,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-20",
+   "say": "how do I copy what it wrote in AI search",
+   "feature": "control",
+   "title": "Copying an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "note": "answer-named-indirectly family (HG-03 class), written before the words.js change",
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This copies the answer’s text.",
+     "onPrimary": true,
+     "pr": [
+      523,
+      203,
+      46,
+      20
+     ],
+     "rr": [
+      519,
+      199,
+      54,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-21",
+   "say": "how do I save what the AI told me",
+   "feature": "control",
+   "title": "Saving an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "note": "answer-named-indirectly family (HG-03 class), written before the words.js change",
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This saves the answer so you can reopen it later from Saved answers.",
+     "onPrimary": true,
+     "pr": [
+      636,
+      203,
+      45,
+      20
+     ],
+     "rr": [
+      632,
+      199,
+      53,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-22",
+   "say": "how do I put a dot above the bar when my formula is true",
+   "feature": "builderAction",
+   "title": "Signal markers and colours",
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type a yes-or-no formula, such as close > open.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      457,
+      601,
+      68
+     ],
+     "rr": [
+      493,
+      453,
+      609,
+      76
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Choose Signal — mark when it is true.",
+     "onPrimary": true,
+     "pr": [
+      687,
+      864,
+      156,
+      19
+     ],
+     "rr": [
+      683,
+      860,
+      164,
+      27
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Marker draws a shape where the signal is true. The options beside it colour the candles or the background.",
+     "onPrimary": true,
+     "pr": [
+      510,
+      803,
+      575,
+      80
+     ],
+     "rr": [
+      506,
+      799,
+      583,
+      88
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-23",
+   "say": "how do I shade the background when the formula is true",
+   "feature": "builderAction",
+   "title": "Signal markers and colours",
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type a yes-or-no formula, such as close > open.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      457,
+      601,
+      68
+     ],
+     "rr": [
+      493,
+      453,
+      609,
+      76
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Choose Signal — mark when it is true.",
+     "onPrimary": true,
+     "pr": [
+      687,
+      864,
+      156,
+      19
+     ],
+     "rr": [
+      683,
+      860,
+      164,
+      27
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Marker draws a shape where the signal is true. The options beside it colour the candles or the background.",
+     "onPrimary": true,
+     "pr": [
+      510,
+      803,
+      575,
+      80
+     ],
+     "rr": [
+      506,
+      799,
+      583,
+      88
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-24",
+   "say": "how do I rename a Volume Surge list",
+   "feature": "control",
+   "title": "Renaming a Volume Surge list",
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "given": [
+    "board",
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click the list picker at the top of the widget.",
+     "onPrimary": true,
+     "pr": [
+      1018,
+      108,
+      80,
+      22
+     ],
+     "rr": [
+      1014,
+      104,
+      88,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the list picker at the top of the widget.",
+     "onPrimary": true,
+     "pr": [
+      1018,
+      108,
+      80,
+      22
+     ],
+     "rr": [
+      1014,
+      104,
+      88,
+      30
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Click this, type the new name and press Enter.",
+     "onPrimary": true,
+     "pr": [
+      1179,
+      204,
+      20,
+      20
+     ],
+     "rr": [
+      1175,
+      200,
+      28,
+      28
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-25",
+   "say": "how do I delete one of my Volume Surge lists",
+   "feature": "control",
+   "title": "Deleting a Volume Surge list",
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "given": [
+    "board",
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click the list picker at the top of the widget.",
+     "onPrimary": true,
+     "pr": [
+      1018,
+      108,
+      80,
+      22
+     ],
+     "rr": [
+      1014,
+      104,
+      88,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the list picker at the top of the widget.",
+     "onPrimary": true,
+     "pr": [
+      1018,
+      108,
+      80,
+      22
+     ],
+     "rr": [
+      1014,
+      104,
+      88,
+      30
+     ]
+    },
+    {
+     "i": 4,
+     "text": "This deletes the list. It asks first.",
+     "onPrimary": true,
+     "pr": [
+      1201,
+      204,
+      20,
+      20
+     ],
+     "rr": [
+      1197,
+      200,
+      28,
+      28
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-26",
+   "say": "how do I choose which line an alert follows",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose which line of the indicator to watch.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      292,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      288,
+      226,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-27",
+   "say": "how do I change which series my alert tracks",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose the indicator to watch.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      258,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      254,
+      226,
+      36
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Choose the condition: crossing a value, or a line crossing another.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      422,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      418,
+      226,
+      36
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click Add Alert. Your alert is listed below the form, where you can pause or delete it.",
+     "onPrimary": true,
+     "pr": [
+      191,
+      549,
+      294,
+      26
+     ],
+     "rr": [
+      187,
+      545,
+      302,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}

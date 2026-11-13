@@ -19,6 +19,10 @@
 //
 // Nothing pokes the DOM: everything is something the app itself reads or writes. `GIVEN` says which cases get what, by the
 // walkthrough they reach (a rule) or by id (an override). A case with no given runs on the plain board.
+// ⭐ DECLARED givens (givens.mjs): a case's own `given: [...]`, or its id in caseGivens.json, merged over the rules below.
+
+import { applyGivens, declaredGivens } from './givens.mjs'
+import CASE_GIVENS from './caseGivens.json' with { type: 'json' }
 
 const chart = (id, color, x, y, w, h, opts = {}) => ({ id, type: 'chart', color, x, y, w, h, opts: { tf: 'D', ...opts } })
 const GROUPS = { A: 'SPY', B: 'AAPL', C: 'AMD', D: 'MSFT' }
@@ -94,6 +98,7 @@ export function givenFor(c) {
   if (c.feature === 'tabAction' || /tab’s link colour|Renaming a (chart|widget) tab/.test(c.title || '')) g.board = 'tabs'
   // a per-browser switch the case states itself (a release flag the app reads from localStorage, e.g. widgets/captureRelease.js)
   if (c.ls) g.ls = c.ls
+  applyGivens(g, declaredGivens(c, CASE_GIVENS))
   g.setup = setupScript(g)
   if (!g.setup) delete g.setup
   return g
@@ -125,7 +130,8 @@ function CALENDAR_DAYS() {
 }
 /** The rig's fixture routes a given needs (lib.mjs: matched on "METHOD /path" before the harness answers). */
 export function fixturesFor(g) {
-  const routes = []
+  // declared givens' routes first: lib.mjs answers with the first route that matches
+  const routes = [...(g.declaredRoutes || [])]
   if (g.themes) routes.push({ match: '^GET /api/theme-performance', body: THEMES })
   if (g.teFeed) routes.push({ match: '^GET /api/trade-exchange-news/recent', body: { items: TE_ITEMS(), epoch: 'teach', last_seq: 3, first_seq: 1, tickers_provisional: false } })
   if (g.calendar) routes.push({ match: '^GET /api/calendar[?]week=', body: { days: CALENDAR_DAYS() } })
@@ -149,15 +155,21 @@ export function fixturesFor(g) {
 }
 
 /** Harness query flags a given needs (agentHarness.jsx reads them on load). */
-export const queryFor = (g) => ['layouts=1', g.savedGrids ? 'multichart=1' : ''].filter(Boolean).join('&')
+export const queryFor = (g) => ['layouts=1', g.savedGrids ? 'multichart=1' : '', ...(g.extraQuery || [])].filter(Boolean).join('&')
 
 export function boardFor(g) {
-  const widgets = BOARDS[g.board || 'plain']
+  const widgets = g.widgets || BOARDS[g.board || 'plain']
   return { charts_workspace_layout: JSON.stringify({ version: 1, cols: 24, widgets }), charts_workspace_groups: JSON.stringify(GROUPS), ...(g.chartSettings ? { chart_settings: JSON.stringify(g.chartSettings) } : {}), ...(g.prefs || {}) }
 }
 
 // in the page: the app's own routes and stores, after the board has loaded
 function setupScript(g) {
+  const own = ruleSetupScript(g)
+  const all = [own, ...(g.declaredSetups || [])].filter(Boolean)
+  if (all.length < 2) return all[0] || null
+  return `(async () => { const said = []; for (const s of [${all.map(s => `async () => ${s}`).join(', ')}]) said.push(await s()); return said.join(', ') })()`
+}
+function ruleSetupScript(g) {
   if (!g.drawing && !g.alerts && !g.indicatorAlerts) return null
   return `(async () => {
     const said = []

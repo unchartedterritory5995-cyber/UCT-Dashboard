@@ -1,0 +1,1 @@
+attempt-1: STOPPED by the Lead (a second heavy run while pl-auto's #1016 re-measure held the other lock slot). Partial, head side only, not interpreted. Stopped 2026-11-11T03:15:34Z after 11 cases; no results json (written only at the end); master side never started. Vite stderr (proxy ECONNREFUSED to the absent backend) kept in scratch only.

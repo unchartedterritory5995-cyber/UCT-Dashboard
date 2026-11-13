@@ -1,0 +1,11 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-teach-givens/app[39m
+
+ [32m✓[39m src/agent/zzLookbehindTargets.probe.test.js [2m([22m[2m1 test[22m[2m)[22m[33m 495[2mms[22m[39m
+     [33m[2m✓[22m[39m records [33m 485[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 15:09:01
+[2m   Duration [22m 7.69s[2m (transform 4.90s, setup 271ms, import 6.29s, tests 495ms, environment 493ms)[22m
+

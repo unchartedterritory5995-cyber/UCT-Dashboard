@@ -1,0 +1,1 @@
+attempt-3 FAILED: the formula now types (close > open), but a CDP click on the 13 px Signal radio, which is under the click point per elementFromPoint, left it unchecked. Diagnostic (labeldiag, a scratch runner copy): a click on the choice's label text checks it, and the walkthrough then passes. Fixed: the Signal step rings the choice's label.

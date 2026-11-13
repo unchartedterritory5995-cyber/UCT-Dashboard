@@ -1,0 +1,124 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:15:09.862Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "HG-07",
+   "say": "how do I leave replay mode",
+   "feature": "panelAction",
+   "title": "Leaving replay",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Tools ▾.",
+     "onPrimary": true,
+     "pr": [
+      340,
+      17,
+      81,
+      26
+     ],
+     "rr": [
+      336,
+      13,
+      89,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Replay Mode.",
+     "onPrimary": true,
+     "pr": [
+      341,
+      104,
+      198,
+      28
+     ],
+     "rr": [
+      337,
+      100,
+      206,
+      36
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      626,
+      318,
+      348,
+      315
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-08",
+   "say": "how do I stop the replay and go back to live",
+   "feature": "panelAction",
+   "title": "Leaving replay",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Tools ▾.",
+     "onPrimary": true,
+     "pr": [
+      340,
+      17,
+      81,
+      26
+     ],
+     "rr": [
+      336,
+      13,
+      89,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Replay Mode.",
+     "onPrimary": true,
+     "pr": [
+      341,
+      104,
+      198,
+      28
+     ],
+     "rr": [
+      337,
+      100,
+      206,
+      36
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      626,
+      318,
+      348,
+      315
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.",
+   "consoleErrors": []
+  }
+ ]
+}

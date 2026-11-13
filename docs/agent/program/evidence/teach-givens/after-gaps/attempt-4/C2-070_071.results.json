@@ -1,0 +1,200 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T08:10:35.734Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "C2-070",
+   "say": "show me how to put a green arrow under the bar when true",
+   "feature": "builderAction",
+   "title": "Signal markers and colours",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type a yes-or-no formula, such as close > open.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      457,
+      601,
+      68
+     ],
+     "rr": [
+      493,
+      453,
+      609,
+      76
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Choose Signal — mark when it is true.",
+     "onPrimary": true,
+     "pr": [
+      687,
+      864,
+      156,
+      19
+     ],
+     "rr": [
+      683,
+      860,
+      164,
+      27
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Marker draws a shape where the signal is true. The options beside it colour the candles or the background.",
+     "onPrimary": true,
+     "pr": [
+      510,
+      803,
+      575,
+      80
+     ],
+     "rr": [
+      506,
+      799,
+      583,
+      88
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-071",
+   "say": "show me how to paint the candles gold when true",
+   "feature": "builderAction",
+   "title": "Signal markers and colours",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type a yes-or-no formula, such as close > open.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      457,
+      601,
+      68
+     ],
+     "rr": [
+      493,
+      453,
+      609,
+      76
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Choose Signal — mark when it is true.",
+     "onPrimary": true,
+     "pr": [
+      687,
+      864,
+      156,
+      19
+     ],
+     "rr": [
+      683,
+      860,
+      164,
+      27
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Marker draws a shape where the signal is true. The options beside it colour the candles or the background.",
+     "onPrimary": true,
+     "pr": [
+      510,
+      803,
+      575,
+      80
+     ],
+     "rr": [
+      506,
+      799,
+      583,
+      88
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}

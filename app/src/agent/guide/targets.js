@@ -130,7 +130,11 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
   }
   if (typeof target === 'object' && target.widgetType) {
     const cells = document.querySelectorAll(`[data-widget-type="${esc(target.widgetType)}"]`)
-    return pick([...cells].flatMap(c => inside(c, target)), target)
+    const hit = pick([...cells].flatMap(c => inside(c, target)), target)
+    // ⭐ `portaled`: a control in a menu the widget renders onto the page (createPortal to body), outside its cell. Looked for in
+    // the cell first, then only where no board cell is (the portal), never inside ANOTHER widget's cell
+    if (hit || !target.portaled || !cells.length) return hit
+    return pick(inside(document.body, target).filter(el => !el.closest?.('[data-widget-id]')), target)
   }
   // ⭐ '@chart': the chart being talked about is the box itself (a toolbar toggle, a panel it opened); a panel portalled
   // out of the cell is looked for on the page
@@ -273,11 +277,21 @@ export function earlierOnScreen(steps, index, ctx) {
 
 // the nearest ancestor that clips what overflows it (a toolbar row with overflow: hidden) — the highlight never reaches past
 // what the member can see of the control
+// ⭐ a position:fixed box (the desktop chart right-click menu) is not clipped by the ancestors above it that only overflow:
+// it shows past them, so its ring does too. An ancestor that HOLDS a fixed box (a transform, filter, perspective, contain or
+// will-change of those) is its containing block, and from there up the clip applies again.
+const holdsFixed = (cs) => (cs.transform && cs.transform !== 'none') || (cs.filter && cs.filter !== 'none') || (cs.perspective && cs.perspective !== 'none')
+  || /paint|layout|strict|content/.test(cs.contain || '') || /transform|perspective|filter/.test(cs.willChange || '')
 function clipOf(el) {
+  let fixed = false
+  try { fixed = getComputedStyle(el).position === 'fixed' } catch { fixed = false }
   for (let p = el?.parentElement; p && p !== document.body; p = p.parentElement) {
-    let o = ''
-    try { const cs = getComputedStyle(p); o = `${cs.overflowX} ${cs.overflow}` } catch { o = '' }
-    if (/hidden|clip/.test(o)) return p.getBoundingClientRect()
+    let cs = null
+    try { cs = getComputedStyle(p) } catch { cs = null }
+    if (!cs) continue
+    if (fixed && holdsFixed(cs)) fixed = false
+    if (!fixed && /hidden|clip/.test(`${cs.overflowX} ${cs.overflow}`)) return p.getBoundingClientRect()
+    if (cs.position === 'fixed') fixed = true
   }
   return null
 }

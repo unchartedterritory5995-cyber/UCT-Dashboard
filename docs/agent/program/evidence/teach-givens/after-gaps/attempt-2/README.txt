@@ -1,0 +1,1 @@
+attempt-2 FAILED: the runner typed into the formula wrapper's hidden model textarea (aria-hidden, off screen); diag shows the CodeMirror editor empty. Fixed: type into the one visible editable inside the ring, with real key events.

@@ -1,0 +1,19 @@
+﻿# node_modules LinkType=Junction Target=C:\w\pl-teach-wl\app\node_modules
+# date -u: 2026-11-11T03:13:15Z
+# commit: 4e94c577efecfca37d76f589a1dcde7780042ae1 (agent/pl/teach-givens) dirty=0
+# harness SHA (tree app/src/testing/agent): bde61c44c22a38ad52ae3e1d5ebc61dae63c7968
+# cases: 88eddf90957d1cf82fffb02699f4df92c433d4dd | LOCK --who pl-grid | BelowNormal | vite port 5312 | filter=
+# mode: BROWSER-MOCK-MODEL, LOCAL agent harness, scripted model; not production, not gate evidence
+# vite pid=2176 start 03:13:15Z
+# vite up=True
+PASS  C1-001  how do I change ticker by search pick
+PASS  C1-005  how do I flag current ticker (Shift+F)
+PASS  C1-006  how do I pick preset timeframe on bar
+PASS  C1-007  how do I pick from full timeframe menu
+PASS  C1-008  how do I add custom interval
+PASS  C1-009  how do I delete custom interval
+PASS  C1-010  how do I star a favourite timeframe
+PASS  C1-011  how do I timeframe keys with repeat-press cycle
+PASS  C1-013  how do I choose chart type in settings
+PASS  C1-017  how do I candle colour mode
+PASS  C1-018  how do I thin bars
