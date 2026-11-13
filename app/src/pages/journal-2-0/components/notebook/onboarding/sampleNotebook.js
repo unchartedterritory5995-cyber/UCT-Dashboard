@@ -116,17 +116,30 @@ export async function heldTitles(hold, titleOf = () => null) {
   const ids = [...(hold?.unsent || []), ...(hold?.blocked || []), ...(hold?.unchecked || [])].slice(0, 3)
   const found = new Map()
   await Promise.all(ids.filter((id) => !titleOf(id)).map(async (id) => {
+    // Final fix residual R1: the removal's busy line waits on these reads, so each gives up after HELD_TITLE_TIMEOUT_MS
+    // (aborted, and raced, so a read that ignores the abort cannot hold the door either): not named, "A note".
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
+    let timer = null
+    const gaveUp = new Promise((resolve) => { timer = setTimeout(() => { ctl?.abort(); resolve(null) }, HELD_TITLE_TIMEOUT_MS) })
     try {
-      const res = await fetch(`/api/j2/notes/${encodeURIComponent(id)}`, { credentials: 'include' })
-      if (!res.ok) return
-      const title = (await res.json())?.note?.title
+      const read = (async () => {
+        const res = await fetch(`/api/j2/notes/${encodeURIComponent(id)}`, { credentials: 'include', ...(ctl ? { signal: ctl.signal } : {}) })
+        if (!res.ok) return null
+        return (await res.json())?.note?.title
+      })().catch(() => null)   // a failed or aborted read (even one that lands after the race) is "A note"
+      const title = await Promise.race([read, gaveUp])
       if (typeof title === 'string' && title.trim()) found.set(id, title.trim())
     } catch {
       // not named: "A note"
+    } finally {
+      clearTimeout(timer)
     }
   }))
   return (id) => titleOf(id) || found.get(id) || null
 }
+
+/** How long the removal waits for one held note's title before it says "A note" (final fix residual R1). */
+export const HELD_TITLE_TIMEOUT_MS = 3000
 
 /**
  * The sentence -- and, for a device that could not be asked, the offer -- when the pre-check

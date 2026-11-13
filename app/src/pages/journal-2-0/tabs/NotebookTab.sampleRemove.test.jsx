@@ -74,17 +74,18 @@ describe('Remove the sample notebook, from the notes list', () => {
     expect(await screen.findByRole('menuitem', { name: SAMPLE_COPY.removeRow })).toBeInTheDocument()
   })
 
-  // Final fix (C3): on a phone the menu is a dozen rows; the removal row sits above "Journal tools", not last.
-  it('the removal row comes before "Journal tools" in the menu', async () => {
+  // Final fix (C3) and residual R3: the removal row sits right after "Export" at every width, so on a desktop (where
+  // the phone rows are not drawn) opening More by keyboard lands on Export, never on the destructive row; on a phone
+  // the menu scrolls inside the window, so the row is reachable there too (walked at 390 by the fin walk).
+  it('the removal row comes right after "Export", never first', async () => {
     await renderTab()
     const menu = await openMore()
     await screen.findByRole('menuitem', { name: SAMPLE_COPY.removeRow })
     const names = within(menu).getAllByRole('menuitem').map((el) => el.textContent.trim())
     const remove = names.indexOf(SAMPLE_COPY.removeRow)
-    const tools = names.indexOf('Journal tools')
-    expect(tools, 'non-vacuity: the Journal tools row is in the menu').toBeGreaterThan(-1)
-    expect(remove).toBeGreaterThan(-1)
-    expect(remove).toBeLessThan(tools)
+    const exp = names.indexOf('Export')
+    expect(exp, 'non-vacuity: the Export row is in the menu').toBeGreaterThan(-1)
+    expect(remove).toBe(exp + 1)
   })
 
   it('the row is not offered once the sample is gone (no active ids)', async () => {

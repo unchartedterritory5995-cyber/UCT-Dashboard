@@ -2490,13 +2490,14 @@ export default function NotebookTab() {
       render: (p, c) => <div {...p} data-tour="review-drafts-phone">{c}</div>,
       items: reviewRows({ anchored: false }),
     },
-    // Go-live wave 1 (A7): at every width, only while the sample is active (its status read says so). Final fix (C3):
-    // above "Journal tools", so on a phone it is not the last of a dozen rows.
-    sampleActiveIds.length > 0 && { key: 'remove-sample', label: SAMPLE_ROW_COPY.removeRow, icon: 'trash', run: () => removeSample() },
     // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
     // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
     { key: 'journal-tools', label: 'Journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
     { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true) },
+    // Go-live wave 1 (A7): at every width, only while the sample is active (its status read says so). Final fix residual
+    // R3: right after Export, so on a desktop (no phone rows) More never opens with focus on this destructive row; on a
+    // phone the menu scrolls inside the window above the "+" (C3), so it stays reachable there.
+    sampleActiveIds.length > 0 && { key: 'remove-sample', label: SAMPLE_ROW_COPY.removeRow, icon: 'trash', run: () => removeSample() },
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
     stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true) },

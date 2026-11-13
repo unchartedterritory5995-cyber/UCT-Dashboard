@@ -13,6 +13,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../../lib/heldModule'
+// Final fix residual R2: the Notebook's toolbar icon size (the token lint allows 16 and 20 only).
+import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import styles from './NoteFindBar.module.css'
 
 // A property, so a rail can hold or fail a fetch (jsdom cannot fetch a chunk), like `sourceSheetLoaders`.
@@ -64,7 +66,7 @@ function FindStandIn({ value, onChange, onClose, failed, onRetry }) {
   return (
     <div className={styles.bar} role="search" aria-label="Find in note" data-find-stand-in="">
       <div className={styles.row}>
-        <UIcon name="search" size={14} gold={false} />
+        <UIcon name="search" {...TOOLBAR_ICON} />
         <input
           ref={inputRef}
           className={styles.input}
@@ -88,7 +90,7 @@ function FindStandIn({ value, onChange, onClose, failed, onRetry }) {
           <button type="button" className={styles.textBtn} onClick={pageReload.run}>Reload</button>
         )}
         <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close find" title="Close (Esc)">
-          <UIcon name="x" size={13} gold={false} />
+          <UIcon name="x" {...TOOLBAR_ICON} />
         </button>
       </div>
     </div>

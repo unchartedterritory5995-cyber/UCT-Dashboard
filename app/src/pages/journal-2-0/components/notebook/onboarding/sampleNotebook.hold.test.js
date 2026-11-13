@@ -2,7 +2,7 @@
 // (the bulk trash's shared words) is not always true for this door: a save whose answer was lost is not re-sent by
 // waiting. The door says what works, and names the note even when it is not in the list on screen.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { describeSampleHold, heldTitles, SAMPLE_COPY } from './sampleNotebook'
+import { describeSampleHold, heldTitles, SAMPLE_COPY, HELD_TITLE_TIMEOUT_MS } from './sampleNotebook'
 import { FAILURE_WORDS } from '../../../lib/noteBatch'
 
 const AAPL = 'Trade plan: example -- AAPL pullback'
@@ -61,5 +61,25 @@ describe('heldTitles: the held note is named even when the list on screen does n
     vi.stubGlobal('fetch', fetchSpy)
     await heldTitles({ unsent: [], blocked: [], unchecked: [] })
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  // Final fix residual R1: the removal's busy line waits on these reads, so one hung read must not hold the door.
+  it('a read that never answers gives up after the timeout: aborted, and the sentence says "A note"', async () => {
+    vi.useFakeTimers()
+    try {
+      let signal = null
+      vi.stubGlobal('fetch', vi.fn((url, init) => { signal = init?.signal; return new Promise(() => {}) }))
+      let titleOf = null
+      const pending = heldTitles({ unsent: ['x'], blocked: [], unchecked: [] }).then((fn) => { titleOf = fn })
+      await vi.advanceTimersByTimeAsync(HELD_TITLE_TIMEOUT_MS - 1)
+      expect(titleOf).toBeNull()                       // still waiting just before the limit
+      await vi.advanceTimersByTimeAsync(1)
+      await pending
+      expect(signal?.aborted).toBe(true)
+      expect(describeSampleHold({ unsent: ['x'] }, { titleOf }).message).toContain('A note has changes')
+      expect(HELD_TITLE_TIMEOUT_MS).toBe(3000)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
