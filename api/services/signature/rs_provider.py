@@ -2275,9 +2275,9 @@ def rs_vs_ema_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key
 # minute chart means nothing, so any other timeframe answers blank columns and
 # says so (`state: "daily-weekly-only"`), reading no benchmark at all.
 
-_RS_EXIT_KIND_LABELS = {"quickBreak": "Quick Break", "quicksand": "Quicksand", "deadBreak": "Grateful Dead Break"}
-#: Most severe first: on a bar where two fire, the legend names the worse one.
-_RS_EXIT_SEVERITY = ("deadBreak", "quicksand", "quickBreak")
+#: The names and the severity order live with the maths (`relative_strength.RS_EXIT_LABELS`
+#: / `RS_EXIT_SEVERITY`, read lazily below like every `relative_strength` use in this module)
+#: so the chart legend and the screener's `rs_exit_last` column print one word.
 _RS_EXIT_BLANK_WHY = "daily and weekly charts only"
 
 
@@ -2289,12 +2289,12 @@ def _rs_exit_last_warning(cols: dict) -> dict | None:
     """The newest warning in the columns: ``{kind, label, index, barsAgo}`` (``barsAgo``
     counted from the newest bar, 0 = that bar), the worse one when two share a bar,
     or None when no warning has fired in the bars held."""
+    from api.services import relative_strength as rsmod
     n = len(cols["rsLine"])
-    for i in range(n - 1, -1, -1):
-        for kind in _RS_EXIT_SEVERITY:
-            if cols[kind][i] == 1.0:
-                return {"kind": kind, "label": _RS_EXIT_KIND_LABELS[kind], "index": i, "barsAgo": n - 1 - i}
-    return None
+    kind, i = rsmod.rs_exit_latest(cols)        # the screener's `rs_exit_last` reads the same function
+    if kind is None:
+        return None
+    return {"kind": kind, "label": rsmod.RS_EXIT_LABELS[kind], "index": i, "barsAgo": n - 1 - i}
 
 
 def _rs_exit_legend(cols: dict, times, params: dict, why: str | None) -> dict:
