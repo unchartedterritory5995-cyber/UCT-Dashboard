@@ -503,3 +503,19 @@ Walker, door-table and Python-test strings this group invalidates (Task 4):
 Existing tests changed: `pages/charts/widgets/captures/dataEmbedsInsert.test.jsx` and `newsCapture.test.jsx` press "Show all" before the More group's COT, Model Book and News rows.
 
 First-open bytes after the build: 2,258,012 B (group 2: +83 B; the palette is its own chunk, so C4 costs nothing on first open).
+
+### Group 3: D1, D2, D3 (and a C5 correction)
+
+What moved, and the one-line undo:
+- D1 `components/notebook/onboarding/RegistryToursGate.jsx`: a wanted walkthrough held behind the first run (`useFirstRunShowing() || useFirstRunPending()`) is let go after `FIRST_RUN_HOLD_MS` (10 000 ms) of hold, through the gate's own failure path: it closes as not opened (the offer is not spent) and the existing `TOUR_FAILED_NOTICE` is said. A first run that ends sooner opens it as before. The timer covers any held walkthrough, not only one started from Help (the gate does not know where a request came from; Help is the only door a brand-new member has during the first run). Undo: delete the `held` effect.
+- D2 `components/notebook/onboarding/sampleNotebook.js` `describeSampleHold`: unsent notes keep their sentence; BLOCKED notes get one of their own after it: the title(s), then "is waiting to sync. Edit it once more so it can save, then remove the sample again." (`blockedOne` / `blockedMany`). Undo: map blocked ids through `heldOne` / `heldMany` again.
+- D3 `tabs/NotebookTab.jsx`: the `#templates` door opens the New note sheet as `'hash'` (read as open everywhere else); when the hash goes away (browser Back) a `'hash'` sheet closes, and a sheet opened by a button is left alone. Undo: `setPickerOpen(true)` in the door and drop the else branch.
+- C5 correction (found by `NotebookTab.test.jsx` after group 2 committed, four cases red): the grid waited for the preferences read for EVERY member; it now waits only while the Get started card's switch is on (`checklistEnabled(notebookFlag) && prefsLoading`), because with the switch off no card can come and the grid drew in the first render before. Undo: as group 2's C5 line.
+
+Walker, door-table and Python-test strings this group invalidates (Task 4):
+- `tools/notebook_fin_walk_features.py:110`, `:111`, `:4250` (`remove sample`'s designed-hold detection reads `heldOne` / `heldMany`): a hold on a BLOCKED sample note now says `blockedOne` / `blockedMany`, which that check does not match; and its remedy is one more edit, not a wait, so the step's "wait 15 s and press again" cannot clear it.
+- D1 and D3: no walker reads `TOUR_FAILED_NOTICE` or presses the browser's Back after `#templates` (grep: `tools/notebook_fin_walk_features.py:1814`-`:1838` follows the link and presses Escape).
+
+Existing tests changed: `sampleNotebook.hold.test.js` ("several held notes (unsent and blocked)" became "several unsent notes"; the blocked cases are new).
+
+First-open bytes after the build: 2,258,202 B of 2,260,793 B (PASS); group 3 +190 B. Task 3 in all: +54 B over the base's 2,258,148 B, 2,591 B of room left.

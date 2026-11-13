@@ -68,7 +68,7 @@ import { reviewDraftsEnabled } from '../lib/reviewDraftsFlag'
 // Fix round 1 (first-open bytes): the Reviews rows' words are on first open; the drafting door is fetched on the first press.
 import { REVIEW_PERIODS, reviewDraftFailedSentence, reviewDraftingSentence } from '../lib/reviewPeriods'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
-import { withDone } from '../components/notebook/onboarding/gettingStartedPref'
+import { checklistEnabled, withDone } from '../components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk, { importWithOneRetry } from '../lib/lazyChunk'
@@ -765,9 +765,11 @@ export default function NotebookTab() {
   // Lane KEYS3 (Q2): the command palette's "New note from a template" arrives on the notes
   // list with `#templates` (lib/notebookDoors.js). The New note sheet opens, exactly as the
   // Templates button opens it. Keyed on `location.key`, so choosing the command twice works twice.
+  // Simplify pass 2 (D3): a sheet the hash opened (`'hash'`, read as open everywhere else) closes when the hash goes
+  // away (the browser's Back); a sheet a button opened is left alone.
   useEffect(() => {
-    if (location.hash !== NOTEBOOK_TEMPLATES_HASH) return
-    setPickerOpen(true)
+    if (location.hash === NOTEBOOK_TEMPLATES_HASH) setPickerOpen('hash')
+    else setPickerOpen((open) => (open === 'hash' ? false : open))
   }, [location.hash, location.key])
 
   // Lane KEYS3 (Q11): the command palette's "All notes" arrives with `#notes`. Keyboard focus
@@ -985,9 +987,9 @@ export default function NotebookTab() {
   // the compact sort words, on a phone only (review minor 12)
   const phoneSortWords = useIsPhone()
   // Simplify pass 2 (C5): the empty list's template grid waits while the Get started card is up (its "Start a note from
-  // a template" row opens the picker, as "+ New" does). The card's answer waits on the preferences read, so until that
-  // lands neither is drawn: the grid never flashes in and out.
-  const gettingStartedUp = useGettingStartedCardUp()
+  // a template" row opens the picker, as "+ New" does). With the card's switch on, its answer waits on the preferences
+  // read, so until that lands neither is drawn: the grid never flashes in and out.
+  const gridWaits = useGettingStartedCardUp() || (checklistEnabled(notebookFlag) && Boolean(prefsLoading))
   // VIS-6 fix round 1 (review 9): the FIELD the sort dropdown shows, whatever the direction (FX4: the table's headers
   // set `updated_asc` / `title_desc`). ONE authority for the select's value and its touch-tier face.
   const sortField = sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort
@@ -3354,7 +3356,7 @@ export default function NotebookTab() {
             {/* P5 final fix: not while the New note sheet is open, so the page holds ONE picker (one
                 gallery door for a tour to wait on, one "How do you trade?", ruling P5-T10-R2). */}
             <div className={styles.emptyPicker}>
-              {!pickerOpen && !prefsLoading && !gettingStartedUp && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} kindSection={kindSection(false)} />}
+              {!pickerOpen && !gridWaits && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} kindSection={kindSection(false)} />}
             </div>
           </div>
         ) : (

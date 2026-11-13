@@ -22,11 +22,25 @@ describe('describeSampleHold: a note with changes that have not finished saving'
     expect(out.message).not.toMatch(/\u2014/)
   })
 
-  it('several held notes (unsent and blocked): named, then "have ... Open them"', () => {
+  it('several unsent notes: named (three, then a count), then "have ... Open them"', () => {
     const t = { a: 'A', b: 'B', c: 'C', d: 'D' }
-    const out = describeSampleHold({ unsent: ['a', 'b'], blocked: ['c', 'd'], unchecked: [] }, { titleOf: (id) => t[id] })
+    const out = describeSampleHold({ unsent: ['a', 'b', 'c', 'd'], blocked: [], unchecked: [] }, { titleOf: (id) => t[id] })
     expect(out.message).toBe(`${SAMPLE_COPY.notRemoved} "A", "B", "C" and 1 more ${SAMPLE_COPY.heldMany}`)
     expect(SAMPLE_COPY.heldMany).toMatch(/Open them so they can finish saving, then remove the sample again\.$/)
+  })
+
+  // Simplify pass 2 (D2): a blocked note keeps the older remedy, in a sentence of its own.
+  it('one blocked note: its title, then "is waiting to sync. Edit it once more so it can save, then remove the sample again."', () => {
+    const out = describeSampleHold({ unsent: [], blocked: ['n2'], unchecked: [] }, { titleOf: () => AAPL })
+    expect(out.message).toBe(`The sample was not removed: "${AAPL}" is waiting to sync. Edit it once more so it can save, then remove the sample again.`)
+    expect(out.anyway).toBeUndefined()
+  })
+
+  it('unsent and blocked together: one sentence each, unsent first', () => {
+    const t = { a: 'A', b: 'B', c: 'C' }
+    const out = describeSampleHold({ unsent: ['a'], blocked: ['b', 'c'], unchecked: [] }, { titleOf: (id) => t[id] })
+    expect(out.message).toBe(`${SAMPLE_COPY.notRemoved} "A" ${SAMPLE_COPY.heldOne} "B", "C" ${SAMPLE_COPY.blockedMany}`)
+    expect(SAMPLE_COPY.blockedMany).toBe('are waiting to sync. Edit them once more so they can save, then remove the sample again.')
   })
 
   it('CONTROL: a device that could not be asked keeps its own sentence and the Remove anyway offer', () => {

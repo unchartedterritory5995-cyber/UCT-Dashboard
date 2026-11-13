@@ -1009,6 +1009,43 @@ describe('lane KEYS3 (Q2): the templates door, and a ticker template starts in T
     expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull()
   })
 
+  // Simplify pass 2 (D3): Back after the door (the hash leaves) closes the sheet the hash opened.
+  function WithBack({ entries }) {
+    let nav
+    function NavProbe() { nav = useNavigate(); return null }
+    const out = render(
+      <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+        <NotebookTab />
+        <NavProbe />
+      </MemoryRouter>,
+    )
+    return { ...out, back: () => act(() => { nav(-1) }) }
+  }
+
+  it('Back from "#templates" closes the sheet the hash opened', async () => {
+    const { back } = WithBack({ entries: ['/journal/notebook?view=all', '/journal/notebook?view=all#templates'] })
+    expect(await screen.findByRole('dialog', { name: 'New note' })).toBeTruthy()
+    back()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull())
+  })
+
+  it('CONTROL: a sheet opened by a button stays open when the location changes without the hash', async () => {
+    let nav
+    function NavProbe() { nav = useNavigate(); return null }
+    render(
+      <MemoryRouter initialEntries={['/journal/notebook?view=all']}>
+        <NotebookTab />
+        <NavProbe />
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'More ways to start a note' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'From a template' }))
+    expect(await screen.findByRole('dialog', { name: 'New note' })).toBeTruthy()
+    act(() => { nav('/journal/notebook?view=all&x=1') })
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(screen.getByRole('dialog', { name: 'New note' })).toBeTruthy()
+  })
+
   it('a template whose title names a ticker, picked with no ticker, opens with focus in TICKER', async () => {
     renderTab()
     fireEvent.click(card('thesis'))

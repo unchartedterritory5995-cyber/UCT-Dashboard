@@ -70,4 +70,18 @@ describe('C5: the empty list and the Get started card', () => {
     expect(await screen.findByRole('heading', { name: 'Get started' })).toBeInTheDocument()
     expect(grid()).toBeNull()
   })
+
+  it('CONTROL: with the card switched off the grid does not wait for that read (no card can come)', async () => {
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false })
+    const spy = installFetch([[/mapping-offer$/, { offer: null }], EMPTY])
+    const real = spy.getMockImplementation()
+    spy.mockImplementation((input, init) => {
+      const url = typeof input === 'string' ? input : input?.url || ''
+      if (url.split('?')[0] === '/api/auth/preferences') return new Promise(() => {})
+      return real(input, init)
+    })
+    render(<Providers auth={AUTH} route="/journal/notebook?view=all"><NotebookTab /></Providers>)
+    expect(await screen.findByText('Your notebook is empty.')).toBeInTheDocument()
+    await waitFor(() => expect(grid()).not.toBeNull(), { timeout: 5000 })
+  })
 })
