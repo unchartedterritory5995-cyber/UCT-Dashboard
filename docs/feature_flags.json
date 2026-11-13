@@ -3669,6 +3669,16 @@
       "since": "2026-08-04",
       "note": "Calendar expected-move enrichment: unset/anything but '1' keeps the legacy delayed yfinance straddle; '1' switches to the in-house Massive chain (api/services/implied_move.py) with its typed refusals (ATM bound |K-S|/S <= 0.10). Built in the 2026-08-04 research-redesign P2 plan, default OFF, and never ledgered, so whether the refusal layer is live was NOT DETERMINABLE from the repo (tech-debt TD-37, TD-57). Flipping it is the OWNER'S call (COMPLETION-LEDGER X-16); the plan's precondition is a validation on a dense chain (NVDA/TSLA class) first. Reversal: unset it."
     },
+    "STREAM_SCOPED_CHANNELS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/bar_stream.py::_scoped_channels_enabled (read at each subscribe_symbols call; == '1' is on, anything else or unset is off)",
+      "kind": "cutover",
+      "status": "pending",
+      "since": "2026-11-13",
+      "where": [],
+      "default": "0",
+      "note": "Owner-scoped Massive stocks channels (INGEST-PROCESS-DESIGN PR2). SERVICE: web (needs STREAM_BARS_ENABLED=1). Unset/0: every bar_stream owner gets AM+A+T, so the subscribe/unsubscribe frames are byte-identical to before (rail: tests/test_bar_stream_scoped_channels.py). 1: each owner gets only the channels it declares, refcounted per (symbol, channel), so releasing one owner never narrows another: bars (BarBroadcaster: chart, quote, Time & Sales) AM+A+T; nhnl AM+A+T (owner ruling: NH/NL stays print-exact); s7_price_level_dark (D3) AM+A+T; volume AM+A only (owner-approved 2026-11-13; volume_live.on_aggregate reads only av/c and ignores T, so this is lossless). AM.<sym> is still never sent under the universe AM.* wildcard. Effect: T stops flowing for symbols only the volume push holds, cutting the GIL-starved consumer's per-trade load. Verify: GET /api/admin/bars-stream-status -> websocket_channels (symbols_per_channel.T falls; owners.volume.channels is [AM, A], or [A] under the universe feed). Built, waiting on the owner's flip: merge and deploy at 0 first (no change in websocket msgs_per_sec), then set 1 off-hours and redeploy web, and confirm Volume Surge still updates live. Rollback: set 0 and redeploy web."
+    },
     "D5_CP4_DUAL_COMPUTE_SAMPLE_RATE": {
       "repo": "uct-dashboard",
       "read_at": "api/services/bars_sanitize.py::_DUAL_COMPUTE_SAMPLE_RATE (read at import; float, default 0.05)",
