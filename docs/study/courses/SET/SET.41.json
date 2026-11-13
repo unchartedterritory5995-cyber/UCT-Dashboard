@@ -2,7 +2,7 @@
  "unit": "SET.41",
  "track": "SET",
  "title": "Trendline Break",
- "teaches": "The trendline break as we trade it: a leader above its 200-day drifts tight under a falling line drawn over the daily highs, the buy is the trade through the line and the prior day's high at market in regular hours and never more than 4% past the line, the stop sits a few cents under the trigger day's low, a close back under the line is a warning and not an exit, a third comes off at 3R and 5R with the rest on the trail, and a break on its own is a warning, not a reversal.",
+ "teaches": "The trendline break as we trade it: a leader above its 200-day drifts tight under a falling line drawn over the daily highs, the buy is the trade through the line and the prior day's high at market in regular hours and never more than 4% past the line, the stop sits a few cents under the trigger day's low, a close back under the line is a warning and not an exit, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a break on its own is a warning, not a reversal.",
  "skills": [
   {
    "id": "setup.trendline_break",
@@ -827,7 +827,7 @@
     "NUE, 2006. A stock above its 200-day pulls back 26% from a 60.30 high. Eight touches over five months build the line.",
     "Price drifts tight under the 106-session line. The break comes off a higher low above the 200-day.",
     "2006-10-05: it trades through 50.47 on 1.8x volume. Buy at market, 50.48. Stop a few cents under the low, 49.20.",
-    "Failure mode: a thin break closes back under the line, stop taken. Instead 3R came in 6 sessions. Trim a third."
+    "Failure mode: a thin break closes back under the line, stop taken. Instead 3R came in 6 sessions. First sell by judgment."
    ],
    "facts": [
     "d01",
@@ -847,7 +847,7 @@
     "MSFT, 2012. A mega-cap drifts tight under a five-month line, 112 sessions old, with 6 touches.",
     "It is a 16% pullback from 28.15. The drift is quiet, and the daily ranges are small.",
     "2012-01-04: it trades through 26.89 and the prior high. Buy at market, 26.97. Stop a few cents under the low, 26.73.",
-    "Failure mode: the break closes back under the line, stop taken. Instead 3R came the next day. Trim a third."
+    "Failure mode: the break closes back under the line, stop taken. Instead 3R came the next day. No day-one sell."
    ],
    "facts": [
     "d03",

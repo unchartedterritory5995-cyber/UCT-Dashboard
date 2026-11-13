@@ -2,7 +2,7 @@
  "unit": "SET.27",
  "track": "SET",
  "title": "Slingshot",
- "teaches": "The Slingshot as we trade it: a leader that just had a drive pulls back a few closes under the 4-day EMA of the highs, orderly and shallow, and the buy is the first decisive close back over that line, never the gap day and never the guess at the low; the stop sits a few cents under the trigger day's low, a third comes off at 3R and 5R with the rest on the trail, and a loss taken at the stop is the system working.",
+ "teaches": "The Slingshot as we trade it: a leader that just had a drive pulls back a few closes under the 4-day EMA of the highs, orderly and shallow, and the buy is the first decisive move back over that line, taken as price trades through it and never at the close, never the gap day and never the guess at the low; the stop sits a few cents under the trigger day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.slingshot",
@@ -906,8 +906,8 @@
    "steps": [
     "UTHR, September 2025. A 37.7% news gap on 2025-09-02 is the drive. Three tiny red days hug the line.",
     "Context holds: above its 50-day and 200-day, 9.3% deep, orderly at 0.45 ATR.",
-    "2025-09-18: a close back over the line at 0.92 of its range. Buy the close, 409.87. Stop under the low, 402.47.",
-    "Failure mode: the next session opens lower and takes the stop. Instead it reaches 3R in 3 sessions. Trim a third."
+    "2025-09-18: a close back over the line, 0.92 of its range. Study entry 409.87; live we buy through the trigger. Stop 402.47.",
+    "Failure mode: the next session opens lower and takes the stop. Instead it reaches 3R in 3 sessions. First sell is judgment."
    ],
    "facts": [
     "d01",
@@ -929,7 +929,7 @@
    "steps": [
     "RELY, November 2024. An earnings gap of 24.4% on 2024-10-31, a 17.8% day: the drive. Then a four-day rest.",
     "Four closes under the 4-day line, 7.5% deep, inside 1.04 ATR. Not the gap day: the drive is never the trigger.",
-    "2024-11-20: it closes over the line at 0.92 of its range. Buy the close, 20.46. Stop under the low, 19.96.",
+    "2024-11-20: it closes over the line, 0.92 of its range. Study entry 20.46; live we buy through the trigger. Stop 19.96.",
     "Failure mode: a weak next session through the stop. Instead a steady stair-step up the 10-day, to 13.7R."
    ],
    "facts": [
@@ -949,8 +949,8 @@
    "title": "URI, November 2016: the trims and the trail",
    "steps": [
     "URI, November 2016. A 9.3% gap the session after the election, a 17.1% day. Three small red candles follow.",
-    "2016-11-21: it closes over the line at 0.88 of its range. Buy the close, 93.86. Stop under the low, 91.69.",
-    "A 2.3% stop. 3R in 6 sessions: a third off, stop to breakeven. A third at 5R. The rest trails the 10-day.",
+    "2016-11-21: it closes over the line, 0.88 of its range. Study entry 93.86; live we buy through the trigger. Stop 91.69.",
+    "A 2.3% stop. 3R in 6 sessions: stop to breakeven, first sell by judgment. More into strength. The rest trails the 10-day.",
     "Failure mode: the next session opens lower through the stop. Instead the trend ran two months, 17.2R at best."
    ],
    "facts": [

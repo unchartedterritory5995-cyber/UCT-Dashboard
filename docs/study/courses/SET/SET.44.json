@@ -2,7 +2,7 @@
  "unit": "SET.44",
  "track": "SET",
  "title": "Holy Grail",
- "teaches": "The Holy Grail as we trade it: a leader in a strong, young trend whose ADX pushed up and rose before the pullback makes its first touch of the rising 20-day EMA with the low holding over the 50-day, the buy is a market order as it trades over the prior day's high, the stop sits a few cents under the swing low the pullback just made, a third comes off at 3R and 5R with the rest trailed on the 10-day, and a failed Grail closes that stock until it makes a new momentum high.",
+ "teaches": "The Holy Grail as we trade it: a leader in a strong, young trend whose ADX pushed up and rose before the pullback makes its first touch of the rising 20-day EMA with the low holding over the 50-day, the buy is a market order as it trades over the prior day's high, the stop sits a few cents under the swing low the pullback just made, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest trailed on the 10-day, and a failed Grail closes that stock until it makes a new momentum high.",
  "skills": [
   {
    "id": "setup.holy_grail",
@@ -1055,7 +1055,7 @@
     "CI, October 2000. A strong thrust off the 50-day, then seven quiet red days into the rising 20-day EMA.",
     "Context checks out: above the 200-day, the first touch since the push, the low holding over the 50-day.",
     "2000-10-26: it trades over the prior day's high. Buy at market, 36.72. Stop a few cents under the swing low, 36.03.",
-    "Failure mode: the pullback keeps falling and never clears the high. Instead it reaches 3R in 2 sessions. Trim a third."
+    "Failure mode: the pullback keeps falling and never clears the high. Instead it reaches 3R in 2 sessions. First sell is judgment."
    ],
    "facts": [
     "d01",
@@ -1076,7 +1076,7 @@
     "EXPD, March 2006. A leader makes a new momentum high, then rests three days, 3.6% deep, to the 20-day EMA.",
     "Raschke's first two- to three-day retracement in one picture. The touch holds above the 50-day; volume is not a gate.",
     "2006-03-09: it clears the prior day's high. Buy at market, 38.93. Stop a few cents under the swing low, 38.14.",
-    "Failure mode: a late, slow trigger after a long run. Instead, 3R in three sessions: a third off, stop to breakeven."
+    "Failure mode: a late, slow trigger after a long run. Instead, 3R in three sessions: stop to breakeven, sell by judgment."
    ],
    "facts": [
     "d03",
@@ -1097,8 +1097,8 @@
    "steps": [
     "LITE, July 2025. The cycle's leader pulls back seven days, 6.4% deep, into the rising 20-day EMA.",
     "Touch and trigger on the same day: the range reaches the line, then price clears the prior day's high.",
-    "Buy at market, 91.78. Stop under the swing low, 88.88. 3R in five sessions: a third off, breakeven.",
-    "Then the parabolic leg Bracco warns about. A third at 5R; sell a big part into a climax run; trail the rest."
+    "Buy at market, 91.78. Stop under the swing low, 88.88. 3R in five sessions: breakeven, and a first sell by judgment.",
+    "Then the parabolic leg Bracco warns about. Sell by judgment; sell a big part into a climax run; trail the rest."
    ],
    "facts": [
     "d05",

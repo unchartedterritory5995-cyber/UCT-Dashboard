@@ -2,7 +2,7 @@
  "unit": "SET.54",
  "track": "SET",
  "title": "Opening Drive",
- "teaches": "The opening drive as we trade it: the day-1 entry for a leader above its 200-day, read on 5-minute bars. The first 5-minute bar closes green, the day's low is the open or inside that bar, and price never trades back to the open; the buy is a market order the moment price trades through the first bar's high, never more than 4% past it; the stop sits a few cents under the day's low; a third comes off at 3R and 5R with the rest on the trail; a stop-out is the plan working, and the second entry is the first light-volume pullback that holds VWAP.",
+ "teaches": "The opening drive as we trade it: the day-1 entry for a leader above its 200-day, read on 5-minute bars. The first 5-minute bar closes green, the day's low is the open or inside that bar, and price never trades back to the open; the buy is a market order the moment price trades through the first bar's high, never more than 4% past it; the stop sits a few cents under the day's low; the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail; a stop-out is the plan working, and the second entry is the first light-volume pullback that holds VWAP.",
  "skills": [
   {
    "id": "setup.opening_drive",
@@ -1098,7 +1098,7 @@
     "SANM, 2026-09-11, 5-minute bars. A leader: RS 81, 10% over its 200-day. It gaps up 1.2%.",
     "The first 5-minute bar runs 205.71 to 207.99 on 2.3x volume: a dip, then recovery. At 9:35 it trades through.",
     "Buy at market, 208.00. Stop a few cents under the day's low, 205.66: 1.1% away. 3R, 215.02, comes at 10:35.",
-    "Third off at 3R, stop to breakeven. On 09-14 it gaps down through it. First 30-minute low decides; out past 2R."
+    "We rarely sell this early; stop to breakeven. On 09-14 it gaps down through it. First 30-minute low decides; out past 2R."
    ],
    "facts": [
     "d04",
@@ -1114,12 +1114,12 @@
   },
   {
    "key": "w3",
-   "title": "CNC, November 2026: the heaviest bar, and the trim",
+   "title": "CNC, November 2026: the heaviest bar, and the first sell",
    "steps": [
     "CNC, 2026-11-04, 5-minute bars. A leader: RS 90, 22% over its 200-day. It gaps up 4.7% over the prior high.",
     "The first 5-minute bar runs 70.21 to 71.99 on 5.3x volume, the heaviest in our set. Trigger: a trade through 71.99.",
     "Buy at market, 72.00. Stop a few cents under the day's low, 70.16: 2.6% away. The drive runs all day.",
-    "Next day at 9:35 it prints 3R, 77.52. A third comes off; the stop goes to breakeven. Two days later it fades."
+    "Next day at 9:35 it prints 3R, 77.52. Early to sell; the stop goes to breakeven. Two days later it fades."
    ],
    "facts": [
     "d07",

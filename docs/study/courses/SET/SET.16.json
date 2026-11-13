@@ -2,7 +2,7 @@
  "unit": "SET.16",
  "track": "SET",
  "title": "Wedge Pop",
- "teaches": "The Wedge Pop as we trade it: a stock that corrected under its short averages rests a few tight days under them, then trades through the base's high and closes back above them on more volume. We buy at market through the pivot, no more than 4% past it, above the 200-day, with the stop a few cents under the pop day's low; a third comes off at 3R and 5R with the rest on the trail, and a loss at the stop is the plan working.",
+ "teaches": "The Wedge Pop as we trade it: a stock that corrected under its short averages rests a few tight days under them, then trades through the base's high and closes back above them on more volume. We buy at market through the pivot, no more than 4% past it, above the 200-day, with the stop a few cents under the pop day's low; the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss at the stop is the plan working.",
  "skills": [
   {
    "id": "setup.wedge_pop",
@@ -1048,7 +1048,7 @@
     "TGT, March 2021. A 17% correction with 15 of 15 closes under the 20 EMA, still above the 200-day.",
     "A 10-day base, 166.83 to 181.79. The bars shrink to 0.44, the tightest of our ten. The pivot is 181.79.",
     "2021-03-19: it trades through on 2.2x the base's volume. Buy at market, 181.80. Stop a few cents under the day's low, 179.58.",
-    "Failure mode: a fade back under the pivot, stop taken next day. Instead 3R comes the next session. Trim a third."
+    "Failure mode: a fade back under the pivot, stop taken next day. Instead 3R comes the next session. Too soon to sell."
    ],
    "facts": [
     "d01",
@@ -1069,7 +1069,7 @@
     "RCL, July 2009, early in a new cycle. A 34% decline, 14 of 15 closes under the 20 EMA.",
     "A 4-day base, 11.80 to 12.95: the shortest the rule allows, right at the 200-day. The pivot is 12.95.",
     "2009-07-15: it gaps open above the pivot, under the 4% chase line. Buy the open, 13.18. Stop under the day's low, 12.97.",
-    "Failure mode: a fade back into the base. Instead 3R comes the next session: a third off, stop to breakeven."
+    "Failure mode: a fade back into the base. Instead 3R comes the next session: too soon to sell, stop to breakeven."
    ],
    "facts": [
     "d03",
@@ -1089,7 +1089,7 @@
     "STLD, March 2026. A 22% decline, all 15 closes under the 20 EMA. Then a 7-day base, 162.16 to 175.51.",
     "2026-03-31: it trades through 175.51 on only 1.2 times the base's volume. A B-grade pop: normal size.",
     "Buy at market, 175.52. Stop a few cents under the day's low, 171.31: 2.4% away, inside about 3%.",
-    "Failure mode: a fade back into the base. Instead 3R takes six sessions. Thirds at 3R and 5R, then 175 to 280."
+    "Failure mode: a fade back into the base. Instead 3R takes six sessions. We sell into the push, then trail to 280."
    ],
    "facts": [
     "d05",

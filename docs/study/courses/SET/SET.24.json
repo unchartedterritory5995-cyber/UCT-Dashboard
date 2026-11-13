@@ -2,7 +2,7 @@
  "unit": "SET.24",
  "track": "SET",
  "title": "2B Reversal",
- "teaches": "The 2B bottom as we trade it: a stock breaks a prior swing low for the first time, goes no more than 3% under it and fails to follow through; the buy is a market order only after price trades back above the broken low, within 3 sessions, no more than 4% above it; the stop sits a few cents under the lowest low of the undercut, a close back under the broken low is a warning, a third comes off at 3R and 5R, and a market still making lower lows is not the place.",
+ "teaches": "The 2B bottom as we trade it: a stock breaks a prior swing low for the first time, goes no more than 3% under it and fails to follow through; the buy is a market order only after price trades back above the broken low, within 3 sessions, no more than 4% above it; the stop sits a few cents under the lowest low of the undercut, a close back under the broken low is a warning, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, and a market still making lower lows is not the place.",
  "skills": [
   {
    "id": "setup.two_b_reversal",
@@ -732,7 +732,7 @@
     "QCOM, 2020. The 2020-09-08 low, 109.62, is nine sessions old. The stock pulls back to it and everyone watches.",
     "2020-09-21: it undercuts the low by 1.20% and reclaims it the same session, closing in the top 6% of its range.",
     "Buy at market as it trades back above, 109.63. Stop a few cents under the day's low, 108.25, 1.26% away.",
-    "Failure mode: it closes back under the low. Instead 3R came the next day: a third off, stop to breakeven."
+    "Failure mode: it closes back under the low. Instead 3R came the next day: too soon to sell, stop to breakeven."
    ],
    "facts": [
     "dQCOM",
@@ -771,7 +771,7 @@
    "steps": [
     "SHOP, 2019. A leader sits 6.9% above its rising 200-day. The 2019-09-25 low, 28.61, is a six-week-old swing low.",
     "On 2019-11-08 it opens under the low, undercuts it by 1.39% and trades back above it. Buy at market, 28.62.",
-    "Stop a few cents under the undercut low, 28.16, 1.6% away. 3R came the next day: a third off, stop to breakeven.",
+    "Stop a few cents under the undercut low, 28.16, 1.6% away. 3R came next day: too soon to sell; stop to breakeven.",
     "Failure mode: a close back under the low within days. Instead the level held on every later test."
    ],
    "facts": [

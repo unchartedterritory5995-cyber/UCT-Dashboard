@@ -2,7 +2,7 @@
  "unit": "SET.21",
  "track": "SET",
  "title": "High Volume Edge",
- "teaches": "The High Volume Edge as we trade it: an up day on record volume in a lesser-known stock with a fresh story, its close (the HVC) marked with a ray and an AVWAP; the buy is day 2's dip under the HVC and trade back over it at market, the stop a few cents under the day-2 low, a third off at 3R and 5R with the rest trailed, and a close under the HVC is not a failure.",
+ "teaches": "The High Volume Edge as we trade it: an up day on record volume in a lesser-known stock with a fresh story, its close (the HVC) marked with a ray and an AVWAP; the buy is day 2's dip under the HVC and trade back over it at market, the stop a few cents under the day-2 low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest trailed, and a close under the HVC is not a failure.",
  "skills": [
   {
    "id": "setup.high_volume_edge",
@@ -884,7 +884,7 @@
    "steps": [
     "INOD, May 2026. An earnings report on extreme volume, an all-time record, up 86%. Its close is the level.",
     "2026-05-11, day 2 dips 1.8% under the HVC and reclaims. Buy a cent over 84.89. Stop under the day-2 low, 83.38.",
-    "5R in two sessions: thirds off at 3R and 5R, stop to breakeven. The peak, +47%, comes on day 17.",
+    "5R in two sessions, too soon to sell: stop to breakeven. The peak, +47%, comes on day 17.",
     "Failure mode: a slide back under the level. By day 30 it round-trips under the HVC. The trims kept the win."
    ],
    "facts": [

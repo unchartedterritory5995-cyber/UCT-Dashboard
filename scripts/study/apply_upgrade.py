@@ -31,8 +31,17 @@ FIELDS = ("simple", "why", "lesson_line", "deeper", "tier", "risk", "depends_on"
           "facts", "answer", "sentence", "bank", "prefix", "suffix", "order", "calc", "chart")
 
 
+#: owner 2026-11-12 ("make it a multiple choice"; standing rule 4 in docs/study/REVIEW_LEARNINGS.md): the one format
+#: change a writer or checker may make is a typed-number question becoming a multiple-choice one. Any other `format`
+#: in an upgrade is ignored.
+FORMAT_CHANGES = {("numeric", "mcq")}
+
+
 def _set_fields(q: dict, up: dict) -> list[str]:
     changed = []
+    if up.get("format") and up["format"] != q.get("format") and (q.get("format"), up["format"]) in FORMAT_CHANGES:
+        q["format"] = up["format"]
+        changed.append("format")
     for f in FIELDS:
         if f in up and up[f] is not None:
             if f == "wrong":
@@ -89,12 +98,12 @@ def apply(doc: dict, upgrades: dict, batch: str, checks: dict | None = None, ext
                 # a checker sometimes ships the fact its fix cites inside the fix itself: add it to the lesson
                 embedded = ([fx.pop("new_fact")] if isinstance(fx.get("new_fact"), dict) else []) + list(fx.pop("new_facts", None) or []) + list(fx.pop("add_facts", None) or [])
                 fx.pop("new_fact", None)
-                fx.pop("house", None)
                 have = {x.get("id") for x in doc.get("facts") or []}
                 for fact in embedded:
                     if isinstance(fact, dict) and fact.get("id") and fact["id"] not in have:
                         doc.setdefault("facts", []).append(fact)
                         have.add(fact["id"])
+                fx.pop("house", None)          # a checker never marks a question as resting on the house rules
                 _set_fields(q, fx)
             verify[key] = {"status": "pass", "by": "checker", "fixed": True, "notes": text}
         elif status == "pass":

@@ -2,7 +2,7 @@
  "unit": "SET.43",
  "track": "SET",
  "title": "Pullback to the Moving Averages",
- "teaches": "The pullback to the moving averages as we trade it: a leader in a stacked, rising trend drifts quietly onto a rising 10-day or 50-day, a session closes at or above the line, the buy is a market order as price trades over that session's high, the stop sits a few cents under the pullback low, a third comes off at 3R and 5R with the rest on the trail, and a loss taken at the stop is the system working.",
+ "teaches": "The pullback to the moving averages as we trade it: a leader in a stacked, rising trend drifts quietly onto a rising 10-day or 50-day, a session closes at or above the line, the buy is a market order as price trades over that session's high, the stop sits a few cents under the pullback low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.ma_pullbacks",
@@ -913,7 +913,7 @@
     "YELP, June 2013. A leader that had ridden its 10 EMA since February drifts four quiet days onto the line.",
     "The pattern checks out: a 1.42 ATR dip, 5.7% off the high, and a touch day on only 0.60x volume.",
     "2013-06-26: it trades over the hold day's high. Buy at market, 31.80. Stop a few cents under the low, 30.67.",
-    "Stop 3.6% wide, over our 3%, so size comes down. Failure mode: the line gives way. Instead 3R came the next day."
+    "Stop 3.6% wide, past our preferred range: size comes down. Failure mode: the line gives way. Instead 3R came the next day."
    ],
    "facts": [
     "dYELP",
@@ -934,7 +934,7 @@
     "CAT, 2025. A mega cap's first test of the rising 50 SMA after a run: six days down on quiet volume.",
     "The pattern checks out: 2.36 ATR deep, 5.7% off the high, and the touch day on 0.79x volume.",
     "2025-09-03: it trades over the hold day's high. Buy at market, 418.13. Stop a few cents under the low, 410.47.",
-    "The stop is 1.8% wide, inside our 3%. Failure mode: the line gives way. Instead a two-week grind reached 3R."
+    "The stop is 1.8% wide, inside our preferred 1-3%. Failure mode: the line gives way. Instead a two-week grind reached 3R."
    ],
    "facts": [
     "dCAT",

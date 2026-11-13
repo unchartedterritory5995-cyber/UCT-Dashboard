@@ -2,7 +2,7 @@
  "unit": "SET.53",
  "track": "SET",
  "title": "Red to Green",
- "teaches": "Red to green as we trade it: an entry trigger that rides on a setup that already qualifies, a leader pulling back to support above a rising 20-day EMA; the line is the prior day's close, the buy is a market order as price trades a cent over it after trading below it, no more than 4% above, the stop sits a few cents under the dip's low, a third comes off at 3R and 5R, and a loss at the stop is the plan working.",
+ "teaches": "Red to green as we trade it: an entry trigger that rides on a setup that already qualifies, a leader pulling back to support above a rising 20-day EMA; the line is the prior day's close, the buy is a market order as price trades a cent over it after trading below it, no more than 4% above, the stop sits a few cents under the dip's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, and a loss at the stop is the plan working.",
  "skills": [
   {
    "id": "setup.red_to_green",

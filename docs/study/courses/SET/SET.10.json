@@ -2,7 +2,7 @@
  "unit": "SET.10",
  "track": "SET",
  "title": "IPO Base",
- "teaches": "The IPO base as we trade it: a new issue's first rest under its own IPO high, light volume on the pullbacks, never bought on the listing day or in the listing week, the buy is the trade through the IPO high at market in regular hours and no more than 4% past it, the stop sits a few cents under the breakout day's low, a third comes off at 3R and 5R with the rest on the trail, and a loss at the stop is the system working.",
+ "teaches": "The IPO base as we trade it: a new issue's first rest under its own IPO high, light volume on the pullbacks, never bought on the listing day or in the listing week, the buy is the trade through the IPO high at market in regular hours and no more than 4% past it, the stop sits a few cents under the breakout day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss at the stop is the system working.",
  "skills": [
   {
    "id": "setup.ipo_base",
@@ -970,7 +970,7 @@
     "KRMN, 2025. Listed in February, it rests under its IPO high of 57.32 for 6.8 weeks, 22% deep, in a hot theme.",
     "Context checks out: it is the first base, and the low held above the IPO open. We have not bought anything yet.",
     "2025-09-05: it trades through 57.32 on 2.2x volume. Buy at market, 57.42. Stop a few cents under the day's low, 56.05.",
-    "Failure mode: the breakout fades and the stop is hit. Instead it reaches 3R the next day. Trim a third."
+    "Failure mode: the breakout fades and the stop is hit. Instead it reaches 3R the next day. We hold."
    ],
    "facts": [
     "d01",

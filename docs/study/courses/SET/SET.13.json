@@ -2,7 +2,7 @@
  "unit": "SET.13",
  "track": "SET",
  "title": "High Tight Flag",
- "teaches": "The high tight flag as we trade it: a quiet, liquid leader nearly doubles in a few weeks on a real change, pauses a few weeks a little under the high on lighter volume with tight closes, the buy is the trade through the pattern high at market, the stop sits a few cents under the day's low, a third comes off at 3R and 5R with the rest on the trail, and a loss at the stop is the system working.",
+ "teaches": "The high tight flag as we trade it: a quiet, liquid leader nearly doubles in a few weeks on a real change, pauses a few weeks a little under the high on lighter volume with tight closes, the buy is the trade through the pattern high at market, the stop sits a few cents under the day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss at the stop is the system working.",
  "skills": [
   {
    "id": "setup.high_tight_flag",
@@ -1060,7 +1060,7 @@
     "SRPT, 2015. A report, then a +60% day tops a near-vertical two-week run: +129% in 14 sessions.",
     "Then a 14-day sideways flag, 15.0% deep, on lighter volume. It holds the 21-day EMA. The pattern high is the line.",
     "2015-06-10: it trades through the high. Buy at market, 27.50. Stop a few cents under the day's low, 26.59.",
-    "Failure mode: a breakout nobody buys, stopped next session. Instead 3R comes on day 5. Trim a third, stop to breakeven."
+    "Failure mode: a breakout nobody buys, stopped next session. Instead 3R comes on day 5. Time for the first sell."
    ],
    "facts": [
     "d01",
@@ -1099,7 +1099,7 @@
    "steps": [
     "BIDU, 2021. A large-cap double, +100% in 36 sessions. A 12-day flag, 13.2% deep, on lighter volume.",
     "2021-02-05: buy at market as it clears the high, 264.95. Stop under the day's low, 255.06.",
-    "3R on day 2: a third off, stop to breakeven. Another third at 5R. It runs to about 354.",
+    "3R on day 2: we hold. The first sell comes later, by judgment. It runs to about 354.",
     "Failure mode: it unwinds as fast as it rose. Under the flag low by late March. The trail got you out."
    ],
    "facts": [

@@ -2,7 +2,7 @@
  "unit": "SET.34",
  "track": "SET",
  "title": "Go Signal",
- "teaches": "The Go Signal as we trade it, on hourly bars: a leader in an uptrend pulls back to support, the first hourly candle trades under the prior day's close, and buyers push it back above that close by the end of the second hourly candle. The stop sits a few cents under the session low at the time of entry, a third comes off at 3R and 5R, and a turn after the second candle is a pivot, not a Go Signal.",
+ "teaches": "The Go Signal as we trade it, on hourly bars: a leader in an uptrend pulls back to support, the first hourly candle trades under the prior day's close, and buyers push it back above that close by the end of the second hourly candle. The stop sits a few cents under the session low at the time of entry, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a turn after the second candle is a pivot, not a Go Signal.",
  "skills": [
   {
    "id": "setup.go_signal",
@@ -708,7 +708,7 @@
    "steps": [
     "META, 2023, hourly bars. A leader rests on its 20-day EMA, 328.52. The prior close is 333.17.",
     "2023-12-15: the open dips under the prior close and the first hourly candle closes green back above it.",
-    "In our scan the buy is that candle's close, 336.42. Stop a few cents under the session low: 331.63, 1.42% away.",
+    "Study entry 336.42, that candle's close; live we buy through the prior close. Stop under the session low: 331.63, 1.42% away.",
     "Failure mode: the reclaim gives it back within hours and the stop takes it. Instead 3R came in 2 days; 39.1R."
    ],
    "facts": [
@@ -728,7 +728,7 @@
    "steps": [
     "VIAV, 2026, hourly bars. A leader pulls back to its 10-day EMA. The prior close is 26.33.",
     "2026-02-19: candle one is red and stays under the prior close. Candle two closes green back above it.",
-    "In our scan the buy is that close, 26.43. Stop a few cents under the session low: 25.66, 2.91% away.",
+    "Study entry 26.43, that close; live we buy through the prior close. Stop under the session low: 25.66, 2.91% away.",
     "Failure mode: no follow-through and the stop takes it. Instead 3R came in 3 days, and it ran to 44.2R."
    ],
    "facts": [

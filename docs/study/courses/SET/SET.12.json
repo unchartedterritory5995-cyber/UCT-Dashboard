@@ -2,7 +2,7 @@
  "unit": "SET.12",
  "track": "SET",
  "title": "VCP",
- "teaches": "The VCP (volatility contraction pattern) as we trade it: a leader in an uptrend pulls back in a run of swings that each get smaller, volume dries up into the tight final swing, the pivot is the high of that final swing, the buy is the trade through it at market in regular hours and no more than 4% past it, the stop sits a few cents under the entry day's low, a third comes off at 3R and 5R with the rest on the trail, and a loss at the stop is the system working.",
+ "teaches": "The VCP (volatility contraction pattern) as we trade it: a leader in an uptrend pulls back in a run of swings that each get smaller, volume dries up into the tight final swing, the pivot is the high of that final swing, the buy is the trade through it at market in regular hours and no more than 4% past it, the stop sits a few cents under the entry day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss at the stop is the system working.",
  "skills": [
   {
    "id": "setup.vcp",
@@ -778,7 +778,7 @@
     "ON, 2017. A leader in an uptrend pulls back four times: 19.4%, 7.8%, 5.8%, then 3.5%. Each swing is smaller.",
     "Volume should dry into the tight last swing. The pivot is that swing's high, 16.47.",
     "2017-08-30: it trades through 16.47 on 1.7x volume. Buy at market. Stop a few cents under the day's low, 15.85.",
-    "Failure mode: the day closes back inside the base. Instead 3R comes in 20 days. Trim a third."
+    "Failure mode: the day closes back inside the base. Instead 3R comes in 20 days. First sell: a judgment."
    ],
    "facts": [
     "d01",
@@ -797,7 +797,7 @@
     "JOYY, 2014. After a 146% run, a six-week base with three pullbacks: 18.4%, 10.7%, 3.7%.",
     "The base high is 56.75. The final swing's high is 51.22, lower. That is the pivot, as Minervini allows.",
     "2014-01-02: it clears 51.22 on 1.9x volume. Buy at market. Stop a few cents under the day's low, 49.27.",
-    "Failure mode: stopped within days. Instead 3R comes the next day. Trim a third; the stop goes to breakeven."
+    "Failure mode: stopped within days. Instead 3R comes the next day. We hold."
    ],
    "facts": [
     "d06",

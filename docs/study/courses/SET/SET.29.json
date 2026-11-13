@@ -2,7 +2,7 @@
  "unit": "SET.29",
  "track": "SET",
  "title": "Failed Head and Shoulders / Rounded Top",
- "teaches": "The failed head-and-shoulders as we trade it, the long: a leader above its 200-day draws the top everyone sees, the neckline breaks and the fall stays shallow and is bought back (or the break never comes), the buy is the first trade over the right-shoulder high at market in regular hours, the stop sits a few cents under the trigger day's low while the undercut low is only the invalidation line, a third comes off at 3R and 5R with the rest on the trail, and a whipsaw loss taken at the stop is the system working.",
+ "teaches": "The failed head-and-shoulders as we trade it, the long: a leader above its 200-day draws the top everyone sees, the neckline breaks and the fall stays shallow and is bought back (or the break never comes), the buy is the first trade over the right-shoulder high at market in regular hours, the stop sits a few cents under the trigger day's low while the undercut low is only the invalidation line, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a whipsaw loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.failed_hs",
@@ -1135,7 +1135,7 @@
     "MGM, 2004. Three peaks over a flat neckline at 21.22, shoulders within 0.3% of each other. The most symmetrical of the ten.",
     "The neckline breaks and the stock falls 6.1% under it. Four weeks later the break is bought back. That is version B.",
     "2004-09-14: it trades over the right shoulder, 22.70, on 1.9x volume. Buy at market, 22.71. Stop under the day's low, 22.30.",
-    "Failure mode: a close back under the neckline. Instead 3R comes in 5 days: trim a third. At best, 23.7R."
+    "Failure mode: a close back under the neckline. Instead 3R comes in 5 days: a first sell by judgment. At best, 23.7R."
    ],
    "facts": [
     "d03",
@@ -1176,7 +1176,7 @@
     "MUSA, early 2022. The market is correcting. A three-peak top, head 14.2% over the neckline at 176.18, breaks 6.8% under it.",
     "Three weeks later the break is bought back, with the market still correcting. Our best setting.",
     "2022-03-15: it trades over the right shoulder, 184.96. Buy at market, 184.97. Stop a few cents under the day's low, 182.98.",
-    "Failure mode: a close back under the neckline. Instead 3R comes in 1 day; trim a third. 39.0R at best."
+    "Failure mode: a close back under the neckline. Instead 3R comes in 1 day; no day-1 sell. 39.0R at best."
    ],
    "facts": [
     "d13",

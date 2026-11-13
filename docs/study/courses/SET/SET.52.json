@@ -2,7 +2,7 @@
  "unit": "SET.52",
  "track": "SET",
  "title": "Wick Play",
- "teaches": "The wick play as we trade it: a strong leader closes off its high and leaves an upper wick, the next day holds inside that wick and above the body, the buy is a market order as price breaks the prior day's high, the stop sits a few cents under the prior day's low, a third comes off at 3R and 5R with the rest on the trail, and a loss at the stop is the plan working.",
+ "teaches": "The wick play as we trade it: a strong leader closes off its high and leaves an upper wick, the next day holds inside that wick and above the body, the buy is a market order as price breaks the prior day's high, the stop sits a few cents under the prior day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss at the stop is the plan working.",
  "skills": [
   {
    "id": "setup.wick_play",
@@ -625,7 +625,7 @@
     "MELI, February 2017. A steady leader closes off its high on 2017-02-02: a 70% upper wick.",
     "Day 2 sits wholly inside that wick: 190.70 high, 189.04 low, 0.44x volume. It never touches the body.",
     "2017-02-06: price trades a cent over day 2's high. Buy at market, 190.71. Stop a few cents under day 2's low, 189.01.",
-    "Failure mode: a dip into the body. Instead 3R prints on day 5 and 5R on day 7. We trim thirds."
+    "Failure mode: a dip into the body. Instead 3R prints on day 5 and 5R on day 7. Selling is our judgment."
    ],
    "facts": [
     "dME",
@@ -645,7 +645,7 @@
     "SWKS, 2014. First the explosion: an earnings gap on 2014-01-17, up 10.2% at the open on 5x volume.",
     "Then the pause: on 2014-02-06 a wick day, 64% of its range above the body, resting on the 10-day EMA.",
     "Day 2 stays inside the wick on lighter volume. 2014-02-10: price trades over day 2's high. Buy at market, 30.70. Stop 30.32.",
-    "Failure mode: a dip into the body. Instead 3R prints on day 2, 5R on day 7. We trim thirds."
+    "Failure mode: a dip into the body. Instead 3R prints on day 2, 5R on day 7. Selling is our judgment."
    ],
    "facts": [
     "dSW",

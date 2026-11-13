@@ -4541,7 +4541,7 @@
   "difficulty": 1,
   "id": "si_3de663af9a8d",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a close back inside the base, stop taken next day. Instead it reaches 3R the next session. Trim a third.",
+  "lesson_text": "Failure mode: a close back inside the base, stop taken next day. Instead it reaches 3R the next session. We hold.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -4552,7 +4552,7 @@
     "NUS, September 2013. The stock nearly doubled, then shelves six weeks, riding the rising 10 and 21-day. Three taps of 90.",
     "Context and pattern check out: above its 50-day and 200-day, shallow at 10.3%, tight, a flat ceiling. The pivot is 90.",
     "2013-09-09: it trades through 90 on 1.9x volume. Buy at market, 90.01. Stop a few cents under the day's low, 88.22.",
-    "Failure mode: a close back inside the base, stop taken next day. Instead it reaches 3R the next session. Trim a third."
+    "Failure mode: a close back inside the base, stop taken next day. Instead it reaches 3R the next session. We hold."
    ],
    "subject": "SET.07#w1"
   },
@@ -4732,7 +4732,7 @@
   "difficulty": 1,
   "id": "si_7914bc749b49",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a close back inside the base. It came after both trims were due; the trail rode the run to 99.",
+  "lesson_text": "Failure mode: a close back inside the base. It came after the first sell; the trail rode the run to 99.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -4741,9 +4741,9 @@
    "q": "WSM, September 2023: the throwback and the trims",
    "steps": [
     "WSM, 2023. An 8-week shelf, 14.6% deep, four taps, after a 30% run. On 2023-09-25 it breaks out on 4.99x volume.",
-    "Buy at market, 73.16. Stop under the day's low, 72.24. 3R the next day: a third off, stop to breakeven.",
-    "5R by day 10: another third off. Then a throwback to 71.56, through the pivot and the original stop.",
-    "Failure mode: a close back inside the base. It came after both trims were due; the trail rode the run to 99."
+    "Buy at market, 73.16. Stop under the day's low, 72.24. 3R comes the next day, too soon to sell.",
+    "5R by day 10: time for the first sell. Then a throwback to 71.56, through the pivot and the original stop.",
+    "Failure mode: a close back inside the base. It came after the first sell; the trail rode the run to 99."
    ],
    "subject": "SET.07#w3"
   },
@@ -9986,7 +9986,7 @@
   "difficulty": 1,
   "id": "si_4550952fe6c9",
   "lesson_origin": "session",
-  "lesson_text": "A third at 3R, a third at 5R, the rest on the trail. It ran from 20 to 34 in five weeks.",
+  "lesson_text": "First sell by judgment, usually day 3 or later, then the trail. It ran from 20 to 34 in five weeks.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -9997,7 +9997,7 @@
     "AMD, 2018. An earnings-gap pole: 29% in 14 days to 20.28. Then four days, 18.73 to 20.10, on 0.75x volume.",
     "Our kind of flag: short and shallow, the pole on a catalyst. The pause is 7.6% deep.",
     "2018-08-21: the prior day's high breaks. Buy at market, 20.09. Stop a few cents under the low, 19.81, 1.4% away.",
-    "A third at 3R, a third at 5R, the rest on the trail. It ran from 20 to 34 in five weeks."
+    "First sell by judgment, usually day 3 or later, then the trail. It ran from 20 to 34 in five weeks."
    ],
    "subject": "SET.08#w2"
   },
@@ -16326,7 +16326,7 @@
   "difficulty": 1,
   "id": "si_91b93f2f8880",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a fade back through the pivot to the stop. Instead it reaches 3R the next day. A third comes off.",
+  "lesson_text": "Failure mode: a fade back through the pivot to the stop. Instead it reaches 3R the next day. We hold.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -16337,7 +16337,7 @@
     "FFIV, January 2014. After a 40% run, a symmetric cup, 15.6 weeks and 17.5% deep. A rounded U, not a V.",
     "The handle: 7 days, 4.2% deep, volume at 0.74x the cup's. It sits high in the base and drifts down.",
     "2014-01-13: it clears the handle high on 2.71x volume. Buy at market, 91.29. Stop under the day's low, 90.67.",
-    "Failure mode: a fade back through the pivot to the stop. Instead it reaches 3R the next day. A third comes off."
+    "Failure mode: a fade back through the pivot to the stop. Instead it reaches 3R the next day. We hold."
    ],
    "subject": "SET.09#w1"
   },
@@ -16524,7 +16524,7 @@
   "difficulty": 1,
   "id": "si_cbdfacbb59b6",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a fade back through the pivot. AX rolled over below it after 5R. The 21-day trail sells the last third.",
+  "lesson_text": "Failure mode: a fade back through the pivot. AX rolled over below it after 5R. The 21-day trail sells the rest.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -16534,8 +16534,8 @@
    "steps": [
     "AX, 2026. A 72% run, then a 16.6-week U, 20.2% deep. The handle lasts 5 days, the IBD minimum.",
     "2026-01-05: it clears the handle high on 1.48x volume. Buy at market, 89.22. Stop under the day's low, 86.95.",
-    "At 3R a third comes off and the stop goes to breakeven. 5R comes in about 7 weeks: another third.",
-    "Failure mode: a fade back through the pivot. AX rolled over below it after 5R. The 21-day trail sells the last third."
+    "At 3R we hold; the first sell is a judgment. 5R comes in about 7 weeks: the stop goes to breakeven.",
+    "Failure mode: a fade back through the pivot. AX rolled over below it after 5R. The 21-day trail sells the rest."
    ],
    "subject": "SET.09#w3"
   },
@@ -21081,7 +21081,7 @@
   "difficulty": 1,
   "id": "si_5877f2e3cf83",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the breakout fades and the stop is hit. Instead it reaches 3R the next day. Trim a third.",
+  "lesson_text": "Failure mode: the breakout fades and the stop is hit. Instead it reaches 3R the next day. We hold.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -21092,7 +21092,7 @@
     "KRMN, 2025. Listed in February, it rests under its IPO high of 57.32 for 6.8 weeks, 22% deep, in a hot theme.",
     "Context checks out: it is the first base, and the low held above the IPO open. We have not bought anything yet.",
     "2025-09-05: it trades through 57.32 on 2.2x volume. Buy at market, 57.42. Stop a few cents under the day's low, 56.05.",
-    "Failure mode: the breakout fades and the stop is hit. Instead it reaches 3R the next day. Trim a third."
+    "Failure mode: the breakout fades and the stop is hit. Instead it reaches 3R the next day. We hold."
    ],
    "subject": "SET.10#w1"
   },
@@ -25721,7 +25721,7 @@
   "difficulty": 1,
   "id": "si_c0873e8f7db9",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the next session trades through the launch low. Instead 3R comes in seven sessions. Trim a third.",
+  "lesson_text": "Failure mode: the next session trades through the launch low. Instead 3R comes in seven sessions. Time for the first sell.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -25732,7 +25732,7 @@
     "KBH, 2004. A four-month correction of 24.8%. Then two months around a flat 200-day while the averages pinch within 3%.",
     "Context and pattern check out: a real correction, a long base, a tight bundle, the 200-day close. Now wait for the launch.",
     "2004-09-01: up 2.5%, closing at 0.94 of its range, above all four averages. Fill 35.26; stop under the low, 34.26.",
-    "Failure mode: the next session trades through the launch low. Instead 3R comes in seven sessions. Trim a third."
+    "Failure mode: the next session trades through the launch low. Instead 3R comes in seven sessions. Time for the first sell."
    ],
    "subject": "SET.11#w1"
   },
@@ -25813,7 +25813,7 @@
   "difficulty": 1,
   "id": "si_bd9a24c8219a",
   "lesson_origin": "session",
-  "lesson_text": "Not stacked on the day; the stack formed within 3 sessions. 3R came in three sessions. The first third comes off.",
+  "lesson_text": "Not stacked on the day; the stack formed within 3 sessions. 3R came in three sessions. The first sell is judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -25824,7 +25824,7 @@
     "BABA, 2025. After a 31.6% correction, 26 of 40 closes sat under the bundle, none above. The 200-day is 1% away.",
     "That is the picture: weeks under pinched averages, with the 200-day close by.",
     "2025-01-24: up 3.5%, closing at its high above all four. Fill 89.14; stop a few cents under the low, 86.43.",
-    "Not stacked on the day; the stack formed within 3 sessions. 3R came in three sessions. The first third comes off."
+    "Not stacked on the day; the stack formed within 3 sessions. 3R came in three sessions. The first sell is judgment."
    ],
    "subject": "SET.11#w2"
   },
@@ -30590,7 +30590,7 @@
   "difficulty": 1,
   "id": "si_a212742e3d69",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the day closes back inside the base. Instead 3R comes in 20 days. Trim a third.",
+  "lesson_text": "Failure mode: the day closes back inside the base. Instead 3R comes in 20 days. First sell: a judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -30601,7 +30601,7 @@
     "ON, 2017. A leader in an uptrend pulls back four times: 19.4%, 7.8%, 5.8%, then 3.5%. Each swing is smaller.",
     "Volume should dry into the tight last swing. The pivot is that swing's high, 16.47.",
     "2017-08-30: it trades through 16.47 on 1.7x volume. Buy at market. Stop a few cents under the day's low, 15.85.",
-    "Failure mode: the day closes back inside the base. Instead 3R comes in 20 days. Trim a third."
+    "Failure mode: the day closes back inside the base. Instead 3R comes in 20 days. First sell: a judgment."
    ],
    "subject": "SET.12#w1"
   },
@@ -30675,7 +30675,7 @@
   "difficulty": 1,
   "id": "si_61a02fab26f2",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: stopped within days. Instead 3R comes the next day. Trim a third; the stop goes to breakeven.",
+  "lesson_text": "Failure mode: stopped within days. Instead 3R comes the next day. We hold.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -30686,7 +30686,7 @@
     "JOYY, 2014. After a 146% run, a six-week base with three pullbacks: 18.4%, 10.7%, 3.7%.",
     "The base high is 56.75. The final swing's high is 51.22, lower. That is the pivot, as Minervini allows.",
     "2014-01-02: it clears 51.22 on 1.9x volume. Buy at market. Stop a few cents under the day's low, 49.27.",
-    "Failure mode: stopped within days. Instead 3R comes the next day. Trim a third; the stop goes to breakeven."
+    "Failure mode: stopped within days. Instead 3R comes the next day. We hold."
    ],
    "subject": "SET.12#w2"
   },
@@ -36105,7 +36105,7 @@
   "difficulty": 1,
   "id": "si_49e1193ad5e1",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a breakout nobody buys, stopped next session. Instead 3R comes on day 5. Trim a third, stop to breakeven.",
+  "lesson_text": "Failure mode: a breakout nobody buys, stopped next session. Instead 3R comes on day 5. Time for the first sell.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -36116,7 +36116,7 @@
     "SRPT, 2015. A report, then a +60% day tops a near-vertical two-week run: +129% in 14 sessions.",
     "Then a 14-day sideways flag, 15.0% deep, on lighter volume. It holds the 21-day EMA. The pattern high is the line.",
     "2015-06-10: it trades through the high. Buy at market, 27.50. Stop a few cents under the day's low, 26.59.",
-    "Failure mode: a breakout nobody buys, stopped next session. Instead 3R comes on day 5. Trim a third, stop to breakeven."
+    "Failure mode: a breakout nobody buys, stopped next session. Instead 3R comes on day 5. Time for the first sell."
    ],
    "subject": "SET.13#w1"
   },
@@ -36299,7 +36299,7 @@
    "steps": [
     "BIDU, 2021. A large-cap double, +100% in 36 sessions. A 12-day flag, 13.2% deep, on lighter volume.",
     "2021-02-05: buy at market as it clears the high, 264.95. Stop under the day's low, 255.06.",
-    "3R on day 2: a third off, stop to breakeven. Another third at 5R. It runs to about 354.",
+    "3R on day 2: we hold. The first sell comes later, by judgment. It runs to about 354.",
     "Failure mode: it unwinds as fast as it rose. Under the flag low by late March. The trail got you out."
    ],
    "subject": "SET.13#w3"
@@ -40704,7 +40704,7 @@
   "difficulty": 1,
   "id": "si_d2d3a2da76c8",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a slice back through the line that takes the day's low. Instead, 3R in 5 sessions. A third comes off.",
+  "lesson_text": "Failure mode: a slice back through the line that takes the day's low. Instead, 3R in 5 sessions. Time to sell part.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -40715,7 +40715,7 @@
     "GE, January 2024. A leader in a rising trend drifts four days back to its rising 20 EMA on 0.78x volume.",
     "The hold session: the low kisses the line to the cent and closes above it. Above the 50-day and 200-day.",
     "Next session trades a cent over the hold candle's high. Buy at market, 100.39. Stop a few cents under its low, 99.07.",
-    "Failure mode: a slice back through the line that takes the day's low. Instead, 3R in 5 sessions. A third comes off."
+    "Failure mode: a slice back through the line that takes the day's low. Instead, 3R in 5 sessions. Time to sell part."
    ],
    "subject": "SET.14#w1"
   },
@@ -40827,7 +40827,7 @@
    "steps": [
     "NVDA, May 2023. A rising line, a light-volume four-day rest, 1.4 ATR off the high, pullback volume 0.74x.",
     "The hold session closes above the line. Buy a cent over its high at market, 28.79. Stop under its low, 28.02.",
-    "3R in 3 sessions: a third off, stop to breakeven. It stood at 3.9R the day before the report.",
+    "3R in 3 sessions: a fair first sell, stop to breakeven. It stood at 3.9R the day before the report.",
     "Hold through a report only if up 5R. We are out before the gap. The rule costs one gap and saves many."
    ],
    "subject": "SET.14#w2"
@@ -40909,7 +40909,7 @@
   "difficulty": 1,
   "id": "si_43ae545251ff",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a second close under the line before the trigger. Instead, 3R in 2 sessions. A third off, stop to breakeven.",
+  "lesson_text": "Failure mode: a second close under the line before the trigger. Instead, 3R in 2 sessions. We hold.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -40920,7 +40920,7 @@
     "CRM, June 2020. A four-day pullback, 2.4 ATR off the high on 0.76x volume. The low dips 0.28 ATR under the line.",
     "The same session closes back above the 20 EMA. That is a shakeout, not a lost line. The hold is in.",
     "Next session trades a cent over the hold candle's high. Buy at market, 183.72. Stop a few cents under its low, 179.97.",
-    "Failure mode: a second close under the line before the trigger. Instead, 3R in 2 sessions. A third off, stop to breakeven."
+    "Failure mode: a second close under the line before the trigger. Instead, 3R in 2 sessions. We hold."
    ],
    "subject": "SET.14#w3"
   },
@@ -46042,7 +46042,7 @@
   "difficulty": 1,
   "id": "si_d78a61104c44",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the hold day's low breaks. Instead it reaches 3R in 5 days. Trim a third.",
+  "lesson_text": "Failure mode: the hold day's low breaks. Instead 3R comes in 5 days. First sell: a judgment, into the push.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -46053,7 +46053,7 @@
     "UAA, 2015. A leader pops on 1.5x volume on 06-05, then drifts back to its averages in just 2 quiet sessions.",
     "The hold day reaches the zone and closes above the 20 EMA, 9 still above 20. Nothing is bought yet.",
     "2015-06-16: it trades over the hold day's high. Buy at market, 40.82. Stop a few cents under the hold day's low, 40.17.",
-    "Failure mode: the hold day's low breaks. Instead it reaches 3R in 5 days. Trim a third."
+    "Failure mode: the hold day's low breaks. Instead 3R comes in 5 days. First sell: a judgment, into the push."
    ],
    "subject": "SET.15#w1"
   },
@@ -46134,7 +46134,7 @@
   "difficulty": 1,
   "id": "si_a2cdc3a40e0d",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: stopped within days. Instead 3R comes in 3 days. Trim a third.",
+  "lesson_text": "Failure mode: stopped within days. Instead 3R comes in 3 days. First sell: a judgment, into the push.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -46145,7 +46145,7 @@
     "CLS, 2024. A pop on 1.1x volume on 09-19, then a quiet 4-day drift down to the averages.",
     "The hold day undercuts the 20 EMA by 0.6% and closes back over it. That sits inside the zone.",
     "2024-10-03: it trades over the hold day's high. Buy at market, 50.64. Stop 48.94, 3.4% away. A wider stop means fewer shares.",
-    "Failure mode: stopped within days. Instead 3R comes in 3 days. Trim a third."
+    "Failure mode: stopped within days. Instead 3R comes in 3 days. First sell: a judgment, into the push."
    ],
    "subject": "SET.15#w2"
   },
@@ -50967,7 +50967,7 @@
   "difficulty": 1,
   "id": "si_a93bf3b9ec40",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a fade back under the pivot, stop taken next day. Instead 3R comes the next session. Trim a third.",
+  "lesson_text": "Failure mode: a fade back under the pivot, stop taken next day. Instead 3R comes the next session. Too soon to sell.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -50978,7 +50978,7 @@
     "TGT, March 2021. A 17% correction with 15 of 15 closes under the 20 EMA, still above the 200-day.",
     "A 10-day base, 166.83 to 181.79. The bars shrink to 0.44, the tightest of our ten. The pivot is 181.79.",
     "2021-03-19: it trades through on 2.2x the base's volume. Buy at market, 181.80. Stop a few cents under the day's low, 179.58.",
-    "Failure mode: a fade back under the pivot, stop taken next day. Instead 3R comes the next session. Trim a third."
+    "Failure mode: a fade back under the pivot, stop taken next day. Instead 3R comes the next session. Too soon to sell."
    ],
    "subject": "SET.16#w1"
   },
@@ -51066,7 +51066,7 @@
   "difficulty": 1,
   "id": "si_999404855761",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a fade back into the base. Instead 3R comes the next session: a third off, stop to breakeven.",
+  "lesson_text": "Failure mode: a fade back into the base. Instead 3R comes the next session: too soon to sell, stop to breakeven.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -51077,7 +51077,7 @@
     "RCL, July 2009, early in a new cycle. A 34% decline, 14 of 15 closes under the 20 EMA.",
     "A 4-day base, 11.80 to 12.95: the shortest the rule allows, right at the 200-day. The pivot is 12.95.",
     "2009-07-15: it gaps open above the pivot, under the 4% chase line. Buy the open, 13.18. Stop under the day's low, 12.97.",
-    "Failure mode: a fade back into the base. Instead 3R comes the next session: a third off, stop to breakeven."
+    "Failure mode: a fade back into the base. Instead 3R comes the next session: too soon to sell, stop to breakeven."
    ],
    "subject": "SET.16#w2"
   },
@@ -51158,7 +51158,7 @@
   "difficulty": 1,
   "id": "si_0d28d9fa9150",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a fade back into the base. Instead 3R takes six sessions. Thirds at 3R and 5R, then 175 to 280.",
+  "lesson_text": "Failure mode: a fade back into the base. Instead 3R takes six sessions. We sell into the push, then trail to 280.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -51169,7 +51169,7 @@
     "STLD, March 2026. A 22% decline, all 15 closes under the 20 EMA. Then a 7-day base, 162.16 to 175.51.",
     "2026-03-31: it trades through 175.51 on only 1.2 times the base's volume. A B-grade pop: normal size.",
     "Buy at market, 175.52. Stop a few cents under the day's low, 171.31: 2.4% away, inside about 3%.",
-    "Failure mode: a fade back into the base. Instead 3R takes six sessions. Thirds at 3R and 5R, then 175 to 280."
+    "Failure mode: a fade back into the base. Instead 3R takes six sessions. We sell into the push, then trail to 280."
    ],
    "subject": "SET.16#w3"
   },
@@ -56007,7 +56007,7 @@
   "difficulty": 1,
   "id": "si_e03a88de830b",
   "lesson_origin": "session",
-  "lesson_text": "No quick reclaim. It slid: 3R on day 9, a third covered. At best it reached 14.2R.",
+  "lesson_text": "No quick reclaim. It slid: 3R on day 9. First cover: a judgment. At best it reached 14.2R.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -56018,7 +56018,7 @@
     "WHR, August 2002, a bear market. The stock sits 19.4% under a falling 200-day; the bounce makes a lower high.",
     "Four days stalled on the averages, 6.0% wide. No new high in the last three sessions. The averages catch up.",
     "2002-08-29: a close under both averages and the stall low, 55.55. Short at market, 55.16. Stop 56.28, 2.0% away.",
-    "No quick reclaim. It slid: 3R on day 9, a third covered. At best it reached 14.2R."
+    "No quick reclaim. It slid: 3R on day 9. First cover: a judgment. At best it reached 14.2R."
    ],
    "subject": "SET.17#w1"
   },
@@ -56113,7 +56113,7 @@
   "difficulty": 1,
   "id": "si_b31bea8578c7",
   "lesson_origin": "session",
-  "lesson_text": "3R on day 4: cover a third, stop to breakeven. Another third at 5R, then trail. It reached 13.2R at best.",
+  "lesson_text": "3R on day 4: first cover is a judgment, stop to breakeven, then trail. It reached 13.2R at best.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -56124,7 +56124,7 @@
     "GS, August 2011. Kell's faster rally that puts in a lower high: the bounce dies at the falling 50-day.",
     "A four-day stall, 4.4% wide, on the 10-day EMA. The up days are quiet. The index is in its own down cycle.",
     "2011-08-02: a close under both averages at 131.23 on 1.2x volume. Short at market. Stop 134.79, 2.7% away.",
-    "3R on day 4: cover a third, stop to breakeven. Another third at 5R, then trail. It reached 13.2R at best."
+    "3R on day 4: first cover is a judgment, stop to breakeven, then trail. It reached 13.2R at best."
    ],
    "subject": "SET.17#w2"
   },
@@ -61128,7 +61128,7 @@
   "difficulty": 1,
   "id": "si_46f4e10de027",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a fill or a reversal through the stop. Instead 3R comes next session. Trim a third; it ran to 89.9R.",
+  "lesson_text": "Failure mode: a fill or a reversal through the stop. Instead 3R comes next session; no day-one sell. It ran to 89.9R.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -61139,7 +61139,7 @@
     "MOD, May 2023. Flat for six months, down 8%. Then a surprise earnings report gaps it 18.8% on 3.2x volume.",
     "The gap day closes at 96% of its range and never fills. Neglect plus a named catalyst: the EP picture.",
     "Day two opens above the gap-day high, 24.50. Buy at market, 25.00. Stop under the day's low, 24.75.",
-    "Failure mode: a fill or a reversal through the stop. Instead 3R comes next session. Trim a third; it ran to 89.9R."
+    "Failure mode: a fill or a reversal through the stop. Instead 3R comes next session; no day-one sell. It ran to 89.9R."
    ],
    "subject": "SET.18#w1"
   },
@@ -61227,7 +61227,7 @@
   "difficulty": 1,
   "id": "si_abda0820c508",
   "lesson_origin": "session",
-  "lesson_text": "A slower start: 3R on day 6, then a steady trend above a rising 10-day. Trim a third, trail the rest.",
+  "lesson_text": "A slower start: 3R on day 6, then a steady trend above a rising 10-day. Sell into the push; trail the rest.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -61237,8 +61237,8 @@
    "steps": [
     "CACI, August 2004. An 11.3% earnings gap on 6.7x volume after six months of drift, down 5%.",
     "The one day-one entry of the ten: the gap day's low sat within 3% of the close. The stop fits.",
-    "Buy at market near the close, 46.55. Stop a few cents under the low of the day, 45.42, 2.4% away.",
-    "A slower start: 3R on day 6, then a steady trend above a rising 10-day. Trim a third, trail the rest."
+    "Buy at market as it trades through, 46.55. Stop a few cents under the low of the day, 45.42, 2.4% away.",
+    "A slower start: 3R on day 6, then a steady trend above a rising 10-day. Sell into the push; trail the rest."
    ],
    "subject": "SET.18#w2"
   },
@@ -61336,7 +61336,7 @@
    "steps": [
     "ENPH, October 2021. An 18.5% earnings gap on 8.3x volume, closing at 56% of its range: the upper half, just.",
     "Day three: it breaks the post-gap high, 227.59. Buy at market, 227.60. Stop 224.95, 1.2% under.",
-    "3R the next session: a third off, stop to breakeven. 5R: another third. The last third trails the 10-day.",
+    "3R the next session, too soon to sell: stop to breakeven. We sell into the push; the rest trails the 10-day.",
     "Later it tops and collapses back through the old stop. The trims and the trail kept it a win."
    ],
    "subject": "SET.18#w3"
@@ -65198,7 +65198,7 @@
   "difficulty": 1,
   "id": "si_588a0e113f6b",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the gap fills, or a close under the gap-day low. Instead 3R came in 13 sessions: trim a third.",
+  "lesson_text": "Failure mode: the gap fills, or a close under the gap-day low. Instead 3R came in 13 sessions. Sell into the push.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -65209,7 +65209,7 @@
     "AMZN, 2017. A five-month base, then a report after the close on 2017-10-26. So 2017-10-27 is the PEG day.",
     "The gap is 6 ATRs on 5.5x volume, closing at 0.92 of its range. The pause: five days, 1.7% deep.",
     "Buy at market over the pause high, 56.14. Stop a few cents under the low, 55.39.",
-    "Failure mode: the gap fills, or a close under the gap-day low. Instead 3R came in 13 sessions: trim a third."
+    "Failure mode: the gap fills, or a close under the gap-day low. Instead 3R came in 13 sessions. Sell into the push."
    ],
    "subject": "SET.19#w1"
   },
@@ -65304,7 +65304,7 @@
   "difficulty": 1,
   "id": "si_f5a83aea4bb7",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a close under the PEG-day low. Instead it ran ten weeks up the 10-day. Trim at 3R and 5R.",
+  "lesson_text": "Failure mode: a close under the PEG-day low. Instead it ran ten weeks up the 10-day. We sell into a push.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -65315,7 +65315,7 @@
     "BIDU, 2010. A four-month flat shelf. Report after the close on 2010-02-09, so 2010-02-10 is the PEG day, up 8.5%.",
     "The gap clears the shelf on 3.0x volume, closing at 0.95 of its range. Then two tight days, 0.3% deep.",
     "Buy at market over the pause high, 48.93. Stop a few cents under the low, 48.20.",
-    "Failure mode: a close under the PEG-day low. Instead it ran ten weeks up the 10-day. Trim at 3R and 5R."
+    "Failure mode: a close under the PEG-day low. Instead it ran ten weeks up the 10-day. We sell into a push."
    ],
    "subject": "SET.19#w2"
   },
@@ -65417,7 +65417,7 @@
   "difficulty": 1,
   "id": "si_5b90b28045c9",
   "lesson_origin": "session",
-  "lesson_text": "A third comes off at 3R, another at 5R, within about two weeks. The last third trails the 10-day.",
+  "lesson_text": "We sell part into the push within about two weeks, day 3 or later. The rest trails the 10-day.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -65428,7 +65428,7 @@
     "COCO, 2026. A report before the open on 2026-04-29 makes that day the PEG day: a 17.4% gap on 4.0x volume.",
     "The day closes at 0.98 of its range, the strong close we want. Then a six-day flag, 5.1% deep, before the buy.",
     "Buy at market over the pause high, 69.58. Stop a few cents under the low, 68.27, 1.9% away.",
-    "A third comes off at 3R, another at 5R, within about two weeks. The last third trails the 10-day."
+    "We sell part into the push within about two weeks, day 3 or later. The rest trails the 10-day."
    ],
    "subject": "SET.19#w3"
   },
@@ -69800,7 +69800,7 @@
   "difficulty": 1,
   "id": "si_81747a31607d",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a close under the gap-day low. Instead it ran to 12.1R. Trim at 3R and 5R, trail the rest.",
+  "lesson_text": "Failure mode: a close under the gap-day low. Instead it ran to 12.1R. Sell into a push, trail the rest.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -69811,7 +69811,7 @@
     "ULTA, 2016. Report on 2016-03-10; the gap day is 2016-03-11, up 14.2% on 4.8x volume. It closes at 94% of its range.",
     "A big gap out of a correction. Then a 4-session pullback, 2.8% deep, that holds the gap-day low.",
     "Day 6: buy at market over the prior day's high, 190.69. Stop a few cents under the pullback low, 186.55.",
-    "Failure mode: a close under the gap-day low. Instead it ran to 12.1R. Trim at 3R and 5R, trail the rest."
+    "Failure mode: a close under the gap-day low. Instead it ran to 12.1R. Sell into a push, trail the rest."
    ],
    "subject": "SET.20#w1"
   },
@@ -69913,7 +69913,7 @@
   "difficulty": 1,
   "id": "si_995ae97358ef",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the pullback closes under the gap-day low. Instead 3R came in 4 sessions. Trim a third, trail the rest.",
+  "lesson_text": "Failure mode: the pullback closes under the gap-day low. Instead 3R came in 4 sessions. First sell: judgment; trail the rest.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -69924,7 +69924,7 @@
     "TWLO, 2018. Report on 2018-02-13; the gap day is 2018-02-14, up 10.0% on 8.3x volume. It closes at 62% of its range.",
     "It gaps out of a 3-month bottom, through the 200-day. Then a 6-session pullback holds the gap-day low.",
     "Day 8: buy at market over the prior day's high, 33.55. Stop a few cents under the pullback low, 32.59, 2.9% away.",
-    "Failure mode: the pullback closes under the gap-day low. Instead 3R came in 4 sessions. Trim a third, trail the rest."
+    "Failure mode: the pullback closes under the gap-day low. Instead 3R came in 4 sessions. First sell: judgment; trail the rest."
    ],
    "subject": "SET.20#w2"
   },
@@ -70019,7 +70019,7 @@
   "difficulty": 1,
   "id": "si_a8be965576c3",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the gap fills, or it closes red. Instead a two-month run: trim at 3R and 5R, trail the rest.",
+  "lesson_text": "Failure mode: the gap fills, or it closes red. Instead a two-month run: sell into a push, trail the rest.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -70030,7 +70030,7 @@
     "NFLX, 2024. Report on 2024-10-17; the gap day is 2024-10-18, up 7.3% on 5.6x volume. It closes at 92% of its range.",
     "A gap to new highs from a tight base. The pullback runs 4 sessions, 2.9% deep, and holds the gap-day low.",
     "Day 6: buy at market over the prior day's high, 75.62. Stop a few cents under the pullback low, 74.38, 1.6% away.",
-    "Failure mode: the gap fills, or it closes red. Instead a two-month run: trim at 3R and 5R, trail the rest."
+    "Failure mode: the gap fills, or it closes red. Instead a two-month run: sell into a push, trail the rest."
    ],
    "subject": "SET.20#w3"
   },
@@ -74942,7 +74942,7 @@
    "steps": [
     "INOD, May 2026. An earnings report on extreme volume, an all-time record, up 86%. Its close is the level.",
     "2026-05-11, day 2 dips 1.8% under the HVC and reclaims. Buy a cent over 84.89. Stop under the day-2 low, 83.38.",
-    "5R in two sessions: thirds off at 3R and 5R, stop to breakeven. The peak, +47%, comes on day 17.",
+    "5R in two sessions, too soon to sell: stop to breakeven. The peak, +47%, comes on day 17.",
     "Failure mode: a slide back under the level. By day 30 it round-trips under the HVC. The trims kept the win."
    ],
    "subject": "SET.21#w3"
@@ -78969,7 +78969,7 @@
   "difficulty": 1,
   "id": "si_00bcd1ddef4a",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a close under the line. Instead it ran to 24.9R: trim a third at 3R and another at 5R.",
+  "lesson_text": "Failure mode: a close under the line. Instead it ran to 24.9R. First sell: a judgment, into the push.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -78979,8 +78979,8 @@
    "steps": [
     "GPN, 2013. A quiet stock gaps up on 2013-10-02 on 11.5x volume. The gap-up low, 27.00, is the line.",
     "Five sessions later, on 2013-10-09, the low dips 0.3% under the line. The day closes at 62% of its range.",
-    "The scan buys the test day's close, 27.15. The stop sits a few cents under the test day's low, 26.89.",
-    "Failure mode: a close under the line. Instead it ran to 24.9R: trim a third at 3R and another at 5R."
+    "We buy as price trades back over the line, not the close. Scan fill 27.15. Stop under the test low, 26.89.",
+    "Failure mode: a close under the line. Instead it ran to 24.9R. First sell: a judgment, into the push."
    ],
    "subject": "SET.22#w1"
   },
@@ -79068,7 +79068,7 @@
   "difficulty": 1,
   "id": "si_9f1bb73b4e6f",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a close under the line. Instead it ran to 18.6R: trim a third at 3R and another at 5R.",
+  "lesson_text": "Failure mode: a close under the line. Instead it ran to 18.6R. First sell: a judgment, into the push.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -79078,8 +79078,8 @@
    "steps": [
     "ILMN, 2010. An earnings gap on 2010-10-27 opens 5.6% up on 3.6x volume. The gap-up low, 53.03, is the line.",
     "Four sessions later the low breaks the line by 1.1%, but the day closes at 94% of its range.",
-    "The scan buys the close, 53.27. The stop sits a few cents under the test day's low, 52.40, 1.6% away.",
-    "Failure mode: a close under the line. Instead it ran to 18.6R: trim a third at 3R and another at 5R."
+    "We buy as price trades back over the line, not the close. Scan fill 53.27. Stop under the low, 52.40, 1.6% away.",
+    "Failure mode: a close under the line. Instead it ran to 18.6R. First sell: a judgment, into the push."
    ],
    "subject": "SET.22#w2"
   },
@@ -79167,7 +79167,7 @@
   "difficulty": 1,
   "id": "si_b48eacdeca46",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the gap fills. Instead it ran to 16.2R: trim at 3R and 5R, trail the last third.",
+  "lesson_text": "Failure mode: the gap fills. Instead it ran to 16.2R: sell part into the push, trail the rest.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -79177,8 +79177,8 @@
    "steps": [
     "AXON, 2022. A gap on 2022-11-09 opens 8.0% up on 3.6x volume. The gap-up low, 161.70, is the line.",
     "The test comes 35 sessions later, on 2022-12-30. A 15% slide stops 0.4% above the line, closing at 82% of its range.",
-    "The scan buys the close, 165.93. The stop sits a few cents under the test day's low, 162.22, 2.2% away.",
-    "Failure mode: the gap fills. Instead it ran to 16.2R: trim at 3R and 5R, trail the last third."
+    "We buy as price trades back over the line, not the close. Scan fill 165.93. Stop under the low, 162.22, 2.2% away.",
+    "Failure mode: the gap fills. Instead it ran to 16.2R: sell part into the push, trail the rest."
    ],
    "subject": "SET.22#w3"
   },
@@ -85183,7 +85183,7 @@
   "difficulty": 1,
   "id": "si_ac257147bf51",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the gap fills. Instead it closes at 81% of its range, up 8.2%. 3R takes four days: a third off.",
+  "lesson_text": "Failure mode: the gap fills. Instead it closes at 81% of its range, up 8.2%. 3R takes four days: sell on judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -85194,7 +85194,7 @@
     "COHR, 2024. A six-week shelf on the 21-day EMA. The red day, down 1.8%, closes at 19% of its range.",
     "2024-01-16: it gaps up 2.6% and opens just over the red high, 42.83. A market order fills at the open.",
     "No low yet: the first stop is 3.5% under the fill, 41.33. At 10:00 raise it to the 30-minute low if higher.",
-    "Failure mode: the gap fills. Instead it closes at 81% of its range, up 8.2%. 3R takes four days: a third off."
+    "Failure mode: the gap fills. Instead it closes at 81% of its range, up 8.2%. 3R takes four days: sell on judgment."
    ],
    "subject": "SET.23#w2"
   },
@@ -85292,7 +85292,7 @@
    "steps": [
     "ATRO, 2026. The red day, down 2.7%, drops into the 21-day EMA and the 50-day. It closes at 13% of its range.",
     "2026-06-11: it gaps up 3.0% and trades through the red high. Buy at market, 68.80. The scan's stop was 67.36, 2.1% away.",
-    "Closes at 99% of its range, up 15.1%. 3R on day 1: a third off, stop to breakeven. Another third at 5R.",
+    "Closes at 99% of its range, up 15.1%. 3R on day 1, too soon to sell: stop to breakeven. First sell: judgment.",
     "On the scan's fixed stop it ran 13.8R in two weeks, then gave most back. The trims kept the win."
    ],
    "subject": "SET.23#w3"
@@ -89669,7 +89669,7 @@
   "difficulty": 1,
   "id": "si_42100dff2284",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: it closes back under the low. Instead 3R came the next day: a third off, stop to breakeven.",
+  "lesson_text": "Failure mode: it closes back under the low. Instead 3R came the next day: too soon to sell, stop to breakeven.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -89680,7 +89680,7 @@
     "QCOM, 2020. The 2020-09-08 low, 109.62, is nine sessions old. The stock pulls back to it and everyone watches.",
     "2020-09-21: it undercuts the low by 1.20% and reclaims it the same session, closing in the top 6% of its range.",
     "Buy at market as it trades back above, 109.63. Stop a few cents under the day's low, 108.25, 1.26% away.",
-    "Failure mode: it closes back under the low. Instead 3R came the next day: a third off, stop to breakeven."
+    "Failure mode: it closes back under the low. Instead 3R came the next day: too soon to sell, stop to breakeven."
    ],
    "subject": "SET.24#w1"
   },
@@ -89863,7 +89863,7 @@
    "steps": [
     "SHOP, 2019. A leader sits 6.9% above its rising 200-day. The 2019-09-25 low, 28.61, is a six-week-old swing low.",
     "On 2019-11-08 it opens under the low, undercuts it by 1.39% and trades back above it. Buy at market, 28.62.",
-    "Stop a few cents under the undercut low, 28.16, 1.6% away. 3R came the next day: a third off, stop to breakeven.",
+    "Stop a few cents under the undercut low, 28.16, 1.6% away. 3R came next day: too soon to sell; stop to breakeven.",
     "Failure mode: a close back under the low within days. Instead the level held on every later test."
    ],
    "subject": "SET.24#w3"
@@ -102595,7 +102595,7 @@
   "difficulty": 1,
   "id": "si_710ab5fce10b",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the next session opens lower and takes the stop. Instead it reaches 3R in 3 sessions. Trim a third.",
+  "lesson_text": "Failure mode: the next session opens lower and takes the stop. Instead it reaches 3R in 3 sessions. First sell is judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -102605,8 +102605,8 @@
    "steps": [
     "UTHR, September 2025. A 37.7% news gap on 2025-09-02 is the drive. Three tiny red days hug the line.",
     "Context holds: above its 50-day and 200-day, 9.3% deep, orderly at 0.45 ATR.",
-    "2025-09-18: a close back over the line at 0.92 of its range. Buy the close, 409.87. Stop under the low, 402.47.",
-    "Failure mode: the next session opens lower and takes the stop. Instead it reaches 3R in 3 sessions. Trim a third."
+    "2025-09-18: a close back over the line, 0.92 of its range. Study entry 409.87; live we buy through the trigger. Stop 402.47.",
+    "Failure mode: the next session opens lower and takes the stop. Instead it reaches 3R in 3 sessions. First sell is judgment."
    ],
    "subject": "SET.27#w1"
   },
@@ -102718,7 +102718,7 @@
    "steps": [
     "RELY, November 2024. An earnings gap of 24.4% on 2024-10-31, a 17.8% day: the drive. Then a four-day rest.",
     "Four closes under the 4-day line, 7.5% deep, inside 1.04 ATR. Not the gap day: the drive is never the trigger.",
-    "2024-11-20: it closes over the line at 0.92 of its range. Buy the close, 20.46. Stop under the low, 19.96.",
+    "2024-11-20: it closes over the line, 0.92 of its range. Study entry 20.46; live we buy through the trigger. Stop 19.96.",
     "Failure mode: a weak next session through the stop. Instead a steady stair-step up the 10-day, to 13.7R."
    ],
    "subject": "SET.27#w2"
@@ -102816,8 +102816,8 @@
    "q": "URI, November 2016: the trims and the trail",
    "steps": [
     "URI, November 2016. A 9.3% gap the session after the election, a 17.1% day. Three small red candles follow.",
-    "2016-11-21: it closes over the line at 0.88 of its range. Buy the close, 93.86. Stop under the low, 91.69.",
-    "A 2.3% stop. 3R in 6 sessions: a third off, stop to breakeven. A third at 5R. The rest trails the 10-day.",
+    "2016-11-21: it closes over the line, 0.88 of its range. Study entry 93.86; live we buy through the trigger. Stop 91.69.",
+    "A 2.3% stop. 3R in 6 sessions: stop to breakeven, first sell by judgment. More into strength. The rest trails the 10-day.",
     "Failure mode: the next session opens lower through the stop. Instead the trend ran two months, 17.2R at best."
    ],
    "subject": "SET.27#w3"
@@ -107998,7 +107998,7 @@
   "difficulty": 1,
   "id": "si_91c8b5001ab4",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the stop. Instead it ran to 21.2R. A stop over about 3% means fewer shares.",
+  "lesson_text": "Failure mode: the stop. Instead it ran to 21.2R. A stop past the 1-3% we prefer means fewer shares.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -108009,7 +108009,7 @@
     "AMD, 2023. The report came after the close on 2023-10-31. On 2023-11-01 it remounts the 50-day.",
     "A remount on the earnings gap is after the report, so it is allowed. The quiet day sets the buy point: 109.41.",
     "2023-11-03: buy at market, 109.42. Stop a few cents under the quiet day's low: 105.86, 3.3% away. Size comes from that stop.",
-    "Failure mode: the stop. Instead it ran to 21.2R. A stop over about 3% means fewer shares."
+    "Failure mode: the stop. Instead it ran to 21.2R. A stop past the 1-3% we prefer means fewer shares."
    ],
    "subject": "SET.28#w2"
   },
@@ -112919,7 +112919,7 @@
   "difficulty": 1,
   "id": "si_c394a449bf5d",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a close back under the neckline. Instead 3R comes in 5 days: trim a third. At best, 23.7R.",
+  "lesson_text": "Failure mode: a close back under the neckline. Instead 3R comes in 5 days: a first sell by judgment. At best, 23.7R.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -112930,7 +112930,7 @@
     "MGM, 2004. Three peaks over a flat neckline at 21.22, shoulders within 0.3% of each other. The most symmetrical of the ten.",
     "The neckline breaks and the stock falls 6.1% under it. Four weeks later the break is bought back. That is version B.",
     "2004-09-14: it trades over the right shoulder, 22.70, on 1.9x volume. Buy at market, 22.71. Stop under the day's low, 22.30.",
-    "Failure mode: a close back under the neckline. Instead 3R comes in 5 days: trim a third. At best, 23.7R."
+    "Failure mode: a close back under the neckline. Instead 3R comes in 5 days: a first sell by judgment. At best, 23.7R."
    ],
    "subject": "SET.29#w1"
   },
@@ -113110,7 +113110,7 @@
   "difficulty": 1,
   "id": "si_ce1a9fa88ecc",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a close back under the neckline. Instead 3R comes in 1 day; trim a third. 39.0R at best.",
+  "lesson_text": "Failure mode: a close back under the neckline. Instead 3R comes in 1 day; no day-1 sell. 39.0R at best.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -113121,7 +113121,7 @@
     "MUSA, early 2022. The market is correcting. A three-peak top, head 14.2% over the neckline at 176.18, breaks 6.8% under it.",
     "Three weeks later the break is bought back, with the market still correcting. Our best setting.",
     "2022-03-15: it trades over the right shoulder, 184.96. Buy at market, 184.97. Stop a few cents under the day's low, 182.98.",
-    "Failure mode: a close back under the neckline. Instead 3R comes in 1 day; trim a third. 39.0R at best."
+    "Failure mode: a close back under the neckline. Instead 3R comes in 1 day; no day-1 sell. 39.0R at best."
    ],
    "subject": "SET.29#w3"
   },
@@ -128055,7 +128055,7 @@
   "difficulty": 1,
   "id": "si_892d85719213",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a big-volume reversal back into the range. Instead it never looks back. 3R in two sessions; a third comes off.",
+  "lesson_text": "Failure mode: a big-volume reversal back into the range. Instead it never looks back. 3R in two sessions; first sell is judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -128066,7 +128066,7 @@
     "FFIV, 2026-09-15, on 30-minute bars. A leader, RS 81, above its 50-day and 200-day. It opens flat on heavy volume, 2.67x normal.",
     "The first 30-minute candle sets the range: high 418.45, low 412.06. The high sits above the prior day's high.",
     "10:00: the next candle trades a cent through 418.45. Buy at market, 418.46. Stop a few cents under the low, 412.01.",
-    "Failure mode: a big-volume reversal back into the range. Instead it never looks back. 3R in two sessions; a third comes off."
+    "Failure mode: a big-volume reversal back into the range. Instead it never looks back. 3R in two sessions; first sell is judgment."
    ],
    "subject": "SET.32#w1"
   },
@@ -128154,7 +128154,7 @@
   "difficulty": 1,
   "id": "si_e68aec0fd697",
   "lesson_origin": "session",
-  "lesson_text": "Then the report of 2026-09-24 gaps it through the stop. The first 30-minute low decides. The trims already banked the win.",
+  "lesson_text": "Then the report of 2026-09-24 gaps it through the stop. The first 30-minute low decides. What we sold already banked the win.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -128164,8 +128164,8 @@
    "steps": [
     "SNX, 2026-09-21. It gaps up 2.3%, opening above the prior day's high. The first half hour trades 2.42x normal volume.",
     "A tight range, 274.03 to 270.72. At 10:05 it trades through the high. Buy at market, 274.04. Stop 270.67.",
-    "5R in two sessions: a third off at 3R, the stop to breakeven, another third at 5R. The rest rides the trail.",
-    "Then the report of 2026-09-24 gaps it through the stop. The first 30-minute low decides. The trims already banked the win."
+    "5R in two sessions: stop to breakeven; the first sell is judgment, not a fixed third. The rest rides the trail.",
+    "Then the report of 2026-09-24 gaps it through the stop. The first 30-minute low decides. What we sold already banked the win."
    ],
    "subject": "SET.32#w2"
   },
@@ -132766,7 +132766,7 @@
   "difficulty": 1,
   "id": "si_769ccd6fa9be",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a trade under 66.08. Not here. 3R arrives in 6 bars; a third comes off, stop to breakeven.",
+  "lesson_text": "Failure mode: a trade under 66.08. Not here. 3R arrives in 6 bars, day one; stop to breakeven, no sell yet.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -132777,7 +132777,7 @@
     "DK, 2026-08-24, on 30-minute bars. A leader in an uptrend sells off all morning: 6 red candles, 9:30 to 12:00.",
     "The selling lands on the rising 10-day EMA, 66.48. The 12:30 candle turns green, low 66.08, and closes at its high.",
     "The 13:00 candle takes the pivot high: buy at market, 66.83. Stop 3 cents under the low, 66.05, 1.17% away.",
-    "Failure mode: a trade under 66.08. Not here. 3R arrives in 6 bars; a third comes off, stop to breakeven."
+    "Failure mode: a trade under 66.08. Not here. 3R arrives in 6 bars, day one; stop to breakeven, no sell yet."
    ],
    "subject": "SET.33#w1"
   },
@@ -132865,7 +132865,7 @@
   "difficulty": 1,
   "id": "si_eca5ec771205",
   "lesson_origin": "session",
-  "lesson_text": "Slower than most: 3R on 10-09, 5R on 10-14. A third off at each. A swing trade, not a day trade.",
+  "lesson_text": "Slower than most: 3R on 10-09, 5R on 10-14. Sell by judgment into the push. A swing trade, not a day trade.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -132876,7 +132876,7 @@
     "DOCU, 2026-10-06, on 30-minute bars. A leader pulls back into its rising 21-day EMA, 67.53: 5 red candles.",
     "The 14:00 candle flushes through the average to 66.83, then closes back above it, at its high. That is the shake.",
     "The 14:30 candle trades over its high: buy at market, 68.08. Stop a few cents under the pivot low, 66.80, 1.88% away.",
-    "Slower than most: 3R on 10-09, 5R on 10-14. A third off at each. A swing trade, not a day trade."
+    "Slower than most: 3R on 10-09, 5R on 10-14. Sell by judgment into the push. A swing trade, not a day trade."
    ],
    "subject": "SET.33#w2"
   },
@@ -132964,7 +132964,7 @@
   "difficulty": 1,
   "id": "si_b2b3d3821c42",
   "lesson_origin": "session",
-  "lesson_text": "So the 40% position cap sets the size. 3R comes the next session, 5R two sessions on; the last third trails.",
+  "lesson_text": "So the 40% position cap sets the size. 3R comes the next session, 5R two on; first sell is judgment, rest trails.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -132975,7 +132975,7 @@
     "PSX, 2026-08-27, on 30-minute bars. A leader drifts down 5 red candles onto its rising 10-day EMA, 236.78.",
     "The 11:00 candle is the pivot and the day's low, 237.12. Both stop choices agree here: a few cents under 237.12.",
     "The 11:30 candle takes its high: buy 238.91, stop 237.09, 0.76% away. A stop that tight makes the risk-based size huge.",
-    "So the 40% position cap sets the size. 3R comes the next session, 5R two sessions on; the last third trails."
+    "So the 40% position cap sets the size. 3R comes the next session, 5R two on; first sell is judgment, rest trails."
    ],
    "subject": "SET.33#w3"
   },
@@ -137235,7 +137235,7 @@
    "steps": [
     "META, 2023, hourly bars. A leader rests on its 20-day EMA, 328.52. The prior close is 333.17.",
     "2023-12-15: the open dips under the prior close and the first hourly candle closes green back above it.",
-    "In our scan the buy is that candle's close, 336.42. Stop a few cents under the session low: 331.63, 1.42% away.",
+    "Study entry 336.42, that candle's close; live we buy through the prior close. Stop under the session low: 331.63, 1.42% away.",
     "Failure mode: the reclaim gives it back within hours and the stop takes it. Instead 3R came in 2 days; 39.1R."
    ],
    "subject": "SET.34#w1"
@@ -137327,7 +137327,7 @@
    "steps": [
     "VIAV, 2026, hourly bars. A leader pulls back to its 10-day EMA. The prior close is 26.33.",
     "2026-02-19: candle one is red and stays under the prior close. Candle two closes green back above it.",
-    "In our scan the buy is that close, 26.43. Stop a few cents under the session low: 25.66, 2.91% away.",
+    "Study entry 26.43, that close; live we buy through the prior close. Stop under the session low: 25.66, 2.91% away.",
     "Failure mode: no follow-through and the stop takes it. Instead 3R came in 3 days, and it ran to 44.2R."
    ],
    "subject": "SET.34#w2"
@@ -141785,7 +141785,7 @@
   "difficulty": 1,
   "id": "si_a5c01a3635db",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the break lasts a day and the stop goes. Instead 3R comes in two days. Trim a third.",
+  "lesson_text": "Failure mode: the break lasts a day and the stop goes. Instead 3R comes in two days. First sell is judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -141796,7 +141796,7 @@
     "NVDA, 2024. A breakout, then four days later an inside day on light volume, above a rising 50 and 200-day.",
     "The bar is small, 36% of the mother bar, and quiet. Location first: days after a breakout in a leader.",
     "2024-01-16: it opens 0.1% over the trigger. Buy the open at market, 55.02. Stop a few cents under the inside low, 54.28.",
-    "Failure mode: the break lasts a day and the stop goes. Instead 3R comes in two days. Trim a third."
+    "Failure mode: the break lasts a day and the stop goes. Instead 3R comes in two days. First sell is judgment."
    ],
    "subject": "SET.40#w1"
   },
@@ -141884,7 +141884,7 @@
   "difficulty": 1,
   "id": "si_76043fef8a3b",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the low trades first, or the break lasts a day. Instead 3R came the next day; a third comes off.",
+  "lesson_text": "Failure mode: the low trades first, or the break lasts a day. Instead 3R came the next day. No day-one sell.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -141895,7 +141895,7 @@
     "MPC, 2013. A two-week shelf at the 10-day, then an inside day closing near its high on 0.66x the mother bar's volume.",
     "Quiet, light, at the 10-day: the location carries the trade, not the bar.",
     "2013-01-15: price trades over the high. Buy at market, 31.33. Stop a few cents under the low, 30.90, 1.37% away.",
-    "Failure mode: the low trades first, or the break lasts a day. Instead 3R came the next day; a third comes off."
+    "Failure mode: the low trades first, or the break lasts a day. Instead 3R came the next day. No day-one sell."
    ],
    "subject": "SET.40#w2"
   },
@@ -141969,7 +141969,7 @@
   "difficulty": 1,
   "id": "si_3425c51ebfec",
   "lesson_origin": "session",
-  "lesson_text": "A third at 3R, a third at 5R, then trail the rest. In our test, buys without a trail lose on average.",
+  "lesson_text": "First sell by judgment, then trail the rest. In our test, buys without a trail lose on average.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -141980,7 +141980,7 @@
     "VST, 2023. A plain inside day at the 10-day in a slow, orderly trend. Nothing dramatic about the bar.",
     "2023-12-22: price trades over the high. Buy at market, 38.00. Stop a few cents under the inside day's low, 37.53.",
     "Failure mode: a stall still under 1R after 10 days is sold. Instead it reaches 3R on day 10.",
-    "A third at 3R, a third at 5R, then trail the rest. In our test, buys without a trail lose on average."
+    "First sell by judgment, then trail the rest. In our test, buys without a trail lose on average."
    ],
    "subject": "SET.40#w3"
   },
@@ -145994,7 +145994,7 @@
   "difficulty": 1,
   "id": "si_8f63d182ae5b",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a thin break closes back under the line, stop taken. Instead 3R came in 6 sessions. Trim a third.",
+  "lesson_text": "Failure mode: a thin break closes back under the line, stop taken. Instead 3R came in 6 sessions. First sell by judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -146005,7 +146005,7 @@
     "NUE, 2006. A stock above its 200-day pulls back 26% from a 60.30 high. Eight touches over five months build the line.",
     "Price drifts tight under the 106-session line. The break comes off a higher low above the 200-day.",
     "2006-10-05: it trades through 50.47 on 1.8x volume. Buy at market, 50.48. Stop a few cents under the low, 49.20.",
-    "Failure mode: a thin break closes back under the line, stop taken. Instead 3R came in 6 sessions. Trim a third."
+    "Failure mode: a thin break closes back under the line, stop taken. Instead 3R came in 6 sessions. First sell by judgment."
    ],
    "subject": "SET.41#w1"
   },
@@ -146086,7 +146086,7 @@
   "difficulty": 1,
   "id": "si_0d59d237d731",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the break closes back under the line, stop taken. Instead 3R came the next day. Trim a third.",
+  "lesson_text": "Failure mode: the break closes back under the line, stop taken. Instead 3R came the next day. No day-one sell.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -146097,7 +146097,7 @@
     "MSFT, 2012. A mega-cap drifts tight under a five-month line, 112 sessions old, with 6 touches.",
     "It is a 16% pullback from 28.15. The drift is quiet, and the daily ranges are small.",
     "2012-01-04: it trades through 26.89 and the prior high. Buy at market, 26.97. Stop a few cents under the low, 26.73.",
-    "Failure mode: the break closes back under the line, stop taken. Instead 3R came the next day. Trim a third."
+    "Failure mode: the break closes back under the line, stop taken. Instead 3R came the next day. No day-one sell."
    ],
    "subject": "SET.41#w2"
   },
@@ -150268,7 +150268,7 @@
   "difficulty": 1,
   "id": "si_e7518d97816a",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: Stage 4 resumes and the stop is hit. Instead the best run was 31.9R. Trim a third at 3R.",
+  "lesson_text": "Failure mode: Stage 4 resumes and the stop is hit. Instead the best run was 31.9R. First sell by judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -150279,7 +150279,7 @@
     "NUS, 2013. A December capitulation low, then a February higher low. Three months of flat 150 and 200-day lines.",
     "A 19-day pause sits above a turning 50-day. The low is 48% under the high; the close is above the 200-day.",
     "2013-04-18: price trades over the pause high. Buy at market, 49.99. Stop 49.05, 1.9% away.",
-    "Failure mode: Stage 4 resumes and the stop is hit. Instead the best run was 31.9R. Trim a third at 3R."
+    "Failure mode: Stage 4 resumes and the stop is hit. Instead the best run was 31.9R. First sell by judgment."
    ],
    "subject": "SET.42#w1"
   },
@@ -150360,7 +150360,7 @@
   "difficulty": 1,
   "id": "si_34f16f11ca97",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the break stalls under a falling long average, stop taken. Instead the best run was 15.7R. Trim at 3R.",
+  "lesson_text": "Failure mode: the break stalls under a falling long average, stop taken. Instead the best run was 15.7R. First sell by judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -150371,7 +150371,7 @@
     "PENN, 2019. A long Stage 4 under a falling 30-week line. The August low is 53% under the high.",
     "An October higher low, 7.7% above it, then a 17-day pause above a 50-day that has turned up.",
     "2019-11-05: price trades over the pause high, above the 200-day. Buy at market, 22.12. Stop 21.49, 2.8% away.",
-    "Failure mode: the break stalls under a falling long average, stop taken. Instead the best run was 15.7R. Trim at 3R."
+    "Failure mode: the break stalls under a falling long average, stop taken. Instead the best run was 15.7R. First sell by judgment."
    ],
    "subject": "SET.42#w2"
   },
@@ -155476,7 +155476,7 @@
   "difficulty": 1,
   "id": "si_6c3b48d56d13",
   "lesson_origin": "session",
-  "lesson_text": "Stop 3.6% wide, over our 3%, so size comes down. Failure mode: the line gives way. Instead 3R came the next day.",
+  "lesson_text": "Stop 3.6% wide, past our preferred range: size comes down. Failure mode: the line gives way. Instead 3R came the next day.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -155487,7 +155487,7 @@
     "YELP, June 2013. A leader that had ridden its 10 EMA since February drifts four quiet days onto the line.",
     "The pattern checks out: a 1.42 ATR dip, 5.7% off the high, and a touch day on only 0.60x volume.",
     "2013-06-26: it trades over the hold day's high. Buy at market, 31.80. Stop a few cents under the low, 30.67.",
-    "Stop 3.6% wide, over our 3%, so size comes down. Failure mode: the line gives way. Instead 3R came the next day."
+    "Stop 3.6% wide, past our preferred range: size comes down. Failure mode: the line gives way. Instead 3R came the next day."
    ],
    "subject": "SET.43#w1"
   },
@@ -155575,7 +155575,7 @@
   "difficulty": 1,
   "id": "si_e33dd2eddb92",
   "lesson_origin": "session",
-  "lesson_text": "The stop is 1.8% wide, inside our 3%. Failure mode: the line gives way. Instead a two-week grind reached 3R.",
+  "lesson_text": "The stop is 1.8% wide, inside our preferred 1-3%. Failure mode: the line gives way. Instead a two-week grind reached 3R.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -155586,7 +155586,7 @@
     "CAT, 2025. A mega cap's first test of the rising 50 SMA after a run: six days down on quiet volume.",
     "The pattern checks out: 2.36 ATR deep, 5.7% off the high, and the touch day on 0.79x volume.",
     "2025-09-03: it trades over the hold day's high. Buy at market, 418.13. Stop a few cents under the low, 410.47.",
-    "The stop is 1.8% wide, inside our 3%. Failure mode: the line gives way. Instead a two-week grind reached 3R."
+    "The stop is 1.8% wide, inside our preferred 1-3%. Failure mode: the line gives way. Instead a two-week grind reached 3R."
    ],
    "subject": "SET.43#w2"
   },
@@ -160099,7 +160099,7 @@
   "difficulty": 1,
   "id": "si_2b6cda3d4068",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: the pullback keeps falling and never clears the high. Instead it reaches 3R in 2 sessions. Trim a third.",
+  "lesson_text": "Failure mode: the pullback keeps falling and never clears the high. Instead it reaches 3R in 2 sessions. First sell is judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -160110,7 +160110,7 @@
     "CI, October 2000. A strong thrust off the 50-day, then seven quiet red days into the rising 20-day EMA.",
     "Context checks out: above the 200-day, the first touch since the push, the low holding over the 50-day.",
     "2000-10-26: it trades over the prior day's high. Buy at market, 36.72. Stop a few cents under the swing low, 36.03.",
-    "Failure mode: the pullback keeps falling and never clears the high. Instead it reaches 3R in 2 sessions. Trim a third."
+    "Failure mode: the pullback keeps falling and never clears the high. Instead it reaches 3R in 2 sessions. First sell is judgment."
    ],
    "subject": "SET.44#w1"
   },
@@ -160198,7 +160198,7 @@
   "difficulty": 1,
   "id": "si_bea8a0cf8fc2",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a late, slow trigger after a long run. Instead, 3R in three sessions: a third off, stop to breakeven.",
+  "lesson_text": "Failure mode: a late, slow trigger after a long run. Instead, 3R in three sessions: stop to breakeven, sell by judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -160209,7 +160209,7 @@
     "EXPD, March 2006. A leader makes a new momentum high, then rests three days, 3.6% deep, to the 20-day EMA.",
     "Raschke's first two- to three-day retracement in one picture. The touch holds above the 50-day; volume is not a gate.",
     "2006-03-09: it clears the prior day's high. Buy at market, 38.93. Stop a few cents under the swing low, 38.14.",
-    "Failure mode: a late, slow trigger after a long run. Instead, 3R in three sessions: a third off, stop to breakeven."
+    "Failure mode: a late, slow trigger after a long run. Instead, 3R in three sessions: stop to breakeven, sell by judgment."
    ],
    "subject": "SET.44#w2"
   },
@@ -160304,7 +160304,7 @@
   "difficulty": 1,
   "id": "si_e36001a0129c",
   "lesson_origin": "session",
-  "lesson_text": "Then the parabolic leg Bracco warns about. A third at 5R; sell a big part into a climax run; trail the rest.",
+  "lesson_text": "Then the parabolic leg Bracco warns about. Sell by judgment; sell a big part into a climax run; trail the rest.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -160314,8 +160314,8 @@
    "steps": [
     "LITE, July 2025. The cycle's leader pulls back seven days, 6.4% deep, into the rising 20-day EMA.",
     "Touch and trigger on the same day: the range reaches the line, then price clears the prior day's high.",
-    "Buy at market, 91.78. Stop under the swing low, 88.88. 3R in five sessions: a third off, breakeven.",
-    "Then the parabolic leg Bracco warns about. A third at 5R; sell a big part into a climax run; trail the rest."
+    "Buy at market, 91.78. Stop under the swing low, 88.88. 3R in five sessions: breakeven, and a first sell by judgment.",
+    "Then the parabolic leg Bracco warns about. Sell by judgment; sell a big part into a climax run; trail the rest."
    ],
    "subject": "SET.44#w3"
   },
@@ -168026,7 +168026,7 @@
   "difficulty": 1,
   "id": "si_96976f65d3fb",
   "lesson_origin": "session",
-  "lesson_text": "The stop is 2.2%, inside the 5.6% ADR. Failure mode: a close back inside the base. Instead 3R came in 1 day.",
+  "lesson_text": "The stop is 2.2%, inside our preferred 1-3%. Failure mode: a close back inside the base. Instead 3R came in 1 day.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -168037,7 +168037,7 @@
     "CRSP, 2019. A 47% run begins on an earnings reaction, then the stock rests 10 sessions in a 14% band.",
     "The base checks out: 10 sessions is the shortest allowed, and 14% is inside the 25% depth cap.",
     "2019-11-12: it clears 52.28 on 3.1x volume. Buy at market, 52.35. Stop a few cents under the day's low, 51.21.",
-    "The stop is 2.2%, inside the 5.6% ADR. Failure mode: a close back inside the base. Instead 3R came in 1 day."
+    "The stop is 2.2%, inside our preferred 1-3%. Failure mode: a close back inside the base. Instead 3R came in 1 day."
    ],
    "subject": "SET.45#w1"
   },
@@ -168118,7 +168118,7 @@
   "difficulty": 1,
   "id": "si_53259db54321",
   "lesson_origin": "session",
-  "lesson_text": "Stop 1.6%, inside the ADR and our 3%. Failure mode: a close back in the base. Instead 3R took 7 days.",
+  "lesson_text": "Stop 1.6%, inside our preferred 1-3%. Failure mode: a close back in the base. Instead 3R took 7 days.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -168129,7 +168129,7 @@
     "HWM, 2025. A large, steady name gaps on earnings, then rests 12 sessions in a 17% band after a 43% run.",
     "The base checks out: 12 sessions is inside 10 to 40, and 17% is inside the 25% depth cap.",
     "2025-05-15: it clears 161.58 on 1.5x volume. Buy at market, 161.59. Stop a few cents under the low, 158.95.",
-    "Stop 1.6%, inside the ADR and our 3%. Failure mode: a close back in the base. Instead 3R took 7 days."
+    "Stop 1.6%, inside our preferred 1-3%. Failure mode: a close back in the base. Instead 3R took 7 days."
    ],
    "subject": "SET.45#w2"
   },
@@ -168210,7 +168210,7 @@
   "difficulty": 1,
   "id": "si_0dfbe63a2986",
   "lesson_origin": "session",
-  "lesson_text": "Stop 1.7%, inside the 5.6% ADR. Failure mode: a close back in the base. Instead 3R came in 5 days.",
+  "lesson_text": "Stop 1.7%, inside our preferred range. Failure mode: a close back in the base. Instead 3R came in 5 days.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -168221,7 +168221,7 @@
     "CPRI, 2020. A 59% run in a month, then 11 sessions of rising lows. The 10 and 20-day never let go.",
     "The base checks out: 11 sessions is inside 10 to 40, and 21% is inside the 25% depth cap.",
     "2020-12-03: it clears 38.00 on 0.8x volume, which only grades. Buy at market, 38.01. Stop a few cents under the low, 37.37.",
-    "Stop 1.7%, inside the 5.6% ADR. Failure mode: a close back in the base. Instead 3R came in 5 days."
+    "Stop 1.7%, inside our preferred range. Failure mode: a close back in the base. Instead 3R came in 5 days."
    ],
    "subject": "SET.45#w3"
   },
@@ -172554,7 +172554,7 @@
   "difficulty": 1,
   "id": "si_fbd3e07f690e",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: back under the line, stop taken. Instead 3R comes in six sessions. A third off, stop to breakeven.",
+  "lesson_text": "Failure mode: back under the line, stop taken. Instead 3R comes in six sessions. First sell is our judgment; stop to breakeven.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -172565,7 +172565,7 @@
     "EPC, late 2006. It falls 18.7% from its October high and closes 42 times under the AVWAP from that high.",
     "Context checks out: above the 200-day. The line goes flat for a month at 52. Then one close 0.86 ATR over it.",
     "Next session it trades over the reclaim day's high. Buy at market, 52.67. Stop under the reclaim day's low, 51.99.",
-    "Failure mode: back under the line, stop taken. Instead 3R comes in six sessions. A third off, stop to breakeven."
+    "Failure mode: back under the line, stop taken. Instead 3R comes in six sessions. First sell is our judgment; stop to breakeven."
    ],
    "subject": "SET.46#w1"
   },
@@ -172646,7 +172646,7 @@
   "difficulty": 1,
   "id": "si_e0891f361ddb",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a close back under, then the stop. Instead 3R in five sessions, before the report. A third off.",
+  "lesson_text": "Failure mode: a close back under, then the stop. Instead 3R in five sessions, before the report. The first sell is judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -172657,7 +172657,7 @@
     "NOW, spring 2017. Above a rising 200-day, it falls 11.9% from its February high and closes 40 times under the AVWAP.",
     "The line goes flat. On 2017-04-19 it closes 0.31 ATR over it: clear, but not stretched.",
     "2017-04-20 it trades over that day's high. Buy at market, 17.70. Stop a few cents under the reclaim day's low, 17.50.",
-    "Failure mode: a close back under, then the stop. Instead 3R in five sessions, before the report. A third off."
+    "Failure mode: a close back under, then the stop. Instead 3R in five sessions, before the report. The first sell is judgment."
    ],
    "subject": "SET.46#w2"
   },
@@ -172738,7 +172738,7 @@
   "difficulty": 1,
   "id": "si_9364251b1557",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: back under the line, stop taken. Instead 3R in eight sessions. A third off, then a third at 5R.",
+  "lesson_text": "Failure mode: back under the line, stop taken. Instead 3R in eight sessions. We sell by judgment; the rest rides.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -172749,7 +172749,7 @@
     "MAS, 2024. A 19.2% fall from the March high, then 70 closes under the AVWAP. The line goes flat near 70.",
     "2024-07-12: it closes 0.49 ATR over the line, with the 50-day within one ATR: a second level, the A+ cue.",
     "Next session, over the reclaim day's high: buy at market, 71.15. Stop a few cents under that day's low, 69.53.",
-    "Failure mode: back under the line, stop taken. Instead 3R in eight sessions. A third off, then a third at 5R."
+    "Failure mode: back under the line, stop taken. Instead 3R in eight sessions. We sell by judgment; the rest rides."
    ],
    "subject": "SET.46#w3"
   },
@@ -177224,7 +177224,7 @@
   "difficulty": 1,
   "id": "si_03126dd01bce",
   "lesson_origin": "session",
-  "lesson_text": "Stop 5.7%, past our usual 3%, so size comes from it. Failure mode: a new low. Instead 3R came in 1 day.",
+  "lesson_text": "Stop 5.7%, past our limit, rarely taken; size comes from it. Failure mode: a new low. Instead 3R came in 1 day.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -177235,7 +177235,7 @@
     "AAOI, 2026. News gaps it down 5.5% on 2.1x volume, a 33% shakeout inside a leader's run.",
     "By the close it is green: 0.93 up the day's range and 20.3% over the prior close, an Oops shape.",
     "Buy at market as it trades back over the prior close, 86.36. Stop a few cents under the news day's low, 81.48.",
-    "Stop 5.7%, past our usual 3%, so size comes from it. Failure mode: a new low. Instead 3R came in 1 day."
+    "Stop 5.7%, past our limit, rarely taken; size comes from it. Failure mode: a new low. Instead 3R came in 1 day."
    ],
    "subject": "SET.47#w1"
   },
@@ -177323,7 +177323,7 @@
   "difficulty": 1,
   "id": "si_a020d3dfe30c",
   "lesson_origin": "session",
-  "lesson_text": "Stop 5.0%, past our usual 3%, so size comes from it. Failure mode: a new low. Instead 3R came the next day.",
+  "lesson_text": "Stop 5.0%, at our limit, so size comes from it. Failure mode: a new low. Instead 3R came the next day.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -177334,7 +177334,7 @@
     "SEDG, 2025. An earnings gap takes it down 4.1% on 3.8x volume, after a 24% fall into the 50-day.",
     "By the close it is 28.9% over the prior close, in the top 5% of the range.",
     "Buy at market as it trades back over the prior close, 31.83. Stop a few cents under the news day's low, 30.23.",
-    "Stop 5.0%, past our usual 3%, so size comes from it. Failure mode: a new low. Instead 3R came the next day."
+    "Stop 5.0%, at our limit, so size comes from it. Failure mode: a new low. Instead 3R came the next day."
    ],
    "subject": "SET.47#w2"
   },
@@ -177422,7 +177422,7 @@
   "difficulty": 1,
   "id": "si_123fb0eb7769",
   "lesson_origin": "session",
-  "lesson_text": "Stop 5.2%, past our usual 3%, so size comes from it. Failure mode: a new high. Instead 3R came in 6 days.",
+  "lesson_text": "Stop 5.2%, past our limit, rarely taken; size comes from it. Failure mode: a new high. Instead 3R came in 6 days.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -177433,7 +177433,7 @@
     "SKIN, 2022. An earnings gap takes it up 4.8% on 3.7x volume, after a 54% run.",
     "By the close it is 16.2% under the prior close, at the low of the day, below the 200-day.",
     "Short at market as it trades back under the prior close, 15.26. Stop a few cents over the day's high, 16.05.",
-    "Stop 5.2%, past our usual 3%, so size comes from it. Failure mode: a new high. Instead 3R came in 6 days."
+    "Stop 5.2%, past our limit, rarely taken; size comes from it. Failure mode: a new high. Instead 3R came in 6 days."
    ],
    "subject": "SET.47#w3"
   },
@@ -196128,7 +196128,7 @@
   "difficulty": 1,
   "id": "si_fef8bdc19a1c",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a second flush under the low. Instead it closes near its high; 3R prints next day. We trim a third.",
+  "lesson_text": "Failure mode: a second flush under the low. Instead it closes near its high; 3R prints next day. Too early to sell.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -196139,7 +196139,7 @@
     "EQT, August 2011. A leader up 32% falls five straight days, 25.2% in all, in a market sell-off.",
     "Flush day: a 2.2 ATR drop on 2.0x volume, closing on the rising 200-day. A level to lean on. We wait.",
     "2011-08-09: it climbs back over the flush close. Buy at market, 26.76. Stop a few cents under the low, 26.00.",
-    "Failure mode: a second flush under the low. Instead it closes near its high; 3R prints next day. We trim a third."
+    "Failure mode: a second flush under the low. Instead it closes near its high; 3R prints next day. Too early to sell."
    ],
    "subject": "SET.51#w1"
   },
@@ -196213,7 +196213,7 @@
   "difficulty": 1,
   "id": "si_ae79ae19858b",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a weak close. Instead it closes at 3R and 5R prints two sessions later. We trim a third at each.",
+  "lesson_text": "Failure mode: a weak close. Instead it closes at 3R and 5R prints two sessions later. We sell by judgment, not rule.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -196224,7 +196224,7 @@
     "KRYS, August 2023. A leader up 59% slides four days, 17.9%. The report on 2023-08-07 is the flush day.",
     "It is 12.6% under a rising 50-day, still 20% above its 200-day. A 3.3 ATR drop on 4.0x volume. We wait.",
     "2023-08-08: it opens above the flush close. Buy at market, 109.13. Stop a few cents under the lows, 106.88.",
-    "Failure mode: a weak close. Instead it closes at 3R and 5R prints two sessions later. We trim a third at each."
+    "Failure mode: a weak close. Instead it closes at 3R and 5R prints two sessions later. We sell by judgment, not rule."
    ],
    "subject": "SET.51#w2"
   },
@@ -200873,7 +200873,7 @@
   "difficulty": 1,
   "id": "si_4cb84f6a18c2",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a dip into the body. Instead 3R prints on day 5 and 5R on day 7. We trim thirds.",
+  "lesson_text": "Failure mode: a dip into the body. Instead 3R prints on day 5 and 5R on day 7. Selling is our judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 1,
@@ -200884,7 +200884,7 @@
     "MELI, February 2017. A steady leader closes off its high on 2017-02-02: a 70% upper wick.",
     "Day 2 sits wholly inside that wick: 190.70 high, 189.04 low, 0.44x volume. It never touches the body.",
     "2017-02-06: price trades a cent over day 2's high. Buy at market, 190.71. Stop a few cents under day 2's low, 189.01.",
-    "Failure mode: a dip into the body. Instead 3R prints on day 5 and 5R on day 7. We trim thirds."
+    "Failure mode: a dip into the body. Instead 3R prints on day 5 and 5R on day 7. Selling is our judgment."
    ],
    "subject": "SET.52#w1"
   },
@@ -200965,7 +200965,7 @@
   "difficulty": 1,
   "id": "si_5924ff3089f7",
   "lesson_origin": "session",
-  "lesson_text": "Failure mode: a dip into the body. Instead 3R prints on day 2, 5R on day 7. We trim thirds.",
+  "lesson_text": "Failure mode: a dip into the body. Instead 3R prints on day 2, 5R on day 7. Selling is our judgment.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -200976,7 +200976,7 @@
     "SWKS, 2014. First the explosion: an earnings gap on 2014-01-17, up 10.2% at the open on 5x volume.",
     "Then the pause: on 2014-02-06 a wick day, 64% of its range above the body, resting on the 10-day EMA.",
     "Day 2 stays inside the wick on lighter volume. 2014-02-10: price trades over day 2's high. Buy at market, 30.70. Stop 30.32.",
-    "Failure mode: a dip into the body. Instead 3R prints on day 2, 5R on day 7. We trim thirds."
+    "Failure mode: a dip into the body. Instead 3R prints on day 2, 5R on day 7. Selling is our judgment."
    ],
    "subject": "SET.52#w2"
   },
@@ -210487,7 +210487,7 @@
   "difficulty": 1,
   "id": "si_e7ce99cba3cb",
   "lesson_origin": "session",
-  "lesson_text": "Third off at 3R, stop to breakeven. On 09-14 it gaps down through it. First 30-minute low decides; out past 2R.",
+  "lesson_text": "We rarely sell this early; stop to breakeven. On 09-14 it gaps down through it. First 30-minute low decides; out past 2R.",
   "module": "SET",
   "prompt_json": {
    "order": 2,
@@ -210498,7 +210498,7 @@
     "SANM, 2026-09-11, 5-minute bars. A leader: RS 81, 10% over its 200-day. It gaps up 1.2%.",
     "The first 5-minute bar runs 205.71 to 207.99 on 2.3x volume: a dip, then recovery. At 9:35 it trades through.",
     "Buy at market, 208.00. Stop a few cents under the day's low, 205.66: 1.1% away. 3R, 215.02, comes at 10:35.",
-    "Third off at 3R, stop to breakeven. On 09-14 it gaps down through it. First 30-minute low decides; out past 2R."
+    "We rarely sell this early; stop to breakeven. On 09-14 it gaps down through it. First 30-minute low decides; out past 2R."
    ],
    "subject": "SET.54#w2"
   },
@@ -210586,18 +210586,18 @@
   "difficulty": 1,
   "id": "si_75b19daf7e3d",
   "lesson_origin": "session",
-  "lesson_text": "Next day at 9:35 it prints 3R, 77.52. A third comes off; the stop goes to breakeven. Two days later it fades.",
+  "lesson_text": "Next day at 9:35 it prints 3R, 77.52. Early to sell; the stop goes to breakeven. Two days later it fades.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
    "part": 3,
    "parts": 3,
-   "q": "CNC, November 2026: the heaviest bar, and the trim",
+   "q": "CNC, November 2026: the heaviest bar, and the first sell",
    "steps": [
     "CNC, 2026-11-04, 5-minute bars. A leader: RS 90, 22% over its 200-day. It gaps up 4.7% over the prior high.",
     "The first 5-minute bar runs 70.21 to 71.99 on 5.3x volume, the heaviest in our set. Trigger: a trade through 71.99.",
     "Buy at market, 72.00. Stop a few cents under the day's low, 70.16: 2.6% away. The drive runs all day.",
-    "Next day at 9:35 it prints 3R, 77.52. A third comes off; the stop goes to breakeven. Two days later it fades."
+    "Next day at 9:35 it prints 3R, 77.52. Early to sell; the stop goes to breakeven. Two days later it fades."
    ],
    "subject": "SET.54#w3"
   },

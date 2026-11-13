@@ -2,7 +2,7 @@
  "unit": "SET.17",
  "track": "SET",
  "title": "Wedge Drop",
- "teaches": "The Wedge Drop as we use it: a bounce makes a top, stalls a few days on Kell's fast averages, then closes down through them. For every long holder it is the sell signal. It is a short only in the narrow form below the 200-day, in a weak market: short at market on the close, the stop a few cents over the trigger day's high within about 3%, a third covered at 3R and 5R, the rest on the trail, and a close back above both averages is the exit.",
+ "teaches": "The Wedge Drop as we use it: a bounce makes a top, stalls a few days on Kell's fast averages, then closes down through them. For every long holder it is the sell signal. It is a short only in the narrow form below the 200-day, in a weak market: short as price trades down through the trigger, never at the close, the stop a few cents over the trigger day's high within about 3%, the first cover is a judgment, usually day 3 or later into a 3, 5 or 7 day push, the rest on the trail, and a close back above both averages is the exit. We recommend shorting only to traders who have already made $1 million.",
  "skills": [
   {
    "id": "setup.wedge_drop",
@@ -1137,7 +1137,7 @@
     "WHR, August 2002, a bear market. The stock sits 19.4% under a falling 200-day; the bounce makes a lower high.",
     "Four days stalled on the averages, 6.0% wide. No new high in the last three sessions. The averages catch up.",
     "2002-08-29: a close under both averages and the stall low, 55.55. Short at market, 55.16. Stop 56.28, 2.0% away.",
-    "No quick reclaim. It slid: 3R on day 9, a third covered. At best it reached 14.2R."
+    "No quick reclaim. It slid: 3R on day 9. First cover: a judgment. At best it reached 14.2R."
    ],
    "facts": [
     "d01",
@@ -1159,7 +1159,7 @@
     "GS, August 2011. Kell's faster rally that puts in a lower high: the bounce dies at the falling 50-day.",
     "A four-day stall, 4.4% wide, on the 10-day EMA. The up days are quiet. The index is in its own down cycle.",
     "2011-08-02: a close under both averages at 131.23 on 1.2x volume. Short at market. Stop 134.79, 2.7% away.",
-    "3R on day 4: cover a third, stop to breakeven. Another third at 5R, then trail. It reached 13.2R at best."
+    "3R on day 4: first cover is a judgment, stop to breakeven, then trail. It reached 13.2R at best."
    ],
    "facts": [
     "d07",

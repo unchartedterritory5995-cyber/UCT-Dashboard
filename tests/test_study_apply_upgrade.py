@@ -105,3 +105,14 @@ def test_a_fact_shipped_inside_a_checker_fix_is_added_to_the_lesson():
     au.apply(d, {}, "b", {"q01": {"status": "fix", "notes": "x", "fix": {"facts": ["f1", "f9"], "new_fact": fact, "house": True}}})
     assert any(f["id"] == "f9" for f in d["facts"]) and _first(d, "q01")["facts"] == ["f1", "f9"]
     assert "new_fact" not in _first(d, "q01") and "house" not in _first(d, "q01")
+
+
+def test_a_typed_number_question_may_become_multiple_choice_and_nothing_else_changes_format():
+    """Owner 2026-11-12: multiple choice over typed numbers; no other format change is allowed."""
+    from scripts.study import apply_upgrade as au
+    q = {"key": "q1", "format": "numeric", "answer": 0.5}
+    au._set_fields(q, {"format": "mcq", "choices": ["0.5%", "0.1%", "5%", "0.05%"], "answer": "0.5%"})
+    assert q["format"] == "mcq" and q["answer"] == "0.5%"
+    t = {"key": "q2", "format": "tf", "answer": "True"}
+    au._set_fields(t, {"format": "mcq"})
+    assert t["format"] == "tf"

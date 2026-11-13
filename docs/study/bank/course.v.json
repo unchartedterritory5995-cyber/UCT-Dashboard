@@ -21143,7 +21143,7 @@
    "q": "Every setup carries a plan",
    "steps": [
     "Every trade plan we teach hands you two prices: the trigger, which is the entry, and the stop.",
-    "R is your risk per share, entry to stop. A third comes off at 3R and another at 5R.",
+    "R is your risk per share, entry to stop. The first sell is a judgment, usually day 3 or later.",
     "Then you trail. The stop follows the stock up, under each higher low or a rising average."
    ],
    "subject": "V.05#w1"
@@ -21316,7 +21316,7 @@
   "difficulty": 1,
   "id": "si_b4380fbeb863",
   "lesson_origin": "session",
-  "lesson_text": "So I don't trade the name. I trade the plan: our entry, our stop, a third off at 3R and at 5R.",
+  "lesson_text": "So I don't trade the name. I trade the plan: our entry, our stop, a first sell by judgment.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -21326,7 +21326,7 @@
    "steps": [
     "The textbook kicker is a down candle, then a gap up the other way.",
     "Investopedia calls it highly reliable. Bulkowski's tests found it reversed the trend 53% of the time, almost random.",
-    "So I don't trade the name. I trade the plan: our entry, our stop, a third off at 3R and at 5R."
+    "So I don't trade the name. I trade the plan: our entry, our stop, a first sell by judgment."
    ],
    "subject": "V.05#w3"
   },

@@ -736,7 +736,7 @@
    "steps": [
     "Our risk on any trade is 0.25% to 2% of the account. 2% is the hard ceiling.",
     "Our default stop is the low of the day, or the prior day's low.",
-    "Each setup plan has its own stop. Our trims, a third at 3R and at 5R, are measured from it."
+    "Each setup plan has its own stop. Our first sell, by judgment, is usually day 3 or later."
    ],
    "facts": [
     "h10",

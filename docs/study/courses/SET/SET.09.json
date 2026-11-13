@@ -2,7 +2,7 @@
  "unit": "SET.09",
  "track": "SET",
  "title": "Cup with Handle",
- "teaches": "The cup with handle as we trade it: a leader that ran at least 30% rests in a smooth rounded U for seven weeks or more, climbs back near the old high, then dips into a quiet handle of five sessions or more that sits above the cup's midpoint, drifts down and holds the 50-day; the buy is the trade through the handle high at market in regular hours, the stop a few cents under the day's low and never past the handle low, a third off at 3R and 5R with the rest on the trail, and a loss taken at the stop is the plan working.",
+ "teaches": "The cup with handle as we trade it: a leader that ran at least 30% rests in a smooth rounded U for seven weeks or more, climbs back near the old high, then dips into a quiet handle of five sessions or more that sits above the cup's midpoint, drifts down and holds the 50-day; the buy is the trade through the handle high at market in regular hours, the stop a few cents under the day's low and never past the handle low, the first sell a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss taken at the stop is the plan working.",
  "skills": [
   {
    "id": "setup.cup_handle",
@@ -1152,7 +1152,7 @@
     "FFIV, January 2014. After a 40% run, a symmetric cup, 15.6 weeks and 17.5% deep. A rounded U, not a V.",
     "The handle: 7 days, 4.2% deep, volume at 0.74x the cup's. It sits high in the base and drifts down.",
     "2014-01-13: it clears the handle high on 2.71x volume. Buy at market, 91.29. Stop under the day's low, 90.67.",
-    "Failure mode: a fade back through the pivot to the stop. Instead it reaches 3R the next day. A third comes off."
+    "Failure mode: a fade back through the pivot to the stop. Instead it reaches 3R the next day. We hold."
    ],
    "facts": [
     "d01",
@@ -1193,8 +1193,8 @@
    "steps": [
     "AX, 2026. A 72% run, then a 16.6-week U, 20.2% deep. The handle lasts 5 days, the IBD minimum.",
     "2026-01-05: it clears the handle high on 1.48x volume. Buy at market, 89.22. Stop under the day's low, 86.95.",
-    "At 3R a third comes off and the stop goes to breakeven. 5R comes in about 7 weeks: another third.",
-    "Failure mode: a fade back through the pivot. AX rolled over below it after 5R. The 21-day trail sells the last third."
+    "At 3R we hold; the first sell is a judgment. 5R comes in about 7 weeks: the stop goes to breakeven.",
+    "Failure mode: a fade back through the pivot. AX rolled over below it after 5R. The 21-day trail sells the rest."
    ],
    "facts": [
     "d06",

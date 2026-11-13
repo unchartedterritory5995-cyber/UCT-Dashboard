@@ -35,7 +35,8 @@ LINEAGE = os.path.join(ROOT, "docs", "study", "library", "lineage.json")
 # The thresholds are the rules in LIBRARY.md section 3. Change them there first.
 MIN_SCENARIO = 0.20
 MIN_TF = 0.15
-MAX_CHOICE = 0.75            # mcq + scenario together may not be more than this share of a unit
+MAX_CHOICE = 0.85            # mcq + scenario together may not be more than this share of a unit (was 0.75; owner
+                            # 2026-11-12: multiple choice over typed numbers, so the typed-number questions became mcq)
 POSITION_MIN_N = 12          # position and length tells are only judged on units with at least this many choice items
 POSITION_MAX_SHARE = 0.45    # no answer slot may hold more than this share of a unit's choice answers
 POSITION_MIN_SHARE = 0.08

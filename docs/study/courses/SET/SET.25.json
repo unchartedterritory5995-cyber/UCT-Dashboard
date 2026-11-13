@@ -2,7 +2,7 @@
  "unit": "SET.25",
  "track": "SET",
  "title": "Oops Reversal",
- "teaches": "The Oops as we trade it: one daily candle in a leader after an orderly pullback, that opens under the prior close, trades under the prior day's low and closes back over the prior close, with a Super Oops closing over the prior high; the buy is a market order as price trades back over the prior close after the undercut, the stop sits a few cents under the Oops day's low, a third comes off at 3R and 5R, a close back under the prior close is a warning and the stop is the exit.",
+ "teaches": "The Oops as we trade it: one daily candle in a leader after an orderly pullback, that opens under the prior close, trades under the prior day's low and closes back over the prior close, with a Super Oops closing over the prior high; the buy is a market order as price trades back over the prior close after the undercut, the stop sits a few cents under the Oops day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, a close back under the prior close is a warning and the stop is the exit.",
  "skills": [
   {
    "id": "setup.oops_reversal",

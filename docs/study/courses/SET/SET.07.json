@@ -2,7 +2,7 @@
  "unit": "SET.07",
  "track": "SET",
  "title": "Flat Base Breakout",
- "teaches": "The flat base breakout as we trade it: a leader rests in a box near its highs above the 50-day and 200-day, the pivot is the base's highest high, the buy is the trade through it at market in regular hours, the stop sits a few cents under the breakout day's low, a third comes off at 3R and 5R with the rest on the trail, and a loss taken at the stop is the system working.",
+ "teaches": "The flat base breakout as we trade it: a leader rests in a box near its highs above the 50-day and 200-day, the pivot is the base's highest high, the buy is the trade through it at market in regular hours, the stop sits a few cents under the breakout day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.flat_base",
@@ -981,7 +981,7 @@
     "NUS, September 2013. The stock nearly doubled, then shelves six weeks, riding the rising 10 and 21-day. Three taps of 90.",
     "Context and pattern check out: above its 50-day and 200-day, shallow at 10.3%, tight, a flat ceiling. The pivot is 90.",
     "2013-09-09: it trades through 90 on 1.9x volume. Buy at market, 90.01. Stop a few cents under the day's low, 88.22.",
-    "Failure mode: a close back inside the base, stop taken next day. Instead it reaches 3R the next session. Trim a third."
+    "Failure mode: a close back inside the base, stop taken next day. Instead it reaches 3R the next session. We hold."
    ],
    "facts": [
     "d01",
@@ -1020,9 +1020,9 @@
    "title": "WSM, September 2023: the throwback and the trims",
    "steps": [
     "WSM, 2023. An 8-week shelf, 14.6% deep, four taps, after a 30% run. On 2023-09-25 it breaks out on 4.99x volume.",
-    "Buy at market, 73.16. Stop under the day's low, 72.24. 3R the next day: a third off, stop to breakeven.",
-    "5R by day 10: another third off. Then a throwback to 71.56, through the pivot and the original stop.",
-    "Failure mode: a close back inside the base. It came after both trims were due; the trail rode the run to 99."
+    "Buy at market, 73.16. Stop under the day's low, 72.24. 3R comes the next day, too soon to sell.",
+    "5R by day 10: time for the first sell. Then a throwback to 71.56, through the pivot and the original stop.",
+    "Failure mode: a close back inside the base. It came after the first sell; the trail rode the run to 99."
    ],
    "facts": [
     "d05",

@@ -2,7 +2,7 @@
  "unit": "SET.15",
  "track": "SET",
  "title": "EMA Crossback",
- "teaches": "The EMA Crossback as we trade it: the first pullback into the rising short averages after a stock has turned up out of a decline (a Wedge Pop) or broken out, a hold day that reaches the zone and closes at or above the 20 EMA in the upper half of its range, the buy is the trade a few cents over the hold day's high within three sessions, the stop sits a few cents under the hold day's low, a third comes off at 3R and 5R with the rest on the trail, and a loss at the stop is the system working.",
+ "teaches": "The EMA Crossback as we trade it: the first pullback into the rising short averages after a stock has turned up out of a decline (a Wedge Pop) or broken out, a hold day that reaches the zone and closes at or above the 20 EMA in the upper half of its range, the buy is the trade a few cents over the hold day's high within three sessions, the stop sits a few cents under the hold day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss at the stop is the system working.",
  "skills": [
   {
    "id": "setup.ema_crossback",
@@ -829,7 +829,7 @@
     "UAA, 2015. A leader pops on 1.5x volume on 06-05, then drifts back to its averages in just 2 quiet sessions.",
     "The hold day reaches the zone and closes above the 20 EMA, 9 still above 20. Nothing is bought yet.",
     "2015-06-16: it trades over the hold day's high. Buy at market, 40.82. Stop a few cents under the hold day's low, 40.17.",
-    "Failure mode: the hold day's low breaks. Instead it reaches 3R in 5 days. Trim a third."
+    "Failure mode: the hold day's low breaks. Instead 3R comes in 5 days. First sell: a judgment, into the push."
    ],
    "facts": [
     "d01",
@@ -849,7 +849,7 @@
     "CLS, 2024. A pop on 1.1x volume on 09-19, then a quiet 4-day drift down to the averages.",
     "The hold day undercuts the 20 EMA by 0.6% and closes back over it. That sits inside the zone.",
     "2024-10-03: it trades over the hold day's high. Buy at market, 50.64. Stop 48.94, 3.4% away. A wider stop means fewer shares.",
-    "Failure mode: stopped within days. Instead 3R comes in 3 days. Trim a third."
+    "Failure mode: stopped within days. Instead 3R comes in 3 days. First sell: a judgment, into the push."
    ],
    "facts": [
     "d03",

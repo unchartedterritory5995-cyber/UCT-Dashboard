@@ -2,7 +2,7 @@
  "unit": "SET.28",
  "track": "SET",
  "title": "Remount",
- "teaches": "The remount as we trade it: a leader loses a line for real, an average or a price level it held, then retakes it with a clear green close. We buy after a quiet day holds above the line, with a market order over that day's high and a real stop a few cents under its low. The close must be above the 200-day, a third comes off at 3R and 5R, and most tries lose small.",
+ "teaches": "The remount as we trade it: a leader loses a line for real, an average or a price level it held, then retakes it with a clear green close. We buy after a quiet day holds above the line, with a market order over that day's high and a real stop a few cents under its low. The close must be above the 200-day, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and most tries lose small.",
  "skills": [
   {
    "id": "setup.remount",
@@ -861,7 +861,7 @@
     "AMD, 2023. The report came after the close on 2023-10-31. On 2023-11-01 it remounts the 50-day.",
     "A remount on the earnings gap is after the report, so it is allowed. The quiet day sets the buy point: 109.41.",
     "2023-11-03: buy at market, 109.42. Stop a few cents under the quiet day's low: 105.86, 3.3% away. Size comes from that stop.",
-    "Failure mode: the stop. Instead it ran to 21.2R. A stop over about 3% means fewer shares."
+    "Failure mode: the stop. Instead it ran to 21.2R. A stop past the 1-3% we prefer means fewer shares."
    ],
    "facts": [
     "d03",

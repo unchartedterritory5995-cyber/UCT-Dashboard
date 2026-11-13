@@ -612,7 +612,7 @@
    "steps": [
     "Bellafiore trades intraday and says you may trade a different time frame. Build the page in a format that works for you.",
     "Kicker entry: over the red day's high, at market. Stop: under the Kicker candle's low, or 3.5% under entry if closer.",
-    "Trims: a third at 3R, a third at 5R. Trail under each higher low or the 10-day average. That's the page."
+    "First sell: judgment, usually day 3 or later. Trail under each higher low or the 10-day average. That's the page."
    ],
    "facts": [
     "f55",

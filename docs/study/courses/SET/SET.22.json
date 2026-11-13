@@ -2,7 +2,7 @@
  "unit": "SET.22",
  "track": "SET",
  "title": "Gap Support",
- "teaches": "Gap Support as we trade it: a leader gaps up, price drifts back days or weeks later to the gap-up day's low (not the prior day's high) while the gap is still open, holds it or breaches it slightly, and closes back over it in the upper half of the test day; above a flat or rising 50-day and the 200-day; the stop sits a few cents under the test day's low; a third comes off at 3R, another at 5R, the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
+ "teaches": "Gap Support as we trade it: a leader gaps up, price drifts back days or weeks later to the gap-up day's low (not the prior day's high) while the gap is still open, holds it or breaches it slightly, and closes back over it in the upper half of the test day; above a flat or rising 50-day and the 200-day; the stop sits a few cents under the test day's low; the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.gap_support",
@@ -838,8 +838,8 @@
    "steps": [
     "GPN, 2013. A quiet stock gaps up on 2013-10-02 on 11.5x volume. The gap-up low, 27.00, is the line.",
     "Five sessions later, on 2013-10-09, the low dips 0.3% under the line. The day closes at 62% of its range.",
-    "The scan buys the test day's close, 27.15. The stop sits a few cents under the test day's low, 26.89.",
-    "Failure mode: a close under the line. Instead it ran to 24.9R: trim a third at 3R and another at 5R."
+    "We buy as price trades back over the line, not the close. Scan fill 27.15. Stop under the test low, 26.89.",
+    "Failure mode: a close under the line. Instead it ran to 24.9R. First sell: a judgment, into the push."
    ],
    "facts": [
     "e01",
@@ -859,8 +859,8 @@
    "steps": [
     "ILMN, 2010. An earnings gap on 2010-10-27 opens 5.6% up on 3.6x volume. The gap-up low, 53.03, is the line.",
     "Four sessions later the low breaks the line by 1.1%, but the day closes at 94% of its range.",
-    "The scan buys the close, 53.27. The stop sits a few cents under the test day's low, 52.40, 1.6% away.",
-    "Failure mode: a close under the line. Instead it ran to 18.6R: trim a third at 3R and another at 5R."
+    "We buy as price trades back over the line, not the close. Scan fill 53.27. Stop under the low, 52.40, 1.6% away.",
+    "Failure mode: a close under the line. Instead it ran to 18.6R. First sell: a judgment, into the push."
    ],
    "facts": [
     "e04",
@@ -880,8 +880,8 @@
    "steps": [
     "AXON, 2022. A gap on 2022-11-09 opens 8.0% up on 3.6x volume. The gap-up low, 161.70, is the line.",
     "The test comes 35 sessions later, on 2022-12-30. A 15% slide stops 0.4% above the line, closing at 82% of its range.",
-    "The scan buys the close, 165.93. The stop sits a few cents under the test day's low, 162.22, 2.2% away.",
-    "Failure mode: the gap fills. Instead it ran to 16.2R: trim at 3R and 5R, trail the last third."
+    "We buy as price trades back over the line, not the close. Scan fill 165.93. Stop under the low, 162.22, 2.2% away.",
+    "Failure mode: the gap fills. Instead it ran to 16.2R: sell part into the push, trail the rest."
    ],
    "facts": [
     "e07",

@@ -2,7 +2,7 @@
  "unit": "SET.47",
  "track": "SET",
  "title": "News Failure",
- "teaches": "The News Failure as we trade it: big, dated news meets the opposite reaction, a bad-news gap down on heavy volume that is back over the prior close by the close, above the 200-day; the buy is a market order as price trades back over the prior close, the stop sits a few cents under the news day's low (wide, so the size comes from the stop), a third comes off at 3R and 5R with the rest on the trail, and a loss at the stop is the system working. The short is the mirror.",
+ "teaches": "The News Failure as we trade it: big, dated news meets the opposite reaction, a bad-news gap down on heavy volume that is back over the prior close by the close, above the 200-day; the buy is a market order as price trades back over the prior close, the stop sits a few cents under the news day's low (wide, so the size comes from the stop), the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss at the stop is the system working. The short is the mirror, and shorts are recommended only for traders who have already made $1 million.",
  "skills": [
   {
    "id": "setup.news_failure",
@@ -826,7 +826,7 @@
     "AAOI, 2026. News gaps it down 5.5% on 2.1x volume, a 33% shakeout inside a leader's run.",
     "By the close it is green: 0.93 up the day's range and 20.3% over the prior close, an Oops shape.",
     "Buy at market as it trades back over the prior close, 86.36. Stop a few cents under the news day's low, 81.48.",
-    "Stop 5.7%, past our usual 3%, so size comes from it. Failure mode: a new low. Instead 3R came in 1 day."
+    "Stop 5.7%, past our limit, rarely taken; size comes from it. Failure mode: a new low. Instead 3R came in 1 day."
    ],
    "facts": [
     "dAAOI",
@@ -847,7 +847,7 @@
     "SEDG, 2025. An earnings gap takes it down 4.1% on 3.8x volume, after a 24% fall into the 50-day.",
     "By the close it is 28.9% over the prior close, in the top 5% of the range.",
     "Buy at market as it trades back over the prior close, 31.83. Stop a few cents under the news day's low, 30.23.",
-    "Stop 5.0%, past our usual 3%, so size comes from it. Failure mode: a new low. Instead 3R came the next day."
+    "Stop 5.0%, at our limit, so size comes from it. Failure mode: a new low. Instead 3R came the next day."
    ],
    "facts": [
     "dSEDG",
@@ -868,7 +868,7 @@
     "SKIN, 2022. An earnings gap takes it up 4.8% on 3.7x volume, after a 54% run.",
     "By the close it is 16.2% under the prior close, at the low of the day, below the 200-day.",
     "Short at market as it trades back under the prior close, 15.26. Stop a few cents over the day's high, 16.05.",
-    "Stop 5.2%, past our usual 3%, so size comes from it. Failure mode: a new high. Instead 3R came in 6 days."
+    "Stop 5.2%, past our limit, rarely taken; size comes from it. Failure mode: a new high. Instead 3R came in 6 days."
    ],
    "facts": [
     "dSKIN",

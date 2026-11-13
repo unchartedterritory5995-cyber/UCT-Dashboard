@@ -2,7 +2,7 @@
  "unit": "SET.23",
  "track": "SET",
  "title": "Kicker Candle",
- "teaches": "The Kicker as we trade it: a leader already set up, a real red day that closes weak at support, then a day that gaps up at least 1.5%, trades through the red day's high and never fills the gap; the buy is a market order over the red high on the Kicker day (never the close), the stop a few cents under the Kicker day's low or 3.5% under the entry if closer, a third off at 3R and 5R, and a stop-out is the plan working.",
+ "teaches": "The Kicker as we trade it: a leader already set up, a real red day that closes weak at support, then a day that gaps up at least 1.5%, trades through the red day's high and never fills the gap; the buy is a market order over the red high on the Kicker day (never the close), the stop a few cents under the Kicker day's low or 3.5% under the entry if closer, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, and a stop-out is the plan working.",
  "skills": [
   {
    "id": "setup.kicker",
@@ -901,7 +901,7 @@
     "COHR, 2024. A six-week shelf on the 21-day EMA. The red day, down 1.8%, closes at 19% of its range.",
     "2024-01-16: it gaps up 2.6% and opens just over the red high, 42.83. A market order fills at the open.",
     "No low yet: the first stop is 3.5% under the fill, 41.33. At 10:00 raise it to the 30-minute low if higher.",
-    "Failure mode: the gap fills. Instead it closes at 81% of its range, up 8.2%. 3R takes four days: a third off."
+    "Failure mode: the gap fills. Instead it closes at 81% of its range, up 8.2%. 3R takes four days: sell on judgment."
    ],
    "facts": [
     "dCOHR",
@@ -921,7 +921,7 @@
    "steps": [
     "ATRO, 2026. The red day, down 2.7%, drops into the 21-day EMA and the 50-day. It closes at 13% of its range.",
     "2026-06-11: it gaps up 3.0% and trades through the red high. Buy at market, 68.80. The scan's stop was 67.36, 2.1% away.",
-    "Closes at 99% of its range, up 15.1%. 3R on day 1: a third off, stop to breakeven. Another third at 5R.",
+    "Closes at 99% of its range, up 15.1%. 3R on day 1, too soon to sell: stop to breakeven. First sell: judgment.",
     "On the scan's fixed stop it ran 13.8R in two weeks, then gave most back. The trims kept the win."
    ],
    "facts": [

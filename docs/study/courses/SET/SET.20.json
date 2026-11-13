@@ -2,7 +2,7 @@
  "unit": "SET.20",
  "track": "SET",
  "title": "News Gapper",
- "teaches": "The News Gapper as we trade it: a fresh named catalyst, most often an earnings report, gaps a liquid stock up on at least three times its average volume; the gap holds and the day closes green in the upper half; the buy is the first pullback and reclaim, a market order as price trades over the prior day's high after two down days or an inside day that hold the gap-day low, or day one over the opening-range high for an A+; the stop sits a few cents under the pullback low, a third comes off at 3R and 5R with the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
+ "teaches": "The News Gapper as we trade it: a fresh named catalyst, most often an earnings report, gaps a liquid stock up on at least three times its average volume; the gap holds and the day closes green in the upper half; the buy is the first pullback and reclaim, a market order as price trades over the prior day's high after two down days or an inside day that hold the gap-day low, or day one over the opening-range high for an A+; the stop sits a few cents under the pullback low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.news_gapper",
@@ -851,7 +851,7 @@
     "ULTA, 2016. Report on 2016-03-10; the gap day is 2016-03-11, up 14.2% on 4.8x volume. It closes at 94% of its range.",
     "A big gap out of a correction. Then a 4-session pullback, 2.8% deep, that holds the gap-day low.",
     "Day 6: buy at market over the prior day's high, 190.69. Stop a few cents under the pullback low, 186.55.",
-    "Failure mode: a close under the gap-day low. Instead it ran to 12.1R. Trim at 3R and 5R, trail the rest."
+    "Failure mode: a close under the gap-day low. Instead it ran to 12.1R. Sell into a push, trail the rest."
    ],
    "facts": [
     "d01",
@@ -874,7 +874,7 @@
     "TWLO, 2018. Report on 2018-02-13; the gap day is 2018-02-14, up 10.0% on 8.3x volume. It closes at 62% of its range.",
     "It gaps out of a 3-month bottom, through the 200-day. Then a 6-session pullback holds the gap-day low.",
     "Day 8: buy at market over the prior day's high, 33.55. Stop a few cents under the pullback low, 32.59, 2.9% away.",
-    "Failure mode: the pullback closes under the gap-day low. Instead 3R came in 4 sessions. Trim a third, trail the rest."
+    "Failure mode: the pullback closes under the gap-day low. Instead 3R came in 4 sessions. First sell: judgment; trail the rest."
    ],
    "facts": [
     "d04",
@@ -896,7 +896,7 @@
     "NFLX, 2024. Report on 2024-10-17; the gap day is 2024-10-18, up 7.3% on 5.6x volume. It closes at 92% of its range.",
     "A gap to new highs from a tight base. The pullback runs 4 sessions, 2.9% deep, and holds the gap-day low.",
     "Day 6: buy at market over the prior day's high, 75.62. Stop a few cents under the pullback low, 74.38, 1.6% away.",
-    "Failure mode: the gap fills, or it closes red. Instead a two-month run: trim at 3R and 5R, trail the rest."
+    "Failure mode: the gap fills, or it closes red. Instead a two-month run: sell into a push, trail the rest."
    ],
    "facts": [
     "d07",

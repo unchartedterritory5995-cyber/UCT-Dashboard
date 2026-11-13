@@ -2,7 +2,7 @@
  "unit": "SET.11",
  "track": "SET",
  "title": "Launchpad",
- "teaches": "The launchpad as we trade it: after a real correction a stock rests five weeks or more under three averages pinched within 3% of price near a flat 200-day, the launch bar closes above all four averages up 2% or more in the top of its range, the stop sits a few cents under the launch day's low, a third comes off at 3R and 5R with the rest on the 21-day trail, and the stock, the base and the market, not the bar, carry the edge.",
+ "teaches": "The launchpad as we trade it: after a real correction a stock rests five weeks or more under three averages pinched within 3% of price near a flat 200-day, the launch bar closes above all four averages up 2% or more in the top of its range, the stop sits a few cents under the launch day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 21-day trail, and the stock, the base and the market, not the bar, carry the edge.",
  "skills": [
   {
    "id": "setup.launchpad",
@@ -1021,7 +1021,7 @@
     "KBH, 2004. A four-month correction of 24.8%. Then two months around a flat 200-day while the averages pinch within 3%.",
     "Context and pattern check out: a real correction, a long base, a tight bundle, the 200-day close. Now wait for the launch.",
     "2004-09-01: up 2.5%, closing at 0.94 of its range, above all four averages. Fill 35.26; stop under the low, 34.26.",
-    "Failure mode: the next session trades through the launch low. Instead 3R comes in seven sessions. Trim a third."
+    "Failure mode: the next session trades through the launch low. Instead 3R comes in seven sessions. Time for the first sell."
    ],
    "facts": [
     "d01",
@@ -1041,7 +1041,7 @@
     "BABA, 2025. After a 31.6% correction, 26 of 40 closes sat under the bundle, none above. The 200-day is 1% away.",
     "That is the picture: weeks under pinched averages, with the 200-day close by.",
     "2025-01-24: up 3.5%, closing at its high above all four. Fill 89.14; stop a few cents under the low, 86.43.",
-    "Not stacked on the day; the stack formed within 3 sessions. 3R came in three sessions. The first third comes off."
+    "Not stacked on the day; the stack formed within 3 sessions. 3R came in three sessions. The first sell is judgment."
    ],
    "facts": [
     "d03",

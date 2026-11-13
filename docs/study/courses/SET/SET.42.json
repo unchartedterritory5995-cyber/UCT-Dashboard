@@ -2,7 +2,7 @@
  "unit": "SET.42",
  "track": "SET",
  "title": "4B Setup",
- "teaches": "The 4B- (Stan Weinstein) as we trade it: after a Stage 4 decline under a falling 30-week line, a stock that has seen its low for the cycle sets a higher low on drying volume, reclaims the 50-day and pauses above it with room to run, the buy is the trade through the pause high at market once price is back above the 200-day and never more than 4% past it, the trade is short term on our trims with no adding, and a plain 4B that is still falling is much too soon to buy.",
+ "teaches": "The 4B- (Stan Weinstein) as we trade it: after a Stage 4 decline under a falling 30-week line, a stock that has seen its low for the cycle sets a higher low on drying volume, reclaims the 50-day and pauses above it with room to run, the buy is the trade through the pause high at market once price is back above the 200-day and never more than 4% past it, the trade is short term, with the first sell a judgment on day 3 or later and no adding, and a plain 4B that is still falling is much too soon to buy.",
  "skills": [
   {
    "id": "setup.weinstein_4b",
@@ -841,7 +841,7 @@
     "NUS, 2013. A December capitulation low, then a February higher low. Three months of flat 150 and 200-day lines.",
     "A 19-day pause sits above a turning 50-day. The low is 48% under the high; the close is above the 200-day.",
     "2013-04-18: price trades over the pause high. Buy at market, 49.99. Stop 49.05, 1.9% away.",
-    "Failure mode: Stage 4 resumes and the stop is hit. Instead the best run was 31.9R. Trim a third at 3R."
+    "Failure mode: Stage 4 resumes and the stop is hit. Instead the best run was 31.9R. First sell by judgment."
    ],
    "facts": [
     "d03",
@@ -861,7 +861,7 @@
     "PENN, 2019. A long Stage 4 under a falling 30-week line. The August low is 53% under the high.",
     "An October higher low, 7.7% above it, then a 17-day pause above a 50-day that has turned up.",
     "2019-11-05: price trades over the pause high, above the 200-day. Buy at market, 22.12. Stop 21.49, 2.8% away.",
-    "Failure mode: the break stalls under a falling long average, stop taken. Instead the best run was 15.7R. Trim at 3R."
+    "Failure mode: the break stalls under a falling long average, stop taken. Instead the best run was 15.7R. First sell by judgment."
    ],
    "facts": [
     "d01",

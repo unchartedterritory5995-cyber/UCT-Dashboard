@@ -2,7 +2,7 @@
  "unit": "V.05",
  "track": "V",
  "title": "Setup words",
- "teaches": "The names on our setup list and what each one means: the Kicker, Oops Reversal, Slingshot, Launchpad, High Volume Edge (HVC), Gap Support and the Go Signal, the catalog family each sits in, the Bear gap lesson, and the plan words every setup carries: trigger, stop, R, a third off at 3R and at 5R, the stop to breakeven, partials, trail.",
+ "teaches": "The names on our setup list and what each one means: the Kicker, Oops Reversal, Slingshot, Launchpad, High Volume Edge (HVC), Gap Support and the Go Signal, the catalog family each sits in, the Bear gap lesson, and the plan words every setup carries: trigger, stop, R, the first sell as a judgment (usually day 3 or later), the stop to breakeven, partials, trail.",
  "skills": [
   {
    "id": "vocab.setup_terms",
@@ -671,7 +671,7 @@
    "title": "Every setup carries a plan",
    "steps": [
     "Every trade plan we teach hands you two prices: the trigger, which is the entry, and the stop.",
-    "R is your risk per share, entry to stop. A third comes off at 3R and another at 5R.",
+    "R is your risk per share, entry to stop. The first sell is a judgment, usually day 3 or later.",
     "Then you trail. The stop follows the stock up, under each higher low or a rising average."
    ],
    "facts": [
@@ -710,7 +710,7 @@
    "steps": [
     "The textbook kicker is a down candle, then a gap up the other way.",
     "Investopedia calls it highly reliable. Bulkowski's tests found it reversed the trend 53% of the time, almost random.",
-    "So I don't trade the name. I trade the plan: our entry, our stop, a third off at 3R and at 5R."
+    "So I don't trade the name. I trade the plan: our entry, our stop, a first sell by judgment."
    ],
    "facts": [
     "t01",

@@ -2,7 +2,7 @@
  "unit": "F10.05",
  "track": "F10",
  "title": "Trims, trails and scaling out",
- "teaches": "We buy the full size at one price with one stop and never add to it; we scale OUT: a third at 3R with the stop moved to breakeven, another third at 5R, and the last third trails a rising average; never average down; and what scaling out costs and what it buys.",
+ "teaches": "We buy the full size at one price with one stop and never add to it; we scale OUT: the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the stop moved to breakeven after it, and the rest trails a rising average; never average down; and what scaling out costs and what it buys.",
  "skills": [
   {
    "id": "orders.scaling",
@@ -651,7 +651,7 @@
    "title": "Scaling out, and what it costs",
    "steps": [
     "Scaling out means selling part of a winner and letting the rest ride.",
-    "Our ladder: a third at 3R, stop to breakeven; a third at 5R; the last third trails a rising average.",
+    "Our way: the first sell is a judgment, usually day 3 or later. Stop to breakeven; the rest trails a rising average.",
     "It isn't free. In Bulkowski's tests, scaling out made less when the stock ran all the way.",
     "It pays when the stock comes back before your target. You're trading some upside for a gain in hand."
    ],
@@ -674,7 +674,7 @@
    "steps": [
     "We buy the full size at one price, with one stop. No starter piece, no adding as it works.",
     "The size is set before the buy, from the stop, and goes in as one market order.",
-    "What we scale is the exit: a third off at 3R, a third at 5R, the last third on a trail."
+    "What we scale is the exit: a first sell by judgment, usually day 3 or later, then a trail."
    ],
    "facts": [
     "h11",

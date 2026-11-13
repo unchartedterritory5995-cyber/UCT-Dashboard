@@ -2,7 +2,7 @@
  "unit": "SET.19",
  "track": "SET",
  "title": "Power Earnings Gap",
- "teaches": "The Power Earnings Gap as we trade it: an established leader in a base or a quiet uptrend reports a quarter the market did not expect and gaps up on heavy volume; the gap day closes strong with the gap still open; we buy as price trades over the first orderly pause high with a market order, the stop sits a few cents under the pause or trigger-day low, a third comes off at 3R and 5R with the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
+ "teaches": "The Power Earnings Gap as we trade it: an established leader in a base or a quiet uptrend reports a quarter the market did not expect and gaps up on heavy volume; the gap day closes strong with the gap still open; we buy as price trades over the first orderly pause high with a market order, the stop sits a few cents under the pause or trigger-day low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.power_earnings_gap",
@@ -877,7 +877,7 @@
     "AMZN, 2017. A five-month base, then a report after the close on 2017-10-26. So 2017-10-27 is the PEG day.",
     "The gap is 6 ATRs on 5.5x volume, closing at 0.92 of its range. The pause: five days, 1.7% deep.",
     "Buy at market over the pause high, 56.14. Stop a few cents under the low, 55.39.",
-    "Failure mode: the gap fills, or a close under the gap-day low. Instead 3R came in 13 sessions: trim a third."
+    "Failure mode: the gap fills, or a close under the gap-day low. Instead 3R came in 13 sessions. Sell into the push."
    ],
    "facts": [
     "d01",
@@ -899,7 +899,7 @@
     "BIDU, 2010. A four-month flat shelf. Report after the close on 2010-02-09, so 2010-02-10 is the PEG day, up 8.5%.",
     "The gap clears the shelf on 3.0x volume, closing at 0.95 of its range. Then two tight days, 0.3% deep.",
     "Buy at market over the pause high, 48.93. Stop a few cents under the low, 48.20.",
-    "Failure mode: a close under the PEG-day low. Instead it ran ten weeks up the 10-day. Trim at 3R and 5R."
+    "Failure mode: a close under the PEG-day low. Instead it ran ten weeks up the 10-day. We sell into a push."
    ],
    "facts": [
     "d04",
@@ -922,7 +922,7 @@
     "COCO, 2026. A report before the open on 2026-04-29 makes that day the PEG day: a 17.4% gap on 4.0x volume.",
     "The day closes at 0.98 of its range, the strong close we want. Then a six-day flag, 5.1% deep, before the buy.",
     "Buy at market over the pause high, 69.58. Stop a few cents under the low, 68.27, 1.9% away.",
-    "A third comes off at 3R, another at 5R, within about two weeks. The last third trails the 10-day."
+    "We sell part into the push within about two weeks, day 3 or later. The rest trails the 10-day."
    ],
    "facts": [
     "d14",

@@ -10935,7 +10935,7 @@
    "q": "Scaling out, and what it costs",
    "steps": [
     "Scaling out means selling part of a winner and letting the rest ride.",
-    "Our ladder: a third at 3R, stop to breakeven; a third at 5R; the last third trails a rising average.",
+    "Our way: the first sell is a judgment, usually day 3 or later. Stop to breakeven; the rest trails a rising average.",
     "It isn't free. In Bulkowski's tests, scaling out made less when the stock ran all the way.",
     "It pays when the stock comes back before your target. You're trading some upside for a gain in hand."
    ],
@@ -11032,7 +11032,7 @@
   "difficulty": 1,
   "id": "si_ae10ac21f49f",
   "lesson_origin": "session",
-  "lesson_text": "What we scale is the exit: a third off at 3R, a third at 5R, the last third on a trail.",
+  "lesson_text": "What we scale is the exit: a first sell by judgment, usually day 3 or later, then a trail.",
   "module": "F10",
   "prompt_json": {
    "order": 4,
@@ -11042,7 +11042,7 @@
    "steps": [
     "We buy the full size at one price, with one stop. No starter piece, no adding as it works.",
     "The size is set before the buy, from the stop, and goes in as one market order.",
-    "What we scale is the exit: a third off at 3R, a third at 5R, the last third on a trail."
+    "What we scale is the exit: a first sell by judgment, usually day 3 or later, then a trail."
    ],
    "subject": "F10.05#w4"
   },

@@ -2,7 +2,7 @@
  "unit": "SET.40",
  "track": "SET",
  "title": "Inside Day",
- "teaches": "The inside day as we trade it: a quiet bar whose high and low both sit inside the prior day's, used as an entry tool inside a bigger setup in a leader above its 200-day, bought as price trades over the high, with the stop a few cents under the inside day's low, the buy off if the low trades first, a third off at 3R and 5R and the rest on the trail, and the knowledge that the bar alone is near random while the stock, the location and the market carry the edge.",
+ "teaches": "The inside day as we trade it: a quiet bar whose high and low both sit inside the prior day's, used as an entry tool inside a bigger setup in a leader above its 200-day, bought as price trades over the high, with the stop a few cents under the inside day's low, the buy off if the low trades first, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and the knowledge that the bar alone is near random while the stock, the location and the market carry the edge.",
  "skills": [
   {
    "id": "setup.inside_day",
@@ -926,7 +926,7 @@
     "NVDA, 2024. A breakout, then four days later an inside day on light volume, above a rising 50 and 200-day.",
     "The bar is small, 36% of the mother bar, and quiet. Location first: days after a breakout in a leader.",
     "2024-01-16: it opens 0.1% over the trigger. Buy the open at market, 55.02. Stop a few cents under the inside low, 54.28.",
-    "Failure mode: the break lasts a day and the stop goes. Instead 3R comes in two days. Trim a third."
+    "Failure mode: the break lasts a day and the stop goes. Instead 3R comes in two days. First sell is judgment."
    ],
    "facts": [
     "d04",
@@ -947,7 +947,7 @@
     "MPC, 2013. A two-week shelf at the 10-day, then an inside day closing near its high on 0.66x the mother bar's volume.",
     "Quiet, light, at the 10-day: the location carries the trade, not the bar.",
     "2013-01-15: price trades over the high. Buy at market, 31.33. Stop a few cents under the low, 30.90, 1.37% away.",
-    "Failure mode: the low trades first, or the break lasts a day. Instead 3R came the next day; a third comes off."
+    "Failure mode: the low trades first, or the break lasts a day. Instead 3R came the next day. No day-one sell."
    ],
    "facts": [
     "d02",
@@ -966,7 +966,7 @@
     "VST, 2023. A plain inside day at the 10-day in a slow, orderly trend. Nothing dramatic about the bar.",
     "2023-12-22: price trades over the high. Buy at market, 38.00. Stop a few cents under the inside day's low, 37.53.",
     "Failure mode: a stall still under 1R after 10 days is sold. Instead it reaches 3R on day 10.",
-    "A third at 3R, a third at 5R, then trail the rest. In our test, buys without a trail lose on average."
+    "First sell by judgment, then trail the rest. In our test, buys without a trail lose on average."
    ],
    "facts": [
     "d03",

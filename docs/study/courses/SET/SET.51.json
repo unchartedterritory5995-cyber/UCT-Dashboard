@@ -2,7 +2,7 @@
  "unit": "SET.51",
  "track": "SET",
  "title": "Mean Reversion",
- "teaches": "Mean reversion as we trade it: a swing trade against a short, unusually fast drop in a leader, bought on the turn and never on the falling price, with the stop a few cents under the flush low, a third off at 3R and 5R and the rest on the trail, and a loss at the stop is the plan working.",
+ "teaches": "Mean reversion as we trade it: a swing trade against a short, unusually fast drop in a leader, bought on the turn and never on the falling price, with the stop a few cents under the flush low, the first sell a judgment, usually day 3 or later into a 3, 5 or 7 day push, and the rest on the trail, and a loss at the stop is the plan working.",
  "skills": [
   {
    "id": "setup.mean_reversion",
@@ -818,7 +818,7 @@
     "EQT, August 2011. A leader up 32% falls five straight days, 25.2% in all, in a market sell-off.",
     "Flush day: a 2.2 ATR drop on 2.0x volume, closing on the rising 200-day. A level to lean on. We wait.",
     "2011-08-09: it climbs back over the flush close. Buy at market, 26.76. Stop a few cents under the low, 26.00.",
-    "Failure mode: a second flush under the low. Instead it closes near its high; 3R prints next day. We trim a third."
+    "Failure mode: a second flush under the low. Instead it closes near its high; 3R prints next day. Too early to sell."
    ],
    "facts": [
     "dEQT",
@@ -837,7 +837,7 @@
     "KRYS, August 2023. A leader up 59% slides four days, 17.9%. The report on 2023-08-07 is the flush day.",
     "It is 12.6% under a rising 50-day, still 20% above its 200-day. A 3.3 ATR drop on 4.0x volume. We wait.",
     "2023-08-08: it opens above the flush close. Buy at market, 109.13. Stop a few cents under the lows, 106.88.",
-    "Failure mode: a weak close. Instead it closes at 3R and 5R prints two sessions later. We trim a third at each."
+    "Failure mode: a weak close. Instead it closes at 3R and 5R prints two sessions later. We sell by judgment, not rule."
    ],
    "facts": [
     "dKR",

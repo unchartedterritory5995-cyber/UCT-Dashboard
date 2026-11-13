@@ -2,7 +2,7 @@
  "unit": "SET.49",
  "track": "SET",
  "title": "Capitulation",
- "teaches": "The capitulation as we trade it: a straight-down burst in a liquid stock or index, ending in a flush day whose low sits 2 ATR or more under the prior close on at least twice the usual volume, 15% or more off the 10-session high. We never buy the falling price or the flush close. We buy the undercut and reclaim of the flush low within 3 sessions, stop a few cents under the low of the day we bought, take a third at 3R and 5R, and accept the stop as the cost of being early.",
+ "teaches": "The capitulation as we trade it: a straight-down burst in a liquid stock or index, ending in a flush day whose low sits 2 ATR or more under the prior close on at least twice the usual volume, 15% or more off the 10-session high. We never buy the falling price or the flush close. We buy the undercut and reclaim of the flush low within 3 sessions, stop a few cents under the low of the day we bought, take the first sell as a judgment, usually day 3 or later into a 3, 5 or 7 day push, and accept the stop as the cost of being early.",
  "skills": [
   {
    "id": "setup.capitulation",
