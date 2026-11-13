@@ -521,7 +521,8 @@ The committed full record is still `13f1b01f5e` plus these re-runs. No full c2 r
 the final fix's product changes can touch were re-walked with `--attach --only` on ONE held c2 sandbox (an empty data
 dir, port 8132, tip `7e849c6740`). Raw records, one per attach run: `evidence/fin-walk/7e849c6740-rewalk/c2/`
 (`walk-prev-*.json` are runs 1 to 5 in order, `walk.json` is run 6; paths redacted to `<temp>` / `<home>`; members are
-synthetic `@local.dev` accounts). Sandbox integrity: pre-boot, post-boot, post-prewarm CLEAN; at shutdown the shared
+synthetic `@local.dev` accounts). Runs 2 to 6 also carried the gallery "Use" re-point from the working tree; it is
+committed as `7e99c6fdbd` (their `tool_tree` reads `7e849c6740`). Sandbox integrity: pre-boot, post-boot, post-prewarm CLEAN; at shutdown the shared
 root's `bars.db` had changed (modified 20:30 local, the minute the box's 8:30 PM scheduled jobs ran; nothing in this
 run is known to write it; recorded as is, see the part 2 report).
 
