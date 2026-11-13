@@ -36,7 +36,7 @@ class OfferDoorCatch extends Component {
 
 /** Notebook simplify: the "New in your Notebook" offer never opens by itself. The gate, its eligibility rules and
  *  its queue stay as they were; this is the one switch that stops the automatic trigger. Every walkthrough is still
- *  reachable from Help and the Learn menu. A rail may build its own door with `makeTourOfferDoor(load, wait, true)`. */
+ *  reachable from Help's Walkthroughs (the Learn menu went with Research home). A rail may build its own door with `makeTourOfferDoor(load, wait, true)`. */
 export const AUTO_TOUR_OFFER = false
 
 /** Build a door over `load` (rails hand in their own loader; the app uses the real gate). */

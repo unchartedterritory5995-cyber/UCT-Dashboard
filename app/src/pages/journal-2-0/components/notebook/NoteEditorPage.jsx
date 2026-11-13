@@ -1412,8 +1412,15 @@ export default function NoteEditorPage({
   /** The ONE Ask door outside AskPanel: it presses the header's own toggle, so the panel opens
    *  exactly as that button opens it (no second implementation). */
   const openAskFrom = (opener) => {
+    const toggle = askRowRef.current?.querySelector('[data-ask-toggle]')
+    // Final fix (C5): pressing the toggle of an Ask that is already open CLOSED it. A door named "Ask about this note"
+    // leaves it open and puts the cursor in its question field (the panel keeps the opener it was opened from).
+    if (toggle?.getAttribute('aria-expanded') === 'true') {
+      document.getElementById('ask-input-note')?.focus()
+      return
+    }
     askOpenerRef.current = opener || null
-    askRowRef.current?.querySelector('[data-ask-toggle]')?.click()
+    toggle?.click()
   }
   useEffect(() => {
     const chrome = chromeRef.current
@@ -5912,7 +5919,7 @@ export default function NoteEditorPage({
             type="button"
             className={`${styles.toolBtn} ${styles.foldDesktop} ${paletteOpen ? styles.toolBtnActive : ''}`}
             onClick={togglePalette}
-            title="Insert a chart or preset — pick ticker and timeframe by clicking"
+            title="Insert a chart or preset: pick ticker and timeframe by clicking"
             aria-label="Insert widget"
           >
             ⊞ Insert
@@ -5943,7 +5950,7 @@ export default function NoteEditorPage({
               type="button"
               className={`${styles.toolBtn} ${paletteOpen ? styles.toolBtnActive : ''}`}
               onClick={togglePalette}
-              title="Insert a chart or preset — pick ticker and timeframe by clicking"
+              title="Insert a chart or preset: pick ticker and timeframe by clicking"
               aria-label="Insert"
             >
               ⊞ Insert

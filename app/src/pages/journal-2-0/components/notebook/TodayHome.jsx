@@ -697,7 +697,7 @@ export default function TodayHome({
         <div className={styles.headActions}>
           <button type="button" className="btn btn-ghost btn-sm" onClick={quickCapture}>Quick capture</button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSelectAllNotes?.()}>All notes</button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => onCreateNote?.()}>+ New note</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => onCreateNote?.()}>+ New</button>
         </div>
       </header>
       {error && <LoadFailed compact what="Today" error={error} onRetry={refresh} />}

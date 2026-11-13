@@ -108,6 +108,6 @@ describe('the words both doors show', () => {
   })
   it('a failure says the door\'s own sentence when it wrote one, else a plain retry line', () => {
     expect(reviewDraftFailedSentence('weekly', { memberMessage: 'Still syncing.' })).toBe('Still syncing.')
-    expect(reviewDraftFailedSentence('weekly', new Error('500'))).toBe('Could not draft the weekly review — try again.')
+    expect(reviewDraftFailedSentence('weekly', new Error('500'))).toBe('Could not draft the weekly review. Try again.')
   })
 })

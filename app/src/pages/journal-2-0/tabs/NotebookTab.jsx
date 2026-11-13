@@ -2469,7 +2469,8 @@ export default function NotebookTab() {
   const phoneOnly = styles.phoneOnlyItem
   const touchOnly = styles.touchOnlyItem
   const moreMenuItems = [
-    { key: 'today', label: 'Today', icon: 'sun', run: openToday, className: phoneOnly },
+    // Final fix (C5): the same words as the toolbar's button and the first run ("Today's note").
+    { key: 'today', label: "Today's note", icon: 'sun', run: openToday, className: phoneOnly },
     { key: 'ask', label: 'Ask your Notebook', icon: 'sparkle', run: openAiFromMenu, className: touchOnly },
     // Final fix (A1): the template-gallery and template-library walkthroughs open here on a phone (a literal anchor).
     {
@@ -3270,7 +3271,7 @@ export default function NotebookTab() {
           <div className={styles.empty}>
             <p>Your notebook is empty.</p>
             <p className={styles.emptyHint}>
-              Start from a template — or a blank page.
+              Start from a template, or a blank page.
             </p>
             {!hasActiveFilters && (
               <div className={styles.emptyImportPitch}>

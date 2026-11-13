@@ -2443,6 +2443,39 @@
       ]
     },
     {
+      "key": "uct.notebook.list.layout",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "setting",
+      "label": "Notes list layout (rows or cards)",
+      "files": [
+        "app/src/pages/journal-2-0/tabs/NotebookTab.jsx"
+      ]
+    },
+    {
+      "key": "uct.notebook.sidebar.moreOpen",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Folders panel More fold open",
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx"
+      ]
+    },
+    {
+      "key": "uct.notebook.sidebar.tagsOpen",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Folders panel Tags fold open",
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx"
+      ]
+    },
+    {
       "key": "uct.notebook.tickersOpen",
       "store": "localStorage",
       "scope": "device-local",

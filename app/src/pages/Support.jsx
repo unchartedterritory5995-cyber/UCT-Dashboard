@@ -604,7 +604,7 @@ export const FAQS = [
       note (from its menu) to keep it out of your lists without deleting it, and
       <strong> Lock</strong> it to switch editing off until you unlock it. Select several notes to
       move, tag, archive or delete them together. Deleted notes go to Trash, where you can restore
-      them.</>,
+      them. Trash and Archived are under <strong>More</strong> in the folders panel.</>,
   },
   {
     id: 'notebook-search-quick-switcher',
@@ -671,8 +671,8 @@ export const FAQS = [
         <li><strong>Word (.docx)</strong> — headings, lists, tables and images as Word's own;
           anything Word has no match for becomes plain text.</li>
       </ul>
-      For one note, use the <strong>Export</strong> menu in the note's toolbar. For a PDF, choose
-      <strong> Print</strong>, then Save as PDF.</>,
+      For one note, use the <strong>Export</strong> menu in the note's toolbar. For a PDF, open
+      <strong> Export</strong>, choose <strong>Print</strong>, then Save as PDF.</>,
   },
   {
     id: 'notebook-offline-conflicted-copies',
@@ -705,7 +705,7 @@ export const FAQS = [
       thesis, a daily note and a checklist) to look around and practise on. It is only offered
       while you have no notes. To remove it, open <strong>More notebook actions</strong> (the three
       dots) on the notes list and choose <strong>Remove the sample notebook</strong>; the sample notes
-      move to Trash, where you can still restore them. Deleting the folder alone keeps its notes: they
+      move to Trash (under <strong>More</strong> in the folders panel), where you can still restore them. Deleting the folder alone keeps its notes: they
       move to Unfiled.<TourLink /></>,
   },
   {

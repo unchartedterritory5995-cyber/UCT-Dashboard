@@ -89,7 +89,8 @@ describe('one read, the M1 layout', () => {
     expect(document.querySelector('[data-today-line]').textContent)
       .toBe('Thursday, Nov 5 · Pre-market · Green regime · 61% above the 50-day · 1 h 12 m to the open')
     expect(screen.getByText('Started from “Daily prep”')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '+ New note' })).toBeInTheDocument()
+    // Final fix (C5): the same words as the notes list's button.
+    expect(screen.getByRole('button', { name: '+ New' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'All notes' })).toBeInTheDocument()
     const setups = screen.getByTestId('today-setups')
     expect(within(setups).getByText('1.2% away')).toBeInTheDocument()

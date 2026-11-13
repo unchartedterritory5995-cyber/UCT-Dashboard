@@ -12,7 +12,7 @@ export const REVIEW_PERIODS = [
 
 /** What a failed draft says. `memberMessage` is a sentence the door wrote for the member (the note is still syncing). */
 export function reviewDraftFailedSentence(period, error) {
-  return error?.memberMessage || `Could not draft the ${period} review — try again.`
+  return error?.memberMessage || `Could not draft the ${period} review. Try again.`
 }
 
 /** Go-live wave 1 (D4): what the notes list's notice line says while a draft runs ("Drafting today's recap…"). */

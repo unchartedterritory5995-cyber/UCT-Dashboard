@@ -355,6 +355,21 @@ describe('the header\'s AI control', () => {
     expect(await screen.findByRole('dialog')).toBeTruthy()
   }, 60000)
 
+  // Final fix (C5): with Ask already open, AI > "Ask about this note" closed it (it pressed the toggle again).
+  it('AI > "Ask about this note" with Ask already open leaves it open and puts the cursor in its field', async () => {
+    latchNotebookFlags({ notebook_writing_help_enabled: true })
+    await mount()
+    const ai = within(header()).getByRole('button', { name: 'AI' })
+    fireEvent.click(ai)
+    fireEvent.click(within(screen.getByRole('menu', { name: 'AI' })).getByRole('menuitem', { name: 'Ask about this note' }))
+    await screen.findByRole('dialog', { name: 'Ask This note' })
+    ai.focus()
+    fireEvent.click(ai)
+    fireEvent.click(within(screen.getByRole('menu', { name: 'AI' })).getByRole('menuitem', { name: 'Ask about this note' }))
+    expect(screen.getByRole('dialog', { name: 'Ask This note' })).toBeTruthy()
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('textbox', { name: /Your question about/ })))
+  }, 60000)
+
   it('Escape closes the AI menu and returns focus to "AI"', async () => {
     latchNotebookFlags({ notebook_writing_help_enabled: true })
     await mount()

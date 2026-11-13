@@ -70,6 +70,15 @@ describe('C1/C2: the walkthrough anchors on the New menu, and the phone rows in 
     expect(names.indexOf('Voice note')).toBe(names.indexOf('Import') + 1)
   })
 
+  // Final fix (C5): the phone row says "Today's note", the words of the toolbar button and the first run.
+  it('⋯: the phone-only Today row reads "Today\'s note", never a bare "Today"', async () => {
+    await renderTab()
+    const menu = openMore()
+    const row = within(menu).getByRole('menuitem', { name: "Today's note" })
+    expect(row.className).toContain(styles.phoneOnlyItem)
+    expect(within(menu).queryByRole('menuitem', { name: 'Today' })).toBeNull()
+  })
+
   it('switches off: no voice row and no Reviews group in either menu', async () => {
     __resetNotebookFlags()
     latchNotebookFlags({})

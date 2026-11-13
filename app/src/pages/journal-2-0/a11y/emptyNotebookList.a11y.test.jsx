@@ -38,6 +38,8 @@ describe('the empty notes list (zero notes): sample door and get-started list', 
     render(<Providers auth={AUTH} route="/journal/notebook?view=all"><NotebookTab /></Providers>)
     await screen.findByText('Your notebook is empty.')
     expect(screen.getByRole('button', { name: /Import notes/ })).toBeInTheDocument()
+    // Final fix (C5): the empty line, with no em dash.
+    expect(screen.getByText('Start from a template, or a blank page.')).toBeInTheDocument()
     await screen.findByRole('heading', { name: 'Get started' })
     // Final fix (C4): with the card up, its "Open the sample notebook" step is the sample door; the standalone
     // "Add a sample notebook" is not drawn beside it.
