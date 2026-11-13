@@ -1,12 +1,6 @@
 import useSWR from 'swr'
 import { useEffect, useMemo, useRef, useState } from 'react'
-
-const postFetcher = ([url, tickers]) =>
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tickers }),
-  }).then(r => (r.ok ? r.json() : {}))
+import { snapshotBatchKey, watchlistMetaFetcher as postFetcher } from './watchlistMetaKey'
 
 // Batch market cap / next earnings / UCT rating / sector / industry for the Watchlist's
 // optional columns. Fundamentals are heavy per ticker, so this is fetched ONLY when at
@@ -60,7 +54,7 @@ export default function useWatchlistMeta(tickers = []) {
     [isLarge, sorted, bulk],
   )
 
-  const key = perSymbol.length ? ['/api/research/snapshot-batch', perSymbol] : null
+  const key = snapshotBatchKey(perSymbol)
   const { data, error } = useSWR(key, postFetcher, {
     refreshInterval: 10 * 60 * 1000,
     dedupingInterval: 60 * 1000,

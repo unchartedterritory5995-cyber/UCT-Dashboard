@@ -43,7 +43,7 @@
 // for, a hidden app drops the queue. Same per-browser kill switch as the
 // indicator warm: localStorage['uct.indwarm.off'] = '1'.
 import { useEffect } from 'react'
-import { preload, mutate } from 'swr'
+import { preload, mutate, unstable_serialize } from 'swr'
 import { SWRGlobalState, cache as swrCache } from 'swr/_internal'
 import { isAppVisible } from './deskVisibility'
 
@@ -74,6 +74,16 @@ function _disabled() {
   try { return localStorage.getItem('uct.indwarm.off') === '1' } catch { return false }
 }
 
+// ⭐ 2026-11-13 — A KEY MAY BE AN ARRAY. The optional header fields (N-day change, theme,
+// relative volume, IPO date) are POSTs keyed `[url, [SYM]]`. SWR files every key under its
+// serialised form, so that form (`id`) is what the cache and the two request maps are read
+// by here; the request and the cache write are made with the surface's key as it gave it.
+function _idOf(key) {
+  if (typeof key === 'string') return key
+  if (!Array.isArray(key) || !key.length) return ''
+  try { return unstable_serialize(key) || '' } catch { return '' }
+}
+
 // SWR's own bookkeeping for the default cache: [, , FETCH, PRELOAD].
 function _swr() {
   try { return SWRGlobalState.get(swrCache) || [] } catch { return [] }
@@ -98,8 +108,8 @@ function _drop(key, raw) {
 /**
  * A mounted surface says "I read this per-symbol resource". Returns the release.
  *
- * @param {(sym: string) => (string|null)} keyOf the surface's OWN SWR key for a symbol
- * @param {(key: string) => Promise<any>} fetcher the surface's own fetcher for that key
+ * @param {(sym: string) => (string|any[]|null)} keyOf the surface's OWN SWR key for a symbol (a string, or SWR's array form)
+ * @param {(key: string|any[]) => Promise<any>} fetcher the surface's own fetcher for that key
  */
 export function registerSymbolResource(keyOf, fetcher) {
   if (typeof keyOf !== 'function' || typeof fetcher !== 'function') return () => {}
@@ -117,25 +127,25 @@ function _pump() {
   if (!_painted) return
   if (!isAppVisible()) { _queue.length = 0; return }
   while (_active < ACTIVE_MAX && _queue.length) {
-    const { key, fetcher } = _queue.shift()
-    if (_held(key) || _busy(key)) continue
+    const { key, id, fetcher } = _queue.shift()
+    if (_held(id) || _busy(id)) continue
     let raw
-    try { raw = preload(key, fetcher) } catch { _failed.set(key, Date.now()); continue }
+    try { raw = preload(key, fetcher) } catch { _failed.set(id, Date.now()); continue }
     _active += 1
     const settle = (ok, data) => {
       _active -= 1
       if (!ok || data === undefined) {
-        _failed.set(key, Date.now())
-        _drop(key, raw)
+        _failed.set(id, Date.now())
+        _drop(id, raw)
       } else {
         // Into the cache the surface reads, unless the surface joined this very request (its
         // own write follows) or its own answer landed first.
         const fetching = _swr()[2]
-        const joined = !!(fetching && fetching[key] && fetching[key][0] === raw)
-        if (!joined && !_held(key)) {
+        const joined = !!(fetching && fetching[id] && fetching[id][0] === raw)
+        if (!joined && !_held(id)) {
           try { mutate(key, data, { revalidate: false }) } catch { /* the surface asks for itself */ }
         }
-        setTimeout(() => _drop(key, raw), _freshMs)
+        setTimeout(() => _drop(id, raw), _freshMs)
       }
       _pump()
     }
@@ -163,13 +173,14 @@ export function warmSymbolResources(syms, _tf, opts = {}) {
     for (const r of _resources) {
       let key = null
       try { key = r.keyOf(sym) } catch { key = null }
-      if (typeof key !== 'string' || !key || fresh.some((j) => j.key === key)) continue
-      const failedAt = _failed.get(key)
+      const id = _idOf(key)
+      if (!id || fresh.some((j) => j.id === id)) continue
+      const failedAt = _failed.get(id)
       if (failedAt !== undefined && now - failedAt < _retryMs) continue
-      if (_held(key) || _busy(key)) continue
-      const at = _queue.findIndex((j) => j.key === key)
+      if (_held(id) || _busy(id)) continue
+      const at = _queue.findIndex((j) => j.id === id)
       if (at >= 0) _queue.splice(at, 1)                  // already waiting: it moves to the front
-      fresh.push({ key, fetcher: r.fetcher })
+      fresh.push({ key, id, fetcher: r.fetcher })
     }
   }
   if (!fresh.length) return 0

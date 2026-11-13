@@ -12,20 +12,15 @@
 // SWR instead RETAINS the last-good data through the blip and retries with
 // backoff (+ revalidateOnReconnect), so the pill rides out a deploy untouched.
 import useSWR from 'swr'
-
-const fetcher = (url) => fetch(url, { credentials: 'include' }).then(r => {
-  if (!r.ok) throw new Error(`single-stock-etfs ${r.status}`)  // transient -> SWR keeps last-good + retries
-  return r.json()
-})
+import { singleStockEtfsKey, singleStockEtfsFetcher as fetcher } from './singleStockEtfsKey'
 
 export default function useSingleStockEtfs(sym) {
-  const skip = !sym || String(sym).startsWith('$IDX:')
   // keepPreviousData is deliberately OFF: the pill is symbol-specific, so on a
   // symbol change we must NOT show the prior symbol's family; undefined-until-
   // resolved (control hidden) is correct. Retention-through-failure above is a
   // different mechanism (SWR keeps data for the SAME key on error).
   const { data } = useSWR(
-    skip ? null : `/api/single-stock-etfs/${encodeURIComponent(String(sym).toUpperCase())}`,
+    singleStockEtfsKey(sym),
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 },
   )

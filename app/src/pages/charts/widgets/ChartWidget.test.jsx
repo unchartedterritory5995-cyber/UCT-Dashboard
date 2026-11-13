@@ -166,3 +166,40 @@ test('a bare letter bound to a drawing tool still opens ticker search', () => {
   fireEvent.keyDown(surface, { key: 'a' })
   expect(openWithSpy).toHaveBeenCalledWith('a')
 })
+
+// 2026-11-13: the Leverage/Inverse control appeared 0.85 s after the candles at the median on
+// production (its lookup started when the chart reached the symbol). The widget now holds that
+// lookup for the rows ahead (lib/symbolResourceWarm.js), under the control's own key.
+test('the widget holds the leverage lookup for the rows a member is about to reach, and releases it', async () => {
+  const { warmSymbolResources, __resetSymbolResourceWarm } = await import('../../../lib/symbolResourceWarm')
+  __resetSymbolResourceWarm({ painted: true })
+  const urls = []
+  vi.stubGlobal('fetch', vi.fn(async (url) => {
+    urls.push(String(url))
+    return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ long: [], short: [] }) }
+  }))
+  try {
+    const { WidgetChromeContext } = await import('../widgetChromeContext')
+    const groups = { A: 'NVDA', B: null, C: null, D: null }
+    // CONTROL: a chart with no widget frame shows no control, makes no lookup, holds none
+    const bare = render(<Wrap color="A" initialGroups={groups} />)
+    urls.length = 0
+    warmSymbolResources(['AMD'], 'D', { priority: true })
+    await new Promise((r) => setTimeout(r, 60))
+    expect(urls.filter((u) => u.includes('single-stock-etfs'))).toEqual([])
+    bare.unmount()
+    __resetSymbolResourceWarm({ painted: true })
+    const view = render(<WidgetChromeContext.Provider value={{}}><Wrap color="A" initialGroups={groups} /></WidgetChromeContext.Provider>)
+    urls.length = 0
+    warmSymbolResources(['AAPL'], 'D', { priority: true })
+    // (a few asks go out at a time: the header's own reads may be ahead of it in the queue)
+    const { waitFor } = await import('@testing-library/react')
+    await waitFor(() => expect(urls).toContain('/api/single-stock-etfs/AAPL'))
+    view.unmount()
+    urls.length = 0
+    expect(warmSymbolResources(['MSFT'], 'D', { priority: true }), 'nothing is held once the widget is gone').toBe(0)
+    expect(urls).toEqual([])
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
