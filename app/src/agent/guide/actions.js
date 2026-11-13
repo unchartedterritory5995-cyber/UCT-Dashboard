@@ -223,7 +223,7 @@ export const TAB_ACTIONS = [
 
 // ── widgets: each row is one control of one widget ──
 const W = {
-  alerts: 'Alerts', news: 'News & Catalysts', tradeExchangeNews: 'News', calendar: 'UCT Terminal', breadth: 'Breadth', optionsflow: 'Options Flow', themes: 'Theme Tracker', fundamentals: 'Fundamentals', profile: 'Stock Profile',
+  alerts: 'Alerts', news: 'News & Catalysts', tradeExchangeNews: 'News', calendar: 'Calendar', breadth: 'Breadth', optionsflow: 'Options Flow', themes: 'Theme Tracker', fundamentals: 'Fundamentals', profile: 'Stock Profile',
   nhnl: 'New Highs / Lows', scatter: 'Market Map', aisearch: 'AI Search', notebook: 'Notebook', volumescan: 'Volume Surge', scanner: 'Scanner',
 }
 const widget = (id, type, label, re, target, name, say, alt) => ({ id, label, re, steps: point(type, W[type], typeof target === 'string' ? inCell(type, target) : target, name, say, alt) })

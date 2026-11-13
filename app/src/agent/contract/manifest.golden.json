@@ -712,7 +712,7 @@
    "domain": "widget",
    "target": "workspace",
    "summary": "Add ONE widget of a given type to the Charts workspace, placed automatically in empty space. Use one op per widget.",
-   "hints": "target = the ref of the workspace entry. \"as\" NAMES THE NEW WIDGET: if any later op in this plan changes the new widget (a new chart's symbol, timeframe, …), set \"as\" to a short unique name (new1, new2, …) and use exactly that name as those ops' target — a later op may not target a new widget whose \"as\" is null. Otherwise \"as\" is null. Example: \"add 2 charts on SPY and QQQ\" → widget.add{type:chart, as:\"new1\"}, widget.add{type:chart, as:\"new2\"}, chart.setSymbol@new1{SPY}, chart.setSymbol@new2{QQQ}. Never drop a ticker the member named (\"open a QQQ chart\" needs its chart.setSymbol). Types: chart (Chart), watchlist (Watchlist), themes (Theme Tracker), scanner (Scanner), fundamentals (Fundamentals), breadth (Breadth), aisearch (AI Search), news (News & Catalysts), notebook (Notebook), profile (Stock Profile), alerts (Alerts), calendar (UCT Terminal), optionsflow (Options Flow), nhnl (New Highs / Lows), nhnlPulse (H/L Pulse), volumescan (Volume Surge), scatter (Market Map).",
+   "hints": "target = the ref of the workspace entry. \"as\" NAMES THE NEW WIDGET: if any later op in this plan changes the new widget (a new chart's symbol, timeframe, …), set \"as\" to a short unique name (new1, new2, …) and use exactly that name as those ops' target — a later op may not target a new widget whose \"as\" is null. Otherwise \"as\" is null. Example: \"add 2 charts on SPY and QQQ\" → widget.add{type:chart, as:\"new1\"}, widget.add{type:chart, as:\"new2\"}, chart.setSymbol@new1{SPY}, chart.setSymbol@new2{QQQ}. Never drop a ticker the member named (\"open a QQQ chart\" needs its chart.setSymbol). Types: chart (Chart), watchlist (Watchlist), themes (Theme Tracker), scanner (Scanner), breadth (Breadth), notebook (Notebook), alerts (Alerts), calendar (Calendar), optionsflow (Options Flow), nhnl (New Highs / Lows).",
    "args": {
     "type": "object",
     "properties": {
@@ -723,19 +723,12 @@
        "watchlist",
        "themes",
        "scanner",
-       "fundamentals",
        "breadth",
-       "aisearch",
-       "news",
        "notebook",
-       "profile",
        "alerts",
        "calendar",
        "optionsflow",
-       "nhnl",
-       "nhnlPulse",
-       "volumescan",
-       "scatter"
+       "nhnl"
       ]
      },
      "as": {
@@ -4153,7 +4146,7 @@
    "domain": "widget",
    "target": "board",
    "summary": "Add another widget as a TAB inside an existing (non-chart) widget — the widget header's \"+\" — and show it. Nothing else on the board moves. Undo closes it.",
-   "hints": "target = the ref of the board entry; widget = its id; type = one of chart, watchlist, themes, scanner, fundamentals, breadth, aisearch, news, notebook, profile, alerts, calendar, optionsflow, nhnl, nhnlPulse, volumescan, scatter. For a chart's own tabs (symbols, timeframes) use chart.addTab.",
+   "hints": "target = the ref of the board entry; widget = its id; type = one of chart, watchlist, themes, scanner, breadth, notebook, alerts, calendar, optionsflow, nhnl. For a chart's own tabs (symbols, timeframes) use chart.addTab.",
    "args": {
     "type": "object",
     "properties": {
@@ -4167,19 +4160,12 @@
        "watchlist",
        "themes",
        "scanner",
-       "fundamentals",
        "breadth",
-       "aisearch",
-       "news",
        "notebook",
-       "profile",
        "alerts",
        "calendar",
        "optionsflow",
-       "nhnl",
-       "nhnlPulse",
-       "volumescan",
-       "scatter"
+       "nhnl"
       ]
      }
     },
