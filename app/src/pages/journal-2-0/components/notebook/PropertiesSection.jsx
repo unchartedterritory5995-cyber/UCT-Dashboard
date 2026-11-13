@@ -1,11 +1,10 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useNoteProperties from '../../hooks/useNoteProperties'
 import LoadFailed from '../LoadFailed'
 import useJ2PropertyDefs from '../../hooks/useJ2PropertyDefs'
 import UIcon from '../../../../components/ui/UIcon'
 import RelationPropertyValue from './RelationPropertyValue'
 import ComputedValue from './ComputedValue'
-import lazyChunk from '../../lib/lazyChunk'
 import { heldModule, useHeldModule } from '../../lib/heldModule'
 import whenIdle from '../../lib/whenIdle'
 import useSWR from 'swr'
@@ -23,9 +22,20 @@ import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry
 import Input from '../../../../components/ui/Input'
 
 // S13 (audit 2026-11-05): the formula editor (the trader formulas and the raw "Write your own" box) shows only when a
-// member writes or edits a formula, so it loads then, never with the note (perf-budgets.md, `lazyDialog` pattern: a
-// `lazyChunk` in a `null` Suspense). Rail: PropertiesSection.formulaLazy.test.js.
-const FormulaEditor = lazyChunk(() => import('./FormulaEditor'))
+// member writes or edits a formula, so it loads then, never with the note. Rail: PropertiesSection.formulaLazy.test.js.
+// Follow-up B, item 3c: it was a `lazyChunk` in a `null` Suspense, which holds the reveal back about 300 ms even when
+// the chunk is in hand (measured on the find bar: a typed letter landed in the note). It is held the way the rollup
+// editor below is: a module-level slot, warmed when the add or edit form opens, drawn straight from it; a failed fetch
+// is said, and asked for again the next time the editor opens.
+export const formulaEditorLoaders = { editor: () => import('./FormulaEditor') }
+export const formulaEditorModule = heldModule(() => formulaEditorLoaders.editor())
+export const FORMULA_EDITOR_UNAVAILABLE = "Couldn't load the formula editor. Close this and open it again to retry."
+export function FormulaEditorSlot(props) {
+  const { status, Component } = useHeldModule(formulaEditorModule)
+  useEffect(() => { formulaEditorModule.warm() }, [])
+  if (Component) return <Component {...props} />
+  return status === 'failed' ? <div className={styles.error} role="alert">{FORMULA_EDITOR_UNAVAILABLE}</div> : null
+}
 // Go-live wave 1, fix round 2 (first-open bytes, paying for the find bar's stand-in): the rollup editor (native selects)
 // shows only while a member sets up or edits a rollup, so it is a chunk of its own, fetched once the panel is idle into
 // a module-level slot and drawn straight from it (lib/heldModule.js: never React.lazy, which holds a first render back
@@ -129,9 +139,15 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   // before its editor's chunk lands, and the late editor then pushes the row down: a click aimed at Save could land
   // on whatever moved under it.
   const rollupEditorDrawn = useHeldModule(rollupEditorModule).status === 'ready'
+  // Follow-up B, item 3c: the same wait for the formula editor, for the same reason.
+  const formulaEditorDrawn = useHeldModule(formulaEditorModule).status === 'ready'
   // The computed property being edited in place: { id, type, text | config, error }.
   const [editing, setEditing] = useState(null)
   const [pickerOpen, setPickerOpen] = useState(false)
+  // Follow-up B, item 3c: the formula editor's chunk is fetched when the add form or an edit opens (formulas on), so
+  // it is in hand before "Add a formula" or a formula's Edit draws it.
+  const formOpen = pickerOpen || Boolean(editing)
+  useEffect(() => { if (formulasOn && formOpen) formulaEditorModule.warm() }, [formulasOn, formOpen])
   // Wave 12 (12B-2): a note just made from a template that declares property
   // definitions (the Position Tracker) shows them while still empty -- this tab only.
   const [manuallyShown, setManuallyShown] = useState(() => new Set(templateRevealFor(noteId)))
@@ -372,7 +388,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   const isRollup = newPropType === 'rollup'
   const typeChoices = formulasOn ? [...NEW_PROPERTY_TYPES, ...COMPUTED_PROPERTY_TYPES] : NEW_PROPERTY_TYPES
   const canCreate = Boolean(newPropName.trim())
-    && (!isFormula || checkFormula(newFormula, propertyDefs).ok)
+    && (!isFormula || (formulaEditorDrawn && checkFormula(newFormula, propertyDefs).ok))
     && (!isRollup || (rollupEditorDrawn && rollupReady(newRollup)))
 
   // A starter formula names the number properties it reads; this makes the ones
@@ -509,8 +525,8 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                   <div className={styles.computedEditor}
                     onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setEditing(null); focusAfterRef.current = { prop: p.id } } }}>
                     {p.type === 'formula' ? (
-                      <Suspense fallback={null}><FormulaEditor value={editing.text} onChange={(text) => setEditing({ ...editing, text, error: null })}
-                        defs={propertyDefs} previewProps={valuesById} selfId={p.id} onCreateMissing={createMissing} /></Suspense>
+                      <FormulaEditorSlot value={editing.text} onChange={(text) => setEditing({ ...editing, text, error: null })}
+                        defs={propertyDefs} previewProps={valuesById} selfId={p.id} onCreateMissing={createMissing} />
                     ) : (
                       <RollupEditorSlot value={editing.config} onChange={(config) => setEditing({ ...editing, config, error: null })}
                         defs={propertyDefs} savedViews={savedViews} selfId={p.id} />
@@ -518,7 +534,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                     {editing.error && <div className={styles.error} role="alert">{editing.error}</div>}
                     <div className={styles.editActions}>
                       <button type="button" className={styles.newPropCreate} onClick={saveEdit}
-                        disabled={p.type === 'rollup' && !(rollupEditorDrawn && rollupReady(editing.config))}>Save</button>
+                        disabled={p.type === 'rollup' ? !(rollupEditorDrawn && rollupReady(editing.config)) : !formulaEditorDrawn}>Save</button>
                       <button type="button" className={styles.suggestBtn} onClick={() => setEditing(null)}>Cancel</button>
                     </div>
                   </div>
@@ -604,9 +620,9 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                   ))}
                 </select>
                 {isFormula && (
-                  <Suspense fallback={null}><FormulaEditor value={newFormula} onChange={setNewFormula} defs={propertyDefs}
+                  <FormulaEditorSlot value={newFormula} onChange={setNewFormula} defs={propertyDefs}
                     previewProps={valuesById} onCreateMissing={createMissing}
-                    onStarter={(st) => { if (!newPropName.trim()) setNewPropName(st.name) }} /></Suspense>
+                    onStarter={(st) => { if (!newPropName.trim()) setNewPropName(st.name) }} />
                 )}
                 {isRollup && (
                   <RollupEditorSlot value={newRollup} onChange={setNewRollup} defs={propertyDefs} savedViews={savedViews} />
