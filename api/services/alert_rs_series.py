@@ -125,9 +125,23 @@ RATING_READ_PAD = 40
 #: it), and an alert on an arbitrary symbol would bypass the benchmark cache this
 #: lane depends on, so a future edit that folds it into the shared list still
 #: cannot reach the alert popover.
-RS_ALERT_EXCLUDED_BENCHMARKS: tuple[str, ...] = ("INDUSTRY", rs_benchmarks.CUSTOM_BENCHMARK)
+#
+#: ⭐ 2026-11-12 (sector and theme benchmarks): THEME (the stock's own UCT theme)
+#: JOINS by name, appended so the existing options keep their order. A theme is
+#: at most ~40 names (the taxonomy's largest, under `MAX_INDUSTRY_MEMBERS`), and
+#: its composite is memoised per reader (`rs_benchmarks._composite`, the pass
+#: hands it the lane's own loader), so a cycle of THEME alerts costs one build
+#: per theme per five minutes, not one per alert. The alert evaluates exactly the
+#: chart's composite: the same resolver, the same members, the stock left out.
+#: The two PICKS (SECTOR_PICK, THEME_PICK) stay chart-only: each needs a second
+#: parameter the alert form would show on every RS alert; they are excluded by
+#: name with INDUSTRY and CUSTOM.
+RS_ALERT_EXCLUDED_BENCHMARKS: tuple[str, ...] = (
+    "INDUSTRY", rs_benchmarks.CUSTOM_BENCHMARK, rs_benchmarks.SECTOR_PICK_BENCHMARK,
+    rs_benchmarks.THEME_PICK_BENCHMARK)
 RS_ALERT_BENCHMARKS: tuple[str, ...] = tuple(
-    b for b in registry_defs.RS_LINE_BENCHMARKS if b not in RS_ALERT_EXCLUDED_BENCHMARKS)
+    b for b in registry_defs.RS_LINE_BENCHMARKS if b not in RS_ALERT_EXCLUDED_BENCHMARKS
+) + (rs_benchmarks.THEME_BENCHMARK,)
 
 #: The chart's defaults, read off the module that computes with them.
 PHASE1_DEFAULTS: dict[str, Any] = {
@@ -422,7 +436,11 @@ def rs_refusal(address: str, params: Optional[Mapping], condition: Optional[str]
             why = (" INDUSTRY composites are not offered for alerts yet."
                    if b == "INDUSTRY" else
                    " Custom benchmarks are chart-only; alerts take a listed benchmark."
-                   if b == rs_benchmarks.CUSTOM_BENCHMARK else "")
+                   if b == rs_benchmarks.CUSTOM_BENCHMARK else
+                   " A picked sector or theme is chart-only for now; alerts take a listed"
+                   " benchmark, or THEME for the stock's own theme."
+                   if b in (rs_benchmarks.SECTOR_PICK_BENCHMARK, rs_benchmarks.THEME_PICK_BENCHMARK)
+                   else "")
             return (f"RS benchmark must be one of {', '.join(RS_ALERT_BENCHMARKS)} "
                     f"— got {p['benchmark']!r}.{why}")
     if "maType" in spec.inputs and p.get("maType") is not None:
@@ -705,13 +723,17 @@ class RsPass:
     def resolve(self, sym: str, requested: Optional[str], tf: str, want: int) -> dict:
         """`rs_benchmarks.resolve_benchmark` through this pass's reader, once per
         ``(symbol, requested, tf, want)`` — a literal benchmark is symbol-free,
-        SECTOR / INDUSTRY depend on the symbol's group."""
+        SECTOR / INDUSTRY / THEME depend on the symbol's group. A composite is
+        memoised under this pass's READER (`fetch_bars`, the lane's own loader in
+        production), so the next cycle reuses it (`rs_benchmarks._composite`)."""
         req = str(requested or rs_benchmarks.DEFAULT_BENCHMARK).upper()
-        sym_key = str(sym or "").upper() if req in rs_benchmarks.AUTO_BENCHMARKS else ""
+        sym_key = (str(sym or "").upper()
+                   if req in rs_benchmarks.AUTO_BENCHMARKS or req == rs_benchmarks.THEME_BENCHMARK else "")
         key = (sym_key, req, str(tf), int(want))
         hit = self._resolved.get(key)
         if hit is None:
-            hit = rs_benchmarks.resolve_benchmark(sym, req, tf, int(want), fetch_bars=self.fetch)
+            hit = rs_benchmarks.resolve_benchmark(sym, req, tf, int(want), fetch_bars=self.fetch,
+                                                  memo=self.fetch_bars)
             self._resolved[key] = hit
         return hit
 
