@@ -109,6 +109,14 @@ describe('an intent (hover / keyboard focus)', () => {
     expect(told).toEqual([{ syms: ['NVDA'], tf: 'D', opts: { priority: true } }])
   })
 
+  it('with NO warmer registered, bars already in memory still mean no work at all (not even a timer)', () => {
+    off()
+    memPut('NVDA', 'D', dailyBars('2026-09-15'))
+    const before = vi.getTimerCount()
+    prefetchBarOnIntent('NVDA', 'D')
+    expect(vi.getTimerCount()).toBe(before)
+  })
+
   it('brushing across the same row again inside the debounce announces it once', async () => {
     for (let i = 0; i < 5; i++) prefetchBarOnIntent('NVDA', 'D')
     await vi.advanceTimersByTimeAsync(200)

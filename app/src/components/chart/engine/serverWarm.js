@@ -166,8 +166,13 @@ export function warmSymbols(syms, tf, opts = {}) {
   const near = !!opts.priority && syms.length <= NEAR_MAX
   const bulk = !near && !opts.visible
   const take = bulk ? syms.slice(0, BULK_HEAD) : syms
-  if (bulk) {
-    // The newest list replaces the remembered one: the member has moved on from the last.
+  // ⭐ WHICH CALLS ARE "A LIST OPENED". The on-screen rows of a list (`visible`) are a new
+  // list's head: whatever was remembered belongs to the list the member just left. A large
+  // unmarked call is the rest of that list: its tail is what is remembered now. A SMALL
+  // unmarked call is neither (the other timeframes of the selected symbol, a handful of
+  // upcoming rows): it must not wipe the list the member is still scanning.
+  if (opts.visible) _backlog = null
+  else if (bulk && syms.length > NEAR_MAX) {
     const rest = []
     for (const raw of syms.slice(BULK_HEAD, BULK_HEAD + BACKLOG_MAX)) {
       const sym = _symOf(raw)
@@ -187,7 +192,10 @@ export function warmSymbols(syms, tf, opts = {}) {
     }
     fresh.push({ sym, tf: T, near })
   }
-  if (!fresh.length) return 0
+  if (!fresh.length) {
+    if (_backlog) _kickSoon()                          // the head was warm already; the tail still waits
+    return 0
+  }
   if (near) {
     for (const j of _queue) j.near = false             // the previous near rows are behind the member now
     _queue.unshift(...fresh)

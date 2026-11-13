@@ -300,27 +300,45 @@ describe('restraint: a list is warmed from the top, never whole, and never in fr
     expect(calls.map(symOf).filter((x) => Number(x.slice(1)) >= BULK_HEAD && Number(x.slice(1)) < BULK_HEAD + 10)).toEqual([])
   })
 
-  it('the next list replaces the remembered one, and a list already warm leaves nothing to remember', async () => {
+  it('the next list replaces the remembered one', async () => {
     arm('hold')
     drawing([{ benchmark: 'SPY' }])
     warmSymbols(Array.from({ length: 100 }, (_, i) => `OLD${i}`), TF, {})
     expect(serverWarmStats().remembered).toBe(100 - BULK_HEAD)
     warmSymbols(Array.from({ length: BULK_HEAD + 3 }, (_, i) => `NEW${i}`), TF, {})
     expect(serverWarmStats().remembered).toBe(3)
+    // a list with no tail (exactly one helping) leaves nothing of the old one behind
     warmSymbols(Array.from({ length: BULK_HEAD }, (_, i) => `ONE${i}`), TF, {})
+    expect(serverWarmStats().remembered).toBe(0)
+    // …and so do the on-screen rows of a list that just opened (a short list has no second call)
+    warmSymbols(Array.from({ length: 100 }, (_, i) => `OLD${i}`), TF, {})
+    expect(serverWarmStats().remembered).toBeGreaterThan(0)
+    warmSymbols(Array.from({ length: 20 }, (_, i) => `TOP${i}`), TF, { priority: true, visible: true })
     expect(serverWarmStats().remembered).toBe(0)
   })
 
-  it('a remembered row that was warmed some other way meanwhile is skipped, not asked for again', async () => {
+  it('⛔ a SMALL unmarked call is not a list: it does not wipe the list the member is scanning', async () => {
+    arm('hold')
+    drawing([{ benchmark: 'SPY' }])
+    warmSymbols(Array.from({ length: 100 }, (_, i) => `L${i}`), TF, {})
+    const remembered = serverWarmStats().remembered
+    expect(remembered).toBe(100 - BULK_HEAD)
+    warmSymbols(['NVDA'], TF, {})                               // the selected symbol's other warm
+    warmSymbols(['A', 'B', 'C', 'D', 'E'], TF, {})              // a handful of upcoming rows
+    warmSymbols(['L3', 'L4'], TF, { priority: true })           // the scan neighbours
+    expect(serverWarmStats().remembered).toBe(remembered)
+  })
+
+  it('a list whose first rows are already warm still gets its tail warmed', async () => {
     arm('ok')
     drawing([{ benchmark: 'SPY' }])
-    const list = Array.from({ length: BULK_HEAD + 4 }, (_, i) => `L${i}`)
-    warmSymbols(list, TF, {})
-    warmSymbols([`L${BULK_HEAD + 1}`], TF, { priority: true })   // the member jumped to that row
+    const list = Array.from({ length: BULK_HEAD + 6 }, (_, i) => `L${i}`)
+    for (const sym of list.slice(0, BULK_HEAD)) primeServerColumns('rsLine', sym, TF, { benchmark: 'SPY' }, wire(1))
+    expect(warmSymbols(list, TF, {}), 'nothing in the head needs a request').toBe(0)
+    expect(serverWarmStats().remembered).toBe(6)
     await settle(2000)
     for (let i = 0; i < 10; i++) await settle(50)
-    expect(calls.map(symOf).filter((s) => s === `L${BULK_HEAD + 1}`).length).toBe(1)
-    expect(calls.length).toBe(list.length)
+    expect(calls.map(symOf)).toEqual(list.slice(BULK_HEAD))
   })
 
   it('the queue is capped: the farthest background rows are the ones dropped', async () => {

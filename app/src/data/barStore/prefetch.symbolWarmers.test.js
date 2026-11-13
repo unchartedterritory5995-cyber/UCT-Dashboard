@@ -50,7 +50,7 @@ async function both(scenario) {
     const w = await boot()
     const told = []
     const off = w.legacy.registerSymbolWarmer((syms, tf, opts) => told.push({ syms: [...syms], tf, opts: { ...opts } }))
-    await scenario(side === 'legacy' ? w.legacy : w.pf, w)
+    await scenario(side === 'legacy' ? w.legacy : w.pf, w, told)
     off()
     out[side] = told
   }
@@ -96,7 +96,8 @@ describe('the facade announces what the legacy warmer announces', () => {
       { t: '2026-11-10', o: 1, h: 2, l: 0.5, c: 1.5, v: 10 },
     ]
     const heldOn = {}
-    const r = await both(async (api, w) => {
+    const inFrame = {}
+    const r = await both(async (api, w, told) => {
       w.mem.memPut('AA', 'D', held)
       // the precondition, per side: each warmer's own "these bars need nothing" early return is live
       if (api === w.pf) {
@@ -108,9 +109,11 @@ describe('the facade announces what the legacy warmer announces', () => {
         heldOn.legacy = w.mem.memHas('AA', 'D')
       }
       api.prefetchBarOnIntent('AA', 'D')
+      inFrame[api === w.pf ? 'facade' : 'legacy'] = told.length   // nothing in the pointer's own frame
       await tick(200)
     })
     expect(heldOn).toEqual({ legacy: true, facade: true })
+    expect(inFrame, 'announced after the debounce, not in the frame of the hover').toEqual({ legacy: 0, facade: 0 })
     for (const side of ['legacy', 'facade']) {
       expect(r[side], side).toEqual([{ syms: ['AA'], tf: 'D', opts: { priority: true } }])
     }

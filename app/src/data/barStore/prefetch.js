@@ -69,7 +69,7 @@ import { isCacheCurrentForView } from '../../utils/marketSession'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
   _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled, _typedCachePaints,
-  tellSymbolWarmers, warmCompanionsOnIntent,
+  tellSymbolWarmers,
 } from '../../utils/prefetchBars'
 
 // Lane plumbing the chart imports from the same module — re-exported unchanged so one import
@@ -440,18 +440,18 @@ export function createPrefetch(o = {}) {
 
   function prefetchBarOnIntent(sym, tf = 'D', { delay = 120 } = {}) {
     if (!sym || !tf) return
-    warmCompanionsOnIntent(sym, tf, { delay })   // before the early return: warm bars need nothing, the companions may
     const key = keyFor(sym, tf)
-    if (!key || DISPLAYABLE.includes(S().peek(key)?.status)) return
-    if (intentTimers.has(key)) return
+    if (!key || intentTimers.has(key)) return
+    // Held bars need nothing; the companion warmers are still told, after the same debounce
+    // (legacy `prefetchBarOnIntent`).
+    const held = DISPLAYABLE.includes(S().peek(key)?.status)
     intentTimers.set(key, setTimer(() => {
       intentTimers.delete(key)
-      prefetch([key], { priority: 'urgent' })
+      tellSymbolWarmers([sym], tf, { priority: true })
+      if (!held) prefetch([key], { priority: 'urgent' })
     }, delay))
-    tickerMeta(sym)
+    if (!held) tickerMeta(sym)
   }
-
-  /** Type-to-search (D/W/M): one live warm, the latest text; a newer text aborts the older. */
   function warmTypedSymbol(sym, tf = 'D') {
     if (!sym || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
     if (!_isSym(String(sym))) return null
