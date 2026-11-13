@@ -281,14 +281,23 @@ export function alignColumns(parsed, bars) {
     if (!at.has(k)) at.set(k, i)
   }
 
+  // ⚡ WHERE EACH BAR SITS IN THE ENVELOPE IS WORKED OUT ONCE, NOT ONCE PER COLUMN (2026-11-13).
+  // The join used to parse every bar's date for every column: the RS line carries 24 columns,
+  // so a 4,374-bar daily chart parsed 105,000 dates to place them, on every paint (13 ms of
+  // the lane's 24 ms for a five-definition RS suite, measured). One pass finds each bar's row;
+  // each column is then a plain copy. The answer is the same cell for cell.
+  const n = series.length
+  const row = new Int32Array(n)
+  for (let i = 0; i < n; i++) {
+    const j = at.get(barTimeKey(series[i] && series[i].t))
+    row[i] = j === undefined ? -1 : j
+  }
+
   const out = {}
   for (const key of keys) {
     const src = columns[key]
-    const col = new Float64Array(series.length)
-    for (let i = 0; i < series.length; i++) {
-      const j = at.get(barTimeKey(series[i] && series[i].t))
-      col[i] = j === undefined ? NaN : src[j]
-    }
+    const col = new Float64Array(n)
+    for (let i = 0; i < n; i++) col[i] = row[i] < 0 ? NaN : src[row[i]]
     out[key] = col
   }
   return out
@@ -450,6 +459,11 @@ export function clearServerColumns() {
   _inflight.clear()
   _asks.clear()
   _own.clear()
+  for (const h of _held.values()) clearTimeout(h.timer)
+  _held.clear()
+  _shown.clear()
+  _ownOut = 0
+  _ownSentAt = 0
   _batchDownUntil = 0
   for (const t of _degradedTimers.values()) clearTimeout(t)
   _degradedTimers.clear()
@@ -551,6 +565,17 @@ function _defaultFetch(url) {
       err.status = r.status
       throw err
     }
+    // ⛔ A PAGE IS NOT AN ANSWER. This app answers an API path it does not route with its own
+    // HTML and a 200 (the SPA catch-all; measured on production 2026-11-12 for the batch route
+    // one deploy before it existed). "No such route" therefore arrives as a 200 that is not
+    // JSON, and is reported as the 404 it stands for, so the batch door can remember it
+    // instead of asking a server that cannot answer on every symbol.
+    const type = (r.headers && typeof r.headers.get === 'function' && r.headers.get('content-type')) || ''
+    if (type && !/json/i.test(type)) {
+      const err = new Error('not JSON')
+      err.status = 404
+      throw err
+    }
     return r.json()
   })
 }
@@ -592,9 +617,10 @@ const _BATCH_TEST_MODE = (() => {
 })()
 let _batchGet = _BATCH_TEST_MODE ? null : _defaultFetch
 
-/** Test seam: arm (or, with null, disarm) the batch request for the whole module. */
+/** Test seam: arm (or, with null, disarm) the batch request for the whole module.
+ *  `'default'` arms the browser's own request, the one production uses. */
 export function __setServerBatchFetcherForTests(fn) {
-  _batchGet = typeof fn === 'function' ? fn : null
+  _batchGet = fn === 'default' ? _defaultFetch : (typeof fn === 'function' ? fn : null)
   _batchDownUntil = 0
 }
 
@@ -708,14 +734,144 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
 const _own = new Map()        // `${sym}|${tf}` -> { sym, tf, asks: Map(key -> {defId, inputs}) }
 let _ownFlushing = false
 
+// ─── A CHART RACING THROUGH SYMBOLS ASKS FOR THE ONE IT STOPS ON ─────────────
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13 (the arrow key held through 40 charts of a
+// watchlist, 6.6 charts a second, then released): every chart the member passed
+// sent its own ask, none of them could be cancelled, and the chart the member
+// LANDED on drew its RS line 7.0 s after its candles, behind 28 requests for
+// charts already gone. A server compute is real work per symbol (about 0.2 s of
+// Python even with the reads fixed), so forty abandoned asks are seconds of it.
+//
+// So a chart says what it is on (`chartShows`), and the lane reads the CADENCE
+// from that. A chart that was resting sends its ask at once, exactly as before:
+// stepping through a list at a reading pace costs nothing. A chart that changed
+// symbol less than `RAPID_MS` after its previous change is being raced, and its
+// ask is held for a little longer than that last gap (`SETTLE_FACTOR` x the gap,
+// between `SETTLE_MIN_MS` and `SETTLE_MAX_MS`): if the chart has moved on by
+// then the ask is never sent; if it is still there, the member stopped, and it
+// goes. A raced chart therefore costs one request (the landing one), sent about
+// a third of a step after the member stops.
+//
+// ⛔ FAIL OPEN. An ask is held only for a chart that REGISTERED and is known to
+// be racing. A host that never calls `chartShows`, a symbol no registered chart
+// shows, or two charts on one symbol of which one is resting: sent at once.
+// The pre-load of the rows ahead (`serverWarm.js`) is not touched by any of this.
+/** A symbol change this soon after the chart's previous one is "racing through". */
+export const RAPID_MS = 250
+/** A held ask waits this many times the chart's last gap ... */
+export const SETTLE_FACTOR = 1.3
+/** ... but never less than this, nor more than `SETTLE_MAX_MS`. */
+export const SETTLE_MIN_MS = 40
+export const SETTLE_MAX_MS = 250
+const _shown = new Map()      // slot (the chart's own token) -> { sym, tf, at, gap }
+const _held = new Map()       // `${sym}|${tf}` -> { g, timer }
+
+/**
+ * A chart says which (symbol, timeframe) it is on. Call it when either changes.
+ * @param {object} slot the chart's own token (any object it keeps for its lifetime)
+ */
+export function chartShows(slot, sym, tf) {
+  const prev = _shown.get(slot)
+  const t = String(tf)
+  if (prev && prev.sym === sym && prev.tf === t) return
+  const now = Date.now()
+  _shown.set(slot, { sym, tf: t, at: now, gap: prev ? now - prev.at : Infinity })
+}
+
+/** The chart is gone (unmounted): nothing it showed is waited for on its behalf. */
+export function chartGone(slot) {
+  _shown.delete(slot)
+}
+
+// How long an own ask for (sym, tf) is held: 0 = send now.
+function _settleMs(sym, tf) {
+  const t = String(tf)
+  let hold = 0
+  let any = false
+  for (const s of _shown.values()) {
+    if (s.sym !== sym || s.tf !== t) continue
+    const settle = s.gap < RAPID_MS ? Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MIN_MS, s.gap * SETTLE_FACTOR)) : 0
+    hold = any ? Math.min(hold, settle) : settle
+    any = true
+  }
+  return hold
+}
+
+function _stillShown(sym, tf) {
+  const t = String(tf)
+  for (const s of _shown.values()) if (s.sym === sym && s.tf === t) return true
+  return false
+}
+
+// ─── THE CHART ON SCREEN COMES FIRST ─────────────────────────────────────────
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13, after the hold above went live (a fresh list, the
+// key held at once, 11 charts a second, then released): the landing chart sent the ONLY
+// own ask, 245 ms after the stop, and still drew its RS line 4.8 s after its candles. Three
+// pre-load requests for the rows ahead had started a third of a second before the member
+// stopped, and one server core was computing all four at once (2.3 to 2.5 s each instead
+// of about 1).
+//
+// So the lane says when a chart on screen needs it, and a pre-load starts nothing while it
+// does (`serverWarm.js` asks before every request; what is already in flight finishes):
+//   * a chart's own ask is out (for at most `OWN_PRIORITY_MS`: a request that never
+//     settles must not stop the pre-load for good);
+//   * a chart is FLYING: changing symbol faster than every `FLYING_MS`. Six rows ahead at
+//     that pace is well under a second of lead, less than a compute takes, so a request
+//     started now lands on a row already passed and only delays the one the member stops
+//     on. (A chart stepping slower than that, even if "raced" by the hold's measure,
+//     keeps its pre-load: the rows ahead do land in time.)
+/** A chart changing symbol faster than this is flying through a list. */
+export const FLYING_MS = 120
+/** The longest one own ask keeps the pre-load waiting. */
+export const OWN_PRIORITY_MS = 8_000
+let _ownOut = 0
+let _ownSentAt = 0
+
+function _ownSettled() {
+  _ownOut = Math.max(0, _ownOut - 1)
+}
+
+/** True while a chart on screen is waiting on the lane, or is flying through a list. */
+export function chartsNeedTheLane() {
+  const now = Date.now()
+  if (_ownOut > 0 && now - _ownSentAt < OWN_PRIORITY_MS) return true
+  for (const s of _shown.values()) if (s.gap < FLYING_MS && now - s.at < RAPID_MS) return true
+  return false
+}
+
+function _sendOwn(g) {
+  const asks = [...g.asks.values()]
+  const sent = asks.length === 1
+    ? fetchColumns(asks[0].defId, g.sym, g.tf, asks[0].inputs)
+    : fetchColumnsBatch(g.sym, g.tf, asks)
+  _ownOut += 1
+  _ownSentAt = Date.now()
+  Promise.resolve(sent).then(_ownSettled, _ownSettled)
+}
+
 function _flushOwnAsks() {
   _ownFlushing = false
   const groups = [..._own.values()]
   _own.clear()
   for (const g of groups) {
-    const asks = [...g.asks.values()]
-    if (asks.length === 1) fetchColumns(asks[0].defId, g.sym, g.tf, asks[0].inputs)
-    else fetchColumnsBatch(g.sym, g.tf, asks)
+    const gk = `${g.sym}|${g.tf}`
+    const waiting = _held.get(gk)
+    if (waiting) {                                       // already held: a repaint's asks join it
+      for (const [k, a] of g.asks) waiting.g.asks.set(k, a)
+      continue
+    }
+    const hold = _settleMs(g.sym, g.tf)
+    if (!(hold > 0)) { _sendOwn(g); continue }
+    _held.set(gk, {
+      g,
+      timer: setTimeout(() => {
+        _held.delete(gk)
+        if (_stillShown(g.sym, g.tf)) _sendOwn(g)
+        else for (const k of g.asks.keys()) _wanted.delete(k)   // the chart moved on: nobody waits for these
+      }, hold),
+    })
   }
 }
 

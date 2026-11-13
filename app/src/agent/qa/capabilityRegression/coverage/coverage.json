@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 202,
-  "withProductionKinds": 193,
+  "all": 205,
+  "withProductionKinds": 196,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 202,
-  "withAnyRegressionCase": 150,
+  "capabilities": 205,
+  "withAnyRegressionCase": 153,
   "perProtection": {
    "nl": {
-    "covered": 147,
-    "applicable": 202
+    "covered": 150,
+    "applicable": 205
    },
    "routing": {
-    "covered": 144,
-    "applicable": 202
+    "covered": 147,
+    "applicable": 205
    },
    "args": {
-    "covered": 150,
-    "applicable": 202
+    "covered": 153,
+    "applicable": 205
    },
    "execution": {
-    "covered": 147,
-    "applicable": 202
+    "covered": 150,
+    "applicable": 205
    },
    "receipt": {
-    "covered": 119,
-    "applicable": 202
+    "covered": 122,
+    "applicable": 205
    },
    "refusal": {
     "covered": 34,
-    "applicable": 202
+    "applicable": 205
    },
    "permission": {
-    "covered": 195,
-    "applicable": 202
+    "covered": 198,
+    "applicable": 205
    },
    "undo": {
-    "covered": 73,
-    "applicable": 132
+    "covered": 76,
+    "applicable": 135
    },
    "multiStep": {
-    "covered": 39,
-    "applicable": 202
+    "covered": 40,
+    "applicable": 205
    },
    "phrasings": {
-    "covered": 143,
-    "applicable": 202
+    "covered": 146,
+    "applicable": 205
    }
   }
  },
@@ -2023,6 +2023,124 @@
     "phrasings": []
    }
   },
+  "chartFeatures.companyPanel": {
+   "domain": "chartFeatures",
+   "group": "chartFeatures",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "chartFeatures.companyPanel: \"add the company panel and open news\"",
+     "chartFeatures.companyPanel: \"show the company info panel on the news tab\"",
+     "chartFeatures.companyPanel: \"open the profile panel on news\"",
+     "chartFeatures.companyPanel.remove: \"remove the company panel from this chart\"",
+     "chartFeatures.companyPanel.remove: \"take the company info off the chart\"",
+     "chartFeatures.companyPanel.remove: \"get rid of the company panel\""
+    ],
+    "routing": [
+     "chartFeatures.companyPanel: \"add the company panel and open news\"",
+     "chartFeatures.companyPanel: \"show the company info panel on the news tab\"",
+     "chartFeatures.companyPanel: \"open the profile panel on news\"",
+     "chartFeatures.companyPanel.remove: \"remove the company panel from this chart\"",
+     "chartFeatures.companyPanel.remove: \"take the company info off the chart\"",
+     "chartFeatures.companyPanel.remove: \"get rid of the company panel\""
+    ],
+    "args": [
+     "corpus chartFeatures.companyPanel",
+     "corpus chartFeatures.companyPanel.remove"
+    ],
+    "execution": [
+     "chartFeatures.companyPanel (c)",
+     "chartFeatures.companyPanel.remove (c)"
+    ],
+    "receipt": [
+     "chartFeatures.companyPanel (c)",
+     "chartFeatures.companyPanel.remove (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartFeatures.companyPanel: undo restores",
+     "chartFeatures.companyPanel.remove: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartFeatures.earningsStrip": {
+   "domain": "chartFeatures",
+   "group": "chartFeatures",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "chartFeatures.earningsStrip: \"show the earnings strip on this chart\"",
+     "chartFeatures.earningsStrip: \"add the fundamentals strip\"",
+     "chartFeatures.earningsStrip: \"put the earnings strip under the chart\""
+    ],
+    "routing": [
+     "chartFeatures.earningsStrip: \"show the earnings strip on this chart\"",
+     "chartFeatures.earningsStrip: \"add the fundamentals strip\"",
+     "chartFeatures.earningsStrip: \"put the earnings strip under the chart\""
+    ],
+    "args": [
+     "corpus chartFeatures.earningsStrip"
+    ],
+    "execution": [
+     "chartFeatures.earningsStrip (c)"
+    ],
+    "receipt": [
+     "chartFeatures.earningsStrip (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartFeatures.earningsStrip: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "chartGrid.set": {
    "domain": "chartGrid",
    "group": "chartGrid",
@@ -3051,6 +3169,71 @@
     "permission": [],
     "undo": [],
     "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "compare.openView": {
+   "domain": "compare",
+   "group": "comparePanel",
+   "target": "comparePanel",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 8,
+   "evidence": {
+    "nl": [
+     "compare.openView: \"open the rotation map for nvda's sector\"",
+     "compare.openView: \"show me nvda's sector on the rrg view\"",
+     "compare.openView: \"open the compare panel on the rotation tab with nvda's sector\"",
+     "compare.openView: \"pull up the relative rotation graph for the nvda sector\"",
+     "compare.openView.overlay: \"go to the overlay tab\"",
+     "compare.openView.overlay: \"switch the compare panel to its overlay tab\""
+    ],
+    "routing": [
+     "compare.openView: \"open the rotation map for nvda's sector\"",
+     "compare.openView: \"show me nvda's sector on the rrg view\"",
+     "compare.openView: \"open the compare panel on the rotation tab with nvda's sector\"",
+     "compare.openView: \"pull up the relative rotation graph for the nvda sector\"",
+     "compare.openView.overlay: \"go to the overlay tab\"",
+     "compare.openView.overlay: \"switch the compare panel to its overlay tab\""
+    ],
+    "args": [
+     "corpus compare.openView",
+     "corpus compare.openView.overlay"
+    ],
+    "execution": [
+     "compare.openView (c)",
+     "compare.openView.overlay (c)"
+    ],
+    "receipt": [
+     "compare.openView (c)",
+     "compare.openView.overlay (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "compare.openView: undo restores"
+    ],
+    "multiStep": [
+     "compare.openView.overlay: after an earlier turn"
+    ],
     "phrasings": []
    }
   },

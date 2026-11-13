@@ -67,6 +67,14 @@ Why: flow-worker deploys corrupted `flow.db` (Railway pulls the volume from the 
 container); on 2026-11-12 an unrelated PR cost 1.5 h of live tape mid-session. Do not re-enable it.
 How to deploy, verify, and recover a damaged flow.db: **`docs/runbooks/flow-worker-deploys-and-flow-db.md`**.
 
+## ⛔⛔ worker DEPLOYS ARE MANUAL TOO (owner decision 2026-11-13)
+
+Railway **auto deploy is DISABLED for `worker`** (bars prewarm + the R2 snapshot uploader every other
+service pulls bars from). A merge to a file it runs no longer restarts it; deploy by hand outside market
+hours (Railway → worker → Ctrl/Cmd+K → "Deploy latest commit"). Why: every merge restarted it and killed
+the 40+ minute delta and multi-hour base, so no snapshot shipped from 2026-11-10 to 2026-11-13. How to
+deploy, and how to read the uploader's state: **`docs/runbooks/worker-deploys.md`**.
+
 ## ⭐ Speed and reliability: how every change is made (owner standing rule, 2026-11-10)
 
 The owner's bar: **instant, smooth, reliable, no lag, for every member** (browser and the desktop app), at

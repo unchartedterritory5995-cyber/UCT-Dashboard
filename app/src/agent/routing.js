@@ -101,6 +101,15 @@ export const GROUPS = [
     words: [
       /\b(?:ask|open|pull up|bring up|launch|use)\s+(?:the\s+)?ai\s+(?:about|on|for|regarding)\b|\bask\s+(?:the\s+)?ai\b.*\b(?:chart|stock|symbol|ticker|this one|name)\b/,
       /\bwatermark\b.*\b(?:reset|back|default|original|re-?cent(?:er|re)|where it was)\b|\b(?:reset|re-?cent(?:er|re)|restore|undrag)\b.*\bwatermark\b/] },
+  // Charts family (2026-11-12): a chart's Company Info side panel and Earnings Strip (Add to Chart's host features), in their
+  // OWN words-only group (as chartMenu): never a filler, so no existing group and no unrecognised request changes. The
+  // words name the PANEL or the STRIP itself (company info / company or profile panel / earnings or fundamentals strip / the
+  // strip under the chart) or a tab only that panel has; a bare "earnings" / "news" / "panel" is not enough.
+  { id: 'chartFeatures', title: 'A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)', domains: ['chartFeatures'], fillLast: true, wordsOnly: true,
+    words: [
+      /\bcompany\s+(?:info(?:rmation)?|panel|profile\s+panel|intelligence|sidebar|side\s*panel)\b|\b(?:profile|info|fundamentals?)\s+(?:side\s*)?panel\b/,
+      /\b(?:earnings|fundamentals?|eps)\s+strip\b|\bstrip\s+(?:under|below|beneath|at the bottom of)\s+(?:the\s+|this\s+|my\s+|that\s+)?chart\b/,
+      /\b(?:financials|ownership|valuation)\s+tab\b|\b(?:overview|earnings|news|financials|ownership)\s+tab\s+(?:of|on|in)\s+(?:the\s+)?(?:company|side|profile|info)\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
@@ -421,6 +430,16 @@ export const GROUPS = [
       /\bzoom(?:ed|ing)? (?:(?:the |this |that |my |it |its )?(?:\w+ )?(?:chart|view|time axis|axis|one|candles|bars) )?(?:way |all the way |back |a (?:bit|little|lot) |further |more )?(?:in|out)\b/,
       /\b(?:closer|tighter) (?:in |look |view )?(?:on|at) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars|price action)\b|\b(?:wider|broader|zoomed[- ]out) view (?:of|on) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars)\b/,
       /\b(?:show|see|fit|squeeze|cram) (?:me )?(?:more|fewer|less) (?:bars|candles)\b/] },
+  // Charts family (2026-11-12): Tools → Compare Symbols opened on its Rotation (RRG-style) or Overlay tab (compare.openView), in
+  // its OWN words-only group (as chartMenu / periodSort): never a filler, so no existing group and no unrecognised request changes.
+  // The words name the PANEL or its view: a rotation / RRG map, graph, tab, view or quadrant; the Compare (Symbols) panel; its
+  // Overlay tab. ⛔ The RS INDICATOR's Rotation view is an indicator input (nativeRegistry `view: 'rotation'`): a message that
+  // names the indicator (RS, relative strength, indicator, pane, line, study, input) never selects this group. No lookbehind.
+  { id: 'comparePanel', title: 'The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them',
+    domains: ['compare'], fillLast: true, wordsOnly: true,
+    words: [
+      /^(?!.*\b(?:rs|relative strength|indicators?|panes?|stud(?:y|ies)|inputs?|lines?|mansfield)\b).*\b(?:rotation|rrg)\s+(?:map|graph|chart|tab|view|quadrants?|panel)\b|^(?!.*\b(?:rs|relative strength|indicators?|panes?|stud(?:y|ies)|inputs?|lines?)\b).*\brelative rotation\b/,
+      /\bcompare(?:\s+symbols)?\s+(?:panel|window|dialog|tool|popup|modal)\b|\boverlay tab\b/] },
   // C3-205..207 (pl-exec6, #1082): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) in its OWN two-action group,
   // WORDS-ONLY (as compareGroups / watchlistShow), so boardEdit and every other group stay character-identical to master:
   // in boardEdit (by domain) it changed v2's lexical scores and its fill, and 5 first calls lost the action they needed.

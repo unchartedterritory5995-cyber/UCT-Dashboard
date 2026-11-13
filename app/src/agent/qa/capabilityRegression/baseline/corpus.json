@@ -6362,6 +6362,122 @@
       ]
     },
     {
+      "id": "compare.openView",
+      "source": "Charts family 11-12: Tools → Compare Symbols opened on its Rotation tab with a stock's group — the uct:compare-open detail a chart's \"Open the rotation map\" link sends",
+      "capabilities": [
+        "compare.openView"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "compare.openView"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "compare.openView",
+            "target": "$comparePanel",
+            "args": {
+              "tab": "rotation",
+              "symbol": "NVDA",
+              "groupType": "sector",
+              "group": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "comparePanel": {
+          "open": true,
+          "tab": "rotation"
+        },
+        "comparePick": {
+          "sym": "NVDA",
+          "group": "sector"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "comparePanel": {
+            "open": false,
+            "tab": null
+          }
+        }
+      },
+      "phrasings": [
+        "open the rotation map for nvda's sector",
+        "show me nvda's sector on the rrg view",
+        "open the compare panel on the rotation tab with nvda's sector",
+        "pull up the relative rotation graph for the nvda sector"
+      ]
+    },
+    {
+      "id": "compare.openView.overlay",
+      "source": "Charts family 11-12: the open Compare panel switched from Rotation to its Overlay tab (no Undo: the rotation map starts over when left)",
+      "capabilities": [
+        "compare.openView"
+      ],
+      "board": "TIMED",
+      "before": [
+        {
+          "say": "open the rotation map",
+          "model": {
+            "ops": [
+              {
+                "action": "compare.openView",
+                "target": "$comparePanel",
+                "args": {
+                  "tab": "rotation",
+                  "symbol": null,
+                  "groupType": null,
+                  "group": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "comparePanel": {
+              "open": true,
+              "tab": "rotation"
+            }
+          }
+        }
+      ],
+      "needs": [
+        "compare.openView"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "compare.openView",
+            "target": "$comparePanel",
+            "args": {
+              "tab": "overlay",
+              "symbol": null,
+              "groupType": null,
+              "group": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "comparePanel": {
+          "open": true,
+          "tab": "overlay"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "go to the overlay tab",
+        "switch the compare panel to its overlay tab",
+        "back to the overlay tab of the compare symbols panel",
+        "show the overlay tab in the compare window"
+      ]
+    },
+    {
       "id": "chart.replay.exit",
       "source": "Batch F2 (11-04): promoted chart settings, Replay Mode, go-to-date, custom timeframe (live B-10a LT-3, B-13a/b LT-7) — live B-13b 'exit replay' (LT-3 family)",
       "capabilities": [
@@ -10812,6 +10928,134 @@
         "ask ai about this chart",
         "ask the ai about the stock on this chart",
         "open the ai on this chart"
+      ]
+    },
+    {
+      "id": "chartFeatures.companyPanel",
+      "source": "Charts family 11-12: Indicators → Add to Chart adds Company Info (addFeature: added, expanded, default width); its tab strip (setTab)",
+      "capabilities": [
+        "chartFeatures.companyPanel"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartFeatures.companyPanel"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartFeatures.companyPanel",
+            "target": "$charts[0]",
+            "args": {
+              "op": "open",
+              "tab": "news"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "dock": {
+          "company": true,
+          "open": true,
+          "tab": "news",
+          "bottom": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "add the company panel and open news",
+        "show the company info panel on the news tab",
+        "open the profile panel on news"
+      ]
+    },
+    {
+      "id": "chartFeatures.companyPanel.remove",
+      "source": "Charts family 11-12: Add to Chart's remove (removeFeature); Undo restores the member's own width (not DEFAULT_RIGHT_W)",
+      "capabilities": [
+        "chartFeatures.companyPanel"
+      ],
+      "board": "DOCKED",
+      "needs": [
+        "chartFeatures.companyPanel"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartFeatures.companyPanel",
+            "target": "$charts[0]",
+            "args": {
+              "op": "remove",
+              "tab": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "dock": {
+          "company": false,
+          "open": false,
+          "rightW": 520
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "remove the company panel from this chart",
+        "take the company info off the chart",
+        "get rid of the company panel"
+      ]
+    },
+    {
+      "id": "chartFeatures.earningsStrip",
+      "source": "Charts family 11-12: Add to Chart adds the Earnings Strip (addFeature EARNINGS_STRIP: dock.strip; never DOCK_PANELS' unrendered dock.bottom)",
+      "capabilities": [
+        "chartFeatures.earningsStrip"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartFeatures.earningsStrip"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartFeatures.earningsStrip",
+            "target": "$charts[0]",
+            "args": {
+              "op": "open"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "dock": {
+          "strip": true,
+          "bottom": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "show the earnings strip on this chart",
+        "add the fundamentals strip",
+        "put the earnings strip under the chart"
       ]
     },
     {

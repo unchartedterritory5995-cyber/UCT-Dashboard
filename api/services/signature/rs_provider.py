@@ -173,6 +173,7 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
     from api.services import rs_benchmarks
     from api.services.indicator_compute import _round_series
 
+    reader = fetch_bars            # the caller's reader, the composite memo's namespace
     params = rsmod.resolve_phase1_inputs(inputs)
     params["mansfieldLength"] = _rs_mansfield_length((inputs or {}).get("mansfieldLength"))
     requested = (inputs or {}).get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
@@ -232,8 +233,12 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
         # D4: `custom` is the member's ticker (blank unless the benchmark is
         # CUSTOM); `warm` fills bars.db behind a ticker with no rows yet, and the
         # pane says so (`bench["note"]`) rather than swapping in SPY.
+        # 2026-11-12: `sector` / `theme` are the picked sector and theme, blank
+        # unless the benchmark reads them (`rs_benchmarks.benchmark_picks`).
         bench = rs_benchmarks.resolve_benchmark(sym, requested, tf, count, fetch_bars=fetch_bars,
-                                                custom=params["customBenchmark"] or None, warm=warm)
+                                                custom=params["customBenchmark"] or None, warm=warm,
+                                                sector=params["sectorBenchmark"] or None,
+                                                theme=params["themeBenchmark"] or None, memo=reader)
     else:
         bench = rs_benchmarks.resolve_benchmark(sym, requested, tf, count, fetch_bars=fetch_bars)
     times = [int(b["t"]) for b in bars]
@@ -373,7 +378,9 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
             # only near 500, so an unrelated new-high setting could flip the label.
             regime = _rs_regime([b.get("c") for b in _rs_regime_bench_bars(
                 sym, requested, tf, count, bench, fetch_bars,
-                custom=(params["customBenchmark"] or None) if v4 else None)])
+                custom=(params["customBenchmark"] or None) if v4 else None,
+                picks=({"sector": params["sectorBenchmark"] or None, "theme": params["themeBenchmark"] or None,
+                        "memo": reader} if v4 else None))])
             sensitivity = _rs_sensitivity(sym, bars, bench, tf, count, groups, fetch_bars)
             checks = _rs_checks(bars, bench["bars"], str(bench.get("resolved") or "benchmark"),
                                 params["redDayThreshold"],
@@ -382,11 +389,17 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
             # D6: the anchor says which rule chose its bar, on every chart.
             checks["anchor"].setdefault("source", "picked" if params["anchorDate"] else "default")
             checks["anchor"].setdefault("date", params["anchorDate"] or None)
+        bench_block = dict({k: bench[k] for k in ("requested", "resolved", "label", "fallback")},
+                           bars=len(bench.get("bars") or []),
+                           note=_rs_benchmark_note(bench, legend, times, intraday=intraday,
+                                                   same_symbol=same_symbol))
+        if v4:
+            # 2026-11-12: the plain name the pane label prints (`XLK`,
+            # `Semiconductors`, `AI / GPU Chips`), never `THEME:<id>`. v4 only:
+            # the v3 payload is byte-identical (its own control rail).
+            bench_block["name"] = rs_benchmarks.benchmark_name(bench)
         payload = {
-            "benchmark": dict({k: bench[k] for k in ("requested", "resolved", "label", "fallback")},
-                              bars=len(bench.get("bars") or []),
-                              note=_rs_benchmark_note(bench, legend, times, intraday=intraday,
-                                                       same_symbol=same_symbol)),
+            "benchmark": bench_block,
             "legend": legend,
             "lastRsHigh": last_high,
             "history": {"bars": len(times), "requested": count, "short": short_history,
@@ -487,7 +500,9 @@ _RS_PAYLOAD_SHAPE = 4
 #: while the flag is off; the v4 key led with `rs4p5`.
 #: 6 (Deepvue round 2, 2026-11-08, `compute.rev` 5): `rating.m9`, the 9M part of
 #: `rating.components`, and the `ratingHistory` block. The key now leads `rs5p6`.
-_RS_PAYLOAD_SHAPE_V4 = 6
+#: 7 (2026-11-12, sector and theme benchmarks): `benchmark.name` and the
+#: `inputs.sectorBenchmark` / `inputs.themeBenchmark` picks. The key leads `rs5p7`.
+_RS_PAYLOAD_SHAPE_V4 = 7
 #: What Mansfield view blanks in the wire (A2): the ratio, its average, the
 #: above flag and every RS-line dot. Event columns are never blanked here.
 _RS_MANSFIELD_VIEW_BLANKS: tuple[str, ...] = (
@@ -569,8 +584,17 @@ def _rs_zero_cross_dot(values, cross_up) -> list:
 # The Benchmark row's muted second line (Phase 2a visual spec, rows 1 and A8):
 # the server's `benchmark.fallback` reason in sentence form. A reason this table
 # does not know still prints, in the generic shape, rather than vanishing.
-_RS_AUTO_NOUN = {"SECTOR": "Sector ETF", "INDUSTRY": "Industry group"}
+_RS_AUTO_NOUN = {"SECTOR": "Sector ETF", "INDUSTRY": "Industry group", "SECTOR_PICK": "Sector",
+                 "THEME": "Theme", "THEME_PICK": "Theme"}
 _RS_FALLBACK_SENTENCE = {
+    # 2026-11-12: the sector and theme benchmarks. A theme reason may carry the
+    # sector's own after "; " (an ETF, an unmapped sector): the THEME reason
+    # leads, and the sentence still ends on what is actually used.
+    "no sector picked": "No sector picked; using {resolved}",
+    "no theme": "No UCT theme for this stock; using {resolved}",
+    "no theme picked": "No theme picked; using {resolved}",
+    "theme not found": "That theme no longer exists; using {resolved}",
+    "theme too small": "Theme too small to average; using {resolved}",
     "symbol is an ETF": "{noun} not available for an ETF; using {resolved}",
     "no sector": "{noun} not available: no sector on file; using {resolved}",
     "no industry": "{noun} not available: no industry on file; using {resolved}",
@@ -600,13 +624,15 @@ def _rs_benchmark_note(bench: dict, legend: dict, times, *, intraday: bool,
     resolved = str(bench.get("resolved") or "")
     idx = legend.get("index") if isinstance(legend, dict) else None
     gap = bool(times) and (not isinstance(idx, int) or idx < len(times) - 1)
-    if gap and not intraday and not same_symbol and resolved and not resolved.startswith("INDUSTRY:"):
+    if (gap and not intraday and not same_symbol and resolved and not resolved.startswith("INDUSTRY:")
+            and not resolved.startswith("THEME:")):
         day = _rs_short_date(_rs_bar_ymd(times[-1]))
         if day:
             return f"No {resolved} bar for {day} yet"
     reason = bench.get("fallback")
     if not reason:
         return None
+    reason = str(reason).split("; ", 1)[0]     # a theme reason leads a chained one
     noun = _RS_AUTO_NOUN.get(str(bench.get("requested") or "").upper(), "Benchmark")
     shape = _RS_FALLBACK_SENTENCE.get(str(reason))
     if shape is None and str(reason).startswith("sector not mapped: "):
@@ -1039,7 +1065,7 @@ def _rs_regime_unavailable(reason: str) -> dict:
 
 
 def _rs_regime_bench_bars(sym: str, requested: str, tf: str, count: int, bench: dict,
-                          fetch_bars, custom: str | None = None) -> list:
+                          fetch_bars, custom: str | None = None, picks: dict | None = None) -> list:
     """The chart benchmark's bars at `_RS_REGIME_BARS` depth, whatever the RS
     lookback (review #19). The bars already in hand serve when they were read at
     least that deep; otherwise the same benchmark is resolved again at the fixed
@@ -1047,14 +1073,23 @@ def _rs_regime_bench_bars(sym: str, requested: str, tf: str, count: int, bench: 
     block is identical at every lookback. A failed or mismatched re-read falls
     back to the bars in hand: a shorter regime with its reason, never a 500.
     ``custom`` is the v4 custom ticker (unit 3-06), re-resolved without a warm
-    (the chart's own resolve already asked for one)."""
+    (the chart's own resolve already asked for one). ``picks`` (2026-11-12,
+    v4 only) is ``{"sector", "theme", "memo"}``, passed through the same way."""
     have = bench.get("bars") or []
+    # ⭐ 2026-11-12: a COMPOSITE (industry or theme) is never re-resolved deeper.
+    # A second build is one more bar read per member (up to 60), measured at
+    # 30-60 s cold on the sandbox's store; the regime reads the composite in hand
+    # (852 daily closes against the full 883: a slightly shorter volatility
+    # distribution, never a missing block). Every ticker benchmark is unchanged.
+    if str(bench.get("resolved") or "").startswith(("INDUSTRY:", "THEME:")):
+        return list(have[-_RS_REGIME_BARS:])
     if count < _RS_REGIME_BARS:
         try:
             from api.services import rs_benchmarks
-            if custom:
+            if custom or picks:
                 deep = rs_benchmarks.resolve_benchmark(sym, requested, tf, _RS_REGIME_BARS,
-                                                       fetch_bars=fetch_bars, custom=custom)
+                                                       fetch_bars=fetch_bars, custom=custom,
+                                                       **(picks or {}))
             else:
                 deep = rs_benchmarks.resolve_benchmark(sym, requested, tf, _RS_REGIME_BARS,
                                                        fetch_bars=fetch_bars)
@@ -1489,10 +1524,9 @@ def _rs_phase3_params(inputs: dict, requested: str, toggles: dict) -> dict:
     inp = inputs or {}
     specs = {i["key"]: i for i in registry_defs._rs_phase3_inputs()}
     out: dict = {"view": _rs_view(inp, toggles)}
-    custom = ""
-    if str(requested or "").upper() == rs_benchmarks.CUSTOM_BENCHMARK:
-        custom = rs_benchmarks.normalize_custom_symbol(inp.get("customBenchmark")) or ""
-    out["customBenchmark"] = custom
+    # The custom ticker, the picked sector and the picked theme, each blank
+    # unless the benchmark reads it (one rule, `rs_benchmarks.benchmark_picks`).
+    out.update(rs_benchmarks.benchmark_picks(requested, inp))
     for key in _RS_PHASE3_NUMBER_KEYS:
         spec = specs[key]
         out[key] = registry_defs._clamp_number(inp.get(key, spec["default"]), spec, spec["type"])
@@ -1869,10 +1903,13 @@ _RS_CORE_LOCK = threading.Lock()
 
 #: Each new envelope's payload shape, in its cache key (bump when a payload
 #: field or a wire blanking rule changes inside one `compute.rev`).
+#: 2 (2026-11-12, sector and theme benchmarks): `benchmark.name`, and the
+#: `inputs` carry `sectorBenchmark` / `themeBenchmark` beside a NORMALISED
+#: `customBenchmark` (each blank unless the benchmark reads it).
 _RS_RATING_PAYLOAD_SHAPE = 1
-_RS_PHASES_PAYLOAD_SHAPE = 1
-_RS_VS_EMA_PAYLOAD_SHAPE = 1
-_RS_EXIT_PAYLOAD_SHAPE = 1
+_RS_PHASES_PAYLOAD_SHAPE = 2
+_RS_VS_EMA_PAYLOAD_SHAPE = 2
+_RS_EXIT_PAYLOAD_SHAPE = 2
 
 #: The phase column's words (the legend row; the bgcolor paint reads the number).
 _RS_PHASE_LABELS = {1: "RS rising while the market falls", 0: "RS falling while the market rises"}
@@ -1904,14 +1941,25 @@ def _rs_core_put(key: tuple, value) -> None:
         _RS_CORE_MEMO[key] = (now, value)
 
 
-def _rs_core(sym: str, tf: str, requested: str | None, custom: str | None, *,
-             fetch_bars, warm, count: int, day: str) -> dict:
+def _rs_split_picks(requested: str, src: dict) -> dict:
+    """The split rows' benchmark second values, as the compute reads them."""
+    from api.services import rs_benchmarks
+    return rs_benchmarks.benchmark_picks(requested, src)
+
+
+def _rs_core(sym: str, tf: str, requested: str | None, custom, *,
+             fetch_bars, warm, count: int, day: str, memo=None) -> dict:
     """``{bars, times, bench, rs, same_symbol, no_bench, short_history}`` for
     one (symbol, timeframe, benchmark) ask, memoised (see above). ``requested``
     None means no benchmark (the rating): ``bench`` and ``rs`` are None and the
     two blank-state flags are False. The bars memo and the benchmark memo are
     separate entries, so the rating and the two ratio indicators share the
-    stock's bars while only the latter pay for the benchmark."""
+    stock's bars while only the latter pay for the benchmark.
+
+    2026-11-12: ``custom`` is the picks dict (`_rs_split_picks`: the custom
+    ticker, the picked sector, the picked theme) or a bare custom ticker;
+    ``memo`` is the caller's reader, the composite memo's namespace."""
+    picks = custom if isinstance(custom, dict) else {"customBenchmark": str(custom or "")}
     from api.services import relative_strength as rsmod
     from api.services import rs_benchmarks
     store = registry_defs.store_tf(tf)
@@ -1927,11 +1975,14 @@ def _rs_core(sym: str, tf: str, requested: str | None, custom: str | None, *,
            "short_history": bool(times) and len(times) < count}
     if requested is None:
         return out
-    bench_key = ("bench", sym_u, store, str(requested), str(custom or ""), int(count), day)
+    pick_key = tuple(str(picks.get(k) or "") for k in ("customBenchmark", "sectorBenchmark", "themeBenchmark"))
+    bench_key = ("bench", sym_u, store, str(requested), pick_key, int(count), day)
     hit = _rs_core_get(bench_key)
     if hit is None:
         bench = rs_benchmarks.resolve_benchmark(sym, requested, tf, count, fetch_bars=fetch_bars,
-                                                custom=custom or None, warm=warm)
+                                                custom=picks.get("customBenchmark") or None, warm=warm,
+                                                sector=picks.get("sectorBenchmark") or None,
+                                                theme=picks.get("themeBenchmark") or None, memo=memo)
         hit = {"bench": bench, "rs": rsmod.rs_line(bars, bench.get("bars") or [])}
         _rs_core_put(bench_key, hit)
     out["bench"] = hit["bench"]
@@ -1966,9 +2017,10 @@ def _rs_split_why(core: dict) -> str | None:
 
 
 def _rs_split_benchmark_block(core: dict, legend_index, *, intraday: bool) -> dict:
+    from api.services import rs_benchmarks
     bench = core["bench"]
     return dict({k: bench.get(k) for k in ("requested", "resolved", "label", "fallback")},
-                bars=len(bench.get("bars") or []),
+                bars=len(bench.get("bars") or []), name=rs_benchmarks.benchmark_name(bench),
                 note=_rs_benchmark_note(bench, {"index": legend_index}, core["times"],
                                         intraday=intraday, same_symbol=core["same_symbol"]))
 
@@ -2101,9 +2153,9 @@ def rs_phases_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key
     intraday = store not in ("D", "W", "M")
     count = _rs_bars_count(store, rsmod.DEFAULT_LOOKBACK)
     requested = src.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
-    custom = str(src.get("customBenchmark") or "")
+    custom = _rs_split_picks(requested, src)
     params = {
-        "benchmark": requested, "customBenchmark": custom,
+        "benchmark": requested, **custom,
         "shortEma": int(round(rsmod._clamp(src.get("shortEma"), *rsmod.PHASES_SHORT_RANGE,
                                            default=rsmod.DEFAULT_PHASES_SHORT))),
         "longEma": int(round(rsmod._clamp(src.get("longEma"), *rsmod.PHASES_LONG_RANGE,
@@ -2120,7 +2172,7 @@ def rs_phases_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key
     stages: dict = {"bars": 0.0}
     t_build = time.perf_counter()
     core = _rs_core(sym, tf, requested, custom, fetch_bars=_timed_fetch(fetch_bars, stages), warm=warm,
-                    count=count, day=day)
+                    count=count, day=day, memo=fetch_bars)
     times = core["times"]
     why = _rs_split_why(core)
     if why is None:
@@ -2162,8 +2214,8 @@ def rs_vs_ema_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key
     intraday = store not in ("D", "W", "M")
     count = _rs_bars_count(store, rsmod.DEFAULT_LOOKBACK)
     requested = src.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
-    custom = str(src.get("customBenchmark") or "")
-    params = {"benchmark": requested, "customBenchmark": custom,
+    custom = _rs_split_picks(requested, src)
+    params = {"benchmark": requested, **custom,
               "maLength": rsmod.DEFAULT_VS_EMA_LENGTH, "maType": "EMA",
               "fast": rsmod.DEFAULT_VS_EMA_FAST, "slow": rsmod.DEFAULT_VS_EMA_SLOW}
     rev = _rs_split_rev("rsVsEma")
@@ -2177,7 +2229,7 @@ def rs_vs_ema_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key
     stages: dict = {"bars": 0.0}
     t_build = time.perf_counter()
     core = _rs_core(sym, tf, requested, custom, fetch_bars=_timed_fetch(fetch_bars, stages), warm=warm,
-                    count=count, day=day)
+                    count=count, day=day, memo=fetch_bars)
     times = core["times"]
     why = _rs_split_why(core)
     if why is None:
@@ -2302,9 +2354,9 @@ def rs_exit_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
     supported = store in ("D", "W")
     count = _rs_bars_count(store, rsmod.DEFAULT_LOOKBACK)
     requested = src.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
-    custom = str(src.get("customBenchmark") or "")
+    custom = _rs_split_picks(requested, src)
     fast, slow = rsmod.resolve_exit_lengths(store, src.get("fastLength"), src.get("slowLength"))
-    params = {"benchmark": requested, "customBenchmark": custom, "fastLength": fast, "slowLength": slow,
+    params = {"benchmark": requested, **custom, "fastLength": fast, "slowLength": slow,
               "maType": "SMA"}
     rev = _rs_split_rev("rsExit")
     day = _et_session_day()
@@ -2317,7 +2369,7 @@ def rs_exit_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
     stages: dict = {"bars": 0.0}
     t_build = time.perf_counter()
     core = _rs_core(sym, tf, requested if supported else None, custom, fetch_bars=_timed_fetch(fetch_bars, stages),
-                    warm=warm, count=count, day=day)
+                    warm=warm, count=count, day=day, memo=fetch_bars)
     times = core["times"]
     why = _RS_EXIT_BLANK_WHY if not supported else _rs_split_why(core)
     if why is None:
@@ -2330,7 +2382,7 @@ def rs_exit_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
     payload = {
         "benchmark": (_rs_split_benchmark_block(core, _rs_last_finite(core["rs"]), intraday=intraday)
                       if supported else {"requested": requested, "resolved": None, "label": None,
-                                         "fallback": None, "bars": 0, "note": None}),
+                                         "fallback": None, "bars": 0, "name": None, "note": None}),
         "legend": legend,
         "history": _rs_split_history(core, count),
         "inputs": params,

@@ -96,12 +96,12 @@ _BUILTIN_FETCH = _default_fetch
 
 def _default_cache_get(ticker: str):
     from api.services import bars_sanitize as san
-    return san.cache.get(san._META_KEY.format(ticker))
+    return san._META_CACHE.get(san._META_KEY.format(ticker))
 
 
 def _default_cache_set(ticker: str, meta: dict) -> None:
     from api.services import bars_sanitize as san
-    san.cache.set(san._META_KEY.format(ticker), meta, ttl=san._META_TTL)
+    san._META_CACHE.set(san._META_KEY.format(ticker), meta, ttl=san._META_TTL)
 
 
 def _default_gate():

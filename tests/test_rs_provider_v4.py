@@ -681,9 +681,10 @@ def test_the_v4_key_leads_with_rev_5_and_shape_6_and_carries_the_new_inputs(v4_r
     _lane(monkeypatch, store, inputs={"anchorDate": "2024-01-02"})
     _lane(monkeypatch, store, inputs={"benchmark": "CUSTOM", "customBenchmark": "SMH"})
     _lane(monkeypatch, store, inputs={"clenowWindow": 60})
-    # Deepvue round 2 (2026-11-08): rev 5 / shape 6 (`rating.m9`, `ratingHistory`)
-    assert rsp._RS_PAYLOAD_SHAPE_V4 == 6 and rsp._RS_PAYLOAD_SHAPE == 4
-    assert all(k.startswith("sig:rs5p6:") for k in keys), keys
+    # Deepvue round 2 (2026-11-08): rev 5 / shape 6 (`rating.m9`, `ratingHistory`);
+    # 2026-11-12: shape 7 (`benchmark.name`, the sector / theme picks in `inputs`)
+    assert rsp._RS_PAYLOAD_SHAPE_V4 == 7 and rsp._RS_PAYLOAD_SHAPE == 4
+    assert all(k.startswith("sig:rs5p7:") for k in keys), keys
     assert len(set(keys)) == 5
     assert '"view": "vars"' in keys[1] and '"anchorDate": "2024-01-02"' in keys[2]
     assert ':CUSTOM:' in keys[3] and '"customBenchmark": "SMH"' in keys[3]

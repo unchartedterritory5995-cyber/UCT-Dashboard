@@ -3788,13 +3788,13 @@ def _run_bars_split_repair_sweep() -> dict:
             break
         summary["considered"] += 1
         key = _san._META_KEY.format(ticker)
-        meta = cache.get(key)
+        meta = _san._META_CACHE.get(key)
         if meta is None:
             try:
                 meta = _san._fetch_meta(ticker)
-                cache.set(key, meta, ttl=_san._META_TTL)
+                _san._META_CACHE.set(key, meta, ttl=_san._META_TTL)
             except Exception:                                  # noqa: BLE001
-                cache.set(key, {"ipo": None, "splits": []}, ttl=_san._META_FAIL_TTL)
+                _san._META_CACHE.set(key, {"ipo": None, "splits": []}, ttl=_san._META_FAIL_TTL)
                 summary["meta_failed"] += 1
                 continue
             time.sleep(0.05)          # provider politeness, not a rate limit

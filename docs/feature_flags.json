@@ -3637,6 +3637,14 @@
       "default": "0.5",
       "note": "2026-11-12: the interpreter's thread switch interval for the web process. The default IS the decision: 0.5 ms, set on no service. CPython's own default is 5 ms, and a row-by-row sqlite read waits one interval per row while any other thread runs Python: 852 rows measured 1.7 ms alone and ~1,640 ms beside one busy thread, which is what Server-Timing rs-bars showed on every cold /api/signature/columns ask (a chart's RS panes blank 1.2 to 2.0 s behind its candles). Set 5 to restore the interpreter default; the boot line `[startup] thread switch interval` prints the value in force. Rail: tests/test_gil_tuning.py."
     },
+    "RS_PACKED_READS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/routers/signature.py::_lane_rows (read per bars read of the server lane; `0` turns the one-step read off, anything else or unset leaves it on)",
+      "kind": "config",
+      "status": "armed",
+      "default": "1",
+      "note": "2026-11-13: the RS lane reads a series' bars in ONE sqlite step (bars_sqlite.get_bars_packed: the rows are aggregated inside sqlite and come back as one result row, each price carried as three integers so the rebuilt double is bit-for-bit the stored one). The default IS the decision: on, set on no service. Why: get_bars takes one sqlite3_step per row and CPython re-takes the GIL after each, so on the web pod a ~5,000-bar read cost about one thread switch interval per row: Server-Timing rs-bars 0.9 to 3.4 s, and a median 37 s per /api/signature/columns-batch request with 44 in flight while a member scanned a list fast (the pod's request log, 2026-11-13 04:48 UTC). Benchmarked beside four busy threads: 863 ms row by row, 33 ms in one step. Set 0 to read row by row again (a restart applies it); any other value leaves it on. The read refuses by itself, and the rows are read the old way, whenever it cannot be exact (a fractional volume, a value outside the proven range, a sqlite without JSON functions). Rails: tests/test_bars_packed_read.py, tests/test_signature_bars_share.py."
+    },
     "SESSION_DEVICE_LIMIT": {
       "repo": "uct-dashboard",
       "read_at": "api/services/session_guard.py::device_limit (read per call at sign-in from auth_service; integer >= 0; blank or unparseable means the default)",

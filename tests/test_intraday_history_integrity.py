@@ -144,10 +144,10 @@ def test_note_served_schedules_a_check_only_when_the_stamp_is_not_the_target(sto
     ish._checked.clear()
     ish._inflight.clear()
     bars = _series(100.0, 50.0)
-    cache.set(bs._META_KEY.format("NOTE"), {"ipo": None, "splits": [(SPLIT_DAY, 2.0)]}, ttl=60)
-    cache.set(bs._META_KEY.format("DONE"), {"ipo": None, "splits": [(SPLIT_DAY, 2.0)]}, ttl=60)
+    bs._META_CACHE.set(bs._META_KEY.format("NOTE"), {"ipo": None, "splits": [(SPLIT_DAY, 2.0)]}, ttl=60)
+    bs._META_CACHE.set(bs._META_KEY.format("DONE"), {"ipo": None, "splits": [(SPLIT_DAY, 2.0)]}, ttl=60)
     cache.delete_prefix(bs._META_KEY.format("COLD"))
-    monkeypatch.setattr(bs, "_meta_cached", lambda t: cache.get(bs._META_KEY.format(t)))
+    monkeypatch.setattr(bs, "_meta_cached", lambda t: bs._META_CACHE.get(bs._META_KEY.format(t)))
     bars_sqlite.put_bars("DONE", "5", bars[-3:])
     bars_sqlite.apply_split_basis("DONE", {"5": {"rev": bars_sqlite.series_meta("DONE", "5")["rev"],
                                                  "adj_events": [(SPLIT_DAY, 2.0)], "rescale": []}})
@@ -254,11 +254,11 @@ def test_merge_skips_interior_near_a_declared_split(tmp_path, monkeypatch):
     _mkdb(snap, [_r("AAA", "5", T0), _r("AAA", "5", T0 + 300), _r("AAA", "5", T0 + 600),
                  _r("AAA", "5", T0 + 900, v=120)])
     day = _dt.datetime.fromtimestamp(T0, ET).date().isoformat()
-    cache.set(bs._META_KEY.format("AAA"), {"ipo": None, "splits": [(day, 0.1)]}, ttl=60)
+    bs._META_CACHE.set(bs._META_KEY.format("AAA"), {"ipo": None, "splits": [(day, 0.1)]}, ttl=60)
     try:
         assert data_sync._merge_ohlcv_from(str(snap), local_db=str(local)) == 0
     finally:
-        cache.invalidate(bs._META_KEY.format("AAA"))
+        bs._META_CACHE.invalidate(bs._META_KEY.format("AAA"))
     assert [r[0] for r in _all(local)] == [T0, T0 + 600, T0 + 900]
     assert _all(local)[-1][2] == 40
 

@@ -14,12 +14,23 @@
 // `raw_view: true` does an "As traded" toggle render, opening the vendor's unadjusted daily
 // closes beside the adjusted ones around the split (GET /api/adjustment-basis/{sym}/raw).
 // Gate off ⇒ the key is absent ⇒ the DOM is exactly the label alone.
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import useSWR from 'swr'
 import { formatCurrency, formatNumberMax } from '../../lib/presentation/presentationPrimitives'
+import { useSymbolResource } from '../../lib/symbolResourceWarm'
 import styles from './AdjustmentLabel.module.css'
 
 const BASIS_TFS = new Set(['D', 'W', 'M', '1', '5', '15', '30', '60'])
+
+// The ONE spelling of the label's key. The label asks under it, and the rows a member is
+// about to reach are asked for ahead under it (lib/symbolResourceWarm.js): the label used
+// to appear ~140 ms after the candles on every first visit.
+function adjustmentBasisKey(sym, tf) {
+  const s = (sym || '').toUpperCase().trim()
+  const t = String(tf || '').toUpperCase()
+  return s && BASIS_TFS.has(t) && !s.startsWith('$')
+    ? `/api/adjustment-basis/${encodeURIComponent(s)}?tf=${t}` : null
+}
 
 export function adjustmentText(basis) {
   if (!basis) return null
@@ -87,9 +98,9 @@ function RawPanel({ sym, around }) {
 
 export default function AdjustmentLabel({ sym, tf, className }) {
   const s = (sym || '').toUpperCase().trim()
-  const t = String(tf || '').toUpperCase()
-  const key = s && BASIS_TFS.has(t) && !s.startsWith('$')
-    ? `/api/adjustment-basis/${encodeURIComponent(s)}?tf=${t}` : null
+  const key = adjustmentBasisKey(sym, tf)
+  const keyOf = useCallback((other) => adjustmentBasisKey(other, tf), [tf])
+  useSymbolResource(keyOf, fetchJson)
   const { data } = useSWR(key, fetchJson, { revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 })
   const [rawOpen, setRawOpen] = useState(false)
   const basis = data?.adjustment_basis

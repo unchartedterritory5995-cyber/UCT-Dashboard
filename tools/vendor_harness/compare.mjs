@@ -1228,7 +1228,9 @@ export const V2_DIFFERS = new Set(['differ'])
 /** Not graded, and counted: the capture cannot be decoded, the slot is
  *  theme-relative, the object is drawn by neither side, or the field does not
  *  apply (label y off price, text colour of an empty text). */
-export const V2_NOT_GRADED = new Set(['undecoded', 'themeRelative', 'undrawn', 'notApplicable'])
+// ⭐ Engine 52 — `pointSize`: our side drew a v6 int text size (typographic points); no capture
+// records a point size's pixels, so it is served and NOT graded (`objectRecords.js::fieldRow`).
+export const V2_NOT_GRADED = new Set(['undecoded', 'themeRelative', 'undrawn', 'notApplicable', 'pointSize'])
 
 /**
  * The v2 report for one capture.
