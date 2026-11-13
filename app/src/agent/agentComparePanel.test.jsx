@@ -26,12 +26,12 @@ registerBuiltins()
 const CTX = { surface: 'charts' }
 
 /** ChartsWorkspace's compare state + the panel's tab rule, answering the REAL window event as they do. */
-function workspace({ mobile = false, grid = false, open = false, tab = null, hasChart = true, percent = false, deaf = false } = {}) {
-  const w = { mobile, grid, open, tab: open ? (tab || 'overlay') : null, intent: null, events: [], closes: 0, percent, chart: hasChart }
+function workspace({ mobile = false, grid = false, open = false, tab = null, hasChart = true, percent = false, deaf = false, stalePick = false, intent = null } = {}) {
+  const w = { mobile, grid, open, tab: open ? (tab || 'overlay') : null, intent: open ? intent : null, events: [], closes: 0, percent, chart: hasChart }
   const onOpen = (e) => {
     w.events.push(e.detail)
     if (deaf || w.mobile) return                                             // ChartsWorkspace: ignored on the phone
-    w.intent = e.detail                                                     // setCompareIntent(e.detail)
+    if (!stalePick) w.intent = e.detail                                     // setCompareIntent(e.detail); `stalePick`: the tab moves, the pick does not
     const d = e.detail || {}
     if (!w.open) { w.open = true; w.tab = d.tab === 'rotation' ? 'rotation' : 'overlay' }   // initialIntent → the panel's tab
     else if (d.tab === 'rotation') w.tab = 'rotation'                       // the open panel's own listener
@@ -420,5 +420,47 @@ describe('rail: the receipt offers an Undo button only where Undo is exact (thro
     expect(lastReceipt().getAttribute('data-undoable')).toBe('true')
     await b.say('undo')
     expect([b.w.open, b.w.tab]).toEqual([true, 'overlay'])
+  }, 40000)
+})
+
+// AUDIT N1 (#1170): a panel that lands on Rotation but keeps the PREVIOUS pick is not a success — the read-back checks the
+// pick (this event's detail), never the tab alone
+describe('rail: Rotation with the OLD pick is "did not take effect", never a receipt', () => {
+  const old = { tab: 'rotation', sym: 'AMD', group: 'theme' }
+  it('Overlay → Rotation for NVDA sector, the panel switches tab but keeps the AMD theme: failed, no Undo', async () => {
+    const { h, w } = host({ open: true, tab: 'overlay', intent: old, stalePick: true })
+    const { p, env } = await plan(h, [view({ symbol: 'NVDA', groupType: 'sector' })])
+    expect(p.ok).toBe(true)
+    const res = await commitPlan(h, p, { env })
+    expect(res.ok).toBe(false)
+    expect(res.undo ?? null).toBe(null)
+    expect(w.intent).toEqual(old)
+    expect(strip(w.events.at(0))).toEqual({ tab: 'rotation', sym: 'NVDA', group: 'sector' })
+  }, 10000)
+  it('a named group on Overlay → Rotation, old pick kept: failed, no Undo', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => ({ ok: true, json: async () => ({ groups: [{ name: 'Semiconductors', count: 40 }] }) }))
+    const { h } = host({ open: true, tab: 'overlay', intent: old, stalePick: true })
+    const { p, env } = await plan(h, [view({ group: 'semiconductors', groupType: 'industry' })])
+    const res = await commitPlan(h, p, { env })
+    expect([res.ok, res.undo ?? null]).toEqual([false, null])
+  }, 10000)
+  it('a re-pick on an open Rotation panel that ignores it: failed, no Undo, the old pick stays', async () => {
+    const { h, w } = host({ open: true, tab: 'rotation', intent: old, stalePick: true })
+    const { p, env } = await plan(h, [view({ symbol: 'NVDA', groupType: 'industry' })])
+    const res = await commitPlan(h, p, { env })
+    expect([res.ok, res.undo ?? null, w.tab]).toEqual([false, null, 'rotation'])
+    expect(w.intent).toEqual(old)
+  }, 10000)
+  it('the same re-pick through the REAL AgentPanel: no receipt claims it, nothing undoable', async () => {
+    const pp = setupPanel()
+    const m = pp.mount(...ONE('NVDA'))
+    const w = workspace({ open: true, tab: 'rotation', intent: old, stalePick: true })
+    live.push(w)
+    m.h.compare = w.source
+    pp.st.envelopes.push(pp.env('apply', [view({ symbol: 'NVDA', groupType: 'industry' })]))
+    const out = await m.say('show the nvda industry on the rotation map')
+    expect(out).not.toMatch(/showing NVDA's industry on the rotation map/)
+    expect(out).toMatch(/did not take effect|didn't|did not/i)
+    expect(screen.queryAllByTestId('agent-receipt').filter(r => r.getAttribute('data-undoable') === 'true')).toEqual([])
   }, 40000)
 })
