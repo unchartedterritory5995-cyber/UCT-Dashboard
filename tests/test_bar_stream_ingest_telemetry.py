@@ -146,3 +146,27 @@ def test_the_reader_loop_runs_through_the_timer():
     src = inspect.getsource(bs._run_websocket)
     assert "async for raw_msg in _timed_frames(ws)" in src
     assert "_note_ingest_event(_ec, ev)" in src
+
+
+def test_a_mid_update_read_never_raises():
+    # The request thread can read between writes; n=1 with max=None must read as empty.
+    h = bs._new_hist()
+    h["n"], h["b"][0] = 1, 1
+    assert bs._hist_summary(h) == {"n": 0, "max": None, "p50": None, "p90": None}
+    w = bs._new_ingest_window(100)
+    w["trade"] = h
+    assert bs._ingest_window_summary(w)["trade_lag_ms"]["n"] == 0
+
+
+def test_hist_add_writes_max_before_n():
+    import inspect
+    src = inspect.getsource(bs._hist_add)
+    assert src.index('h["max"] = v') < src.index('h["n"] += 1')
+
+
+def test_negative_clock_skew_lag_lands_in_bucket_zero():
+    _set_minute(100)
+    bs._ing_recv_ms = 1_000.0
+    bs._note_ingest_event("T", {"t": 1_500}, now_ms=1_000.0)
+    h = bs._ing_cur["trade"]
+    assert h["b"][0] == 1 and bs._hist_summary(h)["max"] == -500

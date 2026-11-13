@@ -104,6 +104,8 @@ _am_lag = {"window_start": 0.0, "max_ms": 0, "prev_window_max_ms": 0, "worst_ms"
 # Hot-path cost: plain int/float updates + one bisect per T event; no locks, no logs.
 # Lag percentiles come from fixed buckets: p50/p90 are the bucket's upper edge (ms),
 # capped at the observed max, so they are "<=" bounds, never sorted samples.
+# Clock skew: a T.t ahead of this pod's clock gives a NEGATIVE lag; it lands in
+# bucket 0 and max/p50/p90 can then read negative (a skew signal, not an error).
 _LAG_EDGES_MS = (100, 250, 500, 1000, 2000, 3000, 5000, 7500, 10000, 15000, 20000,
                  30000, 45000, 60000, 90000, 120000, 180000, 300000)
 
@@ -506,10 +508,12 @@ async def _timed_frames(ws):
 
 
 def _hist_add(h: dict, v: float) -> None:
-    h["b"][bisect_left(_LAG_EDGES_MS, v)] += 1
-    h["n"] += 1
+    # Order matters: get_status() reads from another thread, so max and the bucket
+    # are written BEFORE n — a reader that sees n > 0 always sees a max.
     if h["max"] is None or v > h["max"]:
         h["max"] = v
+    h["b"][bisect_left(_LAG_EDGES_MS, v)] += 1
+    h["n"] += 1
 
 
 def _note_ingest_event(ec, ev, now_ms: Optional[float] = None) -> None:
@@ -532,10 +536,10 @@ def _note_ingest_event(ec, ev, now_ms: Optional[float] = None) -> None:
 
 
 def _hist_summary(h: dict) -> dict:
-    n = h["n"]
-    if not n:
+    n, mx = h["n"], h["max"]
+    if not n or mx is None:  # mid-update read from another thread reads as empty
         return {"n": 0, "max": None, "p50": None, "p90": None}
-    b, mx = list(h["b"]), h["max"]
+    b = list(h["b"])
 
     def pct(p):
         need, acc = max(1, -(-n * p // 100)), 0
