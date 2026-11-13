@@ -1711,6 +1711,10 @@ export default function NoteEditorPage({
       // Nothing local differs from the server: it saved fine (or was never
       // touched) and surfacing it is pure noise.
       if (raw) { try { localStorage.removeItem(DRAFT_KEY(note.id)) } catch { /* private mode */ } }
+      // ⭐ Follow-up D (F2): a dirty record equal to this copy is a save that landed unseen;
+      // settle it (proof taken inside the store's transaction) before the decision is shown.
+      if (decision?.settle) await durableRef.current.settleProvenEqual(note)
+      if (cancelled) return
       setPendingDraft(null)
       setRecovery(null)
       setRecoveryDecidedFor(note.id)

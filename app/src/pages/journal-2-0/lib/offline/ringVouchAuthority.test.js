@@ -134,7 +134,9 @@ function regionEnd(code, start) {
 
 const AUTHORITY = /\bringVouchedPlan\s*\(/
 const CHOOSES_A_PLAN = /\b(rebaseEntry|mergeAppends|classifyServerChange|appendedServerNodes|missingServerNodes)\s*\(/
-const REMOVES_ONLY = /\bclearOutboxEntry\s*\(/
+// ⭐ Follow-up D (2026-11-13): the two identical sites remove through `supersedeIdentical`,
+// which also settles a record proven equal to the server; it chooses no plan.
+const REMOVES_ONLY = /\b(clearOutboxEntry|supersedeIdentical)\s*\(/
 
 /** Every `.ours` read in one file, with what its own region decides. */
 export function vouchSites(src, label = '<source>') {

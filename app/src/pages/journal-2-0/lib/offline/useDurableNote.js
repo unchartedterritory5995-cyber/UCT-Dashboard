@@ -42,7 +42,7 @@ import {
 } from './recoverLocalState'
 import { copyEntryFor } from './noteCopy'
 import { refusedCopiesOf } from './refusedCopy'
-import { settleForkedNote } from './outboxDrain'
+import { settleForkedNote, settleIfServerHolds } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from './baseline'
 import { holdNoteOwnerLock } from './noteOwnerLock'
@@ -848,12 +848,30 @@ export function useDurableNote({
     // not restored into this note; it travels BESIDE the decision as its own offer.
     return {
       ...decision,
+      // ⭐ Follow-up D (F2): a DIRTY record no copy differs from equals the server copy just
+      // read. A hint for the editor to call `settleProvenEqual`; the proof is taken there.
+      settle: Boolean(idbRecord) && !decision.unsynced,
       adopt: queuedWorkToAdopt({ decision, record: idbRecord, entry: queued }),
       base: baseOfRecovered({
         decision, record: idbRecord, entry: queued, draft: supported ? lsDraft : null, server,
       }),
       refusedCopies,
     }
+  }, [supported, accountId, noteId, connect])
+
+  /**
+   * ⭐ Follow-up D (F2): on open, a dirty record whose words the server copy just loaded
+   * holds (and every entry queued for the note too) is settled clean, so "Open it so it can
+   * finish saving" is true. The drain's `settleIfServerHolds`, never a second comparison;
+   * no network. Never throws.
+   * @returns true only when it settled
+   */
+  const settleProvenEqual = useCallback(async (server) => {
+    if (!supported || !server) return false
+    try {
+      const db = await connect(accountId)
+      return (await settleIfServerHolds(db, noteId, server, server.updatedAt)) === 'settled'
+    } catch { return false }
   }, [supported, accountId, noteId, connect])
 
   /**
@@ -876,5 +894,6 @@ export function useDurableNote({
 
   return {
     supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover, withCopyStore,
+    settleProvenEqual,
   }
 }
