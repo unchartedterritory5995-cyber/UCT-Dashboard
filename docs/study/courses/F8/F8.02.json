@@ -1459,17 +1459,17 @@
      "+1 restated in this batch"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "8%",
+    "11.5%",
     "89.7%",
-    "10.3%",
-    "11.5%"
+    "18.3%",
+    "10.3%"
    ],
    "wrong": {
     "11.5%": "Divided by the stop price, not the entry.",
     "89.7%": "Gave the stop as a share of the entry.",
-    "8%": "Used the size of the gap up as the stop distance."
+    "18.3%": "Added the 8% gap up to the stop distance."
    }
   },
   {
@@ -1942,7 +1942,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q21": {
    "status": "pass",

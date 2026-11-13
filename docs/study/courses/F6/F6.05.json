@@ -983,17 +983,17 @@
      "the key rests on one quoted table (f64, Cboe 2012 slides), which WebFetch could not reach on 2026-11-12 (403)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$2.47",
-    "$0.76",
     "$0.95",
+    "$2.47",
+    "$2.25",
     "$1.71"
    ],
    "wrong": {
     "$2.47": "Added the two prices instead of subtracting.",
-    "$0.76": "Gave the value left, not what the four weeks cost.",
-    "$1.71": "Gave the starting price, not the cost."
+    "$1.71": "Gave the starting price, not the cost.",
+    "$2.25": "Divided the start price by the end price."
    }
   },
   {
@@ -1551,8 +1551,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q13": {
    "status": "pass",

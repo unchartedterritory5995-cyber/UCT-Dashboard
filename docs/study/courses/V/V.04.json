@@ -3210,7 +3210,7 @@
     }
    },
    "suffix": "%",
-   "why": "2%. The gap is $50.00 - $49.00 = $1.00. Divide by the first low: $1.00 / $50.00 = 2%. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it.",
+   "why": "2%. The gap is the first low minus the second low, $50.00 - $49.00. Divide it by the first low of $50.00 to get 2%. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it.",
    "lesson_line": "Two lows within about 3% of each other still count as roughly equal.",
    "facts": [
     "f108",
@@ -3228,15 +3228,15 @@
    },
    "batch": "tomcq",
    "choices": [
-    "0.02%",
-    "1%",
-    "98%",
-    "2%"
+    "2%",
+    "20%",
+    "50%",
+    "98%"
    ],
    "wrong": {
-    "1%": "Used the $1.00 gap as a percent and never divided by $50.",
     "98%": "Took the second low as a share of the first, not the gap.",
-    "0.02%": "Forgot to multiply by 100 after dividing."
+    "20%": "Slipped a decimal place up.",
+    "50%": "Flipped it: divided the first low by the gap."
    }
   },
   {
@@ -3356,17 +3356,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$50",
     "$40",
-    "$60",
+    "$30",
+    "$20",
     "$10"
    ],
    "wrong": {
-    "$50": "Took the head height off the $60 head, not the neckline.",
-    "$60": "Added the head height to the neckline instead of subtracting.",
-    "$10": "That is the head height alone, not the target."
+    "$10": "That is the head height alone, not the target.",
+    "$30": "Took the head height off the neckline twice.",
+    "$20": "Doubled the head height and used it as the target."
    }
   },
   {
@@ -4496,7 +4496,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Content passes; reordered only to vary the answer slot."
+   "notes": "Replaced weak distractor(s) and/or filled missing upgrade so the right answer sits at the target rank."
   },
   "q41": {
    "status": "pass",
@@ -4513,8 +4513,8 @@
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Content passes; reordered only to vary the answer slot."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q44": {
    "status": "pass",

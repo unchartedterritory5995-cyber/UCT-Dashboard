@@ -1029,10 +1029,10 @@
    "format": "mcq",
    "q": "GICS sorts stocks into sectors. How many sectors does it have?",
    "choices": [
-    "11",
-    "9",
     "25",
-    "163"
+    "74",
+    "163",
+    "11"
    ],
    "answer": "11",
    "why": "11. GICS has four levels. The top level holds 11 sectors. Below them sit 25 industry groups, 74 industries and 163 sub-industries. The eleven sector indexes behind the sector funds together hold every S&P 500 company. The list can change: Real Estate was carved out of Financials as a new sector, and telecom became Communication Services.",
@@ -1046,9 +1046,9 @@
     "f02"
    ],
    "wrong": {
-    "9": "Nine was the number of sector SPDR funds around 2007. Today there are 11 sectors and a fund for each.",
     "25": "That's the industry groups, the level just below the sectors.",
-    "163": "That's the sub-industries, the most detailed level."
+    "163": "That's the sub-industries, the most detailed level.",
+    "74": "That's the industries, the level between groups and sub-industries."
    },
    "simple": "GICS has 11 sectors, the top level above its smaller groups and industries.",
    "tier": "core",
@@ -1059,7 +1059,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "rank"
   },
   {
    "key": "q02",
@@ -1924,7 +1924,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived 11 from f01 (MSCI Tier 1). Why: 25/74/163 from f01, eleven indexes hold every S&P 500 company from f45 (re-read live on SSGA XLE page), Real Estate and telecom change from f02. No tell (numeric choices). Does not answer q22: 'together hold every company' is not 'hold only S&P 500 stocks'."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q02": {
    "status": "pass",

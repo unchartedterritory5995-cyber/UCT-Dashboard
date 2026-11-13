@@ -1828,17 +1828,17 @@
    "depends_on": [
     "D-039"
    ],
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "0.20",
     "0.80",
     "0.99",
-    "0.04"
+    "1.04",
+    "1.25"
    ],
    "wrong": {
-    "0.20": "Measured from the high down. The question counts up from the low.",
     "0.99": "Divided the close by the high. Use the range: close minus low, over high minus low.",
-    "0.04": "Divided by the low instead of by the range."
+    "1.04": "Divided the close by the low instead of by the range.",
+    "1.25": "Flipped it: range over climb instead of climb over range."
    }
   },
   {
@@ -2099,17 +2099,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "0.2R",
+    "5.0R",
     "6.0R",
-    "3.7R",
-    "5.0R"
+    "50.0R",
+    "79.4R"
    ],
    "wrong": {
     "6.0R": "Measured the gain from the stop instead of from the fill.",
-    "3.7R": "Called the dollar gain R. Divide it by the risk per share.",
-    "0.2R": "Inverted it: R divided by the gain instead of gain divided by R."
+    "50.0R": "Slipped the decimal point one place right.",
+    "79.4R": "Divided the exit price by R instead of the gain."
    }
   },
   {
@@ -2730,17 +2730,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1.6%",
     "3.2%",
-    "32.0%",
-    "96.8%"
+    "1.6%",
+    "0.32%",
+    "0.032%"
    ],
    "wrong": {
     "1.6%": "Read the dollar gap as a percent. Divide it by the buy first.",
-    "96.8%": "Divided the stop by the buy. That is how much of the price is left, not how far the stop is.",
-    "32.0%": "Slipped the decimal point one place right."
+    "0.32%": "Slipped the decimal point one place left.",
+    "0.032%": "Forgot to scale the ratio to a percent."
    }
   },
   {
@@ -3662,7 +3662,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q25": {
    "status": "pass",
@@ -3705,7 +3705,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q32": {
    "status": "pass",
@@ -3806,8 +3806,8 @@
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong choice 32% breaks the one-decimal format of the others; made it 32.0%."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q49": {
    "status": "pass",

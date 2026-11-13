@@ -1900,17 +1900,17 @@
      "rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "41.81%",
-    "3.01%",
+    "4.18%",
     "4.01%",
-    "4.18%"
+    "3.01%",
+    "0.42%"
    ],
    "wrong": {
-    "41.81%": "Decimal slip: moved the point one place too far.",
     "3.01%": "Stopped at the dollar move and never divided by the high.",
-    "4.01%": "Divided the 3.01 move by the 75.00 price, not by the high."
+    "4.01%": "Divided the 3.01 move by the 75.00 price, not by the high.",
+    "0.42%": "Decimal slip: moved the point one place down."
    }
   },
   {
@@ -3707,8 +3707,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The 0.42% note was wrong (a forgotten-percent slip gives 0.0418, not 0.42) and 41.81/4.18/0.42 was a digit ladder. Replaced with a divide-by-the-price mistake."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q25": {
    "status": "pass",

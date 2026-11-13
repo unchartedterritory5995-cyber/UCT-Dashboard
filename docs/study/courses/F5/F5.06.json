@@ -1095,17 +1095,17 @@
      "inputs changed in wave6 so it no longer reuses q09's numbers"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "1.5%",
     "3%",
-    "0.75%",
-    "15%",
-    "1.5%"
+    "7.5%",
+    "15%"
    ],
    "wrong": {
     "3%": "Let the whole position take the gap and ignored the sale.",
-    "0.75%": "Cut the gap in half as well as the position.",
-    "15%": "Gave the size of the half you kept, not the loss on it."
+    "15%": "Gave the size of the half you kept, not the loss on it.",
+    "7.5%": "Took half of the 15% you kept instead of 10% of it."
    }
   },
   {
@@ -1142,17 +1142,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "17.0%",
-    "15.3%",
     "13.3%",
-    "1.3%"
+    "1.3%",
+    "11.0%",
+    "15.3%"
    ],
    "wrong": {
     "15.3%": "Took the gap off the higher price but forgot to subtract your gain.",
-    "17.0%": "Added your gain to the gap instead of taking it off.",
-    "1.3%": "Slipped a decimal place."
+    "1.3%": "Slipped a decimal place.",
+    "11.0%": "Took the gain off the gap twice."
    }
   },
   {
@@ -1330,17 +1330,17 @@
      "Schwab page unreachable on 2026-11-12, last confirmed 2026-11-09"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$2",
-    "$16,000",
     "$1,000",
-    "$10,000"
+    "$2",
+    "$100",
+    "$200"
    ],
    "wrong": {
     "$2": "Gave the loss per share and skipped the share count.",
-    "$16,000": "Gave the sale proceeds, not the extra loss.",
-    "$10,000": "Slipped a decimal place on the dollars."
+    "$100": "Slipped a decimal place on the dollars.",
+    "$200": "Used 100 shares instead of 500."
    }
   },
   {
@@ -1868,13 +1868,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4. Why rewritten to show the steps."
+   "notes": "Right answer stays smallest; 1.5% was the only decimal, so the 5% choice became 7.5%, a real slip with the 0.5 keep fraction."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1. Why rewritten to show the steps. Stem no longer names the unit the choices carry."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q14": {
    "status": "pass",
@@ -1904,8 +1904,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3. Why rewritten to show the steps."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q19": {
    "status": "pass",

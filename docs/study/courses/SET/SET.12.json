@@ -2309,17 +2309,17 @@
      "+2 rests on the owner's rulebook (A5, shares rounded down then capped)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "500 shares",
-    "4,761 shares",
+    "476 shares",
+    "238 shares",
     "952 shares",
-    "476 shares"
+    "500 shares"
    ],
    "wrong": {
-    "4,761 shares": "That risks ten times the plan. A decimal slip.",
-    "952 shares": "That risks double the plan.",
-    "500 shares": "That is the risk dollars read as shares. Divide by the risk per share."
+    "952 shares": "Used twice the stated risk percent.",
+    "500 shares": "That is the risk dollars read as shares. Divide by the risk per share.",
+    "238 shares": "Used half the stated risk percent."
    }
   },
   {
@@ -3656,17 +3656,17 @@
      "+1 fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "600 shares",
-    "400 shares",
-    "450 shares",
-    "300 shares"
+    "300 shares",
+    "100 shares",
+    "200 shares",
+    "150 shares"
    ],
    "wrong": {
-    "600 shares": "That counts only one third sold. Two thirds are gone.",
-    "400 shares": "That takes the second third from what is left. Both thirds come from the full 900.",
-    "450 shares": "That halves the 900 once. A third is not a half."
+    "100 shares": "That is a third of the last 300, not the shares left.",
+    "200 shares": "That is a third of what was left after one sale.",
+    "150 shares": "Divided 900 by six, mixing up thirds with sixths."
    }
   },
   {
@@ -4148,7 +4148,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "477 was within rounding of 476.2 and made an adjacent pair; replaced with risk dollars read as shares. Why shows the 500. Calc recomputed; the other wrong choices checked by hand."
+   "notes": "Rank ok. Notes now name the mistake (half or double the stated risk percent) instead of the result."
   },
   "q42": {
    "status": "pass",
@@ -4374,7 +4374,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q79": {
    "status": "pass",

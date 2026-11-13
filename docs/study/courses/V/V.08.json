@@ -2940,17 +2940,17 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$0.06",
     "$6",
-    "$60",
+    "$0.06",
+    "$0.60",
     "$1,667"
    ],
    "wrong": {
     "$0.06": "Gave theta per share and skipped the 100 shares.",
-    "$60": "Slipped a decimal place.",
-    "$1,667": "Divided 100 by theta instead of multiplying."
+    "$1,667": "Divided 100 by theta instead of multiplying.",
+    "$0.60": "Used ten shares, not a hundred."
    }
   },
   {
@@ -4545,7 +4545,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q30": {
    "status": "pass",

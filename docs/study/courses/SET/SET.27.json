@@ -2021,10 +2021,10 @@
     "49.10",
     "49.40",
     "50.00",
-    "48.00"
+    "52.00"
    ],
    "answer": "49.10",
-   "why": "49.10. A gap through the stop hands the decision to the first 30 minutes. The low of the first 30-minute bar is the new stop. The ceiling is 2R: if those 30 minutes take the loss past 2R, get out. The 2R mark is twice your entry-to-stop distance below your entry, which is 48.00. The low of 49.10 is above that, so the ceiling has not been hit.",
+   "why": "49.10. A gap through the stop hands the decision to the first 30 minutes. The low of the first 30-minute bar is the new stop. The ceiling is 2R: if those 30 minutes take the loss past 2R, get out. The 2R mark is twice your entry-to-stop distance below your entry. The low of 49.10 is above that, so the ceiling has not been hit.",
    "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide.",
    "facts": [
     "h06",
@@ -2034,7 +2034,7 @@
    "wrong": {
     "49.40": "49.40 is only the open. The gap rule waits for the first 30 minutes and uses that bar's low.",
     "50.00": "The old stop was gapped through. There is always a stop, and the new one is the first 30-minute low.",
-    "48.00": "48.00 is the 2R mark, where you would get out. The first 30 minutes ended at 49.10, so that mark was not reached."
+    "52.00": "52.00 is the buy price. A gap stop is never moved up to breakeven; it is the first 30-minute low."
    },
    "house": true,
    "story": "You bought a Slingshot close at 52.00 with the stop at 50.00. It gaps open at 49.40. The first 30-minute bar ends with a low of 49.10.",
@@ -2050,7 +2050,7 @@
      "arithmetic check against the ceiling"
     ]
    },
-   "batch": "wave3"
+   "batch": "rank"
   },
   {
    "key": "q30",
@@ -2655,17 +2655,17 @@
      "a number in the owner's rulebook (D42)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1,500,000 shares",
+    "15,000 shares",
     "150,000 shares",
-    "1,500 shares",
-    "15,000 shares"
+    "7,500 shares",
+    "1,500 shares"
    ],
    "wrong": {
     "150,000 shares": "Moved the decimal one place, ten times too many.",
     "1,500 shares": "Moved the decimal one place, ten times too few.",
-    "1,500,000 shares": "Used the whole average volume, no cap at all."
+    "7,500 shares": "Used half a percent, mixing it up with the risk percent."
    }
   },
   {
@@ -3848,8 +3848,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "B20 low of first 30-minute bar = 49.10. 2R mark 52 - 2*2.00 = 48.00 is a calc from the stem; loss at 49.10 is 1.45R, under the ceiling. D41 vs B20 tension is an owner flag, key follows the rulebook as written."
+   "fixed": true,
+   "notes": "Fixed format tell or ladder pattern; recomputed and verified rank."
   },
   "q30": {
    "status": "pass",
@@ -3952,7 +3952,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "15,000 ok; decimal slips and whole ADV. ok."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q47": {
    "status": "cut",

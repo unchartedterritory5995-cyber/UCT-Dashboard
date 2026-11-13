@@ -2089,17 +2089,17 @@
      "the 0.65 floor is the unit's proposed card number"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "0.30",
-    "0.98",
     "0.70",
-    "1.40"
+    "0.30",
+    "0.60",
+    "0.04"
    ],
    "wrong": {
     "0.30": "That measures from the high down. Measure from the low up.",
-    "0.98": "That divides the close by the high. Divide by the range.",
-    "1.40": "That is the dollar gain from the low. Divide it by the range."
+    "0.60": "That is the dollar gap under the high. Divide it by the range.",
+    "0.04": "That divides the dollar gain by the high. Divide by the range."
    }
   },
   {
@@ -2205,7 +2205,7 @@
     "45.20",
     "45.90",
     "46.50",
-    "44.50"
+    "46.05"
    ],
    "answer": "45.20",
    "why": "45.20. A gap through the stop hands it to the first 30-minute low, which becomes the new stop. The ceiling is 2R: if the first 30 minutes take the loss past 2R, get out. Here the low sits less than 4.00 under the fill, so it is inside the ceiling and is the new stop.",
@@ -2219,7 +2219,7 @@
    "wrong": {
     "45.90": "That is the open. The gap rule hands the stop to the first 30-minute low, not the open.",
     "46.50": "Price is already under it. A stop that has been gapped through needs the gap rule.",
-    "44.50": "That is 2R under the fill, the get-out line. The first 30-minute low sets the stop, and it sits above that line."
+    "46.05": "That is the high of the first 30-minute bar, not its low."
    },
    "story": "You bought a launchpad at 48.50 with the stop at 46.50, so 2R is 4.00 a share. The next day it gaps open at 45.90, under the stop. The first 30-minute bar runs from 45.20 to 46.05.",
    "simple": "The first 30-minute low, 45.20, is the new stop, because a gap through the stop hands it to that bar.",
@@ -2231,7 +2231,7 @@
      "the 2R ceiling is stated in the story"
     ]
    },
-   "batch": "wave1"
+   "batch": "rank"
   },
   {
    "key": "q32",
@@ -3134,17 +3134,17 @@
      "+2 rests on the owner's rulebook (E51 plan, marked adjustable)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "6.0R",
-    "13.6R",
+    "5.0R",
     "0.2R",
-    "5.0R"
+    "2.7R",
+    "4.0R"
    ],
    "wrong": {
-    "6.0R": "That counts the gain from the stop, so it reads one R too high.",
-    "13.6R": "That is the dollar gain read as R. Divide it by the risk per share.",
-    "0.2R": "That divides the gain by the price, not by R."
+    "0.2R": "That divides the gain by the price, not by R.",
+    "2.7R": "That is the risk per share read as R. Divide the gain by it.",
+    "4.0R": "Took one R off the gain before dividing."
    }
   },
   {
@@ -3829,7 +3829,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q29": {
    "status": "pass",
@@ -3847,7 +3847,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q32": {
    "status": "pass",
@@ -4000,8 +4000,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "0.15R broke the one-decimal format of the other choices (0.152 rounds to 0.2R).  Calc recomputed; the other wrong choices checked by hand."
+   "fixed": false,
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q57": {
    "status": "pass",

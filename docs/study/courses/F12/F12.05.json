@@ -1054,17 +1054,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1.6R",
-    "4.0R",
     "0.4R",
-    "2.5R"
+    "-0.6R",
+    "-0.4R",
+    "1.6R"
    ],
    "wrong": {
-    "4.0R": "You added the ten results and forgot to divide by ten.",
     "1.6R": "You dropped the minus signs and averaged the size of every trade.",
-    "2.5R": "You averaged only the four winners and left out the losers."
+    "-0.6R": "You added only the six losers and left out the winners.",
+    "-0.4R": "You flipped the signs and counted the wins as losses."
    }
   },
   {
@@ -1221,7 +1221,7 @@
     }
    },
    "suffix": "R",
-   "why": "1.2R. The ten losses add up to 12R, and 12 divided by 10 is 1.2R. R is the risk you planned at entry, so a loss taken at the stop is 1R. Three of these ran past it: 1.2, 2.5 and 1.5. Tharp names two ways a loss runs past plan: not taking the loss you planned, or a gap. His goal is to keep every loss at 1R or less. The 0.8 loss was smaller than planned, which is fine.",
+   "why": "1.2R. Add up the ten losses, then divide the total by 10 to get 1.2R. R is the risk you planned at entry, so a loss taken at the stop is 1R. Three of these ran past it: 1.2, 2.5 and 1.5. Tharp names two ways a loss runs past plan: not taking the loss you planned, or a gap. His goal is to keep every loss at 1R or less. The 0.8 loss was smaller than planned, which is fine.",
    "lesson_line": "An average loss above 1R is a leak. Find the trades that ran past the stop.",
    "facts": [
     "f49",
@@ -1243,15 +1243,15 @@
    },
    "batch": "tomcq",
    "choices": [
-    "12.0R",
+    "1.2R",
     "1.0R",
-    "1.7R",
-    "1.2R"
+    "0.8R",
+    "0.1R"
    ],
    "wrong": {
     "1.0R": "You assumed every loss was the planned 1R and ignored the ones that ran past it.",
-    "1.7R": "You averaged only the three losses that ran past plan: 1.2, 2.5 and 1.5.",
-    "12.0R": "You added the ten losses and forgot to divide by ten."
+    "0.8R": "You took the smallest loss, 0.8R, instead of averaging all ten.",
+    "0.1R": "A decimal slip: ten times too small."
    }
   },
   {
@@ -1772,7 +1772,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q11": {
    "status": "pass",
@@ -1796,8 +1796,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Recomputed; fixed rank or note so the answer sits at the target rank with genuine mistakes."
   },
   "q15": {
    "status": "pass",

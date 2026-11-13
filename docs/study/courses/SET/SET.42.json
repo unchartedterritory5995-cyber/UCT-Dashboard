@@ -1368,17 +1368,17 @@
    "depends_on": [
     "D-070"
    ],
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "52.5%",
     "47.5%",
+    "52.5%",
     "90.5%",
-    "28.5%"
+    "190.5%"
    ],
    "wrong": {
     "52.5%": "Found where the low sits as a share of the high, not the drop.",
     "90.5%": "Divided the drop by the low instead of the high.",
-    "28.5%": "Read the dollar drop as a percent."
+    "190.5%": "Divided the high by the low and forgot to subtract one."
    }
   },
   {
@@ -1723,17 +1723,17 @@
      "the 5R trim is the owner's adjustable default (E51)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1.55R",
     "5.0R",
     "6.0R",
-    "0.2R"
+    "44.9R",
+    "50.0R"
    ],
    "wrong": {
-    "1.55R": "Called the dollar gain the R multiple.",
     "6.0R": "Measured the gain from the stop instead of the buy.",
-    "0.2R": "Flipped the division: risk over gain."
+    "44.9R": "Divided the exit price by R instead of the gain.",
+    "50.0R": "Slipped the decimal point one place right."
    }
   },
   {
@@ -2268,17 +2268,17 @@
      "rests on the owner's rulebook (A3 and A5)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "7,936 shares",
-    "22 shares",
     "793 shares",
-    "79 shares"
+    "22 shares",
+    "79 shares",
+    "396 shares"
    ],
    "wrong": {
     "22 shares": "Divided the risk dollars by the buy price, not the stop distance.",
-    "7,936 shares": "Slipped a decimal and risked ten times too much.",
-    "79 shares": "Slipped a decimal the other way and risked a tenth too little."
+    "79 shares": "Slipped a decimal the other way and risked a tenth too little.",
+    "396 shares": "Used half the risk percent."
    }
   },
   {
@@ -3788,7 +3788,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q16": {
    "status": "pass",
@@ -3849,7 +3849,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q26": {
    "status": "pass",
@@ -3934,7 +3934,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q40": {
    "status": "cut",

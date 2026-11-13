@@ -3615,17 +3615,17 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "40,000 shares",
     "400,000 shares",
     "80,000 shares",
-    "4,000 shares",
-    "40,000 shares"
+    "4,000,000 shares"
    ],
    "wrong": {
     "400,000 shares": "Took ten times the right share of the volume.",
     "80,000 shares": "Doubled the 1% rule. The ceiling is 1% of the average daily volume.",
-    "4,000 shares": "Took a tenth of the right share of the volume."
+    "4,000,000 shares": "Used the whole average daily volume as the limit."
    },
    "prefix": ""
   },
@@ -3773,17 +3773,17 @@
     ]
    },
    "prefix": "",
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$41.47",
-    "$42.77",
     "$42.12",
-    "$44.07"
+    "$41.47",
+    "$40.82",
+    "$39.52"
    ],
    "wrong": {
     "$41.47": "That is one R up, too early. The earliest breakeven is 2R.",
-    "$42.77": "That is three R up, later than the earliest.",
-    "$44.07": "That is five R up, the latest breakeven, not the earliest."
+    "$40.82": "That is the fill, where the stop goes. It is not the trigger price.",
+    "$39.52": "That subtracts two R from the fill instead of adding it."
    }
   },
   {
@@ -4502,7 +4502,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q74": {
    "status": "cut",
@@ -4532,7 +4532,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q79": {
    "status": "pass",

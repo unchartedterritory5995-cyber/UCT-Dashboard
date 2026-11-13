@@ -1208,17 +1208,17 @@
      "fixed before (question states the per-share basis)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$0",
-    "$1.20",
-    "$40",
-    "$120"
+    "$120",
+    "$300",
+    "$1,200",
+    "$12,000"
    ],
    "wrong": {
-    "$0": "Thinks only a shareholder owes the dividend. An assigned call writer owes it too.",
-    "$40": "Counts one contract instead of 3.",
-    "$1.20": "Forgets that one contract covers 100 shares."
+    "$300": "Gives the share count and ignores the dividend.",
+    "$1,200": "Slips a decimal place.",
+    "$12,000": "Multiplies by 100 twice."
    }
   },
   {
@@ -1725,8 +1725,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q14": {
    "status": "pass",

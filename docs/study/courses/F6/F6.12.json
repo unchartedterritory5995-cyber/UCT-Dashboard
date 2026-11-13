@@ -1253,17 +1253,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$72.90",
     "$77.90",
+    "$79.79",
     "$82.10",
     "$80.00"
    ],
    "wrong": {
-    "$72.90": "Starts from the short 75 strike. Break-even runs off the strike you bought.",
     "$82.10": "Adds the debit to the strike. That is the call formula.",
-    "$80.00": "Stops at the long strike and forgets the 2.10 debit."
+    "$80.00": "Stops at the long strike and forgets the 2.10 debit.",
+    "$79.79": "Slips a decimal place on the 2.10 debit."
    }
   },
   {
@@ -1359,7 +1359,7 @@
     "$350",
     "$1,050",
     "$500",
-    "$150"
+    "$650"
    ],
    "answer": "$350",
    "calc": {
@@ -1384,7 +1384,7 @@
    "wrong": {
     "$1,050": "That ignores the long 45 put. Below 45, it covers every dollar the short put loses.",
     "$500": "That's the full gap between the strikes. You also keep the 1.50 credit, which cuts the loss.",
-    "$150": "That's the credit you took in, your max gain. The loss is bigger."
+    "$650": "That adds the 1.50 credit to the gap between the strikes instead of taking it off."
    },
    "simple": "$350, its max loss: below 45, the long put covers every dollar the short put loses.",
    "deeper": {
@@ -1398,7 +1398,7 @@
      "fixed before (checker 2026-11-09: a wrong-note)"
     ]
    },
-   "batch": "wave7"
+   "batch": "rank"
   },
   {
    "key": "q17",
@@ -1410,7 +1410,7 @@
    "choices": [
     "$68.40",
     "$63.40",
-    "$71.60",
+    "$65.00",
     "$66.60"
    ],
    "answer": "$68.40",
@@ -1431,8 +1431,8 @@
    ],
    "wrong": {
     "$63.40": "That takes the credit off the long 65 strike. Break-even runs off the short strike.",
-    "$71.60": "That adds the credit. On a put spread you subtract it from the short strike.",
-    "$66.60": "That adds the credit to the long strike. Break-even is the short strike minus the credit."
+    "$66.60": "That adds the credit to the long strike. Break-even is the short strike minus the credit.",
+    "$65.00": "That stops at the long 65 strike and ignores the credit."
    },
    "simple": "$68.40: take the 1.60 credit off the 70 strike of the put you sold.",
    "tier": "extended",
@@ -1442,7 +1442,7 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "rank"
   },
   {
    "key": "q18",
@@ -1940,8 +1940,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q14": {
    "status": "pass",
@@ -1958,14 +1958,14 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc: (50 - 45 - 1.50) x 100 = 350. Key right, and f23, f27 and f35 are verbatim on the OIC bull put page (checked 2026-11-12). $1,050 = (50 - 38 - 1.50) x 100 is the no-long-put trap, and every choice is grounded. The break is the rulebook. The story has you holding a new bullish options trade through an earnings report ('Earnings miss'). Section 9 B22 says no new buys in the 3 days before earnings, and you hold through a report only if the trade is up 5R. A credit spread cannot be up 5R: at most it makes 1.50 against 3.50 of risk. So the story models a trade our rules forbid, with no word ab"
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q18": {
    "status": "pass",

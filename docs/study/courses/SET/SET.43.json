@@ -2122,17 +2122,17 @@
      "rests on the owner's rulebook (A5, A3)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "15 shares",
+    "442 shares",
+    "884 shares",
     "4,424 shares",
-    "44,247 shares",
-    "442 shares"
+    "44,247 shares"
    ],
    "wrong": {
-    "15 shares": "Divided the risk dollars by the buy price, not the stop distance.",
     "4,424 shares": "Slipped a decimal and risked ten times too much.",
-    "44,247 shares": "Used the whole account as the risk dollars."
+    "44,247 shares": "Used the whole account as the risk dollars.",
+    "884 shares": "Doubled the risk dollars."
    }
   },
   {
@@ -3653,17 +3653,17 @@
      "rests on the owner's rulebook (D42, 1% of average daily volume)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "200,000 shares",
-    "2,000 shares",
     "20,000 shares",
-    "200 shares"
+    "200,000 shares",
+    "2,000,000 shares",
+    "80,000 shares"
    ],
    "wrong": {
     "200,000 shares": "Slipped a decimal and took ten percent.",
-    "2,000 shares": "Slipped a decimal and took a tenth of a percent.",
-    "200 shares": "Slipped two decimals."
+    "2,000,000 shares": "Used the whole average volume, no cap at all.",
+    "80,000 shares": "Used the four percent chase limit instead."
    }
   },
   {
@@ -3983,17 +3983,17 @@
      "rests on the owner's rulebook (B19, breakeven 2R to 5R)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$54.00",
     "$52.00",
-    "$56.00",
     "$46.00",
-    "$54.00"
+    "$48.00"
    ],
    "wrong": {
     "$52.00": "Added the two R to the stop, not to the buy.",
-    "$56.00": "Counted three R instead of two.",
-    "$46.00": "Went down from the buy instead of up."
+    "$46.00": "Went down from the buy instead of up.",
+    "$48.00": "Gave the stop price, not the level two R up."
    }
   },
   {
@@ -4447,7 +4447,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q70": {
    "status": "pass",
@@ -4699,7 +4699,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q75": {
    "status": "pass",
@@ -4754,7 +4754,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q84": {
    "status": "cut",

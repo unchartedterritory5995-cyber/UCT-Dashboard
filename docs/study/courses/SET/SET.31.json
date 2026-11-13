@@ -2139,17 +2139,17 @@
      "the extension floor is held (D-040); this question computes a percent only"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "17.53%",
+    "21.25%",
     "121.25%",
-    "8.50%",
-    "21.25%"
+    "82.47%",
+    "212.50%"
    ],
    "wrong": {
-    "17.53%": "Divided by the close. The stretch is measured against the average.",
     "121.25%": "Divided the close by the average and forgot to subtract 1.",
-    "8.50%": "Read the dollar gap as a percent. Divide it by the average first."
+    "82.47%": "Gave the average as a share of the close.",
+    "212.50%": "Slipped the decimal point one place right."
    }
   },
   {
@@ -3016,17 +3016,17 @@
      "how much comes off at the 9 EMA is held (D-013); only the arithmetic is keyed"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "2.52R",
     "1.52R",
-    "0.66R",
-    "0.13R"
+    "2.52R",
+    "11.90R",
+    "15.20R"
    ],
    "wrong": {
     "2.52R": "Measured the reward from the stop instead of from the fill.",
-    "0.66R": "Inverted it: risk divided by reward instead of reward divided by risk.",
-    "0.13R": "Divided the reward by the fill price instead of by R, the stop distance."
+    "11.90R": "Divided the fill price by R, the stop distance.",
+    "15.20R": "Slipped the decimal point one place right."
    }
   },
   {
@@ -4265,7 +4265,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q25": {
    "status": "pass",
@@ -4398,7 +4398,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q47": {
    "status": "pass",

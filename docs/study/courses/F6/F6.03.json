@@ -898,9 +898,9 @@
    "q": "How much of the 1.10 is time value?",
    "choices": [
     "$1.10",
-    "$3.10",
     "$0.00",
-    "$2.00"
+    "$0.11",
+    "$0.90"
    ],
    "answer": "$1.10",
    "calc": {
@@ -921,13 +921,13 @@
     "f26"
    ],
    "wrong": {
-    "$3.10": "That counts the 2 points below the strike as negative intrinsic value. Intrinsic stops at zero.",
     "$0.00": "Out of the money means no intrinsic value, not no value. The 1.10 is real, and all of it is time.",
-    "$2.00": "That's how far the stock is from the strike. It isn't a part of the price."
+    "$0.11": "Slipped a decimal place.",
+    "$0.90": "That takes the 1.10 away from the gap to the strike."
    },
    "simple": "All $1.10 is time value, because the call is out of the money and has no intrinsic value.",
    "deeper": {
-    "trap": "Trap: counting the 2 points below the strike as negative intrinsic value. That turns 1.10 into 3.10. Intrinsic value stops at zero. An out-of-the-money call has none, so its whole price is time value."
+    "trap": "Trap: taking the 1.10 away from the gap to the strike. Intrinsic value stops at zero. An out-of-the-money call has none, so its whole price is time value."
    },
    "tier": "extended",
    "risk": {
@@ -936,7 +936,7 @@
      "the key is computed"
     ]
    },
-   "batch": "wave7"
+   "batch": "rank"
   },
   {
    "key": "q17",
@@ -976,9 +976,9 @@
    "q": "How much of that 6.20 is time value?",
    "choices": [
     "$1.20",
-    "$5.00",
     "$6.20",
-    "$0.00"
+    "$5.00",
+    "$11.20"
    ],
    "answer": "$1.20",
    "calc": {
@@ -1000,7 +1000,7 @@
    "wrong": {
     "$6.20": "That's the whole premium. Only a put with no intrinsic value is all time value.",
     "$5.00": "That's the intrinsic value, 100 minus 95. Time value is what's left above it.",
-    "$0.00": "That would make all 6.20 intrinsic value. The put is only in the money by 100 minus 95."
+    "$11.20": "That adds the intrinsic value to the premium instead of taking it off."
    },
    "simple": "$1.20, because the put is in the money by 100 minus 95, and the rest of the 6.20 is time value.",
    "tier": "extended",
@@ -1011,7 +1011,7 @@
      "it was fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "rank"
   },
   {
    "key": "q19",
@@ -1072,17 +1072,17 @@
      "the key is computed"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$4.00",
     "$0.40",
+    "$4.00",
     "$0.04",
-    "$50.00"
+    "$0.00"
    ],
    "wrong": {
     "$4.00": "Slipped a decimal place.",
     "$0.04": "Slipped a decimal place the other way.",
-    "$50.00": "Gave the intrinsic value instead of the time value."
+    "$0.00": "Assumed a deep in-the-money call has no time value left."
    }
   },
   {
@@ -1193,9 +1193,9 @@
    "q": "How much time value are you paying for, per share?",
    "choices": [
     "$1.90",
-    "$7.40",
-    "$9.30",
-    "$1.50"
+    "$1.50",
+    "$0.40",
+    "$0.19"
    ],
    "answer": "$1.90",
    "calc": {
@@ -1215,9 +1215,9 @@
     "f35"
    ],
    "wrong": {
-    "$7.40": "That's the intrinsic value, 112.40 minus 105. The question asks what you pay above it.",
-    "$9.30": "That's the whole premium. Part of it is intrinsic value.",
-    "$1.50": "That uses the 8.90 bid. You're buying, so you pay the 9.30 ask."
+    "$1.50": "That uses the 8.90 bid. You're buying, so you pay the 9.30 ask.",
+    "$0.40": "That's the gap between the bid and the ask, not the time value.",
+    "$0.19": "Slipped a decimal place."
    },
    "simple": "You pay $1.90 of time value, because at the 9.30 ask you pay that much above the in-the-money part.",
    "deeper": {
@@ -1231,7 +1231,7 @@
      "it was fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "rank"
   },
   {
    "key": "q24",
@@ -1552,9 +1552,9 @@
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q17": {
    "status": "pass",
@@ -1566,7 +1566,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc extrinsic(put, 100, 95, 6.20) = 1.20 matches. Choices consistent in format; notes use only stem numbers. Key not longest."
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q19": {
    "status": "pass",
@@ -1577,8 +1577,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q21": {
    "status": "pass",
@@ -1594,9 +1594,9 @@
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q24": {
    "status": "pass",

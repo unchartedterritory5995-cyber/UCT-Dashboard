@@ -3358,17 +3358,17 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$25.42",
     "$24.95",
     "$25.89",
-    "$25.42",
-    "$26.48"
+    "$23.54"
    ],
    "wrong": {
     "$24.95": "Added two R to the stop instead of to the fill.",
     "$25.89": "Added one R too many. The window opens at the second R.",
-    "$26.48": "Added 2 dollars, not two R. R is the fill minus the stop."
+    "$23.54": "Subtracted two R from the fill instead of adding."
    }
   },
   {
@@ -3446,17 +3446,17 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$29.51",
     "$30.28",
-    "$34.13",
-    "$31.43"
+    "$29.51",
+    "$28.74",
+    "$22.58"
    ],
    "wrong": {
     "$29.51": "Added five R to the stop instead of to the fill.",
-    "$34.13": "That is 10R, the top of the zone. The question asks for the low end.",
-    "$31.43": "Added 5 dollars, not five R. R is the fill minus the stop."
+    "$28.74": "Added three R instead of five.",
+    "$22.58": "Subtracted five R from the fill instead of adding."
    }
   },
   {
@@ -4043,7 +4043,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q73": {
    "status": "pass",
@@ -4055,7 +4055,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q75": {
    "status": "pass",

@@ -987,7 +987,7 @@
     }
    },
    "suffix": "%",
-   "why": "75%. Divide the same-mistake breaks by all breaks: 6 out of 8 is 0.75. Times 100 gives 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers.",
+   "why": "75%. Divide the same-mistake breaks by all breaks: 6 out of 8, times 100, gives 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers.",
    "lesson_line": "Look back for the mistake that repeats. That one is your pattern.",
    "facts": [
     "f75",
@@ -1002,17 +1002,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "25%",
-    "0.75%",
     "133%",
+    "175%",
+    "300%",
     "75%"
    ],
    "wrong": {
-    "25%": "Gave the share of the other breaks.",
     "133%": "Divided the 8 breaks by the 6.",
-    "0.75%": "Decimal slip."
+    "175%": "Added the 6 to the 8 before dividing by 8.",
+    "300%": "Divided the 6 by the breaks that were not that mistake."
    }
   },
   {
@@ -1517,8 +1517,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Smallest choice 0.75% sat below the answer, so rank was 1. Replaced it with a real slip that lands above. The old why cited a number that is no longer a choice, so the why was trimmed to match; the answer is unchanged."
   },
   "q10": {
    "status": "pass",

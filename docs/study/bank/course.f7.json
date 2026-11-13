@@ -1277,8 +1277,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "1,228.83",
     "4,915.32",
+    "5,120.13",
     "6,124.15",
     "7,372.98"
    ],
@@ -1323,7 +1323,7 @@
      "fn": "arith",
      "result": 4915.32
     },
-    "given": "The S&P 500's record close in February 2025 was 6,144.15. At what close would it be down exactly 20%? 7,372.98 1,228.83 4,915.32 6,124.15"
+    "given": "The S&P 500's record close in February 2025 was 6,144.15. At what close would it be down exactly 20%? 4,915.32 7,372.98 6,124.15 5,120.13"
    },
    "lesson_line": "Know where the 20% line sits before the market gets there.",
    "simple": "4,915.32, because taking 20% off the 6,144.15 record close lands there.",
@@ -1331,7 +1331,7 @@
    "unit": "F7.01",
    "why": "4,915.32. Take 20% off the 6,144.15 record close and you get 4,915.32. S&P Dow Jones Indices named that same level as the line in April 2025. A close at or below it would have made the bear market official, dated back to the high on February 19.",
    "wrong": {
-    "1,228.83": "Gives the 20% drop itself, not the level it leaves.",
+    "5,120.13": "Divides the record by one plus the drop instead of taking the drop off.",
     "6,124.15": "Takes 20 points off the record, not 20 percent.",
     "7,372.98": "Adds 20% to the record instead of taking it off."
    }
@@ -1354,10 +1354,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "1%",
     "5%",
     "10%",
-    "20%",
-    "45%"
+    "20%"
    ],
    "kind": "mcq",
    "q": "An index falls 25% from its record, then rises 20% off the low. How far below the old record is it now?",
@@ -1410,7 +1410,7 @@
      "fn": "arith",
      "result": 10.0
     },
-    "given": "An index falls 25% from its record, then rises 20% off the low. How far below the old record is it now? 5% 10% 45% 20%"
+    "given": "An index falls 25% from its record, then rises 20% off the low. How far below the old record is it now? 10% 1% 5% 20%"
    },
    "lesson_line": "A new bull market can still sit well below the old high.",
    "simple": "10%, because the 20% rise is figured on a smaller base, so it can't win back the full 25% fall.",
@@ -1418,8 +1418,8 @@
    "unit": "F7.01",
    "why": "10%. The 20% rise works on a smaller base than the 25% fall did, so it wins back less than was lost. By the 20% rule that is a new bull market, still 10% under the old record. Some on Wall Street wait for a new record close before calling a bear market over.",
    "wrong": {
+    "1%": "Slips a decimal place.",
     "20%": "Takes the 20% rise as the new gap to the record.",
-    "45%": "Adds the fall and the rise.",
     "5%": "Subtracts 20 from 25. The rise is figured on a smaller base."
    }
   },
@@ -3734,9 +3734,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "0.6%",
     "6.2%",
     "6.6%",
+    "62%",
     "93.8%"
    ],
    "kind": "mcq",
@@ -3789,7 +3789,7 @@
      "fn": "drawdown_pct",
      "result": 6.2
     },
-    "given": "March 16, 2020: the VIX closes at a record. The S&P 500 closes at 2,386.13, and at 2,237.40 on March 23. How much lower is March 23? 6.6% 93.8% 6.2% 0.6%"
+    "given": "March 16, 2020: the VIX closes at a record. The S&P 500 closes at 2,386.13, and at 2,237.40 on March 23. How much lower is March 23? 6.2% 93.8% 62% 6.6%"
    },
    "lesson_line": "Record fear doesn't mark the low on its own. Let price show you the selling is done.",
    "simple": "6.2% lower, because the low came a week after the record fear reading, not on the same day.",
@@ -3797,8 +3797,8 @@
    "unit": "F7.02",
    "why": "6.2%. Take the gap between 2,386.13 and 2,237.40. Divide it by 2,386.13, the earlier close. The VIX hit a record on March 16, yet the S&P 500 fell another 6.2% by March 23. A record fear reading shows stress. It does not mark the low.",
    "wrong": {
-    "0.6%": "Slips a decimal place.",
     "6.6%": "Divides the gap by the later, lower close instead of the earlier one.",
+    "62%": "Slips a decimal place.",
     "93.8%": "Gives the later close as a share of the earlier one, not the drop."
    }
   },
@@ -5380,10 +5380,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "7.8%",
-    "22%",
     "78%",
-    "353%"
+    "122%",
+    "353%",
+    "453%"
    ],
    "kind": "mcq",
    "q": "The Nasdaq closed at 5,048.62 in March 2000 and 1,114.11 in October 2002. How far did it fall, to the nearest whole percent?",
@@ -5425,7 +5425,7 @@
      "fn": "drawdown_pct",
      "result": 78.0
     },
-    "given": "The Nasdaq closed at 5,048.62 in March 2000 and 1,114.11 in October 2002. How far did it fall, to the nearest whole percent? 22% 7.8% 353% 78%"
+    "given": "The Nasdaq closed at 5,048.62 in March 2000 and 1,114.11 in October 2002. How far did it fall, to the nearest whole percent? 353% 453% 122% 78%"
    },
    "lesson_line": "Measure a drawdown from the peak. This one took nearly four-fifths of the index.",
    "simple": "It fell 78%, because the drop from 5,048.62 to 1,114.11 is about 78% of the peak.",
@@ -5433,9 +5433,9 @@
    "unit": "F7.03",
    "why": "78%. Subtract the low close, 1,114.11, from the peak close, then divide by the peak, 5,048.62. Always measure a drawdown from the peak. Divided by the low, the same move reads 353%, the gain needed to get back.",
    "wrong": {
-    "22%": "Gave what is left, not the fall.",
+    "122%": "Added the low to the peak instead of subtracting.",
     "353%": "Divided the drop by the low, not the peak.",
-    "7.8%": "Decimal slip."
+    "453%": "Took the peak over the low and forgot to subtract one."
    }
   },
   "review_status": "draft",
@@ -5574,10 +5574,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "4.1%",
-    "29%",
     "41%",
-    "141%"
+    "71%",
+    "141%",
+    "241%"
    ],
    "kind": "mcq",
    "q": "The Nasdaq closed at 1,638.80 on April 4, 2001 and 2,313.85 on May 22, 2001. How big was that rally, to the nearest percent?",
@@ -5643,7 +5643,7 @@
      "fn": "pct_change",
      "result": 41.0
     },
-    "given": "The Nasdaq closed at 1,638.80 on April 4, 2001 and 2,313.85 on May 22, 2001. How big was that rally, to the nearest percent? 29% 141% 4.1% 41%"
+    "given": "The Nasdaq closed at 1,638.80 on April 4, 2001 and 2,313.85 on May 22, 2001. How big was that rally, to the nearest percent? 71% 141% 241% 41%"
    },
    "lesson_line": "Even a 41% rally can be a bear market rally. Size alone proves nothing.",
    "simple": "It was a 41% rally, and it still failed because the Nasdaq later fell below the April low.",
@@ -5652,8 +5652,8 @@
    "why": "41%. Subtract the April 4 close, 1,638.80, from the May 22 close, 2,313.85. Divide that gain by the April close. The rally still failed. On September 21, 2001 the Nasdaq closed at 1,423.19, below the April low.",
    "wrong": {
     "141%": "Stopped at the ratio and forgot to subtract one.",
-    "29%": "Divided the gain by the May close, not the April start.",
-    "4.1%": "Decimal slip."
+    "241%": "Added the two closes before dividing by April.",
+    "71%": "Took the April close as a share of the May close."
    }
   },
   "review_status": "draft",
@@ -5674,10 +5674,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "22%",
     "78%",
     "355%",
-    "455%"
+    "455%",
+    "555%"
    ],
    "kind": "mcq",
    "q": "An index falls 78%. What gain does it need just to get back to its old high, to the nearest percent?",
@@ -5728,7 +5728,7 @@
      "fn": "gain_to_recover",
      "result": 355.0
     },
-    "given": "An index falls 78%. What gain does it need just to get back to its old high, to the nearest percent? 78% 455% 355% 22%"
+    "given": "An index falls 78%. What gain does it need just to get back to its old high, to the nearest percent? 78% 455% 555% 355%"
    },
    "lesson_line": "Deep losses take years to repair. Keep your own losses small.",
    "simple": "It needs about 355%, because after a 78% loss only 22% is left to grow.",
@@ -5736,8 +5736,8 @@
    "unit": "F7.03",
    "why": "355%. After a 78% loss, 22% is left. Divide the old high by what is left, then subtract one. The Nasdaq did not close above its March 2000 peak until April 23, 2015.",
    "wrong": {
-    "22%": "Gave what is left after the loss.",
     "455%": "Divided the old high by what is left but forgot to subtract one.",
+    "555%": "Added one instead of subtracting one.",
     "78%": "Assumed the gain needed equals the loss."
    }
   },
@@ -6097,9 +6097,9 @@
   "prompt_json": {
    "choices": [
     "5.1%",
+    "34%",
     "49%",
-    "51%",
-    "105%"
+    "51%"
    ],
    "kind": "mcq",
    "q": "Dec. 1, 2008: the NBER calls a recession. The Nasdaq closes at 1,398.07, off a 2,859.12 peak. How far down, to the nearest percent?",
@@ -6165,7 +6165,7 @@
      "fn": "drawdown_pct",
      "result": 51.0
     },
-    "given": "Dec. 1, 2008: the NBER calls a recession. The Nasdaq closes at 1,398.07, off a 2,859.12 peak. How far down, to the nearest percent? 105% 51% 49% 5.1%"
+    "given": "Dec. 1, 2008: the NBER calls a recession. The Nasdaq closes at 1,398.07, off a 2,859.12 peak. How far down, to the nearest percent? 49% 5.1% 34% 51%"
    },
    "lesson_line": "Official calls come late. Price had already done the talking.",
    "simple": "The Nasdaq was down 51% from its peak, so half its value was gone before the recession was even called.",
@@ -6173,7 +6173,7 @@
    "unit": "F7.03",
    "why": "51%. Subtract 1,398.07 from the 2,859.12 peak, then divide by the peak. The NBER, which dates US recessions, made its call on December 1, 2008. It dated the start to December 2007, a year earlier. By then the Nasdaq was already about half below its October 31, 2007 high.",
    "wrong": {
-    "105%": "Divided the drop by the low, not the peak.",
+    "34%": "Divided the drop by the peak plus the low.",
     "49%": "Gave what is left, not the fall.",
     "5.1%": "Decimal slip."
    }
@@ -8440,10 +8440,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "3,597",
-    "3,649",
     "4,292",
-    "4,471"
+    "4,471",
+    "4,650",
+    "5,151"
    ],
    "kind": "mcq",
    "q": "The S&P 500's 2022 low close was 3,577.03. By the 20% rule, what close marks a new bull market? Round to a whole point.",
@@ -8495,7 +8495,7 @@
      "fn": "arith",
      "result": 4292.0
     },
-    "given": "The S&P 500's 2022 low close was 3,577.03. By the 20% rule, what close marks a new bull market? Round to a whole point. 4,471 3,597 4,292 3,649"
+    "given": "The S&P 500's 2022 low close was 3,577.03. By the 20% rule, what close marks a new bull market? Round to a whole point. 4,471 5,151 4,650 4,292"
    },
    "lesson_line": "The 20% rule makes a bull official late. By then the low is months old.",
    "simple": "About 4,292, because a 20% gain from 3,577.03 means multiplying it by 1.2.",
@@ -8503,9 +8503,9 @@
    "unit": "F7.04",
    "why": "4,292. Multiply the low close by 1.2: 3,577.03 times 1.2, rounded to a whole point. Investor.gov's bull line is a rise of 20% or more over at least two months. In FRED's table the first close that high came on June 8, 2023, at 4,293.93. By then the low was months old.",
    "wrong": {
-    "3,597": "Added 20 points instead of 20 percent.",
-    "3,649": "Slipped a decimal place in the multiplier.",
-    "4,471": "Undid a 20% loss instead of adding a 20% gain."
+    "4,471": "Undid a 20% loss instead of adding a 20% gain.",
+    "4,650": "Used a bigger rise than the 20% rule.",
+    "5,151": "Added 20% twice, compounding the rise."
    }
   },
   "review_status": "draft",
@@ -10632,8 +10632,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "2.4%",
     "24%",
+    "32%",
     "76%",
     "417%"
    ],
@@ -10685,7 +10685,7 @@
      "fn": "arith",
      "result": 24.0
     },
-    "given": "In a 500-stock index, 120 stocks close above their 50-day average. What percent of the index is that? 76% 24% 417% 2.4%"
+    "given": "In a 500-stock index, 120 stocks close above their 50-day average. What percent of the index is that? 76% 32% 417% 24%"
    },
    "lesson_line": "Over 50% above the 50-day leans bullish. Under 50% leans bearish.",
    "simple": "It is 24%, because 120 of the 500 stocks are above their average, and under half leans bearish.",
@@ -10693,7 +10693,7 @@
    "unit": "F7.05",
    "why": "24%. Divide the stocks above their 50-day average by all stocks in the index: 120 out of 500, times 100. Under 50% gives breadth a bearish bias, because fewer than half the stocks are above that average. It is a bias, not a trade signal on its own.",
    "wrong": {
-    "2.4%": "Decimal slip.",
+    "32%": "Divided by the stocks below the average, not all 500.",
     "417%": "Divided total by the stocks above, flipping the ratio.",
     "76%": "Counted the stocks below the average."
    }
@@ -10716,10 +10716,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "3%",
     "30%",
     "43%",
-    "70%"
+    "70%",
+    "233%"
    ],
    "kind": "mcq",
    "q": "Today 60 stocks hit new 52-week highs and 140 hit new 52-week lows. What percent of that total are new highs?",
@@ -10786,7 +10786,7 @@
      "fn": "arith",
      "result": 30.0
     },
-    "given": "Today 60 stocks hit new 52-week highs and 140 hit new 52-week lows. What percent of that total are new highs? 43% 70% 30% 3%"
+    "given": "Today 60 stocks hit new 52-week highs and 140 hit new 52-week lows. What percent of that total are new highs? 43% 70% 233% 30%"
    },
    "lesson_line": "Below 50, new lows rule the day. That leans bearish.",
    "simple": "It is 30%: new highs divided by all new highs and lows, so new lows outnumber new highs, which leans bearish.",
@@ -10794,7 +10794,7 @@
    "unit": "F7.05",
    "why": "30%. Record High Percent is new highs divided by new highs plus new lows, times 100: 60 over 60 plus 140. Below 50, new lows outnumber new highs, and more new lows than new highs favors the bears. Above 50, new highs outnumber new lows.",
    "wrong": {
-    "3%": "Decimal slip.",
+    "233%": "Flipped the ratio: new lows over new highs.",
     "43%": "Divided new highs by new lows, leaving out the highs in the total.",
     "70%": "Gave the new lows' share, not the new highs'."
    }
@@ -18363,10 +18363,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "43%",
-    "57%",
     "131%",
-    "231%"
+    "176%",
+    "231%",
+    "331%"
    ],
    "kind": "mcq",
    "q": "The S&P 500 closed at 1,565.15 at its 2007 peak and 676.53 at its 2009 low. What gain gets it back to the peak?",
@@ -18411,7 +18411,7 @@
      "fn": "pct_change",
      "result": 131.0
     },
-    "given": "The S&P 500 closed at 1,565.15 at its 2007 peak and 676.53 at its 2009 low. What gain gets it back to the peak? 57% 43% 231% 131%"
+    "given": "The S&P 500 closed at 1,565.15 at its 2007 peak and 676.53 at its 2009 low. What gain gets it back to the peak? 176% 231% 331% 131%"
    },
    "lesson_line": "Big losses need far bigger gains to repair. Cutting losses early is cheaper than climbing out.",
    "simple": "131%, because after a 56.8% loss what is left must more than double to get back to the old peak.",
@@ -18419,9 +18419,9 @@
    "unit": "F7.08",
    "why": "131%. Subtract the low close, 676.53, from the peak close, 1,565.15. Divide that gain by the low, because you start from the low. A 56.8% loss leaves less than half the money. So what is left must more than double just to get back to even. The gain needed grows much faster than the loss. It says nothing about how long the climb takes.",
    "wrong": {
+    "176%": "Divided one by the loss instead of what is left.",
     "231%": "Stopped at the ratio and forgot to subtract one.",
-    "43%": "Gave what is left after the loss.",
-    "57%": "Used the size of the loss as the gain needed."
+    "331%": "Added the low to the peak instead of subtracting."
    }
   },
   "review_status": "draft",
@@ -18966,9 +18966,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "9",
     "11",
     "25",
+    "74",
     "163"
    ],
    "kind": "mcq",
@@ -19024,7 +19024,7 @@
     "summary": "GICS has four levels: 11 sectors, 25 industry groups, 74 industries and 163 sub-industries (April 2026). Each company gets one GICS classification at each level, by its main business. The eleven sector funds' indexes together hold every S&P 500 company. Each sector fund tracks one of eleven Select Sector indexes, built only from S&P 500 stocks. Around 2007 there were nine sector SPDR funds. Real Estate was carved out of Financials as a new sector, and Telecommunication Services was turned into Communication Services."
    },
    "facts": {
-    "given": "GICS sorts stocks into sectors. How many sectors does it have? 11 9 25 163"
+    "given": "GICS sorts stocks into sectors. How many sectors does it have? 25 74 163 11"
    },
    "lesson_line": "Eleven sectors on top. Every S&P 500 stock sits in exactly one of them.",
    "simple": "GICS has 11 sectors, the top level above its smaller groups and industries.",
@@ -19034,7 +19034,7 @@
    "wrong": {
     "163": "That's the sub-industries, the most detailed level.",
     "25": "That's the industry groups, the level just below the sectors.",
-    "9": "Nine was the number of sector SPDR funds around 2007. Today there are 11 sectors and a fund for each."
+    "74": "That's the industries, the level between groups and sub-industries."
    }
   },
   "review_status": "draft",

@@ -3587,17 +3587,17 @@
      "+2 the third at 5R is a rulebook rule"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$63.94",
     "$65.04",
-    "$62.84",
-    "$54.04"
+    "$66.14",
+    "$67.24",
+    "$70.54"
    ],
    "wrong": {
-    "$63.94": "Added five R to the stop, not the fill.",
-    "$62.84": "Added three R instead of five.",
-    "$54.04": "Subtracted five R instead of adding."
+    "$66.14": "Counted six R, one too many.",
+    "$67.24": "Counted seven R, two too many.",
+    "$70.54": "Counted ten R, double the five asked."
    }
   },
   {
@@ -4471,7 +4471,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "65.04 ok; wrongs verified."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q73": {
    "status": "pass",

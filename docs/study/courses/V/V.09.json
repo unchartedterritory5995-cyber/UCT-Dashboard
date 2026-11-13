@@ -1864,17 +1864,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "158.3%",
-    "36.8%",
     "63.2%",
-    "6.3%"
+    "158.3%",
+    "171.5%",
+    "632.0%"
    ],
    "wrong": {
-    "36.8%": "Gave the share of sales that went to operating costs.",
     "158.3%": "Put revenue over operating income, upside down.",
-    "6.3%": "Slipped a decimal place."
+    "171.5%": "Divided by the operating costs instead of revenue.",
+    "632.0%": "Slipped a decimal place up."
    }
   },
   {
@@ -2916,17 +2916,17 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "39%",
-    "165%",
     "65%",
-    "6.5%"
+    "165%",
+    "650%",
+    "14,141%"
    ],
    "wrong": {
-    "39%": "Divided by the new number instead of the old base.",
     "165%": "Divided new by old and never took off the base.",
-    "6.5%": "Slipped a decimal place."
+    "650%": "Slipped a decimal place up.",
+    "14,141%": "Gave the rise in millions as a percent."
    }
   },
   {
@@ -3580,17 +3580,17 @@
      "Schwab page refused the fetch on 2026-11-12 (unreachable), quotes not re-confirmed"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "15.4%",
     "7.7%",
-    "8.4%",
+    "7.2%",
+    "3.9%",
     "0.8%"
    ],
    "wrong": {
-    "15.4%": "Doubled it because the move goes both ways.",
     "0.8%": "Slipped a decimal place.",
-    "8.4%": "Divided by the low end of the range instead of the price."
+    "7.2%": "Divided by the high end of the range instead of the price.",
+    "3.9%": "Halved it as if the move were split."
    }
   },
   {
@@ -3982,8 +3982,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 63.2 matches. Wrongs real (36.8, 158.3 inverted, 6.3 decimal). Why added the 0.632 step."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q14": {
    "status": "pass",
@@ -4141,8 +4141,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 65 matches (14141/21869 = 64.7). Wrongs real (39 = over new, 165 = new/old, 6.5 decimal). Why added the rise and the ratio."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q40": {
    "status": "pass",
@@ -4245,8 +4245,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 7.7 matches. 13.0% was the inverted ratio 12.96 misread as a percent (not a real answer); replaced with 8.4% (divided by the low end of the range, 16.74/200.14). Why added the 0.077 step."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q57": {
    "status": "pass",

@@ -4456,8 +4456,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$0.23",
     "$2.30",
+    "$23.00",
     "$51.25",
     "$102.50"
    ],
@@ -4495,7 +4495,7 @@
      "fn": "arith",
      "result": 2.3
     },
-    "given": "Today's high is $52.40 and today's low is $50.10. What is the day's range? $102.50 $51.25 $2.30 $0.23"
+    "given": "Today's high is $52.40 and today's low is $50.10. What is the day's range? $2.30 $23.00 $51.25 $102.50"
    },
    "lesson_line": "Range is the day's high minus its low, the distance between the two.",
    "simple": "It's $2.30, the high minus the low for the day.",
@@ -4503,8 +4503,8 @@
    "unit": "V.02",
    "why": "$2.30. ChartSchool defines the daily range as the day's high minus the same day's low: $52.40 - $50.10 = $2.30. On a bar chart, Schwab notes, the height of the bar shows that range. It is not the change from yesterday's close.",
    "wrong": {
-    "$0.23": "Decimal slip: moved the point one place too far.",
     "$102.50": "Added the high and the low instead of subtracting.",
+    "$23.00": "Decimal slip: moved the point one place up.",
     "$51.25": "Took the midpoint of the day, not the range."
    }
   },
@@ -4526,9 +4526,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "16.7%",
-    "25.0%",
     "50.0%",
+    "83.3%",
+    "125.0%",
     "200.0%"
    ],
    "kind": "mcq",
@@ -4580,7 +4580,7 @@
      "fn": "arith",
      "result": 50.0
     },
-    "given": "A stock rallies from $40 to $60, then pulls back to $50. What percent of the rally has it given back? 16.7% 50.0% 25.0% 200.0%"
+    "given": "A stock rallies from $40 to $60, then pulls back to $50. What percent of the rally has it given back? 50.0% 83.3% 125.0% 200.0%"
    },
    "lesson_line": "Measure a pullback as a share of the rally. Past two-thirds, ChartSchool says a reversal is more likely.",
    "simple": "It gave back 50%, half the rally, because it fell halfway from $60 back toward $40.",
@@ -4588,9 +4588,9 @@
    "unit": "V.02",
    "why": "50%. Divide the drop from the top by the size of the rally: (60 - 50) / (60 - 40) = 50%. Dow Theory's Hamilton estimated that pullbacks retrace 1/3 to 2/3 of the prior move, with 50% being typical. ChartSchool's glossary adds that a retracement of more than 2/3 typically signals a trend reversal. These are rules of thumb from history, not guarantees.",
    "wrong": {
-    "16.7%": "Divided the pullback by the $60 top, not by the rally.",
+    "125.0%": "Gave the $50 price over the $40 start.",
     "200.0%": "Flipped it: divided the rally by the pullback.",
-    "25.0%": "Divided the pullback by the $40 start, not by the rally."
+    "83.3%": "Gave the $50 price as a share of the $60 top."
    }
   },
   "review_status": "draft",
@@ -4611,10 +4611,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "0.1%",
     "1.2%",
-    "12.0%",
-    "13.6%",
-    "88.0%"
+    "6.4%",
+    "12.0%"
    ],
    "kind": "mcq",
    "q": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak?",
@@ -4642,7 +4642,7 @@
      "fn": "drawdown_pct",
      "result": 12.0
     },
-    "given": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak? 88.0% 13.6% 12.0% 1.2%"
+    "given": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak? 12.0% 6.4% 1.2% 0.1%"
    },
    "lesson_line": "Measure a drop from the peak. A fall of 10% or more counts as a correction.",
    "simple": "It is down 12%, past the 10% line Investopedia uses for a correction.",
@@ -4650,9 +4650,9 @@
    "unit": "V.02",
    "why": "12%. Divide the drop by the peak: (5,000 - 4,400) / 5,000 = 12%. Investopedia calls a decline of 10% or more from the peak a correction. By that line, this drop is a correction.",
    "wrong": {
+    "0.1%": "Divided the drop by the peak and never made it a percent.",
     "1.2%": "Decimal slip: moved the point one place too far.",
-    "13.6%": "Divided the drop by the 4,400 low, not by the peak.",
-    "88.0%": "4,400 is 88% of the peak. That is what is left, not the drop."
+    "6.4%": "Divided the drop by the two levels added together."
    }
   },
   "review_status": "draft",
@@ -10454,9 +10454,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$0.30",
-    "$0.40",
     "$1.20",
+    "$1.50",
+    "$1.60",
     "$1.90"
    ],
    "kind": "mcq",
@@ -10500,7 +10500,7 @@
      "fn": "arith",
      "result": 1.2
     },
-    "given": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body? $1.90 $1.20 $0.40 $0.30"
+    "given": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body? $1.20 $1.50 $1.60 $1.90"
    },
    "lesson_line": "Body is close minus open. Leave the high and the low out of it.",
    "simple": "The real body is $1.20, because it runs from the $40.00 open to the $41.20 close, and the shadows don't count.",
@@ -10508,8 +10508,8 @@
    "unit": "V.03",
    "why": "$1.20. The real body is the range between the open and the close: $41.20 minus $40.00. The high of $41.50 and the low of $39.60 make the shadows, and they are left out. The close is above the open, so this body is hollow.",
    "wrong": {
-    "$0.30": "That is the upper shadow: high minus close.",
-    "$0.40": "That is the lower shadow: open minus low.",
+    "$1.50": "Measured open to the high, which counts the upper shadow.",
+    "$1.60": "Measured low to the close, which adds the lower shadow.",
     "$1.90": "Used high minus low, which counts the shadows."
    }
   },
@@ -10531,8 +10531,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$0.30",
     "$2.10",
+    "$2.30",
     "$2.40",
     "$2.60"
    ],
@@ -10584,7 +10584,7 @@
      "fn": "arith",
      "result": 2.1
     },
-    "given": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow? $2.40 $2.10 $2.60 $0.30"
+    "given": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow? $2.10 $2.30 $2.40 $2.60"
    },
    "lesson_line": "Upper shadow is the high minus the top of the body. On a hollow candle, the top is the close.",
    "simple": "The upper shadow is $2.10, because it runs from the $25.30 close at the body's top to the $27.40 high.",
@@ -10592,7 +10592,7 @@
    "unit": "V.03",
    "why": "$2.10. The close, $25.30, is above the open, $25.00, so the close is the top of the body. The upper shadow runs from there to the $27.40 high: $27.40 minus $25.30. Do not measure from the open, which is the bottom of this body.",
    "wrong": {
-    "$0.30": "That is the body, not the upper shadow.",
+    "$2.30": "Added the lower shadow, which is not part of the upper one.",
     "$2.40": "Measured from the open, which is the bottom of this body.",
     "$2.60": "Used high minus low, the whole range."
    }
@@ -10615,10 +10615,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "$0.10",
     "$0.60",
     "$0.70",
-    "$2.40",
-    "$3.00"
+    "$2.40"
    ],
    "kind": "mcq",
    "q": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow?",
@@ -10678,7 +10678,7 @@
      "fn": "arith",
      "result": 2.4
     },
-    "given": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow? $0.70 $3.00 $2.40 $0.60"
+    "given": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow? $2.40 $0.70 $0.60 $0.10"
    },
    "lesson_line": "On a filled candle the bottom of the body is the close. Measure the lower shadow from there.",
    "simple": "The lower shadow is $2.40, because on this filled candle the bottom of the body is the $59.40 close.",
@@ -10686,9 +10686,9 @@
    "unit": "V.03",
    "why": "$2.40. The close, $59.40, is below the open, $60.00, so the candle is filled and the close is the bottom of the body. The lower shadow runs from $59.40 down to the $57.00 low. Measuring from the open would count the body as part of the shadow.",
    "wrong": {
+    "$0.10": "That is the upper shadow: the high minus the open.",
     "$0.60": "That is the body, not the lower shadow.",
-    "$0.70": "Measured up from the close to the high, which is not the lower shadow.",
-    "$3.00": "Measured from the open, which adds the body to the shadow."
+    "$0.70": "Measured up from the close to the high, which is not the lower shadow."
    }
   },
   "review_status": "draft",
@@ -14345,13 +14345,13 @@
   "difficulty": 2,
   "id": "si_2f19d5a16515",
   "lesson_origin": "session",
-  "lesson_text": "2%. The gap is $50.00 - $49.00 = $1.00. Divide by the first low: $1.00 / $50.00 = 2%. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it. Two lows within about 3% of each other still count as roughly equal.",
+  "lesson_text": "2%. The gap is the first low minus the second low, $50.00 - $49.00. Divide it by the first low of $50.00 to get 2%. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it. Two lows within about 3% of each other still count as roughly equal.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "0.02%",
-    "1%",
     "2%",
+    "20%",
+    "50%",
     "98%"
    ],
    "kind": "mcq",
@@ -14395,16 +14395,16 @@
      "fn": "arith",
      "result": 2.0
     },
-    "given": "First low $50.00, second low $49.00. How far below the first low is the second? 0.02% 1% 98% 2%"
+    "given": "First low $50.00, second low $49.00. How far below the first low is the second? 2% 20% 50% 98%"
    },
    "lesson_line": "Two lows within about 3% of each other still count as roughly equal.",
    "simple": "The second low is 2% under the first, inside the 3% gap StockCharts allows, so the lows count as about equal.",
    "tier": "extended",
    "unit": "V.04",
-   "why": "2%. The gap is $50.00 - $49.00 = $1.00. Divide by the first low: $1.00 / $50.00 = 2%. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it.",
+   "why": "2%. The gap is the first low minus the second low, $50.00 - $49.00. Divide it by the first low of $50.00 to get 2%. StockCharts accepts a second low within 3% of the first. Investopedia says the lows should be within 3% to 4% of each other. Roughly equal lows are only one part of a double bottom. They do not complete it.",
    "wrong": {
-    "0.02%": "Forgot to multiply by 100 after dividing.",
-    "1%": "Used the $1.00 gap as a percent and never divided by $50.",
+    "20%": "Slipped a decimal place up.",
+    "50%": "Flipped it: divided the first low by the gap.",
     "98%": "Took the second low as a share of the first, not the gap."
    }
   },
@@ -14589,9 +14589,9 @@
   "prompt_json": {
    "choices": [
     "$10",
-    "$40",
-    "$50",
-    "$60"
+    "$20",
+    "$30",
+    "$40"
    ],
    "kind": "mcq",
    "q": "Head at $60, neckline at $50. Measure head to neckline and subtract that from the neckline. What's the target?",
@@ -14651,7 +14651,7 @@
      "fn": "arith",
      "result": 40.0
     },
-    "given": "Head at $60, neckline at $50. Measure head to neckline and subtract that from the neckline. What's the target? $50 $40 $60 $10"
+    "given": "Head at $60, neckline at $50. Measure head to neckline and subtract that from the neckline. What's the target? $40 $30 $20 $10"
    },
    "lesson_line": "Head-to-neckline height, projected down from the neckline. A guide, not a promise.",
    "simple": "The target is $40, the gap from the $60 head to the $50 neckline taken off the neckline, as a rough guide.",
@@ -14660,8 +14660,8 @@
    "why": "$40. The head sits $60 - $50 = $10 above the neckline. StockCharts subtracts that distance from the neckline: $50 - $10 = $40. Fidelity's guide projects it down from the neckline too. StockCharts adds that any price target is a rough guide and other factors count. The target only applies after the neckline breaks.",
    "wrong": {
     "$10": "That is the head height alone, not the target.",
-    "$50": "Took the head height off the $60 head, not the neckline.",
-    "$60": "Added the head height to the neckline instead of subtracting."
+    "$20": "Doubled the head height and used it as the target.",
+    "$30": "Took the head height off the neckline twice."
    }
   },
   "review_status": "draft",
@@ -19809,10 +19809,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$45.50",
-    "$46.50",
     "$47.00",
-    "$47.50"
+    "$47.50",
+    "$48.00",
+    "$48.50"
    ],
    "kind": "mcq",
    "q": "Launchpad. The 21-day average is $48.00, the 50-day is $47.50, and the ATR is $2.00. Where does our stop go?",
@@ -19851,7 +19851,7 @@
      "fn": "arith",
      "result": 47.0
     },
-    "given": "Launchpad. The 21-day average is $48.00, the 50-day is $47.50, and the ATR is $2.00. Where does our stop go? $45.50 $47.50 $47.00 $46.50"
+    "given": "Launchpad. The 21-day average is $48.00, the 50-day is $47.50, and the ATR is $2.00. Where does our stop go? $47.00 $47.50 $48.00 $48.50"
    },
    "lesson_line": "Launchpad stop: a quarter of an ATR under the lower of the 21-day and 50-day.",
    "simple": "$47.00, because the lower average is the 50-day at $47.50, and our stop sits a quarter of the $2.00 ATR below it.",
@@ -19859,9 +19859,9 @@
    "unit": "V.05",
    "why": "$47.00. The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. The lower one is the 50-day at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.50 - 0.25 x $2.00 = $47.00. An easy slip is starting from the higher average, the 21-day at $48.00.",
    "wrong": {
-    "$45.50": "Took a full ATR off the 50-day, not a quarter.",
-    "$46.50": "Took half an ATR off the 50-day, not a quarter.",
-    "$47.50": "Started from the 21-day, $48.00, then took off a quarter ATR."
+    "$47.50": "Used the 50-day itself and took nothing off.",
+    "$48.00": "Used the 21-day itself and took nothing off.",
+    "$48.50": "Added a quarter ATR to the 21-day instead of subtracting."
    }
   },
   "review_status": "draft",
@@ -20063,10 +20063,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "$46.50",
     "$49.50",
     "$51.00",
-    "$52.50",
-    "$54.00"
+    "$52.50"
    ],
    "kind": "mcq",
    "q": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is the 5R price?",
@@ -20112,7 +20112,7 @@
      "fn": "arith",
      "result": 52.5
     },
-    "given": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is the 5R price? $51.00 $52.50 $49.50 $54.00"
+    "given": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is the 5R price? $52.50 $51.00 $49.50 $46.50"
    },
    "lesson_line": "5R: five times your risk per share, on top of the entry.",
    "simple": "$52.50, because 5R is five times your risk from the $45.00 trigger to the $43.50 stop, added to the trigger.",
@@ -20120,9 +20120,9 @@
    "unit": "V.05",
    "why": "$52.50. R is the risk per share from trigger to stop: $45.00 - $43.50. 5R is five times that, added to the trigger: $45.00 + 5 x ($45.00 - $43.50) = $52.50. It is a mark to measure a push with, not a fixed sell. Count from the trigger, not the stop.",
    "wrong": {
+    "$46.50": "Added one R, not 5R.",
     "$49.50": "Added only 3R to the trigger, not 5R.",
-    "$51.00": "Counted 5R up from the $43.50 stop, not from the trigger.",
-    "$54.00": "Added six R, counting the trigger itself as the first step."
+    "$51.00": "Counted 5R up from the $43.50 stop, not from the trigger."
    }
   },
   "review_status": "draft",
@@ -25327,14 +25327,14 @@
   "difficulty": 2,
   "id": "si_8152b214b819",
   "lesson_origin": "session",
-  "lesson_text": "$68. The stop trails 20% under the $85 high. 20% of $85 is $17. $85 less $17 is $68. It stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down. A trailing stop measures from the high, not from your entry.",
+  "lesson_text": "$68. The stop trails 20% under the $85 high. Take that 20% off the $85 high to get $68. It stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down. A trailing stop measures from the high, not from your entry.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$17",
-    "$65",
     "$68",
-    "$102"
+    "$85",
+    "$102",
+    "$106"
    ],
    "kind": "mcq",
    "q": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop?",
@@ -25387,17 +25387,17 @@
      "fn": "arith",
      "result": 68.0
     },
-    "given": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop? $65 $17 $68 $102"
+    "given": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop? $68 $85 $102 $106"
    },
    "lesson_line": "A trailing stop measures from the high, not from your entry.",
    "simple": "Your stop is at $68, because it sits 20% under the $85 high and never moves down.",
    "tier": "extended",
    "unit": "V.06",
-   "why": "$68. The stop trails 20% under the $85 high. 20% of $85 is $17. $85 less $17 is $68. It stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down.",
+   "why": "$68. The stop trails 20% under the $85 high. Take that 20% off the $85 high to get $68. It stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down.",
    "wrong": {
     "$102": "Added 20% to the high instead of subtracting.",
-    "$17": "Worked out 20% of the high and never took it off.",
-    "$65": "Took 20 dollars off the high, not 20 percent."
+    "$106": "Divided the high by what is left after the trail instead of multiplying.",
+    "$85": "Set the stop at the high and took nothing off."
    }
   },
   "review_status": "draft",
@@ -25865,14 +25865,14 @@
   "difficulty": 2,
   "id": "si_fbdc5bc39cc0",
   "lesson_origin": "session",
-  "lesson_text": "$4.00. True range is the largest of three distances: high to low, high to the prior close, or low to the prior close. Here they are $1.50, $4.00 and $2.50. After a gap up, high to the prior close wins. True range is the largest of three distances. Check all three.",
+  "lesson_text": "$4.00. True range is the largest of three distances: high to low, high to the prior close, or low to the prior close. Here the longest is high to the prior close, $4.00. After a gap up, high to the prior close wins. True range is the largest of three distances. Check all three.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$1.50",
-    "$2.50",
     "$4.00",
-    "$5.50"
+    "$5.50",
+    "$6.50",
+    "$8.00"
    ],
    "kind": "mcq",
    "q": "What is today's true range?",
@@ -25916,17 +25916,17 @@
      "fn": "arith",
      "result": 4.0
     },
-    "given": "What is today's true range? Yesterday the stock closed at $50. Today it gaps up: high $54, low $52.50. $4.00 $1.50 $2.50 $5.50"
+    "given": "What is today's true range? Yesterday the stock closed at $50. Today it gaps up: high $54, low $52.50. $4.00 $5.50 $6.50 $8.00"
    },
    "lesson_line": "True range is the largest of three distances. Check all three.",
    "simple": "True range is $4.00, because after the gap up the high is farthest from yesterday's $50 close.",
    "tier": "extended",
    "unit": "V.06",
-   "why": "$4.00. True range is the largest of three distances: high to low, high to the prior close, or low to the prior close. Here they are $1.50, $4.00 and $2.50. After a gap up, high to the prior close wins.",
+   "why": "$4.00. True range is the largest of three distances: high to low, high to the prior close, or low to the prior close. Here the longest is high to the prior close, $4.00. After a gap up, high to the prior close wins.",
    "wrong": {
-    "$1.50": "That's only today's high minus low. It misses the gap from yesterday's close.",
-    "$2.50": "That's low to the prior close. The high is farther from it.",
-    "$5.50": "That adds two of the distances together. True range is the largest one, not a sum."
+    "$5.50": "Added the high-to-low and high-to-prior-close distances.",
+    "$6.50": "Added the two distances measured from the prior close.",
+    "$8.00": "Added all three distances. True range is the largest one, not a sum."
    }
   },
   "review_status": "draft",
@@ -26037,9 +26037,9 @@
   "prompt_json": {
    "choices": [
     "$7.50",
-    "$72.50",
-    "$77.50",
-    "$87.50"
+    "$25.00",
+    "$70.00",
+    "$72.50"
    ],
    "kind": "mcq",
    "q": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down?",
@@ -26090,7 +26090,7 @@
      "fn": "arith",
      "result": 72.5
     },
-    "given": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down? $77.50 $72.50 $7.50 $87.50"
+    "given": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down? $72.50 $70.00 $25.00 $7.50"
    },
    "lesson_line": "Chandelier Exit: the 22-day high minus three ATRs, by default.",
    "simple": "The exit sits at $72.50, three ATRs of $2.50 under the $80 high.",
@@ -26098,9 +26098,9 @@
    "unit": "V.06",
    "why": "$72.50. StockCharts' long Chandelier Exit is the 22-day high minus three times the 22-day ATR. Three times $2.50 is $7.50. $80 less $7.50 is $72.50. It is a trailing stop based on ATR, so it hangs under the high and its distance grows with volatility.",
    "wrong": {
+    "$25.00": "Used 22 ATRs, the lookback, not three.",
     "$7.50": "Gave the three ATRs and never took them off the high.",
-    "$77.50": "Went down only one ATR instead of three.",
-    "$87.50": "Added three ATRs to the high instead of subtracting."
+    "$70.00": "Went down four ATRs instead of three."
    }
   },
   "review_status": "draft",
@@ -29416,10 +29416,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "0 shares",
-    "300 shares",
     "500 shares",
-    "800 shares"
+    "800 shares",
+    "1,100 shares",
+    "240,000 shares"
    ],
    "kind": "mcq",
    "q": "You send an immediate-or-cancel (IOC) order to buy 800 shares. Only 300 can fill right away. How many shares get canceled?",
@@ -29472,7 +29472,7 @@
      "fn": "arith",
      "result": 500.0
     },
-    "given": "You send an immediate-or-cancel (IOC) order to buy 800 shares. Only 300 can fill right away. How many shares get canceled? 300 shares 800 shares 0 shares 500 shares"
+    "given": "You send an immediate-or-cancel (IOC) order to buy 800 shares. Only 300 can fill right away. How many shares get canceled? 500 shares 800 shares 1,100 shares 240,000 shares"
    },
    "lesson_line": "IOC takes what's there now and walks away from the rest.",
    "simple": "500 shares cancel, because IOC keeps the 300 it can fill now and drops the rest of the 800.",
@@ -29480,8 +29480,8 @@
    "unit": "V.07",
    "why": "500. An immediate-or-cancel order fills whatever it can at once and cancels any unfilled balance. 800 less 300 filled leaves 500 canceled. Unlike fill-or-kill, IOC keeps the partial fill, so you own the 300 shares.",
    "wrong": {
-    "0 shares": "Thought the rest keeps working on the book, which is a day order, not IOC.",
-    "300 shares": "Gave the shares that filled, not the ones canceled.",
+    "1,100 shares": "Added the filled shares to the order.",
+    "240,000 shares": "Multiplied the two numbers instead of subtracting.",
     "800 shares": "Canceled the whole order, which is fill-or-kill, not IOC."
    }
   },
@@ -31244,9 +31244,9 @@
   "prompt_json": {
    "choices": [
     "$9.40",
-    "$1,880",
-    "$5,480",
-    "$18,800"
+    "$188",
+    "$940",
+    "$1,880"
    ],
    "kind": "mcq",
    "q": "You short 200 shares at $18.00. A squeeze hits and you buy to cover at $27.40. How much did you lose, before costs?",
@@ -31297,7 +31297,7 @@
      "fn": "arith",
      "result": 1880.0
     },
-    "given": "You short 200 shares at $18.00. A squeeze hits and you buy to cover at $27.40. How much did you lose, before costs? $5,480 $9.40 $1,880 $18,800"
+    "given": "You short 200 shares at $18.00. A squeeze hits and you buy to cover at $27.40. How much did you lose, before costs? $1,880 $940 $188 $9.40"
    },
    "lesson_line": "A short loses as price rises, and price can keep rising. Have your buy stop in.",
    "simple": "You lost $1,880, because the price rose from $18.00 to $27.40 on the 200 shares you were short.",
@@ -31305,9 +31305,9 @@
    "unit": "V.07",
    "why": "$1,880. On a short you lose what the price rose. $27.40 less $18.00 is $9.40 a share. Times 200 shares is $1,880. Covering above the price you shorted at is a loss. Costs such as interest on the borrowed shares would add to it.",
    "wrong": {
-    "$18,800": "Slipped a decimal place.",
-    "$5,480": "Gave the cost of covering, not the loss.",
-    "$9.40": "Gave the loss per share and skipped the 200 shares."
+    "$188": "Slipped a decimal place down.",
+    "$9.40": "Gave the loss per share and skipped the 200 shares.",
+    "$940": "Used half the shares."
    }
   },
   "review_status": "draft",
@@ -34663,8 +34663,8 @@
   "prompt_json": {
    "choices": [
     "$0.06",
+    "$0.60",
     "$6",
-    "$60",
     "$1,667"
    ],
    "kind": "mcq",
@@ -34715,7 +34715,7 @@
      "fn": "arith",
      "result": 6.0
     },
-    "given": "Your option's theta is -0.06. If nothing else changes, about how much does one contract lose in a day? $0.06 $6 $60 $1,667"
+    "given": "Your option's theta is -0.06. If nothing else changes, about how much does one contract lose in a day? $6 $0.06 $0.60 $1,667"
    },
    "lesson_line": "Theta is quoted per share. Multiply by 100 to see what a quiet day costs you.",
    "simple": "About $6, because theta of 0.06 is per share per day, and one contract covers 100 shares.",
@@ -34724,8 +34724,8 @@
    "why": "About $6. Theta is the premium's expected decay per day with everything else unchanged, quoted per share. One contract usually covers 100 shares, so 0.06 times 100 is about $6 a day. The minus sign just shows the value is lost.",
    "wrong": {
     "$0.06": "Gave theta per share and skipped the 100 shares.",
-    "$1,667": "Divided 100 by theta instead of multiplying.",
-    "$60": "Slipped a decimal place."
+    "$0.60": "Used ten shares, not a hundred.",
+    "$1,667": "Divided 100 by theta instead of multiplying."
    }
   },
   "review_status": "draft",
@@ -39082,10 +39082,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "6.3%",
-    "36.8%",
     "63.2%",
-    "158.3%"
+    "158.3%",
+    "171.5%",
+    "632.0%"
    ],
    "kind": "mcq",
    "q": "NVIDIA, Q3 fiscal 2026: revenue $57,006 million, operating income $36,010 million. What is the operating margin, to one decimal?",
@@ -39145,7 +39145,7 @@
      "fn": "arith",
      "result": 63.2
     },
-    "given": "NVIDIA, Q3 fiscal 2026: revenue $57,006 million, operating income $36,010 million. What is the operating margin, to one decimal? 158.3% 36.8% 63.2% 6.3%"
+    "given": "NVIDIA, Q3 fiscal 2026: revenue $57,006 million, operating income $36,010 million. What is the operating margin, to one decimal? 63.2% 158.3% 171.5% 632.0%"
    },
    "lesson_line": "Work the margin out yourself from the release. It takes seconds, and then you know the number.",
    "simple": "The margin is 63.2%, because $36,010 million of profit from operations is that part of $57,006 million in sales.",
@@ -39154,8 +39154,8 @@
    "why": "63.2%. Operating margin is operating income divided by revenue. $36,010 million divided by $57,006 million, then times 100, is 63.2%. Both rows come from the same quarter's table in NVIDIA's own release.",
    "wrong": {
     "158.3%": "Put revenue over operating income, upside down.",
-    "36.8%": "Gave the share of sales that went to operating costs.",
-    "6.3%": "Slipped a decimal place."
+    "171.5%": "Divided by the operating costs instead of revenue.",
+    "632.0%": "Slipped a decimal place up."
    }
   },
   "review_status": "draft",
@@ -41370,10 +41370,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "6.5%",
-    "39%",
     "65%",
-    "165%"
+    "165%",
+    "650%",
+    "14,141%"
    ],
    "kind": "mcq",
    "q": "NVIDIA operating income: $36,010 million in Q3 fiscal 2026, $21,869 million in Q3 fiscal 2025. YoY growth, to the nearest whole percent?",
@@ -41425,7 +41425,7 @@
      "fn": "yoy_growth",
      "result": 65.0
     },
-    "given": "NVIDIA operating income: $36,010 million in Q3 fiscal 2026, $21,869 million in Q3 fiscal 2025. YoY growth, to the nearest whole percent? 39% 165% 65% 6.5%"
+    "given": "NVIDIA operating income: $36,010 million in Q3 fiscal 2026, $21,869 million in Q3 fiscal 2025. YoY growth, to the nearest whole percent? 65% 165% 650% 14,141%"
    },
    "lesson_line": "Growth is new minus old, divided by old. It takes seconds to check the release.",
    "simple": "Growth is 65%, because the rise from $21,869 million to $36,010 million is 65% of the old number.",
@@ -41433,9 +41433,9 @@
    "unit": "V.09",
    "why": "65%. Year-over-year growth is the new number minus the old one, divided by the old one. The rise is $36,010 million less $21,869 million. Divide the rise by $21,869 million, then show it as a percent: 65% rounded. Both numbers sit on the same row of NVIDIA's table: Q3 fiscal 2026 against Q3 fiscal 2025.",
    "wrong": {
+    "14,141%": "Gave the rise in millions as a percent.",
     "165%": "Divided new by old and never took off the base.",
-    "39%": "Divided by the new number instead of the old base.",
-    "6.5%": "Slipped a decimal place."
+    "650%": "Slipped a decimal place up."
    }
   },
   "review_status": "draft",
@@ -42725,9 +42725,9 @@
   "prompt_json": {
    "choices": [
     "0.8%",
-    "7.7%",
-    "8.4%",
-    "15.4%"
+    "3.9%",
+    "7.2%",
+    "7.7%"
    ],
    "kind": "mcq",
    "q": "A stock at $216.88 has an expected move of $16.74 either way. What is that as a percent of the price, to one decimal?",
@@ -42784,7 +42784,7 @@
      "fn": "arith",
      "result": 7.7
     },
-    "given": "A stock at $216.88 has an expected move of $16.74 either way. What is that as a percent of the price, to one decimal? 15.4% 7.7% 8.4% 0.8%"
+    "given": "A stock at $216.88 has an expected move of $16.74 either way. What is that as a percent of the price, to one decimal? 7.7% 7.2% 3.9% 0.8%"
    },
    "lesson_line": "Turn the expected move into a percent. It's a priced size, not a promise, and it has no direction.",
    "simple": "The move is 7.7% of the price, because $16.74 divided by $216.88 comes to about 7.7%.",
@@ -42793,8 +42793,8 @@
    "why": "7.7%. Divide the expected move by the price. $16.74 over $216.88, times 100, is 7.7%. Schwab uses this example and calls it a potential 7.7% move. The expected move sets neither the size nor the direction of the real move. The actual move can be bigger, smaller or nothing.",
    "wrong": {
     "0.8%": "Slipped a decimal place.",
-    "15.4%": "Doubled it because the move goes both ways.",
-    "8.4%": "Divided by the low end of the range instead of the price."
+    "3.9%": "Halved it as if the move were split.",
+    "7.2%": "Divided by the high end of the range instead of the price."
    }
   },
   "review_status": "draft",
@@ -51076,9 +51076,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "25%",
     "75%",
     "80%",
+    "133%",
     "300%"
    ],
    "kind": "mcq",
@@ -51108,7 +51108,7 @@
      "fn": "arith",
      "result": 75.0
     },
-    "given": "60 stocks made 52-week highs and 20 made 52-week lows. What is the Record High Percent? 300% 80% 25% 75%"
+    "given": "60 stocks made 52-week highs and 20 made 52-week lows. What is the Record High Percent? 300% 133% 80% 75%"
    },
    "lesson_line": "Record High Percent is new highs as a share of all new highs and lows, times 100.",
    "simple": "It is 75, because 60 highs divided by 60 highs plus 20 lows, times 100, gives 75.",
@@ -51116,7 +51116,7 @@
    "unit": "V.11",
    "why": "75. ChartSchool: Record High Percent = {New Highs / (New Highs + New Lows)} x 100. New highs plus new lows is 60 plus 20, or 80. 60 over that total, times 100, is 75.",
    "wrong": {
-    "25%": "Gave the lows' share instead of the highs'.",
+    "133%": "Divided the total by highs, upside down.",
     "300%": "Divided highs by lows and skipped the total.",
     "80%": "Gave the total of highs and lows, not a share."
    }
@@ -52486,8 +52486,8 @@
    "choices": [
     "0.33",
     "2.0",
-    "3.0",
-    "4.8"
+    "2.4",
+    "3.0"
    ],
    "kind": "mcq",
    "q": "Up volume was 3.6 billion shares and down volume was 1.2 billion. What is the up/down volume ratio?",
@@ -52537,7 +52537,7 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "Up volume was 3.6 billion shares and down volume was 1.2 billion. What is the up/down volume ratio? 0.33 3.0 4.8 2.0"
+    "given": "Up volume was 3.6 billion shares and down volume was 1.2 billion. What is the up/down volume ratio? 0.33 2.0 2.4 3.0"
    },
    "lesson_line": "The issues ratio counts stocks. The volume ratio weighs them by shares traded.",
    "simple": "The ratio is 3, because 3.6 billion shares in rising stocks divided by 1.2 billion in falling stocks gives three to one.",
@@ -52547,7 +52547,7 @@
    "wrong": {
     "0.33": "Divided down volume by up volume, upside down.",
     "2.0": "Divided the gap between the volumes by down volume.",
-    "4.8": "Added the two volumes instead of dividing."
+    "2.4": "Subtracted down volume from up volume instead of dividing."
    }
   },
   "review_status": "draft",
@@ -61909,8 +61909,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$300",
     "$400",
+    "$500",
     "$600",
     "$1,200"
    ],
@@ -61949,7 +61949,7 @@
      "fn": "arith",
      "result": 400.0
     },
-    "given": "Your three winning trades made $300, $500 and $400. What's your average win? $1,200 $400 $600 $300"
+    "given": "Your three winning trades made $300, $500 and $400. What's your average win? $1,200 $500 $600 $400"
    },
    "lesson_line": "Average win and average loss are the sizes that give win rate its meaning.",
    "simple": "Your average win is $400, because you add the three wins and divide by three.",
@@ -61958,7 +61958,7 @@
    "why": "Add the three wins: $300 plus $500 plus $400 is $1,200. Divide by the 3 trades, which gives $400. Steenbarger's monthly review tracks average win size next to average loss size. StockCharts: you want the average gain to outpace the average loss.",
    "wrong": {
     "$1,200": "Added the three wins and forgot to divide.",
-    "$300": "Divided the total by four instead of three.",
+    "$500": "Picked the biggest win instead of averaging.",
     "$600": "Divided the total by two instead of three."
    }
   },
@@ -62056,9 +62056,9 @@
   "prompt_json": {
    "choices": [
     "0.33",
-    "3.00",
-    "4.00",
-    "12.00"
+    "0.75",
+    "2.00",
+    "3.00"
    ],
    "kind": "mcq",
    "q": "Your average win is 6%. Your average loss is 2%. What's your payoff ratio?",
@@ -62101,7 +62101,7 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "Your average win is 6%. Your average loss is 2%. What's your payoff ratio? 0.33 3.00 4.00 12.00"
+    "given": "Your average win is 6%. Your average loss is 2%. What's your payoff ratio? 0.33 0.75 2.00 3.00"
    },
    "lesson_line": "Know both sizes. A win rate only means something next to this number.",
    "simple": "Your payoff ratio is 3, because your average win of 6% is three times your average loss of 2%.",
@@ -62110,8 +62110,8 @@
    "why": "Payoff ratio is the average win divided by the average loss. Fidelity defines it in percentage terms. Here that is 6% divided by 2%, which is 3. Your average win is three times your average loss. On its own it doesn't say you make money. StockCharts: you also need to know how often the strategy wins.",
    "wrong": {
     "0.33": "Flipped it: loss divided by win.",
-    "12.00": "Multiplied the win by the loss instead of dividing.",
-    "4.00": "Subtracted the loss from the win instead of dividing."
+    "0.75": "Divided the win by the win plus the loss.",
+    "2.00": "Divided the gap between win and loss by the loss."
    }
   },
   "review_status": "draft",

@@ -1167,17 +1167,17 @@
      "fixed before (lesson line softened)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "210 days",
-    "6 days",
     "150 days",
-    "30 days"
+    "180 days",
+    "210 days",
+    "1,500 days"
    ],
    "wrong": {
     "210 days": "Counted every calendar day in a week. Only trading days count.",
-    "6 days": "Divided the weeks by the days in a week. Multiply them.",
-    "30 days": "Read 30 weeks as 30 days."
+    "180 days": "Counted six days a week. Markets are open five.",
+    "1,500 days": "A decimal slip: ten times too big."
    }
   },
   {
@@ -1726,7 +1726,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "30 x 5 = 150. 210 calendar days, 6 divided, 30 days/weeks slip. Why is fine."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q12": {
    "status": "pass",

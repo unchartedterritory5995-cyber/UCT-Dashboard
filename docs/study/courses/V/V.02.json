@@ -4124,17 +4124,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$102.50",
-    "$51.25",
     "$2.30",
-    "$0.23"
+    "$23.00",
+    "$51.25",
+    "$102.50"
    ],
    "wrong": {
     "$102.50": "Added the high and the low instead of subtracting.",
     "$51.25": "Took the midpoint of the day, not the range.",
-    "$0.23": "Decimal slip: moved the point one place too far."
+    "$23.00": "Decimal slip: moved the point one place up."
    }
   },
   {
@@ -4171,17 +4171,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "16.7%",
     "50.0%",
-    "25.0%",
+    "83.3%",
+    "125.0%",
     "200.0%"
    ],
    "wrong": {
-    "16.7%": "Divided the pullback by the $60 top, not by the rally.",
-    "25.0%": "Divided the pullback by the $40 start, not by the rally.",
-    "200.0%": "Flipped it: divided the rally by the pullback."
+    "200.0%": "Flipped it: divided the rally by the pullback.",
+    "83.3%": "Gave the $50 price as a share of the $60 top.",
+    "125.0%": "Gave the $50 price over the $40 start."
    }
   },
   {
@@ -4213,17 +4213,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "88.0%",
-    "13.6%",
     "12.0%",
-    "1.2%"
+    "6.4%",
+    "1.2%",
+    "0.1%"
    ],
    "wrong": {
-    "13.6%": "Divided the drop by the 4,400 low, not by the peak.",
-    "88.0%": "4,400 is 88% of the peak. That is what is left, not the drop.",
-    "1.2%": "Decimal slip: moved the point one place too far."
+    "1.2%": "Decimal slip: moved the point one place too far.",
+    "6.4%": "Divided the drop by the two levels added together.",
+    "0.1%": "Divided the drop by the peak and never made it a percent."
    }
   },
   {
@@ -4800,20 +4800,20 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Content passes; reordered only to vary the answer slot."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Content passes; reordered only to vary the answer slot."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Verified 12.0; 13.6 = 600/4400; fine."
+   "fixed": true,
+   "notes": "Replaced weak distractor(s) and/or filled missing upgrade so the right answer sits at the target rank."
   },
   "q58": {
    "status": "pass",

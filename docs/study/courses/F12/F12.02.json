@@ -1137,17 +1137,17 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "60%",
+    "1%",
     "10%",
-    "0.1%",
-    "1%"
+    "60%",
+    "99%"
    ],
    "wrong": {
     "60%": "Read the 60-point drop as 60%. Divide it by the starting level.",
-    "0.1%": "A decimal slip: ten times too small.",
-    "10%": "A decimal slip: ten times too big."
+    "10%": "A decimal slip: ten times too big.",
+    "99%": "Gave the new level as a share of the start and forgot to subtract it from the whole."
    }
   },
   {
@@ -1783,8 +1783,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 1.0. Choices acceptable (60 = points read as percent, 0.1 and 10 slips). Why skipped the 60-point step; added."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q10": {
    "status": "pass",

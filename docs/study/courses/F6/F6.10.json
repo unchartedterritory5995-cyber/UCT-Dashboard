@@ -1105,17 +1105,17 @@
      "fixed before (question clarified)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "3.2x",
+    "3.9x",
     "10.0x",
-    "0.3x",
-    "2.0x",
-    "3.2x"
+    "31.7x"
    ],
    "wrong": {
     "10.0x": "Assumes the price grows in step with the time. Ten times the time, ten times the price.",
-    "0.3x": "Divides the short price by the long one, upside down.",
-    "2.0x": "Subtracts the two prices instead of dividing them."
+    "3.9x": "Added the two prices instead of dividing them.",
+    "31.7x": "Slips a decimal place."
    }
   },
   {
@@ -1579,8 +1579,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q16": {
    "status": "pass",

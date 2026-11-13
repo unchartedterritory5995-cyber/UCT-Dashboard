@@ -1191,17 +1191,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1,600 shares",
     "6,400 shares",
-    "3,200 shares",
-    "600 shares"
+    "12,800 shares",
+    "24,300 shares",
+    "3,200 shares"
    ],
    "wrong": {
-    "1,600 shares": "Doubled four times, one win short.",
     "6,400 shares": "Doubled six times, once on trade six itself.",
-    "600 shares": "Added 100 shares per win instead of doubling."
+    "12,800 shares": "Doubled two extra times.",
+    "24,300 shares": "Tripled after each win instead of doubling."
    }
   },
   {
@@ -1495,7 +1495,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q18": {
    "status": "pass",

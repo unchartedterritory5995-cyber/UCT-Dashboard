@@ -881,17 +881,17 @@
      "computed key (calc pct_change)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "20%",
     "80%",
-    "25%",
-    "125%"
+    "125%",
+    "500%",
+    "25%"
    ],
    "wrong": {
-    "20%": "Used the same percent as the drop.",
     "80%": "Took the $40,000 over $50,000 ratio as the gain.",
-    "125%": "Took the $50,000 over $40,000 ratio and never took off the starting amount."
+    "125%": "Took the $50,000 over $40,000 ratio and never took off the starting amount.",
+    "500%": "Divided the whole account by the dollar drop."
    }
   },
   {
@@ -1082,17 +1082,17 @@
      "fixed before (my to our)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$5,000",
-    "$9,000",
     "$450",
+    "$900",
+    "$4,050",
     "$4,500"
    ],
    "wrong": {
-    "$9,000": "Used the 10% drawdown as the cap.",
     "$450": "Decimal slip: moved the decimal one place.",
-    "$5,000": "Took 5% of the account's old high, not the current $90,000."
+    "$900": "Used a one percent risk as the cap.",
+    "$4,050": "Took the drawdown off a second time."
    }
   },
   {
@@ -1554,7 +1554,7 @@
     }
    },
    "prefix": "$",
-   "why": "$55,200. Our monthly limit is 8% below the month's start. 8% of $60,000 is $4,800. Take that off $60,000 to get $55,200.",
+   "why": "$55,200. Our monthly limit is 8% below the month's start. Take 8% of $60,000 off $60,000 to get $55,200.",
    "lesson_line": "Monthly limit: 8% down from where the month started, and the month is closed to new trades.",
    "facts": [
     "h09"
@@ -1568,17 +1568,17 @@
      "rests on the owner's rulebook (B16)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$4,800",
+    "$65,217",
     "$64,800",
-    "$55,200",
-    "$59,520"
+    "$59,520",
+    "$55,200"
    ],
    "wrong": {
-    "$4,800": "Gave the loss amount, not the account value.",
     "$64,800": "Added the 8% instead of taking it off.",
-    "$59,520": "Decimal slip: took a tenth of the limit off."
+    "$59,520": "Decimal slip: took a tenth of the limit off.",
+    "$65,217": "Divided the start by what is left instead of multiplying."
    }
   },
   {
@@ -1654,17 +1654,17 @@
      "rests on the owner's rulebook (B14) and the reading that exactly 5% down counts as within 5%"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "$4,000",
+    "$68,400",
     "$72,000",
-    "$76,000",
-    "$79,600"
+    "$76,000"
    ],
    "wrong": {
     "$72,000": "Took 10% off the peak, the size of the fall.",
     "$4,000": "Gave the 5% gap, not the account value.",
-    "$79,600": "Decimal slip: took a tenth of the 5% off."
+    "$68,400": "Took 5% off the fallen account value, not the peak."
    }
   },
   {
@@ -1889,8 +1889,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
+   "fixed": true,
+   "notes": "Ranks fine. 500% note said drop percent but the math is account over the dollar drop; note corrected."
   },
   "q11": {
    "status": "pass",
@@ -1920,7 +1920,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q16": {
    "status": "pass",
@@ -1997,8 +1997,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "fixed": true,
+   "notes": "$4,800 sat below the answer so rank was 1. Replaced with a divide-instead-of-multiply slip that lands above. The old why cited a number that is no longer a choice, so the why was trimmed to match; the answer is unchanged."
   },
   "q29": {
    "status": "pass",
@@ -2010,7 +2010,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q31": {
    "status": "pass",

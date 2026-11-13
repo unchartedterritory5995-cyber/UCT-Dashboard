@@ -2508,17 +2508,17 @@
      "rests on the owner's rulebook (A13, the 3% habit)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "0.3%",
     "2.9%",
-    "1.0%",
-    "97.1%"
+    "97.1%",
+    "28.6%",
+    "96.0%"
    ],
    "wrong": {
-    "0.3%": "Slipped the decimal one place to the left.",
-    "1.0%": "Read the dollar gap as a percent.",
-    "97.1%": "Divided the stop by the fill and skipped the subtraction."
+    "97.1%": "Divided the stop by the fill and skipped the subtraction.",
+    "28.6%": "Decimal slip: ten times too big.",
+    "96.0%": "Turned the dollar gap into a percent without dividing by the fill."
    }
   },
   {
@@ -3386,17 +3386,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "26.1%",
     "126.1%",
-    "20.7%",
-    "12.0%",
-    "26.1%"
+    "260.9%",
+    "79.3%"
    ],
    "wrong": {
-    "20.7%": "Divided by the high instead of the low.",
-    "12.0%": "Read the dollar gap as a percent.",
-    "126.1%": "Divided high by low and forgot to subtract one."
+    "126.1%": "Divided high by low and forgot to subtract one.",
+    "260.9%": "Decimal slip: ten times too big.",
+    "79.3%": "Took the low as a share of the high and skipped the gap."
    }
   },
   {
@@ -3547,17 +3547,17 @@
      "rests on the owner's rulebook (B20 gap rule)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1R",
     "3R",
+    "1R",
     "2R",
-    "9R"
+    "0.3R"
    ],
    "wrong": {
     "1R": "Counted only the original risk, not the whole loss.",
     "2R": "Measured from the stop, not from the buy.",
-    "9R": "Used the dollar loss and never divided by the risk."
+    "0.3R": "Flipped the division: one R over the loss."
    }
   },
   {
@@ -4033,8 +4033,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "fixed": true,
+   "notes": "Rank ok. 'Divided by ten' is not a real slip; replaced with turning the dollar gap into a percent without dividing."
   },
   "q47": {
    "status": "pass",
@@ -4134,8 +4134,8 @@
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "fixed": true,
+   "notes": "Rank ok. 'Doubled the gap' is not a real slip; replaced with taking the low as a share of the high (46/58 = 79.3%)."
   },
   "q69": {
    "status": "pass",
@@ -4159,7 +4159,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q73": {
    "status": "pass",

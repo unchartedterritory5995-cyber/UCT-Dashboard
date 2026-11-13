@@ -1220,17 +1220,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "4%",
-    "3%",
     "6%",
+    "7%",
+    "8%",
     "5%"
    ],
    "wrong": {
-    "3%": "Left out the doubled trade.",
-    "4%": "Counted the doubled trade as a normal 1%.",
-    "6%": "Doubled the whole three-loss total, not one trade."
+    "6%": "Doubled the whole three-loss total, not one trade.",
+    "7%": "Doubled the three-loss total, then added a normal 1% trade.",
+    "8%": "Doubled the risk on all four trades."
    }
   },
   {
@@ -1793,7 +1793,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q16": {
    "status": "pass",

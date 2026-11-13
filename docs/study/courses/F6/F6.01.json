@@ -869,17 +869,17 @@
      "fixed before (checker added 'standard')"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "3 shares",
-    "100 shares",
     "300 shares",
-    "103 shares"
+    "3,000 shares",
+    "30,000 shares",
+    "10,000 shares"
    ],
    "wrong": {
-    "3 shares": "Forgot each contract covers 100 shares.",
-    "100 shares": "Counted one contract instead of three.",
-    "103 shares": "Added the numbers instead of multiplying."
+    "3,000 shares": "Slipped a decimal place.",
+    "30,000 shares": "Multiplied by 100 twice.",
+    "10,000 shares": "Counted one contract and multiplied by 100 twice."
    }
   },
   {
@@ -1005,17 +1005,17 @@
      "fixed before (checker added 'standard' and fixed the lesson line)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$6,000",
     "$3,000",
     "$12,000",
-    "$600",
-    "$6,000"
+    "$60,000"
    ],
    "wrong": {
     "$3,000": "Counted one put instead of two.",
     "$12,000": "Multiplied the strike by the 200 shares you own and by the two puts.",
-    "$600": "Slipped a decimal place."
+    "$60,000": "Slipped a decimal place."
    }
   },
   {
@@ -1528,8 +1528,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q11": {
    "status": "cut",
@@ -1558,8 +1558,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q15": {
    "status": "pass",

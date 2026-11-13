@@ -1362,17 +1362,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "3%",
-    "12%",
     "6%",
-    "17%"
+    "3%",
+    "0.6%",
+    "0.06%"
    ],
    "wrong": {
-    "12%": "Reads the 12.00 cost as 12 percent.",
     "3%": "Splits the cost between the call and the put.",
-    "17%": "Flips the ratio. It divides the stock price by the cost."
+    "0.6%": "Slips a decimal place.",
+    "0.06%": "Forgets to multiply by 100."
    }
   },
   {
@@ -1966,8 +1966,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q17": {
    "status": "pass",

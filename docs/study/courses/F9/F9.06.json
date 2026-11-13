@@ -890,17 +890,17 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "$600",
-    "$150",
-    "$450",
-    "$4,500"
+    "$750",
+    "$4,500",
+    "$450"
    ],
    "wrong": {
     "$600": "Used the old $48 stop, not the new $48.50.",
-    "$150": "Counted only the amount the stop moved.",
-    "$4,500": "Decimal slip: moved the decimal one place."
+    "$4,500": "Decimal slip: moved the decimal one place.",
+    "$750": "Added the stop move to the old gap instead of subtracting it."
    }
   },
   {
@@ -939,17 +939,17 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$0",
     "$200",
-    "$1,800",
-    "$1,200",
+    "$400",
     "$600"
    ],
    "wrong": {
-    "$1,800": "Counted all 600 shares at the $3 gain.",
-    "$1,200": "Counted the 400 shares you kept at the $3 gain.",
-    "$200": "Assumed the rest stopped at the old $19 stop."
+    "$200": "Assumed the rest stopped at the old $19 stop.",
+    "$0": "Subtracted the full original risk from the profit.",
+    "$400": "Took the gain per share as two dollars."
    }
   },
   {
@@ -1323,17 +1323,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "4%",
-    "2.5%",
     "3.5%",
-    "2%"
+    "3%",
+    "2.5%"
    ],
    "wrong": {
     "4%": "Ignored the sale and the stop move.",
     "3.5%": "Counted the trade with its stop at entry as a full 1%.",
-    "2%": "Counted only the two untouched trades."
+    "3%": "Counted the half-sold trade as a full 1%."
    }
   },
   {
@@ -1417,17 +1417,17 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "4.5R",
+    "0.7R",
     "2.3R",
-    "3R",
-    "0.7R"
+    "2.8R",
+    "3R"
    ],
    "wrong": {
-    "4.5R": "Divided by the risk of only the 200 shares you kept.",
     "2.3R": "Left out the profit from the first sale.",
-    "0.7R": "Counted only the first sale."
+    "0.7R": "Counted only the first sale.",
+    "2.8R": "Averaged the two pieces' R without weighting by shares."
    }
   },
   {
@@ -1602,13 +1602,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q13": {
    "status": "cut",
@@ -1662,7 +1662,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q22": {
    "status": "cut",
@@ -1674,7 +1674,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q24": {
    "status": "pass",

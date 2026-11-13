@@ -1110,7 +1110,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q25": {
    "status": "pass",
@@ -2238,17 +2238,17 @@
      "rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "4.23%",
     "4.42%",
-    "2.69%",
-    "0.44%"
+    "104.42%",
+    "95.77%",
+    "44.16%"
    ],
    "wrong": {
-    "4.23%": "Divided by the new price. Measure from the high, the buy point.",
-    "2.69%": "Read the dollar gap as a percent. Divide it by the high first.",
-    "0.44%": "Slipped the decimal point one place left."
+    "104.42%": "Divided the new price by the high and forgot to subtract one.",
+    "95.77%": "Gave the high as a share of the new price.",
+    "44.16%": "Slipped the decimal point one place right."
    }
   },
   {

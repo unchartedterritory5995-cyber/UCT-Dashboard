@@ -1760,17 +1760,17 @@
      "the stop range is the owner's ruling D-005"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "2.1%",
+    "2.3%",
     "97.7%",
-    "0.23%",
-    "2.3%"
+    "206.0%",
+    "23.0%"
    ],
    "wrong": {
     "97.7%": "Gave the stop as a share of the fill, not the gap between them.",
-    "0.23%": "A decimal slip, one place too far left.",
-    "2.1%": "Used the dollar gap as if it were the percent."
+    "23.0%": "A decimal slip, one place too far right.",
+    "206.0%": "Turned the dollar gap into a percent without dividing by the fill."
    },
    "prefix": ""
   },
@@ -2594,17 +2594,17 @@
      "rests on the owner's rulebook D42"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "40,000 shares",
     "4,000 shares",
+    "40,000 shares",
     "8,000 shares",
-    "400 shares"
+    "400,000 shares"
    ],
    "wrong": {
     "40,000 shares": "Took ten times the right share of the volume.",
     "8,000 shares": "Doubled the 1% rule. The ceiling is 1% of the average daily volume.",
-    "400 shares": "Took a tenth of the right share of the volume."
+    "400,000 shares": "Used the whole average daily volume as the limit."
    },
    "prefix": ""
   },
@@ -2805,17 +2805,17 @@
      "rests on the owner's rulebook E51 second third at 5R"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "5.7R",
-    "6.0R",
+    "5.0R",
     "0.2R",
-    "5.0R"
+    "1.1R",
+    "0.1R"
    ],
    "wrong": {
-    "5.7R": "Used the dollar gain without dividing by one R.",
-    "6.0R": "Measured the gain from the stop, not from the fill.",
-    "0.2R": "Flipped the division: one R over the gain."
+    "0.2R": "Flipped the division: one R over the gain.",
+    "1.1R": "That is the risk per share read as R. Divide the gain by it.",
+    "0.1R": "Divided the gain by the price, not by R."
    },
    "prefix": ""
   },
@@ -3705,7 +3705,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc 2.3 ok. The 0.23% note said 'forgot to multiply by 100', which would give 0.023%."
+   "notes": "Rank ok. 'Divided by ten' is not a real slip; replaced with turning the dollar gap into a percent without dividing."
   },
   "q26": {
    "status": "pass",
@@ -3826,7 +3826,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q49": {
    "status": "pass",
@@ -3850,8 +3850,8 @@
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 5.0 ok. The why said 'the second third', which the stem never states; rewrote it to walk the steps for the one third sold."
+   "fixed": false,
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q53": {
    "status": "pass",

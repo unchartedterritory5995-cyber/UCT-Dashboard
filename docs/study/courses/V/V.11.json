@@ -2338,17 +2338,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "300%",
+    "133%",
     "80%",
-    "25%",
     "75%"
    ],
    "wrong": {
     "300%": "Divided highs by lows and skipped the total.",
-    "25%": "Gave the lows' share instead of the highs'.",
-    "80%": "Gave the total of highs and lows, not a share."
+    "80%": "Gave the total of highs and lows, not a share.",
+    "133%": "Divided the total by highs, upside down."
    }
   },
   {
@@ -3015,17 +3015,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "0.33",
-    "3.0",
-    "4.8",
-    "2.0"
+    "2.0",
+    "2.4",
+    "3.0"
    ],
    "wrong": {
     "0.33": "Divided down volume by up volume, upside down.",
-    "4.8": "Added the two volumes instead of dividing.",
-    "2.0": "Divided the gap between the volumes by down volume."
+    "2.0": "Divided the gap between the volumes by down volume.",
+    "2.4": "Subtracted down volume from up volume instead of dividing."
    }
   },
   {
@@ -3953,8 +3953,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 75 matches. Wrongs real (300 = highs/lows, 25 = lows share, 80 = the total). Why added the 80 and 0.75 steps."
+   "fixed": false,
+   "notes": "75 is smallest of 75/80/133/300. 300 = highs/lows; 133 = total/highs; 80 = total. All real slips."
   },
   "q29": {
    "status": "pass",
@@ -4067,8 +4067,8 @@
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 3.0 matches. 3.0 was the only whole number (others 0.33, 4.8, 2.4): a tell. Replaced 2.4 with 2.0 (net volume over down volume), so two choices are round."
+   "fixed": false,
+   "notes": "3.0 largest. 0.33 flipped; 2.4 = 3.6-1.2; 2.0 = gap/down volume. All real slips."
   },
   "q48": {
    "status": "pass",

@@ -999,17 +999,17 @@
      "the key is computed"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$660",
     "$220",
     "$1,200",
-    "$660",
-    "$6.60"
+    "$6,600"
    ],
    "wrong": {
     "$220": "Counted one contract instead of three.",
     "$1,200": "Treated the calls like shares, a delta of one.",
-    "$6.60": "Forgot each contract covers 100 shares."
+    "$6,600": "Slipped a decimal place."
    }
   },
   {
@@ -1463,8 +1463,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q16": {
    "status": "pass",

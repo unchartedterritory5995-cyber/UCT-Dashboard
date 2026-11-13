@@ -1020,10 +1020,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "8%",
     "10%",
-    "80%",
-    "800%"
+    "57%",
+    "70%",
+    "80%"
    ],
    "kind": "mcq",
    "q": "Account $50,000. You risk a flat $5,000 a trade, 10% of the account. You lose 8 in a row. What percent of the account is gone?",
@@ -1077,7 +1077,7 @@
      "fn": "arith",
      "result": 80.0
     },
-    "given": "Account $50,000. You risk a flat $5,000 a trade, 10% of the account. You lose 8 in a row. What percent of the account is gone? 10% 80% 8% 800%"
+    "given": "Account $50,000. You risk a flat $5,000 a trade, 10% of the account. You lose 8 in a row. What percent of the account is gone? 10% 57% 70% 80%"
    },
    "lesson_line": "Big risk per trade turns one losing streak into the end of the account.",
    "simple": "It's 80%, because eight losses of $5,000 each eat most of a $50,000 account.",
@@ -1086,8 +1086,8 @@
    "why": "80%. Eight losses at $5,000 each, against a $50,000 account, is 80% gone. At 10% a trade, one losing streak nearly ends the account. Losing streaks happen to good traders too. Blown-up accounts come from sizes that were too big, huge price moves, or both.",
    "wrong": {
     "10%": "Counted only one trade's share.",
-    "8%": "Counted the eight trades as eight percent.",
-    "800%": "Decimal slip the other way."
+    "57%": "Took 10% of the shrinking balance each time.",
+    "70%": "Counted seven losses, not eight."
    }
   },
   "review_status": "draft",
@@ -3325,10 +3325,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "10 shares",
     "104 shares",
     "112 shares",
-    "450 shares",
-    "1,046 shares"
+    "450 shares"
    ],
    "kind": "mcq",
    "q": "Account $60,000, risking 0.75%. You buy at $125.40 with the stop at $121.10, a few cents under the day's low. How many shares?",
@@ -3382,7 +3382,7 @@
      "fn": "shares_from_risk",
      "result": 104.0
     },
-    "given": "Account $60,000, risking 0.75%. You buy at $125.40 with the stop at $121.10, a few cents under the day's low. How many shares? 1,046 shares 112 shares 450 shares 104 shares"
+    "given": "Account $60,000, risking 0.75%. You buy at $125.40 with the stop at $121.10, a few cents under the day's low. How many shares? 10 shares 112 shares 450 shares 104 shares"
    },
    "lesson_line": "Real prices are messy. Do the math and round down, so you stay inside your risk.",
    "simple": "You buy 104 shares: divide your dollars at risk by the stop gap, then round down to stay inside your risk.",
@@ -3390,7 +3390,7 @@
    "unit": "F9.02",
    "why": "104 shares. Dollars at risk are 0.75% of $60,000, which is $450. Risk per share is the gap from $125.40 to $121.10. Divide $450 by that gap and round down to 104.",
    "wrong": {
-    "1,046 shares": "Decimal slip: moved the decimal one place.",
+    "10 shares": "Decimal slip on the risk percent, so the dollars shrank.",
     "112 shares": "Rounded the prices to whole dollars, which shrank the stop gap.",
     "450 shares": "Used the dollar risk as the share count."
    }
@@ -3722,10 +3722,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "0.08%",
+    "0.4%",
     "0.8%",
-    "1%",
-    "2%",
-    "8%"
+    "1%"
    ],
    "kind": "mcq",
    "q": "You risk 1% and the stop is 2% below entry, so risk math says 50%. Our cap is 40%. At 40%, what percent of the account do you risk?",
@@ -3768,7 +3768,7 @@
      "fn": "arith",
      "result": 0.8
     },
-    "given": "You risk 1% and the stop is 2% below entry, so risk math says 50%. Our cap is 40%. At 40%, what percent of the account do you risk? 1% 8% 2% 0.8%"
+    "given": "You risk 1% and the stop is 2% below entry, so risk math says 50%. Our cap is 40%. At 40%, what percent of the account do you risk? 0.08% 0.4% 1% 0.8%"
    },
    "lesson_line": "When the cap binds, you risk less than your plan.",
    "simple": "You risk 0.8%, because a 2% drop on a 40% position costs 0.8% of the account.",
@@ -3776,9 +3776,9 @@
    "unit": "F9.02",
    "why": "0.8%. The cap holds you to 40%, not 50%. Risk is position size times stop distance. 40% of the account times a 2% drop is 0.8%.",
    "wrong": {
-    "1%": "Ignored the cap and assumed you still risk your plan.",
-    "2%": "Took the stop distance as the loss on the account.",
-    "8%": "Decimal slip: moved the decimal one place."
+    "0.08%": "Decimal slip the other way.",
+    "0.4%": "Applied the 40% cap to the 1% risk instead of the stop distance.",
+    "1%": "Ignored the cap and assumed you still risk your plan."
    }
   },
   "review_status": "draft",
@@ -5284,9 +5284,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "0.8%",
     "2.8%",
     "3.3%",
+    "5.0%",
     "28%"
    ],
    "kind": "mcq",
@@ -5329,7 +5329,7 @@
      "fn": "arith",
      "result": 2.8
     },
-    "given": "Your system loses 55% of its trades, and each trade is independent. What's the chance the next 6 all lose? Round to one decimal. 28% 3.3% 0.8% 2.8%"
+    "given": "Your system loses 55% of its trades, and each trade is independent. What's the chance the next 6 all lose? Round to one decimal. 28% 3.3% 5.0% 2.8%"
    },
    "lesson_line": "For a run of independent losses, multiply the chances. Six trades you name in advance rarely all lose.",
    "simple": "It's 2.8%, because when no trade affects the next, you just multiply six chances of 0.55 together.",
@@ -5337,9 +5337,9 @@
    "unit": "F9.03",
    "why": "2.8%. Independent chances multiply, so multiply 0.55 by itself six times. That comes to 2.8%. It only holds if each trade is independent.",
    "wrong": {
-    "0.8%": "Used the win rate instead of the loss rate.",
     "28%": "Decimal slip: moved the decimal one place.",
-    "3.3%": "Multiplied 0.55 by 6 instead of raising it to the sixth power."
+    "3.3%": "Multiplied 0.55 by 6 instead of raising it to the sixth power.",
+    "5.0%": "Multiplied only five times, not six."
    }
   },
   "review_status": "draft",
@@ -7067,10 +7067,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "20%",
     "25%",
     "80%",
-    "125%"
+    "125%",
+    "500%"
    ],
    "kind": "mcq",
    "q": "Your account fell from $50,000 to $40,000. What percent gain takes it back to $50,000?",
@@ -7112,7 +7112,7 @@
      "fn": "pct_change",
      "result": 25.0
     },
-    "given": "Your account fell from $50,000 to $40,000. What percent gain takes it back to $50,000? 20% 80% 25% 125%"
+    "given": "Your account fell from $50,000 to $40,000. What percent gain takes it back to $50,000? 80% 125% 500% 25%"
    },
    "lesson_line": "Gains are earned on what's left. That's why every loss costs more to fix.",
    "simple": "25%, because the climb back is earned on $40,000, the smaller amount, not on $50,000.",
@@ -7121,7 +7121,7 @@
    "why": "25%. The climb back starts from $40,000. The gain you need, divided by $40,000, is 25%. A 20% drop needs a 25% climb.",
    "wrong": {
     "125%": "Took the $50,000 over $40,000 ratio and never took off the starting amount.",
-    "20%": "Used the same percent as the drop.",
+    "500%": "Divided the whole account by the dollar drop.",
     "80%": "Took the $40,000 over $50,000 ratio as the gain."
    }
   },
@@ -7432,9 +7432,9 @@
   "prompt_json": {
    "choices": [
     "$450",
-    "$4,500",
-    "$5,000",
-    "$9,000"
+    "$900",
+    "$4,050",
+    "$4,500"
    ],
    "kind": "mcq",
    "q": "Your account is $90,000, down 10% from its high. Under our drawdown ladder, what's the most you put in one stock?",
@@ -7477,7 +7477,7 @@
      "fn": "arith",
      "result": 4500.0
     },
-    "given": "Your account is $90,000, down 10% from its high. Under our drawdown ladder, what's the most you put in one stock? $5,000 $9,000 $450 $4,500"
+    "given": "Your account is $90,000, down 10% from its high. Under our drawdown ladder, what's the most you put in one stock? $450 $900 $4,050 $4,500"
    },
    "lesson_line": "Find your step on the ladder first. Then turn the percent into dollars.",
    "simple": "$4,500, because at 10% down our cap is 5%, and 5% of $90,000 is $4,500.",
@@ -7485,9 +7485,9 @@
    "unit": "F9.04",
    "why": "$4,500. After a 10% drawdown, our max position is 5% of the account. 5% of $90,000 is $4,500.",
    "wrong": {
+    "$4,050": "Took the drawdown off a second time.",
     "$450": "Decimal slip: moved the decimal one place.",
-    "$5,000": "Took 5% of the account's old high, not the current $90,000.",
-    "$9,000": "Used the 10% drawdown as the cap."
+    "$900": "Used a one percent risk as the cap."
    }
   },
   "review_status": "draft",
@@ -8228,14 +8228,14 @@
   "difficulty": 2,
   "id": "si_2acea91ebfce",
   "lesson_origin": "session",
-  "lesson_text": "$55,200. Our monthly limit is 8% below the month's start. 8% of $60,000 is $4,800. Take that off $60,000 to get $55,200. Monthly limit: 8% down from where the month started, and the month is closed to new trades.",
+  "lesson_text": "$55,200. Our monthly limit is 8% below the month's start. Take 8% of $60,000 off $60,000 to get $55,200. Monthly limit: 8% down from where the month started, and the month is closed to new trades.",
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "$4,800",
     "$55,200",
     "$59,520",
-    "$64,800"
+    "$64,800",
+    "$65,217"
    ],
    "kind": "mcq",
    "q": "You started the month at $60,000. At what account value does our monthly loss limit stop new trades for the month?",
@@ -8264,17 +8264,17 @@
      "fn": "arith",
      "result": 55200.0
     },
-    "given": "You started the month at $60,000. At what account value does our monthly loss limit stop new trades for the month? $4,800 $64,800 $55,200 $59,520"
+    "given": "You started the month at $60,000. At what account value does our monthly loss limit stop new trades for the month? $65,217 $64,800 $59,520 $55,200"
    },
    "lesson_line": "Monthly limit: 8% down from where the month started, and the month is closed to new trades.",
    "simple": "$55,200, because our limit is 8% below the $60,000 the month started at.",
    "tier": "extended",
    "unit": "F9.04",
-   "why": "$55,200. Our monthly limit is 8% below the month's start. 8% of $60,000 is $4,800. Take that off $60,000 to get $55,200.",
+   "why": "$55,200. Our monthly limit is 8% below the month's start. Take 8% of $60,000 off $60,000 to get $55,200.",
    "wrong": {
-    "$4,800": "Gave the loss amount, not the account value.",
     "$59,520": "Decimal slip: took a tenth of the limit off.",
-    "$64,800": "Added the 8% instead of taking it off."
+    "$64,800": "Added the 8% instead of taking it off.",
+    "$65,217": "Divided the start by what is left instead of multiplying."
    }
   },
   "review_status": "draft",
@@ -8375,9 +8375,9 @@
   "prompt_json": {
    "choices": [
     "$4,000",
+    "$68,400",
     "$72,000",
-    "$76,000",
-    "$79,600"
+    "$76,000"
    ],
    "kind": "mcq",
    "q": "Your account peaked at $80,000 and fell 10%. Under our rule, at what value does the normal cap come back?",
@@ -8413,7 +8413,7 @@
      "fn": "arith",
      "result": 76000.0
     },
-    "given": "Your account peaked at $80,000 and fell 10%. Under our rule, at what value does the normal cap come back? $4,000 $72,000 $76,000 $79,600"
+    "given": "Your account peaked at $80,000 and fell 10%. Under our rule, at what value does the normal cap come back? $4,000 $68,400 $72,000 $76,000"
    },
    "lesson_line": "Full size again within 5% of the peak. Not at the peak, not at the first green week.",
    "simple": "$76,000, because the normal cap comes back within 5% of the $80,000 peak.",
@@ -8422,8 +8422,8 @@
    "why": "$76,000. The normal cap returns within 5% of the peak. 5% of $80,000 is $4,000. Take that off $80,000 to get $76,000.",
    "wrong": {
     "$4,000": "Gave the 5% gap, not the account value.",
-    "$72,000": "Took 10% off the peak, the size of the fall.",
-    "$79,600": "Decimal slip: took a tenth of the 5% off."
+    "$68,400": "Took 5% off the fallen account value, not the peak.",
+    "$72,000": "Took 10% off the peak, the size of the fall."
    }
   },
   "review_status": "draft",
@@ -9344,9 +9344,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "0.69%",
-    "2.31%",
     "2.75%",
+    "3.5%",
+    "3.75%",
     "27.5%"
    ],
    "kind": "mcq",
@@ -9393,7 +9393,7 @@
      "fn": "arith",
      "result": 2.75
     },
-    "given": "Account $80,000. Four open trades would lose $600, $450, $800 and $350 at their stops. What's your total open risk? 27.5% 0.69% 2.75% 2.31%"
+    "given": "Account $80,000. Four open trades would lose $600, $450, $800 and $350 at their stops. What's your total open risk? 27.5% 3.75% 3.5% 2.75%"
    },
    "lesson_line": "Dollars at risk over account size. Redo it after every new trade.",
    "simple": "It is 2.75%, because the four stop losses add up and you divide by the $80,000 account.",
@@ -9401,9 +9401,9 @@
    "unit": "F9.05",
    "why": "2.75%. Add the four stop losses: $600 + $450 + $800 + $350. Divide the total by the $80,000 account and multiply by 100 to get 2.75%.",
    "wrong": {
-    "0.69%": "Averaged the four losses instead of adding them.",
-    "2.31%": "Left out the $350 trade.",
-    "27.5%": "Decimal slip: moved the decimal one place."
+    "27.5%": "Decimal slip: moved the decimal one place.",
+    "3.5%": "Counted the $600 trade twice.",
+    "3.75%": "Counted the $800 trade twice."
    }
   },
   "review_status": "draft",
@@ -10043,10 +10043,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "0.3%",
     "1%",
-    "3%",
-    "15%",
-    "20%"
+    "2%",
+    "3%"
    ],
    "kind": "mcq",
    "q": "At the open, about how much is the account down on this position?",
@@ -10100,7 +10100,7 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "At the open, about how much is the account down on this position? One position is 20% of your account, with the stop 5% under entry. That's 1% at risk. It opens 15% below your entry on news. 3% 1% 15% 20%"
+    "given": "At the open, about how much is the account down on this position? One position is 20% of your account, with the stop 5% under entry. That's 1% at risk. It opens 15% below your entry on news. 1% 2% 0.3% 3%"
    },
    "lesson_line": "Total open risk assumes fills at your stops. Size so a gap past them hurts but doesn't sink you.",
    "simple": "3%, because the stock opened 15% down, past the stop, on a position worth 20% of the account.",
@@ -10108,9 +10108,9 @@
    "unit": "F9.05",
    "why": "3%. The stock opened 15% under entry, past the stop 5% under entry. A stop is a trigger, not a promised price, so it cannot stop a gap. 15% off a position that is 20% of the account is 3% of the account, against a 1% plan. Balsara notes the at-risk number holds only if price does not gap through the stop.",
    "wrong": {
-    "1%": "That's the plan, not the open. The stock gapped past the 5% stop, and a stop is a trigger, not a promised price.",
-    "15%": "That's what the stock lost. The account lost 15% of the 20% it had in the stock.",
-    "20%": "That's the whole position. You'd lose all of it only if the stock went to zero."
+    "0.3%": "Decimal slip: moved the decimal one place.",
+    "1%": "That's the plan, not the open. A stop is a trigger, not a promised price.",
+    "2%": "Counted only the fall past the stop."
    }
   },
   "review_status": "draft",
@@ -11085,9 +11085,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "$150",
     "$450",
     "$600",
+    "$750",
     "$4,500"
    ],
    "kind": "mcq",
@@ -11131,7 +11131,7 @@
      "fn": "risk_dollars",
      "result": 450.0
     },
-    "given": "You hold 300 shares from $50 with the stop at $48. You raise the stop to $48.50. How much can they lose now, from your entry? $600 $150 $450 $4,500"
+    "given": "You hold 300 shares from $50 with the stop at $48. You raise the stop to $48.50. How much can they lose now, from your entry? $600 $750 $4,500 $450"
    },
    "lesson_line": "Raise the stop and the risk per share shrinks, and the total with it.",
    "simple": "$450, because the higher stop means each of your 300 shares loses less if it's hit.",
@@ -11139,9 +11139,9 @@
    "unit": "F9.06",
    "why": "$450. The new stop is $48.50, so each share loses the gap from $50 to $48.50. Times 300 shares, that is $450.",
    "wrong": {
-    "$150": "Counted only the amount the stop moved.",
     "$4,500": "Decimal slip: moved the decimal one place.",
-    "$600": "Used the old $48 stop, not the new $48.50."
+    "$600": "Used the old $48 stop, not the new $48.50.",
+    "$750": "Added the stop move to the old gap instead of subtracting it."
    }
   },
   "review_status": "draft",
@@ -11162,10 +11162,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "$0",
     "$200",
-    "$600",
-    "$1,200",
-    "$1,800"
+    "$400",
+    "$600"
    ],
    "kind": "mcq",
    "q": "You buy 600 at $20, stop $19. At 3R, $23, you sell 200 and move the stop to $20. The rest stops out there. What did the trade make?",
@@ -11218,7 +11218,7 @@
      "fn": "arith",
      "result": 600.0
     },
-    "given": "You buy 600 at $20, stop $19. At 3R, $23, you sell 200 and move the stop to $20. The rest stops out there. What did the trade make? $200 $1,800 $1,200 $600"
+    "given": "You buy 600 at $20, stop $19. At 3R, $23, you sell 200 and move the stop to $20. The rest stops out there. What did the trade make? $0 $200 $400 $600"
    },
    "lesson_line": "Sell part, stop to breakeven: the gain is banked, and the rest comes out even if it fills.",
    "simple": "$600, because the 200 shares sold at $23 made $3 each, and the rest came out even at $20.",
@@ -11226,9 +11226,9 @@
    "unit": "F9.06",
    "why": "$600. The 200 shares sold at $23 made $3 each, which is $600. The 400 left went out at $20 for nothing. The total is $600.",
    "wrong": {
-    "$1,200": "Counted the 400 shares you kept at the $3 gain.",
-    "$1,800": "Counted all 600 shares at the $3 gain.",
-    "$200": "Assumed the rest stopped at the old $19 stop."
+    "$0": "Subtracted the full original risk from the profit.",
+    "$200": "Assumed the rest stopped at the old $19 stop.",
+    "$400": "Took the gain per share as two dollars."
    }
   },
   "review_status": "draft",
@@ -11890,8 +11890,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "2%",
     "2.5%",
+    "3%",
     "3.5%",
     "4%"
    ],
@@ -11940,7 +11940,7 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "Four trades each risk 1% of the account. You sell half of one, stop kept, and raise another's stop to entry. Total open risk from entry now? 4% 2.5% 3.5% 2%"
+    "given": "Four trades each risk 1% of the account. You sell half of one, stop kept, and raise another's stop to entry. Total open risk from entry now? 4% 3.5% 3% 2.5%"
    },
    "lesson_line": "After every sale or stop move, add your open risk back up.",
    "simple": "2.5%, because two trades risk 1% each, the one you sold half of risks 0.5%, and the one at entry, nothing.",
@@ -11948,7 +11948,7 @@
    "unit": "F9.06",
    "why": "2.5%. The two untouched trades risk 1% each, which is 2%. The trade you sold half of risks 0.5%. The trade with its stop at entry risks 0%. Total is 2.5%.",
    "wrong": {
-    "2%": "Counted only the two untouched trades.",
+    "3%": "Counted the half-sold trade as a full 1%.",
     "3.5%": "Counted the trade with its stop at entry as a full 1%.",
     "4%": "Ignored the sale and the stop move."
    }
@@ -11973,8 +11973,8 @@
    "choices": [
     "0.7R",
     "2.3R",
-    "3R",
-    "4.5R"
+    "2.8R",
+    "3R"
    ],
    "kind": "mcq",
    "q": "300 shares at $80, stop $76. You sell 100 at $88, raise the stop to $80, then trail it to $94, where it's hit. Result in R?",
@@ -12032,7 +12032,7 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "300 shares at $80, stop $76. You sell 100 at $88, raise the stop to $80, then trail it to $94, where it's hit. Result in R? 4.5R 2.3R 3R 0.7R"
+    "given": "300 shares at $80, stop $76. You sell 100 at $88, raise the stop to $80, then trail it to $94, where it's hit. Result in R? 0.7R 2.3R 2.8R 3R"
    },
    "lesson_line": "Judge the whole trade in R: everything it made over what it first risked.",
    "simple": "3R: add what both pieces made, then divide by what all 300 shares risked at the start.",
@@ -12042,7 +12042,7 @@
    "wrong": {
     "0.7R": "Counted only the first sale.",
     "2.3R": "Left out the profit from the first sale.",
-    "4.5R": "Divided by the risk of only the 200 shares you kept."
+    "2.8R": "Averaged the two pieces' R without weighting by shares."
    }
   },
   "review_status": "draft",
@@ -14016,9 +14016,9 @@
   "prompt_json": {
    "choices": [
     "25%",
+    "30%",
     "40%",
-    "55%",
-    "75%"
+    "55%"
    ],
    "kind": "mcq",
    "q": "You buy $20,000 of stock with a $9,000 margin loan. How far, in percent, can it fall before your equity hits FINRA's 25% floor?",
@@ -14065,7 +14065,7 @@
      "fn": "arith",
      "result": 40.0
     },
-    "given": "You buy $20,000 of stock with a $9,000 margin loan. How far, in percent, can it fall before your equity hits FINRA's 25% floor? 55% 75% 40% 25%"
+    "given": "You buy $20,000 of stock with a $9,000 margin loan. How far, in percent, can it fall before your equity hits FINRA's 25% floor? 25% 30% 55% 40%"
    },
    "lesson_line": "Know the drop that triggers a margin call before you borrow, not after.",
    "simple": "It can fall 40% before your equity hits 25%, because the $9,000 loan stays the same as the stock drops.",
@@ -14074,8 +14074,8 @@
    "why": "40%. The $9,000 loan stays fixed. At the floor, your equity is 25% of the value and the loan is the rest. That puts the floor value below $20,000. The fall to it is 40%.",
    "wrong": {
     "25%": "Used the floor as the size of the fall.",
-    "55%": "Gave the equity share you start with.",
-    "75%": "Took 100% minus the 25% floor."
+    "30%": "Took the 25% floor off the 55% starting equity.",
+    "55%": "Gave the equity share you start with."
    }
   },
   "review_status": "draft",
@@ -15255,10 +15255,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "40 shares",
     "400 shares",
     "500 shares",
-    "1,000 shares"
+    "1,000 shares",
+    "4,000 shares"
    ],
    "kind": "mcq",
    "q": "Account $50,000, risk 1%. Entry $50, stop $49.50. Under our rules, how many shares do you buy?",
@@ -15319,7 +15319,7 @@
      "fn": "arith",
      "result": 400.0
     },
-    "given": "Account $50,000, risk 1%. Entry $50, stop $49.50. Under our rules, how many shares do you buy? 500 shares 1,000 shares 400 shares 40 shares"
+    "given": "Account $50,000, risk 1%. Entry $50, stop $49.50. Under our rules, how many shares do you buy? 500 shares 1,000 shares 4,000 shares 400 shares"
    },
    "lesson_line": "Risk math, then the cap. The smaller number is your size.",
    "simple": "You buy 400 shares, because the risk math wants the whole account and the 40% cap is smaller.",
@@ -15328,7 +15328,7 @@
    "why": "400 shares. The risk math is 1% of $50,000 over the distance from $50 to $49.50. That gives 1,000 shares, the whole account at $50. The cap wins: 40% of $50,000 at the $50 entry is 400 shares. The size is the smaller of the two.",
    "wrong": {
     "1,000 shares": "Stopped at the risk math and skipped the cap.",
-    "40 shares": "Decimal slip on the cap: took a tenth of it.",
+    "4,000 shares": "Decimal slip the other way on the cap.",
     "500 shares": "Took the dollars at risk as the share count."
    }
   },
@@ -15420,8 +15420,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "4,000 shares",
     "40,000 shares",
+    "200,000 shares",
     "400,000 shares",
     "4,000,000 shares"
    ],
@@ -15473,7 +15473,7 @@
      "fn": "arith",
      "result": 40000.0
     },
-    "given": "A stock trades 4 million shares a day on average. Under our rule, what's the most shares you may own? 400,000 shares 40,000 shares 4,000,000 shares 4,000 shares"
+    "given": "A stock trades 4 million shares a day on average. Under our rule, what's the most shares you may own? 400,000 shares 4,000,000 shares 200,000 shares 40,000 shares"
    },
    "lesson_line": "Never more than 1% of a stock's average daily volume. Your exit has to fit too.",
    "simple": "You may own up to 40,000 shares, because we never hold more than 1% of a stock's average daily volume.",
@@ -15481,7 +15481,7 @@
    "unit": "F9.08",
    "why": "40,000 shares. Never own more than 1% of a stock's average daily volume, and 1% of 4 million shares is 40,000. We read volume here as shares traded. The $20 million a day test is a separate dollar test. Own more and your own orders can move the price, going in and coming out.",
    "wrong": {
-    "4,000 shares": "Decimal slip the other way: a tenth of the cap.",
+    "200,000 shares": "Took one-twentieth of the volume instead of one-hundredth.",
     "4,000,000 shares": "Used the whole average daily volume as the limit.",
     "400,000 shares": "Decimal slip: ten times the volume cap."
    }
@@ -15643,8 +15643,8 @@
    "choices": [
     "$12,000",
     "$60,000",
-    "$120,000",
-    "$180,000"
+    "$90,000",
+    "$120,000"
    ],
    "kind": "mcq",
    "q": "Account $60,000. Our market reading is Green, so margin is allowed. What's the most all your positions together can be worth?",
@@ -15694,7 +15694,7 @@
      "fn": "arith",
      "result": 120000.0
     },
-    "given": "Account $60,000. Our market reading is Green, so margin is allowed. What's the most all your positions together can be worth? $60,000 $180,000 $120,000 $12,000"
+    "given": "Account $60,000. Our market reading is Green, so margin is allowed. What's the most all your positions together can be worth? $60,000 $90,000 $12,000 $120,000"
    },
    "lesson_line": "Green market: the book can reach 200% on margin. Otherwise 100%.",
    "simple": "All your positions can total $120,000, because a Green market allows 200% of a $60,000 account on margin.",
@@ -15703,8 +15703,8 @@
    "why": "$120,000. In a Green market, with margin, the book can run to 200% of the account: 200% of $60,000. In any other market the limit is 100%, the account itself, or $60,000 here. Margin is used only when our reading is Green. Risk per trade is still a percent of the account, not of the $120,000.",
    "wrong": {
     "$12,000": "Decimal slip: took 20% of the account, not 200%.",
-    "$180,000": "Added the margin on top of the 200% and counted the account twice.",
-    "$60,000": "Used the limit for a market that is not Green."
+    "$60,000": "Used the limit for a market that is not Green.",
+    "$90,000": "Used a smaller margin multiple than our 200% limit."
    }
   },
   "review_status": "draft",
@@ -17260,8 +17260,8 @@
    "choices": [
     "$2.00",
     "$48.00",
-    "$50.20",
-    "$52.00"
+    "$52.00",
+    "$54.00"
    ],
    "kind": "mcq",
    "q": "The buy point is $50. Under our 4% chase line, what's the highest price you may pay?",
@@ -17297,7 +17297,7 @@
      "fn": "arith",
      "result": 52.0
     },
-    "given": "The buy point is $50. Under our 4% chase line, what's the highest price you may pay? $50.20 $48.00 $52.00 $2.00"
+    "given": "The buy point is $50. Under our 4% chase line, what's the highest price you may pay? $54.00 $48.00 $2.00 $52.00"
    },
    "lesson_line": "Know the chase line in dollars before the open: the buy point plus 4%.",
    "simple": "$52, because that is 4% above the $50 buy point, and paying more than that is chasing.",
@@ -17307,7 +17307,7 @@
    "wrong": {
     "$2.00": "Found the 4% but did not add it to the buy point.",
     "$48.00": "Subtracted the 4% instead of adding it.",
-    "$50.20": "Decimal slip: added a tenth of the 4%."
+    "$54.00": "Added four dollars, not four percent."
    }
   },
   "review_status": "draft",

@@ -1132,17 +1132,17 @@
      "fixed before (exercise wording)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "6,200",
     "7,800",
     "7,000",
-    "5,200",
-    "6,200"
+    "6,800"
    ],
    "wrong": {
     "7,800": "Adds both the opens and the closes.",
     "7,000": "Adds the opens and forgets to take off the closes.",
-    "5,200": "Takes off the closes and forgets to add the opens."
+    "6,800": "Adds the closes and forgets the opens."
    }
   },
   {
@@ -1743,8 +1743,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q13": {
    "status": "pass",

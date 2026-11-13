@@ -2438,17 +2438,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$47.00",
-    "$51.00",
     "$53.00",
-    "$52.00"
+    "$54.00",
+    "$55.00",
+    "$150.00"
    ],
    "wrong": {
-    "$47.00": "Took 3R off the fill. That is the price for a short, not a long.",
-    "$51.00": "Added one R, not three.",
-    "$52.00": "Counted 3R up from the stop, which is only two R above the fill."
+    "$54.00": "Added four R, counting the fill as the first one.",
+    "$55.00": "Added five R, not three.",
+    "$150.00": "Multiplied the fill by three instead of adding three R."
    },
    "suffix": ""
   },
@@ -3880,17 +3880,17 @@
      "card line is proposed"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "0.75x",
     "0.25x",
     "1.33x",
-    "0.75x",
-    "3.50x"
+    "0.43x"
    ],
    "wrong": {
     "0.25x": "That is the part still to trade: one minus 0.75.",
     "1.33x": "Flipped it: the average divided by the volume so far.",
-    "3.50x": "Added the two volumes instead of dividing."
+    "0.43x": "Divided by the two volumes added together."
    },
    "prefix": ""
   },
@@ -4255,7 +4255,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q33": {
    "status": "pass",
@@ -4472,7 +4472,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q68": {
    "status": "cut",

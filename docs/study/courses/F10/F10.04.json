@@ -1218,17 +1218,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "0.40%",
-    "0.20%",
     "0.26%",
-    "0.65%"
+    "0.40%",
+    "0.60%",
+    "2.60%"
    ],
    "wrong": {
     "0.40%": "Used the last price, $25.10, instead of the average of all three fills.",
-    "0.20%": "Averaged the three prices without weighting by shares.",
-    "0.65%": "A decimal slip in the gap between the average fill and $25.00."
+    "0.60%": "Added the slippage of each fill instead of weighting by shares.",
+    "2.60%": "A decimal slip: ten times too big."
    }
   },
   {
@@ -1598,17 +1598,17 @@
      "new in wave6"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "80,000 shares",
     "8,000 shares",
-    "800 shares",
-    "16,000 shares"
+    "16,000 shares",
+    "80,000 shares",
+    "400,000 shares"
    ],
    "wrong": {
     "80,000 shares": "A decimal slip: that is ten times the cap.",
-    "800 shares": "A decimal slip: that is a tenth of the cap.",
-    "16,000 shares": "Divided the 800,000 by the $50 price. The price does not enter the cap."
+    "16,000 shares": "Divided the 800,000 by the $50 price. The price does not enter the cap.",
+    "400,000 shares": "Multiplied the 8,000 by the $50 price. That is a dollar amount, not shares."
    }
   }
  ],
@@ -1741,7 +1741,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 0.26 (avg fill 25.065). 0.40 = last price, 0.20 = simple average, 0.65 = gap read 10x too big. Why walks the weighted average in words."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q17": {
    "status": "pass",
@@ -1796,7 +1796,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "800,000 x 1% = 8,000. 80,000 and 800 slips, 16,000 = ADV / $50 price. Real."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   }
  }
 }

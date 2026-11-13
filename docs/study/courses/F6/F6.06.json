@@ -1207,17 +1207,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "83%",
-    "25%",
     "75%",
-    "30%"
+    "83%",
+    "125%",
+    "250%"
    ],
    "wrong": {
     "83%": "Divided today's IV by the high and skipped the low.",
-    "25%": "Measured the distance from the top of the range.",
-    "30%": "Gave the distance above the low and never divided by the range."
+    "125%": "Divided today's IV by the width of the range and skipped the low.",
+    "250%": "Divided today's IV by the year's low."
    }
   },
   {
@@ -1686,8 +1686,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3. Stem no longer names the unit the choices carry."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q17": {
    "status": "pass",

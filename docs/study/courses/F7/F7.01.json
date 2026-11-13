@@ -1375,17 +1375,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "7,372.98",
-    "1,228.83",
     "4,915.32",
-    "6,124.15"
+    "7,372.98",
+    "6,124.15",
+    "5,120.13"
    ],
    "wrong": {
     "7,372.98": "Adds 20% to the record instead of taking it off.",
     "6,124.15": "Takes 20 points off the record, not 20 percent.",
-    "1,228.83": "Gives the 20% drop itself, not the level it leaves."
+    "5,120.13": "Divides the record by one plus the drop instead of taking the drop off."
    }
   },
   {
@@ -1423,17 +1423,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "5%",
     "10%",
-    "45%",
+    "1%",
+    "5%",
     "20%"
    ],
    "wrong": {
     "5%": "Subtracts 20 from 25. The rise is figured on a smaller base.",
-    "45%": "Adds the fall and the rise.",
-    "20%": "Takes the 20% rise as the new gap to the record."
+    "20%": "Takes the 20% rise as the new gap to the record.",
+    "1%": "Slips a decimal place."
    }
   },
   {
@@ -1967,14 +1967,14 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2. Replaced 5,120.13 (ambiguous half-cent rounding 5120.125)."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q19": {
    "status": "pass",

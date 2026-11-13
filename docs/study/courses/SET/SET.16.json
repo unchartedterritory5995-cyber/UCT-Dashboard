@@ -1729,17 +1729,17 @@
      "the first sell is the owner's D-013 judgment, not a fixed 3R sale"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$183.94",
+    "$188.15",
     "$192.36",
-    "$179.73",
-    "$188.15"
+    "$196.57",
+    "$200.78"
    ],
    "wrong": {
-    "$183.94": "Counted 3R up from the stop, which is only two R above the fill.",
     "$192.36": "Added four R, counting the fill as the first one.",
-    "$179.73": "Added one R, not three."
+    "$196.57": "Used five R, the far end of the breakeven window.",
+    "$200.78": "Doubled the three R to six R."
    },
    "suffix": ""
   },
@@ -2938,17 +2938,17 @@
      "rests on the owner's rulebook B20"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1.7R",
     "2.7R",
+    "1.7R",
     "2.0R",
-    "3.7R"
+    "0.4R"
    ],
    "wrong": {
     "1.7R": "Measured the fall from the stop, not from the fill.",
     "2.0R": "That is the ceiling, not the loss. The loss at 57.30 is bigger.",
-    "3.7R": "Added the risk of one R on top of the gap."
+    "0.4R": "Flipped the division: one R over the loss."
    },
    "prefix": ""
   },
@@ -3930,8 +3930,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "fixed": true,
+   "notes": "Rank ok. Notes for 5R and 6R reworded to name a believable slip."
   },
   "q23": {
    "status": "pass",
@@ -3998,7 +3998,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q51": {
    "status": "pass",

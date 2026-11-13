@@ -1793,17 +1793,17 @@
      "+2 rests on the owner's rulebook (D42, 1% of average daily volume)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "30,000 shares",
     "300,000 shares",
-    "3,000 shares",
-    "15,000 shares",
-    "30,000 shares"
+    "60,000 shares",
+    "3,000,000 shares"
    ],
    "wrong": {
-    "3,000 shares": "Slipped the decimal: took a tenth of one percent.",
-    "15,000 shares": "Used half a percent, mixing it up with the risk percent.",
-    "300,000 shares": "Took ten percent of the volume, not one percent."
+    "300,000 shares": "Took ten percent of the volume, not one percent.",
+    "60,000 shares": "Doubled the one percent rule.",
+    "3,000,000 shares": "Used the whole average daily volume as the limit."
    }
   },
   {
@@ -1887,17 +1887,17 @@
      "+2 rests on the card's proposed $100 million cue"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$3,000,000",
-    "$208,333",
     "$30,000,000",
-    "$300,000,000"
+    "$300,000,000",
+    "$360,000,000",
+    "$3,000,000,000"
    ],
    "wrong": {
-    "$208,333": "Divided the shares by the price instead of multiplying.",
-    "$3,000,000": "Dropped a zero.",
-    "$300,000,000": "Added a zero."
+    "$300,000,000": "Added a zero.",
+    "$360,000,000": "Multiplied by the price twice.",
+    "$3,000,000,000": "Added two zeros."
    }
   },
   {
@@ -2581,17 +2581,17 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1,982 shares",
+    "689 shares",
     "68 shares",
-    "1,379 shares",
-    "689 shares"
+    "344 shares",
+    "9 shares"
    ],
    "wrong": {
     "68 shares": "Slipped the decimal: used a tenth of the risk percent.",
-    "1,379 shares": "Risked double the risk percent.",
-    "1,982 shares": "Bought the whole account at the fill price."
+    "344 shares": "Risked half the risk percent.",
+    "9 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
    }
   },
   {
@@ -3679,7 +3679,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q27": {
    "status": "pass",
@@ -3691,7 +3691,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 2,500,000 x 12 = 30,000,000 matches; wrongs check out (shares/price = 208,333; dropped and added zero). Mild: the right answer is the middle of the three round magnitudes, accepted."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q29": {
    "status": "pass",
@@ -3803,7 +3803,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q47": {
    "status": "pass",

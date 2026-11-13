@@ -3200,17 +3200,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "120,000 shares",
-    "1,200 shares",
+    "12,000 shares",
     "24,000 shares",
-    "12,000 shares"
+    "120,000 shares",
+    "1,188,000 shares"
    ],
    "wrong": {
-    "120,000 shares": "Slipped the decimal point up a place.",
-    "1,200 shares": "Slipped the decimal point down a place.",
-    "24,000 shares": "Doubled the cap."
+    "120,000 shares": "Used ten percent, not one.",
+    "24,000 shares": "Used two percent, not one.",
+    "1,188,000 shares": "Took one percent off the volume instead of one percent of it."
    }
   },
   {
@@ -4023,7 +4023,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1% of 1,200,000 = 12,000. 120,000 and 1,200 decimal slips, 24,000 a 2% cap. Fine."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q72": {
    "status": "pass",

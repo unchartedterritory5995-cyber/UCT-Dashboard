@@ -1455,7 +1455,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "w1": {
    "status": "pass",
@@ -3904,17 +3904,17 @@
      "+2 rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "0.43%",
+    "4.25%",
     "4.08%",
-    "5.97%",
-    "4.25%"
+    "0.43%",
+    "0.25%"
    ],
    "wrong": {
     "4.08%": "Divided by the new price. Divide by the pivot high, the buy point.",
-    "5.97%": "Read the dollar gap as a percent. Divide it by the pivot high first.",
-    "0.43%": "Slipped the decimal point one place left."
+    "0.43%": "Slipped the decimal point one place left.",
+    "0.25%": "Gave only how far it is past the limit."
    }
   },
   {

@@ -1487,17 +1487,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "40.2%",
-    "88.0%",
     "28.7%",
-    "2.9%"
+    "40.2%",
+    "71.3%",
+    "88.0%"
    ],
    "wrong": {
     "40.2%": "Divided the shortfall by the actual EPS instead of the consensus.",
     "88.0%": "Gave the shortfall in cents as if it were a percent.",
-    "2.9%": "Slipped a decimal place."
+    "71.3%": "Gave the actual EPS as a share of the consensus, not the miss."
    }
   },
   {
@@ -1976,8 +1976,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q17": {
    "status": "pass",

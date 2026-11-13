@@ -676,14 +676,14 @@
   "difficulty": 2,
   "id": "si_5ea313037716",
   "lesson_origin": "session",
-  "lesson_text": "75%. Divide the same-mistake breaks by all breaks: 6 out of 8 is 0.75. Times 100 gives 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers. Look back for the mistake that repeats. That one is your pattern.",
+  "lesson_text": "75%. Divide the same-mistake breaks by all breaks: 6 out of 8, times 100, gives 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers. Look back for the mistake that repeats. That one is your pattern.",
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "0.75%",
-    "25%",
     "75%",
-    "133%"
+    "133%",
+    "175%",
+    "300%"
    ],
    "kind": "mcq",
    "q": "Of your 8 plan breaks this month, 6 were the same mistake. What percent of your breaks was that one mistake?",
@@ -726,17 +726,17 @@
      "fn": "arith",
      "result": 75.0
     },
-    "given": "Of your 8 plan breaks this month, 6 were the same mistake. What percent of your breaks was that one mistake? 25% 0.75% 133% 75%"
+    "given": "Of your 8 plan breaks this month, 6 were the same mistake. What percent of your breaks was that one mistake? 133% 175% 300% 75%"
    },
    "lesson_line": "Look back for the mistake that repeats. That one is your pattern.",
    "simple": "75%, because 6 of your 8 breaks were the same mistake, and that repeat is the pattern to map first.",
    "tier": "core",
    "unit": "F8.01",
-   "why": "75%. Divide the same-mistake breaks by all breaks: 6 out of 8 is 0.75. Times 100 gives 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers.",
+   "why": "75%. Divide the same-mistake breaks by all breaks: 6 out of 8, times 100, gives 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers.",
    "wrong": {
-    "0.75%": "Decimal slip.",
     "133%": "Divided the 8 breaks by the 6.",
-    "25%": "Gave the share of the other breaks."
+    "175%": "Added the 6 to the 8 before dividing by 8.",
+    "300%": "Divided the 6 by the breaks that were not that mistake."
    }
   },
   "review_status": "draft",
@@ -3056,9 +3056,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "8%",
     "10.3%",
     "11.5%",
+    "18.3%",
     "89.7%"
    ],
    "kind": "mcq",
@@ -3112,7 +3112,7 @@
      "fn": "arith",
      "result": 10.3
     },
-    "given": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it? 8% 89.7% 10.3% 11.5%"
+    "given": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it? 11.5% 89.7% 18.3% 10.3%"
    },
    "lesson_line": "After a gap, measure the stop before you buy. A wide stop means a small position.",
    "simple": "About 10.3%, because a stop a few cents under yesterday's $48.50 low sits far below today's $54 open.",
@@ -3121,7 +3121,7 @@
    "why": "10.3%. That's $54 minus $48.45, divided by $54. Our default stop sits a few cents under the day's low or the prior day's low. After a big gap up, the prior day's low is far away. The size comes from the stop, so the same dollar risk buys far fewer shares. If the honest stop does not fit the risk, skip the trade.",
    "wrong": {
     "11.5%": "Divided by the stop price, not the entry.",
-    "8%": "Used the size of the gap up as the stop distance.",
+    "18.3%": "Added the 8% gap up to the stop distance.",
     "89.7%": "Gave the stop as a share of the entry."
    }
   },
@@ -4752,9 +4752,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "0.05R",
     "0.5R",
     "1R",
+    "1.5R",
     "2R"
    ],
    "kind": "mcq",
@@ -4791,7 +4791,7 @@
      "fn": "r_multiple",
      "result": 0.5
     },
-    "given": "Entry $40, stop $38, so 1R is $2 a share. You sell at $41 out of nerves. How many R did you make? 1R 0.05R 2R 0.5R"
+    "given": "Entry $40, stop $38, so 1R is $2 a share. You sell at $41 out of nerves. How many R did you make? 1R 1.5R 2R 0.5R"
    },
    "lesson_line": "Measure exits in R. It takes two half-R wins to pay for one full-R loss.",
    "simple": "You made 0.5R, because your gain was half of the $2 a share you risked.",
@@ -4799,7 +4799,7 @@
    "unit": "F8.03",
    "why": "0.5R. Your gain was $41 minus $40, or $1 a share. Your risk was $2 a share. $1 divided by $2 is 0.5R. One loss at the full stop costs 1R, twice this win. So it takes two exits like this to pay for one full stop-out.",
    "wrong": {
-    "0.05R": "Decimal slip.",
+    "1.5R": "Measured the gain from the stop, not the entry.",
     "1R": "Counted the $1 gain as 1R.",
     "2R": "Flipped the ratio, risk over gain."
    }
@@ -6925,10 +6925,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "3%",
-    "4%",
     "5%",
-    "6%"
+    "6%",
+    "7%",
+    "8%"
    ],
    "kind": "mcq",
    "q": "You risk 1% a trade and lose three in a row. You double your risk to win it back, and that one stops out too. What's the day's total loss?",
@@ -6974,7 +6974,7 @@
      "fn": "arith",
      "result": 5.0
     },
-    "given": "You risk 1% a trade and lose three in a row. You double your risk to win it back, and that one stops out too. What's the day's total loss? 4% 3% 6% 5%"
+    "given": "You risk 1% a trade and lose three in a row. You double your risk to win it back, and that one stops out too. What's the day's total loss? 6% 7% 8% 5%"
    },
    "lesson_line": "Doubling up after losses doesn't dig you out faster. It digs the hole faster.",
    "simple": "You're down 5%, because three 1% losses plus a doubled trade that loses twice as much add up to 5%.",
@@ -6982,9 +6982,9 @@
    "unit": "F8.04",
    "why": "5%. Three losses at 1% each is 3%. The doubled trade risks 2%, and it loses too. 3% plus 2% is 5%. One revenge trade did the damage of two normal ones. CIBC warns the second loss can be even larger than the first.",
    "wrong": {
-    "3%": "Left out the doubled trade.",
-    "4%": "Counted the doubled trade as a normal 1%.",
-    "6%": "Doubled the whole three-loss total, not one trade."
+    "6%": "Doubled the whole three-loss total, not one trade.",
+    "7%": "Doubled the three-loss total, then added a normal 1% trade.",
+    "8%": "Doubled the risk on all four trades."
    }
   },
   "review_status": "draft",
@@ -9325,10 +9325,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "600 shares",
-    "1,600 shares",
     "3,200 shares",
-    "6,400 shares"
+    "6,400 shares",
+    "12,800 shares",
+    "24,300 shares"
    ],
    "kind": "mcq",
    "q": "A friend starts at 100 shares and doubles his size after every win. He wins five in a row. How many shares on trade six?",
@@ -9373,7 +9373,7 @@
      "fn": "arith",
      "result": 3200.0
     },
-    "given": "A friend starts at 100 shares and doubles his size after every win. He wins five in a row. How many shares on trade six? 1,600 shares 6,400 shares 3,200 shares 600 shares"
+    "given": "A friend starts at 100 shares and doubles his size after every win. He wins five in a row. How many shares on trade six? 6,400 shares 12,800 shares 24,300 shares 3,200 shares"
    },
    "lesson_line": "Size that doubles on every win can hand the whole streak back in one loss.",
    "simple": "He trades 3,200 shares, and one loss at that size can wipe out all five wins.",
@@ -9381,9 +9381,9 @@
    "unit": "F8.05",
    "why": "3,200 shares. 100 shares doubled five times is 3,200. Doubling after wins can work for a while in a strong trend. But doubling down on a winning bet exposes you to a single large loss that may wipe out the earlier gains.",
    "wrong": {
-    "1,600 shares": "Doubled four times, one win short.",
-    "6,400 shares": "Doubled six times, once on trade six itself.",
-    "600 shares": "Added 100 shares per win instead of doubling."
+    "12,800 shares": "Doubled two extra times.",
+    "24,300 shares": "Tripled after each win instead of doubling.",
+    "6,400 shares": "Doubled six times, once on trade six itself."
    }
   },
   "review_status": "draft",

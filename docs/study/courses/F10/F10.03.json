@@ -1137,17 +1137,17 @@
      "rewritten before to the 2026-11-09 rulebook"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$34.00",
-    "$43.00",
     "$46.00",
-    "$44.00"
+    "$48.00",
+    "$52.00",
+    "$120.00"
    ],
    "wrong": {
-    "$34.00": "Went three times the risk below the entry. A long's 3R sits above it.",
-    "$43.00": "Added a flat $3.00, not three times the risk.",
-    "$44.00": "Measured 3R up from the $38 stop, not from the $40 entry."
+    "$48.00": "Counted four times the risk instead of three.",
+    "$52.00": "Counted the risk per share twice before multiplying by three.",
+    "$120.00": "Multiplied the $40 entry by three instead of the risk."
    }
   },
   {
@@ -1703,8 +1703,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 46.0. Choices fine (34 below entry, 43 flat $3, 44 measured from stop). Why skipped the 1R step; added."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q12": {
    "status": "pass",

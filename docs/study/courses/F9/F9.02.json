@@ -1118,9 +1118,9 @@
      "the stop is a few cents under the low, as the owner's rulebook says (h01, A3, F62)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1,046 shares",
+    "10 shares",
     "112 shares",
     "450 shares",
     "104 shares"
@@ -1128,7 +1128,7 @@
    "wrong": {
     "112 shares": "Rounded the prices to whole dollars, which shrank the stop gap.",
     "450 shares": "Used the dollar risk as the share count.",
-    "1,046 shares": "Decimal slip: moved the decimal one place."
+    "10 shares": "Decimal slip on the risk percent, so the dollars shrank."
    }
   },
   {
@@ -1356,17 +1356,17 @@
      "rests on the owner's rulebook (A5, A7)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "0.08%",
+    "0.4%",
     "1%",
-    "8%",
-    "2%",
     "0.8%"
    ],
    "wrong": {
     "1%": "Ignored the cap and assumed you still risk your plan.",
-    "8%": "Decimal slip: moved the decimal one place.",
-    "2%": "Took the stop distance as the loss on the account."
+    "0.08%": "Decimal slip the other way.",
+    "0.4%": "Applied the 40% cap to the 1% risk instead of the stop distance."
    }
   },
   {
@@ -1561,8 +1561,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why skipped the $450 and $4.30 steps."
+   "fixed": false,
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q21": {
    "status": "pass",
@@ -1597,8 +1597,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong note on 8% was false: forgetting the /100 gives 80%, not 8%. Relabelled as a decimal slip."
+   "fixed": false,
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q27": {
    "status": "pass",

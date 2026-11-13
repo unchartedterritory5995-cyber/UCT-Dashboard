@@ -3311,17 +3311,17 @@
      "the 8% skip line is the card's proposal, a number that can change"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "7.32%",
-    "8.18%",
     "7.56%",
-    "1.55%"
+    "8.18%",
+    "9.76%",
+    "92.44%"
    ],
    "wrong": {
-    "7.32%": "Forgot the five cents under the low.",
     "8.18%": "Divided by the stop instead of the fill.",
-    "1.55%": "Gave the gap in dollars as a percent, no divide."
+    "9.76%": "Read five cents as fifty cents under the low.",
+    "92.44%": "Gave the stop as a share of the fill."
    }
   },
   {
@@ -3605,17 +3605,17 @@
      "+2 a computed key (pct_change, recomputed by the validator)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "41.2%",
     "70.0%",
+    "41.2%",
     "14.0%",
-    "170.0%"
+    "58.8%"
    ],
    "wrong": {
     "41.2%": "Divided by the peak instead of the low.",
     "14.0%": "Gave the gap in dollars as a percent.",
-    "170.0%": "Gave the ratio as a percent, forgot to subtract one."
+    "58.8%": "Gave the low as a share of the peak."
    }
   },
   {
@@ -4303,7 +4303,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "7.56 ok; 7.32 forgot cents, 8.18 over stop, 1.55 dollars. verified."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q56": {
    "status": "pass",
@@ -4347,7 +4347,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "70.0 ok; 41.2 over peak, 14.0 dollars, 170.0 ratio. verified."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q63": {
    "status": "pass",

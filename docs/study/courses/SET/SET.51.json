@@ -3359,17 +3359,17 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$114.13",
     "$120.38",
     "$118.13",
-    "$122.63"
+    "$114.13",
+    "$111.38"
    ],
    "wrong": {
     "$114.13": "Added 5 dollars, not five R.",
     "$118.13": "Added five R to the stop, not the fill.",
-    "$122.63": "Added six R, one too many."
+    "$111.38": "Added one R, not five."
    }
   },
   {
@@ -3945,8 +3945,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "120.38 correct (109.13+5*2.25). Answer was the largest and the list was sorted ascending; replaced the one-R choice with a six-R count slip (122.63), shuffled, added the step values to the why."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q65": {
    "status": "pass",

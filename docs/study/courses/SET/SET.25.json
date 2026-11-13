@@ -3147,17 +3147,17 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "80,000 shares",
-    "800 shares",
     "8,000 shares",
-    "792,000 shares"
+    "80,000 shares",
+    "792,000 shares",
+    "32,000 shares"
    ],
    "wrong": {
     "80,000 shares": "Moved the decimal one place, ten times too many.",
-    "800 shares": "Moved the decimal one place, ten times too few.",
-    "792,000 shares": "Subtracted 1% instead of taking it."
+    "792,000 shares": "Subtracted 1% instead of taking it.",
+    "32,000 shares": "Used the four percent chase limit instead."
    }
   },
   {
@@ -3219,17 +3219,17 @@
      "rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$83.20",
     "$88.00",
-    "$72.00",
-    "$80.80"
+    "$90.00",
+    "$91.52",
+    "$96.80"
    ],
    "wrong": {
-    "$83.20": "Used the 4% limit above the prior close.",
-    "$72.00": "Subtracted 10% instead of adding it.",
-    "$80.80": "Added one percent instead of ten."
+    "$90.00": "Added ten dollars instead of ten percent.",
+    "$91.52": "Stacked the four percent chase limit on top.",
+    "$96.80": "Took ten percent twice, compounding it."
    }
   },
   {
@@ -3305,17 +3305,17 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$32.68",
-    "$33.07",
     "$33.46",
-    "$29.56"
+    "$33.85",
+    "$33.07",
+    "$32.68"
    ],
    "wrong": {
     "$33.07": "Added five R to the stop, not the fill.",
     "$32.68": "Added three R instead of five.",
-    "$29.56": "Subtracted five R instead of adding."
+    "$33.85": "Counted six R, one too many."
    }
   },
   {
@@ -3827,7 +3827,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "8,000 ok; 792,000 is 99%. original why walks it. ok."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q66": {
    "status": "cut",
@@ -3839,7 +3839,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "88.00 ok; 83.20 is +4%, 72 is -10%, 80.80 is +1%. ok."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q68": {
    "status": "pass",
@@ -3851,7 +3851,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "33.46 recomputed; stop+5R=33.07, fill+3R=32.68, fill-5R=29.56. ok."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q70": {
    "status": "cut",

@@ -2010,17 +2010,17 @@
      "the first cover is the owner's D-013 judgment, not a fixed 3R cover"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$48.75",
     "$43.17",
+    "$48.75",
     "$44.10",
-    "$42.24"
+    "$45.03"
    ],
    "wrong": {
     "$48.75": "Added the 3R to the fill. On a short, 3R is below the fill.",
     "$44.10": "Counted 3R down from the stop, which is only two R below the fill.",
-    "$42.24": "Went four R down, counting the fill as the first one."
+    "$45.03": "Went down one R, not three."
    },
    "suffix": ""
   },
@@ -2181,17 +2181,17 @@
      "when to cover is the owner's D-013 judgment"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "6.0R",
-    "9.2R",
+    "5.0R",
     "0.2R",
-    "5.0R"
+    "0.1R",
+    "1.8R"
    ],
    "wrong": {
-    "6.0R": "Measured the fall from the stop, not from the fill.",
-    "9.2R": "Used the dollar gain without dividing by one R.",
-    "0.2R": "Flipped the division: one R over the gain."
+    "0.2R": "Flipped the division: one R over the gain.",
+    "0.1R": "Divided the gain by the price, not by R.",
+    "1.8R": "That is one R in dollars read as R. Divide the gain by it."
    },
    "prefix": ""
   },
@@ -4026,7 +4026,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q24": {
    "status": "pass",
@@ -4050,7 +4050,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q28": {
    "status": "pass",

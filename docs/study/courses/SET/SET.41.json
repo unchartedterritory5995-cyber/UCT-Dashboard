@@ -1800,17 +1800,17 @@
      "+2 rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "6.0R",
     "5.0R",
     "1.2R",
-    "4.4R"
+    "4.4R",
+    "0.2R"
    ],
    "wrong": {
-    "6.0R": "Measured the gain from the stop instead of from the fill.",
     "1.2R": "Called the dollar gain R. Divide it by the risk per share.",
-    "4.4R": "Used the percent gain and called it R. R is gain over the stop distance."
+    "4.4R": "Used the percent gain and called it R. R is gain over the stop distance.",
+    "0.2R": "Flipped it: R divided by the gain instead of gain divided by R."
    }
   },
   {
@@ -3495,7 +3495,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q30": {
    "status": "pass",

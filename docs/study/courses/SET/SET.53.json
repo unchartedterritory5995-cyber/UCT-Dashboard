@@ -3210,17 +3210,17 @@
      "rests on the owner's rulebook, B23 (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$180,000,000",
-    "$1,500,000",
     "$18,000,000",
+    "$1,800,000",
+    "$1,500,000",
     "$125,000"
    ],
    "wrong": {
-    "$180,000,000": "Decimal slip: added a zero.",
     "$125,000": "Divided shares by price instead of multiplying them.",
-    "$1,500,000": "Gave the share count and forgot to multiply by the price."
+    "$1,500,000": "Gave the share count and forgot to multiply by the price.",
+    "$1,800,000": "Slipped the decimal point down a place."
    }
   },
   {
@@ -3335,17 +3335,17 @@
      "rests on the owner's rulebook, D42 (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "240,000 shares",
+    "24,000 shares",
+    "2,400 shares",
     "48,000 shares",
-    "2,376,000 shares",
-    "24,000 shares"
+    "2,376,000 shares"
    ],
    "wrong": {
-    "240,000 shares": "Moved the decimal one place, which is ten percent, not one.",
     "2,376,000 shares": "Took one percent off the volume instead of one percent of it.",
-    "48,000 shares": "Used two percent, not one."
+    "48,000 shares": "Used two percent, not one.",
+    "2,400 shares": "Slipped the decimal point down a place."
    }
   },
   {
@@ -3444,17 +3444,17 @@
      "rests on the owner's rulebook, E51 (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$119.01",
-    "$116.65",
     "$117.83",
+    "$116.65",
+    "$113.11",
     "$106.03"
    ],
    "wrong": {
     "$116.65": "Counted 5R up from the stop, not from the fill.",
     "$106.03": "Subtracted five R from the fill instead of adding it.",
-    "$119.01": "Added six R, counting the fill itself as the first step."
+    "$113.11": "Added one R, not five."
    }
   },
   {
@@ -4091,8 +4091,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "1.8M/18M/180M put the answer in the middle of a decimal-slip ladder. Replaced the dropped-zero slip with forgetting the price."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q66": {
    "status": "pass",
@@ -4109,8 +4109,8 @@
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "240,000/24,000/2,400 made the answer the middle of a slip ladder. Replaced 2,400 with a two-percent mix-up."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q69": {
    "status": "pass",
@@ -4127,8 +4127,8 @@
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer was the highest choice. Replaced the add-five-dollars slip with a six-R overshoot."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q72": {
    "status": "pass",

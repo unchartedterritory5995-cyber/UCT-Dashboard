@@ -1370,17 +1370,17 @@
      "house trim rule from the owner's rulebook (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$31.62",
     "$31.84",
     "$31.08",
-    "$32.22"
+    "$32.22",
+    "$32.98"
    ],
    "wrong": {
     "$31.08": "Added one R, not three.",
-    "$31.62": "Took 3% over the buy, not three R.",
-    "$32.22": "Added four R, one too many."
+    "$32.22": "Added four R, one too many.",
+    "$32.98": "Doubled the R, then multiplied by three."
    }
   },
   {
@@ -1589,17 +1589,17 @@
      "fixed before (40% cap note added 2026-11-10)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "4,545 shares",
-    "594 shares",
+    "454 shares",
+    "227 shares",
     "909 shares",
-    "454 shares"
+    "1,486 shares"
    ],
    "wrong": {
-    "594 shares": "Sized to the 40% cap, not to the risk.",
     "909 shares": "Doubled the risk percent.",
-    "4,545 shares": "Used ten times the risk percent."
+    "227 shares": "Used half the risk percent.",
+    "1,486 shares": "Bought the whole account, not the risk."
    }
   },
   {
@@ -1867,17 +1867,17 @@
      "fixed before (q48 cut, q33 made pure B20 arithmetic)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "13.60R",
-    "4.42R",
     "5.42R",
+    "4.42R",
+    "1.23R",
     "0.18R"
    ],
    "wrong": {
-    "13.60R": "Gave the dollar loss and skipped the R division.",
     "4.42R": "Measured the loss from the stop, not the buy.",
-    "0.18R": "Flipped the division, risk over the loss."
+    "0.18R": "Flipped the division, risk over the loss.",
+    "1.23R": "Divided by the stop-to-open gap, not the risk."
    }
   },
   {
@@ -3322,8 +3322,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "31.84 correct (30.70+3*0.38). Answer was the largest choice; replaced the add-to-the-stop choice with a four-R count slip (32.22) and shuffled."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q22": {
    "status": "pass",
@@ -3353,7 +3353,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "500/1.10 = 454.5, down to 454. 594 = 20000/33.64 cap, 909 doubled, 4,545 ten times. Verified."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q27": {
    "status": "pass",
@@ -3396,7 +3396,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "13.60/2.51 = 5.42R. 13.60 dollars, 4.42 from the stop, 0.18 flipped. Verified."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q34": {
    "status": "pass",

@@ -1014,17 +1014,17 @@
      "fill moved past the rulebook's chase line (C28)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$3.00",
-    "$0.38",
+    "$0.60",
+    "$1.20",
     "$1.67",
-    "$0.60"
+    "$3.00"
    ],
    "wrong": {
     "$3.00": "That is the reward for the risk at your planned $50 entry, before you chased.",
     "$1.67": "Flipped it: risk over reward.",
-    "$0.38": "Divided the reward by the whole stretch from stop to target. Divide by the risk."
+    "$1.20": "Measured the reward from the old $50 entry but the risk from the new one."
    }
   },
   {
@@ -1539,8 +1539,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 0.6 (3/5). Choices real (3.00 at plan, 1.67 flipped, 0.38 = 3/8). Why skipped the reward and risk steps; added."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q14": {
    "status": "pass",

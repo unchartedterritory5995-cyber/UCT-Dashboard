@@ -2298,17 +2298,17 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "300 shares",
+    "500 shares",
     "800 shares",
-    "0 shares",
-    "500 shares"
+    "1,100 shares",
+    "240,000 shares"
    ],
    "wrong": {
-    "300 shares": "Gave the shares that filled, not the ones canceled.",
     "800 shares": "Canceled the whole order, which is fill-or-kill, not IOC.",
-    "0 shares": "Thought the rest keeps working on the book, which is a day order, not IOC."
+    "1,100 shares": "Added the filled shares to the order.",
+    "240,000 shares": "Multiplied the two numbers instead of subtracting."
    }
   },
   {
@@ -3106,17 +3106,17 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$5,480",
-    "$9.40",
     "$1,880",
-    "$18,800"
+    "$940",
+    "$188",
+    "$9.40"
    ],
    "wrong": {
     "$9.40": "Gave the loss per share and skipped the 200 shares.",
-    "$5,480": "Gave the cost of covering, not the loss.",
-    "$18,800": "Slipped a decimal place."
+    "$940": "Used half the shares.",
+    "$188": "Slipped a decimal place down."
    }
   },
   {
@@ -3653,8 +3653,8 @@
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 500 matches. 1,100 (added filled to ordered) is not a mistake a trader makes; replaced with 0 shares (thinks the rest keeps working on the book). Why now states 500."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q33": {
    "status": "pass",
@@ -3789,8 +3789,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 1880 matches; wrongs real (9.40 per share, 5,480 = 27.40 x 200, 18,800 decimal). Why skipped the per-share step; added."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q55": {
    "status": "pass",

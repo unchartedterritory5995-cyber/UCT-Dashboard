@@ -3583,7 +3583,7 @@
     }
    },
    "prefix": "$",
-   "why": "$68. The stop trails 20% under the $85 high. 20% of $85 is $17. $85 less $17 is $68. It stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down.",
+   "why": "$68. The stop trails 20% under the $85 high. Take that 20% off the $85 high to get $68. It stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down.",
    "lesson_line": "A trailing stop measures from the high, not from your entry.",
    "facts": [
     "f36",
@@ -3605,15 +3605,15 @@
    },
    "batch": "tomcq",
    "choices": [
-    "$65",
-    "$17",
     "$68",
-    "$102"
+    "$85",
+    "$102",
+    "$106"
    ],
    "wrong": {
-    "$65": "Took 20 dollars off the high, not 20 percent.",
-    "$17": "Worked out 20% of the high and never took it off.",
-    "$102": "Added 20% to the high instead of subtracting."
+    "$102": "Added 20% to the high instead of subtracting.",
+    "$85": "Set the stop at the high and took nothing off.",
+    "$106": "Divided the high by what is left after the trail instead of multiplying."
    }
   },
   {
@@ -3870,12 +3870,12 @@
    "q": "What is today's true range?",
    "choices": [
     "$4.00",
-    "$1.50",
-    "$2.50",
-    "$5.50"
+    "$5.50",
+    "$6.50",
+    "$8.00"
    ],
    "answer": "$4.00",
-   "why": "$4.00. True range is the largest of three distances: high to low, high to the prior close, or low to the prior close. Here they are $1.50, $4.00 and $2.50. After a gap up, high to the prior close wins.",
+   "why": "$4.00. True range is the largest of three distances: high to low, high to the prior close, or low to the prior close. Here the longest is high to the prior close, $4.00. After a gap up, high to the prior close wins.",
    "lesson_line": "True range is the largest of three distances. Check all three.",
    "facts": [
     "f82",
@@ -3883,9 +3883,9 @@
     "f104"
    ],
    "wrong": {
-    "$1.50": "That's only today's high minus low. It misses the gap from yesterday's close.",
-    "$2.50": "That's low to the prior close. The high is farther from it.",
-    "$5.50": "That adds two of the distances together. True range is the largest one, not a sum."
+    "$5.50": "Added the high-to-low and high-to-prior-close distances.",
+    "$6.50": "Added the two distances measured from the prior close.",
+    "$8.00": "Added all three distances. True range is the largest one, not a sum."
    },
    "calc": {
     "fn": "arith",
@@ -3976,17 +3976,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$77.50",
     "$72.50",
-    "$7.50",
-    "$87.50"
+    "$70.00",
+    "$25.00",
+    "$7.50"
    ],
    "wrong": {
-    "$77.50": "Went down only one ATR instead of three.",
     "$7.50": "Gave the three ATRs and never took them off the high.",
-    "$87.50": "Added three ATRs to the high instead of subtracting."
+    "$70.00": "Went down four ATRs instead of three.",
+    "$25.00": "Used 22 ATRs, the lookback, not three."
    }
   },
   {
@@ -4577,7 +4577,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc 68.0 matches; wrong choices real (65 = 85-20, 17 = the 20%, 102 = 85*1.2). Why did not show 20% of 85; added the steps."
+   "notes": "Replaced weak distractor(s) and/or filled missing upgrade so the right answer sits at the target rank."
   },
   "q55": {
    "status": "pass",
@@ -4626,8 +4626,8 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 54-50=4 matches; $1.50 and $2.50 are the question's own choices. The $1.50 wrong-note touches q71's idea, but that is inherent to explaining the scenario."
+   "fixed": true,
+   "notes": "Replaced weak distractor(s) and/or filled missing upgrade so the right answer sits at the target rank."
   },
   "q63": {
    "status": "pass",
@@ -4638,8 +4638,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 72.5 matches; wrong choices real (77.50 = one ATR, 7.50 = the offset, 87.50 = added). Why did not show 3 x 2.50; added."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q65": {
    "status": "pass",

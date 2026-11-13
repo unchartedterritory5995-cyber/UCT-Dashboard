@@ -1578,17 +1578,17 @@
      "fixed before (2026-11-09 checker: why named only one cause)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "1.82%",
+    "9.09%",
     "10%",
-    "0%",
-    "1%",
-    "1.82%"
+    "19.09%"
    ],
    "wrong": {
-    "0%": "You thought flat in, flat out. The fund loses on the way.",
-    "1%": "You used a 10% gain on day 2 instead of 9.09%.",
-    "10%": "You gave only day 1's loss and ignored the gain back."
+    "10%": "You gave only day 1's loss and ignored the gain back.",
+    "9.09%": "You used day 2's 9.09% index drop as the whole loss.",
+    "19.09%": "You added day 1's 10% loss and day 2's 9.09% move."
    }
   },
   {
@@ -1796,7 +1796,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q23": {
    "status": "pass",

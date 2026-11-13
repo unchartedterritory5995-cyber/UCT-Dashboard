@@ -1148,17 +1148,17 @@
      "computed key (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$7,650",
     "$1,050",
     "$6,600",
-    "$105"
+    "$7,650",
+    "$10,500"
    ],
    "wrong": {
     "$7,650": "That is what the buy-back cost, not the loss.",
     "$6,600": "That is what the sale brought in, not the loss.",
-    "$105": "A decimal slip: ten times too small."
+    "$10,500": "A decimal slip: ten times too big."
    }
   },
   {
@@ -1261,17 +1261,17 @@
      "computed key (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$300",
     "$0",
-    "$3,000",
-    "$533",
-    "$300"
+    "$0.75",
+    "$30"
    ],
    "wrong": {
     "$0": "Thought a short seller owes nothing. You pay the dividend to the lender.",
-    "$3,000": "A decimal slip: ten times too big.",
-    "$533": "Divided the shares by the dividend. Multiply them."
+    "$0.75": "Gave the dividend per share and never multiplied by the shares.",
+    "$30": "A decimal slip: ten times too small."
    }
   },
   {
@@ -1776,8 +1776,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 1050. Choices real (7,650 = 25.50 x 300, 6,600 = 22 x 300, 105 slip). Why skipped the multiplication; added."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q13": {
    "status": "pass",
@@ -1794,8 +1794,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 300. Choices real (533 = 400 / 0.75). Moved the answer to slot 4 (three of four answers sat in slot 3). Why did not show 0.75 x 400; added."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q16": {
    "status": "pass",

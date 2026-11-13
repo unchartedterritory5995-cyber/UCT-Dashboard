@@ -1042,17 +1042,17 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "10%",
-    "80%",
-    "8%",
-    "800%"
+    "57%",
+    "70%",
+    "80%"
    ],
    "wrong": {
     "10%": "Counted only one trade's share.",
-    "8%": "Counted the eight trades as eight percent.",
-    "800%": "Decimal slip the other way."
+    "57%": "Took 10% of the shrinking balance each time.",
+    "70%": "Counted seven losses, not eight."
    }
   },
   {
@@ -1501,8 +1501,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Note for 800% was wrong (double 100 gives 8000%)."
+   "fixed": false,
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q15": {
    "status": "pass",

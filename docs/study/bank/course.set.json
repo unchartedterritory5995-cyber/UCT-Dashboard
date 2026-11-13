@@ -1647,10 +1647,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.2R",
-    "2.45R",
     "5R",
-    "6R"
+    "6R",
+    "10R",
+    "50R"
    ],
    "kind": "mcq",
    "q": "Bought at 30.28, stop 29.79. The stock trades to 32.73. How many R is that?",
@@ -1686,7 +1686,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Bought at 30.28, stop 29.79. The stock trades to 32.73. How many R is that? 6R 5R 2.45R 0.2R"
+    "given": "Bought at 30.28, stop 29.79. The stock trades to 32.73. How many R is that? 6R 10R 50R 5R"
    },
    "lesson_line": "Count in R, not dollars. 5R is a mark on the ruler.",
    "simple": "The gain is five times the fill-to-stop gap, so it is 5R, a mark worth watching.",
@@ -1694,8 +1694,8 @@
    "unit": "SET.07",
    "why": "5R. One R is the fill minus the stop: 30.28 minus 29.79. The gain is 32.73 minus 30.28. The gain divided by one R is 5R. Five R is one mark we measure by, not a fixed sell. ALLY took ten days just to reach 3R.",
    "wrong": {
-    "0.2R": "Flipped the division: risk over gain.",
-    "2.45R": "Read the dollar gain as R.",
+    "10R": "Used half the real risk as one R.",
+    "50R": "Decimal slip: moved the decimal one place.",
     "6R": "Measured the gain from the stop instead of the fill."
    }
   },
@@ -4107,10 +4107,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.25%",
     "2.5%",
     "25%",
-    "97.5%"
+    "97.5%",
+    "102.6%"
    ],
    "kind": "mcq",
    "q": "Left-side high 100.00. The base's first week tops out at 97.50. How far under the high is that, in percent?",
@@ -4145,7 +4145,7 @@
      "fn": "drawdown_pct",
      "result": 2.5
     },
-    "given": "Left-side high 100.00. The base's first week tops out at 97.50. How far under the high is that, in percent? 25% 97.5% 2.5% 0.25%"
+    "given": "Left-side high 100.00. The base's first week tops out at 97.50. How far under the high is that, in percent? 25% 97.5% 102.6% 2.5%"
    },
    "lesson_line": "The first week stays close to the high. Measure the gap in percent.",
    "simple": "The first week sits 2.5% under the high, and our card allows up to 3%, so it passes.",
@@ -4153,7 +4153,7 @@
    "unit": "SET.07",
    "why": "2.5%. The gap is the left-side high minus the first week's high, divided by the left-side high. Here that is 100.00 minus 97.50, over 100.00, which is 2.5%. Our card wants the first week within 3% of the left-side high, so this passes. Measure from the high, not from 97.50.",
    "wrong": {
-    "0.25%": "Decimal slip the other way.",
+    "102.6%": "Took the high as a percent of the first week's high, no subtraction.",
     "25%": "Decimal slip: moved the decimal one place.",
     "97.5%": "Took the first week's high as a percent of the high and skipped the gap."
    }
@@ -4513,10 +4513,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "$1.94",
     "$46.56",
     "$48.60",
-    "$50.44",
-    "$52.50"
+    "$50.44"
    ],
    "kind": "mcq",
    "q": "Our buy point is the pivot, 48.50. By our no-chase rule, what is the highest price we will pay?",
@@ -4558,7 +4558,7 @@
      "fn": "arith",
      "result": 50.44
     },
-    "given": "Our buy point is the pivot, 48.50. By our no-chase rule, what is the highest price we will pay? $52.50 $50.44 $46.56 $48.60"
+    "given": "Our buy point is the pivot, 48.50. By our no-chase rule, what is the highest price we will pay? $46.56 $48.60 $1.94 $50.44"
    },
    "lesson_line": "Know your top price before the open. Past four percent, I let it go.",
    "simple": "Add 4% of the pivot to the pivot, which is 50.44, and never pay more than that.",
@@ -4566,9 +4566,9 @@
    "unit": "SET.07",
    "why": "50.44. We never buy more than 4% above the buy point. With market orders our buy point is the pivot, because IBD's 10 cents does not matter. Four percent of 48.50, added to 48.50, is 50.44. Any price above that is a chase.",
    "wrong": {
+    "$1.94": "Found the four percent but did not add it to the pivot.",
     "$46.56": "Subtracted the four percent instead of adding it.",
-    "$48.60": "Added only IBD's ten cents to the pivot.",
-    "$52.50": "Added four dollars, not four percent."
+    "$48.60": "Added only IBD's ten cents to the pivot."
    }
   },
   "review_status": "draft",
@@ -6523,14 +6523,14 @@
   "difficulty": 2,
   "id": "si_cdbff3e74028",
   "lesson_origin": "session",
-  "lesson_text": "2.5%. The stop is five cents under the 81.23 low, so it sits at 81.18. The gap to the fill is 83.26 minus 81.18, which is 2.08. Divide by the 83.26 fill, not by the stop: 2.08 over 83.26 is 2.5%. That is inside the 3% the stop usually sits within. It matches RARE's stop, 81.18. Stop first, distance second, size last.",
+  "lesson_text": "2.5%. The stop is five cents under the 81.23 low, so it sits at 81.18. Divide the gap between the 83.26 fill and 81.18 by the 83.26 fill, not by the stop: that is 2.5%. That is inside the 3% the stop usually sits within. It matches RARE's stop, 81.18. Stop first, distance second, size last.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.06%",
-    "2.08%",
     "2.50%",
-    "25.00%"
+    "25.00%",
+    "97.50%",
+    "102.56%"
    ],
    "kind": "mcq",
    "q": "Fill 83.26. The day's low is 81.23 and the stop sits five cents under it. How far below the fill is the stop, as a percent of the fill?",
@@ -6573,17 +6573,17 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "Fill 83.26. The day's low is 81.23 and the stop sits five cents under it. How far below the fill is the stop, as a percent of the fill? 2.08% 25.00% 0.06% 2.50%"
+    "given": "Fill 83.26. The day's low is 81.23 and the stop sits five cents under it. How far below the fill is the stop, as a percent of the fill? 102.56% 25.00% 97.50% 2.50%"
    },
    "lesson_line": "Stop first, distance second, size last.",
    "simple": "The stop is 2.5 percent below the 83.26 fill, because the gap is divided by the fill, not the stop.",
    "tier": "core",
    "unit": "SET.08",
-   "why": "2.5%. The stop is five cents under the 81.23 low, so it sits at 81.18. The gap to the fill is 83.26 minus 81.18, which is 2.08. Divide by the 83.26 fill, not by the stop: 2.08 over 83.26 is 2.5%. That is inside the 3% the stop usually sits within. It matches RARE's stop, 81.18.",
+   "why": "2.5%. The stop is five cents under the 81.23 low, so it sits at 81.18. Divide the gap between the 83.26 fill and 81.18 by the 83.26 fill, not by the stop: that is 2.5%. That is inside the 3% the stop usually sits within. It matches RARE's stop, 81.18.",
    "wrong": {
-    "0.06%": "Measured only the five-cent cushion, not the gap to the stop.",
-    "2.08%": "Read the dollar gap as a percent.",
-    "25.00%": "Decimal slip: moved the decimal one place."
+    "102.56%": "Took the fill as a percent of the stop, skipping the subtraction.",
+    "25.00%": "Decimal slip: moved the decimal one place.",
+    "97.50%": "Gave the stop as a share of the fill, not the gap."
    }
   },
   "review_status": "draft",
@@ -9398,10 +9398,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$12.00",
-    "$28.00",
     "$52.00",
-    "$70.00"
+    "$57.14",
+    "$70.00",
+    "$120.00"
    ],
    "kind": "mcq",
    "q": "Before the pole, the lowest low was 40.00. What price is 30% above it?",
@@ -9436,7 +9436,7 @@
      "fn": "arith",
      "result": 52.0
     },
-    "given": "Before the pole, the lowest low was 40.00. What price is 30% above it? $70.00 $12.00 $28.00 $52.00"
+    "given": "Before the pole, the lowest low was 40.00. What price is 30% above it? $70.00 $57.14 $120.00 $52.00"
    },
    "lesson_line": "Know the 30% line before you call a pole A+.",
    "simple": "Add 30% to the low to find the price where the pole reaches the A+ line.",
@@ -9444,8 +9444,8 @@
    "unit": "SET.08",
    "why": "52.00. Add 30% to the low of 40.00. On our card, a pole of 30% or more, made fast on a catalyst, is the A+ pole.",
    "wrong": {
-    "$12.00": "Found the 30% but did not add it to the low.",
-    "$28.00": "Subtracted the 30% instead of adding it.",
+    "$120.00": "Multiplied by 3 instead of 1.3.",
+    "$57.14": "Divided by the remainder instead of adding the gain.",
     "$70.00": "Added 30 dollars, not 30 percent."
    }
   },
@@ -9525,10 +9525,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "4.0%",
     "6.7%",
     "7.1%",
-    "93.3%"
+    "93.3%",
+    "107.1%"
    ],
    "kind": "mcq",
    "q": "The pole top is 60.00 and the flag low is 56.00. How far under the top is the low, as a percent of the top?",
@@ -9557,7 +9557,7 @@
      "fn": "arith",
      "result": 6.7
     },
-    "given": "The pole top is 60.00 and the flag low is 56.00. How far under the top is the low, as a percent of the top? 7.1% 93.3% 4.0% 6.7%"
+    "given": "The pole top is 60.00 and the flag low is 56.00. How far under the top is the low, as a percent of the top? 7.1% 93.3% 107.1% 6.7%"
    },
    "lesson_line": "Measure depth from the top, in percent.",
    "simple": "The low is 6.7 percent under the top, found by dividing the drop by the 60.00 top.",
@@ -9565,7 +9565,7 @@
    "unit": "SET.08",
    "why": "6.7%. Take the top minus the low, 60.00 minus 56.00, and divide by the top, not by the low. On our card, 10% or less from the top is one part of the A+ depth cue, and 6.7% fits it. The other part is a third of the pole or less.",
    "wrong": {
-    "4.0%": "Read the dollar drop as a percent.",
+    "107.1%": "Took the top as a percent of the low, skipping the subtraction.",
     "7.1%": "Divided the drop by the low instead of the top.",
     "93.3%": "Took the low as a percent of the top and skipped the drop."
    }
@@ -9588,10 +9588,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "1.3%",
     "6.6%",
     "11.7%",
-    "13.2%",
-    "113.2%"
+    "13.2%"
    ],
    "kind": "mcq",
    "q": "You would buy at 56.60. The 10-day average is 50.00. How far above the 10-day is the buy, in percent?",
@@ -9620,7 +9620,7 @@
      "fn": "arith",
      "result": 13.2
     },
-    "given": "You would buy at 56.60. The 10-day average is 50.00. How far above the 10-day is the buy, in percent? 11.7% 13.2% 113.2% 6.6%"
+    "given": "You would buy at 56.60. The 10-day average is 50.00. How far above the 10-day is the buy, in percent? 11.7% 6.6% 1.3% 13.2%"
    },
    "lesson_line": "Check the stretch before you buy. Over 10% above the 10-day, skip.",
    "simple": "The buy is 13.2 percent above the 10-day, because the gap is divided by the 50.00 average.",
@@ -9628,8 +9628,8 @@
    "unit": "SET.08",
    "why": "13.2%. Take the buy price minus the 10-day average and divide by the average, 50.00, not by the buy price. That is past 10%. Skip a long more than 10% above its 10-day average.",
    "wrong": {
+    "1.3%": "Decimal slip the other way.",
     "11.7%": "Divided the gap by the buy price instead of the average.",
-    "113.2%": "Forgot to subtract one: the buy as a percent of the average.",
     "6.6%": "Read the dollar gap as a percent."
    }
   },
@@ -12157,10 +12157,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$60.10",
     "$62.40",
     "$62.70",
-    "$63.00"
+    "$63.00",
+    "$64.00"
    ],
    "kind": "mcq",
    "q": "What is the most you may pay for it?",
@@ -12214,7 +12214,7 @@
      "fn": "arith",
      "result": 62.4
     },
-    "given": "What is the most you may pay for it? We never pay more than 4% over the handle high. The handle high is 60.00. You were away for the open. At 10:30 the stock trades 62.70. $60.10 $62.40 $62.70 $63.00"
+    "given": "What is the most you may pay for it? We never pay more than 4% over the handle high. The handle high is 60.00. You were away for the open. At 10:30 the stock trades 62.70. $62.40 $62.70 $63.00 $64.00"
    },
    "lesson_line": "I would rather miss it than chase it. Four percent and done.",
    "simple": "The most we may pay is 4% over the 60.00 handle high, which is 62.40. The stock is at 62.70, so we pass.",
@@ -12222,9 +12222,9 @@
    "unit": "SET.09",
    "why": "62.40. We never buy more than 4% above the buy point, and 4% over the 60.00 handle high is 62.40. At 62.70 the stock is past that line, so we pass. Chasing also costs size: the stop stays put, so the distance grows and the shares shrink.",
    "wrong": {
-    "$60.10": "That is the handle high plus IBD's 10 cents. Our limit is 4% over the handle high.",
     "$62.70": "That is today's price, and it is past the 4% line.",
-    "$63.00": "That is past the 4% line too."
+    "$63.00": "Rounded the limit up to the next whole dollar.",
+    "$64.00": "That adds 4 dollars, not 4 percent."
    }
   },
   "review_status": "draft",
@@ -12462,9 +12462,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "7 shares",
     "291 shares",
     "582 shares",
+    "981 shares",
     "2,912 shares"
    ],
    "kind": "mcq",
@@ -12509,7 +12509,7 @@
      "fn": "shares_from_risk",
      "result": 291.0
     },
-    "given": "Account 40,000. Risk 0.75%. Fill 40.76, stop 39.73. How many shares, before any cap? 582 shares 2,912 shares 7 shares 291 shares"
+    "given": "Account 40,000. Risk 0.75%. Fill 40.76, stop 39.73. How many shares, before any cap? 291 shares 582 shares 2,912 shares 981 shares"
    },
    "lesson_line": "The stop sets the size. Round down.",
    "simple": "Dividing the risk dollars by the gap between fill and stop, then rounding down, gives 291 shares.",
@@ -12519,7 +12519,7 @@
    "wrong": {
     "2,912 shares": "Decimal slip: the risk dollars came out ten times too big.",
     "582 shares": "Used twice the stated risk percent.",
-    "7 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
+    "981 shares": "Divided the account by the fill price and skipped the risk."
    }
   },
   "review_status": "draft",
@@ -15140,9 +15140,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "250 shares",
     "2,500 shares",
     "25,000 shares",
+    "125,000 shares",
     "250,000 shares"
    ],
    "kind": "mcq",
@@ -15178,7 +15178,7 @@
      "fn": "arith",
      "result": 2500.0
     },
-    "given": "We never own more than 1% of a stock's average daily volume. A stock averages 250,000 shares a day. What is the most we may own? 25,000 shares 250,000 shares 250 shares 2,500 shares"
+    "given": "We never own more than 1% of a stock's average daily volume. A stock averages 250,000 shares a day. What is the most we may own? 2,500 shares 25,000 shares 250,000 shares 125,000 shares"
    },
    "lesson_line": "Cap every position at 1% of average daily volume.",
    "simple": "We may own at most 1% of average daily volume, and 1% of 250,000 shares is 2,500.",
@@ -15186,8 +15186,8 @@
    "unit": "SET.09",
    "why": "2,500 shares. We never own more than 1% of a stock's average daily volume. One percent of 250,000 is 2,500. It is a ceiling on what we own, and it applies to every stock.",
    "wrong": {
+    "125,000 shares": "Took half the daily volume, not one percent.",
     "25,000 shares": "Decimal slip: ten percent of the volume.",
-    "250 shares": "Decimal slip the other way: a tenth of the cap.",
     "250,000 shares": "Used the whole average daily volume as the limit."
    }
   },
@@ -15209,10 +15209,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "220 shares",
     "1,100 shares",
     "2,200 shares",
-    "3,600 shares",
-    "5,000 shares"
+    "3,600 shares"
    ],
    "kind": "mcq",
    "q": "What is the most you may buy?",
@@ -15251,7 +15251,7 @@
      "fn": "arith",
      "result": 2200.0
     },
-    "given": "What is the most you may buy? The risk math and the position cap allow 5,000 shares of a cup breakout. The stock averages 220,000 shares a day. You hold none today. 2,200 shares 5,000 shares 3,600 shares 1,100 shares"
+    "given": "What is the most you may buy? The risk math and the position cap allow 5,000 shares of a cup breakout. The stock averages 220,000 shares a day. You hold none today. 2,200 shares 3,600 shares 220 shares 1,100 shares"
    },
    "lesson_line": "Never own more than 1% of average daily volume, whatever the risk math allows.",
    "simple": "Buy at most 2,200 shares, because 1% of 220,000 is 2,200 and that is below the 5,000 the risk math allows.",
@@ -15260,8 +15260,8 @@
    "why": "2,200 shares. The risk math allows 5,000, but we never own more than 1% of a stock's average daily volume. One percent of 220,000 is 2,200, the lower limit, so the volume cap sets the most you may buy.",
    "wrong": {
     "1,100 shares": "That is half the cap. The question asks for the most you may buy, and that is the cap.",
-    "3,600 shares": "Averaging the two limits is not a rule. It is still over 1% of average daily volume.",
-    "5,000 shares": "The risk math sets a size, but this is over 1% of average daily volume. The volume cap wins."
+    "220 shares": "Decimal slip: a tenth of the cap.",
+    "3,600 shares": "Averaging the two limits is not a rule. It is still over 1% of average daily volume."
    }
   },
   "review_status": "draft",
@@ -15558,10 +15558,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.5%",
     "2.5%",
-    "5.0%",
-    "50.0%",
-    "95.0%"
+    "2.6%",
+    "5.0%"
    ],
    "kind": "mcq",
    "q": "Handle high 50.00, handle low 47.50. How deep is the handle, in percent?",
@@ -15597,7 +15597,7 @@
      "fn": "arith",
      "result": 5.0
     },
-    "given": "Handle high 50.00, handle low 47.50. How deep is the handle, in percent? 95.0% 2.5% 5.0% 50.0%"
+    "given": "Handle high 50.00, handle low 47.50. How deep is the handle, in percent? 5.0% 2.5% 0.5% 2.6%"
    },
    "lesson_line": "Handle depth is the fall from its own high. Shallower grades higher.",
    "simple": "Depth is the fall from the handle's own high as a percent, and here that is 5.0%.",
@@ -15605,9 +15605,9 @@
    "unit": "SET.09",
    "why": "5.0%. The fall is 50.00 minus 47.50, which is 2.50. Divided by the handle's own high, 50.00, that is 5.0%. Our card calls a handle of 8% or less better, and about 5% best. Zanger's 5% is measured from the old high point, which is a different yardstick.",
    "wrong": {
+    "0.5%": "Decimal slip: moved the decimal one place left.",
     "2.5%": "Read the dollar drop as a percent.",
-    "50.0%": "Decimal slip: moved the decimal one place.",
-    "95.0%": "Took the handle low as a percent of the high and skipped the drop."
+    "2.6%": "Divided the drop by the high plus the low, not the high."
    }
   },
   "review_status": "draft",
@@ -17961,8 +17961,8 @@
    "choices": [
     "$55.03",
     "$57.55",
-    "$59.61",
-    "$61.32"
+    "$58.46",
+    "$59.61"
    ],
    "kind": "mcq",
    "q": "The buy point is the IPO high, 57.32. What is the most we would pay under the 4% chase limit?",
@@ -18021,7 +18021,7 @@
      "fn": "arith",
      "result": 59.61
     },
-    "given": "The buy point is the IPO high, 57.32. What is the most we would pay under the 4% chase limit? $61.32 $55.03 $57.55 $59.61"
+    "given": "The buy point is the IPO high, 57.32. What is the most we would pay under the 4% chase limit? $59.61 $55.03 $57.55 $58.46"
    },
    "lesson_line": "Know the chase limit before the open: 4% over the buy point.",
    "simple": "The most we would pay is 59.61, because the chase limit is 4% above the buy point, which is the IPO high.",
@@ -18031,7 +18031,7 @@
    "wrong": {
     "$55.03": "That takes 4% off. The chase limit sits above the buy point.",
     "$57.55": "That adds a fraction of a percent, not 4 percent. A decimal slip.",
-    "$61.32": "That adds 4 dollars, not 4 percent."
+    "$58.46": "That adds only half of the 4 percent."
    }
   },
   "review_status": "draft",
@@ -18124,9 +18124,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "480,000 shares",
-    "857,143 shares",
     "1,680,000 shares",
+    "2,600,000 shares",
+    "2,880,000 shares",
     "16,800,000 shares"
    ],
    "kind": "mcq",
@@ -18169,7 +18169,7 @@
      "fn": "arith",
      "result": 1680000.0
     },
-    "given": "The base averaged 1,200,000 shares a day. Our card gives its top grade at 1.4 times that on breakout day. How many shares? 480,000 shares 857,143 shares 16,800,000 shares 1,680,000 shares"
+    "given": "The base averaged 1,200,000 shares a day. Our card gives its top grade at 1.4 times that on breakout day. How many shares? 1,680,000 shares 16,800,000 shares 2,880,000 shares 2,600,000 shares"
    },
    "lesson_line": "Measure breakout volume against the base's own sessions, not the listing week.",
    "simple": "It takes 1,680,000 shares, because the top grade needs at least 1.4 times the base's average of 1,200,000 a day.",
@@ -18178,8 +18178,8 @@
    "why": "Our card gives the top grade for breakout-day volume of at least 1.4 times the base's average. Multiply: 1,200,000 times 1.4 is 1,680,000. Volume raises the grade. It is not needed for the setup to count. The listing week is left out of that average. IBD's test is 40% above the 50-day average, and many new issues have yet to trade that long. Our card compares with the base's own sessions.",
    "wrong": {
     "16,800,000 shares": "That is ten times too many. A decimal slip.",
-    "480,000 shares": "That is only the extra 40%. The target is 1.4 times the average, so the base is added.",
-    "857,143 shares": "That divides by 1.4. Multiply by 1.4."
+    "2,600,000 shares": "Added 1.4 million to the average instead of multiplying by 1.4.",
+    "2,880,000 shares": "That adds the base again on top of 1.4 times."
    }
   },
   "review_status": "draft",
@@ -21103,10 +21103,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "$20.65",
+    "$22.81",
     "$23.89",
-    "$24.97",
-    "$26.05",
-    "$28.21"
+    "$24.97"
    ],
    "kind": "mcq",
    "q": "Bought at 22.81, stop 21.73. At what price does our breakeven window open?",
@@ -21152,7 +21152,7 @@
      "fn": "arith",
      "result": 24.97
     },
-    "given": "Bought at 22.81, stop 21.73. At what price does our breakeven window open? $23.89 $24.97 $26.05 $28.21"
+    "given": "Bought at 22.81, stop 21.73. At what price does our breakeven window open? $24.97 $23.89 $22.81 $20.65"
    },
    "lesson_line": "Count in R. From 2R the stop can move up to your entry.",
    "simple": "The window opens at 24.97, which is 2R, the start of our 2R to 5R breakeven window.",
@@ -21160,9 +21160,9 @@
    "unit": "SET.10",
    "why": "Our breakeven window opens at 2R. One R is the fill minus the stop, 22.81 minus 21.73. Add two of those to the fill: 22.81 plus 2 times (22.81 minus 21.73) is 24.97. The window runs from 2R to 5R, and by default the stop moves at the first trim.",
    "wrong": {
-    "$23.89": "That is one R above the fill. The window opens at two R.",
-    "$26.05": "That is 3R, the usual first trim, not the start of the window.",
-    "$28.21": "That is 5R, where the window ends."
+    "$20.65": "That subtracts two R from the fill instead of adding it.",
+    "$22.81": "That is the fill itself. Two R must be added to it.",
+    "$23.89": "That is one R above the fill. The window opens at two R."
    }
   },
   "review_status": "draft",
@@ -23245,10 +23245,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.04",
     "0.30",
-    "0.70",
-    "0.98",
-    "1.40"
+    "0.60",
+    "0.70"
    ],
    "kind": "mcq",
    "q": "The launch bar ran 30.00 to 32.00 and closed at 31.40. Where in its range did it close, 0 to 1?",
@@ -23306,7 +23306,7 @@
      "fn": "arith",
      "result": 0.7
     },
-    "given": "The launch bar ran 30.00 to 32.00 and closed at 31.40. Where in its range did it close, 0 to 1? 0.30 0.98 0.70 1.40"
+    "given": "The launch bar ran 30.00 to 32.00 and closed at 31.40. Where in its range did it close, 0 to 1? 0.70 0.30 0.60 0.04"
    },
    "lesson_line": "Close minus low, over high minus low. The floor is 0.65.",
    "simple": "It closed 0.70 of the way up its range, and our floor is 0.65, so it passes.",
@@ -23314,9 +23314,9 @@
    "unit": "SET.11",
    "why": "Close minus low, over high minus low: (31.40 minus 30.00) divided by (32.00 minus 30.00) is 0.70. The launch bar must close in the top 35% of its range, 0.65 or higher, so it passes. KBH closed at 0.94, BABA at 0.98 and DDOG at 0.97.",
    "wrong": {
+    "0.04": "That divides the dollar gain by the high. Divide by the range.",
     "0.30": "That measures from the high down. Measure from the low up.",
-    "0.98": "That divides the close by the high. Divide by the range.",
-    "1.40": "That is the dollar gain from the low. Divide it by the range."
+    "0.60": "That is the dollar gap under the high. Divide it by the range."
    }
   },
   "review_status": "draft",
@@ -23489,9 +23489,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "44.50",
     "45.20",
     "45.90",
+    "46.05",
     "46.50"
    ],
    "kind": "mcq",
@@ -23527,7 +23527,7 @@
     "summary": "B20: on a gap through the stop, the first 30-minute low is the new stop. B20's ceiling: if the first 30 minutes take the loss past 2R, get out. A gap through the stop: the first 30-minute low is the new stop; out if past 2R."
    },
    "facts": {
-    "given": "Where is the stop now? You bought a launchpad at 48.50 with the stop at 46.50, so 2R is 4.00 a share. The next day it gaps open at 45.90, under the stop. The first 30-minute bar runs from 45.20 to 46.05. 45.20 45.90 46.50 44.50"
+    "given": "Where is the stop now? You bought a launchpad at 48.50 with the stop at 46.50, so 2R is 4.00 a share. The next day it gaps open at 45.90, under the stop. The first 30-minute bar runs from 45.20 to 46.05. 45.20 45.90 46.50 46.05"
    },
    "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide.",
    "simple": "The first 30-minute low, 45.20, is the new stop, because a gap through the stop hands it to that bar.",
@@ -23535,8 +23535,8 @@
    "unit": "SET.11",
    "why": "45.20. A gap through the stop hands it to the first 30-minute low, which becomes the new stop. The ceiling is 2R: if the first 30 minutes take the loss past 2R, get out. Here the low sits less than 4.00 under the fill, so it is inside the ceiling and is the new stop.",
    "wrong": {
-    "44.50": "That is 2R under the fill, the get-out line. The first 30-minute low sets the stop, and it sits above that line.",
     "45.90": "That is the open. The gap rule hands the stop to the first 30-minute low, not the open.",
+    "46.05": "That is the high of the first 30-minute bar, not its low.",
     "46.50": "Price is already under it. A stop that has been gapped through needs the gap rule."
    }
   },
@@ -25010,9 +25010,9 @@
   "prompt_json": {
    "choices": [
     "0.2R",
-    "5.0R",
-    "6.0R",
-    "13.6R"
+    "2.7R",
+    "4.0R",
+    "5.0R"
    ],
    "kind": "mcq",
    "q": "Bought at 89.14, stop 86.43. The stock trades to 102.69. How many R is that?",
@@ -25051,7 +25051,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Bought at 89.14, stop 86.43. The stock trades to 102.69. How many R is that? 6.0R 13.6R 0.2R 5.0R"
+    "given": "Bought at 89.14, stop 86.43. The stock trades to 102.69. How many R is that? 5.0R 0.2R 2.7R 4.0R"
    },
    "lesson_line": "Count in R, not dollars. About 5R to 10R is often a good place to sell.",
    "simple": "The stock is 5R up, five times the distance from fill to stop, a spot where selling is often best.",
@@ -25060,8 +25060,8 @@
    "why": "The gain is the exit minus the fill, 102.69 minus 89.14. One R is the fill minus the stop, 89.14 minus 86.43. The gain divided by one R is 5R. Selling at about 5 to 10R is often best, but the sell is a judgment. BABA, from this same fill, reached 3R in 3 sessions.",
    "wrong": {
     "0.2R": "That divides the gain by the price, not by R.",
-    "13.6R": "That is the dollar gain read as R. Divide it by the risk per share.",
-    "6.0R": "That counts the gain from the stop, so it reads one R too high."
+    "2.7R": "That is the risk per share read as R. Divide the gain by it.",
+    "4.0R": "Took one R off the gain before dividing."
    }
   },
   "review_status": "draft",
@@ -28524,10 +28524,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "238 shares",
     "476 shares",
     "500 shares",
-    "952 shares",
-    "4,761 shares"
+    "952 shares"
    ],
    "kind": "mcq",
    "q": "Account 100,000, risk 0.5%, buy 24.60, stop 23.55. Before any cap, how many shares?",
@@ -28564,7 +28564,7 @@
      "fn": "shares_from_risk",
      "result": 476.0
     },
-    "given": "Account 100,000, risk 0.5%, buy 24.60, stop 23.55. Before any cap, how many shares? 500 shares 4,761 shares 952 shares 476 shares"
+    "given": "Account 100,000, risk 0.5%, buy 24.60, stop 23.55. Before any cap, how many shares? 476 shares 238 shares 952 shares 500 shares"
    },
    "lesson_line": "Shares come from the stop: risk in dollars divided by risk per share, rounded down.",
    "simple": "Divide the dollars you risk by the risk per share, then round down. Here that gives 476 shares.",
@@ -28572,9 +28572,9 @@
    "unit": "SET.12",
    "why": "Risk dollars are 0.5% of 100,000, which is 500. Risk per share is the gap between 24.60 and 23.55. Divide 500 by that, then round down to 476. The size comes from the stop, then it is capped.",
    "wrong": {
-    "4,761 shares": "That risks ten times the plan. A decimal slip.",
+    "238 shares": "Used half the stated risk percent.",
     "500 shares": "That is the risk dollars read as shares. Divide by the risk per share.",
-    "952 shares": "That risks double the plan."
+    "952 shares": "Used twice the stated risk percent."
    }
   },
   "review_status": "draft",
@@ -30444,10 +30444,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "300 shares",
-    "400 shares",
-    "450 shares",
-    "600 shares"
+    "100 shares",
+    "150 shares",
+    "200 shares",
+    "300 shares"
    ],
    "kind": "mcq",
    "q": "You bought 900 shares. Say you sell a third at 3R and another third at 5R. How many are left to trail?",
@@ -30475,7 +30475,7 @@
      "fn": "arith",
      "result": 300.0
     },
-    "given": "You bought 900 shares. Say you sell a third at 3R and another third at 5R. How many are left to trail? 600 shares 400 shares 450 shares 300 shares"
+    "given": "You bought 900 shares. Say you sell a third at 3R and another third at 5R. How many are left to trail? 300 shares 100 shares 200 shares 150 shares"
    },
    "lesson_line": "Count each third on the full position. Trail what is left.",
    "simple": "Each third is 300 shares. After two thirds are sold, the last 300 shares are left to trail.",
@@ -30483,9 +30483,9 @@
    "unit": "SET.12",
    "why": "A third of 900 is 300. Sell 300 at 3R and another 300 at 5R. Both thirds are measured on the full 900, not on what is left. That leaves the last 300, which is trailed. When to sell each part is a judgment, but the arithmetic is fixed.",
    "wrong": {
-    "400 shares": "That takes the second third from what is left. Both thirds come from the full 900.",
-    "450 shares": "That halves the 900 once. A third is not a half.",
-    "600 shares": "That counts only one third sold. Two thirds are gone."
+    "100 shares": "That is a third of the last 300, not the shares left.",
+    "150 shares": "Divided 900 by six, mixing up thirds with sixths.",
+    "200 shares": "That is a third of what was left after one sale."
    }
   },
   "review_status": "draft",
@@ -32969,10 +32969,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$45.00",
-    "$52.50",
     "$55.00",
-    "$60.00"
+    "$60.00",
+    "$60.50",
+    "$550.00"
    ],
    "kind": "mcq",
    "q": "The 10-day average is 50.00. Above what price is a buy too stretched?",
@@ -33007,7 +33007,7 @@
      "fn": "arith",
      "result": 55.0
     },
-    "given": "The 10-day average is 50.00. Above what price is a buy too stretched? $45.00 $60.00 $52.50 $55.00"
+    "given": "The 10-day average is 50.00. Above what price is a buy too stretched? $55.00 $60.00 $60.50 $550.00"
    },
    "lesson_line": "Read the stretch in percent before you read the pattern.",
    "simple": "The limit is 10% over the 10-day average, and 10% over 50.00 is 55.00.",
@@ -33015,9 +33015,9 @@
    "unit": "SET.13",
    "why": "Skip a long that is more than 10% above its 10-day average. 10% over 50.00 is 50.00 times 1.10, or 55.00. About 5% over the average is the A+ zone, and 8% to 10% is B-.",
    "wrong": {
-    "$45.00": "That is 10% under the average. The limit sits above it.",
-    "$52.50": "That is 5% over, the A+ zone, not the limit.",
-    "$60.00": "That adds 10 dollars, not 10 percent."
+    "$550.00": "Decimal slip: ten times too big.",
+    "$60.00": "That adds 10 dollars, not 10 percent.",
+    "$60.50": "Took the 10 percent twice, one on top of the other."
    }
   },
   "review_status": "draft",
@@ -34029,10 +34029,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "$12.00",
     "$15.00",
-    "$22.00",
-    "$25.00",
-    "$27.00"
+    "$17.00",
+    "$22.00"
    ],
    "kind": "mcq",
    "q": "Pole low 10.00, pole high 20.00, flag low 17.00. Where is Bulkowski's reference level?",
@@ -34069,7 +34069,7 @@
      "fn": "arith",
      "result": 22.0
     },
-    "given": "Pole low 10.00, pole high 20.00, flag low 17.00. Where is Bulkowski's reference level? $25.00 $27.00 $15.00 $22.00"
+    "given": "Pole low 10.00, pole high 20.00, flag low 17.00. Where is Bulkowski's reference level? $22.00 $15.00 $17.00 $12.00"
    },
    "lesson_line": "Know the level if you like. It is never the reason to sell.",
    "simple": "Half the pole added to the flag low lands at 22.00, which is a reference only.",
@@ -34077,9 +34077,9 @@
    "unit": "SET.13",
    "why": "Bulkowski: take half of the pole and add it to the bottom of the flag. The pole runs from 10.00 to 20.00, so half of it is (20.00 minus 10.00) divided by 2. Add that to the flag low: 17.00 plus that half is 22.00. His rule was met by 82% of his perfect trades. For us it is a reference only. We sell by R and the trail.",
    "wrong": {
+    "$12.00": "That takes half the pole off the flag low.",
     "$15.00": "That adds half the pole to the pole low, not to the flag low.",
-    "$25.00": "That adds half the pole to the pole high, not to the flag low.",
-    "$27.00": "That adds the whole pole to the flag low, not half."
+    "$17.00": "That is the flag low. The half pole must be added."
    }
   },
   "review_status": "draft",
@@ -36114,10 +36114,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "1.2%",
     "12.0%",
     "13.6%",
-    "88.0%"
+    "88.0%",
+    "120.0%"
    ],
    "kind": "mcq",
    "q": "You buy at 100.00 and the flag low is 88.00. How far under your fill is a stop at the flag low, in percent?",
@@ -36160,7 +36160,7 @@
      "fn": "arith",
      "result": 12.0
     },
-    "given": "You buy at 100.00 and the flag low is 88.00. How far under your fill is a stop at the flag low, in percent? 13.6% 12.0% 88.0% 1.2%"
+    "given": "You buy at 100.00 and the flag low is 88.00. How far under your fill is a stop at the flag low, in percent? 12.0% 13.6% 88.0% 120.0%"
    },
    "lesson_line": "The flag low ends the idea. The stop is much closer.",
    "simple": "A stop at the flag low would sit 12.0% under the fill, far wider than the usual 3%.",
@@ -36168,7 +36168,7 @@
    "unit": "SET.13",
    "why": "The fill minus the stop, divided by the fill: (100.00 minus 88.00) divided by 100.00 is 12.0%. Our stop usually sits within about 3% of the buy, so the flag low is about four times too wide. It kills the idea but is not the stop.",
    "wrong": {
-    "1.2%": "That slips a decimal place.",
+    "120.0%": "Decimal slip: one place too far right.",
     "13.6%": "That divides by the stop. Divide by the fill.",
     "88.0%": "That is the stop as a share of the fill, not the gap."
    }
@@ -36262,10 +36262,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "$0.04",
     "$0.25",
-    "$2.50",
-    "$7.50",
-    "$57.50"
+    "$1.25",
+    "$2.50"
    ],
    "kind": "mcq",
    "q": "Bought at 60.00, stop at 57.50. What is 1R, in dollars a share?",
@@ -36301,7 +36301,7 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "Bought at 60.00, stop at 57.50. What is 1R, in dollars a share? $7.50 $2.50 $57.50 $0.25"
+    "given": "Bought at 60.00, stop at 57.50. What is 1R, in dollars a share? $2.50 $0.25 $1.25 $0.04"
    },
    "lesson_line": "1R is what you risk on each share: fill minus stop.",
    "simple": "1R is what you risk on each share, the fill minus the stop, so 60.00 minus 57.50.",
@@ -36309,9 +36309,9 @@
    "unit": "SET.13",
    "why": "One R is the risk you take on the trade, the fill minus the stop. Here that is 60.00 minus 57.50, which is 2.50 a share. A 3R winner is three times that.",
    "wrong": {
+    "$0.04": "That divides the gap by the fill, a fraction, not dollars.",
     "$0.25": "That slips a decimal place.",
-    "$57.50": "That is the stop price, not the distance to it.",
-    "$7.50": "That is three R, three times the risk. One R is one share's risk."
+    "$1.25": "That is half the risk. One R is the full gap to the stop."
    }
   },
   "review_status": "draft",
@@ -39220,10 +39220,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.1R",
-    "3.9R",
     "5.0R",
-    "6.0R"
+    "6.0R",
+    "13.4R",
+    "50.0R"
    ],
    "kind": "mcq",
    "q": "Bought at 28.79, stop 28.02. The stock trades to 32.64. How many R is that?",
@@ -39266,7 +39266,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Bought at 28.79, stop 28.02. The stock trades to 32.64. How many R is that? 6.0R 5.0R 3.9R 0.1R"
+    "given": "Bought at 28.79, stop 28.02. The stock trades to 32.64. How many R is that? 5.0R 6.0R 13.4R 50.0R"
    },
    "lesson_line": "Count in R, not dollars. 5R is the second trim.",
    "simple": "It is 5R, because the gain is five times the distance from the fill to the stop.",
@@ -39274,8 +39274,8 @@
    "unit": "SET.14",
    "why": "The gain is the exit minus the fill, 32.64 minus 28.79. One R is the fill minus the stop, 28.79 minus 28.02. The gain divided by one R is 5. That is where the second third comes off.",
    "wrong": {
-    "0.1R": "That divides the gain by the price, not by R.",
-    "3.9R": "That is the dollar gain read as R. Divide it by the risk per share.",
+    "13.4R": "That is the percent gain read as R. Divide by the risk instead.",
+    "50.0R": "That is ten times too big. A decimal slip.",
     "6.0R": "That counts the gain from the stop, so it reads one R too high."
    }
   },
@@ -40199,10 +40199,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "1.6%",
     "3.6%",
     "36.0%",
-    "103.6%"
+    "103.6%",
+    "162.0%"
    ],
    "kind": "mcq",
    "q": "The trigger is 45.00 and the stock opens at 46.62, above it. How far above the trigger is the open, in percent?",
@@ -40247,7 +40247,7 @@
      "fn": "pct_change",
      "result": 3.6
     },
-    "given": "The trigger is 45.00 and the stock opens at 46.62, above it. How far above the trigger is the open, in percent? 1.6% 36.0% 103.6% 3.6%"
+    "given": "The trigger is 45.00 and the stock opens at 46.62, above it. How far above the trigger is the open, in percent? 3.6% 36.0% 103.6% 162.0%"
    },
    "lesson_line": "Measure the gap against the trigger. Inside 4% you may take the open.",
    "simple": "The open is 3.6% above the trigger, which is under the 4% limit, so we may take the open.",
@@ -40255,8 +40255,8 @@
    "unit": "SET.14",
    "why": "The open's gain over the trigger is (46.62 minus 45.00) divided by 45.00, which is 3.6%. That is inside the 4% line, so the fill at the open is allowed. The stop stays under the hold candle, so the distance grows and the shares shrink.",
    "wrong": {
-    "1.6%": "That is the dollar amount read as a percent. Divide it first.",
     "103.6%": "That is the open as a share of the trigger, not the gain.",
+    "162.0%": "Turned the dollar gap into a percent without dividing by the trigger.",
     "36.0%": "That slips a decimal place."
    }
   },
@@ -40863,10 +40863,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "250 shares",
     "2,500 shares",
-    "25,000 shares",
-    "50,000 shares",
-    "250,000 shares"
+    "12,500 shares",
+    "25,000 shares"
    ],
    "kind": "mcq",
    "q": "A pullback stock trades 2,500,000 shares a day on average. What is the most shares our volume rule lets us hold?",
@@ -40894,7 +40894,7 @@
      "fn": "arith",
      "result": 25000.0
     },
-    "given": "A pullback stock trades 2,500,000 shares a day on average. What is the most shares our volume rule lets us hold? 250,000 shares 25,000 shares 2,500 shares 50,000 shares"
+    "given": "A pullback stock trades 2,500,000 shares a day on average. What is the most shares our volume rule lets us hold? 25,000 shares 2,500 shares 12,500 shares 250 shares"
    },
    "lesson_line": "One percent of the average daily volume is the ceiling.",
    "simple": "We can hold at most 25,000 shares, which is 1% of the average daily volume.",
@@ -40902,9 +40902,9 @@
    "unit": "SET.14",
    "why": "We never own more than 1% of a stock's average daily volume. 1% of 2,500,000 is 2,500,000 times 0.01, or 25,000. That holds whatever the risk math allows.",
    "wrong": {
+    "12,500 shares": "Halved the rule's share of the volume.",
     "2,500 shares": "That is a tenth of our line. A decimal slip.",
-    "250,000 shares": "That is ten times our line.",
-    "50,000 shares": "That is double our line."
+    "250 shares": "That is a hundredth of our line. A decimal slip."
    }
   },
   "review_status": "draft",
@@ -45730,10 +45730,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "4,000 shares",
     "40,000 shares",
     "80,000 shares",
-    "400,000 shares"
+    "400,000 shares",
+    "4,000,000 shares"
    ],
    "kind": "mcq",
    "q": "A crossback stock trades 4,000,000 shares a day on average. What is the most shares our volume rule lets us hold?",
@@ -45761,7 +45761,7 @@
      "fn": "arith",
      "result": 40000.0
     },
-    "given": "A crossback stock trades 4,000,000 shares a day on average. What is the most shares our volume rule lets us hold? 400,000 shares 80,000 shares 4,000 shares 40,000 shares"
+    "given": "A crossback stock trades 4,000,000 shares a day on average. What is the most shares our volume rule lets us hold? 40,000 shares 400,000 shares 80,000 shares 4,000,000 shares"
    },
    "lesson_line": "One percent of the average daily volume is the ceiling.",
    "simple": "Our rule caps us at 1% of the average daily volume, which is 40,000 shares here.",
@@ -45769,7 +45769,7 @@
    "unit": "SET.15",
    "why": "40,000 shares. We never own more than 1% of a stock's average daily volume, and 4,000,000 x 0.01 = 40,000. The risk math or the position cap may allow more, but this ceiling still holds.",
    "wrong": {
-    "4,000 shares": "Took a tenth of the right share of the volume.",
+    "4,000,000 shares": "Used the whole average daily volume as the limit.",
     "400,000 shares": "Took ten times the right share of the volume.",
     "80,000 shares": "Doubled the 1% rule. The ceiling is 1% of the average daily volume."
    }
@@ -45951,10 +45951,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "$39.52",
+    "$40.82",
     "$41.47",
-    "$42.12",
-    "$42.77",
-    "$44.07"
+    "$42.12"
    ],
    "kind": "mcq",
    "q": "Bought at 40.82, stop 40.17. What is the earliest price the stop may go to breakeven?",
@@ -45997,7 +45997,7 @@
      "fn": "arith",
      "result": 42.12
     },
-    "given": "Bought at 40.82, stop 40.17. What is the earliest price the stop may go to breakeven? $41.47 $42.77 $42.12 $44.07"
+    "given": "Bought at 40.82, stop 40.17. What is the earliest price the stop may go to breakeven? $42.12 $41.47 $40.82 $39.52"
    },
    "lesson_line": "Count in R. From 2R the stop can move up to your entry.",
    "simple": "The stop may go to breakeven once the trade reaches 2R, which is 42.12 here.",
@@ -46005,9 +46005,9 @@
    "unit": "SET.15",
    "why": "$42.12. One R is the fill minus the stop: 40.82 - 40.17. Breakeven comes at 2R: 40.82 + 2 x (40.82 - 40.17) = 42.12. The rule allows breakeven anywhere from 2R to 5R, so 2R is the earliest.",
    "wrong": {
-    "$41.47": "That is one R up, too early. The earliest breakeven is 2R.",
-    "$42.77": "That is three R up, later than the earliest.",
-    "$44.07": "That is five R up, the latest breakeven, not the earliest."
+    "$39.52": "That subtracts two R from the fill instead of adding it.",
+    "$40.82": "That is the fill, where the stop goes. It is not the trigger price.",
+    "$41.47": "That is one R up, too early. The earliest breakeven is 2R."
    }
   },
   "review_status": "draft",
@@ -47814,10 +47814,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$179.73",
-    "$183.94",
     "$188.15",
-    "$192.36"
+    "$192.36",
+    "$196.57",
+    "$200.78"
    ],
    "kind": "mcq",
    "q": "Bought at 175.52 with the stop at 171.31. Where is 3R?",
@@ -47863,7 +47863,7 @@
      "fn": "arith",
      "result": 188.15
     },
-    "given": "Bought at 175.52 with the stop at 171.31. Where is 3R? $183.94 $192.36 $179.73 $188.15"
+    "given": "Bought at 175.52 with the stop at 171.31. Where is 3R? $188.15 $192.36 $196.57 $200.78"
    },
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "simple": "188.15 is the fill plus three times the gap between the fill and the stop. It is a measuring stick, not a sell order.",
@@ -47871,9 +47871,9 @@
    "unit": "SET.16",
    "why": "$188.15. One R is the fill minus the stop: 175.52 - 171.31. Add three of those to the fill: 175.52 + 3 x (175.52 - 171.31) = 188.15. 3R is a measuring stick, not an order to sell. The first sell is a judgment.",
    "wrong": {
-    "$179.73": "Added one R, not three.",
-    "$183.94": "Counted 3R up from the stop, which is only two R above the fill.",
-    "$192.36": "Added four R, counting the fill as the first one."
+    "$192.36": "Added four R, counting the fill as the first one.",
+    "$196.57": "Used five R, the far end of the breakeven window.",
+    "$200.78": "Doubled the three R to six R."
    }
   },
   "review_status": "draft",
@@ -49884,10 +49884,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.4R",
     "1.7R",
     "2.0R",
-    "2.7R",
-    "3.7R"
+    "2.7R"
    ],
    "kind": "mcq",
    "q": "Bought at 60.00, stop 59.00. It gaps down; the first 30-minute low is 57.30. How many R would a stop there lose?",
@@ -49927,7 +49927,7 @@
      "fn": "arith",
      "result": 2.7
     },
-    "given": "Bought at 60.00, stop 59.00. It gaps down; the first 30-minute low is 57.30. How many R would a stop there lose? 1.7R 2.7R 2.0R 3.7R"
+    "given": "Bought at 60.00, stop 59.00. It gaps down; the first 30-minute low is 57.30. How many R would a stop there lose? 2.7R 1.7R 2.0R 0.4R"
    },
    "lesson_line": "On a gap, the first 30 minutes decide. Past 2R, I am out.",
    "simple": "2.7R, which is past the 2R ceiling, so we get out.",
@@ -49935,9 +49935,9 @@
    "unit": "SET.16",
    "why": "2.7R. One R is the buy minus the stop: 60.00 - 59.00. The loss at a stop of 57.30 is 60.00 - 57.30. So (60.00 - 57.30) / (60.00 - 59.00) = 2.7R. On a gap through the stop, the first 30-minute low is the new stop. There is a ceiling: if that takes the loss past 2R, get out.",
    "wrong": {
+    "0.4R": "Flipped the division: one R over the loss.",
     "1.7R": "Measured the fall from the stop, not from the fill.",
-    "2.0R": "That is the ceiling, not the loss. The loss at 57.30 is bigger.",
-    "3.7R": "Added the risk of one R on top of the gap."
+    "2.0R": "That is the ceiling, not the loss. The loss at 57.30 is bigger."
    }
   },
   "review_status": "draft",
@@ -53258,9 +53258,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$42.24",
     "$43.17",
     "$44.10",
+    "$45.03",
     "$48.75"
    ],
    "kind": "mcq",
@@ -53297,7 +53297,7 @@
      "fn": "arith",
      "result": 43.17
     },
-    "given": "Shorted at 45.96 with the stop at 46.89. Where is 3R? $48.75 $43.17 $44.10 $42.24"
+    "given": "Shorted at 45.96 with the stop at 46.89. Where is 3R? $43.17 $48.75 $44.10 $45.03"
    },
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a cover order.",
    "simple": "3R is the fill minus three times the stop distance, so 43.17. It is a measuring stick, not a cover order.",
@@ -53305,8 +53305,8 @@
    "unit": "SET.17",
    "why": "$43.17. One R is the stop minus the fill: 46.89 - 45.96. Three R below the fill is 45.96 - 3 x (46.89 - 45.96) = 43.17. It is a measuring stick, not a cover order. PCG reached 3R on day 10.",
    "wrong": {
-    "$42.24": "Went four R down, counting the fill as the first one.",
     "$44.10": "Counted 3R down from the stop, which is only two R below the fill.",
+    "$45.03": "Went down one R, not three.",
     "$48.75": "Added the 3R to the fill. On a short, 3R is below the fill."
    }
   },
@@ -53558,10 +53558,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.1R",
     "0.2R",
-    "5.0R",
-    "6.0R",
-    "9.2R"
+    "1.8R",
+    "5.0R"
    ],
    "kind": "mcq",
    "q": "Shorted at 78.94, stop 80.77. The stock trades down to 69.79. How many R is that?",
@@ -53605,7 +53605,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Shorted at 78.94, stop 80.77. The stock trades down to 69.79. How many R is that? 6.0R 9.2R 0.2R 5.0R"
+    "given": "Shorted at 78.94, stop 80.77. The stock trades down to 69.79. How many R is that? 5.0R 0.2R 0.1R 1.8R"
    },
    "lesson_line": "Count a short in R too. The gain divided by one R is the R.",
    "simple": "The fall from the fill is 5.0 times the stop distance, so it is 5.0R.",
@@ -53613,9 +53613,9 @@
    "unit": "SET.17",
    "why": "5.0R. One R is the stop minus the fill: 80.77 - 78.94. The gain is the fill minus the price: 78.94 - 69.79. Gain over R: (78.94 - 69.79) / (80.77 - 78.94) = 5.0. That is a measure, not a fixed cover price. EXP reached 3R in three sessions on the way.",
    "wrong": {
+    "0.1R": "Divided the gain by the price, not by R.",
     "0.2R": "Flipped the division: one R over the gain.",
-    "6.0R": "Measured the fall from the stop, not from the fill.",
-    "9.2R": "Used the dollar gain without dividing by one R."
+    "1.8R": "That is one R in dollars read as R. Divide the gain by it."
    }
   },
   "review_status": "draft",
@@ -58878,10 +58878,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$47.00",
-    "$51.00",
-    "$52.00",
-    "$53.00"
+    "$53.00",
+    "$54.00",
+    "$55.00",
+    "$150.00"
    ],
    "kind": "mcq",
    "q": "Bought at 50.00 with the stop at 49.00. Where is 3R?",
@@ -58910,7 +58910,7 @@
      "fn": "arith",
      "result": 53.0
     },
-    "given": "Bought at 50.00 with the stop at 49.00. Where is 3R? $47.00 $51.00 $53.00 $52.00"
+    "given": "Bought at 50.00 with the stop at 49.00. Where is 3R? $53.00 $54.00 $55.00 $150.00"
    },
    "lesson_line": "Know your 3R price before the open. It is a measuring mark, not a sell order.",
    "simple": "One R is the gap between your fill and your stop. Add three of those to the fill to find 3R.",
@@ -58918,9 +58918,9 @@
    "unit": "SET.18",
    "why": "$53.00. One R is the fill minus the stop: 50.00 - 49.00. Add three of those to the fill: 50.00 + 3 x (50.00 - 49.00) = 53.00. 3R is a measuring mark, not a fixed sell.",
    "wrong": {
-    "$47.00": "Took 3R off the fill. That is the price for a short, not a long.",
-    "$51.00": "Added one R, not three.",
-    "$52.00": "Counted 3R up from the stop, which is only two R above the fill."
+    "$150.00": "Multiplied the fill by three instead of adding three R.",
+    "$54.00": "Added four R, counting the fill as the first one.",
+    "$55.00": "Added five R, not three."
    }
   },
   "review_status": "draft",
@@ -61316,9 +61316,9 @@
   "prompt_json": {
    "choices": [
     "0.25x",
+    "0.43x",
     "0.75x",
-    "1.33x",
-    "3.50x"
+    "1.33x"
    ],
    "kind": "mcq",
    "q": "Average daily volume is 2,000,000 shares. By 10:00 the stock has traded 1,500,000. What multiple of average is that?",
@@ -61361,7 +61361,7 @@
      "fn": "arith",
      "result": 0.75
     },
-    "given": "Average daily volume is 2,000,000 shares. By 10:00 the stock has traded 1,500,000. What multiple of average is that? 0.25x 1.33x 0.75x 3.50x"
+    "given": "Average daily volume is 2,000,000 shares. By 10:00 the stock has traded 1,500,000. What multiple of average is that? 0.75x 0.25x 1.33x 0.43x"
    },
    "lesson_line": "Short of a full day's volume by 10:00 means no day-one buy.",
    "simple": "1,500,000 divided by 2,000,000 is 0.75, so the stock has not traded a full average day by 10:00.",
@@ -61370,8 +61370,8 @@
    "why": "0.75 times. Divide the 1,500,000 shares traded by the 2,000,000 average: 1,500,000 / 2,000,000 = 0.75. Our card wants the full average daily volume traded within the first 30 minutes. Anything under a full day's average means the volume is not there, so the day-one buy is off.",
    "wrong": {
     "0.25x": "That is the part still to trade: one minus 0.75.",
-    "1.33x": "Flipped it: the average divided by the volume so far.",
-    "3.50x": "Added the two volumes instead of dividing."
+    "0.43x": "Divided by the two volumes added together.",
+    "1.33x": "Flipped it: the average divided by the volume so far."
    }
   },
   "review_status": "draft",
@@ -62989,10 +62989,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.23%",
-    "2.1%",
     "2.3%",
-    "97.7%"
+    "23.0%",
+    "97.7%",
+    "206.0%"
    ],
    "kind": "mcq",
    "q": "Fill 90.25, stop 88.19. How far is the stop from the fill, in percent?",
@@ -63042,7 +63042,7 @@
      "fn": "arith",
      "result": 2.3
     },
-    "given": "Fill 90.25, stop 88.19. How far is the stop from the fill, in percent? 2.1% 97.7% 0.23% 2.3%"
+    "given": "Fill 90.25, stop 88.19. How far is the stop from the fill, in percent? 2.3% 97.7% 206.0% 23.0%"
    },
    "lesson_line": "Stop distance is the fill minus the stop, over the fill.",
    "simple": "The stop sits 2.3 percent under the 90.25 fill, which is inside the range we prefer.",
@@ -63050,8 +63050,8 @@
    "unit": "SET.19",
    "why": "2.3%. The stop's distance is the gap over the fill: (90.25 - 88.19) / 90.25 x 100 = 2.3%. We prefer a stop 1 to 3% away, and up to 5% is acceptable. This is inside that range. These are LULU's levels.",
    "wrong": {
-    "0.23%": "A decimal slip, one place too far left.",
-    "2.1%": "Used the dollar gap as if it were the percent.",
+    "206.0%": "Turned the dollar gap into a percent without dividing by the fill.",
+    "23.0%": "A decimal slip, one place too far right.",
     "97.7%": "Gave the stop as a share of the fill, not the gap between them."
    }
   },
@@ -64273,10 +64273,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "400 shares",
     "4,000 shares",
     "8,000 shares",
-    "40,000 shares"
+    "40,000 shares",
+    "400,000 shares"
    ],
    "kind": "mcq",
    "q": "The stock's average daily volume is 400,000 shares. What is the most you should own?",
@@ -64311,7 +64311,7 @@
      "fn": "arith",
      "result": 4000.0
     },
-    "given": "The stock's average daily volume is 400,000 shares. What is the most you should own? 40,000 shares 4,000 shares 8,000 shares 400 shares"
+    "given": "The stock's average daily volume is 400,000 shares. What is the most you should own? 4,000 shares 40,000 shares 8,000 shares 400,000 shares"
    },
    "lesson_line": "Never more than one percent of a day's average volume.",
    "simple": "One percent of 400,000 shares a day is 4,000 shares, the most we hold.",
@@ -64320,7 +64320,7 @@
    "why": "4,000 shares. We never own more than 1% of a stock's average daily volume, and 400,000 / 100 = 4,000. This is a ceiling, and the risk-based size may be smaller.",
    "wrong": {
     "40,000 shares": "Took ten times the right share of the volume.",
-    "400 shares": "Took a tenth of the right share of the volume.",
+    "400,000 shares": "Used the whole average daily volume as the limit.",
     "8,000 shares": "Doubled the 1% rule. The ceiling is 1% of the average daily volume."
    }
   },
@@ -64579,10 +64579,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.1R",
     "0.2R",
-    "5.0R",
-    "5.7R",
-    "6.0R"
+    "1.1R",
+    "5.0R"
    ],
    "kind": "mcq",
    "q": "Bought at 61.35, stop 60.21. A third sells at 67.05. How many R is that?",
@@ -64628,7 +64628,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Bought at 61.35, stop 60.21. A third sells at 67.05. How many R is that? 5.7R 6.0R 0.2R 5.0R"
+    "given": "Bought at 61.35, stop 60.21. A third sells at 67.05. How many R is that? 5.0R 0.2R 1.1R 0.1R"
    },
    "lesson_line": "Count every exit in R. The second third is 5R.",
    "simple": "The sale is five times the fill-to-stop gap above the fill, so it is 5R.",
@@ -64636,9 +64636,9 @@
    "unit": "SET.19",
    "why": "5R. One R is the fill minus the stop: 61.35 - 60.21. The gain per share is the sale minus the fill: 67.05 - 61.35. So (67.05 - 61.35) / (61.35 - 60.21) = 5.0, and that third banks 5R.",
    "wrong": {
+    "0.1R": "Divided the gain by the price, not by R.",
     "0.2R": "Flipped the division: one R over the gain.",
-    "5.7R": "Used the dollar gain without dividing by one R.",
-    "6.0R": "Measured the gain from the stop, not from the fill."
+    "1.1R": "That is the risk per share read as R. Divide the gain by it."
    }
   },
   "review_status": "draft",
@@ -68403,9 +68403,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.3%",
-    "1.0%",
     "2.9%",
+    "28.6%",
+    "96.0%",
     "97.1%"
    ],
    "kind": "mcq",
@@ -68442,7 +68442,7 @@
      "fn": "arith",
      "result": 2.9
     },
-    "given": "Fill 33.55, stop 32.59. How far is the stop from the fill, in percent? 0.3% 2.9% 1.0% 97.1%"
+    "given": "Fill 33.55, stop 32.59. How far is the stop from the fill, in percent? 2.9% 97.1% 28.6% 96.0%"
    },
    "lesson_line": "Stop distance is the fill minus the stop, over the fill.",
    "simple": "2.9. The gap between fill and stop is a small slice of the fill price, inside the usual 3%.",
@@ -68450,8 +68450,8 @@
    "unit": "SET.20",
    "why": "2.9%. The fill minus the stop is 33.55 minus 32.59. Divide that by the fill, 33.55, and show it as a percent. That sits inside the usual 3%, because our stop usually sits within about 3% of the buy. It is a loss on the position, not on the account.",
    "wrong": {
-    "0.3%": "Slipped the decimal one place to the left.",
-    "1.0%": "Read the dollar gap as a percent.",
+    "28.6%": "Decimal slip: ten times too big.",
+    "96.0%": "Turned the dollar gap into a percent without dividing by the fill.",
     "97.1%": "Divided the stop by the fill and skipped the subtraction."
    }
   },
@@ -69781,10 +69781,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "12.0%",
-    "20.7%",
     "26.1%",
-    "126.1%"
+    "79.3%",
+    "126.1%",
+    "260.9%"
    ],
    "kind": "mcq",
    "q": "In the 60 sessions before a gap, the high was 58.00 and the low was 46.00. How far is the high above the low, in percent?",
@@ -69819,7 +69819,7 @@
      "fn": "pct_change",
      "result": 26.1
     },
-    "given": "In the 60 sessions before a gap, the high was 58.00 and the low was 46.00. How far is the high above the low, in percent? 126.1% 20.7% 12.0% 26.1%"
+    "given": "In the 60 sessions before a gap, the high was 58.00 and the low was 46.00. How far is the high above the low, in percent? 26.1% 126.1% 260.9% 79.3%"
    },
    "lesson_line": "Quiet means the 60-session high is within 35% of the low.",
    "simple": "The high is about 26.1% above the low, under the 35% line, so the range was quiet.",
@@ -69827,9 +69827,9 @@
    "unit": "SET.20",
    "why": "26.1%. The high minus the low is 58.00 minus 46.00. Divide that by the low, 46.00, and show it as a percent. That is under the 35% line, so the 60 sessions were a quiet range, the setting our card prefers. A base of 4 weeks or more is the card's other preferred setting.",
    "wrong": {
-    "12.0%": "Read the dollar gap as a percent.",
     "126.1%": "Divided high by low and forgot to subtract one.",
-    "20.7%": "Divided by the high instead of the low."
+    "260.9%": "Decimal slip: ten times too big.",
+    "79.3%": "Took the low as a share of the high and skipped the gap."
    }
   },
   "review_status": "draft",
@@ -70044,10 +70044,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.3R",
     "1R",
     "2R",
-    "3R",
-    "9R"
+    "3R"
    ],
    "kind": "mcq",
    "q": "You bought at 80.00 with the stop at 77.00. A gap-down day's first 30-minute low is 71.00. What is the loss, in R?",
@@ -70084,7 +70084,7 @@
      "fn": "arith",
      "result": 3.0
     },
-    "given": "You bought at 80.00 with the stop at 77.00. A gap-down day's first 30-minute low is 71.00. What is the loss, in R? 1R 3R 2R 9R"
+    "given": "You bought at 80.00 with the stop at 77.00. A gap-down day's first 30-minute low is 71.00. What is the loss, in R? 3R 1R 2R 0.3R"
    },
    "lesson_line": "First 30 minutes past 2R: get out.",
    "simple": "3R. The loss to the first 30-minute low is three times the original risk, which is past 2R, so you get out.",
@@ -70092,9 +70092,9 @@
    "unit": "SET.20",
    "why": "3R. One R is the buy minus the original stop, 80.00 minus 77.00. The loss to the low is 80.00 minus 71.00. Divide that loss by one R to get 3R, past the 2R ceiling. If the first 30 minutes take the loss past 2R, get out.",
    "wrong": {
+    "0.3R": "Flipped the division: one R over the loss.",
     "1R": "Counted only the original risk, not the whole loss.",
-    "2R": "Measured from the stop, not from the buy.",
-    "9R": "Used the dollar loss and never divided by the risk."
+    "2R": "Measured from the stop, not from the buy."
    }
   },
   "review_status": "draft",
@@ -72226,10 +72226,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "3,000 shares",
-    "15,000 shares",
     "30,000 shares",
-    "300,000 shares"
+    "60,000 shares",
+    "300,000 shares",
+    "3,000,000 shares"
    ],
    "kind": "mcq",
    "q": "The stock averages 3,000,000 shares a day after the event. By our volume rule, the most shares you may own?",
@@ -72264,7 +72264,7 @@
      "fn": "arith",
      "result": 30000.0
     },
-    "given": "The stock averages 3,000,000 shares a day after the event. By our volume rule, the most shares you may own? 300,000 shares 3,000 shares 15,000 shares 30,000 shares"
+    "given": "The stock averages 3,000,000 shares a day after the event. By our volume rule, the most shares you may own? 30,000 shares 300,000 shares 60,000 shares 3,000,000 shares"
    },
    "lesson_line": "Own no more than 1% of a day's volume.",
    "simple": "30,000 shares. You never own more than 1% of the average daily volume, and 1% of 3,000,000 is 30,000.",
@@ -72272,9 +72272,9 @@
    "unit": "SET.21",
    "why": "30,000 shares. We never own more than 1% of a stock's average daily volume, measured on the post-event average. 1% of 3,000,000 shares is 30,000. Illiquid stocks are not even watched.",
    "wrong": {
-    "15,000 shares": "Used half a percent, mixing it up with the risk percent.",
-    "3,000 shares": "Slipped the decimal: took a tenth of one percent.",
-    "300,000 shares": "Took ten percent of the volume, not one percent."
+    "3,000,000 shares": "Used the whole average daily volume as the limit.",
+    "300,000 shares": "Took ten percent of the volume, not one percent.",
+    "60,000 shares": "Doubled the one percent rule."
    }
   },
   "review_status": "draft",
@@ -72372,10 +72372,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$208,333",
-    "$3,000,000",
     "$30,000,000",
-    "$300,000,000"
+    "$300,000,000",
+    "$360,000,000",
+    "$3,000,000,000"
    ],
    "kind": "mcq",
    "q": "Before the record day the stock traded 2,500,000 shares a day at 12.00. How many dollars a day is that?",
@@ -72410,7 +72410,7 @@
      "fn": "dollar_volume",
      "result": 30000000.0
     },
-    "given": "Before the record day the stock traded 2,500,000 shares a day at 12.00. How many dollars a day is that? $3,000,000 $208,333 $30,000,000 $300,000,000"
+    "given": "Before the record day the stock traded 2,500,000 shares a day at 12.00. How many dollars a day is that? $30,000,000 $300,000,000 $360,000,000 $3,000,000,000"
    },
    "lesson_line": "Read the dollar volume before the day. Small means lesser-known.",
    "simple": "$30 million a day. That is small, well under the card's cue of about $100 million, so the name counts as lesser-known.",
@@ -72418,9 +72418,9 @@
    "unit": "SET.21",
    "why": "$30,000,000 a day: 2,500,000 shares times 12.00. The card calls a stock lesser-known when its dollar volume before the event is under about $100 million a day. It must not be a mega-cap. At $30 million this name is well under that cue.",
    "wrong": {
-    "$208,333": "Divided the shares by the price instead of multiplying.",
-    "$3,000,000": "Dropped a zero.",
-    "$300,000,000": "Added a zero."
+    "$3,000,000,000": "Added two zeros.",
+    "$300,000,000": "Added a zero.",
+    "$360,000,000": "Multiplied by the price twice."
    }
   },
   "review_status": "draft",
@@ -73516,10 +73516,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "9 shares",
     "68 shares",
-    "689 shares",
-    "1,379 shares",
-    "1,982 shares"
+    "344 shares",
+    "689 shares"
    ],
    "kind": "mcq",
    "q": "Account 40,000. Risk 0.5%. Fill 20.18, stop 19.89. Ignore the position cap and round down. How many shares?",
@@ -73566,7 +73566,7 @@
      "fn": "shares_from_risk",
      "result": 689.0
     },
-    "given": "Account 40,000. Risk 0.5%. Fill 20.18, stop 19.89. Ignore the position cap and round down. How many shares? 1,982 shares 68 shares 1,379 shares 689 shares"
+    "given": "Account 40,000. Risk 0.5%. Fill 20.18, stop 19.89. Ignore the position cap and round down. How many shares? 689 shares 68 shares 344 shares 9 shares"
    },
    "lesson_line": "The stop sets the size, never the other way round.",
    "simple": "689 shares. The stop sets the size: divide the dollars you will risk by the distance from fill to stop, then round down.",
@@ -73574,9 +73574,9 @@
    "unit": "SET.21",
    "why": "689 shares. Risk dollars are 0.5% of 40,000. Divide that by the fill minus the stop, 20.18 minus 19.89, and round down. The size is then the smaller of that and the position cap. If the honest stop does not fit the risk, you skip.",
    "wrong": {
-    "1,379 shares": "Risked double the risk percent.",
-    "1,982 shares": "Bought the whole account at the fill price.",
-    "68 shares": "Slipped the decimal: used a tenth of the risk percent."
+    "344 shares": "Risked half the risk percent.",
+    "68 shares": "Slipped the decimal: used a tenth of the risk percent.",
+    "9 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
    }
   },
   "review_status": "draft",
@@ -77320,10 +77320,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "28 shares",
     "287 shares",
     "574 shares",
-    "938 shares"
+    "938 shares",
+    "2,873 shares"
    ],
    "kind": "mcq",
    "q": "Account 50,000. Risk 0.5%. Fill 53.27, stop 52.40. How many shares does the risk allow?",
@@ -77367,7 +77367,7 @@
      "fn": "shares_from_risk",
      "result": 287.0
     },
-    "given": "Account 50,000. Risk 0.5%. Fill 53.27, stop 52.40. How many shares does the risk allow? 938 shares 28 shares 574 shares 287 shares"
+    "given": "Account 50,000. Risk 0.5%. Fill 53.27, stop 52.40. How many shares does the risk allow? 287 shares 938 shares 574 shares 2,873 shares"
    },
    "lesson_line": "Stop first, distance second, size last.",
    "simple": "Divide the 0.5% risk on 50,000 by the distance from fill to stop, and round down to get 287 shares.",
@@ -77375,7 +77375,7 @@
    "unit": "SET.22",
    "why": "287 shares. Risk dollars are 0.5% of 50,000. Divide that by the fill minus the stop, 53.27 minus 52.40, and round down. The stop sets the size. The position cap is a second limit. This question asks for the risk-based size.",
    "wrong": {
-    "28 shares": "Slipped the decimal: used a tenth of the risk percent.",
+    "2,873 shares": "Slipped the decimal: used ten times the risk percent.",
     "574 shares": "Risked double the risk percent.",
     "938 shares": "Bought the whole account at the fill price."
    }
@@ -78831,10 +78831,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "600 shares",
-    "3,000 shares",
     "6,000 shares",
-    "60,000 shares"
+    "12,000 shares",
+    "60,000 shares",
+    "600,000 shares"
    ],
    "kind": "mcq",
    "q": "The stock trades 600,000 shares a day on average. The most shares we may own?",
@@ -78862,7 +78862,7 @@
      "fn": "arith",
      "result": 6000.0
     },
-    "given": "The stock trades 600,000 shares a day on average. The most shares we may own? 3,000 shares 600 shares 6,000 shares 60,000 shares"
+    "given": "The stock trades 600,000 shares a day on average. The most shares we may own? 6,000 shares 60,000 shares 12,000 shares 600,000 shares"
    },
    "lesson_line": "One percent of the daily volume is the ceiling.",
    "simple": "Take 1 percent of the 600,000 shares a day, which gives 6,000 shares.",
@@ -78870,9 +78870,9 @@
    "unit": "SET.22",
    "why": "6,000 shares. We never own more than 1% of a stock's average daily volume. 1% of 600,000 is 6,000.",
    "wrong": {
-    "3,000 shares": "Used half a percent, mixing it up with the risk percent.",
+    "12,000 shares": "Used two percent, double the rule.",
     "60,000 shares": "Took ten percent of the volume, not one percent.",
-    "600 shares": "Slipped the decimal: took a tenth of one percent."
+    "600,000 shares": "Used the whole average daily volume as the limit."
    }
   },
   "review_status": "draft",
@@ -79005,10 +79005,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "$25.85",
     "$27.41",
     "$28.19",
-    "$28.45",
-    "$28.71"
+    "$28.45"
    ],
    "kind": "mcq",
    "q": "Bought at 27.15 with the stop at 26.89. Where is 5R?",
@@ -79044,7 +79044,7 @@
      "fn": "arith",
      "result": 28.45
     },
-    "given": "Bought at 27.15 with the stop at 26.89. Where is 5R? $28.71 $27.41 $28.19 $28.45"
+    "given": "Bought at 27.15 with the stop at 26.89. Where is 5R? $28.45 $27.41 $28.19 $25.85"
    },
    "lesson_line": "Know your 5R before the open. A strong trade often runs past it.",
    "simple": "5R is the fill plus five times the distance from the fill to the stop, which is 28.45.",
@@ -79052,9 +79052,9 @@
    "unit": "SET.22",
    "why": "$28.45. One R is the fill minus the stop, 27.15 minus 26.89. Add five of those to the 27.15 fill. 5R is a yardstick. A strong trade often runs well past it. GPN ran to 24.9R from these levels.",
    "wrong": {
+    "$25.85": "Took five R off the fill instead of adding it.",
     "$27.41": "Added one R, not five.",
-    "$28.19": "Added five R to the stop, not the fill.",
-    "$28.71": "Counted six R, one too many."
+    "$28.19": "Added five R to the stop, not the fill."
    }
   },
   "review_status": "draft",
@@ -82254,10 +82254,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "6.0%",
-    "10.9%",
     "12.2%",
-    "112.2%"
+    "89.1%",
+    "112.2%",
+    "122.0%"
    ],
    "kind": "mcq",
    "q": "Fill 55.00. The 10-day average is 49.00. How far above the 10-day is the fill, in percent, to one decimal?",
@@ -82302,7 +82302,7 @@
      "fn": "pct_change",
      "result": 12.2
     },
-    "given": "Fill 55.00. The 10-day average is 49.00. How far above the 10-day is the fill, in percent, to one decimal? 10.9% 6.0% 12.2% 112.2%"
+    "given": "Fill 55.00. The 10-day average is 49.00. How far above the 10-day is the fill, in percent, to one decimal? 12.2% 112.2% 122.0% 89.1%"
    },
    "lesson_line": "Too stretched to buy: skip a long more than 10% over its 10-day.",
    "simple": "The fill is 12.2% above the 10-day average, past the 10% limit, so we skip it.",
@@ -82310,9 +82310,9 @@
    "unit": "SET.23",
    "why": "12.2%. The fill minus the 10-day average is 55.00 minus 49.00. Divide that by the average, 49.00, to get about 12.2%. We skip a long that is more than 10% above its 10-day average, so we pass on this one. The test uses the 10-day average as the base, not the fill.",
    "wrong": {
-    "10.9%": "Divided by the fill, not by the 10-day average.",
     "112.2%": "Divided fill by average and forgot to subtract one.",
-    "6.0%": "Read the dollar gap as a percent."
+    "122.0%": "Slipped the decimal one place to the right.",
+    "89.1%": "Divided the 10-day average by the fill, upside down."
    }
   },
   "review_status": "draft",
@@ -82467,10 +82467,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "121 shares",
     "1,219 shares",
     "2,439 shares",
-    "4,510 shares"
+    "4,510 shares",
+    "12,195 shares"
    ],
    "kind": "mcq",
    "q": "Account 100,000, risk 0.5%. Fill 22.17, stop 21.76. How many shares, rounded down? The position cap does not bind.",
@@ -82510,7 +82510,7 @@
      "fn": "shares_from_risk",
      "result": 1219.0
     },
-    "given": "Account 100,000, risk 0.5%. Fill 22.17, stop 21.76. How many shares, rounded down? The position cap does not bind. 121 shares 1,219 shares 2,439 shares 4,510 shares"
+    "given": "Account 100,000, risk 0.5%. Fill 22.17, stop 21.76. How many shares, rounded down? The position cap does not bind. 1,219 shares 2,439 shares 4,510 shares 12,195 shares"
    },
    "lesson_line": "Stop first, then size. Shares are risk dollars over the stop distance.",
    "simple": "Divide the money you risk by the gap between fill and stop, then round down to whole shares.",
@@ -82518,7 +82518,7 @@
    "unit": "SET.23",
    "why": "1,219 shares. Risk dollars are 0.5% of 100,000. Divide that by the stop distance, 22.17 minus 21.76, and round down. The cap does not bind here. The stop comes first and sets the size.",
    "wrong": {
-    "121 shares": "Slipped the decimal: used a tenth of the risk percent.",
+    "12,195 shares": "Slipped the decimal: used ten times the risk percent.",
     "2,439 shares": "Risked double the risk percent.",
     "4,510 shares": "Bought the whole account at the fill price."
    }
@@ -84780,10 +84780,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "8%",
-    "15%",
     "85%",
-    "99%"
+    "99%",
+    "108.5%",
+    "567%"
    ],
    "kind": "mcq",
    "q": "A Kicker day ran 40.00 to 44.00 and closed at 43.40. Where in its range did it close, in percent?",
@@ -84820,7 +84820,7 @@
      "fn": "arith",
      "result": 85.0
     },
-    "given": "A Kicker day ran 40.00 to 44.00 and closed at 43.40. Where in its range did it close, in percent? 8% 15% 85% 99%"
+    "given": "A Kicker day ran 40.00 to 44.00 and closed at 43.40. Where in its range did it close, in percent? 85% 99% 108.5% 567%"
    },
    "lesson_line": "Close minus low, over the range. A strong Kicker closes in the top of its range.",
    "simple": "The close is 85% up the range, which reads strong because our card wants the top 20%.",
@@ -84828,8 +84828,8 @@
    "unit": "SET.23",
    "why": "85%. The close minus the low is 43.40 minus 40.00. Divide that by the range, 44.00 minus 40.00, and multiply by 100. Our card wants the finished Kicker to close in the top 20% of its range, so this one reads strong.",
    "wrong": {
-    "15%": "Measured down from the high, not up from the low.",
-    "8%": "Divided by the close instead of the range.",
+    "108.5%": "Divided the close by the low.",
+    "567%": "Divided the climb by the gap to the high.",
     "99%": "Divided the close by the high and skipped the low."
    }
   },
@@ -84983,10 +84983,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.02%",
+    "0.2%",
     "1%",
-    "2%",
-    "20%",
-    "98%"
+    "2%"
    ],
    "kind": "mcq",
    "q": "The red day opened at 51.00 and closed at 50.00. How big is its body, as a percent of the close?",
@@ -85029,7 +85029,7 @@
      "fn": "arith",
      "result": 2.0
     },
-    "given": "The red day opened at 51.00 and closed at 50.00. How big is its body, as a percent of the close? 98% 1% 20% 2%"
+    "given": "The red day opened at 51.00 and closed at 50.00. How big is its body, as a percent of the close? 2% 1% 0.2% 0.02%"
    },
    "lesson_line": "Read the measure the question names. Here the body is open minus close, over the close.",
    "simple": "The body is the open minus the close, over the close, which gives 2%.",
@@ -85037,9 +85037,9 @@
    "unit": "SET.23",
    "why": "2%. The body is the open minus the close, 51.00 minus 50.00. Divide that by the close, 50.00, to get 2%. We state a red body as a percent of price, as with GWW's 0.04% baby candle. The whole range and the drop from the prior close are different measures.",
    "wrong": {
-    "1%": "Read the dollar gap as a percent.",
-    "20%": "Slipped the decimal one place to the right.",
-    "98%": "Divided the close by the open and skipped the subtraction."
+    "0.02%": "Forgot to scale the ratio to a percent.",
+    "0.2%": "Slipped the decimal one place to the left.",
+    "1%": "Read the dollar gap as a percent."
    }
   },
   "review_status": "draft",
@@ -89909,10 +89909,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "120 shares",
-    "600 shares",
     "1,200 shares",
-    "12,000 shares"
+    "4,800 shares",
+    "12,000 shares",
+    "120,000 shares"
    ],
    "kind": "mcq",
    "q": "Our rule: own at most 1% of average daily volume. A stock averages 120,000 shares a day. How many shares at most?",
@@ -89947,7 +89947,7 @@
      "fn": "arith",
      "result": 1200.0
     },
-    "given": "Our rule: own at most 1% of average daily volume. A stock averages 120,000 shares a day. How many shares at most? 600 shares 120 shares 1,200 shares 12,000 shares"
+    "given": "Our rule: own at most 1% of average daily volume. A stock averages 120,000 shares a day. How many shares at most? 1,200 shares 12,000 shares 120,000 shares 4,800 shares"
    },
    "lesson_line": "Cap every position at 1% of average daily volume.",
    "simple": "1,200 shares. We own at most 1 percent of average daily volume, and 1 percent of 120,000 is 1,200.",
@@ -89956,8 +89956,8 @@
    "why": "1,200 shares. We never own more than 1% of a stock's average daily volume. 1% of 120,000 is 1,200.",
    "wrong": {
     "12,000 shares": "Took ten percent of the volume, not one percent.",
-    "120 shares": "Slipped the decimal: took a tenth of one percent.",
-    "600 shares": "Used half a percent, mixing it up with the risk percent."
+    "120,000 shares": "Used the whole average volume, no cap at all.",
+    "4,800 shares": "Used the four percent chase limit instead."
    }
   },
   "review_status": "draft",
@@ -90039,9 +90039,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "3.3%",
-    "8.0%",
     "8.6%",
+    "86.0%",
+    "92.0%",
     "108.6%"
    ],
    "kind": "mcq",
@@ -90078,7 +90078,7 @@
      "fn": "arith",
      "result": 8.6
     },
-    "given": "Entry 41.50, 10-day average 38.20. How far above the 10-day average is the entry, in percent? 108.6% 3.3% 8.0% 8.6%"
+    "given": "Entry 41.50, 10-day average 38.20. How far above the 10-day average is the entry, in percent? 8.6% 108.6% 86.0% 92.0%"
    },
    "lesson_line": "Check the stretch: no more than 10% over the 10-day.",
    "simple": "8.6 percent. The 41.50 entry is 8.6 percent above the 38.20 average.",
@@ -90087,8 +90087,8 @@
    "why": "8.6%. The entry minus the average is 41.50 minus 38.20. Divide that by the average, 38.20, to get 8.6%. That is under the 10% line, so the stretch test passes. Skip a long that is more than 10% above its 10-day average.",
    "wrong": {
     "108.6%": "Divided entry by average and forgot to subtract one.",
-    "3.3%": "Read the dollar gap as a percent.",
-    "8.0%": "Divided by the entry, not by the 10-day average."
+    "86.0%": "Slipped the decimal one place to the right.",
+    "92.0%": "Divided the average by the entry, upside down."
    }
   },
   "review_status": "draft",
@@ -90110,9 +90110,9 @@
   "prompt_json": {
    "choices": [
     "$27.70",
+    "$28.16",
     "$29.08",
-    "$29.54",
-    "$30.00"
+    "$29.54"
    ],
    "kind": "mcq",
    "q": "Bought at 28.62 with the stop at 28.16. At what price is 2R, where the breakeven window opens?",
@@ -90155,7 +90155,7 @@
      "fn": "arith",
      "result": 29.54
     },
-    "given": "Bought at 28.62 with the stop at 28.16. At what price is 2R, where the breakeven window opens? $29.08 $29.54 $30.00 $27.70"
+    "given": "Bought at 28.62 with the stop at 28.16. At what price is 2R, where the breakeven window opens? $29.54 $29.08 $27.70 $28.16"
    },
    "lesson_line": "Breakeven comes between 2R and 5R, by default at the first trim.",
    "simple": "29.54. One R is the fill minus the stop, and 2R adds two of those to the 28.62 fill.",
@@ -90164,8 +90164,8 @@
    "why": "$29.54. One R is the fill minus the stop, 28.62 minus 28.16. Add two of those to the 28.62 fill. Our rule moves the stop to breakeven anywhere from 2R to 5R, ideally, and at the first trim by default.",
    "wrong": {
     "$27.70": "Subtracted two R from the fill.",
-    "$29.08": "Added two R to the stop, not the fill.",
-    "$30.00": "Counted three R, one too many."
+    "$28.16": "Gave the stop price, not the level two R up.",
+    "$29.08": "Added two R to the stop, not the fill."
    }
   },
   "review_status": "draft",
@@ -94270,8 +94270,8 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "800 shares",
     "8,000 shares",
+    "32,000 shares",
     "80,000 shares",
     "792,000 shares"
    ],
@@ -94301,7 +94301,7 @@
      "fn": "arith",
      "result": 8000.0
     },
-    "given": "Our cap is 1% of a stock's average daily volume. It averages 800,000 shares a day. What is the most shares we hold? 80,000 shares 800 shares 8,000 shares 792,000 shares"
+    "given": "Our cap is 1% of a stock's average daily volume. It averages 800,000 shares a day. What is the most shares we hold? 8,000 shares 80,000 shares 792,000 shares 32,000 shares"
    },
    "lesson_line": "Take 1% of the average daily volume. That is the most we hold.",
    "simple": "We hold at most 8,000 shares, which is 1% of the stock's 800,000 shares of average daily volume.",
@@ -94309,9 +94309,9 @@
    "unit": "SET.25",
    "why": "8,000 shares. We never own more than 1% of a stock's average daily volume, and 1% of 800,000 is 8,000. A thin stock is not even watched.",
    "wrong": {
+    "32,000 shares": "Used the four percent chase limit instead.",
     "792,000 shares": "Subtracted 1% instead of taking it.",
-    "80,000 shares": "Moved the decimal one place, ten times too many.",
-    "800 shares": "Moved the decimal one place, ten times too few."
+    "80,000 shares": "Moved the decimal one place, ten times too many."
    }
   },
   "review_status": "draft",
@@ -94332,10 +94332,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$72.00",
-    "$80.80",
-    "$83.20",
-    "$88.00"
+    "$88.00",
+    "$90.00",
+    "$91.52",
+    "$96.80"
    ],
    "kind": "mcq",
    "q": "We skip a long more than 10% above its 10-day average. If that average is 80.00, what is the most we pay?",
@@ -94377,7 +94377,7 @@
      "fn": "arith",
      "result": 88.0
     },
-    "given": "We skip a long more than 10% above its 10-day average. If that average is 80.00, what is the most we pay? $83.20 $88.00 $72.00 $80.80"
+    "given": "We skip a long more than 10% above its 10-day average. If that average is 80.00, what is the most we pay? $88.00 $90.00 $91.52 $96.80"
    },
    "lesson_line": "No more than 10% over the 10-day average. Past that, skip.",
    "simple": "The most we pay is 88.00, which is the 10-day average of 80.00 plus 10%.",
@@ -94385,9 +94385,9 @@
    "unit": "SET.25",
    "why": "88.00. We skip a long more than 10% above its 10-day average. 80.00 plus 10% is 88.00. This is a different rule from the 4% limit above the prior close.",
    "wrong": {
-    "$72.00": "Subtracted 10% instead of adding it.",
-    "$80.80": "Added one percent instead of ten.",
-    "$83.20": "Used the 4% limit above the prior close."
+    "$90.00": "Added ten dollars instead of ten percent.",
+    "$91.52": "Stacked the four percent chase limit on top.",
+    "$96.80": "Took ten percent twice, compounding it."
    }
   },
   "review_status": "draft",
@@ -94477,10 +94477,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$29.56",
     "$32.68",
     "$33.07",
-    "$33.46"
+    "$33.46",
+    "$33.85"
    ],
    "kind": "mcq",
    "q": "Bought at 31.51 with the stop at 31.12. Where is 5R?",
@@ -94523,7 +94523,7 @@
      "fn": "arith",
      "result": 33.46
     },
-    "given": "Bought at 31.51 with the stop at 31.12. Where is 5R? $32.68 $33.07 $33.46 $29.56"
+    "given": "Bought at 31.51 with the stop at 31.12. Where is 5R? $33.46 $33.85 $33.07 $32.68"
    },
    "lesson_line": "Know your 5R too. The second third comes off there.",
    "simple": "5R is 33.46, which is the fill plus five times the distance down to the stop.",
@@ -94531,9 +94531,9 @@
    "unit": "SET.25",
    "why": "33.46. One R is the fill minus the stop. Five R is 5 x (31.51 - 31.12). Add that to the fill: 31.51 + 5 x (31.51 - 31.12) = 33.46. The second third comes off there, and the last third trails.",
    "wrong": {
-    "$29.56": "Subtracted five R instead of adding.",
     "$32.68": "Added three R instead of five.",
-    "$33.07": "Added five R to the stop, not the fill."
+    "$33.07": "Added five R to the stop, not the fill.",
+    "$33.85": "Counted six R, one too many."
    }
   },
   "review_status": "draft",
@@ -96089,10 +96089,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$130.31",
-    "$137.07",
-    "$138.76",
-    "$140.45"
+    "$140.45",
+    "$141.38",
+    "$142.14",
+    "$145.52"
    ],
    "kind": "mcq",
    "q": "Bought at 135.38 with the stop at 133.69. One R is the fill minus the stop. Where is 3R?",
@@ -96128,7 +96128,7 @@
      "fn": "arith",
      "result": 140.45
     },
-    "given": "Bought at 135.38 with the stop at 133.69. One R is the fill minus the stop. Where is 3R? $138.76 $140.45 $137.07 $130.31"
+    "given": "Bought at 135.38 with the stop at 133.69. One R is the fill minus the stop. Where is 3R? $140.45 $142.14 $141.38 $145.52"
    },
    "lesson_line": "Know your 3R before the open. It is a mark, not a sell order.",
    "simple": "3R is the fill plus three times the distance to the stop. It is a mark to measure by, not a sell order.",
@@ -96136,9 +96136,9 @@
    "unit": "SET.26",
    "why": "140.45. One R is the fill minus the stop. Add three of those to the fill: 135.38 + 3 x (135.38 - 133.69) = 140.45. That is a mark to measure by. The first sell is a judgment, not a fixed third at 3R.",
    "wrong": {
-    "$130.31": "Subtracted three R instead of adding.",
-    "$137.07": "Added only one R, forgot the times three.",
-    "$138.76": "Added three R to the stop, not the fill."
+    "$141.38": "Rounded the stop distance up before multiplying.",
+    "$142.14": "Counted four R, one too many.",
+    "$145.52": "Doubled R, using twice the stop distance."
    }
   },
   "review_status": "draft",
@@ -100733,14 +100733,14 @@
   "difficulty": 2,
   "id": "si_a3cfc030bde7",
   "lesson_origin": "session",
-  "lesson_text": "49.10. A gap through the stop hands the decision to the first 30 minutes. The low of the first 30-minute bar is the new stop. The ceiling is 2R: if those 30 minutes take the loss past 2R, get out. The 2R mark is twice your entry-to-stop distance below your entry, which is 48.00. The low of 49.10 is above that, so the ceiling has not been hit. A gap through the stop is the one exception. The first 30 minutes decide.",
+  "lesson_text": "49.10. A gap through the stop hands the decision to the first 30 minutes. The low of the first 30-minute bar is the new stop. The ceiling is 2R: if those 30 minutes take the loss past 2R, get out. The 2R mark is twice your entry-to-stop distance below your entry. The low of 49.10 is above that, so the ceiling has not been hit. A gap through the stop is the one exception. The first 30 minutes decide.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "48.00",
     "49.10",
     "49.40",
-    "50.00"
+    "50.00",
+    "52.00"
    ],
    "kind": "mcq",
    "q": "Where is the stop now?",
@@ -100778,17 +100778,17 @@
     "summary": "B20: on a gap through the stop, the first 30-minute low is the new stop. B20's ceiling: past 2R in the first 30 minutes, get out. A gap through the stop: the first 30-minute low is the new stop; out past 2R."
    },
    "facts": {
-    "given": "Where is the stop now? You bought a Slingshot close at 52.00 with the stop at 50.00. It gaps open at 49.40. The first 30-minute bar ends with a low of 49.10. 49.10 49.40 50.00 48.00"
+    "given": "Where is the stop now? You bought a Slingshot close at 52.00 with the stop at 50.00. It gaps open at 49.40. The first 30-minute bar ends with a low of 49.10. 49.10 49.40 50.00 52.00"
    },
    "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide.",
    "simple": "The gap rule makes the first 30-minute low the new stop, and 49.10 is a loss under 2R, so you stay in.",
    "tier": "core",
    "unit": "SET.27",
-   "why": "49.10. A gap through the stop hands the decision to the first 30 minutes. The low of the first 30-minute bar is the new stop. The ceiling is 2R: if those 30 minutes take the loss past 2R, get out. The 2R mark is twice your entry-to-stop distance below your entry, which is 48.00. The low of 49.10 is above that, so the ceiling has not been hit.",
+   "why": "49.10. A gap through the stop hands the decision to the first 30 minutes. The low of the first 30-minute bar is the new stop. The ceiling is 2R: if those 30 minutes take the loss past 2R, get out. The 2R mark is twice your entry-to-stop distance below your entry. The low of 49.10 is above that, so the ceiling has not been hit.",
    "wrong": {
-    "48.00": "48.00 is the 2R mark, where you would get out. The first 30 minutes ended at 49.10, so that mark was not reached.",
     "49.40": "49.40 is only the open. The gap rule waits for the first 30 minutes and uses that bar's low.",
-    "50.00": "The old stop was gapped through. There is always a stop, and the new one is the first 30-minute low."
+    "50.00": "The old stop was gapped through. There is always a stop, and the new one is the first 30-minute low.",
+    "52.00": "52.00 is the buy price. A gap stop is never moved up to breakeven; it is the first 30-minute low."
    }
   },
   "review_status": "draft",
@@ -101810,9 +101810,9 @@
   "prompt_json": {
    "choices": [
     "1,500 shares",
+    "7,500 shares",
     "15,000 shares",
-    "150,000 shares",
-    "1,500,000 shares"
+    "150,000 shares"
    ],
    "kind": "mcq",
    "q": "The stock trades 1,500,000 shares a day on average. The most shares we may own?",
@@ -101840,7 +101840,7 @@
      "fn": "arith",
      "result": 15000.0
     },
-    "given": "The stock trades 1,500,000 shares a day on average. The most shares we may own? 1,500,000 shares 150,000 shares 1,500 shares 15,000 shares"
+    "given": "The stock trades 1,500,000 shares a day on average. The most shares we may own? 15,000 shares 150,000 shares 7,500 shares 1,500 shares"
    },
    "lesson_line": "One percent of the daily volume, and not a share more.",
    "simple": "At most 1 percent of the average daily volume, which here is 15,000 shares.",
@@ -101849,8 +101849,8 @@
    "why": "15,000 shares. Never own more than 1% of a stock's average daily volume, and 1% of 1,500,000 is 15,000.",
    "wrong": {
     "1,500 shares": "Moved the decimal one place, ten times too few.",
-    "1,500,000 shares": "Used the whole average volume, no cap at all.",
-    "150,000 shares": "Moved the decimal one place, ten times too many."
+    "150,000 shares": "Moved the decimal one place, ten times too many.",
+    "7,500 shares": "Used half a percent, mixing it up with the risk percent."
    }
   },
   "review_status": "draft",
@@ -108080,10 +108080,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$54.04",
-    "$62.84",
-    "$63.94",
-    "$65.04"
+    "$65.04",
+    "$66.14",
+    "$67.24",
+    "$70.54"
    ],
    "kind": "mcq",
    "q": "Bought at 59.54 with the stop at 58.44. Where is 5R?",
@@ -108126,7 +108126,7 @@
      "fn": "arith",
      "result": 65.04
     },
-    "given": "Bought at 59.54 with the stop at 58.44. Where is 5R? $63.94 $65.04 $62.84 $54.04"
+    "given": "Bought at 59.54 with the stop at 58.44. Where is 5R? $65.04 $66.14 $67.24 $70.54"
    },
    "lesson_line": "Know your 5R before the open. The second third comes off there.",
    "simple": "Five times the risk per share, added to the 59.54 fill, gives 65.04.",
@@ -108134,9 +108134,9 @@
    "unit": "SET.28",
    "why": "65.04. One R is the fill minus the stop. Add five R to the fill: 59.54 + 5 x (59.54 - 58.44) = 65.04. By default the second third comes off there.",
    "wrong": {
-    "$54.04": "Subtracted five R instead of adding.",
-    "$62.84": "Added three R instead of five.",
-    "$63.94": "Added five R to the stop, not the fill."
+    "$66.14": "Counted six R, one too many.",
+    "$67.24": "Counted seven R, two too many.",
+    "$70.54": "Counted ten R, double the five asked."
    }
   },
   "review_status": "draft",
@@ -112133,10 +112133,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "20.9%",
     "26.4%",
     "42.2%",
-    "79.1%"
+    "79.1%",
+    "126.4%"
    ],
    "kind": "mcq",
    "q": "The lowest low of the six months before the left shoulder was 160.00; the head is 202.20. The advance, in percent?",
@@ -112181,7 +112181,7 @@
      "fn": "pct_change",
      "result": 26.4
     },
-    "given": "The lowest low of the six months before the left shoulder was 160.00; the head is 202.20. The advance, in percent? 42.2% 20.9% 26.4% 79.1%"
+    "given": "The lowest low of the six months before the left shoulder was 160.00; the head is 202.20. The advance, in percent? 26.4% 42.2% 79.1% 126.4%"
    },
    "lesson_line": "Measure the run into the top. A top needs something to reverse.",
    "simple": "The head is about 26.4% above the low, which clears the 25% a head needs on our card.",
@@ -112189,7 +112189,7 @@
    "unit": "SET.29",
    "why": "26.4%. The advance is how far the head sits above the lowest low before it: (202.20 - 160.00) / 160.00 = 26.4%. Our card asks for a head at least 25% above that low, so this one passes. Edwards and Magee want a strong rally climaxing an extensive advance. The number alone does not make a top.",
    "wrong": {
-    "20.9%": "Divided by the head instead of the low.",
+    "126.4%": "Divided head by low and forgot to subtract one.",
     "42.2%": "Gave the gap in dollars as a percent.",
     "79.1%": "Gave the low as a share of the head."
    }
@@ -118004,10 +118004,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "1.55%",
-    "7.32%",
     "7.56%",
-    "8.18%"
+    "8.18%",
+    "9.76%",
+    "92.44%"
    ],
    "kind": "mcq",
    "q": "Fill 20.50. The climax low is 19.00 and the stop sits five cents under it. How far below the fill is the stop, in percent?",
@@ -118060,7 +118060,7 @@
      "fn": "arith",
      "result": 7.56
     },
-    "given": "Fill 20.50. The climax low is 19.00 and the stop sits five cents under it. How far below the fill is the stop, in percent? 7.32% 8.18% 7.56% 1.55%"
+    "given": "Fill 20.50. The climax low is 19.00 and the stop sits five cents under it. How far below the fill is the stop, in percent? 7.56% 8.18% 9.76% 92.44%"
    },
    "lesson_line": "Measure the honest stop before the size. Wide but under 8% is fewer shares, not no trade.",
    "simple": "The stop is 7.56% below the fill, between 3% and 8%, so you buy fewer shares instead of skipping.",
@@ -118068,9 +118068,9 @@
    "unit": "SET.30",
    "why": "7.56%. The stop is five cents under the 19.00 low. The fill minus the stop, over the fill: (20.50 - (19.00 - 0.05)) / 20.50 = 7.56%. That is between 3% and 8%, so we keep the honest stop and size down by the formula. Over about 8% we would skip. SLG's stop was 7.2% away and it reached 3R in 6 sessions.",
    "wrong": {
-    "1.55%": "Gave the gap in dollars as a percent, no divide.",
-    "7.32%": "Forgot the five cents under the low.",
-    "8.18%": "Divided by the stop instead of the fill."
+    "8.18%": "Divided by the stop instead of the fill.",
+    "9.76%": "Read five cents as fifty cents under the low.",
+    "92.44%": "Gave the stop as a share of the fill."
    }
   },
   "review_status": "draft",
@@ -118565,8 +118565,8 @@
    "choices": [
     "14.0%",
     "41.2%",
-    "70.0%",
-    "170.0%"
+    "58.8%",
+    "70.0%"
    ],
    "kind": "mcq",
    "q": "The run's low was 20.00 and the peak 34.00. The run before the unwind, in percent?",
@@ -118604,7 +118604,7 @@
      "fn": "pct_change",
      "result": 70.0
     },
-    "given": "The run's low was 20.00 and the peak 34.00. The run before the unwind, in percent? 41.2% 70.0% 14.0% 170.0%"
+    "given": "The run's low was 20.00 and the peak 34.00. The run before the unwind, in percent? 70.0% 41.2% 14.0% 58.8%"
    },
    "lesson_line": "Measure the run before the fall. The rubber band needs the stretch first.",
    "simple": "The peak is 70% above the run's low. That is past the 50% run the unwind needs.",
@@ -118613,8 +118613,8 @@
    "why": "70%. The run is the peak over the run's low, minus one: 34.00 over 20.00 is 70% more. The blow-off unwind wants a prior run of 50% or more in days or weeks, the premise of Kullamagi's successful parabolic short.",
    "wrong": {
     "14.0%": "Gave the gap in dollars as a percent.",
-    "170.0%": "Gave the ratio as a percent, forgot to subtract one.",
-    "41.2%": "Divided by the peak instead of the low."
+    "41.2%": "Divided by the peak instead of the low.",
+    "58.8%": "Gave the low as a share of the peak."
    }
   },
   "review_status": "draft",
@@ -121161,10 +121161,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "8.50%",
-    "17.53%",
     "21.25%",
-    "121.25%"
+    "82.47%",
+    "121.25%",
+    "212.50%"
    ],
    "kind": "mcq",
    "q": "The prior close is 48.50 and the 9-day EMA sits at 40.00. How far above the average is that close?",
@@ -121213,7 +121213,7 @@
      "fn": "pct_change",
      "result": 21.25
     },
-    "given": "The prior close is 48.50 and the 9-day EMA sits at 40.00. How far above the average is that close? 17.53% 121.25% 8.50% 21.25%"
+    "given": "The prior close is 48.50 and the 9-day EMA sits at 40.00. How far above the average is that close? 21.25% 121.25% 82.47% 212.50%"
    },
    "lesson_line": "Measure the stretch in percent before you call anything parabolic.",
    "simple": "The close is 21.25 percent above the 9-day average: the difference divided by the average.",
@@ -121222,8 +121222,8 @@
    "why": "21.25%. The stretch is the close minus the average: 48.50 minus 40.00. Divide by the average, 40.00, and show it as a percent. We read a chart in percents: how far a stock is stretched above its averages. Bracco's checklist lists percent extensions from moving averages and ATR multiples from the 50-day. This only measures the stretch. It is not a cut-off.",
    "wrong": {
     "121.25%": "Divided the close by the average and forgot to subtract 1.",
-    "17.53%": "Divided by the close. The stretch is measured against the average.",
-    "8.50%": "Read the dollar gap as a percent. Divide it by the average first."
+    "212.50%": "Slipped the decimal point one place right.",
+    "82.47%": "Gave the average as a share of the close."
    }
   },
   "review_status": "draft",
@@ -122694,10 +122694,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.13R",
-    "0.66R",
     "1.52R",
-    "2.52R"
+    "2.52R",
+    "11.90R",
+    "15.20R"
    ],
    "kind": "mcq",
    "q": "Short 521.70, stop 565.54, the 9 EMA at 455.00. How many R is the cover at the 9 EMA?",
@@ -122741,7 +122741,7 @@
      "fn": "r_multiple",
      "result": 1.52
     },
-    "given": "Short 521.70, stop 565.54, the 9 EMA at 455.00. How many R is the cover at the 9 EMA? 2.52R 1.52R 0.66R 0.13R"
+    "given": "Short 521.70, stop 565.54, the 9 EMA at 455.00. How many R is the cover at the 9 EMA? 1.52R 2.52R 11.90R 15.20R"
    },
    "lesson_line": "Count the 9 EMA target in R before you short.",
    "simple": "The cover is 1.52R, found by dividing the distance to the target by the distance to the stop.",
@@ -122749,8 +122749,8 @@
    "unit": "SET.31",
    "why": "1.52R. R is the stop minus the fill: 565.54 minus 521.70. The reward is the fill minus the target: 521.70 minus 455.00. Divide the reward by R to count the cover in R. The fill and stop are CGC's from our data. The 455.00 average is made up for the drill.",
    "wrong": {
-    "0.13R": "Divided the reward by the fill price instead of by R, the stop distance.",
-    "0.66R": "Inverted it: risk divided by reward instead of reward divided by risk.",
+    "11.90R": "Divided the fill price by R, the stop distance.",
+    "15.20R": "Slipped the decimal point one place right.",
     "2.52R": "Measured the reward from the stop instead of from the fill."
    }
   },
@@ -126057,10 +126057,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.44%",
-    "2.69%",
-    "4.23%",
-    "4.42%"
+    "4.42%",
+    "44.16%",
+    "95.77%",
+    "104.42%"
    ],
    "kind": "mcq",
    "q": "The 30-minute high is 60.91. You look up at 10:20 and the stock trades 63.60. How far above the high is that?",
@@ -126102,7 +126102,7 @@
      "fn": "pct_change",
      "result": 4.42
     },
-    "given": "The 30-minute high is 60.91. You look up at 10:20 and the stock trades 63.60. How far above the high is that? 4.23% 4.42% 2.69% 0.44%"
+    "given": "The 30-minute high is 60.91. You look up at 10:20 and the stock trades 63.60. How far above the high is that? 4.42% 104.42% 95.77% 44.16%"
    },
    "lesson_line": "Measure the chase before you buy it. Past 4%, wait for the pullback.",
    "simple": "The stock is 4.42% above the high, which is past the 4% limit, so we pass.",
@@ -126110,9 +126110,9 @@
    "unit": "SET.32",
    "why": "4.42%, past the 4% line. The move is 63.60 minus 60.91. Divide by the high, 60.91, and show it as a percent. Chasing costs size, not risk: the stop stays under the range, so the distance grows and the shares shrink. Pass and wait for a pullback that holds or a VWAP retest.",
    "wrong": {
-    "0.44%": "Slipped the decimal point one place left.",
-    "2.69%": "Read the dollar gap as a percent. Divide it by the high first.",
-    "4.23%": "Divided by the new price. Measure from the high, the buy point."
+    "104.42%": "Divided the new price by the high and forgot to subtract one.",
+    "44.16%": "Slipped the decimal point one place right.",
+    "95.77%": "Gave the high as a share of the new price."
    }
   },
   "review_status": "draft",
@@ -133377,10 +133377,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.25%",
     "0.43%",
     "4.08%",
-    "4.25%",
-    "5.97%"
+    "4.25%"
    ],
    "kind": "mcq",
    "q": "The pivot candle's high is 140.33. You look up and it trades 146.30. How far above the high is that?",
@@ -133418,7 +133418,7 @@
      "fn": "pct_change",
      "result": 4.25
     },
-    "given": "The pivot candle's high is 140.33. You look up and it trades 146.30. How far above the high is that? 0.43% 4.08% 5.97% 4.25%"
+    "given": "The pivot candle's high is 140.33. You look up and it trades 146.30. How far above the high is that? 4.25% 4.08% 0.43% 0.25%"
    },
    "lesson_line": "Measure the chase before you buy it.",
    "simple": "The price is 4.25 percent above the pivot high, which is past our 4 percent limit.",
@@ -133426,9 +133426,9 @@
    "unit": "SET.33",
    "why": "4.25%, past the 4% line. The move is 146.30 minus 140.33. Divide by the pivot high, 140.33, not the new price, and show it as a percent. Skip it: chasing costs size, not risk, because the stop stays put, the distance grows and the shares shrink.",
    "wrong": {
+    "0.25%": "Gave only how far it is past the limit.",
     "0.43%": "Slipped the decimal point one place left.",
-    "4.08%": "Divided by the new price. Divide by the pivot high, the buy point.",
-    "5.97%": "Read the dollar gap as a percent. Divide it by the pivot high first."
+    "4.08%": "Divided by the new price. Divide by the pivot high, the buy point."
    }
   },
   "review_status": "draft",
@@ -137909,10 +137909,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "$23.54",
     "$24.95",
     "$25.42",
-    "$25.89",
-    "$26.48"
+    "$25.89"
    ],
    "kind": "mcq",
    "q": "Bought at 24.48, stop 24.01. One R is the gap between them. At what price does our breakeven window open?",
@@ -137948,7 +137948,7 @@
      "fn": "arith",
      "result": 25.42
     },
-    "given": "Bought at 24.48, stop 24.01. One R is the gap between them. At what price does our breakeven window open? $24.95 $25.89 $25.42 $26.48"
+    "given": "Bought at 24.48, stop 24.01. One R is the gap between them. At what price does our breakeven window open? $25.42 $24.95 $25.89 $23.54"
    },
    "lesson_line": "Breakeven starts at 2R and runs to 5R.",
    "simple": "Breakeven starts at 2R, so add two times the gap between fill and stop to the fill, giving 25.42.",
@@ -137956,9 +137956,9 @@
    "unit": "SET.34",
    "why": "25.42. One R is the fill minus the stop: 24.48 minus 24.01. Two R is two of those added to the fill. The breakeven move runs from 2R to 5R, ideally. It is a window, not a trigger you must hit at once.",
    "wrong": {
+    "$23.54": "Subtracted two R from the fill instead of adding.",
     "$24.95": "Added two R to the stop instead of to the fill.",
-    "$25.89": "Added one R too many. The window opens at the second R.",
-    "$26.48": "Added 2 dollars, not two R. R is the fill minus the stop."
+    "$25.89": "Added one R too many. The window opens at the second R."
    }
   },
   "review_status": "draft",
@@ -138055,10 +138055,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "$22.58",
+    "$28.74",
     "$29.51",
-    "$30.28",
-    "$31.43",
-    "$34.13"
+    "$30.28"
    ],
    "kind": "mcq",
    "q": "Bought at 26.43, stop 25.66. One R is the gap between them. Where is 5R, the low end of the 5 to 10R sell zone?",
@@ -138094,7 +138094,7 @@
      "fn": "arith",
      "result": 30.28
     },
-    "given": "Bought at 26.43, stop 25.66. One R is the gap between them. Where is 5R, the low end of the 5 to 10R sell zone? $29.51 $30.28 $34.13 $31.43"
+    "given": "Bought at 26.43, stop 25.66. One R is the gap between them. Where is 5R, the low end of the 5 to 10R sell zone? $30.28 $29.51 $28.74 $22.58"
    },
    "lesson_line": "Know your 5R before the open. It starts the zone where selling is often best.",
    "simple": "Five R is the fill plus five times the gap between fill and stop, which gives 30.28.",
@@ -138102,9 +138102,9 @@
    "unit": "SET.34",
    "why": "30.28. One R is the fill minus the stop: 26.43 minus 25.66. Five R is five of those added to the fill. Selling at about 5 to 10R is often best. The first sell is still a judgment.",
    "wrong": {
-    "$29.51": "Added five R to the stop instead of to the fill.",
-    "$31.43": "Added 5 dollars, not five R. R is the fill minus the stop.",
-    "$34.13": "That is 10R, the top of the zone. The question asks for the low end."
+    "$22.58": "Subtracted five R from the fill instead of adding.",
+    "$28.74": "Added three R instead of five.",
+    "$29.51": "Added five R to the stop instead of to the fill."
    }
   },
   "review_status": "draft",
@@ -139998,10 +139998,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.04",
-    "0.20",
     "0.80",
-    "0.99"
+    "0.99",
+    "1.04",
+    "1.25"
    ],
    "kind": "mcq",
    "q": "The inside day ran 20.00 to 21.00 and closed at 20.80. Where in its range did it close, 0 to 1?",
@@ -140031,7 +140031,7 @@
      "fn": "arith",
      "result": 0.8
     },
-    "given": "The inside day ran 20.00 to 21.00 and closed at 20.80. Where in its range did it close, 0 to 1? 0.20 0.80 0.99 0.04"
+    "given": "The inside day ran 20.00 to 21.00 and closed at 20.80. Where in its range did it close, 0 to 1? 0.80 0.99 1.04 1.25"
    },
    "lesson_line": "Close minus low, over high minus low. Near the top is the picture we like.",
    "simple": "The close is 0.8 of the way up the day's range, so it sits near the high.",
@@ -140039,9 +140039,9 @@
    "unit": "SET.40",
    "why": "0.8, near the high. Close minus low: 20.80 minus 20.00. Divide by high minus low: 21.00 minus 20.00. A close in the upper half of the inside day's range is preferred. It is a grading cue, not a rule.",
    "wrong": {
-    "0.04": "Divided by the low instead of by the range.",
-    "0.20": "Measured from the high down. The question counts up from the low.",
-    "0.99": "Divided the close by the high. Use the range: close minus low, over high minus low."
+    "0.99": "Divided the close by the high. Use the range: close minus low, over high minus low.",
+    "1.04": "Divided the close by the low instead of by the range.",
+    "1.25": "Flipped it: range over climb instead of climb over range."
    }
   },
   "review_status": "draft",
@@ -140410,10 +140410,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.2R",
-    "3.7R",
     "5.0R",
-    "6.0R"
+    "6.0R",
+    "50.0R",
+    "79.4R"
    ],
    "kind": "mcq",
    "q": "Bought at 55.02, stop 54.28. The stock trades to 58.72. How many R is that?",
@@ -140456,7 +140456,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Bought at 55.02, stop 54.28. The stock trades to 58.72. How many R is that? 0.2R 6.0R 3.7R 5.0R"
+    "given": "Bought at 55.02, stop 54.28. The stock trades to 58.72. How many R is that? 5.0R 6.0R 50.0R 79.4R"
    },
    "lesson_line": "Count in R, not dollars: the gain divided by the risk.",
    "simple": "The gain is five times the risk of buying at 55.02 with a stop at 54.28.",
@@ -140464,9 +140464,9 @@
    "unit": "SET.40",
    "why": "5R. One R is the fill minus the stop: 55.02 minus 54.28. The gain is 58.72 minus 55.02. The gain divided by that R is five.",
    "wrong": {
-    "0.2R": "Inverted it: R divided by the gain instead of gain divided by R.",
-    "3.7R": "Called the dollar gain R. Divide it by the risk per share.",
-    "6.0R": "Measured the gain from the stop instead of from the fill."
+    "50.0R": "Slipped the decimal point one place right.",
+    "6.0R": "Measured the gain from the stop instead of from the fill.",
+    "79.4R": "Divided the exit price by R instead of the gain."
    }
   },
   "review_status": "draft",
@@ -141408,10 +141408,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.032%",
+    "0.32%",
     "1.6%",
-    "3.2%",
-    "32.0%",
-    "96.8%"
+    "3.2%"
    ],
    "kind": "mcq",
    "q": "Buy 50.00, stop 48.40. How far below the buy is the stop, in percent?",
@@ -141440,7 +141440,7 @@
      "fn": "arith",
      "result": 3.2
     },
-    "given": "Buy 50.00, stop 48.40. How far below the buy is the stop, in percent? 1.6% 3.2% 32.0% 96.8%"
+    "given": "Buy 50.00, stop 48.40. How far below the buy is the stop, in percent? 3.2% 1.6% 0.32% 0.032%"
    },
    "lesson_line": "Measure the stop as a percent of the buy. Past 5%, wait for a tighter trigger.",
    "simple": "The stop is 3.2% below the buy: the buy minus the stop, divided by the buy.",
@@ -141448,9 +141448,9 @@
    "unit": "SET.40",
    "why": "3.2%. The gap is the buy minus the stop: 50.00 minus 48.40. Divide by the buy, 50.00, and show it as a percent. We prefer a stop 1 to 3% away, and 3.5% is good. This one is a touch past the preferred range. Up to 5% is acceptable, so we take it and the stop sets the size.",
    "wrong": {
-    "1.6%": "Read the dollar gap as a percent. Divide it by the buy first.",
-    "32.0%": "Slipped the decimal point one place right.",
-    "96.8%": "Divided the stop by the buy. That is how much of the price is left, not how far the stop is."
+    "0.032%": "Forgot to scale the ratio to a percent.",
+    "0.32%": "Slipped the decimal point one place left.",
+    "1.6%": "Read the dollar gap as a percent. Divide it by the buy first."
    }
   },
   "review_status": "draft",
@@ -144489,10 +144489,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.2R",
     "1.2R",
     "4.4R",
-    "5.0R",
-    "6.0R"
+    "5.0R"
    ],
    "kind": "mcq",
    "q": "Bought at 26.97, stop 26.73. The stock trades to 28.17. How many R is that?",
@@ -144535,7 +144535,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Bought at 26.97, stop 26.73. The stock trades to 28.17. How many R is that? 6.0R 5.0R 1.2R 4.4R"
+    "given": "Bought at 26.97, stop 26.73. The stock trades to 28.17. How many R is that? 5.0R 1.2R 4.4R 0.2R"
    },
    "lesson_line": "Count in R, not dollars. 5R is the second trim.",
    "simple": "It is 5R, because the gain from the buy is five times the gap between the buy and the stop.",
@@ -144543,9 +144543,9 @@
    "unit": "SET.41",
    "why": "5R. One R is the fill minus the stop: 26.97 minus 26.73. Divide the gain, 28.17 minus 26.97, by that R and you get 5.0. That is where the second third comes off. The rulebook calls that level adjustable.",
    "wrong": {
+    "0.2R": "Flipped it: R divided by the gain instead of gain divided by R.",
     "1.2R": "Called the dollar gain R. Divide it by the risk per share.",
-    "4.4R": "Used the percent gain and called it R. R is gain over the stop distance.",
-    "6.0R": "Measured the gain from the stop instead of from the fill."
+    "4.4R": "Used the percent gain and called it R. R is gain over the stop distance."
    }
   },
   "review_status": "draft",
@@ -148087,10 +148087,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "28.5%",
     "47.5%",
     "52.5%",
-    "90.5%"
+    "90.5%",
+    "190.5%"
    ],
    "kind": "mcq",
    "q": "The 52-week high is 60.00 and the cycle low is 31.50. How far under the high is the low, in percent?",
@@ -148118,7 +148118,7 @@
      "fn": "drawdown_pct",
      "result": 47.5
     },
-    "given": "The 52-week high is 60.00 and the cycle low is 31.50. How far under the high is the low, in percent? 52.5% 47.5% 90.5% 28.5%"
+    "given": "The 52-week high is 60.00 and the cycle low is 31.50. How far under the high is the low, in percent? 47.5% 52.5% 90.5% 190.5%"
    },
    "lesson_line": "Depth is high minus low, over the high. Measure it.",
    "simple": "The low is 47.5% under the high, found by dividing the drop by the high.",
@@ -148126,7 +148126,7 @@
    "unit": "SET.42",
    "why": "The drop is 60.00 minus 31.50. Divide that drop by the high of 60.00. The answer is 47.5%.",
    "wrong": {
-    "28.5%": "Read the dollar drop as a percent.",
+    "190.5%": "Divided the high by the low and forgot to subtract one.",
     "52.5%": "Found where the low sits as a share of the high, not the drop.",
     "90.5%": "Divided the drop by the low instead of the high."
    }
@@ -148538,10 +148538,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.2R",
-    "1.55R",
     "5.0R",
-    "6.0R"
+    "6.0R",
+    "44.9R",
+    "50.0R"
    ],
    "kind": "mcq",
    "q": "Bought at 12.37, stop 12.06. The stock trades to 13.92. How many R is that?",
@@ -148584,7 +148584,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Bought at 12.37, stop 12.06. The stock trades to 13.92. How many R is that? 1.55R 5.0R 6.0R 0.2R"
+    "given": "Bought at 12.37, stop 12.06. The stock trades to 13.92. How many R is that? 5.0R 6.0R 44.9R 50.0R"
    },
    "lesson_line": "Count in R, not dollars. 5R is the second trim.",
    "simple": "The stock is up 5R, which means the gain is five times the risk per share.",
@@ -148592,8 +148592,8 @@
    "unit": "SET.42",
    "why": "One R is the buy minus the stop: 12.37 minus 12.06. The gain is 13.92 minus 12.37. Divide the gain by one R to get 5.0R. The default plan sells the second third at 5R. This is AMD's buy.",
    "wrong": {
-    "0.2R": "Flipped the division: risk over gain.",
-    "1.55R": "Called the dollar gain the R multiple.",
+    "44.9R": "Divided the exit price by R instead of the gain.",
+    "50.0R": "Slipped the decimal point one place right.",
     "6.0R": "Measured the gain from the stop instead of the buy."
    }
   },
@@ -149327,8 +149327,8 @@
    "choices": [
     "22 shares",
     "79 shares",
-    "793 shares",
-    "7,936 shares"
+    "396 shares",
+    "793 shares"
    ],
    "kind": "mcq",
    "q": "Account 50,000. Risk 1%. Buy 22.12, stop 21.49. How many shares does the risk allow?",
@@ -149372,7 +149372,7 @@
      "fn": "shares_from_risk",
      "result": 793.0
     },
-    "given": "Account 50,000. Risk 1%. Buy 22.12, stop 21.49. How many shares does the risk allow? 7,936 shares 22 shares 793 shares 79 shares"
+    "given": "Account 50,000. Risk 1%. Buy 22.12, stop 21.49. How many shares does the risk allow? 793 shares 22 shares 79 shares 396 shares"
    },
    "lesson_line": "Stop first, distance second, size last.",
    "simple": "Dividing the 1% of 50,000 you risk by the gap between 22.12 and 21.49 gives 793 shares after rounding down.",
@@ -149381,7 +149381,7 @@
    "why": "Risk is 1% of 50,000. Divide that by the buy minus the stop, 22.12 minus 21.49, and round down to 793 shares. The stop sets the size. The final size is the smaller of this and the position cap.",
    "wrong": {
     "22 shares": "Divided the risk dollars by the buy price, not the stop distance.",
-    "7,936 shares": "Slipped a decimal and risked ten times too much.",
+    "396 shares": "Used half the risk percent.",
     "79 shares": "Slipped a decimal the other way and risked a tenth too little."
    }
   },
@@ -155523,8 +155523,8 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "15 shares",
     "442 shares",
+    "884 shares",
     "4,424 shares",
     "44,247 shares"
    ],
@@ -155573,7 +155573,7 @@
      "fn": "shares_from_risk",
      "result": 442.0
     },
-    "given": "Account 50,000, risk 1%, buy 31.80, stop 30.67. Risk dollars divided by the stop distance: how many shares, rounded down? 15 shares 4,424 shares 44,247 shares 442 shares"
+    "given": "Account 50,000, risk 1%, buy 31.80, stop 30.67. Risk dollars divided by the stop distance: how many shares, rounded down? 442 shares 884 shares 4,424 shares 44,247 shares"
    },
    "lesson_line": "The stop sets the size. Account times risk, divided by the stop distance.",
    "simple": "You can buy 442 shares, because the dollars at risk are split by the stop distance and rounded down.",
@@ -155581,9 +155581,9 @@
    "unit": "SET.43",
    "why": "Risk dollars are 1% of 50,000. The stop distance is 31.80 minus 30.67. Divide the risk dollars by that distance and round down to 442 shares. The wider the stop, the fewer shares.",
    "wrong": {
-    "15 shares": "Divided the risk dollars by the buy price, not the stop distance.",
     "4,424 shares": "Slipped a decimal and risked ten times too much.",
-    "44,247 shares": "Used the whole account as the risk dollars."
+    "44,247 shares": "Used the whole account as the risk dollars.",
+    "884 shares": "Doubled the risk dollars."
    }
   },
   "review_status": "draft",
@@ -155870,10 +155870,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "200 shares",
-    "2,000 shares",
     "20,000 shares",
-    "200,000 shares"
+    "80,000 shares",
+    "200,000 shares",
+    "2,000,000 shares"
    ],
    "kind": "mcq",
    "q": "A stock trades 2,000,000 shares a day on average. Under our volume cap, what is the most shares you can own?",
@@ -155908,7 +155908,7 @@
      "fn": "arith",
      "result": 20000.0
     },
-    "given": "A stock trades 2,000,000 shares a day on average. Under our volume cap, what is the most shares you can own? 200,000 shares 2,000 shares 20,000 shares 200 shares"
+    "given": "A stock trades 2,000,000 shares a day on average. Under our volume cap, what is the most shares you can own? 20,000 shares 200,000 shares 2,000,000 shares 80,000 shares"
    },
    "lesson_line": "Check the average daily volume first. Own no more than 1% of it.",
    "simple": "The most you can own is 20,000 shares, which is one percent of the 2,000,000 average daily volume.",
@@ -155916,9 +155916,9 @@
    "unit": "SET.43",
    "why": "One percent of 2,000,000 shares is 20,000. We never own more than that. The cap holds whatever the stop says.",
    "wrong": {
-    "2,000 shares": "Slipped a decimal and took a tenth of a percent.",
-    "200 shares": "Slipped two decimals.",
-    "200,000 shares": "Slipped a decimal and took ten percent."
+    "2,000,000 shares": "Used the whole average volume, no cap at all.",
+    "200,000 shares": "Slipped a decimal and took ten percent.",
+    "80,000 shares": "Used the four percent chase limit instead."
    }
   },
   "review_status": "draft",
@@ -156275,9 +156275,9 @@
   "prompt_json": {
    "choices": [
     "$46.00",
+    "$48.00",
     "$52.00",
-    "$54.00",
-    "$56.00"
+    "$54.00"
    ],
    "kind": "mcq",
    "q": "Bought at 50.00 with the stop at 48.00. At what price is 2R, where the breakeven window opens?",
@@ -156313,7 +156313,7 @@
      "fn": "arith",
      "result": 54.0
     },
-    "given": "Bought at 50.00 with the stop at 48.00. At what price is 2R, where the breakeven window opens? $52.00 $56.00 $46.00 $54.00"
+    "given": "Bought at 50.00 with the stop at 48.00. At what price is 2R, where the breakeven window opens? $54.00 $52.00 $46.00 $48.00"
    },
    "lesson_line": "Know your 2R before the open. The breakeven window starts there.",
    "simple": "2R is 54.00, which is the buy of 50.00 plus two times the gap down to the stop.",
@@ -156322,8 +156322,8 @@
    "why": "One R is the buy minus the stop: 50.00 minus 48.00. Add two of those to the buy of 50.00 to get 54.00. The breakeven window runs from 2R to 5R, and by default the stop moves at the first trim. The window is a guide, not one exact price.",
    "wrong": {
     "$46.00": "Went down from the buy instead of up.",
-    "$52.00": "Added the two R to the stop, not to the buy.",
-    "$56.00": "Counted three R instead of two."
+    "$48.00": "Gave the stop price, not the level two R up.",
+    "$52.00": "Added the two R to the stop, not to the buy."
    }
   },
   "review_status": "draft",
@@ -159397,10 +159397,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "6 shares",
     "316 shares",
     "632 shares",
-    "3,164 shares"
+    "3,164 shares",
+    "63,291 shares"
    ],
    "kind": "mcq",
    "q": "Account 50,000, at its high. Risk 0.5%. Fill 38.93, stop 38.14. How many shares?",
@@ -159458,7 +159458,7 @@
      "fn": "shares_from_risk",
      "result": 316.0
     },
-    "given": "Account 50,000, at its high. Risk 0.5%. Fill 38.93, stop 38.14. How many shares? 632 shares 6 shares 3,164 shares 316 shares"
+    "given": "Account 50,000, at its high. Risk 0.5%. Fill 38.93, stop 38.14. How many shares? 316 shares 632 shares 3,164 shares 63,291 shares"
    },
    "lesson_line": "Stop first, distance second, size last.",
    "simple": "Buy 316 shares, because the dollars you risk divided by the fill minus the stop gives the size, rounded down.",
@@ -159467,7 +159467,7 @@
    "why": "Risk dollars are 0.5% of 50,000. Divide that by the fill minus the stop, 38.93 minus 38.14. Round down to 316 shares. The account is at its high, so the normal 40% position cap applies, and this size sits well under it. The stop sets the size.",
    "wrong": {
     "3,164 shares": "Slipped a decimal and risked ten times too much.",
-    "6 shares": "Divided the risk dollars by the fill, not the stop distance.",
+    "63,291 shares": "Used the whole account as the risk dollars.",
     "632 shares": "Doubled the risk dollars."
    }
   },
@@ -159968,10 +159968,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.06%",
+    "0.6%",
     "2.4%",
-    "6.0%",
-    "6.4%",
-    "94.0%"
+    "6.0%"
    ],
    "kind": "mcq",
    "q": "The momentum-high close was 40.00 and the swing low is 37.60. How deep is the pullback, in percent?",
@@ -160006,7 +160006,7 @@
      "fn": "drawdown_pct",
      "result": 6.0
     },
-    "given": "The momentum-high close was 40.00 and the swing low is 37.60. How deep is the pullback, in percent? 6.4% 2.4% 6.0% 94.0%"
+    "given": "The momentum-high close was 40.00 and the swing low is 37.60. How deep is the pullback, in percent? 6.0% 2.4% 0.6% 0.06%"
    },
    "lesson_line": "Measure the dip, then look at the 50-day. Depth is a picture, not a gate.",
    "simple": "The pullback is 6.0% deep: 40.00 less 37.60, divided by 40.00.",
@@ -160014,9 +160014,9 @@
    "unit": "SET.44",
    "why": "The drop is 40.00 less 37.60. Divide it by the high of 40.00 to get 6.0%. Our card sets no depth rule beyond the line itself, and the touch low must hold above the 50-day. AMBA's 7.8% was the deepest of our ten examples, and the line still held to the cent.",
    "wrong": {
-    "2.4%": "Read the dollar drop as a percent.",
-    "6.4%": "Divided the drop by the low instead of the high.",
-    "94.0%": "Found where the low sits as a share of the high, not the drop."
+    "0.06%": "Forgot to scale the ratio to a percent.",
+    "0.6%": "Slipped the decimal point one place left.",
+    "2.4%": "Read the dollar drop as a percent."
    }
   },
   "review_status": "draft",
@@ -162392,10 +162392,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$32.00",
     "$38.00",
     "$40.00",
-    "$42.00"
+    "$42.00",
+    "$44.00"
    ],
    "kind": "mcq",
    "q": "Bought at 36.00 with the stop at 34.00. At what price does the ideal breakeven window open?",
@@ -162431,7 +162431,7 @@
      "fn": "arith",
      "result": 40.0
     },
-    "given": "Bought at 36.00 with the stop at 34.00. At what price does the ideal breakeven window open? $38.00 $42.00 $40.00 $32.00"
+    "given": "Bought at 36.00 with the stop at 34.00. At what price does the ideal breakeven window open? $40.00 $38.00 $42.00 $44.00"
    },
    "lesson_line": "2R above the buy opens the breakeven window.",
    "simple": "At 2R the price is the buy plus two times the risk, so the stop may then move up to breakeven.",
@@ -162439,9 +162439,9 @@
    "unit": "SET.45",
    "why": "One R is the buy minus the stop: 36.00 minus 34.00. The window opens at 2R, so add two of those to the buy to get 40.00. From there the stop may move up to the 36.00 entry, ideally anywhere from 2R to 5R.",
    "wrong": {
-    "$32.00": "Went down from the buy instead of up.",
     "$38.00": "Added the two R to the stop, not to the buy.",
-    "$42.00": "Counted three R instead of two."
+    "$42.00": "Counted three R instead of two.",
+    "$44.00": "Counted four R instead of two."
    }
   },
   "review_status": "draft",
@@ -162462,10 +162462,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "$46.65",
     "$55.77",
     "$56.91",
-    "$58.05",
-    "$59.19"
+    "$58.05"
    ],
    "kind": "mcq",
    "q": "Bought at 52.35 with the stop at 51.21. Where is 5R?",
@@ -162494,7 +162494,7 @@
      "fn": "arith",
      "result": 58.05
     },
-    "given": "Bought at 52.35 with the stop at 51.21. Where is 5R? $56.91 $59.19 $55.77 $58.05"
+    "given": "Bought at 52.35 with the stop at 51.21. Where is 5R? $58.05 $56.91 $55.77 $46.65"
    },
    "lesson_line": "5R is a yardstick. A first sell near 5 to 10R is often best.",
    "simple": "One R is the buy minus the stop, so add five of those to the buy to find 5R.",
@@ -162502,9 +162502,9 @@
    "unit": "SET.45",
    "why": "One R is the buy minus the stop: 52.35 minus 51.21. Add five of those to the buy of 52.35 to get 58.05. That is a yardstick, and a first sell at about 5 to 10R is often best.",
    "wrong": {
+    "$46.65": "Subtracted five R from the buy instead of adding.",
     "$55.77": "Counted three R instead of five.",
-    "$56.91": "Added the five R to the stop, not to the buy.",
-    "$59.19": "Counted six R instead of five."
+    "$56.91": "Added the five R to the stop, not to the buy."
    }
   },
   "review_status": "draft",
@@ -167258,10 +167258,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "2.0%",
-    "10.3%",
     "11.5%",
-    "111.5%"
+    "89.7%",
+    "111.5%",
+    "115.0%"
    ],
    "kind": "mcq",
    "q": "A stock's 10-day EMA is 100.00. It closes at 111.50 with its low at 102.00. How far above the 10-day is the close, in percent?",
@@ -167304,7 +167304,7 @@
      "fn": "arith",
      "result": 11.5
     },
-    "given": "A stock's 10-day EMA is 100.00. It closes at 111.50 with its low at 102.00. How far above the 10-day is the close, in percent? 111.5% 10.3% 2.0% 11.5%"
+    "given": "A stock's 10-day EMA is 100.00. It closes at 111.50 with its low at 102.00. How far above the 10-day is the close, in percent? 11.5% 111.5% 115.0% 89.7%"
    },
    "lesson_line": "Measure the close against the 10-day. Ten percent or more with air is extended.",
    "simple": "The close is 11.5 percent above the 10-day average, which is past 10 percent, so it is extended.",
@@ -167312,9 +167312,9 @@
    "unit": "SET.45",
    "why": "The close of 111.50 is 11.50 over the 10-day of 100.00. Divide by the 10-day to get 11.5%. That is 10% or more. The low of 102.00 is also above the 10-day, so there is air. On the daily chart that fits our card's Exhaustion Extension test, and we skip a long more than 10% above its 10-day.",
    "wrong": {
-    "10.3%": "Divided by the close instead of the 10-day.",
     "111.5%": "Never took off the 10-day, just compared close to average.",
-    "2.0%": "Measured from the low instead of the close."
+    "115.0%": "Slipped the decimal point one place right.",
+    "89.7%": "Divided the 10-day by the close, upside down."
    }
   },
   "review_status": "draft",
@@ -168908,8 +168908,8 @@
    "choices": [
     "$45.00",
     "$50.50",
-    "$55.00",
-    "$60.00"
+    "$52.00",
+    "$55.00"
    ],
    "kind": "mcq",
    "q": "The 10-day average is 50.00. At what price does a long become too stretched to buy?",
@@ -168937,7 +168937,7 @@
      "fn": "arith",
      "result": 55.0
     },
-    "given": "The 10-day average is 50.00. At what price does a long become too stretched to buy? $45.00 $60.00 $50.50 $55.00"
+    "given": "The 10-day average is 50.00. At what price does a long become too stretched to buy? $55.00 $45.00 $50.50 $52.00"
    },
    "lesson_line": "Skip a long more than 10% above its 10-day.",
    "simple": "Add ten percent of the 10-day average to itself, and any price above that is too stretched to buy.",
@@ -168947,7 +168947,7 @@
    "wrong": {
     "$45.00": "Took 10% off the average instead of adding it.",
     "$50.50": "Slipped a decimal and added only one percent.",
-    "$60.00": "Added ten dollars instead of ten percent."
+    "$52.00": "Used the four percent chase limit instead."
    }
   },
   "review_status": "draft",
@@ -169105,10 +169105,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.5R",
-    "1.1R",
     "2.1R",
-    "4.2R"
+    "4.2R",
+    "21.0R",
+    "25.0R"
    ],
    "kind": "mcq",
    "q": "You bought at 50.00 with the stop at 48.00. A gap-down day's first 30-minute low is 45.80. What is the loss, in R?",
@@ -169145,7 +169145,7 @@
      "fn": "arith",
      "result": 2.1
     },
-    "given": "You bought at 50.00 with the stop at 48.00. A gap-down day's first 30-minute low is 45.80. What is the loss, in R? 0.5R 4.2R 1.1R 2.1R"
+    "given": "You bought at 50.00 with the stop at 48.00. A gap-down day's first 30-minute low is 45.80. What is the loss, in R? 2.1R 4.2R 21.0R 25.0R"
    },
    "lesson_line": "First 30 minutes past 2R: get out.",
    "simple": "The loss at the 30 minute low is 2.1 times your risk, which is past 2R, so you get out.",
@@ -169153,8 +169153,8 @@
    "unit": "SET.45",
    "why": "One R is the buy minus the stop: 50.00 minus 48.00. The loss is 50.00 minus the low of 45.80. Divide the loss by one R to get 2.1R. That is past the 2R ceiling, so you get out.",
    "wrong": {
-    "0.5R": "Flipped the division: risk over loss.",
-    "1.1R": "Measured the loss from the stop instead of the buy.",
+    "21.0R": "Slipped the decimal point one place right.",
+    "25.0R": "Divided the buy price by R instead of the loss.",
     "4.2R": "Called the dollar loss the R multiple."
    }
   },
@@ -171224,10 +171224,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.25%",
-    "0.96%",
     "1.09%",
-    "10.90%"
+    "2.27%",
+    "14.04%",
+    "25.00%"
    ],
    "kind": "mcq",
    "q": "Fill 22.93. The reclaim day's low is 22.71 and the stop sits three cents under it. How far is the stop, in percent?",
@@ -171264,7 +171264,7 @@
      "fn": "arith",
      "result": 1.09
     },
-    "given": "Fill 22.93. The reclaim day's low is 22.71 and the stop sits three cents under it. How far is the stop, in percent? 0.96% 1.09% 0.25% 10.90%"
+    "given": "Fill 22.93. The reclaim day's low is 22.71 and the stop sits three cents under it. How far is the stop, in percent? 1.09% 2.27% 14.04% 25.00%"
    },
    "lesson_line": "Stop first, distance second, size last.",
    "simple": "1.09%, which is the gap from the fill down to the stop, divided by the fill.",
@@ -171272,9 +171272,9 @@
    "unit": "SET.46",
    "why": "1.09%. The stop sits three cents under the reclaim day's low of 22.71. Take the fill minus the stop, divide by the fill 22.93, then multiply by 100. That is well inside the 3% the stop usually sits within.",
    "wrong": {
-    "0.25%": "Read the dollar gap as a percent.",
-    "0.96%": "Forgot the three cents and measured to the low itself.",
-    "10.90%": "Slipped a decimal."
+    "14.04%": "Took three dollars under the low, not three cents.",
+    "2.27%": "Read three cents as thirty cents.",
+    "25.00%": "Skipped the divide by the fill."
    }
   },
   "review_status": "draft",
@@ -171547,10 +171547,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "4.8%",
-    "10.7%",
     "12.0%",
-    "112.0%"
+    "48.0%",
+    "112.0%",
+    "120.0%"
    ],
    "kind": "mcq",
    "q": "The stock ran for days after its reclaim. Its 10-day average is 40.00 and it trades 44.80. How far above the 10-day, in percent?",
@@ -171578,7 +171578,7 @@
      "fn": "pct_change",
      "result": 12.0
     },
-    "given": "The stock ran for days after its reclaim. Its 10-day average is 40.00 and it trades 44.80. How far above the 10-day, in percent? 10.7% 4.8% 12.0% 112.0%"
+    "given": "The stock ran for days after its reclaim. Its 10-day average is 40.00 and it trades 44.80. How far above the 10-day, in percent? 12.0% 48.0% 112.0% 120.0%"
    },
    "lesson_line": "Measure the stretch from the 10-day before you buy.",
    "simple": "12.0%, which is past our 10% limit, so the stock is too stretched to buy.",
@@ -171586,9 +171586,9 @@
    "unit": "SET.46",
    "why": "The gap is 44.80 minus 40.00. Divide it by the 10-day average of 40.00 to get 12.0%. That is past our 10% line, so this one is a skip, not a smaller buy.",
    "wrong": {
-    "10.7%": "Divided by price instead of the 10-day.",
     "112.0%": "Never took off the 10-day, just compared price to average.",
-    "4.8%": "Read the dollar gap as a percent."
+    "120.0%": "Slipped a decimal.",
+    "48.0%": "Divided the gap by 10, the days, not the average."
    }
   },
   "review_status": "draft",
@@ -173072,10 +173072,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.8R",
     "1.7R",
     "3.4R",
-    "5.0R",
-    "6.0R"
+    "5.0R"
    ],
    "kind": "mcq",
    "q": "Bought at 52.67, stop 51.99. You sell a third at 56.07. How many R did that third bank?",
@@ -173121,7 +173121,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Bought at 52.67, stop 51.99. You sell a third at 56.07. How many R did that third bank? 3.4R 5.0R 6.0R 1.7R"
+    "given": "Bought at 52.67, stop 51.99. You sell a third at 56.07. How many R did that third bank? 5.0R 3.4R 1.7R 0.8R"
    },
    "lesson_line": "Count every exit in R. This sale banked 5R.",
    "simple": "5R, because the gain on that third is five times the gap between the fill and the stop.",
@@ -173129,9 +173129,9 @@
    "unit": "SET.46",
    "why": "5R. One R is the fill minus the stop, 52.67 minus 51.99. The gain is 56.07 minus 52.67. Divide the gain by one R to get 5R. When and how much to sell is a judgment. EPC reached 3R in six sessions and ran to 18.9R.",
    "wrong": {
+    "0.8R": "Divided the gain by the gain measured from the stop.",
     "1.7R": "Split the R across the third that was sold.",
-    "3.4R": "Called the dollar gain the R multiple.",
-    "6.0R": "Measured the gain from the stop instead of the buy."
+    "3.4R": "Called the dollar gain the R multiple."
    }
   },
   "review_status": "draft",
@@ -175168,10 +175168,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$41.20",
-    "$42.00",
     "$46.00",
-    "$48.00"
+    "$48.00",
+    "$52.00",
+    "$120.00"
    ],
    "kind": "mcq",
    "q": "Bought at 40.00 with the stop at 38.00. Where is 3R?",
@@ -175231,7 +175231,7 @@
      "fn": "arith",
      "result": 46.0
     },
-    "given": "Bought at 40.00 with the stop at 38.00. Where is 3R? $41.20 $42.00 $48.00 $46.00"
+    "given": "Bought at 40.00 with the stop at 38.00. Where is 3R? $46.00 $48.00 $52.00 $120.00"
    },
    "lesson_line": "Know your 3R before you buy. It is your measuring mark.",
    "simple": "$46.00. One R is the distance from the buy to the stop, and 3R adds three of those on top of the buy.",
@@ -175239,9 +175239,9 @@
    "unit": "SET.47",
    "why": "46.00. One R is the buy minus the stop: 40.00 minus 38.00. Multiply that by three and add it to the 40.00 buy to get 46.00. 3R is a mark to measure by, not an automatic sale.",
    "wrong": {
-    "$41.20": "Took 3% over the buy, not three R.",
-    "$42.00": "Added one R, not three.",
-    "$48.00": "Added four R, one too many."
+    "$120.00": "Multiplied the buy by three.",
+    "$48.00": "Added four R, one too many.",
+    "$52.00": "Doubled the R, then added three of those."
    }
   },
   "review_status": "draft",
@@ -176495,9 +176495,9 @@
   "prompt_json": {
    "choices": [
     "8.9%",
-    "11.1%",
     "26.6%",
-    "29.2%"
+    "29.2%",
+    "35.4%"
    ],
    "kind": "mcq",
    "q": "Bought at 41.89 with the stop at 38.18. The 3R price is what percent over the buy?",
@@ -176557,7 +176557,7 @@
      "fn": "arith",
      "result": 26.6
     },
-    "given": "Bought at 41.89 with the stop at 38.18. The 3R price is what percent over the buy? 11.1% 8.9% 29.2% 26.6%"
+    "given": "Bought at 41.89 with the stop at 38.18. The 3R price is what percent over the buy? 26.6% 8.9% 29.2% 35.4%"
    },
    "lesson_line": "A wide stop pushes 3R far away. Count the percent before you buy.",
    "simple": "26.6%. With a stop that wide, the stock must rise more than a quarter just to reach 3R.",
@@ -176565,8 +176565,8 @@
    "unit": "SET.47",
    "why": "26.6%. One R is 41.89 minus 38.18. Three of those, divided by the 41.89 buy, is 26.6%. Our stop usually sits within about 3% of the buy, and this one is far wider, so 3R sits far away. In our test only 33.4% of events reached 3R before the stop.",
    "wrong": {
-    "11.1%": "Read the dollar size of 3R as a percent.",
     "29.2%": "Divided by the stop, not the buy.",
+    "35.4%": "Counted four R, one too many.",
     "8.9%": "Counted one R, forgot the three."
    }
   },
@@ -178076,9 +178076,9 @@
   "prompt_json": {
    "choices": [
     "$91.24",
+    "$101.00",
     "$105.88",
-    "$110.76",
-    "$115.64"
+    "$110.76"
    ],
    "kind": "mcq",
    "q": "Bought at 86.36 with the stop at 81.48. Where is 5R?",
@@ -178114,7 +178114,7 @@
      "fn": "arith",
      "result": 110.76
     },
-    "given": "Bought at 86.36 with the stop at 81.48. Where is 5R? $105.88 $91.24 $115.64 $110.76"
+    "given": "Bought at 86.36 with the stop at 81.48. Where is 5R? $110.76 $105.88 $101.00 $91.24"
    },
    "lesson_line": "Know your 5R before the open. It is a mark to measure by.",
    "simple": "$110.76. One R is the buy minus the stop, and 5R adds five of those to the buy.",
@@ -178122,8 +178122,8 @@
    "unit": "SET.47",
    "why": "110.76. One R is the buy minus the stop: 86.36 minus 81.48. Multiply that by five and add it to the 86.36 buy to get 110.76. 5R is another mark to measure by. Selling into a push, at about 5 to 10R, is often best.",
    "wrong": {
+    "$101.00": "Added three R, not five.",
     "$105.88": "Added five R to the stop, not the buy.",
-    "$115.64": "Added six R, one too many.",
     "$91.24": "Added one R, not five."
    }
   },
@@ -182287,10 +182287,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "1,200 shares",
     "12,000 shares",
     "24,000 shares",
-    "120,000 shares"
+    "120,000 shares",
+    "1,188,000 shares"
    ],
    "kind": "mcq",
    "q": "Average daily volume is 1,200,000 shares. Under our volume cap, what is the most shares we can own?",
@@ -182318,7 +182318,7 @@
      "fn": "arith",
      "result": 12000.0
     },
-    "given": "Average daily volume is 1,200,000 shares. Under our volume cap, what is the most shares we can own? 120,000 shares 1,200 shares 24,000 shares 12,000 shares"
+    "given": "Average daily volume is 1,200,000 shares. Under our volume cap, what is the most shares we can own? 12,000 shares 24,000 shares 120,000 shares 1,188,000 shares"
    },
    "lesson_line": "Take 1% of the average daily volume. That is the most we hold.",
    "simple": "We can own 12,000 shares at most, because our cap is 1% of the 1,200,000 shares that trade a day.",
@@ -182326,9 +182326,9 @@
    "unit": "SET.48",
    "why": "12,000 shares. Our cap is 1% of average daily volume, and 1% of 1,200,000 is 12,000. That is a ceiling, not a target.",
    "wrong": {
-    "1,200 shares": "Slipped the decimal point down a place.",
-    "120,000 shares": "Slipped the decimal point up a place.",
-    "24,000 shares": "Doubled the cap."
+    "1,188,000 shares": "Took one percent off the volume instead of one percent of it.",
+    "120,000 shares": "Used ten percent, not one.",
+    "24,000 shares": "Used two percent, not one."
    }
   },
   "review_status": "draft",
@@ -184480,8 +184480,8 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "0.2%",
     "0.6%",
+    "3.0%",
     "6.0%",
     "23.0%"
    ],
@@ -184543,7 +184543,7 @@
      "fn": "arith",
      "result": 0.6
     },
-    "given": "Reclaim at 38.49, undercut low 38.31, stop at 38.26. How far is the stop, in percent? 6.0% 0.6% 0.2% 23.0%"
+    "given": "Reclaim at 38.49, undercut low 38.31, stop at 38.26. How far is the stop, in percent? 0.6% 3.0% 6.0% 23.0%"
    },
    "lesson_line": "The stop sits a few cents under the undercut low.",
    "simple": "The stop is only 0.6% away, because it sits a few cents under the undercut low.",
@@ -184551,8 +184551,8 @@
    "unit": "SET.49",
    "why": "0.6%. Take the stop distance, 38.49 minus 38.26, and divide it by the entry of 38.49. That gives 0.6%. The stop sits a few cents under the undercut low of 38.31. That is very tight, well inside the usual stop of about 3% of the buy.",
    "wrong": {
-    "0.2%": "Used the dollar gap as a percent.",
     "23.0%": "Used the 23 cent gap as a percent.",
+    "3.0%": "Used the usual 3.0% width, not this stop.",
     "6.0%": "Slipped the decimal point a place."
    }
   },
@@ -187283,9 +187283,9 @@
   "prompt_json": {
    "choices": [
     "400 shares",
+    "1,000 shares",
     "2,000 shares",
-    "4,000 shares",
-    "40,000 shares"
+    "4,000 shares"
    ],
    "kind": "mcq",
    "q": "A bounce trade in a stock that averages 400,000 shares a day. Under our 1% rule, what is the most we can own?",
@@ -187313,7 +187313,7 @@
      "fn": "arith",
      "result": 4000.0
     },
-    "given": "A bounce trade in a stock that averages 400,000 shares a day. Under our 1% rule, what is the most we can own? 2,000 shares 40,000 shares 400 shares 4,000 shares"
+    "given": "A bounce trade in a stock that averages 400,000 shares a day. Under our 1% rule, what is the most we can own? 4,000 shares 2,000 shares 1,000 shares 400 shares"
    },
    "lesson_line": "Size to the stock's volume. One percent of the daily average is the ceiling.",
    "simple": "You can own at most 4,000 shares, because that is 1% of the 400,000 shares it trades a day.",
@@ -187321,8 +187321,8 @@
    "unit": "SET.49",
    "why": "4,000 shares. One percent of 400,000 is 4,000. Our rule: never own more than 1% of a stock's average daily volume. It is a ceiling on the position, whatever the stop would allow.",
    "wrong": {
-    "2,000 shares": "Halved the cap.",
-    "40,000 shares": "Slipped the decimal point up a place.",
+    "1,000 shares": "Used a quarter of a percent, not one.",
+    "2,000 shares": "Used half a percent, not one.",
     "400 shares": "Slipped the decimal point down a place."
    }
   },
@@ -191878,10 +191878,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$31,250",
-    "$1,800,000",
     "$18,000,000",
-    "$180,000,000"
+    "$36,000,000",
+    "$180,000,000",
+    "$432,000,000"
    ],
    "kind": "mcq",
    "q": "A stock trades 750,000 shares a day at 24.00. How many dollars a day is that?",
@@ -191916,7 +191916,7 @@
      "fn": "dollar_volume",
      "result": 18000000.0
     },
-    "given": "A stock trades 750,000 shares a day at 24.00. How many dollars a day is that? $1,800,000 $180,000,000 $18,000,000 $31,250"
+    "given": "A stock trades 750,000 shares a day at 24.00. How many dollars a day is that? $18,000,000 $36,000,000 $180,000,000 $432,000,000"
    },
    "lesson_line": "Check the dollar volume before the pattern. The floor is $20 million a day.",
    "simple": "It trades $18 million a day, under the $20 million floor, so it is off the list.",
@@ -191924,9 +191924,9 @@
    "unit": "SET.50",
    "why": "$18 million a day. Dollar volume is shares times price: 750,000 x 24.00. That is under our $20 million floor, so the stock is off the list, whatever the chart shows.",
    "wrong": {
-    "$1,800,000": "Slipped the decimal point a place.",
-    "$180,000,000": "Slipped the decimal point the other way.",
-    "$31,250": "Divided shares by price, not multiplied."
+    "$180,000,000": "Slipped the decimal point a place.",
+    "$36,000,000": "Counted each share twice, once buying and once selling.",
+    "$432,000,000": "Multiplied by the price twice."
    }
   },
   "review_status": "draft",
@@ -192162,10 +192162,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$53.70",
-    "$54.40",
     "$55.00",
-    "$56.30"
+    "$56.30",
+    "$57.60",
+    "$58.90"
    ],
    "kind": "mcq",
    "q": "Bought at 52.40 with the stop at 51.10. At what price is 2R, where the breakeven window opens?",
@@ -192201,7 +192201,7 @@
      "fn": "arith",
      "result": 55.0
     },
-    "given": "Bought at 52.40 with the stop at 51.10. At what price is 2R, where the breakeven window opens? $53.70 $55.00 $54.40 $56.30"
+    "given": "Bought at 52.40 with the stop at 51.10. At what price is 2R, where the breakeven window opens? $55.00 $56.30 $57.60 $58.90"
    },
    "lesson_line": "Know your 2R before the open. The breakeven window starts there.",
    "simple": "2R is $55.00, the buy plus twice the gap down to the stop.",
@@ -192209,9 +192209,9 @@
    "unit": "SET.50",
    "why": "55.00. One R is the buy minus the stop: 52.40 minus 51.10. Add two of those to the 52.40 buy. That gives 55.00. Our breakeven window runs from 2R to 5R, and the card moves the stop to breakeven at the first trim by default. So 55.00 is where the window opens, not a point where you must move it.",
    "wrong": {
-    "$53.70": "Added one R, not two.",
-    "$54.40": "Added 2 dollars, not two R.",
-    "$56.30": "Added three R, one too many."
+    "$56.30": "Added three R, one too many.",
+    "$57.60": "Added four R, doubling the two.",
+    "$58.90": "Used the far end of the window, not 2R."
    }
   },
   "review_status": "draft",
@@ -192233,9 +192233,9 @@
   "prompt_json": {
    "choices": [
     "100 shares",
-    "300 shares",
-    "400 shares",
-    "600 shares"
+    "150 shares",
+    "200 shares",
+    "300 shares"
    ],
    "kind": "mcq",
    "q": "A spring position is 900 shares. You sell a third of the 900 at 3R and another third of the 900 at 5R. How many are left to trail?",
@@ -192270,7 +192270,7 @@
      "fn": "arith",
      "result": 300.0
     },
-    "given": "A spring position is 900 shares. You sell a third of the 900 at 3R and another third of the 900 at 5R. How many are left to trail? 600 shares 400 shares 100 shares 300 shares"
+    "given": "A spring position is 900 shares. You sell a third of the 900 at 3R and another third of the 900 at 5R. How many are left to trail? 300 shares 200 shares 150 shares 100 shares"
    },
    "lesson_line": "Two thirds sold, then trail the last third.",
    "simple": "300 shares are left, the last third, after selling a third in each of two sells.",
@@ -192279,8 +192279,8 @@
    "why": "300 shares. A third of 900 is 300. Two sells of 300 each leave the last 300, which you trail. Our rulebook calls these thirds adjustable.",
    "wrong": {
     "100 shares": "Took a third of a third.",
-    "400 shares": "Sold a third of what was left on the second sell.",
-    "600 shares": "Counted only one of the two sells."
+    "150 shares": "Halved the last piece, as if a third sell hit.",
+    "200 shares": "Also sold a third of the last piece."
    }
   },
   "review_status": "draft",
@@ -197394,10 +197394,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "$111.38",
     "$114.13",
     "$118.13",
-    "$120.38",
-    "$122.63"
+    "$120.38"
    ],
    "kind": "mcq",
    "q": "Bought at 109.13 with the stop at 106.88. What price is 5R?",
@@ -197450,7 +197450,7 @@
      "fn": "arith",
      "result": 120.38
     },
-    "given": "Bought at 109.13 with the stop at 106.88. What price is 5R? $114.13 $120.38 $118.13 $122.63"
+    "given": "Bought at 109.13 with the stop at 106.88. What price is 5R? $120.38 $118.13 $114.13 $111.38"
    },
    "lesson_line": "One R is the fill minus the stop. 5R is five of them above the fill.",
    "simple": "5R is 120.38, because you add five times the gap between 109.13 and 106.88 to your buy price.",
@@ -197458,9 +197458,9 @@
    "unit": "SET.51",
    "why": "120.38. One R is the fill minus the stop: 109.13 minus 106.88. Multiply that by five and add it to the fill. In an R-based plan, a later sell can sit at 5R. On KRYS, 5R printed two sessions after the turn day.",
    "wrong": {
+    "$111.38": "Added one R, not five.",
     "$114.13": "Added 5 dollars, not five R.",
-    "$118.13": "Added five R to the stop, not the fill.",
-    "$122.63": "Added six R, one too many."
+    "$118.13": "Added five R to the stop, not the fill."
    }
   },
   "review_status": "draft",
@@ -198998,9 +198998,9 @@
   "prompt_json": {
    "choices": [
     "$31.08",
-    "$31.62",
     "$31.84",
-    "$32.22"
+    "$32.22",
+    "$32.98"
    ],
    "kind": "mcq",
    "q": "You buy at 30.70 with the stop at 30.32. What price is 3R?",
@@ -199036,7 +199036,7 @@
      "fn": "arith",
      "result": 31.84
     },
-    "given": "You buy at 30.70 with the stop at 30.32. What price is 3R? $31.62 $31.84 $31.08 $32.22"
+    "given": "You buy at 30.70 with the stop at 30.32. What price is 3R? $31.84 $31.08 $32.22 $32.98"
    },
    "lesson_line": "Know your 3R before the open. The first sell is a judgment.",
    "simple": "$31.84, because 3R adds three times the risk per share, the buy minus the stop, onto the buy price.",
@@ -199045,8 +199045,8 @@
    "why": "31.84. One R is the fill minus the stop: 30.70 minus 30.32. Multiply it by three and add it to the 30.70 fill. 3R is a measuring stick, not an automatic sale, because the first sell is a judgment. 3R means three times the risk per share, not 3% over the buy.",
    "wrong": {
     "$31.08": "Added one R, not three.",
-    "$31.62": "Took 3% over the buy, not three R.",
-    "$32.22": "Added four R, one too many."
+    "$32.22": "Added four R, one too many.",
+    "$32.98": "Doubled the R, then multiplied by three."
    }
   },
   "review_status": "draft",
@@ -199369,10 +199369,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "227 shares",
     "454 shares",
-    "594 shares",
     "909 shares",
-    "4,545 shares"
+    "1,486 shares"
    ],
    "kind": "mcq",
    "q": "Account 50,000. You risk 1%. Buy at 33.64, stop at 32.54. How many shares?",
@@ -199426,7 +199426,7 @@
      "fn": "shares_from_risk",
      "result": 454.0
     },
-    "given": "Account 50,000. You risk 1%. Buy at 33.64, stop at 32.54. How many shares? 4,545 shares 594 shares 909 shares 454 shares"
+    "given": "Account 50,000. You risk 1%. Buy at 33.64, stop at 32.54. How many shares? 454 shares 227 shares 909 shares 1,486 shares"
    },
    "lesson_line": "The stop sets the size.",
    "simple": "454 shares, because you divide the dollar risk by the gap between the buy and the stop, then round down.",
@@ -199434,8 +199434,8 @@
    "unit": "SET.52",
    "why": "454 shares. Stop first, then the size from the stop. The dollar risk is 50,000 times 1%. Divide it by the buy minus the stop, 33.64 minus 32.54, and round down. Then apply the caps. 454 shares cost well under 40% of the account, so that cap does not bind.",
    "wrong": {
-    "4,545 shares": "Used ten times the risk percent.",
-    "594 shares": "Sized to the 40% cap, not to the risk.",
+    "1,486 shares": "Bought the whole account, not the risk.",
+    "227 shares": "Used half the risk percent.",
     "909 shares": "Doubled the risk percent."
    }
   },
@@ -199892,9 +199892,9 @@
   "prompt_json": {
    "choices": [
     "0.18R",
+    "1.23R",
     "4.42R",
-    "5.42R",
-    "13.60R"
+    "5.42R"
    ],
    "kind": "mcq",
    "q": "Bought at 91.40, stop at 88.89. The next day opens at 77.80. How many R is the loss at the open?",
@@ -199941,7 +199941,7 @@
      "fn": "arith",
      "result": 5.42
     },
-    "given": "Bought at 91.40, stop at 88.89. The next day opens at 77.80. How many R is the loss at the open? 13.60R 4.42R 5.42R 0.18R"
+    "given": "Bought at 91.40, stop at 88.89. The next day opens at 77.80. How many R is the loss at the open? 5.42R 4.42R 1.23R 0.18R"
    },
    "lesson_line": "A gap can run far past the stop. Past 2R, get out.",
    "simple": "5.42R, because the open sits far below the stop, so the loss is more than five times the planned risk.",
@@ -199950,7 +199950,7 @@
    "why": "5.42R. The loss at the open divided by the risk per share: 91.40 minus 77.80, over 91.40 minus 88.89. Our gap rule lets the first 30 minutes decide, with a ceiling: past 2R, get out. At 5.42R the ceiling is already broken, so get out. A gap can jump the stop.",
    "wrong": {
     "0.18R": "Flipped the division, risk over the loss.",
-    "13.60R": "Gave the dollar loss and skipped the R division.",
+    "1.23R": "Divided by the stop-to-open gap, not the risk.",
     "4.42R": "Measured the loss from the stop, not the buy."
    }
   },
@@ -206468,8 +206468,8 @@
    "choices": [
     "$125,000",
     "$1,500,000",
-    "$18,000,000",
-    "$180,000,000"
+    "$1,800,000",
+    "$18,000,000"
    ],
    "kind": "mcq",
    "q": "The stock trades 1,500,000 shares a day on average at 12.00. How many dollars a day is that?",
@@ -206504,7 +206504,7 @@
      "fn": "dollar_volume",
      "result": 18000000.0
     },
-    "given": "The stock trades 1,500,000 shares a day on average at 12.00. How many dollars a day is that? $180,000,000 $1,500,000 $18,000,000 $125,000"
+    "given": "The stock trades 1,500,000 shares a day on average at 12.00. How many dollars a day is that? $18,000,000 $1,800,000 $1,500,000 $125,000"
    },
    "lesson_line": "Shares times price is dollars a day. Check it against $20 million.",
    "simple": "It is $18,000,000 a day, because 1,500,000 shares times 12.00 is that, under our $20 million floor.",
@@ -206513,8 +206513,8 @@
    "why": "Dollars a day is shares times price: 1,500,000 x 12.00 = $18,000,000. Our floor is $20 million a day, so this stock fails even though its price is over $10.",
    "wrong": {
     "$1,500,000": "Gave the share count and forgot to multiply by the price.",
-    "$125,000": "Divided shares by price instead of multiplying them.",
-    "$180,000,000": "Decimal slip: added a zero."
+    "$1,800,000": "Slipped the decimal point down a place.",
+    "$125,000": "Divided shares by price instead of multiplying them."
    }
   },
   "review_status": "draft",
@@ -206676,9 +206676,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "2,400 shares",
     "24,000 shares",
     "48,000 shares",
-    "240,000 shares",
     "2,376,000 shares"
    ],
    "kind": "mcq",
@@ -206707,7 +206707,7 @@
      "fn": "arith",
      "result": 24000.0
     },
-    "given": "A stock averages 2,400,000 shares a day. What is the most shares our volume ceiling lets you own? 240,000 shares 48,000 shares 2,376,000 shares 24,000 shares"
+    "given": "A stock averages 2,400,000 shares a day. What is the most shares our volume ceiling lets you own? 24,000 shares 2,400 shares 48,000 shares 2,376,000 shares"
    },
    "lesson_line": "Move the decimal two places: 1% of the daily volume.",
    "simple": "24,000 shares, because our ceiling is 1% of the daily volume, and 1% of 2,400,000 is 24,000.",
@@ -206716,7 +206716,7 @@
    "why": "Our ceiling is 1% of the average daily volume. One percent is 0.01, so 2,400,000 times 0.01 = 24,000 shares. We never own more than that, so owning more is over our ceiling.",
    "wrong": {
     "2,376,000 shares": "Took one percent off the volume instead of one percent of it.",
-    "240,000 shares": "Moved the decimal one place, which is ten percent, not one.",
+    "2,400 shares": "Slipped the decimal point down a place.",
     "48,000 shares": "Used two percent, not one."
    }
   },
@@ -206862,9 +206862,9 @@
   "prompt_json": {
    "choices": [
     "$106.03",
+    "$113.11",
     "$116.65",
-    "$117.83",
-    "$119.01"
+    "$117.83"
    ],
    "kind": "mcq",
    "q": "Fill 111.93, stop 110.75. Where is 5R?",
@@ -206893,7 +206893,7 @@
      "fn": "arith",
      "result": 117.83
     },
-    "given": "Fill 111.93, stop 110.75. Where is 5R? $119.01 $116.65 $117.83 $106.03"
+    "given": "Fill 111.93, stop 110.75. Where is 5R? $117.83 $116.65 $113.11 $106.03"
    },
    "lesson_line": "Write your 5R price down. It is a level to measure from.",
    "simple": "117.83, because one R is 111.93 minus 110.75, and adding five of those to the fill lands there.",
@@ -206902,8 +206902,8 @@
    "why": "One R is the fill minus the stop. Add five of them to the fill: 111.93 + 5 x (111.93 - 110.75) = 117.83. In a thirds plan, another third can come off at 5R, then the last third trails. These levels are adjustable.",
    "wrong": {
     "$106.03": "Subtracted five R from the fill instead of adding it.",
-    "$116.65": "Counted 5R up from the stop, not from the fill.",
-    "$119.01": "Added six R, counting the fill itself as the first step."
+    "$113.11": "Added one R, not five.",
+    "$116.65": "Counted 5R up from the stop, not from the fill."
    }
   },
   "review_status": "draft",
@@ -208944,10 +208944,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "0.42%",
     "3.01%",
     "4.01%",
-    "4.18%",
-    "41.81%"
+    "4.18%"
    ],
    "kind": "mcq",
    "q": "The first 5-minute high is 71.99. You look up and the stock trades 75.00. How far above the high is that?",
@@ -208989,7 +208989,7 @@
      "fn": "pct_change",
      "result": 4.18
     },
-    "given": "The first 5-minute high is 71.99. You look up and the stock trades 75.00. How far above the high is that? 41.81% 3.01% 4.01% 4.18%"
+    "given": "The first 5-minute high is 71.99. You look up and the stock trades 75.00. How far above the high is that? 4.18% 4.01% 3.01% 0.42%"
    },
    "lesson_line": "Measure the chase before you buy it. Past 4%, the first pullback is the way in.",
    "simple": "4.18 percent, which is past our 4 percent line, so the buy point has passed.",
@@ -208997,9 +208997,9 @@
    "unit": "SET.54",
    "why": "Take the move above the high: 75.00 - 71.99 = 3.01. Divide by the high: 3.01 / 71.99 = 4.18%. That is past the 4% line, so the buy point has passed. Use the second entry. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
    "wrong": {
+    "0.42%": "Decimal slip: moved the point one place down.",
     "3.01%": "Stopped at the dollar move and never divided by the high.",
-    "4.01%": "Divided the 3.01 move by the 75.00 price, not by the high.",
-    "41.81%": "Decimal slip: moved the point one place too far."
+    "4.01%": "Divided the 3.01 move by the 75.00 price, not by the high."
    }
   },
   "review_status": "draft",

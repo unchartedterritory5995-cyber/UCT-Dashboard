@@ -3610,17 +3610,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$1.90",
     "$1.20",
-    "$0.40",
-    "$0.30"
+    "$1.50",
+    "$1.60",
+    "$1.90"
    ],
    "wrong": {
     "$1.90": "Used high minus low, which counts the shadows.",
-    "$0.40": "That is the lower shadow: open minus low.",
-    "$0.30": "That is the upper shadow: high minus close."
+    "$1.50": "Measured open to the high, which counts the upper shadow.",
+    "$1.60": "Measured low to the close, which adds the lower shadow."
    }
   },
   {
@@ -3656,17 +3656,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$2.40",
     "$2.10",
-    "$2.60",
-    "$0.30"
+    "$2.30",
+    "$2.40",
+    "$2.60"
    ],
    "wrong": {
     "$2.40": "Measured from the open, which is the bottom of this body.",
     "$2.60": "Used high minus low, the whole range.",
-    "$0.30": "That is the body, not the upper shadow."
+    "$2.30": "Added the lower shadow, which is not part of the upper one."
    }
   },
   {
@@ -3706,17 +3706,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$0.70",
-    "$3.00",
     "$2.40",
-    "$0.60"
+    "$0.70",
+    "$0.60",
+    "$0.10"
    ],
    "wrong": {
-    "$3.00": "Measured from the open, which adds the body to the shadow.",
     "$0.60": "That is the body, not the lower shadow.",
-    "$0.70": "Measured up from the close to the high, which is not the lower shadow."
+    "$0.70": "Measured up from the close to the high, which is not the lower shadow.",
+    "$0.10": "That is the upper shadow: the high minus the open."
    }
   },
   {
@@ -4145,20 +4145,20 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Content passes; reordered only to vary the answer slot."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "27.40-25.30=2.10 verified; wrongs real."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "$3.00 and $3.10 were near-duplicates so the odd one out was the answer. Replaced $3.10 with a close-to-high slip."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q60": {
    "status": "pass",

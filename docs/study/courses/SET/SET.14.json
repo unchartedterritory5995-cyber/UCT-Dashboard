@@ -2501,17 +2501,17 @@
      "rests on the owner's rulebook E51, which is adjustable"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "6.0R",
     "5.0R",
-    "3.9R",
-    "0.1R"
+    "6.0R",
+    "13.4R",
+    "50.0R"
    ],
    "wrong": {
     "6.0R": "That counts the gain from the stop, so it reads one R too high.",
-    "3.9R": "That is the dollar gain read as R. Divide it by the risk per share.",
-    "0.1R": "That divides the gain by the price, not by R."
+    "13.4R": "That is the percent gain read as R. Divide by the risk instead.",
+    "50.0R": "That is ten times too big. A decimal slip."
    }
   },
   {
@@ -3137,17 +3137,17 @@
      "rests on the owner's rulebook C28"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1.6%",
+    "3.6%",
     "36.0%",
     "103.6%",
-    "3.6%"
+    "162.0%"
    ],
    "wrong": {
-    "1.6%": "That is the dollar amount read as a percent. Divide it first.",
     "36.0%": "That slips a decimal place.",
-    "103.6%": "That is the open as a share of the trigger, not the gain."
+    "103.6%": "That is the open as a share of the trigger, not the gain.",
+    "162.0%": "Turned the dollar gap into a percent without dividing by the trigger."
    }
   },
   {
@@ -3543,17 +3543,17 @@
      "rests on the owner's rulebook D42"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "250,000 shares",
     "25,000 shares",
     "2,500 shares",
-    "50,000 shares"
+    "12,500 shares",
+    "250 shares"
    ],
    "wrong": {
-    "250,000 shares": "That is ten times our line.",
     "2,500 shares": "That is a tenth of our line. A decimal slip.",
-    "50,000 shares": "That is double our line."
+    "12,500 shares": "Halved the rule's share of the volume.",
+    "250 shares": "That is a hundredth of our line. A decimal slip."
    }
   },
   {
@@ -3917,7 +3917,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q43": {
    "status": "pass",
@@ -4015,8 +4015,8 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "fixed": true,
+   "notes": "Rank ok. 'Divided by ten' is not a real slip; replaced with turning the dollar gap into a percent without dividing."
   },
   "q59": {
    "status": "cut",
@@ -4076,8 +4076,8 @@
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "fixed": true,
+   "notes": "Rank ok. Note on 12,500 now names the mistake."
   },
   "q69": {
    "status": "pass",

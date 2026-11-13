@@ -2276,17 +2276,17 @@
      "rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "10.9%",
-    "6.0%",
     "12.2%",
-    "112.2%"
+    "112.2%",
+    "122.0%",
+    "89.1%"
    ],
    "wrong": {
-    "6.0%": "Read the dollar gap as a percent.",
-    "10.9%": "Divided by the fill, not by the 10-day average.",
-    "112.2%": "Divided fill by average and forgot to subtract one."
+    "112.2%": "Divided fill by average and forgot to subtract one.",
+    "89.1%": "Divided the 10-day average by the fill, upside down.",
+    "122.0%": "Slipped the decimal one place to the right."
    }
   },
   {
@@ -2412,17 +2412,17 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "121 shares",
     "1,219 shares",
     "2,439 shares",
-    "4,510 shares"
+    "4,510 shares",
+    "12,195 shares"
    ],
    "wrong": {
-    "121 shares": "Slipped the decimal: used a tenth of the risk percent.",
     "2,439 shares": "Risked double the risk percent.",
-    "4,510 shares": "Bought the whole account at the fill price."
+    "4,510 shares": "Bought the whole account at the fill price.",
+    "12,195 shares": "Slipped the decimal: used ten times the risk percent."
    }
   },
   {
@@ -3879,17 +3879,17 @@
      "rests on one card line (cc1)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "8%",
-    "15%",
     "85%",
-    "99%"
+    "99%",
+    "108.5%",
+    "567%"
    ],
    "wrong": {
-    "15%": "Measured down from the high, not up from the low.",
-    "8%": "Divided by the close instead of the range.",
-    "99%": "Divided the close by the high and skipped the low."
+    "99%": "Divided the close by the high and skipped the low.",
+    "108.5%": "Divided the close by the low.",
+    "567%": "Divided the climb by the gap to the high."
    }
   },
   {
@@ -3999,17 +3999,17 @@
    "depends_on": [
     "D-097"
    ],
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "98%",
+    "2%",
     "1%",
-    "20%",
-    "2%"
+    "0.2%",
+    "0.02%"
    ],
    "wrong": {
     "1%": "Read the dollar gap as a percent.",
-    "20%": "Slipped the decimal one place to the right.",
-    "98%": "Divided the close by the open and skipped the subtraction."
+    "0.2%": "Slipped the decimal one place to the left.",
+    "0.02%": "Forgot to scale the ratio to a percent."
    }
   },
   {
@@ -4704,8 +4704,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "fixed": true,
+   "notes": "Fixed format tell or ladder pattern; recomputed and verified rank."
   },
   "q36": {
    "status": "pass",
@@ -4723,7 +4723,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q39": {
    "status": "pass",
@@ -4954,7 +4954,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q77": {
    "status": "pass",
@@ -4972,7 +4972,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q80": {
    "status": "pass",

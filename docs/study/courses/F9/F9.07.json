@@ -1493,17 +1493,17 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "25%",
+    "30%",
     "55%",
-    "75%",
-    "40%",
-    "25%"
+    "40%"
    ],
    "wrong": {
     "55%": "Gave the equity share you start with.",
-    "75%": "Took 100% minus the 25% floor.",
-    "25%": "Used the floor as the size of the fall."
+    "25%": "Used the floor as the size of the fall.",
+    "30%": "Took the 25% floor off the 55% starting equity."
    }
   },
   {
@@ -1791,7 +1791,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q22": {
    "status": "pass",

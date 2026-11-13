@@ -1310,17 +1310,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$95",
-    "$120",
     "$25",
-    "$0.25"
+    "$120",
+    "$95",
+    "$145"
    ],
    "wrong": {
     "$120": "Thinks you can still make the whole credit. Most of it is already made.",
     "$95": "Gives what closing now already earns, not what is left to make.",
-    "$0.25": "Forgets that one contract covers 100 shares."
+    "$145": "Adds the 0.25 closing cost to the 1.20 credit."
    }
   },
   {
@@ -1598,8 +1598,8 @@
    "choices": [
     "$2.40",
     "$1.60",
-    "$3.20",
-    "$0.80"
+    "$0.80",
+    "$0.40"
    ],
    "answer": "$2.40",
    "calc": {
@@ -1619,8 +1619,8 @@
    ],
    "wrong": {
     "$1.60": "That's twice the credit as a price. Buying back there loses only one times the credit.",
-    "$3.20": "That's four times the credit, a loss of three times it. Past the rule.",
-    "$0.80": "That's where you sold it. Buying back there is break-even, not a stop."
+    "$0.80": "That's where you sold it. Buying back there is break-even, not a stop.",
+    "$0.40": "Cuts the credit in half instead of tripling it."
    },
    "simple": "$2.40, because a loss of twice the $0.80 credit means paying back the credit plus twice it, three times $0.80.",
    "deeper": {
@@ -1634,7 +1634,7 @@
      "touches the owner's rulebook A6 and B25 (options only as a defined-risk alternative)"
     ]
    },
-   "batch": "wave7"
+   "batch": "rank"
   },
   {
    "key": "q26",
@@ -1829,8 +1829,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q18": {
    "status": "pass",
@@ -1876,9 +1876,9 @@
   },
   "q25": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q26": {
    "status": "pass",

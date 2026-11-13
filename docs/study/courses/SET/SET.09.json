@@ -2235,15 +2235,15 @@
    "q": "What is the most you may pay for it?",
    "story": "We never pay more than 4% over the handle high. The handle high is 60.00. You were away for the open. At 10:30 the stock trades 62.70.",
    "choices": [
-    "$60.10",
     "$62.40",
     "$62.70",
-    "$63.00"
+    "$63.00",
+    "$64.00"
    ],
    "wrong": {
-    "$60.10": "That is the handle high plus IBD's 10 cents. Our limit is 4% over the handle high.",
     "$62.70": "That is today's price, and it is past the 4% line.",
-    "$63.00": "That is past the 4% line too."
+    "$63.00": "Rounded the limit up to the next whole dollar.",
+    "$64.00": "That adds 4 dollars, not 4 percent."
    },
    "answer": "$62.40",
    "why": "62.40. We never buy more than 4% above the buy point, and 4% over the 60.00 handle high is 62.40. At 62.70 the stock is past that line, so we pass. Chasing also costs size: the stop stays put, so the distance grows and the shares shrink.",
@@ -2276,7 +2276,7 @@
      "rests on the owner's rulebook C28: the 4% chase line, stated in the story"
     ]
    },
-   "batch": "wave1"
+   "batch": "rank"
   },
   {
    "key": "q30",
@@ -2498,17 +2498,17 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "291 shares",
     "582 shares",
     "2,912 shares",
-    "7 shares",
-    "291 shares"
+    "981 shares"
    ],
    "wrong": {
     "582 shares": "Used twice the stated risk percent.",
     "2,912 shares": "Decimal slip: the risk dollars came out ten times too big.",
-    "7 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
+    "981 shares": "Divided the account by the fill price and skipped the risk."
    }
   },
   {
@@ -4121,17 +4121,17 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "2,500 shares",
     "25,000 shares",
     "250,000 shares",
-    "250 shares",
-    "2,500 shares"
+    "125,000 shares"
    ],
    "wrong": {
     "25,000 shares": "Decimal slip: ten percent of the volume.",
-    "250 shares": "Decimal slip the other way: a tenth of the cap.",
-    "250,000 shares": "Used the whole average daily volume as the limit."
+    "250,000 shares": "Used the whole average daily volume as the limit.",
+    "125,000 shares": "Took half the daily volume, not one percent."
    }
   },
   {
@@ -4144,14 +4144,14 @@
    "story": "The risk math and the position cap allow 5,000 shares of a cup breakout. The stock averages 220,000 shares a day. You hold none today.",
    "choices": [
     "2,200 shares",
-    "5,000 shares",
     "3,600 shares",
+    "220 shares",
     "1,100 shares"
    ],
    "wrong": {
-    "5,000 shares": "The risk math sets a size, but this is over 1% of average daily volume. The volume cap wins.",
     "3,600 shares": "Averaging the two limits is not a rule. It is still over 1% of average daily volume.",
-    "1,100 shares": "That is half the cap. The question asks for the most you may buy, and that is the cap."
+    "1,100 shares": "That is half the cap. The question asks for the most you may buy, and that is the cap.",
+    "220 shares": "Decimal slip: a tenth of the cap."
    },
    "answer": "2,200 shares",
    "why": "2,200 shares. The risk math allows 5,000, but we never own more than 1% of a stock's average daily volume. One percent of 220,000 is 2,200, the lower limit, so the volume cap sets the most you may buy.",
@@ -4181,7 +4181,7 @@
      "rests on the owner's rulebook D42; the story says the risk math and the position cap allow 5,000, so the volume cap is the only extra limit"
     ]
    },
-   "batch": "wave1"
+   "batch": "rank"
   },
   {
    "key": "q76",
@@ -4351,17 +4351,17 @@
      "the 8% and 5% grade cues are card numbers"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "95.0%",
-    "2.5%",
     "5.0%",
-    "50.0%"
+    "2.5%",
+    "0.5%",
+    "2.6%"
    ],
    "wrong": {
     "2.5%": "Read the dollar drop as a percent.",
-    "95.0%": "Took the handle low as a percent of the high and skipped the drop.",
-    "50.0%": "Decimal slip: moved the decimal one place."
+    "0.5%": "Decimal slip: moved the decimal one place left.",
+    "2.6%": "Divided the drop by the high plus the low, not the high."
    }
   },
   {
@@ -5027,8 +5027,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "60.00*1.04=62.40, calc matches; 62.70 is 4.5% and 63.00 is 5% over. Wrong notes right."
+   "fixed": true,
+   "notes": "Rank ok. The 63.00 note named no mistake; replaced with rounding the limit up."
   },
   "q30": {
    "status": "cut",
@@ -5059,7 +5059,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (300/1.03=291.3; 582; 2912; 7). Why walks the steps."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q35": {
    "status": "cut",
@@ -5305,13 +5305,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "250,000/100=2,500; slips 25,000, 250, 250,000 real enough. Why fine."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q75": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1% of 220,000 = 2,200, lower than 5,000. Distractors 3,600 (average) and 1,100 (half) are plausible, not silly. Rule taught in q74 and in the wrong notes."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q76": {
    "status": "pass",
@@ -5341,7 +5341,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Math right (2.5/50=5.0; 2.5 dollar; 95; 50). Why lacked 2.50."
+   "notes": "Rank ok. The 1.3% choice had no real mistake behind it (halving gives 2.5%); replaced with dividing by high plus low."
   },
   "q81": {
    "status": "pass",

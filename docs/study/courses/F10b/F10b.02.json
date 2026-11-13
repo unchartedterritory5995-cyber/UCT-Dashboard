@@ -1182,17 +1182,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "-2.5R",
+    "2.5R",
+    "3.5R",
     "5.0R",
-    "0.4R",
-    "2.5R"
+    "7.0R"
    ],
    "wrong": {
-    "-2.5R": "Treated the short like a long. Buying back lower is a gain on a short.",
-    "0.4R": "Flipped it: risk over gain.",
-    "5.0R": "Used the dollar gain as the R. Divide it by the risk."
+    "5.0R": "Used the dollar gain as the R. Divide it by the risk.",
+    "3.5R": "Measured the gain from the buy stop to the cover price, not from the entry.",
+    "7.0R": "Used the gap from the buy stop to the cover price with no division by the risk."
    }
   },
   {
@@ -1268,17 +1268,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$400",
+    "$1,600",
+    "$2,000",
     "$11,600",
-    "$1,200",
-    "$1,600"
+    "$16,000"
    ],
    "wrong": {
-    "$400": "That was the planned loss at the $26.00 stop. The fill was at $29.00.",
-    "$1,200": "Counted only the gap past the stop. The loss starts at your $25.00 entry.",
-    "$11,600": "That is the cost to buy back the 400 shares, not the loss."
+    "$11,600": "That is the cost to buy back the 400 shares, not the loss.",
+    "$2,000": "Added the planned $400 loss on top of the real loss.",
+    "$16,000": "A decimal slip: ten times too big."
    }
   },
   {
@@ -1614,17 +1614,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1,742%",
-    "164%",
+    "1,642%",
     "94%",
-    "1,642%"
+    "164%",
+    "328%"
    ],
    "wrong": {
-    "1,742%": "Forgot to take off the original price. The loss is the rise, not the new price as a share of the old.",
     "94%": "Divided the rise by the $347.51 close. Divide by the $19.95 sale price.",
-    "164%": "A decimal slip: ten times too small."
+    "164%": "A decimal slip: ten times too small.",
+    "328%": "Gave the dollar rise as a percent. Divide it by the $19.95 sale price first."
    }
   },
   {
@@ -1918,8 +1918,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 2.5. Choices real. Moved the answer from slot 1 to slot 4. Why skipped the dollar figures; added."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q13": {
    "status": "pass",
@@ -1930,8 +1930,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 1600. Choices real (400 planned, 1,200 = 29-26 x 400, 11,600 = 29 x 400). Why skipped the times-400 step; added."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q15": {
    "status": "pass",
@@ -1979,7 +1979,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 1642 (1641.9 rounded). 1,742 = ratio, 94 = divided by $347.51, 164 slip. Why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q23": {
    "status": "cut",

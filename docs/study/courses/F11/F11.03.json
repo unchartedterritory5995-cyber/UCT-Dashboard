@@ -1056,17 +1056,17 @@
      "fixed before (stem reworded by the checker)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "800 shares",
     "1,075 shares",
-    "10 shares",
-    "80 shares",
-    "800 shares"
+    "2,688 shares",
+    "8,000 shares"
    ],
    "wrong": {
     "1,075 shares": "Filled the 40% account cap instead of sizing from the $200 risk.",
-    "10 shares": "Divided the $200 by the $18.60 entry price. Divide by the risk per share.",
-    "80 shares": "A decimal slip: ten times too small."
+    "2,688 shares": "Spent the whole $50,000 account at the entry price instead of sizing from the risk.",
+    "8,000 shares": "A decimal slip: ten times too big."
    }
   },
   {
@@ -1151,17 +1151,17 @@
      "fixed before (2R target moved to 3R trim)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$43.00",
-    "$37.60",
     "$42.40",
-    "$41.60"
+    "$41.60",
+    "$43.00",
+    "$44.00"
    ],
    "wrong": {
-    "$37.60": "Went three times the risk below the entry. A long's 3R sits above it.",
     "$43.00": "Added a flat $3.00, not three times the risk.",
-    "$41.60": "That is only two times the risk. 3R takes three times it."
+    "$41.60": "That is only two times the risk. 3R takes three times it.",
+    "$44.00": "Used five times the risk instead of three."
    }
   },
   {
@@ -1730,8 +1730,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 800. Choices real (1,075 = 40% cap, 10 = 200/18.60, 80 slip). Why skipped the entry-to-stop step; added."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q10": {
    "status": "pass",
@@ -1742,8 +1742,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 42.4. Choices real (37.60 below, 43 flat $3, 41.60 = 2R). Moved the answer to slot 1 (two answers in slot 3). Why is fine."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q12": {
    "status": "pass",

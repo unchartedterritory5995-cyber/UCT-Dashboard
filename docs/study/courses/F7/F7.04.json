@@ -1493,17 +1493,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "4,471",
-    "3,597",
-    "4,292",
-    "3,649"
+    "5,151",
+    "4,650",
+    "4,292"
    ],
    "wrong": {
     "4,471": "Undid a 20% loss instead of adding a 20% gain.",
-    "3,597": "Added 20 points instead of 20 percent.",
-    "3,649": "Slipped a decimal place in the multiplier."
+    "5,151": "Added 20% twice, compounding the rise.",
+    "4,650": "Used a bigger rise than the 20% rule."
    }
   },
   {
@@ -2053,7 +2053,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q18": {
    "status": "pass",

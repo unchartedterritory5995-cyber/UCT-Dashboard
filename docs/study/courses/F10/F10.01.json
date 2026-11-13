@@ -847,17 +847,17 @@
      "touches owner rule E57 (entries are market orders): flagged"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$39.60",
-    "$41.00",
     "$40.40",
-    "$40.04"
+    "$41.00",
+    "$44.00",
+    "$40.80"
    ],
    "wrong": {
-    "$39.60": "Took 1% off the level. A buy cap goes above the breakout, not below it.",
     "$41.00": "Added a flat $1.00 instead of 1% of $40.00.",
-    "$40.04": "A decimal slip: that adds a tenth of the 1% you meant."
+    "$44.00": "A decimal slip: that adds ten times the 1% you meant.",
+    "$40.80": "Added the 1% twice. The cap needs it once."
    }
   },
   {
@@ -1092,17 +1092,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "109%",
+    "9.0%",
     "8.3%",
-    "2.3%",
-    "9.0%"
+    "90%",
+    "109%"
    ],
    "wrong": {
     "8.3%": "Divided the rise by the $27.25 open. The move started at the close, so divide by $25.00.",
-    "2.3%": "Used the dollar rise as a percent. Divide it by the close first.",
-    "109%": "Gave the ratio 27.25 / 25.00 as a percent and forgot to take off the start."
+    "109%": "Gave the ratio 27.25 / 25.00 as a percent and forgot to take off the start.",
+    "90%": "A decimal slip: the point moved one place the wrong way."
    }
   },
   {
@@ -1422,7 +1422,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "40 x 1.01 = 40.40. $39.60 is the wrong sign, $41.00 a flat $1, $40.04 a 0.1% slip. Why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q12": {
    "status": "pass",
@@ -1460,8 +1460,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 9.0. 9.0% was the only whole number and two wrongs were digit twins of it (0.9%); swapped 0.9% for 109% (the ratio 27.25/25 read as a percent) and moved the answer to slot 4."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q18": {
    "status": "pass",

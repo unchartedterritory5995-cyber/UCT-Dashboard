@@ -1157,17 +1157,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "104.3%",
-    "5.0%",
     "4.3%",
-    "0.4%"
+    "5.0%",
+    "43.0%",
+    "104.3%"
    ],
    "wrong": {
     "5.0%": "You read the 5-cent beat as 5%.",
     "104.3%": "You divided actual by the consensus and forgot to subtract one.",
-    "0.4%": "A decimal slip: you moved the point one place."
+    "43.0%": "A decimal slip: you moved the point one place the wrong way."
    }
   },
   {
@@ -1186,7 +1186,7 @@
      "high": 2.35
     }
    },
-   "why": "$2.25. Add the two ends: $2.15 plus $2.35 is $4.50. Half of $4.50 is $2.25. FactSet judges a range by its midpoint against the mean estimate. Analysts expected $2.27, so the EPS midpoint sat just under. CNBC called the earnings forecast lighter than expected, and the stock slid 7% in extended trading. The revenue guide is a separate number.",
+   "why": "$2.25. Add the two ends, $2.15 and $2.35, then halve the sum to get $2.25. FactSet judges a range by its midpoint against the mean estimate. Analysts expected $2.27, so the EPS midpoint sat just under. CNBC called the earnings forecast lighter than expected, and the stock slid 7% in extended trading. The revenue guide is a separate number.",
    "lesson_line": "When the guide is a range, compare its midpoint to the consensus.",
    "facts": [
     "f76",
@@ -1203,15 +1203,15 @@
    },
    "batch": "tomcq",
    "choices": [
-    "$4.50",
     "$2.25",
+    "$2.15",
     "$0.20",
-    "$2.35"
+    "$1.13"
    ],
    "wrong": {
-    "$4.50": "You added the two ends and forgot to halve.",
     "$0.20": "You gave the width of the range, not its middle.",
-    "$2.35": "You took the top of the range, the best case."
+    "$2.15": "You took the bottom of the range, the worst case.",
+    "$1.13": "You added the two ends and halved twice."
    }
   },
   {
@@ -1704,13 +1704,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Recomputed; fixed rank or note so the answer sits at the target rank with genuine mistakes."
   },
   "q14": {
    "status": "pass",

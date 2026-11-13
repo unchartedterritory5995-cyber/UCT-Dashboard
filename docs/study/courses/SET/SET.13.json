@@ -2168,17 +2168,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$45.00",
+    "$55.00",
     "$60.00",
-    "$52.50",
-    "$55.00"
+    "$60.50",
+    "$550.00"
    ],
    "wrong": {
     "$60.00": "That adds 10 dollars, not 10 percent.",
-    "$52.50": "That is 5% over, the A+ zone, not the limit.",
-    "$45.00": "That is 10% under the average. The limit sits above it."
+    "$60.50": "Took the 10 percent twice, one on top of the other.",
+    "$550.00": "Decimal slip: ten times too big."
    }
   },
   {
@@ -2798,17 +2798,17 @@
      "+2 computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$25.00",
-    "$27.00",
+    "$22.00",
     "$15.00",
-    "$22.00"
+    "$17.00",
+    "$12.00"
    ],
    "wrong": {
-    "$25.00": "That adds half the pole to the pole high, not to the flag low.",
-    "$27.00": "That adds the whole pole to the flag low, not half.",
-    "$15.00": "That adds half the pole to the pole low, not to the flag low."
+    "$15.00": "That adds half the pole to the pole low, not to the flag low.",
+    "$17.00": "That is the flag low. The half pole must be added.",
+    "$12.00": "That takes half the pole off the flag low."
    }
   },
   {
@@ -4049,17 +4049,17 @@
      "rests on the owner's rulebook (A13)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "13.6%",
     "12.0%",
+    "13.6%",
     "88.0%",
-    "1.2%"
+    "120.0%"
    ],
    "wrong": {
     "13.6%": "That divides by the stop. Divide by the fill.",
     "88.0%": "That is the stop as a share of the fill, not the gap.",
-    "1.2%": "That slips a decimal place."
+    "120.0%": "Decimal slip: one place too far right."
    }
   },
   {
@@ -4124,17 +4124,17 @@
      "rests on a published definition (Van Tharp R-multiple)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$7.50",
     "$2.50",
-    "$57.50",
-    "$0.25"
+    "$0.25",
+    "$1.25",
+    "$0.04"
    ],
    "wrong": {
-    "$7.50": "That is three R, three times the risk. One R is one share's risk.",
-    "$57.50": "That is the stop price, not the distance to it.",
-    "$0.25": "That slips a decimal place."
+    "$0.25": "That slips a decimal place.",
+    "$1.25": "That is half the risk. One R is the full gap to the stop.",
+    "$0.04": "That divides the gap by the fill, a fraction, not dollars."
    }
   },
   {
@@ -4429,8 +4429,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "fixed": true,
+   "notes": "Rank ok. The 57.50 and 100.00 choices had no genuine slip behind them; replaced with compounding the 10% twice and a decimal slip (x11)."
   },
   "q29": {
    "status": "pass",
@@ -4528,7 +4528,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q45": {
    "status": "pass",
@@ -4720,8 +4720,8 @@
   "q75": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "fixed": true,
+   "notes": "Rank ok. The note 'the other way' pointed at nothing; reworded."
   },
   "q76": {
    "status": "pass",
@@ -4733,7 +4733,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q78": {
    "status": "cut",

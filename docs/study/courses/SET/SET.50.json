@@ -3330,17 +3330,17 @@
      "rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$1,800,000",
-    "$180,000,000",
     "$18,000,000",
-    "$31,250"
+    "$36,000,000",
+    "$180,000,000",
+    "$432,000,000"
    ],
    "wrong": {
-    "$1,800,000": "Slipped the decimal point a place.",
-    "$180,000,000": "Slipped the decimal point the other way.",
-    "$31,250": "Divided shares by price, not multiplied."
+    "$180,000,000": "Slipped the decimal point a place.",
+    "$36,000,000": "Counted each share twice, once buying and once selling.",
+    "$432,000,000": "Multiplied by the price twice."
    }
   },
   {
@@ -3474,17 +3474,17 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$53.70",
     "$55.00",
-    "$54.40",
-    "$56.30"
+    "$56.30",
+    "$57.60",
+    "$58.90"
    ],
    "wrong": {
-    "$53.70": "Added one R, not two.",
-    "$54.40": "Added 2 dollars, not two R.",
-    "$56.30": "Added three R, one too many."
+    "$56.30": "Added three R, one too many.",
+    "$57.60": "Added four R, doubling the two.",
+    "$58.90": "Used the far end of the window, not 2R."
    }
   },
   {
@@ -3521,17 +3521,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "600 shares",
-    "400 shares",
-    "100 shares",
-    "300 shares"
+    "300 shares",
+    "200 shares",
+    "150 shares",
+    "100 shares"
    ],
    "wrong": {
-    "600 shares": "Counted only one of the two sells.",
-    "400 shares": "Sold a third of what was left on the second sell.",
-    "100 shares": "Took a third of a third."
+    "100 shares": "Took a third of a third.",
+    "200 shares": "Also sold a third of the last piece.",
+    "150 shares": "Halved the last piece, as if a third sell hit."
    }
   },
   {
@@ -4094,7 +4094,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "750,000*24 = 18,000,000. Decimal slips and 31,250 = 750,000/24. Verified."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q70": {
    "status": "pass",
@@ -4117,14 +4117,14 @@
   "q73": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "55.00 correct (52.40+2*1.30). Answer was the largest choice; replaced the subtract-2R choice with a three-R count slip (56.30)."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q74": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "900-2*300 = 300. 600 one sell, 400 = 900-300-200, 100 a third of a third. Fine."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q75": {
    "status": "pass",

@@ -2434,17 +2434,17 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "316 shares",
     "632 shares",
-    "6 shares",
     "3,164 shares",
-    "316 shares"
+    "63,291 shares"
    ],
    "wrong": {
     "632 shares": "Doubled the risk dollars.",
-    "6 shares": "Divided the risk dollars by the fill, not the stop distance.",
-    "3,164 shares": "Slipped a decimal and risked ten times too much."
+    "3,164 shares": "Slipped a decimal and risked ten times too much.",
+    "63,291 shares": "Used the whole account as the risk dollars."
    }
   },
   {
@@ -2750,17 +2750,17 @@
      "computed key (drawdown_pct)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "6.4%",
-    "2.4%",
     "6.0%",
-    "94.0%"
+    "2.4%",
+    "0.6%",
+    "0.06%"
    ],
    "wrong": {
-    "6.4%": "Divided the drop by the low instead of the high.",
     "2.4%": "Read the dollar drop as a percent.",
-    "94.0%": "Found where the low sits as a share of the high, not the drop."
+    "0.6%": "Slipped the decimal point one place left.",
+    "0.06%": "Forgot to scale the ratio to a percent."
    }
   },
   {
@@ -3879,7 +3879,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q37": {
    "status": "pass",
@@ -3929,7 +3929,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q45": {
    "status": "pass",

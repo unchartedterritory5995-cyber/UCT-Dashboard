@@ -2538,8 +2538,8 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "$30.10",
     "$30.13",
+    "$60.25",
     "$15,065",
     "$30,130"
    ],
@@ -2577,7 +2577,7 @@
      "fn": "avg_price",
      "result": 30.13
     },
-    "given": "Your market buy for 1,000 shares fills 400 at $30.10 and 600 at $30.15. What is your average price? $30,130 $30.10 $15,065 $30.13"
+    "given": "Your market buy for 1,000 shares fills 400 at $30.10 and 600 at $30.15. What is your average price? $30.13 $60.25 $15,065 $30,130"
    },
    "lesson_line": "When your order fills at several prices, your real cost is the average, not the ask you saw.",
    "simple": "Your average is $30.13, because more of the shares, 600 of 1,000, filled at the higher price.",
@@ -2587,7 +2587,7 @@
    "wrong": {
     "$15,065": "You divided the $30,130 total by the number of fills instead of the 1,000 shares.",
     "$30,130": "You gave the total cost and forgot to divide by the 1,000 shares.",
-    "$30.10": "You used only the first fill's price."
+    "$60.25": "You added the two fill prices and never averaged them."
    }
   },
   "review_status": "draft",
@@ -3087,10 +3087,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "1.5%",
-    "30%",
     "75%",
-    "133%"
+    "133%",
+    "150%",
+    "750%"
    ],
    "kind": "mcq",
    "q": "You buy at the $20.30 ask. The bid is $20.00. Your stop is $0.40 under your fill. What percent of that $0.40 is the spread?",
@@ -3130,7 +3130,7 @@
      "fn": "arith",
      "result": 75.0
     },
-    "given": "You buy at the $20.30 ask. The bid is $20.00. Your stop is $0.40 under your fill. What percent of that $0.40 is the spread? 1.5% 133% 75% 30%"
+    "given": "You buy at the $20.30 ask. The bid is $20.00. Your stop is $0.40 under your fill. What percent of that $0.40 is the spread? 75% 133% 150% 750%"
    },
    "lesson_line": "If the spread eats most of your stop room, the trade is broken before it starts.",
    "simple": "The spread is 75% of your stop room, so you start most of the way to your stop.",
@@ -3138,9 +3138,9 @@
    "unit": "F1.03",
    "why": "75%. The spread is the $20.30 ask minus the $20.00 bid. Divide it by the $0.40 stop distance and you get 75%. Sell right after you buy and you would get about the bid. That is already most of the way to your stop, before the stock moves. I'd skip a name this wide.",
    "wrong": {
-    "1.5%": "You divided the spread by the $20.30 price, not by the stop distance.",
     "133%": "You flipped the division and divided the $0.40 stop distance by the spread.",
-    "30%": "You read the 30-cent spread as 30% without dividing."
+    "150%": "You counted the spread twice, once going in and once going out.",
+    "750%": "A decimal slip: ten times too big."
    }
   },
   "review_status": "draft",
@@ -3224,8 +3224,8 @@
    "choices": [
     "0.005%",
     "0.1%",
-    "0.5%",
-    "5%"
+    "0.25%",
+    "0.5%"
    ],
    "kind": "mcq",
    "q": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint, the price halfway between them?",
@@ -3274,7 +3274,7 @@
      "fn": "spread_pct",
      "result": 0.5
     },
-    "given": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint, the price halfway between them? 0.5% 0.1% 0.005% 5%"
+    "given": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint, the price halfway between them? 0.5% 0.005% 0.1% 0.25%"
    },
    "lesson_line": "Spread divided by midpoint, as a percent. Percent compares cheap and pricey stocks.",
    "simple": "It is 0.5%, the gap between bid and ask divided by the price halfway between them.",
@@ -3284,7 +3284,7 @@
    "wrong": {
     "0.005%": "That is the decimal 0.005, not yet turned into a percent. As a percent it is 0.5%.",
     "0.1%": "That calls the ten cent spread 0.1%. A percent needs the spread divided by the price: 0.10 / 20.00.",
-    "5%": "The decimal point slipped two places. 0.10 / 20.00 is 0.005, which is 0.5%."
+    "0.25%": "You used half the spread, the distance from the bid to the midpoint. Use the whole spread."
    }
   },
   "review_status": "draft",
@@ -4820,10 +4820,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "2.5%",
-    "4%",
     "25%",
-    "250%"
+    "75%",
+    "250%",
+    "400%"
    ],
    "kind": "mcq",
    "q": "You want 20,000 shares of a stock that averages 80,000 a day. What share of a normal day is your order?",
@@ -4873,7 +4873,7 @@
      "fn": "arith",
      "result": 25.0
     },
-    "given": "You want 20,000 shares of a stock that averages 80,000 a day. What share of a normal day is your order? 25% 4% 250% 2.5%"
+    "given": "You want 20,000 shares of a stock that averages 80,000 a day. What share of a normal day is your order? 25% 75% 250% 400%"
    },
    "lesson_line": "Size your order against the average volume. A big slice of the day can move the price on you.",
    "simple": "It is 25%, because 20,000 shares is a quarter of the 80,000 shares a normal day trades.",
@@ -4881,9 +4881,9 @@
    "unit": "F1.04",
    "why": "25%. Divide your order by the average day: 20,000 over 80,000 is one quarter, or 25%. Traders often use average volume as a benchmark for trade size. A large order in a low-volume stock can be hard to fill without moving the price. Our rule: never own more than 1% of a stock's average daily volume. This order is far past it.",
    "wrong": {
-    "2.5%": "A decimal slip the other way. A quarter of the day is 25%, not 2.5%.",
     "250%": "A decimal slip. A quarter of the day is 25%, not 250%.",
-    "4%": "That flips it. 80,000 over 20,000 is 4. Divide your order by the day, not the day by your order."
+    "400%": "That flips it. Divide your order by the average day, not the day by your order.",
+    "75%": "You gave the share of a normal day that your order leaves untouched."
    }
   },
   "review_status": "draft",
@@ -10627,10 +10627,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "0%",
-    "1%",
     "1.82%",
-    "10%"
+    "9.09%",
+    "10%",
+    "19.09%"
    ],
    "kind": "mcq",
    "q": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose?",
@@ -10688,7 +10688,7 @@
      "fn": "arith",
      "result": 1.82
     },
-    "given": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose? 10% 0% 1% 1.82%"
+    "given": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose? 1.82% 9.09% 10% 19.09%"
    },
    "lesson_line": "Same start, same finish. The bigger the swings in between, the more a daily-reset fund loses.",
    "simple": "1.82%, because the fund loses on the way up, and its gain on the way back works on a smaller balance.",
@@ -10696,9 +10696,9 @@
    "unit": "F1.07",
    "why": "1.82%. An inverse fund aims for the opposite of the index's move each day, then starts fresh the next day. Day 1: the index rises 10, from 100 to 110, so the fund falls 10%, from 100 to 90. Day 2: the index falls back to 100. That drop is 10 / 110 = 9.09% of 110, so the fund gains 9.09%. But the gain works on 90, not 100. Gaining 9.09% on 90 brings the fund to 98.18. That is a loss of 1.82% from 100. On a calm 100, 101, 100 path, FINRA finds a loss of only 0.02%. Bigger swings mean bigger drift.",
    "wrong": {
-    "0%": "You thought flat in, flat out. The fund loses on the way.",
-    "1%": "You used a 10% gain on day 2 instead of 9.09%.",
-    "10%": "You gave only day 1's loss and ignored the gain back."
+    "10%": "You gave only day 1's loss and ignored the gain back.",
+    "19.09%": "You added day 1's 10% loss and day 2's 9.09% move.",
+    "9.09%": "You used day 2's 9.09% index drop as the whole loss."
    }
   },
   "review_status": "draft",

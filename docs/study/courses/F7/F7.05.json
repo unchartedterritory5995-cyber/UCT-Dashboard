@@ -1398,17 +1398,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "76%",
-    "24%",
+    "32%",
     "417%",
-    "2.4%"
+    "24%"
    ],
    "wrong": {
     "76%": "Counted the stocks below the average.",
-    "2.4%": "Decimal slip.",
-    "417%": "Divided total by the stocks above, flipping the ratio."
+    "417%": "Divided total by the stocks above, flipping the ratio.",
+    "32%": "Divided by the stocks below the average, not all 500."
    }
   },
   {
@@ -1448,17 +1448,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "43%",
     "70%",
-    "30%",
-    "3%"
+    "233%",
+    "30%"
    ],
    "wrong": {
     "43%": "Divided new highs by new lows, leaving out the highs in the total.",
     "70%": "Gave the new lows' share, not the new highs'.",
-    "3%": "Decimal slip."
+    "233%": "Flipped the ratio: new lows over new highs."
    }
   },
   {
@@ -2127,13 +2127,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q15": {
    "status": "pass",

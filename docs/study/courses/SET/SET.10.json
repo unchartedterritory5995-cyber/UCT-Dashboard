@@ -1671,17 +1671,17 @@
      "rests on the owner's rulebook (C28, the 4% limit)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$61.32",
+    "$59.61",
     "$55.03",
     "$57.55",
-    "$59.61"
+    "$58.46"
    ],
    "wrong": {
-    "$61.32": "That adds 4 dollars, not 4 percent.",
     "$55.03": "That takes 4% off. The chase limit sits above the buy point.",
-    "$57.55": "That adds a fraction of a percent, not 4 percent. A decimal slip."
+    "$57.55": "That adds a fraction of a percent, not 4 percent. A decimal slip.",
+    "$58.46": "That adds only half of the 4 percent."
    }
   },
   {
@@ -1868,17 +1868,17 @@
      "the 1.4 times line is a proposed card gate that D-006 may turn into a grade cue"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "480,000 shares",
-    "857,143 shares",
+    "1,680,000 shares",
     "16,800,000 shares",
-    "1,680,000 shares"
+    "2,880,000 shares",
+    "2,600,000 shares"
    ],
    "wrong": {
-    "480,000 shares": "That is only the extra 40%. The target is 1.4 times the average, so the base is added.",
-    "857,143 shares": "That divides by 1.4. Multiply by 1.4.",
-    "16,800,000 shares": "That is ten times too many. A decimal slip."
+    "16,800,000 shares": "That is ten times too many. A decimal slip.",
+    "2,880,000 shares": "That adds the base again on top of 1.4 times.",
+    "2,600,000 shares": "Added 1.4 million to the average instead of multiplying by 1.4."
    }
   },
   {
@@ -3839,17 +3839,17 @@
     ]
    },
    "prefix": "$",
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$23.89",
     "$24.97",
-    "$26.05",
-    "$28.21"
+    "$23.89",
+    "$22.81",
+    "$20.65"
    ],
    "wrong": {
     "$23.89": "That is one R above the fill. The window opens at two R.",
-    "$26.05": "That is 3R, the usual first trim, not the start of the window.",
-    "$28.21": "That is 5R, where the window ends."
+    "$22.81": "That is the fill itself. Two R must be added to it.",
+    "$20.65": "That subtracts two R from the fill instead of adding it."
    }
   },
   {
@@ -4126,8 +4126,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The note for $57.55 said \"a tenth of the limit\"; 57.32 x 1.004 = 57.55 is 0.4%. Calc recomputed; the other wrong choices checked by hand."
+   "fixed": false,
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q19": {
    "status": "pass",
@@ -4162,8 +4162,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "fixed": true,
+   "notes": "Rank ok. Doubling is not a natural slip on 1.4 times; replaced with adding 1.4 million instead of multiplying."
   },
   "q25": {
    "status": "pass",
@@ -4482,7 +4482,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q77": {
    "status": "cut",

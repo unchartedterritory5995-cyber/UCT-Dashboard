@@ -1154,17 +1154,17 @@
      "+1 fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "6.6%",
-    "93.8%",
     "6.2%",
-    "0.6%"
+    "93.8%",
+    "62%",
+    "6.6%"
    ],
    "wrong": {
     "93.8%": "Gives the later close as a share of the earlier one, not the drop.",
-    "0.6%": "Slips a decimal place.",
-    "6.6%": "Divides the gap by the later, lower close instead of the earlier one."
+    "6.6%": "Divides the gap by the later, lower close instead of the earlier one.",
+    "62%": "Slips a decimal place."
    }
   },
   {
@@ -1525,8 +1525,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3. Replaced 6.7% (was off: 148.73/2237.40 is 6.6%, not 6.7%)."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q17": {
    "status": "pass",

@@ -1849,17 +1849,17 @@
      "rests on the owner's rulebook (F62, A13) and held decision D-008"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "0.96%",
     "1.09%",
-    "0.25%",
-    "10.90%"
+    "2.27%",
+    "14.04%",
+    "25.00%"
    ],
    "wrong": {
-    "0.96%": "Forgot the three cents and measured to the low itself.",
-    "0.25%": "Read the dollar gap as a percent.",
-    "10.90%": "Slipped a decimal."
+    "2.27%": "Read three cents as thirty cents.",
+    "14.04%": "Took three dollars under the low, not three cents.",
+    "25.00%": "Skipped the divide by the fill."
    }
   },
   {
@@ -2076,17 +2076,17 @@
      "rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "10.7%",
-    "4.8%",
     "12.0%",
-    "112.0%"
+    "48.0%",
+    "112.0%",
+    "120.0%"
    ],
    "wrong": {
-    "10.7%": "Divided by price instead of the 10-day.",
-    "4.8%": "Read the dollar gap as a percent.",
-    "112.0%": "Never took off the 10-day, just compared price to average."
+    "112.0%": "Never took off the 10-day, just compared price to average.",
+    "48.0%": "Divided the gap by 10, the days, not the average.",
+    "120.0%": "Slipped a decimal."
    }
   },
   {
@@ -3000,17 +3000,17 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "3.4R",
     "5.0R",
-    "6.0R",
-    "1.7R"
+    "3.4R",
+    "1.7R",
+    "0.8R"
    ],
    "wrong": {
     "3.4R": "Called the dollar gain the R multiple.",
-    "6.0R": "Measured the gain from the stop instead of the buy.",
-    "1.7R": "Split the R across the third that was sold."
+    "1.7R": "Split the R across the third that was sold.",
+    "0.8R": "Divided the gain by the gain measured from the stop."
    }
   },
   {
@@ -3497,7 +3497,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q63": {
    "status": "cut",
@@ -3539,7 +3539,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q30": {
    "status": "pass",
@@ -3557,7 +3557,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q38": {
    "status": "pass",

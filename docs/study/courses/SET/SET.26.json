@@ -1610,17 +1610,17 @@
      "the 3R trim is the owner's rule B19"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$138.76",
     "$140.45",
-    "$137.07",
-    "$130.31"
+    "$142.14",
+    "$141.38",
+    "$145.52"
    ],
    "wrong": {
-    "$138.76": "Added three R to the stop, not the fill.",
-    "$137.07": "Added only one R, forgot the times three.",
-    "$130.31": "Subtracted three R instead of adding."
+    "$142.14": "Counted four R, one too many.",
+    "$145.52": "Doubled R, using twice the stop distance.",
+    "$141.38": "Rounded the stop distance up before multiplying."
    }
   },
   {
@@ -3366,8 +3366,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "140.45 ok; wrongs verified."
+   "fixed": true,
+   "notes": "Fixed format tell or ladder pattern; recomputed and verified rank."
   },
   "q24": {
    "status": "pass",

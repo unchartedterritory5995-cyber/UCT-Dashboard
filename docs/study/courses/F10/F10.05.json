@@ -1749,17 +1749,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$85.00",
-    "$92.00",
-    "$65.00",
-    "$95.00"
+    "$95.00",
+    "$98.00",
+    "$110.00",
+    "$400.00"
    ],
    "wrong": {
-    "$85.00": "Added a flat $5.00, not five times the risk.",
-    "$92.00": "That is only four times the risk. The second trim is at five times.",
-    "$65.00": "Went five times the risk below the entry. 5R sits above it."
+    "$98.00": "Counted six times the risk instead of five.",
+    "$110.00": "Counted the risk per share twice before multiplying by five.",
+    "$400.00": "Multiplied the $80 entry by five instead of the risk."
    }
   },
   {
@@ -2222,7 +2222,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 95.0. 85 flat $5, 92 = 4R, 65 below the entry. Why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q31": {
    "status": "pass",

@@ -1354,17 +1354,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$15",
-    "$7",
     "$13",
-    "$17"
+    "$15",
+    "$17",
+    "$20"
    ],
    "wrong": {
-    "$7": "Gives what the covered call made, not how much more the shares made.",
     "$15": "Counts the move above the strike and forgets the premium you were paid.",
-    "$17": "Adds the premium instead of taking it off."
+    "$17": "Adds the premium instead of taking it off.",
+    "$20": "Gives the whole gain on the shares, not how much more they made."
    }
   },
   {
@@ -1392,9 +1392,9 @@
    "story": "XYZ is at 50. You sell the 50 put for 3. XYZ drops to 40, and you're assigned.",
    "q": "Against the market price, how much are you down per share?",
    "choices": [
-    "$10",
     "$7",
-    "$13",
+    "$10",
+    "$4",
     "$3"
    ],
    "answer": "$7",
@@ -1418,8 +1418,8 @@
    ],
    "wrong": {
     "$10": "That ignores the 3 premium you kept, which lowers your cost.",
-    "$13": "That adds the premium to your cost. You received it, so it comes off.",
-    "$3": "That's the premium, and you received it. The loss is on the shares you had to buy."
+    "$3": "That's the premium, and you received it. The loss is on the shares you had to buy.",
+    "$4": "That takes the premium off twice."
    },
    "simple": "You're down $7 a share, since you paid 50 less the 3 premium and the stock now trades at 40.",
    "deeper": {
@@ -1432,7 +1432,7 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "rank"
   },
   {
    "key": "q23",
@@ -1704,8 +1704,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q21": {
    "status": "cut",
@@ -1721,9 +1721,9 @@
   },
   "q22": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q23": {
    "status": "pass",

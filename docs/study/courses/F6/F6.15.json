@@ -1279,17 +1279,17 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$96.85",
-    "$88.15",
     "$91.85",
+    "$88.15",
+    "$90.00",
     "$78.15"
    ],
    "wrong": {
     "$88.15": "Takes the credit off the short call instead of adding it.",
-    "$96.85": "Starts from the 95 wing, not the short call.",
-    "$78.15": "That is the lower break-even, off the short put."
+    "$78.15": "That is the lower break-even, off the short put.",
+    "$90.00": "Stops at the short call and forgets the credit."
    }
   },
   {
@@ -1940,8 +1940,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q13": {
    "status": "pass",

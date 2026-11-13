@@ -1482,17 +1482,17 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$41.20",
-    "$42.00",
+    "$46.00",
     "$48.00",
-    "$46.00"
+    "$52.00",
+    "$120.00"
    ],
    "wrong": {
-    "$41.20": "Took 3% over the buy, not three R.",
-    "$42.00": "Added one R, not three.",
-    "$48.00": "Added four R, one too many."
+    "$48.00": "Added four R, one too many.",
+    "$52.00": "Doubled the R, then added three of those.",
+    "$120.00": "Multiplied the buy by three."
    }
   },
   {
@@ -2373,17 +2373,17 @@
      "rests on the owner's rulebook (A13, B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "11.1%",
+    "26.6%",
     "8.9%",
     "29.2%",
-    "26.6%"
+    "35.4%"
    ],
    "wrong": {
     "8.9%": "Counted one R, forgot the three.",
     "29.2%": "Divided by the stop, not the buy.",
-    "11.1%": "Read the dollar size of 3R as a percent."
+    "35.4%": "Counted four R, one too many."
    }
   },
   {
@@ -3324,17 +3324,17 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$110.76",
     "$105.88",
-    "$91.24",
-    "$115.64",
-    "$110.76"
+    "$101.00",
+    "$91.24"
    ],
    "wrong": {
     "$105.88": "Added five R to the stop, not the buy.",
     "$91.24": "Added one R, not five.",
-    "$115.64": "Added six R, one too many."
+    "$101.00": "Added three R, not five."
    }
   },
   {
@@ -3630,8 +3630,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "46.00 correct (40+3*2). But the answer was the largest choice, so test-wise it stands out. Swapped the sign-error choice for a one-R-too-many count slip and wrote the steps into the why."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q18": {
    "status": "pass",
@@ -3782,7 +3782,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "26.6% = 3*3.71/41.89. 8.9% one R, 29.2% divided by stop (11.13/38.18), 11.1% dollar size as a percent. All real."
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q43": {
    "status": "cut",
@@ -3952,8 +3952,8 @@
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "110.76 correct (86.36+5*4.88). Answer was the largest choice; replaced the subtract-5R choice with a six-R count slip (115.64) and wrote the steps into the why."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q68": {
    "status": "pass",

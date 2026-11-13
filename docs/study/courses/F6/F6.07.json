@@ -1058,17 +1058,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "35 shares",
-    "4 shares",
     "39 shares",
+    "35 shares",
+    "43 shares",
     "390 shares"
    ],
    "wrong": {
     "35 shares": "Used the old delta and ignored the gamma.",
-    "4 shares": "Used the gamma alone.",
-    "390 shares": "Slipped a decimal place."
+    "390 shares": "Slipped a decimal place.",
+    "43 shares": "Added the gamma twice."
    }
   },
   {
@@ -1625,8 +1625,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q12": {
    "status": "pass",

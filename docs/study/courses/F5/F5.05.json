@@ -961,17 +961,17 @@
      "fixed before (OIC f53 and f54 added)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "14.0x",
-    "0.4x",
+    "2.5x",
     "6.0x",
-    "2.5x"
+    "14.0x",
+    "40.0x"
    ],
    "wrong": {
-    "0.4x": "You flipped it and divided the implied move by the realized move.",
     "6.0x": "You subtracted 4 from 10 instead of dividing.",
-    "14.0x": "You added 4 and 10 instead of dividing."
+    "14.0x": "You added 4 and 10 instead of dividing.",
+    "40.0x": "You multiplied 4 by 10 instead of dividing."
    }
   },
   {
@@ -1367,17 +1367,17 @@
      "pairs two writers' figures (IBKR priced, Reuters close)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "11.3x",
-    "0.4x",
     "2.3x",
-    "29.3x"
+    "0.2x",
+    "0.4x",
+    "1.3x"
    ],
    "wrong": {
     "0.4x": "You flipped it and divided the 9% by the 20.3%.",
-    "11.3x": "You subtracted 9 from 20.3 instead of dividing.",
-    "29.3x": "You added 9 and 20.3 instead of dividing."
+    "0.2x": "A decimal slip: you moved the point one place.",
+    "1.3x": "You divided the extra move past 9 by 9, not the whole move."
    }
   },
   {
@@ -1594,7 +1594,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q12": {
    "status": "pass",
@@ -1656,7 +1656,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q22": {
    "status": "cut",

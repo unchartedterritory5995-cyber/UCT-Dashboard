@@ -2261,17 +2261,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$45.50",
-    "$47.50",
     "$47.00",
-    "$46.50"
+    "$47.50",
+    "$48.00",
+    "$48.50"
    ],
    "wrong": {
-    "$47.50": "Started from the 21-day, $48.00, then took off a quarter ATR.",
-    "$45.50": "Took a full ATR off the 50-day, not a quarter.",
-    "$46.50": "Took half an ATR off the 50-day, not a quarter."
+    "$47.50": "Used the 50-day itself and took nothing off.",
+    "$48.00": "Used the 21-day itself and took nothing off.",
+    "$48.50": "Added a quarter ATR to the 21-day instead of subtracting."
    }
   },
   {
@@ -2433,17 +2433,17 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$51.00",
     "$52.50",
+    "$51.00",
     "$49.50",
-    "$54.00"
+    "$46.50"
    ],
    "wrong": {
     "$51.00": "Counted 5R up from the $43.50 stop, not from the trigger.",
     "$49.50": "Added only 3R to the trigger, not 5R.",
-    "$54.00": "Added six R, counting the trigger itself as the first step."
+    "$46.50": "Added one R, not 5R."
    }
   },
   {
@@ -3359,8 +3359,8 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Content passes; reordered only to vary the answer slot."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q43": {
    "status": "pass",
@@ -3383,8 +3383,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer was the highest choice. Replaced the subtract slip with a six-R overshoot."
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
   },
   "q47": {
    "status": "pass",

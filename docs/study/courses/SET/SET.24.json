@@ -3290,17 +3290,17 @@
      "rests on the owner's rulebook D42; a computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "600 shares",
-    "120 shares",
     "1,200 shares",
-    "12,000 shares"
+    "12,000 shares",
+    "120,000 shares",
+    "4,800 shares"
    ],
    "wrong": {
-    "120 shares": "Slipped the decimal: took a tenth of one percent.",
-    "600 shares": "Used half a percent, mixing it up with the risk percent.",
-    "12,000 shares": "Took ten percent of the volume, not one percent."
+    "12,000 shares": "Took ten percent of the volume, not one percent.",
+    "120,000 shares": "Used the whole average volume, no cap at all.",
+    "4,800 shares": "Used the four percent chase limit instead."
    }
   },
   {
@@ -3364,17 +3364,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "8.6%",
     "108.6%",
-    "3.3%",
-    "8.0%",
-    "8.6%"
+    "86.0%",
+    "92.0%"
    ],
    "wrong": {
-    "3.3%": "Read the dollar gap as a percent.",
-    "8.0%": "Divided by the entry, not by the 10-day average.",
-    "108.6%": "Divided entry by average and forgot to subtract one."
+    "108.6%": "Divided entry by average and forgot to subtract one.",
+    "86.0%": "Slipped the decimal one place to the right.",
+    "92.0%": "Divided the average by the entry, upside down."
    }
   },
   {
@@ -3444,17 +3444,17 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$29.08",
     "$29.54",
-    "$30.00",
-    "$27.70"
+    "$29.08",
+    "$27.70",
+    "$28.16"
    ],
    "wrong": {
     "$29.08": "Added two R to the stop, not the fill.",
-    "$30.00": "Counted three R, one too many.",
-    "$27.70": "Subtracted two R from the fill."
+    "$27.70": "Subtracted two R from the fill.",
+    "$28.16": "Gave the stop price, not the level two R up."
    }
   },
   {
@@ -3992,7 +3992,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q67": {
    "status": "pass",
@@ -4004,7 +4004,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q69": {
    "status": "cut",
@@ -4016,7 +4016,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q71": {
    "status": "pass",

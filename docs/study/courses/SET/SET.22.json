@@ -2261,17 +2261,17 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "287 shares",
     "938 shares",
-    "28 shares",
     "574 shares",
-    "287 shares"
+    "2,873 shares"
    ],
    "wrong": {
-    "28 shares": "Slipped the decimal: used a tenth of the risk percent.",
     "574 shares": "Risked double the risk percent.",
-    "938 shares": "Bought the whole account at the fill price."
+    "938 shares": "Bought the whole account at the fill price.",
+    "2,873 shares": "Slipped the decimal: used ten times the risk percent."
    }
   },
   {
@@ -3342,17 +3342,17 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "3,000 shares",
-    "600 shares",
     "6,000 shares",
-    "60,000 shares"
+    "60,000 shares",
+    "12,000 shares",
+    "600,000 shares"
    ],
    "wrong": {
-    "600 shares": "Slipped the decimal: took a tenth of one percent.",
-    "3,000 shares": "Used half a percent, mixing it up with the risk percent.",
-    "60,000 shares": "Took ten percent of the volume, not one percent."
+    "60,000 shares": "Took ten percent of the volume, not one percent.",
+    "12,000 shares": "Used two percent, double the rule.",
+    "600,000 shares": "Used the whole average daily volume as the limit."
    }
   },
   {
@@ -3478,17 +3478,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$28.71",
+    "$28.45",
     "$27.41",
     "$28.19",
-    "$28.45"
+    "$25.85"
    ],
    "wrong": {
     "$27.41": "Added one R, not five.",
     "$28.19": "Added five R to the stop, not the fill.",
-    "$28.71": "Counted six R, one too many."
+    "$25.85": "Took five R off the fill instead of adding it."
    }
   },
   {
@@ -4184,7 +4184,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q41": {
    "status": "pass",
@@ -4315,7 +4315,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q69": {
    "status": "pass",
@@ -4339,7 +4339,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
   },
   "q73": {
    "status": "pass",

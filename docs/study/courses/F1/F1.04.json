@@ -1565,9 +1565,9 @@
    "q": "You want 20,000 shares of a stock that averages 80,000 a day. What share of a normal day is your order?",
    "choices": [
     "25%",
-    "4%",
+    "75%",
     "250%",
-    "2.5%"
+    "400%"
    ],
    "answer": "25%",
    "calc": {
@@ -1588,9 +1588,9 @@
     "h2"
    ],
    "wrong": {
-    "4%": "That flips it. 80,000 over 20,000 is 4. Divide your order by the day, not the day by your order.",
     "250%": "A decimal slip. A quarter of the day is 25%, not 250%.",
-    "2.5%": "A decimal slip the other way. A quarter of the day is 25%, not 2.5%."
+    "75%": "You gave the share of a normal day that your order leaves untouched.",
+    "400%": "That flips it. Divide your order by the average day, not the day by your order."
    },
    "skill": "basics.volume",
    "tier": "extended",
@@ -1600,7 +1600,7 @@
      "new question (review rework 2026-11-12)"
     ]
    },
-   "batch": "review1"
+   "batch": "rank"
   },
   {
    "key": "q94",
@@ -1893,7 +1893,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "20,000/80,000 = 25%. Wrongs: 4% (inverted), 250% and 2.5% (decimal slips). h2 quoted correctly; 1% of 80,000 is 800, so 'far past it' is right. Replaces typed q11."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q94": {
    "status": "pass",

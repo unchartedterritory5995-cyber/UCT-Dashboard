@@ -721,17 +721,17 @@
      "fixed before (the question led with 'Our 40% cap applies')"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "500 shares",
     "1,000 shares",
-    "400 shares",
-    "40 shares"
+    "4,000 shares",
+    "400 shares"
    ],
    "wrong": {
     "1,000 shares": "Stopped at the risk math and skipped the cap.",
     "500 shares": "Took the dollars at risk as the share count.",
-    "40 shares": "Decimal slip on the cap: took a tenth of it."
+    "4,000 shares": "Decimal slip the other way on the cap."
    }
   },
   {
@@ -814,17 +814,17 @@
      "the share-volume reading of D42 still awaits the owner's confirmation (conflicts line)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "400,000 shares",
-    "40,000 shares",
     "4,000,000 shares",
-    "4,000 shares"
+    "200,000 shares",
+    "40,000 shares"
    ],
    "wrong": {
     "400,000 shares": "Decimal slip: ten times the volume cap.",
     "4,000,000 shares": "Used the whole average daily volume as the limit.",
-    "4,000 shares": "Decimal slip the other way: a tenth of the cap."
+    "200,000 shares": "Took one-twentieth of the volume instead of one-hundredth."
    }
   },
   {
@@ -973,17 +973,17 @@
      "a computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "$60,000",
-    "$180,000",
-    "$120,000",
-    "$12,000"
+    "$90,000",
+    "$12,000",
+    "$120,000"
    ],
    "wrong": {
     "$60,000": "Used the limit for a market that is not Green.",
-    "$180,000": "Added the margin on top of the 200% and counted the account twice.",
-    "$12,000": "Decimal slip: took 20% of the account, not 200%."
+    "$12,000": "Decimal slip: took 20% of the account, not 200%.",
+    "$90,000": "Used a smaller margin multiple than our 200% limit."
    }
   },
   {
@@ -1471,7 +1471,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (500/0.50=1000; cap 400). Upgrade why already walks the steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q11": {
    "status": "pass",
@@ -1483,7 +1483,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "40,000 = 1% of 4M; wrongs are 10x, 100x, 0.1x slips; original why fine."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q13": {
    "status": "cut",
@@ -1507,7 +1507,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "120,000 = 200% of 60,000; 60,000 = 100%; 180,000 = 60k+120k; 12,000 = 20%. Why walks steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q17": {
    "status": "pass",

@@ -1000,17 +1000,17 @@
      "deeper cites the owner's rulebook (C28)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1%",
+    "2%",
     "20%",
-    "102%",
-    "2%"
+    "98%",
+    "102%"
    ],
    "wrong": {
-    "1%": "Read the dollar gap as a percent. Divide it by the $50 plan price.",
     "20%": "A decimal slip: ten times too big.",
-    "102%": "Gave the fill as a percent of the plan price and forgot to take off the start."
+    "102%": "Gave the fill as a percent of the plan price and forgot to take off the start.",
+    "98%": "Divided the plan by the fill and forgot to subtract the result from the whole."
    }
   },
   {
@@ -1475,8 +1475,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 2.0. The 4% choice was a rule from the lesson, not a math mistake; replaced it with 102% (the 51/50 ratio read as a percent). Moved the answer to slot 4."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q15": {
    "status": "pass",

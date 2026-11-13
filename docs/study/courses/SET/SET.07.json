@@ -2035,17 +2035,17 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "6R",
-    "5R",
-    "2.45R",
-    "0.2R"
+    "10R",
+    "50R",
+    "5R"
    ],
    "wrong": {
     "6R": "Measured the gain from the stop instead of the fill.",
-    "2.45R": "Read the dollar gain as R.",
-    "0.2R": "Flipped the division: risk over gain."
+    "10R": "Used half the real risk as one R.",
+    "50R": "Decimal slip: moved the decimal one place."
    }
   },
   {
@@ -3619,17 +3619,17 @@
      "the 3% is a proposed card number"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "25%",
     "97.5%",
-    "2.5%",
-    "0.25%"
+    "102.6%",
+    "2.5%"
    ],
    "wrong": {
     "97.5%": "Took the first week's high as a percent of the high and skipped the gap.",
     "25%": "Decimal slip: moved the decimal one place.",
-    "0.25%": "Decimal slip the other way."
+    "102.6%": "Took the high as a percent of the first week's high, no subtraction."
    }
   },
   {
@@ -3969,17 +3969,17 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$52.50",
-    "$50.44",
     "$46.56",
-    "$48.60"
+    "$48.60",
+    "$1.94",
+    "$50.44"
    ],
    "wrong": {
-    "$52.50": "Added four dollars, not four percent.",
     "$46.56": "Subtracted the four percent instead of adding it.",
-    "$48.60": "Added only IBD's ten cents to the pivot."
+    "$48.60": "Added only IBD's ten cents to the pivot.",
+    "$1.94": "Found the four percent but did not add it to the pivot."
    }
   },
   {
@@ -4228,7 +4228,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (0.49; 2.45; 5.0; 6R from stop; 0.2 flipped). Why walks the steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q29": {
    "status": "pass",
@@ -4481,7 +4481,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2.5 = 2.5/100; 97.5; 25; 0.25. Why walks steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q70": {
    "status": "pass",
@@ -4537,7 +4537,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (48.5*1.04=50.44; 52.50; 46.56; 48.60). Why fine."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q79": {
    "status": "cut",

@@ -821,10 +821,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "$39.60",
-    "$40.04",
     "$40.40",
-    "$41.00"
+    "$40.80",
+    "$41.00",
+    "$44.00"
    ],
    "kind": "mcq",
    "q": "A stock just cleared its $40.00 breakout level. You'll pay at most 1% above it. What limit price caps your buy?",
@@ -860,7 +860,7 @@
      "fn": "arith",
      "result": 40.4
     },
-    "given": "A stock just cleared its $40.00 breakout level. You'll pay at most 1% above it. What limit price caps your buy? $39.60 $41.00 $40.40 $40.04"
+    "given": "A stock just cleared its $40.00 breakout level. You'll pay at most 1% above it. What limit price caps your buy? $40.40 $41.00 $44.00 $40.80"
    },
    "lesson_line": "A buy limit turns the most you'll pay into a hard cap.",
    "simple": "$40.40, because 1% above $40.00 is $40.40, and a buy limit there can't fill any higher.",
@@ -868,9 +868,9 @@
    "unit": "F10.01",
    "why": "Take 1% of the $40.00 level and add it on. That gives $40.40. A buy limit at $40.40 can only fill at $40.40 or lower. It may not fill if the price runs past $40.40 first.",
    "wrong": {
-    "$39.60": "Took 1% off the level. A buy cap goes above the breakout, not below it.",
-    "$40.04": "A decimal slip: that adds a tenth of the 1% you meant.",
-    "$41.00": "Added a flat $1.00 instead of 1% of $40.00."
+    "$40.80": "Added the 1% twice. The cap needs it once.",
+    "$41.00": "Added a flat $1.00 instead of 1% of $40.00.",
+    "$44.00": "A decimal slip: that adds ten times the 1% you meant."
    }
   },
   "review_status": "draft",
@@ -1373,9 +1373,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "2.3%",
     "8.3%",
     "9.0%",
+    "90%",
     "109%"
    ],
    "kind": "mcq",
@@ -1414,7 +1414,7 @@
      "fn": "pct_change",
      "result": 9.0
     },
-    "given": "A stock closed at $25.00. After overnight news, it opened at $27.25. How far above the close did it open, in percent? 109% 8.3% 2.3% 9.0%"
+    "given": "A stock closed at $25.00. After overnight news, it opened at $27.25. How far above the close did it open, in percent? 9.0% 8.3% 90% 109%"
    },
    "lesson_line": "A market buy at the open pays whatever the gap is. Know that before you send it.",
    "simple": "9%, because you divide the rise from $25.00 to $27.25 by the $25.00 close, where the move started.",
@@ -1423,8 +1423,8 @@
    "why": "Divide the rise from $25.00 to $27.25 by the $25.00 close, and write it as a percent. That is 9%. A market buy sent while the market is closed fills at the next open, so it pays that gap. A stock can open far above or below its last close.",
    "wrong": {
     "109%": "Gave the ratio 27.25 / 25.00 as a percent and forgot to take off the start.",
-    "2.3%": "Used the dollar rise as a percent. Divide it by the close first.",
-    "8.3%": "Divided the rise by the $27.25 open. The move started at the close, so divide by $25.00."
+    "8.3%": "Divided the rise by the $27.25 open. The move started at the close, so divide by $25.00.",
+    "90%": "A decimal slip: the point moved one place the wrong way."
    }
   },
   "review_status": "draft",
@@ -3123,8 +3123,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "26%",
     "35%",
+    "40%",
     "50%",
     "135%"
    ],
@@ -3177,7 +3177,7 @@
      "fn": "arith",
      "result": 35.0
     },
-    "given": "You bought at $40 with a 10% trailing stop. It peaks at $60, then falls and fills right at your stop. What's your gain? 50% 35% 26% 135%"
+    "given": "You bought at $40 with a 10% trailing stop. It peaks at $60, then falls and fills right at your stop. What's your gain? 35% 40% 50% 135%"
    },
    "lesson_line": "A trailing stop turns open profit into a floor, as long as the fill comes near the stop.",
    "simple": "You keep a 35% gain, because the stop rose to 10% under the $60 peak, far above your $40 buy.",
@@ -3186,7 +3186,7 @@
    "why": "The 10% trail is measured from the $60 peak. Take 10% off $60 to find the stop. Then compare that stop with your $40 entry, as a percent of the entry. That is a 35% gain. A triggered trailing stop can fill away from its price, so the real gain can differ.",
    "wrong": {
     "135%": "Gave the stop as a percent of cost and forgot to take off your whole cost.",
-    "26%": "Divided the gain by the stop price. Divide it by your $40 entry.",
+    "40%": "Used 10% of the $40 entry as the trail, not 10% of the $60 peak.",
     "50%": "Counted the gain to the $60 peak. You get out at the stop, not at the peak."
    }
   },
@@ -5415,10 +5415,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "$34.00",
-    "$43.00",
-    "$44.00",
-    "$46.00"
+    "$46.00",
+    "$48.00",
+    "$52.00",
+    "$120.00"
    ],
    "kind": "mcq",
    "q": "Entry $40, stop $38. What price is 3R, three times your risk above the entry?",
@@ -5479,7 +5479,7 @@
      "fn": "arith",
      "result": 46.0
     },
-    "given": "Entry $40, stop $38. What price is 3R, three times your risk above the entry? $34.00 $43.00 $46.00 $44.00"
+    "given": "Entry $40, stop $38. What price is 3R, three times your risk above the entry? $46.00 $48.00 $52.00 $120.00"
    },
    "lesson_line": "Stop first. R is the stop distance, and 3R is three times it above the entry.",
    "simple": "$46, because 3R means three times your risk, added above the entry.",
@@ -5487,9 +5487,9 @@
    "unit": "F10.03",
    "why": "Risk per share is the $40 entry minus the $38 stop. That is 1R. Take three times it and add it to the $40 entry to get $46. It is a measuring mark, not an order to sell. We rarely sell on day 1 and usually wait until day 3 at the earliest.",
    "wrong": {
-    "$34.00": "Went three times the risk below the entry. A long's 3R sits above it.",
-    "$43.00": "Added a flat $3.00, not three times the risk.",
-    "$44.00": "Measured 3R up from the $38 stop, not from the $40 entry."
+    "$120.00": "Multiplied the $40 entry by three instead of the risk.",
+    "$48.00": "Counted four times the risk instead of three.",
+    "$52.00": "Counted the risk per share twice before multiplying by three."
    }
   },
   "review_status": "draft",
@@ -7789,10 +7789,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "0.20%",
     "0.26%",
     "0.40%",
-    "0.65%"
+    "0.60%",
+    "2.60%"
    ],
    "kind": "mcq",
    "q": "Offers: 400 at $25.00, 600 at $25.05, 1,000 at $25.10. Your 2,000-share market buy takes all three. Slippage vs $25.00, in percent?",
@@ -7849,7 +7849,7 @@
      "fn": "arith",
      "result": 0.26
     },
-    "given": "Offers: 400 at $25.00, 600 at $25.05, 1,000 at $25.10. Your 2,000-share market buy takes all three. Slippage vs $25.00, in percent? 0.40% 0.20% 0.26% 0.65%"
+    "given": "Offers: 400 at $25.00, 600 at $25.05, 1,000 at $25.10. Your 2,000-share market buy takes all three. Slippage vs $25.00, in percent? 0.26% 0.40% 0.60% 2.60%"
    },
    "lesson_line": "Read the offers before you send size. You can estimate slippage before you click.",
    "simple": "About 0.26%, because your average price across the three offers sits above the $25.00 you saw.",
@@ -7857,9 +7857,9 @@
    "unit": "F10.04",
    "why": "Multiply each price by its shares, add them up and divide by 2,000. That is your average fill. Then take its gap over $25.00 as a percent of $25.00. That is 0.26%. A large market order can fill at different prices when one price lacks enough shares.",
    "wrong": {
-    "0.20%": "Averaged the three prices without weighting by shares.",
     "0.40%": "Used the last price, $25.10, instead of the average of all three fills.",
-    "0.65%": "A decimal slip in the gap between the average fill and $25.00."
+    "0.60%": "Added the slippage of each fill instead of weighting by shares.",
+    "2.60%": "A decimal slip: ten times too big."
    }
   },
   "review_status": "draft",
@@ -8604,10 +8604,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "800 shares",
     "8,000 shares",
     "16,000 shares",
-    "80,000 shares"
+    "80,000 shares",
+    "400,000 shares"
    ],
    "kind": "mcq",
    "q": "A $50 stock averages 800,000 shares a day. Our cap is 1% of average daily volume. What is the most shares you can own?",
@@ -8650,7 +8650,7 @@
      "fn": "arith",
      "result": 8000.0
     },
-    "given": "A $50 stock averages 800,000 shares a day. Our cap is 1% of average daily volume. What is the most shares you can own? 80,000 shares 8,000 shares 800 shares 16,000 shares"
+    "given": "A $50 stock averages 800,000 shares a day. Our cap is 1% of average daily volume. What is the most shares you can own? 8,000 shares 16,000 shares 80,000 shares 400,000 shares"
    },
    "lesson_line": "Never own more than 1% of a stock's average daily volume. Orders large next to daily volume are hard to fill.",
    "simple": "8,000 shares, because our rule caps you at 1% of the 800,000 shares that trade on an average day.",
@@ -8659,8 +8659,8 @@
    "why": "Our rule: never own more than 1% of a stock's average daily volume. Take 1% of 800,000 to get 8,000 shares. The $50 price does not change that. An order that is large next to daily volume is hard to fill.",
    "wrong": {
     "16,000 shares": "Divided the 800,000 by the $50 price. The price does not enter the cap.",
-    "80,000 shares": "A decimal slip: that is ten times the cap.",
-    "800 shares": "A decimal slip: that is a tenth of the cap."
+    "400,000 shares": "Multiplied the 8,000 by the $50 price. That is a dollar amount, not shares.",
+    "80,000 shares": "A decimal slip: that is ten times the cap."
    }
   },
   "review_status": "draft",
@@ -10417,10 +10417,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "$65.00",
-    "$85.00",
-    "$92.00",
-    "$95.00"
+    "$95.00",
+    "$98.00",
+    "$110.00",
+    "$400.00"
    ],
    "kind": "mcq",
    "q": "Entry $80, stop $77. Where is 5R, our second trim?",
@@ -10456,7 +10456,7 @@
      "fn": "arith",
      "result": 95.0
     },
-    "given": "Entry $80, stop $77. Where is 5R, our second trim? $85.00 $92.00 $65.00 $95.00"
+    "given": "Entry $80, stop $77. Where is 5R, our second trim? $95.00 $98.00 $110.00 $400.00"
    },
    "lesson_line": "5R: the second third comes off. The last third trails.",
    "simple": "$95. Five times the gap between your $80 entry and $77 stop, added to the entry, is the second trim.",
@@ -10464,9 +10464,9 @@
    "unit": "F10.05",
    "why": "One R is the distance from the $80 entry down to the $77 stop. Five times that, added above the entry, is 5R: $95. That is our second trim. Another third comes off there, and the last third trails.",
    "wrong": {
-    "$65.00": "Went five times the risk below the entry. 5R sits above it.",
-    "$85.00": "Added a flat $5.00, not five times the risk.",
-    "$92.00": "That is only four times the risk. The second trim is at five times."
+    "$110.00": "Counted the risk per share twice before multiplying by five.",
+    "$400.00": "Multiplied the $80 entry by five instead of the risk.",
+    "$98.00": "Counted six times the risk instead of five."
    }
   },
   "review_status": "draft",

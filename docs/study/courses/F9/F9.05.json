@@ -769,17 +769,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "27.5%",
-    "0.69%",
-    "2.75%",
-    "2.31%"
+    "3.75%",
+    "3.5%",
+    "2.75%"
    ],
    "wrong": {
     "27.5%": "Decimal slip: moved the decimal one place.",
-    "0.69%": "Averaged the four losses instead of adding them.",
-    "2.31%": "Left out the $350 trade."
+    "3.75%": "Counted the $800 trade twice.",
+    "3.5%": "Counted the $600 trade twice."
    }
   },
   {
@@ -1158,10 +1158,10 @@
    "story": "One position is 20% of your account, with the stop 5% under entry. That's 1% at risk. It opens 15% below your entry on news.",
    "q": "At the open, about how much is the account down on this position?",
    "choices": [
-    "3%",
     "1%",
-    "15%",
-    "20%"
+    "2%",
+    "0.3%",
+    "3%"
    ],
    "answer": "3%",
    "calc": {
@@ -1181,9 +1181,9 @@
     "h06"
    ],
    "wrong": {
-    "15%": "That's what the stock lost. The account lost 15% of the 20% it had in the stock.",
-    "20%": "That's the whole position. You'd lose all of it only if the stock went to zero.",
-    "1%": "That's the plan, not the open. The stock gapped past the 5% stop, and a stop is a trigger, not a promised price."
+    "1%": "That's the plan, not the open. A stop is a trigger, not a promised price.",
+    "2%": "Counted only the fall past the stop.",
+    "0.3%": "Decimal slip: moved the decimal one place."
    },
    "simple": "3%, because the stock opened 15% down, past the stop, on a position worth 20% of the account.",
    "deeper": {
@@ -1197,7 +1197,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "rank"
   },
   {
    "key": "q23",
@@ -1322,7 +1322,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q12": {
    "status": "pass",
@@ -1390,7 +1390,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer 3%: 20 x 15 / 100 = 3, calc agrees; 1% is given in the story. Bare-number choices, each a real misreading. f18/f19/f33 support the gap point. Deeper matches A7 ('a tight stop never justifies a bigger position than that: a gap can jump the stop'). Does not contradict B20: the account is down 3% at the open whatever the 30-minute rule later does. Outside the question: fact h06's claim still truncates A7 ('never a reason for a bigger position'); it should read 'never a reason for a position bigger than the 40% cap'."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q23": {
    "status": "pass",

@@ -1033,17 +1033,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$19.20",
     "$1.20",
+    "$19.20",
     "$4.80",
-    "$0.08"
+    "$120.00"
    ],
    "wrong": {
     "$19.20": "Skipped the division by 16.",
     "$4.80": "Divided by the square root of 16 instead of 16.",
-    "$0.08": "Divided by 252 instead of 16."
+    "$120.00": "Used 40 instead of 40% and never turned it into a decimal."
    }
   },
   {
@@ -1260,17 +1260,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$154.20",
     "$170.80",
-    "$179.10",
+    "$154.20",
+    "$162.50",
     "$8.30"
    ],
    "wrong": {
     "$154.20": "Took the straddle off the price and gave the bottom of the range.",
-    "$179.10": "Added the straddle twice.",
-    "$8.30": "Gave the straddle alone, not the top of the range."
+    "$8.30": "Gave the straddle alone, not the top of the range.",
+    "$162.50": "Gave today's price and forgot to add the straddle."
    }
   },
   {
@@ -1784,8 +1784,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1. Why rewritten to show the steps. Stem no longer names the unit the choices carry."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q11": {
    "status": "pass",
@@ -1814,8 +1814,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q16": {
    "status": "pass",

@@ -990,17 +990,17 @@
      "fixed before (re-keyed from 2R to 3R on 2026-11-09)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$22.10",
+    "$22.80",
     "$23.00",
-    "$21.40",
-    "$20.60",
-    "$22.10"
+    "$23.50"
    ],
    "wrong": {
-    "$21.40": "You added the 3R to the stop instead of to the entry.",
-    "$20.60": "You used a fixed 3% above entry instead of three times your own risk.",
-    "$23.00": "You treated 3R as a $3 gain instead of three times your risk."
+    "$23.00": "You treated 3R as a $3 gain instead of three times your risk.",
+    "$22.80": "You used four times your risk instead of three.",
+    "$23.50": "You used five times your risk instead of three."
    }
   },
   {
@@ -1447,8 +1447,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer and calc check out. Fix: the explanation did not show the intermediate step; added it."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q12": {
    "status": "pass",

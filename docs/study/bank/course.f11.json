@@ -2750,10 +2750,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "6 days",
-    "30 days",
     "150 days",
-    "210 days"
+    "180 days",
+    "210 days",
+    "1,500 days"
    ],
    "kind": "mcq",
    "q": "Weinstein's average is 30 weeks long. A normal week has 5 trading days. About how many days does it cover on a daily chart?",
@@ -2799,7 +2799,7 @@
      "fn": "arith",
      "result": 150.0
     },
-    "given": "Weinstein's average is 30 weeks long. A normal week has 5 trading days. About how many days does it cover on a daily chart? 210 days 6 days 150 days 30 days"
+    "given": "Weinstein's average is 30 weeks long. A normal week has 5 trading days. About how many days does it cover on a daily chart? 150 days 180 days 210 days 1,500 days"
    },
    "lesson_line": "A weekly line has a rough daily twin. Know where the long-term holders' line sits.",
    "simple": "About 150 days, because 30 weeks times 5 trading days a week comes to 150.",
@@ -2807,9 +2807,9 @@
    "unit": "F11.02",
    "why": "About 150 days: 30 weeks of 5 sessions each. So Weinstein's 30-week line sits close to a 150-day average on a daily chart. Close, not equal. A weekly bar closes on Friday, so the weekly average uses one close a week, and a short week has fewer sessions.",
    "wrong": {
-    "210 days": "Counted every calendar day in a week. Only trading days count.",
-    "30 days": "Read 30 weeks as 30 days.",
-    "6 days": "Divided the weeks by the days in a week. Multiply them."
+    "1,500 days": "A decimal slip: ten times too big.",
+    "180 days": "Counted six days a week. Markets are open five.",
+    "210 days": "Counted every calendar day in a week. Only trading days count."
    }
   },
   "review_status": "draft",
@@ -4703,10 +4703,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "10 shares",
-    "80 shares",
     "800 shares",
-    "1,075 shares"
+    "1,075 shares",
+    "2,688 shares",
+    "8,000 shares"
    ],
    "kind": "mcq",
    "q": "A day trade in a $50,000 account: entry $18.60, stop $18.35, just under the first 10-minute low. You'll risk $200. How many shares?",
@@ -4764,7 +4764,7 @@
      "fn": "arith",
      "result": 800.0
     },
-    "given": "A day trade in a $50,000 account: entry $18.60, stop $18.35, just under the first 10-minute low. You'll risk $200. How many shares? 1,075 shares 10 shares 80 shares 800 shares"
+    "given": "A day trade in a $50,000 account: entry $18.60, stop $18.35, just under the first 10-minute low. You'll risk $200. How many shares? 800 shares 1,075 shares 2,688 shares 8,000 shares"
    },
    "lesson_line": "Day trade or swing trade: shares are dollars at risk over risk per share.",
    "simple": "800 shares, because you divide the $200 you risk by the gap between your entry and your stop.",
@@ -4773,8 +4773,8 @@
    "why": "Shares are the dollars you'll risk divided by the distance from entry to stop. That distance is $18.60 minus $18.35. $200 divided by it gives 800 shares. Our rule then caps any position at 40% of the account, and 800 shares at $18.60 stays under it. It's the same formula as a swing trade.",
    "wrong": {
     "1,075 shares": "Filled the 40% account cap instead of sizing from the $200 risk.",
-    "10 shares": "Divided the $200 by the $18.60 entry price. Divide by the risk per share.",
-    "80 shares": "A decimal slip: ten times too small."
+    "2,688 shares": "Spent the whole $50,000 account at the entry price instead of sizing from the risk.",
+    "8,000 shares": "A decimal slip: ten times too big."
    }
   },
   "review_status": "draft",
@@ -4922,10 +4922,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "$37.60",
     "$41.60",
     "$42.40",
-    "$43.00"
+    "$43.00",
+    "$44.00"
    ],
    "kind": "mcq",
    "q": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R?",
@@ -4975,7 +4975,7 @@
      "fn": "arith",
      "result": 42.4
     },
-    "given": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R? $43.00 $37.60 $42.40 $41.60"
+    "given": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R? $42.40 $41.60 $43.00 $44.00"
    },
    "lesson_line": "3R is three times your risk per share, added to the entry.",
    "simple": "$42.40, because you add three times your risk per share, the entry minus the stop, to the $40.00 entry.",
@@ -4983,9 +4983,9 @@
    "unit": "F11.03",
    "why": "R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry, which gives $42.40. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later.",
    "wrong": {
-    "$37.60": "Went three times the risk below the entry. A long's 3R sits above it.",
     "$41.60": "That is only two times the risk. 3R takes three times it.",
-    "$43.00": "Added a flat $3.00, not three times the risk."
+    "$43.00": "Added a flat $3.00, not three times the risk.",
+    "$44.00": "Used five times the risk instead of three."
    }
   },
   "review_status": "draft",

@@ -1173,17 +1173,17 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$1,800",
-    "$3.60",
     "$720",
-    "$7,200"
+    "$1,800",
+    "$7,200",
+    "$8,000"
    ],
    "wrong": {
-    "$3.60": "You found the loss per share and forgot to multiply by 200 shares.",
     "$1,800": "You treated the 9% as $9 a share.",
-    "$7,200": "A decimal slip: you added a zero."
+    "$7,200": "A decimal slip: you added a zero.",
+    "$8,000": "You gave the value of the whole position. The loss is only 9% of it."
    }
   },
   {
@@ -1648,8 +1648,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer and calc check out. Fix: the explanation did not show the intermediate step; added it."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q15": {
    "status": "cut",

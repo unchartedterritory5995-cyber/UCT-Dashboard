@@ -1257,17 +1257,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "57%",
-    "43%",
+    "176%",
     "231%",
+    "331%",
     "131%"
    ],
    "wrong": {
-    "57%": "Used the size of the loss as the gain needed.",
     "231%": "Stopped at the ratio and forgot to subtract one.",
-    "43%": "Gave what is left after the loss."
+    "176%": "Divided one by the loss instead of what is left.",
+    "331%": "Added the low to the peak instead of subtracting."
    }
   },
   {
@@ -1530,8 +1530,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why did not walk the steps."
+   "fixed": false,
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q18": {
    "status": "pass",

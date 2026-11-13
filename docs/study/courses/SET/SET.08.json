@@ -2061,7 +2061,7 @@
     },
     "round": 2
    },
-   "why": "2.5%. The stop is five cents under the 81.23 low, so it sits at 81.18. The gap to the fill is 83.26 minus 81.18, which is 2.08. Divide by the 83.26 fill, not by the stop: 2.08 over 83.26 is 2.5%. That is inside the 3% the stop usually sits within. It matches RARE's stop, 81.18.",
+   "why": "2.5%. The stop is five cents under the 81.23 low, so it sits at 81.18. Divide the gap between the 83.26 fill and 81.18 by the 83.26 fill, not by the stop: that is 2.5%. That is inside the 3% the stop usually sits within. It matches RARE's stop, 81.18.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h24",
@@ -2079,17 +2079,17 @@
      "rests on the owner's rulebook (the stop under the day's low, A3 and F62)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "2.08%",
+    "102.56%",
     "25.00%",
-    "0.06%",
+    "97.50%",
     "2.50%"
    ],
    "wrong": {
-    "2.08%": "Read the dollar gap as a percent.",
-    "0.06%": "Measured only the five-cent cushion, not the gap to the stop.",
-    "25.00%": "Decimal slip: moved the decimal one place."
+    "25.00%": "Decimal slip: moved the decimal one place.",
+    "97.50%": "Gave the stop as a share of the fill, not the gap.",
+    "102.56%": "Took the fill as a percent of the stop, skipping the subtraction."
    }
   },
   {
@@ -3821,17 +3821,17 @@
      "rests on the card's grade row"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "$70.00",
-    "$12.00",
-    "$28.00",
+    "$57.14",
+    "$120.00",
     "$52.00"
    ],
    "wrong": {
-    "$12.00": "Found the 30% but did not add it to the low.",
-    "$28.00": "Subtracted the 30% instead of adding it.",
-    "$70.00": "Added 30 dollars, not 30 percent."
+    "$70.00": "Added 30 dollars, not 30 percent.",
+    "$57.14": "Divided by the remainder instead of adding the gain.",
+    "$120.00": "Multiplied by 3 instead of 1.3."
    }
   },
   {
@@ -3910,17 +3910,17 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "7.1%",
     "93.3%",
-    "4.0%",
+    "107.1%",
     "6.7%"
    ],
    "wrong": {
     "7.1%": "Divided the drop by the low instead of the top.",
     "93.3%": "Took the low as a percent of the top and skipped the drop.",
-    "4.0%": "Read the dollar drop as a percent."
+    "107.1%": "Took the top as a percent of the low, skipping the subtraction."
    }
   },
   {
@@ -3957,17 +3957,17 @@
      "a computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "11.7%",
-    "13.2%",
-    "113.2%",
-    "6.6%"
+    "6.6%",
+    "1.3%",
+    "13.2%"
    ],
    "wrong": {
     "11.7%": "Divided the gap by the buy price instead of the average.",
-    "113.2%": "Forgot to subtract one: the buy as a percent of the average.",
-    "6.6%": "Read the dollar gap as a percent."
+    "6.6%": "Read the dollar gap as a percent.",
+    "1.3%": "Decimal slip the other way."
    }
   },
   {
@@ -4415,7 +4415,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Math right (2.08/83.26=2.498%). Mixed precision (2.5 / 25 / 2.08 / 0.06) made 2.5% stand out; all choices now two decimals."
+   "notes": "2.08% sat below the answer so rank was 1. Replaced with the fill-over-stop slip, which lands above. The old why cited a number that is no longer a choice, so the why was trimmed to match; the answer is unchanged."
   },
   "q27": {
    "status": "pass",
@@ -4678,7 +4678,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "52.00 = 40*1.3; 12 = gain only; 28 = minus; 70 = plus 30 dollars. Why fine."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q70": {
    "status": "pass",
@@ -4690,13 +4690,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4/60=6.7; 4/56=7.1; 56/60=93.3; 4.0. Why walks steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q72": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "6.6/50=13.2; 6.6/56.6=11.7; 113.2; 6.6. Why fine."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q73": {
    "status": "cut",

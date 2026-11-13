@@ -1132,17 +1132,17 @@
      "computed key (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "71.8%",
-    "39.2%",
     "28.2%",
-    "2.8%"
+    "39.2%",
+    "71.8%",
+    "282.0%"
    ],
    "wrong": {
     "39.2%": "You divided the profit by the cost of sales instead of by sales.",
     "71.8%": "You gave the cost share and forgot to subtract it from sales.",
-    "2.8%": "A decimal slip: you moved the point one place."
+    "282.0%": "A decimal slip: you moved the point one place the wrong way."
    }
   },
   {
@@ -1263,17 +1263,17 @@
      "computed key (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "5.8%",
+    "0.1%",
     "0.6%",
-    "17.3%",
-    "94.2%",
-    "5.8%"
+    "1.6%"
    ],
    "wrong": {
-    "17.3%": "You flipped the division and divided revenue by operating income.",
-    "94.2%": "You gave the share of each sales dollar that went to costs.",
-    "0.6%": "A decimal slip: you moved the point one place."
+    "0.6%": "A decimal slip: you moved the point one place.",
+    "0.1%": "You forgot to multiply by 100 and rounded the decimal.",
+    "1.6%": "You read the first digits of $1,624 million as a percent."
    }
   },
   {
@@ -1705,7 +1705,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q13": {
    "status": "pass",
@@ -1723,7 +1723,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q16": {
    "status": "pass",

@@ -985,17 +985,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "1R",
-    "0.05R",
+    "1.5R",
     "2R",
     "0.5R"
    ],
    "wrong": {
     "1R": "Counted the $1 gain as 1R.",
     "2R": "Flipped the ratio, risk over gain.",
-    "0.05R": "Decimal slip."
+    "1.5R": "Measured the gain from the stop, not the entry."
    }
   },
   {
@@ -1595,7 +1595,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q12": {
    "status": "pass",

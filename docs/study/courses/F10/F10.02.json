@@ -1069,17 +1069,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "50%",
     "35%",
-    "26%",
+    "40%",
+    "50%",
     "135%"
    ],
    "wrong": {
     "50%": "Counted the gain to the $60 peak. You get out at the stop, not at the peak.",
-    "26%": "Divided the gain by the stop price. Divide it by your $40 entry.",
-    "135%": "Gave the stop as a percent of cost and forgot to take off your whole cost."
+    "135%": "Gave the stop as a percent of cost and forgot to take off your whole cost.",
+    "40%": "Used 10% of the $40 entry as the trail, not 10% of the $60 peak."
    }
   },
   {
@@ -1679,8 +1679,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 35.0 shown. 50 = gain to peak, 26 = 14/54, 135 = 54/40. Why walks the steps in words (the validator bars new dollar figures)."
+   "fixed": true,
+   "notes": "Recomputed; fixed rank or note so the answer sits at the target rank with genuine mistakes."
   },
   "q13": {
    "status": "pass",

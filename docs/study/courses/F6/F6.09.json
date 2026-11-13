@@ -1256,17 +1256,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$5.00",
-    "$4.45",
-    "$0.55",
-    "$5.55"
+    "$5.55",
+    "$6.10",
+    "$50.55",
+    "$55.50"
    ],
    "wrong": {
-    "$5.00": "Skips the 0.55 the put cost.",
-    "$4.45": "Takes the premium off the loss when it should be added.",
-    "$0.55": "Counts only the premium. That holds only if you bought the stock at the strike."
+    "$6.10": "Added the 0.55 premium twice.",
+    "$50.55": "Added the premium to the 50 cost and forgot the strike.",
+    "$55.50": "Slipped a decimal place."
    }
   },
   {
@@ -1503,17 +1503,17 @@
      "fixed before (held-to-expiry condition added)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "$1.00",
-    "$0.00",
+    "$10.00",
     "$100.00",
-    "$0.10"
+    "$111.00"
    ],
    "wrong": {
-    "$0.00": "Treats the 110 strike as the break-even and ignores the premium.",
     "$100.00": "Mixes up the dollars on a whole contract with the price per share.",
-    "$0.10": "Slips a decimal place on the 1.00 premium."
+    "$10.00": "Slips a decimal place on the 1.00 premium.",
+    "$111.00": "Adds the premium to the strike and never subtracts the target."
    }
   },
   {
@@ -1765,8 +1765,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q21": {
    "status": "pass",
@@ -1801,8 +1801,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q27": {
    "status": "pass",

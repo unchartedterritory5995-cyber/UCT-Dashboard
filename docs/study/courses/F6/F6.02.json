@@ -1334,17 +1334,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "0.3%",
+    "1.2%",
     "12%",
-    "0.012%",
-    "1.2%"
+    "6%",
+    "120%"
    ],
    "wrong": {
-    "0.3%": "Counted one contract instead of four.",
     "12%": "Slipped a decimal place.",
-    "0.012%": "Forgot each contract covers 100 shares."
+    "6%": "Multiplied contracts by premium and read 6 as a percent.",
+    "120%": "Multiplied by 100 twice."
    }
   },
   {
@@ -1356,9 +1356,9 @@
    "q": "If you buy it back here, what do you lose, before commissions?",
    "choices": [
     "$1,500",
-    "$400",
     "$1,900",
-    "$2,300"
+    "$2,300",
+    "$6,900"
    ],
    "answer": "$1,500",
    "calc": {
@@ -1379,9 +1379,9 @@
     "f20"
    ],
    "wrong": {
-    "$400": "That's the credit you collected. It's your best case, not a cap on the loss.",
     "$1,900": "That's the buyback cost. The $400 you collected comes off it.",
-    "$2,300": "That adds the $400 to the buyback. The credit offsets the loss, it doesn't add to it."
+    "$2,300": "That adds the $400 to the buyback. The credit offsets the loss, it doesn't add to it.",
+    "$6,900": "That uses the 69 stock price times 100 instead of the call price."
    },
    "simple": "You lose $1,500, because buying back costs $1,900 and the $400 you collected offsets only part of it.",
    "deeper": {
@@ -1395,7 +1395,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "rank"
   },
   {
    "key": "q22",
@@ -1807,14 +1807,14 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4. Why rewritten to show the steps."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q22": {
    "status": "pass",

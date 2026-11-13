@@ -1164,17 +1164,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "10",
-    "0.67",
     "1.5",
-    "50"
+    "0.15",
+    "0.30",
+    "0.67"
    ],
    "wrong": {
     "0.67": "You flipped it and divided the growth rate by the P/E.",
-    "10": "You subtracted the growth rate from the P/E instead of dividing.",
-    "50": "You added the P/E and the growth rate instead of dividing."
+    "0.15": "A decimal slip: you moved the point one place.",
+    "0.30": "You moved the P/E point two places instead of dividing by the growth rate."
    }
   },
   {
@@ -1739,7 +1739,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q16": {
    "status": "pass",

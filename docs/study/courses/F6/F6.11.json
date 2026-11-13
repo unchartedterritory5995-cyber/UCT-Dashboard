@@ -1037,17 +1037,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$350",
-    "$1,200",
     "$700",
-    "$1,700"
+    "$1,200",
+    "$1,700",
+    "$7,000"
    ],
    "wrong": {
-    "$350": "Counts one contract instead of 2.",
     "$1,200": "Forgets to take off the 2.50 premium.",
-    "$1,700": "Adds the premium instead of taking it off."
+    "$1,700": "Adds the premium instead of taking it off.",
+    "$7,000": "Slips a decimal place."
    }
   },
   {
@@ -1132,17 +1132,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$4,000",
     "$3,750",
-    "$4,250",
-    "$37.50"
+    "$37.50",
+    "$3,500",
+    "$4,000"
    ],
    "wrong": {
     "$4,000": "Forgets to take off the 2.50 the put cost.",
-    "$4,250": "Adds the premium instead of taking it off.",
-    "$37.50": "Forgets that one contract covers 100 shares."
+    "$37.50": "Forgets that one contract covers 100 shares.",
+    "$3,500": "Takes the premium off twice."
    }
   },
   {
@@ -1736,8 +1736,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q15": {
    "status": "pass",
@@ -1749,8 +1749,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1. Why rewritten to show the intermediate numbers."
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
   },
   "q17": {
    "status": "cut",

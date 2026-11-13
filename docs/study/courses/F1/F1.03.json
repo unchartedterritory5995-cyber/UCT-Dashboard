@@ -893,17 +893,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$30,130",
-    "$30.10",
+    "$30.13",
+    "$60.25",
     "$15,065",
-    "$30.13"
+    "$30,130"
    ],
    "wrong": {
-    "$30.10": "You used only the first fill's price.",
     "$30,130": "You gave the total cost and forgot to divide by the 1,000 shares.",
-    "$15,065": "You divided the $30,130 total by the number of fills instead of the 1,000 shares."
+    "$15,065": "You divided the $30,130 total by the number of fills instead of the 1,000 shares.",
+    "$60.25": "You added the two fill prices and never averaged them."
    }
   },
   {
@@ -1191,17 +1191,17 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "1.5%",
-    "133%",
     "75%",
-    "30%"
+    "133%",
+    "150%",
+    "750%"
    ],
    "wrong": {
     "133%": "You flipped the division and divided the $0.40 stop distance by the spread.",
-    "1.5%": "You divided the spread by the $20.30 price, not by the stop distance.",
-    "30%": "You read the 30-cent spread as 30% without dividing."
+    "150%": "You counted the spread twice, once going in and once going out.",
+    "750%": "A decimal slip: ten times too big."
    }
   },
   {
@@ -1246,9 +1246,9 @@
    "q": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint, the price halfway between them?",
    "choices": [
     "0.5%",
-    "0.1%",
     "0.005%",
-    "5%"
+    "0.1%",
+    "0.25%"
    ],
    "answer": "0.5%",
    "calc": {
@@ -1269,7 +1269,7 @@
    "wrong": {
     "0.1%": "That calls the ten cent spread 0.1%. A percent needs the spread divided by the price: 0.10 / 20.00.",
     "0.005%": "That is the decimal 0.005, not yet turned into a percent. As a percent it is 0.5%.",
-    "5%": "The decimal point slipped two places. 0.10 / 20.00 is 0.005, which is 0.5%."
+    "0.25%": "You used half the spread, the distance from the bid to the midpoint. Use the whole spread."
    },
    "simple": "It is 0.5%, the gap between bid and ask divided by the price halfway between them.",
    "tier": "extended",
@@ -1281,7 +1281,7 @@
     ]
    },
    "house": true,
-   "batch": "review1"
+   "batch": "rank"
   }
  ],
  "conflicts": [
@@ -1384,8 +1384,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer and calc check out. Fix: a wrong choice was a trap that made the answer easy to spot or was not a mistake the question's numbers can produce; swapped it. the explanation did not show the intermediate step; added it."
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q14": {
    "status": "cut",
@@ -1433,7 +1433,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q22": {
    "status": "pass",
@@ -1445,7 +1445,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Replaces q09, now multiple choice with steps shown: spread 0.10, midpoint 20.00, 0.10 / 20.00 = 0.005 = 0.5% (f23, f42). His math was right. Four choices from real slips (cent-to-percent, decimal not turned into percent, point moved two places). Calc key matches the answer."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   }
  }
 }

@@ -935,17 +935,17 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "$50.20",
+    "$54.00",
     "$48.00",
-    "$52.00",
-    "$2.00"
+    "$2.00",
+    "$52.00"
    ],
    "wrong": {
     "$48.00": "Subtracted the 4% instead of adding it.",
-    "$50.20": "Decimal slip: added a tenth of the 4%.",
-    "$2.00": "Found the 4% but did not add it to the buy point."
+    "$2.00": "Found the 4% but did not add it to the buy point.",
+    "$54.00": "Added four dollars, not four percent."
    }
   },
   {
@@ -1794,7 +1794,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "52.00 = 50*1.04; 48.00, 50.20 (0.4%), 2.00 all real slips."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q09": {
    "status": "pass",

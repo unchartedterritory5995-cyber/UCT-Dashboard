@@ -1299,17 +1299,17 @@
      "fixed before (source moved to the archived page)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
     "28%",
     "3.3%",
-    "0.8%",
+    "5.0%",
     "2.8%"
    ],
    "wrong": {
     "3.3%": "Multiplied 0.55 by 6 instead of raising it to the sixth power.",
-    "0.8%": "Used the win rate instead of the loss rate.",
-    "28%": "Decimal slip: moved the decimal one place."
+    "28%": "Decimal slip: moved the decimal one place.",
+    "5.0%": "Multiplied only five times, not six."
    }
   },
   {
@@ -1915,7 +1915,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
   },
   "q19": {
    "status": "pass",

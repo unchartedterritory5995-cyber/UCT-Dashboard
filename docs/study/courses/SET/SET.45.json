@@ -3436,17 +3436,17 @@
      "rests on the criteria card, which the owner has not yet ruled on"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "11.5%",
     "111.5%",
-    "10.3%",
-    "2.0%",
-    "11.5%"
+    "115.0%",
+    "89.7%"
    ],
    "wrong": {
-    "10.3%": "Divided by the close instead of the 10-day.",
-    "2.0%": "Measured from the low instead of the close.",
-    "111.5%": "Never took off the 10-day, just compared close to average."
+    "111.5%": "Never took off the 10-day, just compared close to average.",
+    "89.7%": "Divided the 10-day by the close, upside down.",
+    "115.0%": "Slipped the decimal point one place right."
    }
   },
   {
@@ -4301,17 +4301,17 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$55.00",
     "$45.00",
-    "$60.00",
     "$50.50",
-    "$55.00"
+    "$52.00"
    ],
    "wrong": {
     "$45.00": "Took 10% off the average instead of adding it.",
-    "$60.00": "Added ten dollars instead of ten percent.",
-    "$50.50": "Slipped a decimal and added only one percent."
+    "$50.50": "Slipped a decimal and added only one percent.",
+    "$52.00": "Used the four percent chase limit instead."
    }
   },
   {
@@ -4432,17 +4432,17 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
-    "0.5R",
+    "2.1R",
     "4.2R",
-    "1.1R",
-    "2.1R"
+    "21.0R",
+    "25.0R"
    ],
    "wrong": {
     "4.2R": "Called the dollar loss the R multiple.",
-    "1.1R": "Measured the loss from the stop instead of the buy.",
-    "0.5R": "Flipped the division: risk over loss."
+    "21.0R": "Slipped the decimal point one place right.",
+    "25.0R": "Divided the buy price by R instead of the loss."
    }
   },
   {
@@ -4625,17 +4625,17 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$40.00",
     "$38.00",
     "$42.00",
-    "$40.00",
-    "$32.00"
+    "$44.00"
    ],
    "wrong": {
     "$38.00": "Added the two R to the stop, not to the buy.",
     "$42.00": "Counted three R instead of two.",
-    "$32.00": "Went down from the buy instead of up."
+    "$44.00": "Counted four R instead of two."
    }
   },
   {
@@ -4671,17 +4671,17 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "tomcq",
+   "batch": "rank",
    "choices": [
+    "$58.05",
     "$56.91",
-    "$59.19",
     "$55.77",
-    "$58.05"
+    "$46.65"
    ],
    "wrong": {
     "$56.91": "Added the five R to the stop, not to the buy.",
     "$55.77": "Counted three R instead of five.",
-    "$59.19": "Counted six R instead of five."
+    "$46.65": "Subtracted five R from the buy instead of adding."
    }
   },
   {
@@ -5860,8 +5860,8 @@
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "fixed": true,
+   "notes": "Fixed format tell or ladder pattern; recomputed and verified rank."
   },
   "q70": {
    "status": "pass",
@@ -6014,7 +6014,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q96": {
    "status": "pass",
@@ -6033,7 +6033,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q99": {
    "status": "pass",
@@ -6063,13 +6063,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q104": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
   },
   "q105": {
    "status": "pass",

@@ -893,10 +893,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "$105",
     "$1,050",
     "$6,600",
-    "$7,650"
+    "$7,650",
+    "$10,500"
    ],
    "kind": "mcq",
    "q": "You short 300 shares at $22.00. It rallies and you buy to cover at $25.50. How much did you lose?",
@@ -954,7 +954,7 @@
      "fn": "arith",
      "result": 1050.0
     },
-    "given": "You short 300 shares at $22.00. It rallies and you buy to cover at $25.50. How much did you lose? $7,650 $1,050 $6,600 $105"
+    "given": "You short 300 shares at $22.00. It rallies and you buy to cover at $25.50. How much did you lose? $1,050 $6,600 $7,650 $10,500"
    },
    "lesson_line": "When a short goes up, every point costs you on every share.",
    "simple": "$1,050, because you paid $25.50 to buy back shares you sold at $22.00, on all 300 shares.",
@@ -962,7 +962,7 @@
    "unit": "F10b.01",
    "why": "When a short rises, your loss is the cover price minus the sale price, times the shares: $25.50 less $22.00, times 300 shares. The SEC's example: short at $60, cover at $80, lose $20 a share. A short's loss has no fixed cap, because a stock can keep rising.",
    "wrong": {
-    "$105": "A decimal slip: ten times too small.",
+    "$10,500": "A decimal slip: ten times too big.",
     "$6,600": "That is what the sale brought in, not the loss.",
     "$7,650": "That is what the buy-back cost, not the loss."
    }
@@ -1147,9 +1147,9 @@
   "prompt_json": {
    "choices": [
     "$0",
-    "$300",
-    "$533",
-    "$3,000"
+    "$0.75",
+    "$30",
+    "$300"
    ],
    "kind": "mcq",
    "q": "You're short 400 shares through the ex-dividend date. The stock pays a $0.75 dividend. What do you owe the lender?",
@@ -1199,7 +1199,7 @@
      "fn": "arith",
      "result": 300.0
     },
-    "given": "You're short 400 shares through the ex-dividend date. The stock pays a $0.75 dividend. What do you owe the lender? $0 $3,000 $533 $300"
+    "given": "You're short 400 shares through the ex-dividend date. The stock pays a $0.75 dividend. What do you owe the lender? $300 $0 $0.75 $30"
    },
    "lesson_line": "Check the dividend calendar before you short. You pay the dividend, you don't collect it.",
    "simple": "$300, because a short seller pays the lender the $0.75 dividend on each of the 400 shares.",
@@ -1208,8 +1208,8 @@
    "why": "If the borrowed stock pays a dividend, you must pay it to the lender. That is $0.75 on each of 400 shares, or $300. It comes out of your account on the pay date. You owe it because you stayed short through the ex-dividend date. Cover before that date and you don't owe it.",
    "wrong": {
     "$0": "Thought a short seller owes nothing. You pay the dividend to the lender.",
-    "$3,000": "A decimal slip: ten times too big.",
-    "$533": "Divided the shares by the dividend. Multiply them."
+    "$0.75": "Gave the dividend per share and never multiplied by the shares.",
+    "$30": "A decimal slip: ten times too small."
    }
   },
   "review_status": "draft",
@@ -3219,10 +3219,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "-2.5R",
-    "0.4R",
     "2.5R",
-    "5.0R"
+    "3.5R",
+    "5.0R",
+    "7.0R"
    ],
    "kind": "mcq",
    "q": "You short at $50.00 with a buy stop at $52.00. You cover at $45.00. How many R did you make?",
@@ -3266,7 +3266,7 @@
      "fn": "r_multiple",
      "result": 2.5
     },
-    "given": "You short at $50.00 with a buy stop at $52.00. You cover at $45.00. How many R did you make? -2.5R 5.0R 0.4R 2.5R"
+    "given": "You short at $50.00 with a buy stop at $52.00. You cover at $45.00. How many R did you make? 2.5R 3.5R 5.0R 7.0R"
    },
    "lesson_line": "R works the same on a short, flipped: the risk sits above you, the profit below.",
    "simple": "2.5R. Your gain down to $45.00 is 2.5 times your risk up to the $52.00 stop.",
@@ -3274,9 +3274,9 @@
    "unit": "F10b.02",
    "why": "On a short, your risk is the distance from entry up to the buy stop: $50.00 to $52.00. Your gain is the distance from entry down to where you bought back: $50.00 to $45.00. The gain divided by the risk is the R: $5.00 over $2.00, or 2.5R.",
    "wrong": {
-    "-2.5R": "Treated the short like a long. Buying back lower is a gain on a short.",
-    "0.4R": "Flipped it: risk over gain.",
-    "5.0R": "Used the dollar gain as the R. Divide it by the risk."
+    "3.5R": "Measured the gain from the buy stop to the cover price, not from the entry.",
+    "5.0R": "Used the dollar gain as the R. Divide it by the risk.",
+    "7.0R": "Used the gap from the buy stop to the cover price with no division by the risk."
    }
   },
   "review_status": "draft",
@@ -3380,10 +3380,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "$400",
-    "$1,200",
     "$1,600",
-    "$11,600"
+    "$2,000",
+    "$11,600",
+    "$16,000"
    ],
    "kind": "mcq",
    "q": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00, and your stop fills there. What did you lose?",
@@ -3441,7 +3441,7 @@
      "fn": "arith",
      "result": 1600.0
     },
-    "given": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00, and your stop fills there. What did you lose? $400 $11,600 $1,200 $1,600"
+    "given": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00, and your stop fills there. What did you lose? $1,600 $2,000 $11,600 $16,000"
    },
    "lesson_line": "Your stop sets the planned loss, not the worst one. On a short, a gap up decides the rest.",
    "simple": "$1,600. The gap filled your stop at $29.00 instead of $26.00, so the loss was far bigger than planned.",
@@ -3449,9 +3449,9 @@
    "unit": "F10b.02",
    "why": "Good news gapped the stock open above your buy stop. A triggered stop becomes a market order, so it filled at $29.00, not $26.00. The loss is $29.00 minus $25.00, times 400 shares, which is $1,600. Your stop set the planned loss, not the worst one.",
    "wrong": {
-    "$1,200": "Counted only the gap past the stop. The loss starts at your $25.00 entry.",
     "$11,600": "That is the cost to buy back the 400 shares, not the loss.",
-    "$400": "That was the planned loss at the $26.00 stop. The fill was at $29.00."
+    "$16,000": "A decimal slip: ten times too big.",
+    "$2,000": "Added the planned $400 loss on top of the real loss."
    }
   },
   "review_status": "draft",
@@ -4124,8 +4124,8 @@
    "choices": [
     "94%",
     "164%",
-    "1,642%",
-    "1,742%"
+    "328%",
+    "1,642%"
    ],
    "kind": "mcq",
    "q": "You short at the $19.95 close on January 12, 2021. It closes at $347.51 on January 27. What's your loss on the move, as a % of the sale?",
@@ -4191,7 +4191,7 @@
      "fn": "pct_change",
      "result": 1642.0
     },
-    "given": "You short at the $19.95 close on January 12, 2021. It closes at $347.51 on January 27. What's your loss on the move, as a % of the sale? 1,742% 164% 94% 1,642%"
+    "given": "You short at the $19.95 close on January 12, 2021. It closes at $347.51 on January 27. What's your loss on the move, as a % of the sale? 1,642% 94% 164% 328%"
    },
    "lesson_line": "There's no ceiling on a short's loss. A long can lose at most what it cost.",
    "simple": "1,642%. The stock rose from $19.95 to $347.51, so the short lost many times what it sold for.",
@@ -4199,8 +4199,8 @@
    "unit": "F10b.02",
    "why": "1,642%. The loss is the rise from $19.95 to $347.51, as a share of the $19.95 sale price. A stock can only drop to zero, so a long loses at most 100% of its cost. A short has no such limit. This short, GameStop in January 2021, lost many times what it sold for.",
    "wrong": {
-    "1,742%": "Forgot to take off the original price. The loss is the rise, not the new price as a share of the old.",
     "164%": "A decimal slip: ten times too small.",
+    "328%": "Gave the dollar rise as a percent. Divide it by the $19.95 sale price first.",
     "94%": "Divided the rise by the $347.51 close. Divide by the $19.95 sale price."
    }
   },
