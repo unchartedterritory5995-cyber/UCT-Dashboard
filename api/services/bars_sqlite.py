@@ -2047,6 +2047,27 @@ def get_bars_packed(ticker: str, tf: str, max_bars: int) -> list[tuple] | None:
     return _unpack(result)
 
 
+def get_bars_fast(ticker: str, tf: str, max_bars: int) -> list[tuple]:
+    """`get_bars(ticker, tf, max_bars)`: the same rows, read in ONE sqlite step when that
+    is exact (`get_bars_packed`), row by row otherwise.
+
+    ⚡ 2026-11-13. For a request-path caller that reads a few hundred to a few thousand rows
+    on the busy web pod. Measured on production: `/api/adjustment-basis/{ticker}` (the chart
+    header's split label, 400 daily rows) answered in 3.2 s at the median while a member
+    scanned a list, because a row-by-row read waits about one thread switch interval per
+    row whenever another thread runs Python (the same cause, and the same cure, as the RS
+    lane's `signature._lane_rows`).
+
+    ⛔ ONLY WHILE THE STORE'S READER IS ITS OWN. A reader somebody swapped in (a test's, a
+    host's) serves every row itself: the one-step read would go around it to the database.
+    `RS_PACKED_READS=0` turns the one-step read off here too (docs/feature_flags.json, knobs)."""
+    if get_bars is ROW_READER and os.environ.get("RS_PACKED_READS", "1").strip() != "0":
+        rows = get_bars_packed(ticker, tf, max_bars)
+        if rows is not None:
+            return rows
+    return get_bars(ticker, tf, max_bars)
+
+
 def get_bars_before(ticker: str, tf: str, max_bars: int, to_key: int) -> list[tuple]:
     """Up to max_bars rows with ts <= to_key, oldest-first — the pre-cutoff window used
     by replay mode. Uses the (ticker, tf, ts DESC) index, so it's a fast index seek even
