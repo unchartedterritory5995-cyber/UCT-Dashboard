@@ -3016,7 +3016,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const dropExcluded = (ask) => {
         try {
           const live = host?.charts?.list?.() || []
-          const ex = new Set([...excludedCharts(text, live, selectedChart(host)), ...spatialConstraints(text, live, selectedChart(host)).excluded])
+          const exc = excludedCharts(text, live, selectedChart(host))
+          // ⛔ (hotfix) …nor a chart an UNPLACED exclusion may mean (a ticker on several charts: `unoffered`)
+          const ex = new Set([...exc, ...(exc.unoffered || []), ...spatialConstraints(text, live, selectedChart(host)).excluded])
           ex.delete(UNPLACED)
           if (!ex.size || !Array.isArray(ask?.choices)) return ask
           const k = getTargetKind(getCapability(screened.ops[0]?.action)?.target)
