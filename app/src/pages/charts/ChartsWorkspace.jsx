@@ -3812,6 +3812,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
               headerAtBottom={false}
               merged={merged}
               integratedChartHeader={!merged}
+              uctFrame
               // Only the main board passes `h.onPopOut`/`h.onFloat` from
               // `mainGridHandlers` — a popped-out board's `renderGrid` call omits
               // both, so `isMainBoard` never mis-caps a secondary monitor's board.
@@ -4219,6 +4220,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
               <WidgetHost
                 widget={w}
                 merged={false}
+                uctFrame
                 onRemove={() => handleRemovePoppedWidget(w.id)}
                 onColorChange={(c) => handleColorChange(w.id, c)}
                 onOptsChange={(opts) => handleOptsChange(w.id, opts)}
@@ -4296,6 +4298,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                 widget={w}
                 merged={false}
                 floating
+                uctFrame
                 onHeaderDragStart={onDragPointerDown}
                 onDock={() => handleDockFloatWidget(w.id)}
                 onRemove={() => handleRemoveFloatWidget(w.id)}

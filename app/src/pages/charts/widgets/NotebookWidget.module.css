@@ -372,3 +372,41 @@
 }
 .footBack:hover { color: var(--nb-accent, var(--accent, #dcbb5e)); }
 .saveStatus { flex: 1 1 auto; font-size: 10.5px; color: var(--nb-chrome, var(--text-muted, #706b5e)); }
+
+/* ── UCT frame (owner 11-13, /charts board only — :global(.uct-frame) set by WidgetHost):
+      the frame header already names the widget, so in the LIST view the inner "Notebook"
+      title folds away and its link + gear ride at the right end of the search row (an open
+      note keeps its bar — the ‹ Notes back button lives there). Soft search field, quiet
+      "New" — the chart widget's style. ── */
+:global(.uct-frame).root,
+:global(.uct-frame) .root { position: relative; }
+:global(.uct-frame) .bar:has(> .brand) {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  z-index: 2;
+  gap: 2px;
+  padding: 0;
+  border: none;
+}
+:global(.uct-frame) .bar:has(> .brand) > .brand,
+:global(.uct-frame) .bar:has(> .brand) > .spacer { display: none; }
+:global(.uct-frame) .bar:has(> .brand) ~ .toolbar { padding-right: 66px; }
+:global(.uct-frame) .gearBtn { width: 24px; height: 22px; padding: 0; border-radius: 6px; }
+:global(.uct-frame) .gearBtnActive { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .toolbar { padding: 6px 8px; min-height: 38px; }
+:global(.uct-frame) .search {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border-color: transparent;
+  font-size: 12.5px;
+  background: color-mix(in srgb, var(--widget-text, #cfcac0) 8%, transparent);
+}
+:global(.uct-frame) .search:focus { outline: none; border-color: color-mix(in srgb, var(--widget-accent, var(--accent, #dcbb5e)) 32%, transparent); }
+:global(.uct-frame) .newBtn {
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+:global(.uct-frame) .newBtn:hover { background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }

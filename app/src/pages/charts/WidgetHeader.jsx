@@ -30,6 +30,12 @@ export default function WidgetHeader({
   // 'controls' ONLY the window controls (add tab · float · pop out · close). null (default)
   // = the full header bar, unchanged for every other widget.
   part = null,
+  // 'uct' = the /charts board's header (chart-widget style); null = the classic bar.
+  look = null,
+  icon = null,          // (look='uct') the widget's catalog icon name
+  slotRef = null,       // (look='uct') callback ref for the one-row slot (uctHeaderSlot.js)
+  ctrlSlotRef = null,   // (look='uct') callback ref for the gear slot at the start of the controls
+  iconOnly = false,     // (look='uct') show the icon alone — the name stays for screen readers
   // In-canvas float: pop a widget off the grid to float on top of another widget.
   onFloat,              // (grid mode) => pop this widget out to a floating panel
   floating = false,     // true while this header is inside a floating panel
@@ -256,7 +262,7 @@ export default function WidgetHeader({
         data-guide="widget.addTab"
         aria-label="Add a tab to this widget"
         title="Add a tab — hold multiple widgets in this one slot"
-      >{part ? <UIcon name="plus" size={16} strokeWidth={1.9} gold={false} /> : '+'}</button>
+      >{part || look === 'uct' ? <UIcon name="plus" size={16} strokeWidth={1.9} gold={false} /> : '+'}</button>
       {addOpen && addPos && createPortal(
         <div
           data-wtab-add-menu
@@ -343,47 +349,11 @@ export default function WidgetHeader({
     )
   }
 
-  if (tabsOnly) {
-    if (!tabRegion) return null
-    return <div className={styles.wtabMergedBar}>{tabRegion}</div>
-  }
-
-  return (
-    // The ENTIRE header is the drag handle — grab anywhere in the top border to move
-    // the widget (grid mode via RGL's `charts-widget-drag-handle`; floating mode via
-    // onHeaderDragStart). The old ⋮⋮ grip dots are gone; the color dot sits top-left
-    // where they were. Interactive controls carry `charts-no-drag` (+ RGL's
-    // draggableCancel exempts every <button>) so a click on them acts, never drags.
-    <div
-      className={`${styles.widgetHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}${!floating ? ' charts-widget-drag-handle' : ''}`}
-      style={{ ...(style || {}), cursor: 'grab' }}
-      data-guide="widget.headerBar"
-      onPointerDown={floating ? (e) => {
-        if (e.target.closest('button, input, textarea, a, select, [role="tab"]')) return
-        onHeaderDragStart?.(e)
-      } : undefined}
-    >
-      <button
-        type="button"
-        className={`${styles.colorDot} ${styles[`colorDot${suspended ? 'N' : color}`]} charts-no-drag`}
-        onClick={() => onColorChange(nextGroup(color, extraGroupsOn))}
-        data-group-suspended={suspended ? color : undefined}
-        data-guide="widget.link"
-        aria-label={suspended
-          ? `Group ${color} is switched off: not linked — click to pick a color group`
-          : isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}
-        title={suspended
-          ? `Group ${color} is switched off: not linked. This widget keeps group ${color} in the saved layout and links again when extra groups are on. Click to pick a color group.`
-          : isNone
-          ? 'Not linked — this widget’s ticker syncs with nothing. Click to cycle to a color group.'
-          : `Color group ${color} — click to cycle (grey = not linked)`}
-      />
-      {tabRegion || (
-        <>
-          <span className={styles.widgetLabel}>{label}</span>
-          <span className={styles.headerSpacer} />
-        </>
-      )}
+  // The full header's window controls (+ · float · pop out · dock · move-to-tab · close).
+  // iconic=false renders the classic glyphs exactly as before; true = the UCT header's icons.
+  const ico = (name) => <UIcon name={name} size={15} strokeWidth={1.9} gold={false} />
+  const windowButtons = (iconic) => (
+    <>
       {addControl}
       {/* Grid mode: pop this widget out to float on top of another widget. */}
       {!floating && onFloat && (
@@ -394,7 +364,7 @@ export default function WidgetHeader({
           data-guide="widget.float"
           aria-label="Float widget on top of another"
           title="Pop out to float on top of another widget (e.g. onto a chart)"
-        >▣</button>
+        >{iconic ? ico('copy') : '▣'}</button>
       )}
       {!floating && onPopOut && (
         <button
@@ -404,7 +374,7 @@ export default function WidgetHeader({
           data-guide="widget.popOut"
           aria-label="Pop out widget"
           title="Open this widget in its own window you can drag to another monitor"
-        >⧉</button>
+        >{iconic ? ico('popOut') : '⧉'}</button>
       )}
       {/* Floating: dock back to the grid. */}
       {floating && onDock && (
@@ -459,8 +429,107 @@ export default function WidgetHeader({
           data-guide="widget.close"
           aria-label="Close widget"
           title="Remove this widget"
-        ><UIcon name="x" size={13} /></button>
+        >{iconic ? ico('x') : <UIcon name="x" size={13} />}</button>
       )}
+    </>
+  )
+
+  const linkDot = (
+    <button
+      type="button"
+      className={`${styles.colorDot} ${styles[`colorDot${suspended ? 'N' : color}`]} charts-no-drag`}
+      onClick={() => onColorChange(nextGroup(color, extraGroupsOn))}
+      data-group-suspended={suspended ? color : undefined}
+      data-guide="widget.link"
+      aria-label={suspended
+        ? `Group ${color} is switched off: not linked — click to pick a color group`
+        : isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}
+      title={suspended
+        ? `Group ${color} is switched off: not linked. This widget keeps group ${color} in the saved layout and links again when extra groups are on. Click to pick a color group.`
+        : isNone
+        ? 'Not linked — this widget’s ticker syncs with nothing. Click to cycle to a color group.'
+        : `Color group ${color} — click to cycle (grey = not linked)`}
+    />
+  )
+
+  // ── UCT header (look='uct', the /charts board — owner 11-13): the chart widget's
+  // "one surface" style for every widget. [icon + link badge] Title (or the tab strip)
+  // · · · [+ float pop-out close]. Same drag handle, same controls, same handlers. ──
+  if (look === 'uct') {
+    return (
+      <div
+        className={`${styles.widgetHeader} ${styles.uctHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}${!floating ? ' charts-widget-drag-handle' : ''}`}
+        style={{ ...(style || {}), cursor: 'grab' }}
+        data-guide="widget.headerBar"
+        data-uct-header=""
+        onPointerDown={floating ? (e) => {
+          if (e.target.closest('button, input, textarea, a, select, [role="tab"]')) return
+          onHeaderDragStart?.(e)
+        } : undefined}
+      >
+        <span className={styles.uctIdent}>
+          {icon && <UIcon name={icon} size={17} strokeWidth={1.8} gold={false} />}
+          {linkDot}
+        </span>
+        {/* Icon-only header: the hairline after the icon stays at every width (owner 11-13). */}
+        {iconOnly && !tabRegion && <span className={styles.uctIdentSep} aria-hidden="true" />}
+        {tabRegion || (
+          <>
+            <span className={iconOnly ? styles.widgetLabel : styles.uctTitle} data-uct-title="">{label}</span>
+            {slotRef && <span className={styles.uctSlot} ref={slotRef} data-uct-slot="" />}
+            <span className={styles.headerSpacer} />
+          </>
+        )}
+        <span className={`${styles.ctrlGroup} ${styles.uctCtrl} charts-no-drag`} data-guide="widget.controls">
+          {ctrlSlotRef && <span className={styles.uctCtrlSlot} ref={ctrlSlotRef} data-uct-ctrl-slot="" />}
+          {windowButtons(true)}
+        </span>
+      </div>
+    )
+  }
+
+  if (tabsOnly) {
+    if (!tabRegion) return null
+    return <div className={styles.wtabMergedBar}>{tabRegion}</div>
+  }
+
+  return (
+    // The ENTIRE header is the drag handle — grab anywhere in the top border to move
+    // the widget (grid mode via RGL's `charts-widget-drag-handle`; floating mode via
+    // onHeaderDragStart). The old ⋮⋮ grip dots are gone; the color dot sits top-left
+    // where they were. Interactive controls carry `charts-no-drag` (+ RGL's
+    // draggableCancel exempts every <button>) so a click on them acts, never drags.
+    <div
+      className={`${styles.widgetHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}${!floating ? ' charts-widget-drag-handle' : ''}`}
+      style={{ ...(style || {}), cursor: 'grab' }}
+      data-guide="widget.headerBar"
+      onPointerDown={floating ? (e) => {
+        if (e.target.closest('button, input, textarea, a, select, [role="tab"]')) return
+        onHeaderDragStart?.(e)
+      } : undefined}
+    >
+      <button
+        type="button"
+        className={`${styles.colorDot} ${styles[`colorDot${suspended ? 'N' : color}`]} charts-no-drag`}
+        onClick={() => onColorChange(nextGroup(color, extraGroupsOn))}
+        data-group-suspended={suspended ? color : undefined}
+        data-guide="widget.link"
+        aria-label={suspended
+          ? `Group ${color} is switched off: not linked — click to pick a color group`
+          : isNone ? 'Not linked (grey) — click to link to a color group' : `Color group ${color} (click to cycle)`}
+        title={suspended
+          ? `Group ${color} is switched off: not linked. This widget keeps group ${color} in the saved layout and links again when extra groups are on. Click to pick a color group.`
+          : isNone
+          ? 'Not linked — this widget’s ticker syncs with nothing. Click to cycle to a color group.'
+          : `Color group ${color} — click to cycle (grey = not linked)`}
+      />
+      {tabRegion || (
+        <>
+          <span className={styles.widgetLabel}>{label}</span>
+          <span className={styles.headerSpacer} />
+        </>
+      )}
+      {windowButtons(false)}
     </div>
   )
 }

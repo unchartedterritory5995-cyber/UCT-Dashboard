@@ -28,6 +28,8 @@
 //
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
+import { useUctHeaderSlot, useUctControlsSlot } from './charts/uctHeaderSlot'
 import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 
@@ -125,6 +127,10 @@ import { nextSort } from '../lib/presentation/dataGrid'
 // snapshot comparator (applyColSort) stays here. Parity with the hand-rolled updater:
 // lib/presentation/dataGrid/pageGrids2.seedParity.test.js
 export const nextWatchColSort = (prev, key) => nextSort(prev, key, firstSortDir)
+// A watchlist's sort before the member chooses one (owner 11-13): biggest % change first.
+export const WATCHLIST_DEFAULT_SORT = Object.freeze({ key: 'chg', dir: 'desc' })
+// The sort a member picks on a PREBUILT list (whose columns reset on every open) — kept here.
+const EPHEMERAL_SORT_LS = 'uct.charts.watchlist.prebuiltSort.v1'
 
 // S2 CP4 — resolved ONCE at module scope: a lookup inside the handler would
 // re-scan the table on every keystroke, and a miss would silently disable
@@ -382,6 +388,9 @@ const WatchRow = React.memo(function WatchRow({
   // an expand caret + ellipsized name, a stock-count cell, and toggles instead of selecting.
   // Member rows (a group's stocks, shown when expanded) render as normal stock rows, indented.
   isGroup = false, expanded = false, isMember = false, grpcount = null, onToggleGroup = null,
+  // UCT frame (owner 11-13): no star column — the star sits right after the ticker instead
+  // (shown on row hover; a flagged ticker keeps a small solid one). Same toggle as the column.
+  inlineFlag = false,
 }) {
   // Touch long-press on the sym cell opens the SAME row menu desktop right-click
   // does (notes / price alerts / remove live there — iOS never fires
@@ -399,6 +408,18 @@ const WatchRow = React.memo(function WatchRow({
       className={`${styles.changeCell} ${v != null ? (v >= 0 ? styles.gain : styles.loss) : ''}`}
       display={v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—'} />
   )
+  // Flag control on the board (owner 11-13): a star in a fixed slot at the START of the symbol
+  // cell — before the logo — so every star lines up, with no star column of its own.
+  const flagBadge = inlineFlag && !isGroup ? (
+    <button
+      type="button"
+      className={`${styles.inlineFlag} ${styles.leadFlag}${flagged ? ' ' + styles.inlineFlagOn : ''}`}
+      onClick={e => { e.stopPropagation(); onToggleFlag(sym) }}
+      aria-pressed={!!flagged}
+      aria-label={flagged ? `Remove ${sym} from Flagged` : `Flag ${sym}`}
+      title={flagged ? 'Remove from Flagged' : 'Add to Flagged (Shift+F)'}
+    >{flagged ? <UIcon name="star-fill" size={12} gold={false} /> : <UIcon name="star" size={12} gold={false} />}</button>
+  ) : null
   const cellFor = (key) => {
     if (key === 'flag') {
       if (isGroup) return <span key="flag" className={styles.flagStar} style={{ pointerEvents: 'none' }} />
@@ -421,6 +442,7 @@ const WatchRow = React.memo(function WatchRow({
       )
       return (
         <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} {...(wlId ? rowMenuBind : {})}>
+          {flagBadge}
           {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
           <span className={styles.rowSym} title={displayName ? sym : undefined}>{displayName || sym}</span>
           {entityNote && (
@@ -558,6 +580,7 @@ const WatchRow = React.memo(function WatchRow({
       data-watch-sym={sym}
       className={`${styles.listRow} ${styles.wlRow}${selected ? ' ' + styles.listRowSelected : ''}`}
       onClick={activateRow}
+      onContextMenu={wlId ? onRowMenu : undefined}
       onPointerEnter={() => (isGroup ? undefined : onIntent(sym))}
       onFocus={() => (isGroup ? undefined : onIntent(sym))}
       // Seam: a bare `<div onClick>` was keyboard-inaccessible -- one of
@@ -732,7 +755,7 @@ function CompareSearch({ onPick, baseSym }) {
 // How long a selection must rest before its OTHER timeframes are warmed (see below).
 const SCAN_DWELL_MS = 600
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickSubHeader = null, renderGroupRow = null, groupAccent = null, openFirstGroup = false, stableGutter = false }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickTitleBefore = null, pickTitleAfter = null, pickSubHeader = null, renderGroupRow = null, groupAccent = null, openFirstGroup = false, stableGutter = false }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -817,6 +840,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return mergeWatchlistSettings(base)
   }, [settingsOverride, onSettingsPersist, prefs, placedTheme])
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [copiedNote, setCopiedNote] = useState(null)
+  useEffect(() => {
+    if (!copiedNote) return undefined
+    const t = setTimeout(() => setCopiedNote(null), 2200)
+    return () => clearTimeout(t)
+  }, [copiedNote])
+  const footerMenuBtnRef = useRef(null)
+  // UCT frame (/charts board, owner 11-13): a single-list widget's header row (‹ Lists · name ·
+  // actions) rides in the widget's title row when it fits, and its ⚙ joins the window controls.
+  // Same elements and handlers, drawn there through a portal; null slots → drawn in place.
+  const uctRowSlot = useUctHeaderSlot(pickList ? 'list' : 'lists')
+  const uctCtrlSlot = useUctControlsSlot()
+  const inUctRow = (el) => (uctRowSlot ? createPortal(el, uctRowSlot) : el)
+  const inUctCtrls = (el) => (uctCtrlSlot ? createPortal(el, uctCtrlSlot) : el)
   const settingsBtnRef = useRef(null)
   const [filterOpen, setFilterOpen] = useState(false)   // scanner "criteria" popover
   const filterWrapRef = useRef(null)
@@ -977,6 +1014,51 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // handleColSort below) is the one sort every list uses. Deleted rather than migrated.
   const [filterText, setFilterText] = useState('')
   const [addingToList, setAddingToList] = useState(null)  // list id whose inline "+" row is open
+  // Add-a-ticker on the board (owner 11-13): the box drops straight down from the list's
+  // header section, its exact width. Board widgets sit in transformed grid cells, so it floats
+  // at page level (fixed, measured from the header) and re-measures on resize / scroll.
+  const pickHeaderRef = useRef(null)
+  // An empty list on the board (owner 11-13): what it is, and the one obvious next step —
+  // "Add tickers" opens the same add box as the header's +; "Paste a list" the same import.
+  const emptyListCard = ({ name, listId, canPaste = false, flaggedHint = false }) => (
+    <div className={styles.emptyCard} data-guide="watchlist.emptyList">
+      <div className={styles.emptyCardTitle}>{name} is empty</div>
+      <div className={styles.emptyCardText}>
+        {flaggedHint ? <>Add tickers here, or press <kbd>Shift</kbd>+<kbd>F</kbd> on any chart.</> : 'Add tickers to start tracking them.'}
+      </div>
+      <div className={styles.emptyCardActions}>
+        <button type="button" className={styles.emptyCardPrimary} onClick={() => {
+          setExpandedLists(prev => new Set(prev).add(listId))
+          setAddingToList(listId)
+        }}><UIcon name="plus" size={14} gold={false} /> Add tickers</button>
+        {canPaste && (
+          <button type="button" className={styles.emptyCardSecondary} onClick={() => { setImportListId(listId); setImportText('') }}>
+            Paste a list
+          </button>
+        )}
+      </div>
+    </div>
+  )
+  const [addAnchor, setAddAnchor] = useState(null)
+  useLayoutEffect(() => {
+    const el = pickHeaderRef.current
+    if (!uctCtrlSlot || !addingToList || !el) { setAddAnchor(null); return undefined }
+    const win = el.ownerDocument.defaultView || window
+    const place = () => {
+      const r = el.getBoundingClientRect()
+      setAddAnchor({ top: Math.round(r.bottom + 4), left: Math.round(r.left), width: Math.round(r.width) })
+    }
+    place()
+    win.addEventListener('resize', place)
+    win.addEventListener('scroll', place, true)
+    return () => { win.removeEventListener('resize', place); win.removeEventListener('scroll', place, true) }
+  }, [uctCtrlSlot, addingToList])
+  const inUctAdd = (el) => (uctCtrlSlot && addAnchor
+    ? createPortal(
+      <div className={`uct-frame ${styles.addFloat}`} style={addAnchor}>{el}</div>,
+      pickHeaderRef.current?.ownerDocument?.body || document.body,
+    )
+    : el)
   const [addErr, setAddErr] = useState(null)              // { listId, msg } — last failed add
 
   function toggleStar(listId, sym) {
@@ -1121,6 +1203,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   function handleCopyList(symbols) {
     const wrote = navigator.clipboard.writeText(symbols.join(', '))
     setCtxMenu(null)
+    // The footer says so (UCT frame) — a copy with no feedback reads as nothing happening.
+    Promise.resolve(wrote).then(() => setCopiedNote(`Copied ${symbols.length} ${symbols.length === 1 ? 'ticker' : 'tickers'}`), () => setCopiedNote('Could not copy'))
     return wrote
   }
 
@@ -1230,7 +1314,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [colCfg, setColCfg] = useState(() => {
     // ephemeralCols (Custom-Period Sort): ALWAYS start from the caller's default columns,
     // never a saved layout — every run shows the same column view.
-    if (ephemeralCols) return defaultColCfg || {}
+    if (ephemeralCols) {
+      const base = defaultColCfg || {}
+      if (!pickList || scanSymbols) return base
+      try {
+        const raw = localStorage.getItem(EPHEMERAL_SORT_LS)
+        if (raw != null) return { ...base, sort: JSON.parse(raw) }
+      } catch { /* storage off: the default sort */ }
+      return base
+    }
     // Saved config wins; otherwise the caller's default (the scanner seeds RVOL on +
     // RVOL-sorted). Once the user edits columns, saveColCfg persists over this.
     try { const s = JSON.parse(localStorage.getItem(_colKey)); if (s && typeof s === 'object') return s } catch { /* ignore */ }
@@ -1904,15 +1996,25 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     setColCfg(next ?? (defaultColCfg || {}))
     // ephemeralCols: in-session edits still apply, but nothing persists (so the next run
     // reverts to the default column view).
-    if (ephemeralCols) return
+    if (ephemeralCols) {
+      // …but a watchlist's SORT choice is kept (owner 11-13: "if they change it it should stay").
+      if (pickList && !scanSymbols && next && 'sort' in next) {
+        try { localStorage.setItem(EPHEMERAL_SORT_LS, JSON.stringify(next.sort ?? null)) } catch { /* ignore */ }
+      }
+      return
+    }
     try { if (next == null) localStorage.removeItem(_colKey); else localStorage.setItem(_colKey, JSON.stringify(next)) } catch { /* ignore */ }
-  }, [_colKey, ephemeralCols, defaultColCfg])
+  }, [_colKey, ephemeralCols, defaultColCfg, pickList, scanSymbols])
   const [liveResize, setLiveResize] = useState(null)   // {key,width} during a drag
   const [colMenu, setColMenu] = useState(null)         // {x,y} right-click menu
   const resizingRef = useRef(false)                    // suppress the header sort-click after a resize
   const dragColRef = useRef(null)                      // key of the header column being drag-reordered
   const colHidden = colCfg.hidden || {}
-  const colSort = colCfg.sort || null                  // {key, dir} | null
+  // Owner 11-13: a watchlist sorts by % change (high → low) until the member picks a sort; their
+  // choice — including none (null) — is saved and kept. Scans keep their caller's own default.
+  const colSort = (colCfg.sort === undefined && pickList && !scanSymbols)
+    ? WATCHLIST_DEFAULT_SORT
+    : (colCfg.sort || null)                            // {key, dir} | null
 
   // ── Watchlist "look" templates (appearance + columns; NO symbols) ──
   // Managed from the ⚙ Watchlist Settings panel. Applying a template sets THIS
@@ -2009,13 +2111,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // React.memo — a new array here would break row memoization on every keypress).
   const orderedKeys = useMemo(() => {
     // Thematic-index list → Symbol + % Change only (price/volume are always "—").
-    if (isAllIdxList) return ['flag', 'sym', 'chg']
+    if (isAllIdxList) return uctCtrlSlot ? ['sym', 'chg'] : ['flag', 'sym', 'chg']
     const hidden = colCfg.hidden || {}
     const order = (Array.isArray(colCfg.order) && colCfg.order.length ? colCfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
     const ks = order.filter(k => (k === 'flag' || k === 'sym') || !hidden[k])
     DEFAULT_COL_ORDER.forEach(k => { if ((k === 'flag' || k === 'sym') && !ks.includes(k)) ks.unshift(k) })  // never lose flag/sym
-    return ks
-  }, [colCfg, isAllIdxList])
+    // On the board the star lives inside the symbol cell (inlineFlag), so no star column.
+    return uctCtrlSlot ? ks.filter(k => k !== 'flag') : ks
+  }, [colCfg, isAllIdxList, uctCtrlSlot])
   const visibleOptional = OPTIONAL_COLS.filter(c => !colHidden[c.key])
   // Measured content width of the list (excludes the vertical scrollbar) — drives the
   // shrink-to-fit below so an ADDED column squeezes the others in rather than overflow.
@@ -2493,6 +2596,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       <span
         key={key}
         className={`${key === 'sym' ? styles.hSym : styles.hCol}${active ? ' ' + styles.hSortActive : ''}`}
+        data-col-key={key}
         onClick={() => handleColSort(key)}
         role="button"
         tabIndex={0}
@@ -2502,7 +2606,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleColSort(key) }
         }}
         {...headerDragProps(key)}
-      >{label}</span>
+        data-sort-dir={active ? colSort.dir : undefined}
+      >{label}{active && <span className={styles.hSortArrow} aria-hidden="true">{colSort.dir === 'asc' ? '▲' : '▼'}</span>}</span>
     )
   }
   const columnHeader = (
@@ -2573,6 +2678,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const label = idxq?.name || themeIndexLabel(sym)
       return (
         <WatchRow
+          inlineFlag={!!uctCtrlSlot}
           key={sym} sym={sym} name={label} displayName={label} brandMark
           price={q.price} changePct={q.change_pct} volume={null}
           coName={idxq?.name ?? null}
@@ -2604,6 +2710,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const ent = entity ? entityDisplay(entity) : null
     return (
       <WatchRow
+        inlineFlag={!!uctCtrlSlot && wlId !== 'flagged'}
         key={sym}
         sym={sym}
         name={name}
@@ -2848,7 +2955,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             {/* Old per-list filter/sort header removed — the global column header now
                 drives columns + sorting so every watchlist uses the same format. */}
             {editable && addingToList === wl.id && (
-              <div className={styles.inlineAddRow} onClick={e => e.stopPropagation()}>
+              inUctAdd(<div className={styles.inlineAddRow} onClick={e => e.stopPropagation()}>
                 <TickerCombobox
                   compact
                   autoFocus
@@ -2868,9 +2975,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 {addErr?.listId === wl.id && (
                   <span className={styles.inlineAddErr} role="status">{addErr.msg}</span>
                 )}
-              </div>
+              </div>)
             )}
-            {sortedItems.length === 0 && <div className={styles.wlEmpty}>{items.length === 0 ? 'No symbols yet.' : 'No matches.'}</div>}
+            {sortedItems.length === 0 && (uctCtrlSlot && items.length === 0
+              ? emptyListCard({ name: wl.name, listId: wl.id, canPaste: pickOwnedId === wl.id && !isLinkedList(wl) })
+              : <div className={styles.wlEmpty}>{items.length === 0 ? 'No symbols yet.' : 'No matches.'}</div>)}
             {!virtualize && sortedItems.map(item => (
               <React.Fragment key={item.id}>{renderListItem(item)}</React.Fragment>
             ))}
@@ -2960,7 +3069,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         {open && (
           <div className={styles.wlItems}>
             {addingToList === 'flagged' && (
-              <div className={styles.inlineAddRow} onClick={e => e.stopPropagation()}>
+              inUctAdd(<div className={styles.inlineAddRow} onClick={e => e.stopPropagation()}>
                 <TickerCombobox
                   compact
                   autoFocus
@@ -2980,11 +3089,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 {addErr?.listId === 'flagged' && (
                   <span className={styles.inlineAddErr} role="status">{addErr.msg}</span>
                 )}
-              </div>
+              </div>)
             )}
-            {flagged.length === 0 ? (
-              <div className={styles.wlEmpty}>No flagged tickers. Press <strong>Shift+F</strong> on any chart.</div>
-            ) : applyColSort(flagged).map(sym => renderTickerRow({ sym }))}
+            {flagged.length === 0 ? (uctCtrlSlot
+              ? emptyListCard({ name: flaggedName || 'Flagged', listId: 'flagged', flaggedHint: true })
+              : <div className={styles.wlEmpty}>No flagged tickers. Press <strong>Shift+F</strong> on any chart.</div>
+            ) : applyColSort(flagged).map(sym => renderTickerRow({ sym, isOwner: true, wlId: 'flagged' }))}
           </div>
         )}
       </div>
@@ -3050,11 +3160,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
         {/* Pick mode (widget scoped to one list) shows a back header instead of the
             My Lists / Community tabs. */}
-        {pickList ? (
-          <div className={styles.pickHeader}>
+        {pickList ? inUctRow(
+          <div className={styles.pickHeader} ref={pickHeaderRef}>
             {/* Back-to-list-picker button only when there IS a picker to return to
                 (onExitPick set). Custom-Period Sort has none, so it shows no dead button. */}
             {onExitPick && <button data-guide="watchlist.lists" className={styles.pickBackBtn} onClick={() => onExitPick()} title="Choose a different list">{backLabel || '‹ Lists'}</button>}
+            {/* A host's control just before the name (the Watchlist widget's library-rail toggle). */}
+            {!pickTitleSlot && pickTitleBefore}
             {/* A host may put its own controls where the title sits (the breadth
                 drill: group-by + filters, since its window already names the list). */}
             {pickTitleSlot ?? (
@@ -3071,6 +3183,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 >{pickTitle}</span>
               </span>
             )}
+            {/* A host's control right after the name (the Watchlist widget's ▾ list switcher). */}
+            {!pickTitleSlot && pickTitleAfter}
             {titleMenuList && (
               <button
                 ref={titleMenuBtnRef}
@@ -3129,6 +3243,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 </div>
               )}
               {/* ⚙ Watchlist settings (canvas/colors + Templates). */}
+              {inUctCtrls(
               <button
                 ref={settingsBtnRef}
                 className={`${styles.wlActionBtn}${settingsOpen ? ' ' + styles.wlActionBtnActive : ''}`}
@@ -3136,6 +3251,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 onClick={() => setSettingsOpen(o => !o)}
                 title="Watchlist settings"
               ><UIcon name="gear" size={14} /></button>
+              )}
             </div>
           </div>
         ) : (
@@ -3363,6 +3479,26 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         {pickList && !scanMode && (
           <div className={styles.wlCountFooter}>
             <span className={styles.wlCountText}>{pickCount} {pickCount === 1 ? 'stock' : 'stocks'}</span>
+            {copiedNote && <span className={styles.wlCopied} role="status">{copiedNote}</span>}
+            {/* List options (UCT frame): the list's own menu — the one on its name — from the
+                footer; a list with no menu of its own (a prebuilt list) still gets Copy. */}
+            <button
+              ref={footerMenuBtnRef}
+              type="button"
+              className={styles.wlFooterMenu}
+              data-guide="watchlist.footerMenu"
+              aria-haspopup="menu"
+              aria-label="List options"
+              title="List options — copy, share, export"
+              onClick={(e) => {
+                // Opens UP from the footer, its right edge on the button (the widget's corner).
+                const r = e.currentTarget.getBoundingClientRect()
+                const x = Math.max(8, r.right - 220)
+                const bottom = Math.max(8, window.innerHeight - r.top + 6)
+                if (titleMenuList) { setCtxMenu({ x, y: 0, bottom, ...titleMenuList, fromTitle: true, fromFooter: true }); return }
+                setCtxMenu({ x, y: 0, bottom, id: pickList, isOwner: false, symbols: [...visibleSymsFlat], fromFooter: true })
+              }}
+            ><UIcon name="more" size={15} gold={false} /></button>
           </div>
         )}
       </div>
@@ -3504,7 +3640,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 2999 }} onClick={() => setColMenu(null)} onContextMenu={e => { e.preventDefault(); setColMenu(null) }} />
           <div className={styles.colMenu} data-guide="watchlist.colMenu" style={{ left: Math.min(colMenu.x, window.innerWidth - 170), top: Math.min(colMenu.y, window.innerHeight - 260) }}>
-            <div style={{ padding: '4px 10px 6px', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>Columns</div>
+            <div className={styles.colMenuTitle}>Columns</div>
             {OPTIONAL_COLS.map(c => (
               <button key={c.key} type="button" className={styles.colMenuItem} onClick={() => toggleColHidden(c.key)}>
                 <span className={styles.colMenuCheck}>{!colHidden[c.key] ? <UIcon name="check" size={11} /> : null}</span>
@@ -3621,12 +3757,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               className={styles.ctxItem}
               data-menu-id="research"
               onClick={() => { navigate(`/research/${ctxMenu.sym}`); setCtxMenu(null) }}
-            ><UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research</button>
+            ><UIcon name="book" size={14} className={styles.ctxIcon} />Full Research</button>
             <button
               className={styles.ctxItem}
               data-menu-id="ai"
               onClick={() => { navigate(`/research/${ctxMenu.sym}?section=ai`); setCtxMenu(null) }}
-            ><UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {ctxMenu.sym}</button>
+            ><UIcon name="sparkle" size={14} className={styles.ctxIcon} />Ask AI about {ctxMenu.sym}</button>
             <button
               className={styles.ctxItem}
               data-menu-id="compare"
@@ -3634,13 +3770,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 setComparePopover({ sym: ctxMenu.sym, x: ctxMenu.x, y: ctxMenu.y })
                 setCtxMenu(null)
               }}
-            ><UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare {ctxMenu.sym} with…</button>
-            {ctxMenu.id !== 'flagged' && (
+            ><UIcon name="columns" size={14} className={styles.ctxIcon} />Compare {ctxMenu.sym} with…</button>
+            {ctxMenu.isOwner && ctxMenu.id !== 'flagged' && (
               <button
                 className={styles.ctxItem}
                 data-menu-id="notes"
                 onClick={() => { toggleNoteSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
-              >Notes</button>
+              ><UIcon name="document" size={14} gold={false} className={`${styles.ctxIcon} ${styles.ctxIconExtra}`} />Notes</button>
+            )}
+            {ctxMenu.id !== 'flagged' && (
+              <button
+                className={styles.ctxItem}
+                data-menu-id="flag"
+                onClick={() => { toggleFlag(ctxMenu.sym); setCtxMenu(null) }}
+              ><UIcon name={isFlagged(ctxMenu.sym) ? 'star-fill' : 'star'} size={14} gold={false} className={`${styles.ctxIcon} ${styles.ctxIconExtra}`} />{isFlagged(ctxMenu.sym) ? 'Unflag' : 'Flag'} {ctxMenu.sym}</button>
             )}
             <button
               className={styles.ctxItem}
@@ -3651,12 +3794,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 setAlertDir('above')
                 setCtxMenu(null)
               }}
-            >Set price alert</button>
-            <button
+            ><UIcon name="bell" size={14} gold={false} className={`${styles.ctxIcon} ${styles.ctxIconExtra}`} />Set price alert</button>
+            {ctxMenu.isOwner && <button
               className={`${styles.ctxItem} ${styles.ctxItemDanger}`}
               data-menu-id="remove"
               onClick={() => { handleRemoveSym(ctxMenu.id, ctxMenu.sym); setCtxMenu(null) }}
-            >Remove from watchlist</button>
+            ><UIcon name="trash" size={14} gold={false} className={`${styles.ctxIcon} ${styles.ctxIconExtra}`} />Remove from watchlist</button>}
           </>
         ) : (
           // Right-click on a LIST HEADER → list-level actions (unchanged).
@@ -3745,7 +3888,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               ref={ctxMenuRef}
               className={styles.ctxMenu}
               data-guide="watchlist.rowMenu"
-              style={{ top: ctxMenu.y, left: ctxMenu.x }}
+              style={ctxMenu.bottom != null ? { bottom: ctxMenu.bottom, left: ctxMenu.x } : { top: ctxMenu.y, left: ctxMenu.x }}
               onClick={e => e.stopPropagation()}
               onKeyDown={ctxMenu.fromTitle ? (e => {
                 if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeTitleMenu(); return }
