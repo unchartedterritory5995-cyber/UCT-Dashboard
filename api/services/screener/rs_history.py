@@ -2380,20 +2380,57 @@ def rating_series(ticker: str, upto=None, limit: int = 300) -> list:
     tu = str(ticker or "").strip().upper()
     if not n or not tu:
         return []
+    args = (tu, n) if upto is None else (tu, session_key(upto), n)
     try:
         with closing(snapshot_db.connect()) as conn:
             if not _table_exists(conn, TABLE):
                 return []
-            if upto is None:
-                rows = conn.execute(f"SELECT session, ibd FROM {TABLE} WHERE ticker = ? "
-                                    "ORDER BY session DESC LIMIT ?", (tu, n)).fetchall()
-            else:
-                rows = conn.execute(f"SELECT session, ibd FROM {TABLE} WHERE ticker = ? AND session <= ? "
-                                    "ORDER BY session DESC LIMIT ?", (tu, session_key(upto), n)).fetchall()
+            pairs = _rating_series_one_step(conn, upto is not None, args)
+            if pairs is None:
+                pairs = [(r[0], r[1]) for r in conn.execute(rating_series_sql(upto is not None), args).fetchall()]
     except Exception as e:                                   # noqa: BLE001 - a read never raises
         log.warning("[rs_history] rating series read failed for %s: %s", tu, e)
         return []
-    return [(r[0], None if r[1] is None else int(r[1])) for r in reversed(rows)]
+    pairs.sort(key=_series_session)                          # oldest first, whichever read answered
+    return [(s, None if v is None else int(v)) for s, v in pairs]
+
+
+def rating_series_sql(bounded: bool) -> str:
+    """The series walk itself (newest first, at most ``limit`` rows): ``bounded`` adds the
+    ``session <= ?`` end. The ONE spelling: the row read runs it, the one-step read wraps
+    it, and ``tests/test_rs_rating_view.py`` pins its plan."""
+    return (f"SELECT session, ibd FROM {TABLE} WHERE ticker = ? "
+            + ("AND session <= ? " if bounded else "") + "ORDER BY session DESC LIMIT ?")
+
+
+def rating_series_one_step_sql(bounded: bool) -> str:
+    """`rating_series_sql`, aggregated inside sqlite into ONE result row: the JSON pairs, and
+    a flag that every rating is a stored INTEGER or null (the flag is null over no rows)."""
+    return ("SELECT json_group_array(json_array(session, ibd)), min(typeof(ibd) IN ('integer', 'null')) "
+            f"FROM ({rating_series_sql(bounded)})")
+
+
+def _series_session(pair) -> str:
+    return pair[0]
+
+
+def _rating_series_one_step(conn, bounded: bool, args: tuple):
+    """The walk's rows from ONE sqlite step, as ``[(session, ibd), ...]`` in no promised
+    order, or None when this read cannot be made that way (then the caller reads the rows).
+
+    ⚡ 2026-11-13: a chart's RS Rating line reads up to its bar count of sessions here (2,520
+    at most), one `sqlite3_step` per row, and CPython's sqlite3 re-takes the GIL after every
+    step: Server-Timing `rs-rating` 0.5 to 1.8 s on the web pod for rows sqlite finds in a
+    millisecond. Integers and text pass through JSON exactly; a rating stored as anything
+    else (never written, but then never trusted to a text rendering either), a ticker with
+    no rows, or a sqlite without the JSON functions answers None."""
+    try:
+        text, plain = conn.execute(rating_series_one_step_sql(bounded), args).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if plain != 1:                       # a rating that is not an integer, or no rows at all
+        return None
+    return [(s, v) for s, v in json.loads(text)]
 
 
 def status(data_dir=None) -> dict:

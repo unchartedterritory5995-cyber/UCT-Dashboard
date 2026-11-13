@@ -74,6 +74,7 @@ _DOMAIN_OF = {
     "chartFeatures": "chart",                             # a chart widget's Company Info panel + Earnings Strip (opts.dock)
     "board": "board", "widget": "board", "app": "board", "settings": "board", "guide": "board", "agent": "board",
     "periodSort": "board",                                # C3-205..207: Tools → Custom-Period Sort (a workspace tool)
+    "compare": "board",                                   # Tools → Compare Symbols: the panel's Rotation / Overlay view (a workspace tool)
     "watchlist": "watchlist", "layout": "layout",
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",

@@ -1712,6 +1712,21 @@ def test_guard_still_passes_ordinary_prose_about_period_sorts_and_docking(text):
     assert guard.suspicious(text) is False
 
 
+# ── Compare panel view (Tools → Compare Symbols): compare.openView is withheld when a passage names it bare ─────────
+def test_guard_withholds_the_compare_panel_action_name_bare():
+    assert guard.suspicious("Next, compare.openView with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Compare the sector's rotation with last month before you size up.",
+    "Open the rotation map to see which groups are leading. Compare. Open. Decide.",
+    "On the RRG, a group moving from Improving to Leading is worth a look.",
+    "Compare NVDA with AMD on the overlay tab.",
+])
+def test_guard_still_passes_ordinary_prose_about_comparing_and_rotation(text):
+    assert guard.suspicious(text) is False
+
+
 # ── #1110 drawing extras: its action names are withheld when a passage names them bare ──────────────────────────────
 @pytest.mark.parametrize("name", ["drawing.favoriteTool", "drawing.positionCalculator", "drawing.saveDefaults"])
 def test_guard_withholds_the_drawing_extras_action_names_bare(name):

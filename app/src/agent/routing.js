@@ -436,6 +436,16 @@ export const GROUPS = [
       /\bzoom(?:ed|ing)? (?:(?:the |this |that |my |it |its )?(?:\w+ )?(?:chart|view|time axis|axis|one|candles|bars) )?(?:way |all the way |back |a (?:bit|little|lot) |further |more )?(?:in|out)\b/,
       /\b(?:closer|tighter) (?:in |look |view )?(?:on|at) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars|price action)\b|\b(?:wider|broader|zoomed[- ]out) view (?:of|on) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars)\b/,
       /\b(?:show|see|fit|squeeze|cram) (?:me )?(?:more|fewer|less) (?:bars|candles)\b/] },
+  // Charts family (2026-11-12): Tools → Compare Symbols opened on its Rotation (RRG-style) or Overlay tab (compare.openView), in
+  // its OWN words-only group (as chartMenu / periodSort): never a filler, so no existing group and no unrecognised request changes.
+  // The words name the PANEL or its view: a rotation / RRG map, graph, tab, view or quadrant; the Compare (Symbols) panel; its
+  // Overlay tab. ⛔ The RS INDICATOR's Rotation view is an indicator input (nativeRegistry `view: 'rotation'`): a message that
+  // names the indicator (RS, relative strength, indicator, pane, line, study, input) never selects this group. No lookbehind.
+  { id: 'comparePanel', title: 'The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them',
+    domains: ['compare'], fillLast: true, wordsOnly: true,
+    words: [
+      /^(?!.*\b(?:rs|relative strength|indicators?|panes?|stud(?:y|ies)|inputs?|lines?|mansfield)\b).*\b(?:rotation|rrg)\s+(?:map|graph|chart|tab|view|quadrants?|panel)\b|^(?!.*\b(?:rs|relative strength|indicators?|panes?|stud(?:y|ies)|inputs?|lines?)\b).*\brelative rotation\b/,
+      /\bcompare(?:\s+symbols)?\s+(?:panel|window|dialog|tool|popup|modal)\b|\boverlay tab\b/] },
   // C3-205..207 (pl-exec6, #1082): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) in its OWN two-action group,
   // WORDS-ONLY (as compareGroups / watchlistShow), so boardEdit and every other group stay character-identical to master:
   // in boardEdit (by domain) it changed v2's lexical scores and its fill, and 5 first calls lost the action they needed.
