@@ -187,6 +187,10 @@ export function registerComparePanelCapabilities() {
       if (st.open && !st.tab) return UNREADABLE
       if (!st.open && !st.hasChart) return NO_CHART
       if (!st.open && st.scaleLocked) return SCALE_LOCKED
+      // "this chart's sector" with no stock and no group name: CompareRotation resolves a TYPE only for a stock — ask
+      if (args.tab === 'rotation' && !args.group && !symOf(args.symbol) && TYPES.includes(args.groupType)) {
+        return `Which stock's ${typeWord(args.groupType)} should the Rotation map show? Name the stock (or the ${typeWord(args.groupType)}). ${NOTHING}`
+      }
       if (args.tab === 'rotation' && args.group) {
         const r = env?.comparePanelGroups?.get?.(keyOf(args))
         if (!r) return `I couldn't look that group up. ${NOTHING}`

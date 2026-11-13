@@ -195,6 +195,83 @@ describe('⛔ refused — not available here, nothing dispatched', () => {
   })
 })
 
+// AUDIT probe scope (Lead, 2026-11-12): R1..R8, one test (or more) each
+describe('AUDIT probe scope R1..R8', () => {
+  const board = (h) => JSON.stringify(h.charts.list().map(c => [c.ref, c.symbol, c.tf, c.stored]))
+  it('R1: opening on Rotation (several phrasings → one op) writes ONLY the panel — no chart timeframe, setting or indicator input moves', async () => {
+    for (const args of [{}, { symbol: 'NVDA' }, { symbol: 'NVDA', groupType: 'industry' }]) {
+      const { h, w } = host()
+      const before = board(h)
+      const { p, env } = await plan(h, [view(args)])
+      expect(p.plans.map(x => x.kind)).toEqual(['comparePanel'])
+      await commitPlan(h, p, { env })
+      expect([w.open, w.tab]).toEqual([true, 'rotation'])
+      expect(board(h)).toBe(before)
+    }
+    // the RS indicator's `view` input is never this action's: no arg reaches it, and the schema refuses any extra key
+    const c = getCapability('compare.openView')
+    expect(Object.keys(c.args.properties).sort()).toEqual(['group', 'groupType', 'symbol', 'tab'])
+    expect(c.args.additionalProperties).toBe(false)
+  })
+  it('R2: an empty board is refused UP FRONT (openCompare would add a saved chart widget) — no event, no widget', async () => {
+    const { h, w } = host({ hasChart: false })
+    const widgets = JSON.stringify(h.charts.list())
+    const { p } = await plan(h, [view({})])
+    expect(p.ok).toBe(false)
+    expect(w.events).toEqual([])
+    expect(JSON.stringify(h.charts.list())).toBe(widgets)
+    expect(w.source.open({ tab: 'rotation' })).toBe(false)                 // and the door itself never dispatches there
+    expect(w.events).toEqual([])
+  })
+  it('R3: phone shell: "not available here", no event, no write', async () => {
+    const { h, w } = host({ mobile: true })
+    const before = board(h)
+    const { p } = await plan(h, [view({ symbol: 'NVDA' })])
+    expect(p.refusals[0].reason).toBe(COMPARE_NOT_HERE)
+    expect(p.ok).toBe(false)
+    expect([w.events, w.open, board(h)]).toEqual([[], false, before])
+  })
+  it('R4: already on Rotation → "already", no event, nothing to Undo; on Overlay → switched; Undo uses the panel\'s own close door', async () => {
+    const a = host({ open: true, tab: 'rotation' })
+    const r = await plan(a.h, [view({})])
+    expect(r.p.noops.join(' ')).toMatch(/already open on its Rotation tab/)
+    const res = await commitPlan(a.h, r.p, { env: r.env })
+    expect(res.undo ?? null).toBe(null)
+    expect(a.w.events).toEqual([])
+    const b = host({ open: true, tab: 'overlay' })
+    const r2 = await plan(b.h, [view({})])
+    await commitPlan(b.h, r2.p, { env: r2.env })
+    expect(b.w.tab).toBe('rotation')
+    // the close door is ChartsWorkspace's closeCompare — the panel's ×/Escape onClose (pinned in the source check below)
+    expect(readFileSync(resolve(globalThis.process.cwd(), 'src/pages/charts/ChartsWorkspace.jsx'), 'utf8')).toMatch(/close: closeCompare/)
+  })
+  it('R5: the detail is what CompareRotation reads ({sym, group: type} or {group: {type, name}}); an empty or unknown group, or a type with no stock, asks', async () => {
+    const rot = readFileSync(resolve(globalThis.process.cwd(), 'src/pages/charts/CompareRotation.jsx'), 'utf8')
+    expect(rot).toMatch(/if \(g && typeof g === 'object'\) \{ type = g\.type; name = g\.name \}/)
+    expect(rot).toMatch(/else if \(typeof g === 'string' && intent\.sym\) \{ type = g; name = await groupNameFor\(norm\(intent\.sym\), g\) \}/)
+    const { h, w } = host()
+    expect((await plan(h, [view({ group: 'the group' })])).p.refusals[0].reason).toMatch(/Name the group/)
+    expect((await plan(h, [view({ groupType: 'sector' })])).p.refusals[0].reason).toMatch(/Which stock's sector should the Rotation map show\?/)
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => ({ ok: true, json: async () => ({ groups: [{ name: 'Semiconductors', count: 40 }] }) }))
+    expect((await plan(h, [view({ group: 'zzz', groupType: 'industry' })])).p.refusals[0].reason).toMatch(/UCT has no industry called “zzz”/)
+    expect(w.events).toEqual([])
+  })
+  it.each(['compare NVDA and AMD', 'compare this chart against the semis group', 'is there sector rotation into energy', 'rotation out of tech this week',
+    'what does rotation mean', 'set the RS view to rotation'])('R6: "%s" does not select comparePanel', (q) => {
+    expect(selectGroups(q).selected).not.toContain('comparePanel')
+  })
+  it('R6: "compare NVDA and AMD" still reaches the charts group (chart.compare)', () => {
+    expect(selectGroups('compare NVDA and AMD').selected).toContain('charts')
+  })
+  it('R7: the receipt waits for the panel\'s own read-back; a door that never lands is a failure, not a receipt', async () => {
+    const { h } = host({ deaf: true })
+    const { p, env } = await plan(h, [view({})])
+    const res = await commitPlan(h, p, { env })
+    expect(res.ok).toBe(false)
+    expect(res.undo ?? null).toBe(null)
+  }, 10000)
+})
+
 describe('routing: its own words-only group; the RS indicator\'s Rotation view is never taken', () => {
   it.each([
     'open the rotation map', 'show me the rrg view', 'switch the compare panel to the rotation tab', 'show the rotation graph for nvda',
