@@ -316,3 +316,20 @@ Left for the owner or a later task (not fixed here, evidence in the report):
 - `blocks.sizing` / `blocks.switch-off-renders` red with the blocks code unchanged on this branch (master-era).
 - The sample removal held once ("still syncing") on the final run and passed in one press on the run before it, same product code; unsettled (report, Concerns).
 - c1's first-run, note and template-picker steps were re-pointed but c1 was not run; c3, keyed and the other one-off walkers (w13*, w14*, wave10b, nvda, style library, verify) were not re-pointed or run; several still name Research home or the Learn menu.
+
+## Final fix, part 1 (product), base `bdfec6ae5d`
+
+What changed (focused vitest and a red proof for each new guard; report `.superpowers/sdd/2026-11-11-notebook-simplify/final-fix-1-report.md`):
+- A1: the Template gallery and Template library walkthroughs open on a phone: two phone-tier steps through More > "New from a template" (new literal anchor `new-from-template-phone`), then the same later steps. Phone 5 steps, wide 4, each.
+- A4: "0 of 3 done" over four Get started rows is deliberate (audit S5 B3: the sample is shown, never counted); the uncounted row now says "Optional". C4: the standalone "Add a sample notebook" is not drawn while the Get started card is up with its sample row not done. C2: the card's template row opens the New note sheet (`#templates`).
+- B1-B5: the list's Ask draws its frame at once on a cold press ("Loading Ask…"); Try again keeps focus (Ask, Find); the rollup Save waits for its editor; heldModule survives a loader that throws synchronously; the find tests pin focus in the same commit and after Esc. C5 stale tab: after a repeat failure, "Reload the page to get this back." with a Reload the member presses.
+- C1 (product): the sample removal's hold names the note (read from the server when the list on screen cannot) and says "Open it so it can finish saving, then remove the sample again." The bulk trash's shared words are unchanged.
+- C3 (product): engine menus on a phone are held to the room below their top less 80 px for the floating "+", and scroll; "Remove the sample notebook" sits above "Journal tools".
+- C5: walkthroughs from Help wait for the 60-second first run (RegistryToursGate reads the showing signal and a "first run pending" signal the notes list publishes); the Daily brief holds Notices for a walkthrough asked for on this visit; on a note, AI > "Ask about this note" no longer closes an open Ask; copy that named moved controls (phone "Today's note", Daily brief "+ New", guide registry, Support's Trash/Archived and Print); em dashes out of the two Insert tooltips, the review-draft failure sentence and the empty list line; three localStorage keys declared by hand in persistenceManifest.json.
+
+First-open bytes after the build: 2,256,375 B of 2,260,793 B (PASS).
+
+Pre-existing tests changed and why: `tours/b4Styles.test.jsx` and `tours/b4Styles.a11y.test.jsx` (the library tour now has tier steps; the a11y walk uses the engine's own tier filter), `GettingStartedChecklist.test.jsx` (href with `#templates`, "Optional"), `a11y/emptyNotebookList.a11y.test.jsx` (the first screen's sample door is the card's row now), `EditorToolSlots.test.jsx` (B5), `agentGuidePages.test.jsx`, `TodayHome.test.jsx`, `Support.notebook.test.jsx`, `vocabulary.test.js`, `reviewDraftRun.test.js` (the copy changes).
+
+Left for part 2 (instruments): the 390 walks for A1 / C2 / C3, the C1 walker wait and seven rows and the by-hand reproduction, A2, A3, section E, and the walker / door-table words listed in the part 1 report.
+
