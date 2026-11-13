@@ -551,6 +551,17 @@ function _defaultFetch(url) {
       err.status = r.status
       throw err
     }
+    // ⛔ A PAGE IS NOT AN ANSWER. This app answers an API path it does not route with its own
+    // HTML and a 200 (the SPA catch-all; measured on production 2026-11-12 for the batch route
+    // one deploy before it existed). "No such route" therefore arrives as a 200 that is not
+    // JSON, and is reported as the 404 it stands for, so the batch door can remember it
+    // instead of asking a server that cannot answer on every symbol.
+    const type = (r.headers && typeof r.headers.get === 'function' && r.headers.get('content-type')) || ''
+    if (type && !/json/i.test(type)) {
+      const err = new Error('not JSON')
+      err.status = 404
+      throw err
+    }
     return r.json()
   })
 }
@@ -592,9 +603,10 @@ const _BATCH_TEST_MODE = (() => {
 })()
 let _batchGet = _BATCH_TEST_MODE ? null : _defaultFetch
 
-/** Test seam: arm (or, with null, disarm) the batch request for the whole module. */
+/** Test seam: arm (or, with null, disarm) the batch request for the whole module.
+ *  `'default'` arms the browser's own request, the one production uses. */
 export function __setServerBatchFetcherForTests(fn) {
-  _batchGet = typeof fn === 'function' ? fn : null
+  _batchGet = fn === 'default' ? _defaultFetch : (typeof fn === 'function' ? fn : null)
   _batchDownUntil = 0
 }
 
