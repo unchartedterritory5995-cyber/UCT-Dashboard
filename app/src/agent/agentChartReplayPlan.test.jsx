@@ -77,7 +77,9 @@ async function realChart(h) {
     ...base,
     read: (ref) => { const s = read(ref); return s && { ...s, view: pane.current.getDateMeta() } },
     list: () => list().map(s => ({ ...s, view: pane.current.getDateMeta() })),
-    viewDo: (ref, op, arg) => { calls.push([op, arg]); let ok = false; act(() => { ok = pane.current.viewDo(op, arg) }); return ok },
+    // NOT wrapped in act(): React renders on its own schedule, as in the browser — so a step pressed before the previous one
+    // is read back meets the chart's LAST render (the stale-mode hazard the step-by-step read-back exists for)
+    viewDo: (ref, op, arg) => { calls.push([op, arg]); return pane.current.viewDo(op, arg) },
   }
   return { meta: () => pane.current.getDateMeta().replay, calls }
 }
