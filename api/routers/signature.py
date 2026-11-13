@@ -838,6 +838,28 @@ _bars_share_inflight: dict = {}  # key -> threading.Event
 _bars_share_lock = threading.Lock()
 
 
+def _lane_rows(reader, sym_u: str, store: str, count: int):
+    """One series' rows for the lane: in ONE sqlite step when that is exact, else row by row.
+
+    ⚡ 2026-11-13. `reader` (`bars_sqlite.get_bars`) takes one `sqlite3_step` per row and
+    CPython releases the GIL around each, so on this pod a ~5,000-bar read waited about one
+    thread switch interval PER ROW: `rs-bars` 0.9 to 3.4 s, and a median 37 s per request
+    with 44 in flight while a member scanned a list fast. `bars_sqlite.get_bars_packed`
+    returns the same tuples, bit for bit, from a single result row, or None when it cannot
+    be exact (then the rows are read as before). Benchmarked beside four busy threads:
+    863 ms row by row, 33 ms in one step.
+
+    ⛔ ONLY WHILE THE STORE'S READER IS ITS OWN. A reader somebody swapped in (a test's, a
+    host's) serves every row itself: the one-step read would go around it to the database.
+    `RS_PACKED_READS=0` turns the one-step read off (docs/feature_flags.json, knobs)."""
+    from api.services import bars_sqlite
+    if reader is bars_sqlite.ROW_READER and os.environ.get("RS_PACKED_READS", "1").strip() != "0":
+        rows = bars_sqlite.get_bars_packed(sym_u, store, count)
+        if rows is not None:
+            return rows
+    return reader(sym_u, store, count)
+
+
 def _bars_rows_shared(sym_u: str, store: str, count: int):
     from api.services import bars_sqlite
     reader = bars_sqlite.get_bars
@@ -865,7 +887,7 @@ def _bars_rows_shared(sym_u: str, store: str, count: int):
                 return hit[1]
             continue
         try:
-            rows = reader(sym_u, store, count)
+            rows = _lane_rows(reader, sym_u, store, count)
             with _bars_share_lock:
                 if len(_bars_share) >= _BARS_SHARE_MAX:
                     cutoff = time.monotonic() - _BARS_SHARE_TTL_S
