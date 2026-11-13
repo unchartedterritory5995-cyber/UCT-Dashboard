@@ -35,6 +35,9 @@ def _sha(path):
     return hashlib.sha256(open(path, "rb").read()).hexdigest()
 
 
+env_restarts = []
+
+
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     db = str(tmp_path / "flow.db")
@@ -46,6 +49,11 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(far, "ENABLED", True)
     shouts = []
     monkeypatch.setattr(far, "_shout", shouts.append)
+    from api import flow_db_guard
+    restarts = []
+    monkeypatch.setattr(flow_db_guard, "request_restart", lambda reason: restarts.append(reason) or True)
+    env_restarts.clear()
+    env_restarts.extend([restarts])
     far._state.update(fatal_ticks=0, last_result=None)
     return db, bdir, shouts
 
@@ -72,6 +80,8 @@ def test_restores_the_newest_good_backup_and_keeps_everything(env):
     assert _sha(new) == h and os.path.exists(old)             # backups untouched
     assert os.path.exists(r["kept"])                            # damaged file KEPT
     assert any("Restored" in s for s in shouts)
+    time.sleep(3.5)                                             # the restart is requested after the swap
+    assert env_restarts[0] and "restored backup" in env_restarts[0][0]
     w = sqlite3.connect(db)                                     # and it takes writes
     w.execute("INSERT INTO flow VALUES (31, 'live')")
     w.commit()
