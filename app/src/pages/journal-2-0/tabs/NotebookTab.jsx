@@ -901,11 +901,15 @@ export default function NotebookTab() {
   // again after a folder, tag or view is chosen (the member came to see that view, not the tree);
   // the labelled "Folders" button (`.sidebarToggle`, un-hidden at phone) reopens it. Never on the
   // `#search` door, which opens the panel on purpose for its search box.
+  // Follow-up B, item 1d: the Daily brief (`isToday`) is a view too. Choosing it from the drawer changes none of the
+  // other four (All notes has no folder either), so the drawer stayed open over the brief. (`isToday` itself is
+  // computed further down; the address's own word is enough here.)
+  const viewIsToday = searchParams.get('view') === TODAY_VIEW
   useEffect(() => {
     if (!phoneArrivalFolds(noteId, location.hash)) return
     setSidebarOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, folderId, tag, noteId])
+  }, [viewMode, folderId, tag, noteId, viewIsToday])
 
   // `total` is the TRUE count from SQL for this filter set (folder/tag), never
   // the length of `notes` — a migrated library of thousands of notes must see
@@ -3704,7 +3708,7 @@ export default function NotebookTab() {
             onSearchModeChange={NOOP}
             onSelectFolder={closeSheetThen(handleSelectFolder)} onSelectTag={closeSheetThen(handleSelectTag)}
             onOpenNote={closeSheetThen(openNote)}
-            onSelectAllNotes={closeSheetThen(selectAllNotes)} />
+            onSelectAllNotes={closeSheetThen(selectAllNotes)} onSelectToday={closeSheetThen(openTodayHome)} />
         </FolderSheet>
       )}
       <NotebookPlusFab ref={plusRef} open={plusOpen} onOpen={() => setPlusOpen(true)} />
