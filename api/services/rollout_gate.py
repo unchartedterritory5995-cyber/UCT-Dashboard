@@ -560,29 +560,30 @@ def pine_runtime_admission(script, registry) -> list[str]:
 PINE_CAPABILITY_MIN_CAPTURES = 2
 PINE_CAPABILITY_MIN_SCRIPTS = 2
 PINE_CAPABILITY_MIN_COMMUNITY_SCRIPTS = 1
-#: A probe's title or capture id starts with one of these; every other capture is a community script.
-PINE_PROBE_PREFIXES = ("UCTPROBE_", "vw-")
-#: A probe's own variants end with one of these suffixes (repeatedly stripped to its family).
-_PINE_PROBE_VARIANT_SUFFIXES = ("_NEG", "_POS", "_ALT")
+#: A probe's title or capture id starts with one of these (compared lowercased); every other
+#: capture is a community script. Re-verify of #1204 (2026-11-13): `probe-` (probe-default-colour-v3/
+#: v4/v6, probe-sparse-rows) and `uct-` (the legacy uct-dmi / rsi-atr / sma-ema / hma-macd / rma-wma /
+#: stoch-parity-v1 captures) are ours too, and `uctprobe` also matches `UCTPROBE <name>` (a space).
+PINE_PROBE_PREFIXES = ("uctprobe", "vw-", "probe-", "uct-")
+#: A probe's own variants: a `v<n>` version and a NEG / POS / ALT suffix, after `_`, `-` or a space.
+_PINE_PROBE_VARIANT_RX = re.compile(r"[_\- ](?:v\d+|neg|pos|alt)$", re.I)
 
 
 def pine_evidence_script(title, capture_id):
     """``(script, community)`` for one evidence capture: the script FAMILY it counts as, and
-    whether it is a community script. A probe (`PINE_PROBE_PREFIXES` on its title or capture id)
-    is a family with its variants: `_NEG` / `_POS` / `_ALT` / `_V<n>` suffixes are stripped, so
-    UCTPROBE_VW_INT_ARRAY_AVG_NEG is UCTPROBE_VW_INT_ARRAY_AVG. A community script is its title."""
-    t = title if isinstance(title, str) and title else (capture_id or "")
+    whether it is a community script. A probe (`PINE_PROBE_PREFIXES` on its title or capture id,
+    lowercased) is one family with its variants: trailing `v<n>` / NEG / POS / ALT suffixes are
+    stripped, so UCTPROBE_VW_INT_ARRAY_AVG_NEG is UCTPROBE_VW_INT_ARRAY_AVG and uct-dmi-parity-v1
+    is uct-dmi-parity. A community script is its title, unchanged."""
+    t = title if isinstance(title, str) and title else (capture_id if isinstance(capture_id, str) else "")
     cid = capture_id if isinstance(capture_id, str) else ""
-    probe = t.startswith(PINE_PROBE_PREFIXES) or cid.startswith(PINE_PROBE_PREFIXES)
+    probe = t.lower().startswith(PINE_PROBE_PREFIXES) or cid.lower().startswith(PINE_PROBE_PREFIXES)
     if not probe:
         return t, True
     fam = t
     while True:
-        base = re.sub(r"_V\d+$", "", fam)
-        for suf in _PINE_PROBE_VARIANT_SUFFIXES:
-            if base.endswith(suf):
-                base = base[: -len(suf)]
-        if base == fam:
+        base = _PINE_PROBE_VARIANT_RX.sub("", fam)
+        if base == fam or not base:
             return fam, False
         fam = base
 PINE_CAPABILITY_OBJECT_PREFIX = "obj:"

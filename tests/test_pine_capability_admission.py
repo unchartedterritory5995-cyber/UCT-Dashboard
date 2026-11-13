@@ -53,13 +53,20 @@ def member_doc(source: str = MEMBER_COPY) -> dict:
 
 
 @pytest.fixture(autouse=True)
-def _clean_env(monkeypatch):
+def _own_store(tmp_path, monkeypatch):
+    """Every test reads and writes its OWN persisted capability sets (no stale set across tests)."""
+    monkeypatch.setattr(svc, "_DB_PATH", str(tmp_path / "user_definitions.db"))
+    svc._init_db()
+
+
+@pytest.fixture(autouse=True)
+def _clean_env(monkeypatch, _own_store):
     for k in (rt.STAGE_ENV, rt.SAVE_ENV, rt.KILL_ENV, rt.ALLOW_ENV, rt.CAPABILITY_ADMISSION_ENV,
               rt.CAPABILITY_DENY_ENV, rt.SERVER_STAGE_ENV, rt.SERVICE_URL_ENV, rt.SERVICE_SECRET_ENV):
         monkeypatch.delenv(k, raising=False)
-    rt._CAPS_CACHE.clear()
+    rt._reset_capability_cache(persisted=True)
     yield
-    rt._CAPS_CACHE.clear()
+    rt._reset_capability_cache(persisted=True)
 
 
 @pytest.fixture
@@ -223,11 +230,11 @@ def test_A2_every_vocabulary_id_outside_the_admitted_set_withholds(on):
         orig = pc.capabilities_of
         try:
             pc.capabilities_of = lambda _s, c=cap: frozenset({"core", c})
-            rt._CAPS_CACHE.clear()
+            rt._reset_capability_cache(persisted=True)
             assert rt.capability_admitted(MEMBER_COPY) == (False, [cap]), cap
         finally:
             pc.capabilities_of = orig
-            rt._CAPS_CACHE.clear()
+            rt._reset_capability_cache(persisted=True)
 
 
 def test_C3_an_id_outside_the_vocabulary_counts_missing(tmp_path, monkeypatch, on):
@@ -240,11 +247,11 @@ def test_C3_an_id_outside_the_vocabulary_counts_missing(tmp_path, monkeypatch, o
     orig = pc.capabilities_of
     try:
         pc.capabilities_of = lambda _s: frozenset({"core", "zz-new"})
-        rt._CAPS_CACHE.clear()
+        rt._reset_capability_cache(persisted=True)
         assert rt.capability_admitted(MEMBER_COPY) == (False, ["zz-new"])
     finally:
         pc.capabilities_of = orig
-        rt._CAPS_CACHE.clear()
+        rt._reset_capability_cache(persisted=True)
 
 
 def test_C1_a_matrix_or_map_script_is_withheld(on):
@@ -466,14 +473,14 @@ def test_B1_with_the_flag_off_the_door_never_runs_the_detector(store, monkeypatc
         calls.append(1)
         return frozenset({"core"})
     monkeypatch.setattr(pc, "capabilities_of", spy)
-    rt._CAPS_CACHE.clear()
+    rt._reset_capability_cache(persisted=True)
     src = MEMBER_COPY + "// x\n"
     r = _client().post("/api/user-definitions/runtime-admission", json={"source": src})
     assert r.status_code == 200
     assert r.json() == {"sha256": rt.source_hash(src), "admitted": False, "missing": []}
     assert calls == []
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")             # CONTROL: on, the detector runs
-    rt._CAPS_CACHE.clear()
+    rt._reset_capability_cache(persisted=True)
     _client().post("/api/user-definitions/runtime-admission", json={"source": src})
     assert calls == [1]
 
@@ -611,3 +618,200 @@ def test_REACH_the_rule_can_fail():
     got = reach_rule_violations(report, rtv, prodv)
     assert any(drawn in p and "runtime lane" in p for p in got), got
     assert any(host_match in p and "MATCH -> DIVERGE" in p for p in got), got
+
+
+# ═══ SERVING COST, FLAG ON (re-verify of #1204, 2026-11-13) ════════════════════
+# The capability set is computed ONCE per source and persisted (`runtime_capabilities`); serving
+# reads it. A request does at most `DETECTOR_RUNS_PER_REQUEST` fresh runs (and none after
+# `DETECTOR_SECONDS_PER_REQUEST`); history asks only the latest version; the in-process fallback
+# is a TRUE LRU. Measured before: 200 near-cap rows 53 s cold, 300 rows 79 s then 87 s.
+
+import sqlite3  # noqa: E402
+import time  # noqa: E402
+
+
+def _near_cap_source(tag: str, kb: int = 100) -> str:
+    base = ADX["compute"]["source"] + f"\n// {tag}\n"
+    lines, i = [], 0
+    while len(base) + sum(map(len, lines)) < kb * 1024:
+        lines.append(f"x{i} = ta.sma(close, {2 + i % 50}) + (close > open ? 1 : 0)\n")
+        i += 1
+    return base + "".join(lines)
+
+
+def _seed_runtime_rows(monkeypatch, n: int, kb: int = 100) -> list:
+    """n stored runtime rows whose sources are distinct, near-cap and capability-admitted
+    (each the graded ADX script plus admitted-only lines). Saved small, then their stored
+    source swapped in place, so the seed does not pay n save-door validations."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    monkeypatch.setenv(rt.ALLOW_ENV, rt.source_hash(ADX["compute"]["source"]))
+    ids = []
+    for _ in range(n):
+        d = copy.deepcopy(ADX)
+        did = svc.new_def_id()
+        d["id"] = did
+        svc.save(USER, did, d, role="admin")
+        ids.append(did)
+    with sqlite3.connect(svc._DB_PATH) as c:
+        for k, did in enumerate(ids):
+            rid, blob = c.execute("SELECT id, definition FROM user_definitions WHERE def_id = ?", (did,)).fetchone()
+            d = json.loads(blob)
+            d["compute"]["source"] = _near_cap_source(f"row {k}", kb)
+            c.execute("UPDATE user_definitions SET definition = ? WHERE id = ?", (json.dumps(d), rid))
+    monkeypatch.delenv(rt.ALLOW_ENV)
+    return ids
+
+
+def _count_detector(monkeypatch) -> list:
+    calls = []
+    real = pc.capabilities_of
+
+    def counted(src):
+        calls.append(1)
+        return real(src)
+    monkeypatch.setattr(pc, "capabilities_of", counted)
+    return calls
+
+
+def test_SERVE_the_list_with_50_near_cap_rows_cold_is_under_1s(store, monkeypatch):
+    ids = _seed_runtime_rows(monkeypatch, 50)
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    # the server-lane composition stamp re-lexes every runtime row (pre-existing on master, flag
+    # OFF too: ~10 s for these 50 rows, `EVIDENCE.md`); it is not admission, so it is held still here
+    monkeypatch.setattr(svc, "server_lanes_stamp", lambda row: {})
+    rt._reset_capability_cache(persisted=True)
+    calls = _count_detector(monkeypatch)
+    t0 = time.perf_counter()
+    body = _client().get("/api/user-definitions").json()
+    elapsed = time.perf_counter() - t0
+    assert len(body["definitions"]) == 50
+    assert elapsed < 1.0, elapsed
+    assert 1 <= len(calls) <= rt.DETECTOR_RUNS_PER_REQUEST
+    pending = [r for r in body["definitions"] if "still being checked" in
+               (r["definition"].get("meta") or {}).get("runtimeNotGraded", "")]
+    assert len(pending) == 50 - len(calls)                       # past the budget: fail closed
+    drawn = [r for r in body["definitions"] if "runtimeNotGraded" not in (r["definition"].get("meta") or {})]
+    assert len(drawn) == len(calls)                              # computed ones are admitted
+    # and they FILL on later requests: each serves the stored sets and computes the next batch
+    for _ in range(60):
+        body = _client().get("/api/user-definitions").json()
+        if all("runtimeNotGraded" not in (r["definition"].get("meta") or {}) for r in body["definitions"]):
+            break
+    assert all("runtimeNotGraded" not in (r["definition"].get("meta") or {}) for r in body["definitions"])
+    assert len(calls) == 50                                      # each source computed exactly once
+
+
+def test_SERVE_a_saved_row_is_computed_at_save_and_never_on_the_hot_path(store, monkeypatch):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    calls = _count_detector(monkeypatch)
+    svc.save(USER, ADX["id"], member_doc(), role="admin")
+    assert len(calls) == 1                                       # computed (and persisted) at the save
+    rt._reset_capability_cache()                                 # a fresh process: only the store remains
+    row = {"def_id": ADX["id"], "definition": member_doc()}
+    assert rt.stamp_served(row, budget=rt.DetectorBudget(runs=0)) is row
+    assert len(calls) == 1                                       # served from the store, no run
+
+
+def test_SERVE_a_set_from_an_older_detector_is_recomputed(store, monkeypatch):
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    calls = _count_detector(monkeypatch)
+    assert rt.capability_admitted(MEMBER_COPY)[0]
+    rt._reset_capability_cache()
+    monkeypatch.setattr(pc, "DETECTOR_VERSION", pc.DETECTOR_VERSION + 1)
+    assert rt.capability_admitted(MEMBER_COPY, budget=rt.DetectorBudget(runs=0)) == (False, [rt.PENDING])
+    assert rt.capability_admitted(MEMBER_COPY)[0] and len(calls) == 2
+
+
+def test_SERVE_history_with_300_versions_asks_only_the_latest(store, monkeypatch):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    svc.save(USER, ADX["id"], copy.deepcopy(ADX), role="admin")
+    with sqlite3.connect(svc._DB_PATH) as c:
+        c.row_factory = sqlite3.Row
+        base = dict(c.execute("SELECT * FROM user_definitions WHERE def_id = ?", (ADX["id"],)).fetchone())
+        for v in range(2, 301):
+            d = json.loads(base["definition"])
+            d["compute"]["source"] = _near_cap_source(f"version {v}", 20)
+            row = dict(base, version=v, definition=json.dumps(d))
+            row.pop("id")
+            c.execute(f"INSERT INTO user_definitions ({', '.join(row)}) VALUES ({', '.join('?' * len(row))})",
+                      list(row.values()))
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    rt._reset_capability_cache(persisted=True)
+    calls = _count_detector(monkeypatch)
+    t0 = time.perf_counter()
+    body = _client().get(f"/api/user-definitions/{ADX['id']}/history").json()
+    elapsed = time.perf_counter() - t0
+    assert len(body["versions"]) == 300
+    assert elapsed < 1.0, elapsed
+    assert len(calls) == 1                                       # the latest version only
+    older = [v for v in body["versions"] if 1 < v["version"] < 300]     # v1 is the graded ADX itself
+    assert len(older) == 298
+    assert all("has not yet been graded" in v["definition"]["meta"]["runtimeNotGraded"] for v in older)
+
+
+def test_SERVE_a_300_source_sweep_twice_the_second_pass_is_not_slower(monkeypatch):
+    """The in-process fallback is a TRUE LRU sized for the working set: the verdict door's path
+    (`persist=False`, nothing stored) sweeping 300 sources twice hits on the second pass. A FIFO
+    of 256 misses every one of them again (measured before: 79 s, then 87 s)."""
+    rt._reset_capability_cache(persisted=True)
+    srcs = [MEMBER_COPY + f"// sweep {i}\n" + "y = close > open ? 1 : 0\n" * 40 for i in range(300)]
+
+    def sweep():
+        t0 = time.perf_counter()
+        for s in srcs:
+            rt.capabilities_for(s, persist=False)
+        return time.perf_counter() - t0
+    first, second = sweep(), sweep()
+    assert second <= max(first / 4, 0.05), (first, second)
+    assert len(rt._CAPS_LRU) >= 300
+
+
+def test_SERVE_the_lru_evicts_least_recently_used_not_oldest(monkeypatch):
+    rt._reset_capability_cache()
+    monkeypatch.setattr(rt, "_CAPS_LRU_MAX", 3)
+    for k in ("a", "b", "c"):
+        rt._lru_put(k, frozenset({k}))
+    assert rt._lru_get("a") == frozenset({"a"})                  # touched: now the most recent
+    rt._lru_put("d", frozenset({"d"}))
+    assert rt._lru_get("b") is None and rt._lru_get("a") == frozenset({"a"})
+    rt._reset_capability_cache()
+
+
+def test_SERVE_the_budget_bounds_runs_and_time():
+    b = rt.DetectorBudget(runs=2, seconds=10)
+    assert b.take() and b.take() and not b.take()
+    b = rt.DetectorBudget(runs=99, seconds=0.1)
+    b.spent = 0.2
+    assert not b.take()
+
+
+def test_SERVE_the_detector_version_moves_with_what_it_answers():
+    """Bump `DETECTOR_VERSION` (and record the fingerprint) whenever the detector's answers can
+    change: a stored set is valid only for the detector that computed it."""
+    assert pc.detector_fingerprint() == pc.DETECTOR_FINGERPRINTS[pc.DETECTOR_VERSION]
+
+
+# ═══ EVIDENCE CLASSIFIER (re-verify of #1204): our probes never count as community scripts ═════
+
+@pytest.mark.parametrize("capture_id", [
+    "probe-default-colour-v3-rddt-1d-2026-09-27", "probe-default-colour-v4-rddt-1d-2026-09-27",
+    "probe-default-colour-v6-rddt-1d-2026-09-27", "probe-sparse-rows-rddt-1d-2026-09-27",
+    "adx-14-2026-09-06", "atr-14-2026-09-06", "ema-close20-2026-09-06", "hma-close20-2026-09-06",
+    "rma-close14-2026-09-06", "stoch-k-14-2026-09-06", "vw-library-import-rddt-1d-2026-10-02",
+])
+def test_EVIDENCE_these_captures_are_ours_not_community(capture_id):
+    title = _verdicts()[capture_id]["script"]
+    family, community = rg.pine_evidence_script(title, capture_id)
+    assert community is False, (capture_id, title)
+
+
+def test_EVIDENCE_variants_are_one_family_and_community_titles_are_untouched():
+    assert rg.pine_evidence_script("default colour v3", "probe-default-colour-v3-x")[0] == \
+        rg.pine_evidence_script("default colour v6", "probe-default-colour-v6-x")[0]
+    assert rg.pine_evidence_script("uct-dmi-parity-v1", "adx-14")[0] == "uct-dmi-parity"
+    assert rg.pine_evidence_script("UCTPROBE_VW_INT_ARRAY_AVG_NEG", "vw-a")[0] == "UCTPROBE_VW_INT_ARRAY_AVG"
+    assert rg.pine_evidence_script("ADX and DI for v4", "adx-and-di-for-v4-rddt") == ("ADX and DI for v4", True)

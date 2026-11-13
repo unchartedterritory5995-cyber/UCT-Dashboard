@@ -460,3 +460,40 @@ def capabilities_of(source):
             else:
                 found.add("realtime-state")
     return frozenset(found)
+
+
+# ─── WS-I Part 2 re-verify (2026-11-13): the PERSISTED capability set and its version ──────────
+#
+# `runtime_definitions` stores each source's capability set once (keyed by its sha256, beside
+# `DETECTOR_VERSION`) so serving a row never re-runs the detector. A stored set is valid only for
+# the detector that computed it. ⛔ BUMP `DETECTOR_VERSION` WHENEVER WHAT THIS MODULE ANSWERS CAN
+# CHANGE, and record the new `detector_fingerprint()` beside it: the rail
+# (`tests/test_pine_capabilities.py`) goes red while the fingerprint and the version disagree, so a
+# changed regex can never be served from sets an older detector computed.
+DETECTOR_VERSION = 1
+DETECTOR_FINGERPRINTS = {1: "797670b04011de780dc26555ee667c87098abb697632e422988b96b5681a5bbf"}
+
+
+def detector_fingerprint():
+    """sha256 over everything `capabilities_of` answers from: the FEATURES rows, the vocabulary,
+    every compiled pattern, the built-in namespaces, the size cap, and the repaint classifier's
+    rule table (`realtime-state` / `request-other` derive from it)."""
+    import hashlib
+    import json as _json
+    from api.services import runtime_repaint
+    patterns = sorted(v.pattern for k, v in globals().items()
+                      if isinstance(v, re.Pattern))
+    patterns += sorted("%s=%s" % (k, rx.pattern) for k, rx in _COLLECTION_RX.items())
+    patterns += sorted("%s=%s" % (k, rx.pattern) for k, rx in _OBJ_FAMILY_RX.items())
+    parts = {
+        "features": [[fid, rx, fl] for fid, _l, rx, fl in FEATURES],
+        "vocabulary": sorted(CAPABILITY_IDS),
+        "patterns": patterns,
+        "namespaces": sorted(BUILTIN_NAMESPACES),
+        "cap": MAX_SOURCE_BYTES,
+        "core": CORE_ID,
+        "unreadable": UNREADABLE,
+        "repaint": runtime_repaint.RULES,
+    }
+    blob = _json.dumps(parts, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()

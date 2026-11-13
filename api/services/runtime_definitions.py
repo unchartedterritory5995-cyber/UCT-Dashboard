@@ -85,11 +85,15 @@ variables, both read per call:
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
 import os
 import re
+import threading
+import time
+from collections import OrderedDict
 from typing import Any, Optional
 
 from api.services import runtime_repaint
@@ -490,7 +494,8 @@ def allow_list() -> list[str]:
     return entries
 
 
-def not_graded(source: Optional[str], *, graded_only: bool = False) -> Optional[str]:
+def not_graded(source: Optional[str], *, graded_only: bool = False,
+               budget: "Optional[DetectorBudget]" = None, capability: bool = True) -> Optional[str]:
     """Why this script is NOT served by the runtime lane (D6), or ``None``.
 
     The sentence is the reason; the code the member door declines with is
@@ -499,12 +504,19 @@ def not_graded(source: Optional[str], *, graded_only: bool = False) -> Optional[
     (the browser pane) admits `allow_list`, the variable included.
 
     WS-I Part 2: with ``PINE_RUNTIME_CAPABILITY_ADMISSION=on`` the browser pane (never
-    ``graded_only``) ALSO admits a script `capability_admitted` admits. Off, nothing changes."""
+    ``graded_only``, never ``capability=False``) ALSO admits a script `capability_admitted`
+    admits, within the request's `budget`; a source whose set the budget could not compute is
+    answered "still being checked" (fail closed) and fills on a later request. Off, nothing changes."""
     h = source_hash(source) if isinstance(source, str) else ""
     if h and any(h.startswith(e) for e in (graded_allow_list() if graded_only else allow_list())):
         return None
-    if h and not graded_only and capability_admission_on() and capability_admitted(source)[0]:
-        return None
+    if h and capability and not graded_only and capability_admission_on():
+        ok, missing = capability_admitted(source, budget=budget)
+        if ok:
+            return None
+        if missing == [PENDING]:
+            return (f"this script (sha256 {h[:12]}…) is still being checked against the parts of Pine "
+                    "graded against TradingView, so it is not drawn bar by bar yet")
     return (f"this script (sha256 {h[:12] or '?'}…) has not yet been graded against "
             "TradingView, so it is not drawn bar by bar")
 
@@ -558,28 +570,144 @@ def admitted_capabilities() -> dict:
     return {"admitted": admitted, "withheld": withheld, "denied": denied}
 
 
-#: `capabilities_of` is pure in the source, so its answer is kept per source sha256 (a served
-#: list stamps every runtime row it returns). Bounded; the REGISTRY is never cached.
-_CAPS_CACHE: dict = {}
-_CAPS_CACHE_MAX = 256
+#: ─── WHERE A SOURCE'S CAPABILITY SET COMES FROM (re-verify of #1204, 2026-11-13) ─────────────
+#: The detector is linear but not free (~0.15 s on a near-128 KiB source), and serving rows
+#: (`stamp_served`: the list, history, one row, a share) must never re-run it per row. In order:
+#:   1. this process's LRU (`_CAPS_LRU`, a TRUE least-recently-used map; a fallback only);
+#:   2. the PERSISTED set, computed once per source (`runtime_capabilities` in user_definitions.db,
+#:      keyed by source sha256, valid only for `pine_capabilities.DETECTOR_VERSION`);
+#:   3. a FRESH run of the detector, only while the request's `DetectorBudget` lasts: a saved row is
+#:      computed at its save (flag on), an older row on its first serve, and a row past the budget
+#:      is served fail-closed ("still being checked") and filled on a later request.
+#: ⛔ The table holds no member identifier: a source's sha256 and the ids the detector named.
+CAPS_TABLE = "runtime_capabilities"
+_CAPS_DDL = (f"CREATE TABLE IF NOT EXISTS {CAPS_TABLE} (source_sha256 TEXT PRIMARY KEY, "
+             "detector_version INTEGER NOT NULL, capabilities TEXT NOT NULL, computed_at INTEGER NOT NULL)")
+#: The id `capability_admitted` reports for a source whose set is not known yet (budget spent).
+#: Never in the vocabulary: a pending source is withheld, fail closed.
+PENDING = "pending"
+#: At most this many fresh detector runs per request, and no new one once this much time is spent.
+DETECTOR_RUNS_PER_REQUEST = 8
+DETECTOR_SECONDS_PER_REQUEST = 0.3
+_CAPS_LRU_MAX = 4096
+_CAPS_LRU: "OrderedDict[str, frozenset]" = OrderedDict()
+_CAPS_LRU_LOCK = threading.Lock()
 
 
-def _capabilities_of(source: str) -> frozenset:
+class DetectorBudget:
+    """How much fresh detector work ONE request may do: `runs` runs, and none started after
+    `seconds` of detector time. `None` where a budget is taken means unbounded (one source: the
+    save door, the verdict door)."""
+
+    def __init__(self, runs: int = DETECTOR_RUNS_PER_REQUEST, seconds: float = DETECTOR_SECONDS_PER_REQUEST):
+        self.runs = runs
+        self.seconds = seconds
+        self.spent = 0.0
+
+    def take(self) -> bool:
+        if self.runs <= 0 or self.spent >= self.seconds:
+            return False
+        self.runs -= 1
+        return True
+
+
+def _lru_get(key: str) -> Optional[frozenset]:
+    with _CAPS_LRU_LOCK:
+        hit = _CAPS_LRU.get(key)
+        if hit is not None:
+            _CAPS_LRU.move_to_end(key)
+        return hit
+
+
+def _lru_put(key: str, caps: frozenset) -> None:
+    with _CAPS_LRU_LOCK:
+        _CAPS_LRU[key] = caps
+        _CAPS_LRU.move_to_end(key)
+        while len(_CAPS_LRU) > _CAPS_LRU_MAX:
+            _CAPS_LRU.popitem(last=False)
+
+
+def _reset_capability_cache(*, persisted: bool = False) -> None:
+    """Tests only: forget this process's LRU, and with `persisted` the stored sets too."""
+    with _CAPS_LRU_LOCK:
+        _CAPS_LRU.clear()
+    if persisted:
+        from api.services import user_definitions as svc
+        try:
+            with contextlib.closing(svc._connect()) as c:
+                c.execute(_CAPS_DDL)
+                c.execute(f"DELETE FROM {CAPS_TABLE}")
+                c.commit()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _store_get(key: str) -> Optional[frozenset]:
+    """The persisted set for this source at the CURRENT detector version, or None. Never raises."""
+    from api.services import pine_capabilities
+    from api.services import user_definitions as svc
+    try:
+        with contextlib.closing(svc._connect()) as c:
+            c.execute(_CAPS_DDL)
+            r = c.execute(f"SELECT capabilities FROM {CAPS_TABLE} WHERE source_sha256 = ? "
+                          "AND detector_version = ?", (key, pine_capabilities.DETECTOR_VERSION)).fetchone()
+    except Exception:  # noqa: BLE001 - an unreadable store is a miss, never an admission
+        return None
+    if r is None:
+        return None
+    try:
+        caps = json.loads(r[0])
+    except ValueError:
+        return None
+    return frozenset(caps) if isinstance(caps, list) and all(isinstance(x, str) for x in caps) else None
+
+
+def _store_put(key: str, caps: frozenset) -> None:
+    from api.services import pine_capabilities
+    from api.services import user_definitions as svc
+    try:
+        with contextlib.closing(svc._connect()) as c:
+            c.execute(_CAPS_DDL)
+            c.execute(f"INSERT OR REPLACE INTO {CAPS_TABLE} (source_sha256, detector_version, capabilities, "
+                      "computed_at) VALUES (?, ?, ?, ?)",
+                      (key, pine_capabilities.DETECTOR_VERSION, json.dumps(sorted(caps)), int(time.time())))
+            c.commit()
+    except Exception:  # noqa: BLE001 - a failed write only means the next serve computes again
+        log.warning("[runtime_definitions] capability set not persisted")
+
+
+def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
+                     persist: bool = True) -> Optional[frozenset]:
+    """This source's capability set: the LRU, then the persisted set, then (budget allowing) a
+    fresh run, persisted unless `persist=False` (the verdict door stores nothing). ``None`` when
+    the set is not known and the budget is spent: the caller serves it fail-closed."""
     from api.services import pine_capabilities
     key = source_hash(source)
-    hit = _CAPS_CACHE.get(key)
-    if hit is None:
-        hit = pine_capabilities.capabilities_of(source)
-        if len(_CAPS_CACHE) >= _CAPS_CACHE_MAX:
-            _CAPS_CACHE.pop(next(iter(_CAPS_CACHE)))
-        _CAPS_CACHE[key] = hit
-    return hit
+    hit = _lru_get(key)
+    if hit is not None:
+        return hit
+    stored = _store_get(key)
+    if stored is not None:
+        _lru_put(key, stored)
+        return stored
+    if budget is not None and not budget.take():
+        return None
+    t0 = time.perf_counter()
+    caps = pine_capabilities.capabilities_of(source)
+    if budget is not None:
+        budget.spent += time.perf_counter() - t0
+    if persist:
+        _store_put(key, caps)
+    _lru_put(key, caps)
+    return caps
 
 
-def capability_admitted(source: Any) -> tuple:
+def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
+                        persist: bool = True) -> tuple:
     """``(ok, missing)``: does EVERY capability this source uses carry admission? ``missing``
     names, sorted, each capability it uses that is not admitted (a capability absent from the
-    registry is missing: CLOSED WORLD; an unreadable source is missing ``unreadable``).
+    registry is missing: CLOSED WORLD; an unreadable source is missing ``unreadable``; a source
+    whose set is not known yet because the request's budget is spent is missing ``pending``).
 
     Pure policy: it does NOT read `PINE_RUNTIME_CAPABILITY_ADMISSION` (`not_graded` does) and
     does NOT read the kill list (every door asks `killed` first). Never raises."""
@@ -587,7 +715,9 @@ def capability_admitted(source: Any) -> tuple:
     if not isinstance(source, str) or not source.strip():
         return False, [pine_capabilities.UNREADABLE]
     try:
-        caps = _capabilities_of(source)
+        caps = capabilities_for(source, budget=budget, persist=persist)
+        if caps is None:
+            return False, [PENDING]
         admitted = set(admitted_capabilities()["admitted"])
     except Exception:  # noqa: BLE001 - fail closed: what cannot be read is not admitted
         log.warning("[runtime_definitions] capability admission unreadable; not admitted")
@@ -607,7 +737,7 @@ def runtime_admission(source: Any) -> dict:
     # constant, so no request can spend server time on a door that admits nothing.
     if not capability_admission_on():
         return {"sha256": h, "admitted": False, "missing": []}
-    ok, missing = capability_admitted(source)
+    ok, missing = capability_admitted(source, persist=False)      # the verdict door stores nothing
     admitted = bool(ok and not killed(None, source))
     return {"sha256": h, "admitted": admitted, "missing": missing}
 
@@ -763,7 +893,18 @@ def repaint_stamp(definition: dict) -> dict:
     return {k: mode for k in definition["compute"]["outputs"]}
 
 
-def stamp_served(row: dict) -> dict:
+def _not_graded_for_stamp(source: Any, budget: "Optional[DetectorBudget]", capability: bool) -> Optional[str]:
+    """`not_graded` as a served row asks it: the call before Part 2 (`not_graded(source)`) unless a
+    budget or `capability=False` is in play WHILE capability admission is on. With it off neither can
+    change the answer, so the call is exactly the one before Part 2 (every caller and test double
+    sees the same call)."""
+    if (budget is None and capability) or not capability_admission_on():
+        return not_graded(source)
+    return not_graded(source, budget=budget, capability=capability)
+
+
+def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
+                 capability: bool = True) -> dict:
     """A stored runtime row as SERVED: the kill switch stamped on, never stored.
 
     Returns a copy; the stored row is not touched.
@@ -776,7 +917,7 @@ def stamp_served(row: dict) -> dict:
     A stale stamp a client wrote back is dropped, so the row reads today's lists."""
     definition = row.get("definition")
     if run_read_source(definition) is not None:
-        return _stamp_run_read_ast(row, definition)
+        return _stamp_run_read_ast(row, definition, budget=budget, capability=capability)
     if not is_runtime(definition):
         return row
     source = (definition.get("compute") or {}).get("source")
@@ -792,7 +933,9 @@ def stamp_served(row: dict) -> dict:
     # allowlist is SERVED stamped, never deleted and never rewritten, exactly as
     # a kill is: the install door refuses the stamp, and listing the script
     # brings the row back on the next read.
-    ungraded = not_graded(source)
+    # WS-I Part 2: `budget` bounds the fresh detector runs a whole request may do; `capability=False`
+    # (a non-latest history version, never drawn) asks no capability question at all.
+    ungraded = _not_graded_for_stamp(source, budget, capability)
     if not why and not ungraded:
         return row
     out = dict(row)
@@ -823,7 +966,8 @@ def run_read_source(definition: Any) -> Optional[str]:
     return None
 
 
-def _stamp_run_read_ast(row: dict, definition: dict) -> dict:
+def _stamp_run_read_ast(row: dict, definition: dict, *, budget: "Optional[DetectorBudget]" = None,
+                        capability: bool = True) -> dict:
     """`stamp_served` for an ``ast`` row with a run-read part: today's kill / stage / allowlist
     answer on ``meta``, a stale one dropped. Returns a copy; the stored row is not touched."""
     source = run_read_source(definition)
@@ -831,7 +975,7 @@ def _stamp_run_read_ast(row: dict, definition: dict) -> dict:
     if not why and stage() == STAGE_OFF:
         why = (f"scripts drawn bar by bar are switched off for every member right now "
                f"({STAGE_ENV}={STAGE_OFF}), so this one is not drawn bar by bar")
-    ungraded = not_graded(source)
+    ungraded = _not_graded_for_stamp(source, budget, capability)
     meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
     if not why and not ungraded and "runtimeKilled" not in meta_in and "runtimeNotGraded" not in meta_in:
         return row

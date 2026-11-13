@@ -25,6 +25,17 @@ VERDICTS_RT = ROOT / "docs" / "pine" / "vendor-harness" / "runtime-on" / "verdic
 V5 = "//@version=5\nindicator('x')\n"
 
 
+@pytest.fixture(autouse=True)
+def _own_store(tmp_path, monkeypatch):
+    """Each test's persisted capability sets live in its own store."""
+    from api.services import user_definitions as svc
+    monkeypatch.setattr(svc, "_DB_PATH", str(tmp_path / "user_definitions.db"))
+    svc._init_db()
+    rt._reset_capability_cache()
+    yield
+    rt._reset_capability_cache()
+
+
 def caps(body: str) -> set:
     return set(pc.capabilities_of(V5 + body))
 
@@ -146,7 +157,7 @@ def test_C3_a_source_the_repaint_classifier_refuses_is_UNREADABLE():
 
 def test_C3_and_capability_admission_refuses_it_naming_only_unreadable(monkeypatch):
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    rt._CAPS_CACHE.clear()
+    rt._reset_capability_cache(persisted=True)
     assert rt.capability_admitted(UNTERMINATED) == (False, ["unreadable"])
     assert rt.not_graded(UNTERMINATED)
 

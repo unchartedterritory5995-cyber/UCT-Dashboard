@@ -294,7 +294,7 @@ def _served_lines(user_id: Any, row: Any) -> Any:
         user_id, row.get("def_id"), row.get("version")))
 
 
-def _stamped(row: dict) -> dict:
+def _stamped(row: dict, *, budget: Optional["runtime_definitions.DetectorBudget"] = None) -> dict:
     """One definition, plus THE SERVER'S OWN ANSWER to "can this be a screen?".
 
     ⛔⛔ THIS EXISTS BECAUSE THE CLIENT WAS ANSWERING IT SECOND, AND WEAKER.
@@ -339,8 +339,11 @@ def _stamped(row: dict) -> dict:
     on `PINE_RUNTIME_KILL_LIST`), so every client's install door refuses to draw
     it. The stored row is not touched. It is never scannable — the `kind` gate
     below says so, by name.
+
+    WS-I Part 2 (re-verify of #1204): `budget` is the REQUEST's bound on fresh capability-detector
+    runs (`runtime_definitions.DetectorBudget`), shared by every row the request serves.
     """
-    row = runtime_definitions.stamp_served(row)
+    row = runtime_definitions.stamp_served(row, budget=budget)
     out = dict(row)
     # ⭐ W5-T17 — THE SERVER'S OWN ANSWER FOR THE THREE SERVER LANES, runtime rows only: an
     # `ast` row's lanes are decided per plot at the alert / sweep door and have no row-level
@@ -420,7 +423,10 @@ def list_definitions(user: dict = Depends(require_paid),
     asked = isinstance(engine, int) and not isinstance(engine, bool)
     rows = (svc.list_for_user(user["id"], source_below=engine) if asked
             else svc.list_for_user(user["id"]))
-    stamped = [_stamped(r) for r in rows]
+    # WS-I Part 2: ONE detector budget for the whole list (a member has up to 50 rows; each row's
+    # capability set is read from the store, and at most `DETECTOR_RUNS_PER_REQUEST` are computed)
+    budget = runtime_definitions.DetectorBudget()
+    stamped = [_stamped(r, budget=budget) for r in rows]
     # ⭐ 2026-11-02 -- LINE IDENTITY, read for every row on ONE connection.
     ids = svc.line_identities_many(
         user["id"], [(r.get("def_id"), r.get("version")) for r in stamped
@@ -864,9 +870,18 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
     # separate expanded forest, so a ten-version history of the corpus'
     # heaviest script is ~3.6 MB of response for ~80 KB of stored program.
     by_version = svc.history_line_identities(user["id"], def_id)
+    # ⛔ WS-I Part 2 (re-verify of #1204): ONLY THE LATEST VERSION is asked the capability question
+    # (within one request budget). Every older version is never drawn: it is stamped by the kill
+    # list, the stage and the allowlist alone, as not graded, and costs no detector run, so a
+    # 300-version history is one capability lookup, not 300.
+    latest = max((r.get("version") for r in rows if isinstance(r, dict)
+                  and isinstance(r.get("version"), int)), default=None)
+    budget = runtime_definitions.DetectorBudget()
     rows = [dict(r, plot_identities=by_version.get(r.get("version"), {}))
             if isinstance(r, dict) else r
-            for r in (runtime_definitions.stamp_served(r) for r in rows)]
+            for r in (runtime_definitions.stamp_served(
+                r, budget=budget, capability=isinstance(r, dict) and r.get("version") == latest)
+                for r in rows)]
     return {"def_id": def_id, "versions": _maybe_compact(rows, graph)}
 
 
