@@ -6,7 +6,7 @@ auth.db's `activity_log` as `action = "j2:<event>"`, its props cleaned on arriva
 (`_sanitize_notebook_props`); api/services/journal_two/notebook_return_metrics.py reads the same rows. This prints,
 for a date range, how many times each event was sent, by how many members, and the count of every property value.
 
-READ ONLY. The database is opened with SQLite's `mode=ro`, nothing is written, and only a key on the event's server
+READ ONLY. The database is opened with SQLite's `mode=ro&immutable=1` (no -wal or -shm file is made), nothing is written, and only a key on the event's server
 schema with a value that schema allows is printed (anything else is counted as "other"), so a row can never put a
 title, a ticker or a tag on screen. A path that is not a file is refused. Never run it against production data on
 the pod: copy nothing, run it on a backup you are allowed to read.
@@ -36,8 +36,9 @@ USAGE_EVENTS = (
 
 
 def _schemas() -> dict:
-    from api.routers.journal_two import _NOTEBOOK_PROP_SCHEMAS
-    return _NOTEBOOK_PROP_SCHEMAS
+    # Fix round 1 (M4): the schema's own small module, never the whole router.
+    from api.services.journal_two.notebook_event_schemas import NOTEBOOK_PROP_SCHEMAS
+    return NOTEBOOK_PROP_SCHEMAS
 
 
 def _day(text: str) -> date:
@@ -119,7 +120,8 @@ def main(argv=None) -> int:
 
     schemas = _schemas()
     events = tuple(schemas) if args.all_notebook else USAGE_EVENTS
-    conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    # Fix round 1 (M4): read only AND immutable, so SQLite creates no -wal / -shm files beside the database.
+    conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro&immutable=1", uri=True)
     try:
         report = collect(conn, events, start, end, schemas)
     finally:

@@ -75,3 +75,24 @@ def test_a_bad_range_is_refused(tmp_path):
     db = _db(tmp_path)
     assert report.main(["--db", str(db), "--from", "2026-11-12", "--to", "2026-11-10"]) == 2
     assert report.main(["--db", str(db), "--from", "yesterday"]) == 2
+
+
+def test_fix_round_1_m4_no_side_files_and_no_router_import(tmp_path):
+    """Opened immutable as well as read-only: a WAL database gains no -wal / -shm file beside it. And the schema
+    comes from its small module: the whole router is never imported (checked in a fresh interpreter)."""
+    import subprocess
+    import sys
+    db = _db(tmp_path)
+    conn = sqlite3.connect(db)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.close()
+    for side in ("-wal", "-shm"):
+        Path(str(db) + side).unlink(missing_ok=True)
+    assert report.main(["--db", str(db)]) == 0
+    assert not Path(str(db) + "-wal").exists() and not Path(str(db) + "-shm").exists()
+    code = ("import sys; from tools import notebook_usage_report as r; "
+            f"rc = r.main(['--db', {str(db)!r}]); "
+            "print('ROUTER', 'api.routers.journal_two' in sys.modules, rc)")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=120,
+                         cwd=str(Path(__file__).resolve().parents[1]))
+    assert "ROUTER False 0" in out.stdout, out.stdout + out.stderr
