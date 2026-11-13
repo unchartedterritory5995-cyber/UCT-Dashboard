@@ -9,13 +9,15 @@
 //
 //   1. the declaration: a presentation enum defaulting to Off, never sent to the
 //      server, its own pane with a visible axis while on (`placement.axisWhen`);
-//   2. the math, hand-derived (a TGTX-like line): k = rating / (line on the
-//      rating's date); the point on that date IS the rating; every ratio between
+//   2. the math, hand-derived (a TGTX-like line): k = rating / (line on the LAST
+//      COMPLETED bar); the closed line ENDS on the rating; every ratio between
 //      two points is unchanged; the average and the three dot columns get the same
 //      k; the 0/1 condition column does not;
-//   3. the anchor is the rating's date, not the last bar, and the period picks its
-//      own field (6M reads `rating.m6`);
-//   4. the live forming bar is raw close / benchClose times the SAME k;
+//   3. the anchor is the last completed bar, not the rating's date (2026-11-13,
+//      AMD: rated 96 on Nov 11, +5.9% on Nov 12, the line ended at 101.99), and
+//      the period picks its own field (6M reads `rating.m6`);
+//   4. the live forming bar is raw close / benchClose times the SAME k, read off
+//      the bar BEFORE the forming one;
 //   5. fail closed: Off, no rating, intraday, no line value on the date → the raw
 //      columns BY IDENTITY and a Scale row that says why;
 //   6. a saved chart (no key) is byte-identical: same columns, same scalars object.
@@ -148,14 +150,31 @@ describe('2 · the math, hand-derived', () => {
     expect(scalars({ scaleToRating: 'ibd' }).rescale.summary).toBe('Scaled to RS Rating: 90 on Nov 11')
   })
 
-  it('the anchor is the rating\'s DATE: rated on Nov 10 (line 0.25), k = 360 and the Nov 10 point is 90', () => {
+  it('the anchor is the LAST CLOSED bar, not the rating\'s date: rated Nov 10, the line still ENDS on 90 (the AMD case)', () => {
+    // ⚰️ #1165 anchored on Nov 10 (0.25): k = 360 and the Nov 11 point read
+    // 0.30 x 360 = 108, a "rating" of 108 beside an "RS 90" tag. Now k = 90 / 0.30.
     prime({ scaleToRating: 'ibd' }, wire({ ...RATING, asof: '2026-11-10' }))
     const out = list(columns({ scaleToRating: 'ibd' }).rsLine)
-    expect(out[5]).toBeCloseTo(90, 10)
-    expect(out[6]).toBeCloseTo(0.30 * 360, 10)
+    expect(out[6]).toBeCloseTo(90, 10)
+    expect(out[5]).toBeCloseTo(75, 10)
+    // the readout still names the rating's own date
+    expect(scalars({ scaleToRating: 'ibd' }).rescale.summary).toBe('Scaled to RS Rating: 90 on Nov 10')
   })
 
-  it('a blank line cell on the rating\'s date (benchmark bar not in yet) anchors on the line\'s last value before it', () => {
+  it('the axis tag and the end tag agree with the market closed: the last plotted value IS the rating, to the cent', () => {
+    // AMD-like: a +5.9% last session after the rating's date
+    const rs = [...RS.slice(0, 6), 0.25 * 1.059]
+    prime({ scaleToRating: 'ibd' }, { ...wire({ ...RATING, ibd: 96, asof: '2026-11-10' }), columns: { ...wire().columns, rsLine: rs } })
+    const last = list(columns({ scaleToRating: 'ibd' }, { newestBarIsForming: false }).rsLine).at(-1)
+    expect(last.toFixed(2)).toBe('96.00')
+  })
+
+  it('unknown forming state (null) anchors like closed: the newest cell', () => {
+    prime({ scaleToRating: 'ibd' }, wire({ ...RATING, asof: '2026-11-10' }))
+    expect(list(columns({ scaleToRating: 'ibd' }, { newestBarIsForming: null }).rsLine).at(-1)).toBeCloseTo(90, 10)
+  })
+
+  it('a blank last line cell (benchmark bar not in yet) anchors on the line\'s last value before it', () => {
     const rs = Float64Array.from([...RS.slice(0, 6), NaN])
     const f = rescaleFactor(SLIM, { times: TIMES, columns: { rsLine: rs }, payload: { rating: RATING } },
       resolved({ scaleToRating: 'ibd' }), 'D', barTimeKey)
@@ -163,22 +182,24 @@ describe('2 · the math, hand-derived', () => {
     expect(f.k).toBeCloseTo(90 / 0.25, 12)
   })
 
-  it('a rating dated on a non-session day anchors on the newest bar before it (the weekly rule)', () => {
-    const f = rescaleFactor(SLIM, { times: TIMES, columns: { rsLine: Float64Array.from(RS) }, payload: { rating: { ibd: 90, asof: '2026-11-09' } } },
-      resolved({ scaleToRating: 'ibd' }), 'W', barTimeKey)
-    expect(f.state).toBe('applied')
-    expect(f.k).toBeCloseTo(90 / 0.24, 12)   // Nov 7's value: the newest bar on or before Nov 9
+  it('a forming bar is never the anchor: `before` skips its cell and anything after it', () => {
+    const parsed = { times: TIMES, columns: { rsLine: Float64Array.from(RS) }, payload: { rating: RATING } }
+    const at = (before) => rescaleFactor(SLIM, parsed, resolved({ scaleToRating: 'ibd' }), 'W', barTimeKey, { before })
+    expect(at(null).k).toBeCloseTo(90 / 0.30, 12)          // closed: Nov 11
+    expect(at(20261111).k).toBeCloseTo(90 / 0.25, 12)      // Nov 11 forming: Nov 10
+    expect(at(20261110).k).toBeCloseTo(90 / 0.24, 12)      // Nov 10 forming: Nov 7
   })
 })
 
 describe('3 · the live forming bar moves with price on the same k', () => {
-  it('last = (close / SPY close) x k, where k is read off the server cells, never off the live point', () => {
+  it('last = (close / SPY close) x k, where k is read off the bar BEFORE the forming one, never off the live point', () => {
     prime({ scaleToRating: 'ibd' })
     primeBenchmarkTail('SPY', TF, [{ t: '2026-11-10', c: 100 }, { t: '2026-11-11', c: 80 }])
-    // live close 30, SPY 80 → raw 0.375; k stays 90 / 0.30 = 300 → 112.5
+    // Nov 11 is forming: k = 90 / 0.25 (Nov 10's close) = 360; live close 30, SPY 80
+    // → raw 0.375 → 135. The closed history: 0.20 x 360 = 72 ... Nov 10 = 90.
     const out = list(columns({ scaleToRating: 'ibd' }, { newestBarIsForming: true }).rsLine)
-    expect(out[6]).toBeCloseTo(0.375 * 300, 10)
-    close(out.slice(0, 6), [60, 63, 66, 75, 72, 75])
+    expect(out[6]).toBeCloseTo(0.375 * 360, 10)
+    close(out.slice(0, 6), [72, 75.6, 79.2, 90, 86.4, 90])
   })
 })
 
@@ -200,10 +221,12 @@ describe('4 · fail closed, and say so', () => {
     expect(scalars({ scaleToRating: 'ibd' }, '5').rescale.summary).toBe('Daily and weekly charts only: showing the RS line unscaled')
   })
 
-  it('no line value on the rating\'s date: raw, and the row says so', () => {
-    prime({ scaleToRating: 'ibd' }, wire({ ...RATING, asof: '2026-10-01' }))
-    expect(list(columns({ scaleToRating: 'ibd' }).rsLine)).toEqual(RS)
+  it('no line value on a closed bar: raw, and the row says so', () => {
+    const blank = TIMES.map(() => null)
+    prime({ scaleToRating: 'ibd' }, { ...wire(), columns: { ...wire().columns, rsLine: blank } })
+    expect(list(columns({ scaleToRating: 'ibd' }).rsLine)).toEqual(blank)
     expect(scalars({ scaleToRating: 'ibd' }).rescale.state).toBe('noAnchor')
+    expect(scalars({ scaleToRating: 'ibd' }).rescale.summary).toBe('No RS line value on a closed bar yet: showing the RS line unscaled')
   })
 
   it('the Scale row prints the state, muted when unscaled, and is absent while off', () => {

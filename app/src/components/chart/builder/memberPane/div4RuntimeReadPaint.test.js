@@ -148,6 +148,18 @@ describe('⭐⭐ DIV-4 — with the runtime pane on, the colour is read from the
     expect(cols.value).toBeInstanceOf(Float64Array) // the host column is still there
   })
 
+  it('⛔ ENGINE 53 — the server\'s served stamps refuse it too (not graded, killed); CONTROL: unstamped is served', () => {
+    const d = door(true)
+    const ctx = { tf: 'D', symbol: 'AMEX:SPY', historyFromListing: true, newestBarIsForming: false }
+    expect(registry.computeFor(d.definition, BARS, undefined, ctx).rtcolour1).toBeInstanceOf(Float64Array)
+    for (const [stamp, code] of [['runtimeNotGraded', 'pane:not-graded'], ['runtimeKilled', 'pane:killed']]) {
+      const stamped = { ...d.definition, meta: { ...d.definition.meta, [stamp]: 'stamped by the server' } }
+      const cols = registry.computeFor(stamped, BARS, undefined, ctx)
+      expect(cols.rtcolour1, stamp).toBeUndefined()
+      expect(registry.columnErrors(cols).rtcolour1.code, stamp).toBe(code)
+    }
+  })
+
   it('⛔ off the listing it is NOT served, by name', () => {
     const d = door(true)
     const off = registry.computeFor(d.definition, BARS, undefined, { tf: 'D', symbol: 'AMEX:SPY', newestBarIsForming: false })

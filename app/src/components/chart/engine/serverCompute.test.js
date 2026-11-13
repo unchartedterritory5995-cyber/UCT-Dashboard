@@ -121,6 +121,31 @@ describe('the join is BY TIME, never by index', () => {
     expect(alignColumns({ times: [], columns: { levels: new Float64Array([1]) } }, bars([1]))).toEqual({})
     expect(alignColumns({ times: [1], columns: {} }, bars([1]))).toEqual({})
   })
+
+  // ⚡ 2026-11-13. The join parsed every bar's date once PER COLUMN: the RS line carries 24
+  // columns, so a 4,374-bar chart parsed 105,000 dates to place them, on every paint (measured:
+  // 13 of the lane's 24 ms for a five-definition RS suite). Each bar is placed once now.
+  it('⭐ each bar\'s time is read ONCE, however many columns the envelope carries', () => {
+    const days = ['2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18']
+    let reads = 0
+    const counted = days.map((d) => ({ get t() { reads += 1; return d } }))
+    const wide = { times: [20260914, 20260916, 20260918], columns: {} }
+    for (let k = 0; k < 24; k++) wide.columns[`c${k}`] = new Float64Array([k + 0.1, k + 0.3, k + 0.5])
+    const out = alignColumns(wide, counted)
+    expect(reads, 'five bars, twenty-four columns: five reads').toBe(days.length)
+    // and every column is the same join it always was: its own values on the bars that have them
+    for (let k = 0; k < 24; k++) {
+      expect([...out[`c${k}`]].map((v) => (Number.isNaN(v) ? 'NaN' : v))).toEqual([k + 0.1, 'NaN', k + 0.3, 'NaN', k + 0.5])
+    }
+  })
+
+  it('a column shorter than its times, a repeated time, and a missing bar still land as before', () => {
+    const odd = { times: [10, 20, 20, 40], columns: { full: new Float64Array([1, 2, 99, 4]), short: [7, 8] } }
+    const out = alignColumns(odd, [{ t: 10 }, { t: 20 }, undefined, { t: 40 }, { t: 50 }])
+    const show = (col) => [...col].map((v) => (Number.isNaN(v) ? 'NaN' : v))
+    expect(show(out.full), 'the FIRST row of a repeated time wins').toEqual([1, 2, 'NaN', 4, 'NaN'])
+    expect(show(out.short), 'a cell the column does not hold is NaN, never a neighbour\'s').toEqual([7, 8, 'NaN', 'NaN', 'NaN'])
+  })
 })
 
 // ─── the two spellings of one instant ────────────────────────────

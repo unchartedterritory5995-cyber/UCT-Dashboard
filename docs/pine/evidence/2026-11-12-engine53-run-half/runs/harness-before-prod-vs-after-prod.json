@@ -1,0 +1,19 @@
+{
+ "captures": 369,
+ "tally": {
+  "before": {
+   "INCONCLUSIVE": 167,
+   "DIVERGE": 48,
+   "MATCH": 154
+  },
+  "after": {
+   "INCONCLUSIVE": 167,
+   "DIVERGE": 48,
+   "MATCH": 154
+  }
+ },
+ "plotVerdictDiffs": 0,
+ "captureVerdictDiffs": [],
+ "objectsVerdictDiffs": [],
+ "plotDiffFiles": []
+}

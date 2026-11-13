@@ -1787,6 +1787,20 @@ def test_guard_withholds_the_chart_menu_action_names_bare(name):
 def test_guard_still_passes_ordinary_prose_about_asking_and_resetting(text):
     assert guard.suspicious(text) is False
 
+# ── calc-TF family: indicatorStyle.setCalcTimeframe is withheld when a passage names it bare (the existing indicatorStyle
+# prefix × "set" verb already covers it — no guard change, GUARD_KNOWN_UNWITHHELD unchanged) ──────────────────────────
+def test_guard_withholds_the_calc_timeframe_action_name_bare():
+    assert guard.suspicious("Next, indicatorStyle.setCalcTimeframe with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "I calculate the RSI on the weekly to filter daily entries.",
+    "A weekly RSI on a daily chart keeps you in the trend.",
+    "Set the 50 SMA to the weekly timeframe before you judge the base.",
+])
+def test_guard_still_passes_ordinary_prose_about_calculation_timeframes(text):
+    assert guard.suspicious(text) is False
+
 
 # ── chartFeatures (Company Info panel + Earnings Strip): its action names are withheld when a passage names them bare ───────
 @pytest.mark.parametrize("name", ["chartFeatures.companyPanel", "chartFeatures.earningsStrip"])

@@ -623,8 +623,17 @@ def repaint_stamp(definition: dict) -> dict:
 def stamp_served(row: dict) -> dict:
     """A stored runtime row as SERVED: the kill switch stamped on, never stored.
 
-    Returns a copy; the stored row is not touched."""
+    Returns a copy; the stored row is not touched.
+
+    ⭐ ENGINE 53 — AND AN ``ast`` ROW THAT ASKS THE RUN FOR SOMETHING: a run half
+    (``compute.runtimeObjects``, its drawings) or run-read colours (``compute.runtimeColours``,
+    DIV-4). Stamped by the same three rules (the kill list, the stage, the allowlist); the
+    client's install door installs the row as ever (its plots are the host's) and the BIND
+    refuses only the run's part (`nativeRegistry.js::withRunHalf` / `withRuntimeColours`).
+    A stale stamp a client wrote back is dropped, so the row reads today's lists."""
     definition = row.get("definition")
+    if run_read_source(definition) is not None:
+        return _stamp_run_read_ast(row, definition)
     if not is_runtime(definition):
         return row
     source = (definition.get("compute") or {}).get("source")
@@ -652,4 +661,98 @@ def stamp_served(row: dict) -> dict:
         meta["runtimeNotGraded"] = ungraded
     d["meta"] = meta
     out["definition"] = d
+    return out
+
+
+def run_read_source(definition: Any) -> Optional[str]:
+    """ENGINE 53 -- the script an ``ast`` document asks the per-bar run to read (its run half's
+    ``compute.runtimeObjects.source``, else DIV-4's ``compute.runtimeColours.source``), or
+    ``None`` for every other document (a runtime one included: `stamp_served` stamps it as ever)."""
+    if not isinstance(definition, dict):
+        return None
+    compute = definition.get("compute")
+    if not isinstance(compute, dict) or compute.get("kind") != "ast":
+        return None
+    for key in ("runtimeObjects", "runtimeColours"):
+        part = compute.get(key)
+        if isinstance(part, dict) and isinstance(part.get("source"), str) and part.get("source"):
+            return part["source"]
+    return None
+
+
+def _stamp_run_read_ast(row: dict, definition: dict) -> dict:
+    """`stamp_served` for an ``ast`` row with a run-read part: today's kill / stage / allowlist
+    answer on ``meta``, a stale one dropped. Returns a copy; the stored row is not touched."""
+    source = run_read_source(definition)
+    why = killed(row.get("def_id"), source)
+    if not why and stage() == STAGE_OFF:
+        why = (f"scripts drawn bar by bar are switched off for every member right now "
+               f"({STAGE_ENV}={STAGE_OFF}), so this one is not drawn bar by bar")
+    ungraded = not_graded(source)
+    meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    if not why and not ungraded and "runtimeKilled" not in meta_in and "runtimeNotGraded" not in meta_in:
+        return row
+    out = dict(row)
+    d = json.loads(json.dumps(definition))
+    meta = d.get("meta") if isinstance(d.get("meta"), dict) else {}
+    meta.pop("runtimeKilled", None)
+    meta.pop("runtimeNotGraded", None)
+    if why:
+        meta["runtimeKilled"] = why
+    if ungraded:
+        meta["runtimeNotGraded"] = ungraded
+    d["meta"] = meta
+    out["definition"] = d
+    return out
+
+
+#: ENGINE 53 -- the meta key a run-half document names its own script by (sha256 of the Pine
+#: source, UTF-8): `memberPaneDefinition.RUN_HALF_SOURCE_STAMP` on the client.
+RUN_HALF_SOURCE_STAMP = "pineSourceSha256"
+
+
+def run_half_source_refusal(definition: Any, pine_source: Optional[str]) -> Optional[str]:
+    """ENGINE 53 -- why this save may not carry its run half, or ``None``.
+
+    A run half (``compute.runtimeObjects``) is drawn only from the document's OWN script: its
+    ``source``, the document's stamp (``meta.pineSourceSha256``) and the script saved beside it
+    (the row's ``pine_source``) must be one script. A save that carries no script cannot bind
+    one, and is refused too. Every document without a run half answers ``None``."""
+    if not isinstance(definition, dict):
+        return None
+    compute = definition.get("compute")
+    if not isinstance(compute, dict) or "runtimeObjects" not in compute:
+        return None
+    ro = compute.get("runtimeObjects")
+    src = ro.get("source") if isinstance(ro, dict) else None
+    if not isinstance(src, str) or not src:
+        return "compute.runtimeObjects: a run half names the script it runs (source)"
+    if not isinstance(pine_source, str) or not pine_source:
+        return ("compute.runtimeObjects: a run half runs this indicator's own script, and this save "
+                "carries no script to bind it to; save it from the script, or without its run half")
+    own = source_hash(pine_source)
+    if source_hash(src) != own:
+        return ("compute.runtimeObjects.source: the run half names a different script from the one "
+                "saved with this indicator, so it is not saved")
+    meta = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    stamp = meta.get(RUN_HALF_SOURCE_STAMP)
+    if not isinstance(stamp, str) or stamp.lower() != own:
+        return (f"meta.{RUN_HALF_SOURCE_STAMP}: the document does not name the script saved with it, "
+                "so its run half is not saved")
+    return None
+
+
+def without_run_half(definition: Any) -> Any:
+    """ENGINE 53 -- ``definition`` with no run half (a copy when one was present; never
+    mutates): ``compute.runtimeObjects`` and its source stamp removed."""
+    if not isinstance(definition, dict):
+        return definition
+    compute = definition.get("compute")
+    if not isinstance(compute, dict) or "runtimeObjects" not in compute:
+        return definition
+    out = dict(definition)
+    out["compute"] = {k: v for k, v in compute.items() if k != "runtimeObjects"}
+    meta = definition.get("meta")
+    if isinstance(meta, dict) and RUN_HALF_SOURCE_STAMP in meta:
+        out["meta"] = {k: v for k, v in meta.items() if k != RUN_HALF_SOURCE_STAMP}
     return out

@@ -47,7 +47,7 @@ import { historyFromListingOf, listingReferenceDate } from './chart/engine/listi
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
-import { legendInkVars, readLegendContext } from './chart/legendInk'
+import { legendInkVars, readLegendContext, legibleInk } from './chart/legendInk'
 import { useThemeVersion } from '../lib/theme/useThemeInk'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
 // THE WHOLE STATEMENT. All fourteen series-expressible natives are FLIPPED, so
@@ -6256,7 +6256,8 @@ export default function StockChart({
     // (the tab IS the authoritative blob, not a partial over global).
     // ⭐ A1.2 — RECORD a member's indicator change (hide / show / add / remove) on this
     // chart's Undo stack. Cheap when the instance list did not move (no read-back).
-    // Input edits, pane drags and every non-indicator write record nothing.
+    // An input edit records a quiet "edited" entry (2026-11-13, no toast); pane drags
+    // and every non-indicator write record nothing.
     // A1.3 — a bulk write (a toolbar preset) names itself via `meta.historyLabel`.
     const _named = meta && typeof meta === 'object' && typeof meta.historyLabel === 'string' ? meta : null
     if (!suppressHistoryRef.current && newSettings && (_named || !Object.is(newSettings.indicatorInstances, cs.indicatorInstances))) {
@@ -20867,7 +20868,11 @@ export default function StockChart({
                   key={key}
                   labelKey={key}
                   text={typeof c.endLabel.text === 'string' ? c.endLabel.text : ''}
-                  color={c.color}
+                  // ⭐ 2026-11-13 — the plot's colour only where it reads (>= 4.5:1) on this
+                  // canvas; on a light canvas the RS line's blue fails, so the text takes the
+                  // legend ink and the colour stays as the tag's edge (`legibleInk`).
+                  color={legibleInk(c.color, canvasSample.low) || undefined}
+                  swatch={c.color}
                   ref={(el) => {
                     const m = endLabelRefs.current
                     if (el) { m.set(key, { el, model: c.endLabel }); pinEndLabel(el, key, c.endLabel) } else m.delete(key)
