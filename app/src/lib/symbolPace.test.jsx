@@ -14,10 +14,10 @@
 // (everything the browser already holds), and what the chart a member stops on gets.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, act } from '@testing-library/react'
-import { SWRConfig } from 'swr'
+import { SWRConfig, preload } from 'swr'
 import {
   createPace, useRestedSWR, restGateDisabled,
-  RACE_MS, REST_FACTOR, REST_MIN_MS, REST_MAX_MS, ASK_AFTER_MS, REST_GATE_OFF_KEY, __resetRestGate,
+  RACE_MS, REST_FACTOR, REST_MIN_MS, REST_MAX_MS, REST_GATE_OFF_KEY, __resetRestGate,
 } from './symbolPace'
 
 beforeEach(() => {
@@ -119,9 +119,8 @@ function mount(first, { cache = new Map(), opts } = {}) {
   return { seen, cache, show: (sym) => act(() => { r.rerender(ui(sym)) }), unmount: () => r.unmount() }
 }
 const wait = (ms) => act(async () => { await vi.advanceTimersByTimeAsync(ms) })
-/** long enough for a raced key to be seen as stayed on, and for its ask to leave. (Two steps: React arms the ask's own
- *  short timer in the commit that follows the hold, and under `act` that commit happens when the first wait returns.) */
-const stop = async (ms = 3000) => { await wait(REST_MAX_MS + 50); await wait(Math.max(ASK_AFTER_MS + 10, ms - REST_MAX_MS - 50)) }
+/** long enough for a raced key to be seen as stayed on, and for its ask to have left */
+const stop = async (ms = 3000) => { await wait(REST_MAX_MS + 50); await wait(ms - REST_MAX_MS - 50) }
 
 describe('⭐ a read keyed by the symbol waits while the member races, and asks for the one they stop on', () => {
   it('a symbol the member arrives on and reads is asked for at once', async () => {
@@ -142,10 +141,6 @@ describe('⭐ a read keyed by the symbol waits while the member races, and asks 
     await wait(Math.round(200 * REST_FACTOR) - 200 - 2)
     expect(asked.length, 'not before 1.3 x the step has passed with no further one').toBe(2)
     await wait(4)                                         // the hold ends: the key was stayed on
-    expect(asked.length, 'nor in that instant: every reader of the key is given a moment to stop').toBe(2)
-    await wait(ASK_AFTER_MS - 2)
-    expect(asked.length).toBe(2)
-    await wait(4)
     expect(asked).toEqual(['/api/thing/AAA', '/api/thing/BBB', '/api/thing/EEE'])
     await wait(5000)
     expect(asked.length, 'and only once').toBe(3)
@@ -182,6 +177,19 @@ describe('⭐ a read keyed by the symbol waits while the member races, and asks 
     expect(asked.slice(n), 'asked at once').toEqual(['/api/thing/EEE'])
   })
 
+  it('⛔ a step taken in the moment between a stop and its ask loses nothing: the symbol then stopped on is asked for', async () => {
+    const m = mount('AAA')
+    await wait(900)
+    m.show('BBB'); await wait(150)                        // a reader's step
+    m.show('CCC'); await wait(150)                        // racing
+    await wait(Math.round(150 * REST_FACTOR) - 150 + 5)   // the member pauses on CCC just long enough to count as stopped...
+    m.show('DDD')                                         // ...and steps again in the same moment
+    await stop()
+    expect(asked.filter((k) => k.endsWith('CCC')).length, 'stayed on for its whole hold: asked for, once').toBe(1)
+    expect(asked[asked.length - 1], 'the one finally stopped on').toBe('/api/thing/DDD')
+    expect(asked.filter((k) => k.endsWith('DDD')).length).toBe(1)
+  })
+
   it('a pane that is closed mid-run asks for nothing afterwards', async () => {
     const m = mount('AAA')
     await wait(900)
@@ -207,6 +215,20 @@ describe('⭐ a read keyed by the symbol waits while the member races, and asks 
     for (const s of ['BBB', 'CCC', 'DDD']) { act(() => { r.rerender(ui(s)) }); await wait(150) }
     await stop()
     expect(asked.filter((k) => k.endsWith('DDD'))).toEqual(['/api/thing/DDD'])
+  })
+
+  it('an answer already on its way (the pre-load asked for the row) is joined, not asked for a second time', async () => {
+    // (the app's own cache, where a pre-load's request lives: no provider here)
+    asked = []
+    const seen = []
+    const r = render(<Probe sym="PRE-A" seen={seen} />)
+    await wait(900)
+    preload('/api/thing/PRE-D', fetcher)                  // the row ahead, asked for before the member began racing
+    expect(asked.filter((k) => k.endsWith('PRE-D')).length).toBe(1)
+    for (const sym of ['PRE-B', 'PRE-C', 'PRE-D']) { act(() => { r.rerender(<Probe sym={sym} seen={seen} />) }); await wait(150) }
+    await stop()
+    expect(asked.filter((k) => k.endsWith('PRE-D')).length, 'still one').toBe(1)
+    r.unmount()
   })
 
   it('the caller\'s own SWR options are kept', async () => {

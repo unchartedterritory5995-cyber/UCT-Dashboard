@@ -34,7 +34,8 @@
 //
 // Per-browser switch: localStorage['uct.restgate.off'] = '1' (read once per page load).
 import { useCallback, useEffect, useRef, useState } from 'react'
-import useSWR, { unstable_serialize, useSWRConfig } from 'swr'
+import useSWR, { unstable_serialize } from 'swr'
+import { useSWRConfig, SWRGlobalState, revalidateEvents } from 'swr/_internal'
 
 /** Steps closer together than this are a member racing through symbols, not reading them. */
 export const RACE_MS = 400
@@ -127,53 +128,42 @@ export function useKeyRest(key) {
   return { isPaused, tick }
 }
 
-// Two readers of one key stop in the same moment (the name and sector are read by the
-// pane and by the chart): the second finds the first's ask and sends none.
-const ASK_ONCE_MS = 2000
-/** After a raced key has been stayed on, its ask waits this long: every reader of the key has stopped being paused by then. */
-export const ASK_AFTER_MS = 32
-const _asked = new Map()   // key id -> when a rested reader asked for it
-
-// The cache and `mutate` of the SWR scope this reader is in. A host that has replaced `swr` with
-// a default-only stand-in (several chart suites do) has no such export: the gate then pauses
-// and asks for nothing itself, and the stand-in's own reads are whatever the suite made them.
-const NO_SWR = Object.freeze({ cache: null, mutate: null })
-function useScopedSWR() {
-  try { return useSWRConfig() || NO_SWR } catch { return NO_SWR }
-}
-
 /**
  * The gate for one reader: SWR's `isPaused` for its key, and the ask once a raced key has
- * been stayed on (if nothing is held for it by then).
+ * been stayed on (if the cache holds nothing for it by then).
  *
- * ⛔ THE ASK IS A REVALIDATION OF THE KEY, AND SWR HANDS THAT TO THE FIRST READER MOUNTED ON
- * IT. Two readers of one key each keep their own cadence, and their holds can end a few
- * milliseconds apart; a revalidation sent while the first-mounted one was still paused would
- * be dropped by it. So the ask waits `ASK_AFTER_MS`, by which time both have stopped.
+ * ⭐ THE ASK IS WHAT SWR DOES WHEN A READER ARRIVES ON A KEY: a revalidation WITH its own
+ * dedupe, offered to EVERY reader mounted on the key. So:
+ *   - two readers of one key (the pane and the chart both read the name and sector) send
+ *     one request, whichever stops being paused first;
+ *   - an answer already on its way (the pre-load asked for this row) is joined, not asked
+ *     for again;
+ *   - a reader that is still paused declines, and nothing is remembered about it: if the
+ *     member steps again in the same moment, the new key is simply racing and gets its
+ *     own ask when it is stayed on.
+ * (`mutate(key)` is not used: it forgets requests in flight before it revalidates, and it
+ * offers the revalidation to the first-mounted reader only.)
  *
  * @param {*} key the reader's SWR key (a string, SWR's array form, or null for none)
  * @returns {() => boolean} for the reader's `isPaused` option
  */
 export function useRestGate(key) {
   const rest = useKeyRest(key)
-  const { cache, mutate } = useScopedSWR()
+  const { cache } = useSWRConfig()
   const latest = useRef(null)
-  latest.current = { key, cache, mutate }
+  latest.current = { key, cache }
   useEffect(() => {
-    if (!rest.tick) return undefined
-    const t = setTimeout(() => {
-      const cur = latest.current
-      const id = _idOf(cur.key)
-      if (!id || !cur.cache || !cur.mutate) return
-      const held = cur.cache.get(id)
-      if (held && held.data !== undefined) return          // a pre-loaded row, or an answer that landed meanwhile
-      const now = Date.now()
-      if (now - (_asked.get(id) || -Infinity) < ASK_ONCE_MS) return
-      if (_asked.size > 256) _asked.clear()
-      _asked.set(id, now)
-      try { cur.mutate(cur.key) } catch { /* the reader asks again on its next visit */ }
-    }, ASK_AFTER_MS)
-    return () => clearTimeout(t)
+    if (!rest.tick) return
+    const cur = latest.current
+    const id = _idOf(cur.key)
+    if (!id || !cur.cache) return
+    const held = cur.cache.get(id)
+    if (held && held.data !== undefined) return            // a pre-loaded row, or an earlier visit
+    const readers = ((SWRGlobalState.get(cur.cache) || [])[0] || {})[id]
+    if (!readers) return
+    for (const revalidate of [...readers]) {
+      try { revalidate(revalidateEvents.ERROR_REVALIDATE_EVENT, { dedupe: true }) } catch { /* that reader asks on its next visit */ }
+    }
   }, [rest.tick])
   return rest.isPaused
 }
@@ -191,8 +181,7 @@ export function useRestedSWR(key, fetcher, options) {
   return useSWR(key, fetcher, { ...options, isPaused })
 }
 
-/** Test seam: a new page load (the switch is read again, no remembered asks). */
+/** Test seam: a new page load (the switch is read again). */
 export function __resetRestGate() {
   _off = null
-  _asked.clear()
 }
