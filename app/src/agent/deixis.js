@@ -10,7 +10,7 @@
 // the selection; a single-chart board needs no selection at all.
 
 import { addableRows } from './capabilities/indicatorEdits'
-import { resolvedTicker } from './nl/tickers'
+import { resolvedTicker, isReservedWord } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 import { CLICK_ACT_NP } from './clickRef'
 import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts } from './spatialCheck'
@@ -677,10 +677,64 @@ export function chartRefOf(kind, snap) {
 // of the candidates, that chart is the one meant (two charts, "hide volume, not the NVDA chart" → the other one). The exclusions
 // are the constraint check's own (spatialCheck.excludedCharts); one it cannot place (UNPLACED) is asked there, whatever this infers.
 export const leftOut = (text, charts, sel) => excludedCharts(text, charts, sel)
-function theOneLeft(ex, backed) {
-  if (!ex.size) return null
+// ⛔ (11-13) …but never when the CHANGE words name a ticker the board does not show ("change AMD to 1-hour, leave my NVDA alone"
+// with SPY and NVDA): the chart they mean is not here, so the one left is no stand-in for it — asked, as with no exclusion at all
+const NOT_TICKER_CAPS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'WMA', 'ATR', 'VWAP', 'AVWAP', 'ET', 'AM', 'PM', 'OK', 'US',
+  'NYSE', 'HLC', 'OHLC', 'MA', 'D', 'W', 'M', 'H', 'AND', 'VS', 'ADX', 'OBV', 'CCI', 'EPS', 'PE', 'BB', 'VCP', 'ATH', 'YTD', 'NOT', 'DONT', 'TF'])
+export function offBoardTicker(text, charts = []) {
+  const on = new Set(charts.map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
+  const words = withoutExclusions(text)
+  if (!/[a-z]/.test(words)) return null                              // typed in capitals: no word stands out as a ticker
+  for (const m of words.matchAll(/(?:^|[\s,;(])\$?([A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=$|[\s,;.!?)'’])/g)) {
+    const t = m[1].toUpperCase()
+    if (!on.has(t) && !NOT_TICKER_CAPS.has(t) && !isReservedWord(t)) return t
+  }
+  return null
+}
+function theOneLeft(ex, backed, text = '', charts = []) {
+  if (!ex.size || offBoardTicker(text, charts)) return null
   const rest = backed.filter(b => !ex.has(b.chart))
   return rest.length === 1 ? rest[0] : null
+}
+
+// ⭐ PRODUCTION 11-13 (owner): "Change SPY to the 1-hour timeframe, add a 20 EMA to it, but leave my NVDA chart alone" ASKED.
+// "it" made the request deictic, and the deictic reader took a chart from a click, a relation, a place or "the SPY chart" — never
+// from the bare ticker the same words had just named, so with no click it asked (the same words without "it" ran).
+// ANAPHORA: an "it" / "that chart" / "that one" whose ANTECEDENT is the one chart a ticker named EARLIER in the words names.
+// It is that chart only when ALL hold (anything else falls through to the readers below, unchanged):
+//   · nothing else in the words points at a chart ("this", "the chart", a relation, a place …)
+//   · every anaphor sits in a CHANGE clause — never in a keep / negated one ("leave it there", "don't touch it")
+//   · outside the exclusions, the words name exactly ONE chart by symbol (a ticker on two charts names none), it comes before the
+//     first anaphor, and it is not a chart the words leave out
+//   · no click, or the click IS that chart (a click elsewhere is never silently overruled: asked, as before)
+const ANAPHOR = /\b(?:it|that\s+(?:chart|one|ticker|stock|symbol|name))\b/gi
+const ANA_SPLIT = /[,;.!?—–]|\b(?:but|and then|then|and)\b/gi
+const KEEP_CLAUSE = /^\s*(?:please\s+)?(?:leave|keep|let|don['’]?t|do\s+not|never|not|stop|skip|ignore|exclude|avoid|hands\s+off)\b|\b(?:not|never|no)\b|n['’]t\b/i
+const STAYS_CLAUSE = /\b(?:stays?|remains?)\b|\b(?:is|['’]s)\s+(?:(?:just|already)\s+)?(?:fine|good|ok(?:ay)?|perfect|alright)\b|\bas\s+(?:it\s+)?is\b|\b(?:untouched|unchanged|alone)\b/i
+export function tickerAntecedent(text, charts = [], sel = null, ex = new Set()) {
+  const s = String(text || '')
+  const hits = [...s.matchAll(ANAPHOR)]
+  if (!hits.length) return null
+  if (pointsAtChart(s.replace(ANAPHOR, (m) => ' '.repeat(m.length)), { chartOp: true, charts })) return null
+  const cuts = [0, ...[...s.matchAll(ANA_SPLIT)].flatMap(m => [m.index, m.index + m[0].length]), s.length].sort((a, b) => a - b)
+  const clauseAt = (i) => { let a = 0, b = s.length; for (const c of cuts) { if (c <= i) a = c; else { b = c; break } } return s.slice(a, b) }
+  if (hits.some(h => KEEP_CLAUSE.test(clauseAt(h.index)))) return null
+  // the CHANGE clauses only: a keep / negated clause ("leave my NVDA chart alone", "NVDA stays as is") names no antecedent
+  let change = '', kept = ''
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const part = s.slice(cuts[i], cuts[i + 1])
+    const keep = KEEP_CLAUSE.test(part) || STAYS_CLAUSE.test(part)
+    change += keep ? ' '.repeat(part.length) : part
+    kept += keep ? part : ' '.repeat(part.length)
+  }
+  const named = (t) => [...chartsNamedBySymbol(withoutExclusions(t), charts)].filter(r => !ex.has(r))
+  const all = named(change)
+  const before = named(change.slice(0, hits[0].index))
+  if (all.length !== 1 || before.length !== 1 || before[0] !== all[0]) return null
+  // ⛔ a chart a keep clause names is never the antecedent ("change SPY …, add a 20 EMA to it, but leave my SPY alone": asked)
+  if (chartsNamedBySymbol(kept, charts).has(all[0])) return null
+  if (sel && sel !== all[0]) return null
+  return all[0]
 }
 
 /**
@@ -761,9 +815,15 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
     const choices = fits.length ? fits.map(b => b.c) : candidates
     return { ask: { text: 'Which chart do you mean?', choices: choices.map(c => ({ ref: c.ref, label: c.label })) } }
   }
+  // "Change SPY to the 1-hour timeframe, add a 20 EMA to it": "it" refers back to the ticker the same words named (tickerAntecedent)
+  const ante = tickerAntecedent(text, live, sel, ex)
+  if (ante) {
+    const fits = backed.filter(b => b.chart === ante)
+    if (fits.length === 1) return { ref: fits[0].c.ref }
+  }
   const hit = sel && !ex.has(sel) ? backed.filter(b => b.chart === sel) : []
   if (hit.length === 1) return { ref: hit[0].c.ref }
-  const one = theOneLeft(ex, backed)
+  const one = theOneLeft(ex, backed, text, live)
   if (one) return { ref: one.c.ref }
   return { ask: { text: sel ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:', choices: candidates.map(c => ({ ref: c.ref, label: c.label })) } }
 }
@@ -895,6 +955,14 @@ export function chartsNamedBy(text, charts = [], sel = null) {
     const hits = charts.filter(c => c.position && parts.every(p => c.position.split('-').includes(p)))
     if (hits.length === 1) named.add(hits[0].ref)
   }
+  for (const r of chartsNamedBySymbol(s, charts)) named.add(r)
+  return named
+}
+
+/** The charts the words name by a SYMBOL exactly one chart on the board shows ("put RSI on NVDA"); short tickers only in capitals. */
+export function chartsNamedBySymbol(text, charts = []) {
+  const s = String(text || '')
+  const named = new Set()
   const bySym = new Map()
   for (const c of charts) { const k = String(c.symbol || '').toUpperCase(); if (k) bySym.set(k, [...(bySym.get(k) || []), c]) }
   for (const [sym, list] of bySym) {
@@ -966,7 +1034,7 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // OUT ("…, not NVDA", "… except the first chart") is no chart named against the click (it still answers)
   const ex = leftOut(words, charts, sel)
   const left = ex.size ? charts.filter(c => !ex.has(c.ref)) : []
-  if (left.length === 1) named.add(left[0].ref)
+  if (left.length === 1 && !offBoardTicker(words, charts)) named.add(left[0].ref)
   const kept = withoutExclusions(words)
   // (#988) a position said only to EXCLUDE a chart ("log on the one I selected, not the left one") is no place the request names
   const said = chartPositions(withoutExclusions(words))
