@@ -1,7 +1,7 @@
 // Follow-up A (usage counting): the small helpers the usage events share. The events and their enums are
 // lib/notebookTelemetry.js; what each answers is docs/notebook/simplify-2026-11-11-ledger.md, "Follow-up A".
 import { useEffect } from 'react'
-import { EVENT_SCHEMAS, NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
+import { EVENT_SCHEMAS, MEMBER_BUILT_KIND, NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
 // ── view_used via 'link': a link the member followed ─────────────────────────
 /** The router state key the walkthrough engine puts on the navigation that starts a tour (GenericTourEngine). */
@@ -79,6 +79,6 @@ export const insertDoorOpen = () => Boolean(door && !door.sent)
 export function reportInsertedBlock(widgetId) {
   if (!door || door.sent) return null
   door.sent = true
-  const kind = widgetId === 'builtWidget' ? 'custom' : widgetId
+  const kind = widgetId === MEMBER_BUILT_KIND ? 'custom' : widgetId
   return trackNotebookEvent(NOTEBOOK_EVENTS.BLOCK_INSERTED, { kind, via: door.via })
 }

@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 import { renderHook, cleanup } from '@testing-library/react'
-import { EVENT_SCHEMAS, NOTEBOOK_EVENTS, sanitizeProps } from './notebookTelemetry'
+import { EVENT_SCHEMAS, MEMBER_BUILT_KIND, NOTEBOOK_EVENTS, sanitizeProps } from './notebookTelemetry'
+import { BUILT_KIND } from './builtWidgets'
 import { insertDoorOpen, insertVia, kindStart, reportInsertedBlock, templateFamily, useRouteOpened, withInsertDoor } from './notebookUsage'
 import { VIEW_MODES } from './savedViewModes'
 import { FAMILIES } from './notebookTemplates'
@@ -128,6 +129,14 @@ describe('each enum is its authority', () => {
   it("block_inserted.kind is the widget registry's ids, a member-built widget being 'custom'", () => {
     expect(WIDGET_IDS).toContain('builtWidget')
     expect(enumOf('block_inserted', 'kind')).toEqual(sorted([...WIDGET_IDS.filter((id) => id !== 'builtWidget'), 'custom']))
+  })
+  it('fix round 1 (I5): the server rail reads the registry the way the client derives it, and the built kind is one fact', () => {
+    // tests/test_notebook_telemetry_events.py `registry_widget_ids`: PANEL_MANIFESTS' keys, parsed from source.
+    // (a CRLF checkout is read as LF, as Python's universal newlines read it)
+    const src = fs.readFileSync(path.resolve(WAVE, '..', '..', 'widgets', 'registry.js'), 'utf8').replace(/\r\n/g, '\n')
+    const body = src.split('\nconst PANEL_MANIFESTS = {\n')[1].split('\n}\n')[0]
+    expect([...body.matchAll(/^ {2}([A-Za-z0-9_]+): /gm)].map((m) => m[1])).toEqual(WIDGET_IDS)
+    expect(MEMBER_BUILT_KIND).toBe(BUILT_KIND)
   })
   it('panel_row_used.row is the data-panel-row ids FolderSidebar draws', () => {
     const ids = []

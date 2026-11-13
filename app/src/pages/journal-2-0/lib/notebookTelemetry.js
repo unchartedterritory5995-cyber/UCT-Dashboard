@@ -50,6 +50,9 @@
  * made the day's note) -- the morning open counted at the surface built for it, beside the visit timestamps.
  */
 
+import { WIDGET_IDS } from '../../../widgets/registry'
+import { VIEW_MODES } from './savedViewModes'
+
 export const NOTEBOOK_EVENTS = Object.freeze({
   NOTE_OPEN_MS: 'note_open_ms',
   SAVE_FAILED: 'save_failed',
@@ -121,6 +124,11 @@ const OTHER = 'other'
 const num = { type: 'number' }
 const bool = { type: 'bool' }
 const oneOf = (...values) => ({ type: 'enum', values: new Set(values) })
+// Follow-up A fix round 1 (I5): an enum DERIVED from the list that owns the ids (one source line; the server parity
+// pytest evaluates the same derivation from the same sources).
+const oneOfList = (values) => ({ type: 'enum', values: new Set(values) })
+/** The member-built widget kind (lib/builtWidgets.js BUILT_KIND, not on first open; railed equal in notebookUsage.test.js). */
+export const MEMBER_BUILT_KIND = 'builtWidget'
 
 /** Per-event prop schemas. A key not listed here never leaves the browser. */
 export const EVENT_SCHEMAS = Object.freeze({
@@ -249,7 +257,7 @@ export const EVENT_SCHEMAS = Object.freeze({
   // Follow-up A (usage counting): which views, menu rows, doors, templates, blocks and panel rows members use. Every
   // value is a fixed id; each enum is railed against the place its ids are defined (notebookUsage.test.js).
   view_used: {
-    mode: oneOf('list', 'table', 'board', 'calendar', 'tasks', 'graph', 'timeline'),
+    mode: oneOfList(VIEW_MODES.map((m) => m.id)),
     via: oneOf('menu', 'saved_view', 'link'),
   },
   list_layout_used: {
@@ -267,10 +275,10 @@ export const EVENT_SCHEMAS = Object.freeze({
     source: oneOf('catalogue', 'note_type', 'own', 'library'),
     family: oneOf('rituals', 'research', 'trades', 'mind', 'trade_plan', 'daily_prep', 'weekend_prep', 'earnings', 'earnings_followup', 'post_trade_review', 'weekly_review', 'thesis', 'watchlist_note', 'custom'),
   },
-  // `kind`: the widget registry's ids (src/widgets/registry.js WIDGET_IDS) less `builtWidget`, a member-built widget,
-  // which is sent as 'custom'. Never a widget's name or params.
+  // `kind`: the widget registry's ids (src/widgets/registry.js WIDGET_IDS, already on first open) less the member-built
+  // kind, which is sent as 'custom'. Never a widget's name or params. Fix round 1 (I5): derived, not restated.
   block_inserted: {
-    kind: oneOf('chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'indexes', 'marketcontext', 'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow', 'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter', 'tradeExchangeNews', 'researchLibrary', 'screener', 'cot', 'modelbook', 'tradeExchangeHeadline', 'myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow', 'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions', 'myTiltCheck', 'myRevengeClean', 'myPlanVsActual', 'myRiskLeftToday', 'myPropFirm', 'myGamePlan', 'myAlertsFired', 'preEntryChecklist', 'priceStamps', 'positionSizing', 'sizeCalc', 'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn', 'routine', 'tracker', 'custom'),
+    kind: oneOfList([...WIDGET_IDS.filter((id) => id !== MEMBER_BUILT_KIND), 'custom']),
     via: oneOf('slash', 'palette', 'phone_plus'),
   },
   panel_row_used: {

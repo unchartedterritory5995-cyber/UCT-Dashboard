@@ -68,7 +68,59 @@ def _client_schemas() -> dict[str, dict[str, object]]:
                 schemas[current][m.group(1)] = frozenset(re.findall(r"'([^']*)'", m.group(3)))
             else:
                 schemas[current][m.group(1)] = m.group(2)
+            continue
+        # Follow-up A fix round 1 (I5): an enum the client DERIVES from the list that owns its ids. The test evaluates
+        # the same derivation from the same sources; a derived line it does not know fails here by name.
+        m = re.match(r"^    ([a-zA-Z_]+): oneOfList\((.*)\),?$", line)
+        if m and current:
+            expr = m.group(2)
+            derive = _DERIVED.get(expr)
+            assert derive, f"{current}.{m.group(1)} is derived by `{expr}`, which this rail does not know how to evaluate"
+            schemas[current][m.group(1)] = frozenset(derive())
     return schemas
+
+
+REGISTRY = Path("app/src/widgets/registry.js")
+VIEW_MODES_SRC = Path("app/src/pages/journal-2-0/lib/savedViewModes.js")
+
+
+def registry_widget_ids() -> list[str]:
+    """WIDGET_IDS: the keys of PANEL_MANIFESTS in src/widgets/registry.js, in order (the registry's own derivation:
+    `Object.keys(WIDGET_REGISTRY)`, one entry per manifest). lib/notebookUsage.test.js holds this parse equal to the
+    real WIDGET_IDS, so the two sides cannot drift."""
+    src = REGISTRY.read_text(encoding="utf-8")
+    body = src.split("\nconst PANEL_MANIFESTS = {\n", 1)[1].split("\n}\n", 1)[0]
+    return re.findall(r"^  ([A-Za-z0-9_]+): ", body, re.MULTILINE)
+
+
+def _member_built_kind() -> str:
+    m = re.search(r"export const MEMBER_BUILT_KIND = '([^']+)'", CLIENT.read_text(encoding="utf-8"))
+    assert m, "MEMBER_BUILT_KIND not found in the client helper"
+    return m.group(1)
+
+
+def view_mode_ids() -> list[str]:
+    """VIEW_MODES ids, by evaluating lib/savedViewModes.js in Node (the module imports nothing)."""
+    import subprocess
+    script = ("import(process.argv[1]).then((m) => process.stdout.write(JSON.stringify(m.VIEW_MODES.map((v) => v.id))))")
+    out = subprocess.run(["node", "-e", script, VIEW_MODES_SRC.resolve().as_uri()], capture_output=True, text=True,
+                         check=True, timeout=60)
+    return json.loads(out.stdout)
+
+
+_DERIVED = {
+    "VIEW_MODES.map((m) => m.id)": view_mode_ids,
+    "[...WIDGET_IDS.filter((id) => id !== MEMBER_BUILT_KIND), 'custom']":
+        lambda: [i for i in registry_widget_ids() if i != _member_built_kind()] + ["custom"],
+}
+
+
+def test_the_derived_client_enums_were_evaluated_and_are_not_empty():
+    """Non-vacuity for the two derived enums (fix round 1, I5)."""
+    client = _client_schemas()
+    assert {"list", "table", "board", "calendar", "tasks", "graph", "timeline"} <= client["view_used"]["mode"]
+    kinds = client["block_inserted"]["kind"]
+    assert len(kinds) >= 60 and "tracker" in kinds and "custom" in kinds and "builtWidget" not in kinds
 
 
 def _server_schemas() -> dict[str, dict[str, object]]:
