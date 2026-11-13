@@ -135,12 +135,15 @@ const REMOVE_SAMPLE_OP = 'remove-sample'
 // throw out of the list. A later press asks again.
 export const noteBatchLoader = { load: () => import('../lib/noteBatch') }
 export const BULK_UNAVAILABLE = 'This action could not be loaded.'
+export const isNoteBatch = (m) => typeof m?.runNoteBatch === 'function'
 let noteBatchLib = null
 let noteBatchInflight = null
 export function loadNoteBatch() {
   if (noteBatchLib) return Promise.resolve(noteBatchLib)
   if (!noteBatchInflight) {
-    noteBatchInflight = importWithOneRetry(() => noteBatchLoader.load()).then(
+    // Fix round 1 (I1): noteBatch has no default export, so the retry's accept test is the module's own door; the
+    // default ("has a default export") threw a successful retry away and left every bulk action dead in the tab.
+    noteBatchInflight = importWithOneRetry(() => noteBatchLoader.load(), undefined, isNoteBatch).then(
       (m) => { noteBatchLib = m; noteBatchInflight = null; return m },
       () => {
         noteBatchInflight = null

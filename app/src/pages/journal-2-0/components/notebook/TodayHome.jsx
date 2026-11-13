@@ -235,7 +235,9 @@ function TrashedNoteActions({ note, templateId, onChanged }) {
   }
   const restore = () => run('restore', async () => {
     // The batch door: it lands the restored revision (settleNoteWrites) before anything refreshes.
-    const { runNoteBatch } = await importWithOneRetry(() => import('../../lib/noteBatch'))
+    // Follow-up A fix round 1 (I1): noteBatch has no default export; the retry is accepted by its own door.
+    const { runNoteBatch } = await importWithOneRetry(() => import('../../lib/noteBatch'), undefined,
+      (m) => typeof m?.runNoteBatch === 'function')
     const out = await runNoteBatch({ ids: [note.id], op: 'restore' })
     if (!out?.results?.some((r) => r.status === 'changed' || r.status === 'unchanged')) throw new Error('')
   })

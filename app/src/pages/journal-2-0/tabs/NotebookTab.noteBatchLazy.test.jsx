@@ -8,7 +8,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
-import { BULK_UNAVAILABLE, __resetNoteBatchForTests, loadNoteBatch, noteBatchLoader } from './NotebookTab'
+import { __resetNoteBatchForTests, loadNoteBatch, noteBatchLoader } from './NotebookTab'
+import { chunkRetry } from '../lib/lazyChunk'
 import { pageReload } from '../lib/heldModule'
 
 const JsxParser = Parser.extend(jsx())
@@ -53,16 +54,31 @@ describe('loadNoteBatch', () => {
     expect(typeof m.describeBatch).toBe('function')
   })
 
+  // Fix round 1 (I1): the failure names its chunk, so the retry runs under the new address (chunkRetry.importUrl).
+  const chunkError = () => new Error(`Failed to fetch dynamically imported module: ${window.location.origin}/assets/noteBatch-abc.js`)
+
+  it('a failed fetch whose retry succeeds hands over the module (noteBatch has no default export)', async () => {
+    const real = noteBatchLoader.load
+    vi.spyOn(noteBatchLoader, 'load').mockRejectedValue(chunkError())
+    const retry = vi.spyOn(chunkRetry, 'importUrl').mockImplementation(() => real())
+    const m = await loadNoteBatch()
+    expect(retry).toHaveBeenCalledTimes(1)
+    expect(typeof m.runNoteBatch).toBe('function')
+  }, 15000)
+
   it('two failed fetches answer chunkLost with the plain sentence, never reload by themselves, and the next press asks again', async () => {
     const reload = vi.spyOn(pageReload, 'run').mockImplementation(() => {})
     const real = noteBatchLoader.load
-    const load = vi.spyOn(noteBatchLoader, 'load').mockRejectedValue(new TypeError('Failed to fetch dynamically imported module'))
+    const load = vi.spyOn(noteBatchLoader, 'load').mockRejectedValue(chunkError())
+    const retry = vi.spyOn(chunkRetry, 'importUrl').mockRejectedValue(chunkError())
     const err = await loadNoteBatch().catch((e) => e)
     expect(err.chunkLost).toBe(true)
-    expect(err.message).toBe(BULK_UNAVAILABLE)
-    expect(load).toHaveBeenCalledTimes(2)                 // one in-place retry
+    expect(err.message).toBe('This action could not be loaded.')
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(retry).toHaveBeenCalledTimes(1)                 // one retry, under the new address
     expect(reload).not.toHaveBeenCalled()
     load.mockImplementation(real)
+    retry.mockRestore()
     const m = await loadNoteBatch()
     expect(typeof m.runNoteBatch).toBe('function')
   }, 15000)
