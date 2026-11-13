@@ -77,6 +77,14 @@ export const NOTEBOOK_EVENTS = Object.freeze({
   RECAP_WRITTEN: 'recap_written',
   TRUST_INCIDENT: 'trust_incident',
   TODAY_OPENED: 'today_opened',
+  VIEW_USED: 'view_used',
+  LIST_LAYOUT_USED: 'list_layout_used',
+  MENU_ROW_USED: 'menu_row_used',
+  TODAY_DOOR_USED: 'today_door_used',
+  TEMPLATE_STARTED: 'template_started',
+  BLOCK_INSERTED: 'block_inserted',
+  PANEL_ROW_USED: 'panel_row_used',
+  NOTEBOOK_ROUTE_OPENED: 'notebook_route_opened',
 })
 
 /**
@@ -238,7 +246,43 @@ export const EVENT_SCHEMAS = Object.freeze({
     session: oneOf('premarket', 'open', 'after_close', 'closed'),
     created: bool,
   },
+  // Follow-up A (usage counting): which views, menu rows, doors, templates, blocks and panel rows members use. Every
+  // value is a fixed id; each enum is railed against the place its ids are defined (notebookUsage.test.js).
+  view_used: {
+    mode: oneOf('list', 'table', 'board', 'calendar', 'tasks', 'graph', 'timeline'),
+    via: oneOf('menu', 'saved_view', 'link'),
+  },
+  list_layout_used: {
+    layout: oneOf('rows', 'cards'),
+  },
+  menu_row_used: {
+    menu: oneOf('new', 'list_more', 'view', 'note_more', 'note_ai', 'format', 'plus_sheet'),
+    row: oneOf('blank', 'template', 'voice', 'import', 'reviews', 'review_daily', 'review_weekly', 'review_monthly', 'today_note', 'ask_notebook', 'journal_tools', 'export', 'remove_sample', 'my_tools', 'manage_templates', 'list', 'table', 'board', 'calendar', 'tasks', 'graph', 'timeline', 'rows', 'cards', 'more_views', 'save_view', 'saved_view', 'starter_views', 'rename_view', 'delete_view', 'ask_note', 'writing_help', 'font', 'font_pick', 'size', 'size_pick', 'color', 'quote', 'code', 'attach', 'divider', 'find', 'outline', 'history', 'duplicate', 'make_thesis', 'lock', 'archive', 'save_template', 'open_beside', 'trash', 'export_png', 'export_print', 'export_md', 'export_html', 'export_json', 'export_docx', 'quick_note', 'photo', 'help'),
+  },
+  today_door_used: {
+    door: oneOf('list_button', 'shortcut', 'phone_row', 'brief_start', 'brief_open', 'recap', 'journal_panel'),
+    created: bool,
+  },
+  template_started: {
+    source: oneOf('catalogue', 'note_type', 'own', 'library'),
+    family: oneOf('rituals', 'research', 'trades', 'mind', 'trade_plan', 'daily_prep', 'weekend_prep', 'earnings', 'earnings_followup', 'post_trade_review', 'weekly_review', 'thesis', 'watchlist_note', 'custom'),
+  },
+  // `kind`: the widget registry's ids (src/widgets/registry.js WIDGET_IDS) less `builtWidget`, a member-built widget,
+  // which is sent as 'custom'. Never a widget's name or params.
+  block_inserted: {
+    kind: oneOf('chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'indexes', 'marketcontext', 'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow', 'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter', 'tradeExchangeNews', 'researchLibrary', 'screener', 'cot', 'modelbook', 'tradeExchangeHeadline', 'myWatchlistToday', 'myNamesReporting', 'tickerCard', 'myPnlStats', 'myPositionsRisk', 'myRulesCheck', 'myMistakes', 'marketOnMyNames', 'tickerFlow', 'tradeRecap', 'myPnlCalendar', 'mySetupEdge', 'myScreenToday', 'roomBuzzOnMyNames', 'myEarningsReactions', 'myTiltCheck', 'myRevengeClean', 'myPlanVsActual', 'myRiskLeftToday', 'myPropFirm', 'myGamePlan', 'myAlertsFired', 'preEntryChecklist', 'priceStamps', 'positionSizing', 'sizeCalc', 'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn', 'routine', 'tracker', 'custom'),
+    via: oneOf('slash', 'palette', 'phone_plus'),
+  },
+  panel_row_used: {
+    row: oneOf('all_notes', 'daily_brief', 'favorites', 'recents', 'folder', 'tag', 'unfiled', 'archived', 'trash', 'playbook', 'search_tab'),
+  },
+  notebook_route_opened: {
+    route: oneOf('setups_board', 'playbook', 'research_page'),
+  },
 })
+
+/** Follow-up A: a menu row pressed. `row` is the id written where the row is defined (never its label). */
+export const trackMenuRow = (menu, row) => (row ? trackNotebookEvent(NOTEBOOK_EVENTS.MENU_ROW_USED, { menu, row }) : null)
 
 const KNOWN = new Set(Object.values(NOTEBOOK_EVENTS))
 

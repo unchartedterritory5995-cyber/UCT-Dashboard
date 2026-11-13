@@ -232,6 +232,11 @@ _J2_TELEMETRY_EVENTS = {
     # Audit 2026-11-05, S15 + S20 (the morning open): the Today home was opened, with the ET session it opened in
     # and whether that open made the day's note. Enums and bools only.
     "today_opened",
+    # Follow-up A (usage counting, 2026-11-13): which view, menu row, today door, template, block and panel row
+    # members use, and which side routes render. Fixed ids only, never a title, a ticker, a tag or a name; read by
+    # tools/notebook_usage_report.py. docs/notebook/simplify-2026-11-11-ledger.md, "Follow-up A".
+    "view_used", "list_layout_used", "menu_row_used", "today_door_used", "template_started", "block_inserted",
+    "panel_row_used", "notebook_route_opened",
 }
 
 # Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
@@ -381,6 +386,55 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
     "today_opened": {
         "session": ("premarket", "open", "after_close", "closed"),
         "created": "bool",
+    },
+    # Follow-up A. Each enum equals the client's (tests/test_notebook_telemetry_events.py parses it); the client
+    # rails each one against the place its ids are defined (app/.../lib/notebookUsage.test.js).
+    "view_used": {
+        "mode": ("list", "table", "board", "calendar", "tasks", "graph", "timeline"),
+        "via": ("menu", "saved_view", "link"),
+    },
+    "list_layout_used": {
+        "layout": ("rows", "cards"),
+    },
+    "menu_row_used": {
+        "menu": ("new", "list_more", "view", "note_more", "note_ai", "format", "plus_sheet"),
+        "row": ("blank", "template", "voice", "import", "reviews", "review_daily", "review_weekly", "review_monthly",
+                "today_note", "ask_notebook", "journal_tools", "export", "remove_sample", "my_tools",
+                "manage_templates", "list", "table", "board", "calendar", "tasks", "graph", "timeline", "rows",
+                "cards", "more_views", "save_view", "saved_view", "starter_views", "rename_view", "delete_view",
+                "ask_note", "writing_help", "font", "font_pick", "size", "size_pick", "color", "quote", "code",
+                "attach", "divider", "find", "outline", "history", "duplicate", "make_thesis", "lock", "archive",
+                "save_template", "open_beside", "trash", "export_png", "export_print", "export_md", "export_html",
+                "export_json", "export_docx", "quick_note", "photo", "help"),
+    },
+    "today_door_used": {
+        "door": ("list_button", "shortcut", "phone_row", "brief_start", "brief_open", "recap", "journal_panel"),
+        "created": "bool",
+    },
+    "template_started": {
+        "source": ("catalogue", "note_type", "own", "library"),
+        "family": ("rituals", "research", "trades", "mind", "trade_plan", "daily_prep", "weekend_prep", "earnings",
+                   "earnings_followup", "post_trade_review", "weekly_review", "thesis", "watchlist_note", "custom"),
+    },
+    "block_inserted": {
+        "kind": ("chart", "watchlist", "themes", "scanner", "fundamentals", "breadth", "indexes", "marketcontext",
+                 "aisearch", "news", "notebook", "profile", "alerts", "calendar", "optionsflow", "periodsort", "nhnl",
+                 "nhnlPulse", "volumescan", "scatter", "tradeExchangeNews", "researchLibrary", "screener", "cot",
+                 "modelbook", "tradeExchangeHeadline", "myWatchlistToday", "myNamesReporting", "tickerCard",
+                 "myPnlStats", "myPositionsRisk", "myRulesCheck", "myMistakes", "marketOnMyNames", "tickerFlow",
+                 "tradeRecap", "myPnlCalendar", "mySetupEdge", "myScreenToday", "roomBuzzOnMyNames",
+                 "myEarningsReactions", "myTiltCheck", "myRevengeClean", "myPlanVsActual", "myRiskLeftToday",
+                 "myPropFirm", "myGamePlan", "myAlertsFired", "preEntryChecklist", "priceStamps", "positionSizing",
+                 "sizeCalc", "myRules", "prepWire", "prepEarnings", "prepMovers", "prepLevels", "tradeReview",
+                 "moodCheckIn", "routine", "tracker", "custom"),
+        "via": ("slash", "palette", "phone_plus"),
+    },
+    "panel_row_used": {
+        "row": ("all_notes", "daily_brief", "favorites", "recents", "folder", "tag", "unfiled", "archived", "trash",
+                "playbook", "search_tab"),
+    },
+    "notebook_route_opened": {
+        "route": ("setups_board", "playbook", "research_page"),
     },
 }
 
