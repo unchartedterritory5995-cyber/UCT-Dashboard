@@ -522,6 +522,19 @@
    ],
    "fast": false
   },
+  "chartReplay.playback": {
+   "domain": "chartReplay",
+   "group": "chartReplay",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "chartSetup.autoScale": {
    "domain": "chartSetup",
    "group": "boardEdit",

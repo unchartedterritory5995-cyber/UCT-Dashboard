@@ -11088,6 +11088,56 @@
       ]
     },
     {
+      "id": "chartReplay.playback",
+      "source": "Charts family (pl-rp): the chart toolbar's Replay / Time Machine bar (start, play, pause, step, jump, speed, exit)",
+      "capabilities": [
+        "chartReplay.playback"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartReplay.playback"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartReplay.playback",
+            "target": "$charts[0]",
+            "args": {
+              "op": "enter",
+              "bars": null,
+              "date": null,
+              "speed": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "replay": {
+          "mode": true,
+          "playing": false,
+          "speed": 1
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "replay": {
+            "mode": false,
+            "playing": false,
+            "index": null
+          }
+        }
+      },
+      "phrasings": [
+        "start the bar replay",
+        "turn on the bar replay on this chart",
+        "open the replay bar",
+        "start the time machine on this chart"
+      ]
+    },
+    {
       "id": "chartSetup.setIndicatorsHidden",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [

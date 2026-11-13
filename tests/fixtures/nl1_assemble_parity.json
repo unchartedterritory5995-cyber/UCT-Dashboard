@@ -166,6 +166,7 @@
   "chartMenu.resetWatermark": "chartMenu",
   "chartFeatures.companyPanel": "chartFeatures",
   "chartFeatures.earningsStrip": "chartFeatures",
+  "chartReplay.playback": "chartReplay",
   "drawing.positionCalculator": "drawingExtras",
   "drawing.saveDefaults": "drawingExtras",
   "drawing.favoriteTool": "drawingExtras",
@@ -325,6 +326,10 @@
   {
    "id": "periodSort",
    "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+  },
+  {
+   "id": "chartReplay",
+   "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
   }
  ],
  "cases": [
@@ -508,6 +513,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -709,6 +718,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -924,6 +937,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -1149,6 +1166,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -1346,6 +1367,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -1392,7 +1417,8 @@
     "watchlistShow",
     "guide",
     "chartView",
-    "periodSort"
+    "periodSort",
+    "chartReplay"
    ],
    "names": [
     "chart.setType",
@@ -1554,6 +1580,7 @@
     "chartMenu.resetWatermark",
     "chartFeatures.companyPanel",
     "chartFeatures.earningsStrip",
+    "chartReplay.playback",
     "drawing.positionCalculator",
     "drawing.saveDefaults",
     "drawing.favoriteTool",
