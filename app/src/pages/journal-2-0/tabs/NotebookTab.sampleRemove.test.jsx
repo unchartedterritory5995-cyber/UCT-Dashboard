@@ -74,6 +74,19 @@ describe('Remove the sample notebook, from the notes list', () => {
     expect(await screen.findByRole('menuitem', { name: SAMPLE_COPY.removeRow })).toBeInTheDocument()
   })
 
+  // Final fix (C3): on a phone the menu is a dozen rows; the removal row sits above "Journal tools", not last.
+  it('the removal row comes before "Journal tools" in the menu', async () => {
+    await renderTab()
+    const menu = await openMore()
+    await screen.findByRole('menuitem', { name: SAMPLE_COPY.removeRow })
+    const names = within(menu).getAllByRole('menuitem').map((el) => el.textContent.trim())
+    const remove = names.indexOf(SAMPLE_COPY.removeRow)
+    const tools = names.indexOf('Journal tools')
+    expect(tools, 'non-vacuity: the Journal tools row is in the menu').toBeGreaterThan(-1)
+    expect(remove).toBeGreaterThan(-1)
+    expect(remove).toBeLessThan(tools)
+  })
+
   it('the row is not offered once the sample is gone (no active ids)', async () => {
     S.active = []
     await renderTab()

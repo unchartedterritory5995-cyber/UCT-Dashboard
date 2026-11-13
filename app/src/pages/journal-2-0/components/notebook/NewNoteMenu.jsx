@@ -3,7 +3,7 @@
 // ways to start a note. S11 (audit 2026-11-05) moved the notes list's toolbar menus onto the same engine, and go-live
 // wave 1 deleted the split button itself with Research home. What is left is used by the list's View, New and More
 // menus (tabs/NotebookTab.jsx), the note's "AI" and "Aa" menus and the saved views group.
-import { Fragment, useRef, useState, useEffect } from 'react'
+import { Fragment, useRef, useState, useEffect, useLayoutEffect } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './NewNoteMenu.module.css'
 
@@ -17,6 +17,18 @@ export function useMenuButton() {
   const menuRef = useRef(null)
   // Which item an ArrowDown / ArrowUp on the trigger asked for; read once, when the menu opens.
   const wantLast = useRef(false)
+
+  // Final fix (C3): the room from the open menu's top to the foot of the window, as `--menu-room` on the menu. On a
+  // phone the menu's height is held to it, less the floating "+" (NewNoteMenu.module.css), and the rows scroll inside
+  // it: the list's ⋯ menu is a dozen rows, and its last ones sat under the "+" or past the screen's end. A layout
+  // effect, so the first frame of the open menu is already the right height. Arrow keys focus a row, and focusing a
+  // row scrolls it into view inside the menu.
+  useLayoutEffect(() => {
+    const el = menuRef.current
+    if (!open || !el) return
+    const top = el.getBoundingClientRect().top
+    el.style.setProperty('--menu-room', `${Math.max(0, Math.round(window.innerHeight - top))}px`)
+  }, [open])
 
   useEffect(() => {
     if (!open) return undefined

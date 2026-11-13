@@ -56,6 +56,15 @@
     left: 0;
     right: auto;
     max-width: calc(100vw - 32px);
+    /* Final fix (C3): no taller than the room below its top (`--menu-room`, set by useMenuButton when it opens) less
+       the floating "+" (56 px at 16 px from the foot, NotebookPlusFab.module.css) and a gap: 48 + 32 = 80 px of
+       clearance. Never under three rows. The rows scroll inside the menu. */
+    max-height: max(calc(var(--menu-room, 100dvh) - var(--space-3xl) - var(--space-2xl) - env(safe-area-inset-bottom, 0px)), calc(var(--tap-min) * 3));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .menu > * {
+    flex-shrink: 0;
   }
 }
 
