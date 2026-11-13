@@ -660,8 +660,8 @@ export const FAQS = [
     topic: 'notebook',
     q: 'How do I export my notes, and what does each format keep?',
     keywords: 'export download backup markdown html web page json word docx pdf print zip formats leave',
-    a: <>Choose <strong>Export</strong> in the Notebook's toolbar to download every note as one zip,
-      in the format you pick:
+    a: <>Open the notes list's <strong>More</strong> menu and choose <strong>Export</strong> to download every
+      note as one zip, in the format you pick:
       <ul>
         <li><strong>Markdown</strong> — plain-text files with your folders, tags and attachments.
           Opens in Obsidian and any Markdown app, and imports back into UCT.</li>
@@ -672,8 +672,8 @@ export const FAQS = [
         <li><strong>Word (.docx)</strong> — headings, lists, tables and images as Word's own;
           anything Word has no match for becomes plain text.</li>
       </ul>
-      For one note, use the <strong>Export</strong> menu in the note's toolbar. For a PDF, open
-      <strong> Export</strong>, choose <strong>Print</strong>, then Save as PDF.</>,
+      For one note, open the note's <strong>More</strong> menu, then <strong>Export</strong>. For a
+      PDF, choose <strong>Print</strong> there, then Save as PDF.</>,
   },
   {
     id: 'notebook-offline-conflicted-copies',
