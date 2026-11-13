@@ -13,8 +13,12 @@ safety net.
 **Shipped DARK.** `PINE_RUNTIME_CAPABILITY_ADMISSION` defaults to `off` and is ledgered `dark` in
 `docs/feature_flags.json`. With it off, every answer is the one before Part 2 (proof below).
 
-This document reflects the coordinator's rulings and the CHANGES-REQUIRED review of PR #1204
-(head 3799bb8ab5): B1, C1, C2, C3, the evidence-quality ruling, the endpoint notes and the D note.
+This document reflects:
+- the coordinator's rulings;
+- the CHANGES-REQUIRED review of PR #1204 at head 3799bb8ab5: B1, C1, C2, C3, the
+  evidence-quality ruling, the endpoint notes and the D note;
+- the re-verify at 4e30752e41: the serving cost with the flag on, and the evidence-classifier
+  hardening.
 
 ## What was built
 
@@ -25,7 +29,9 @@ This document reflects the coordinator's rulings and the CHANGES-REQUIRED review
 | **LINEAR (B1).** `conditional-ta` is a line scan (`conditional_ta_in`, with a stack of open block indents). Every line-anchored FEATURES row opens with a possessive `^[ \t]*+`. Wrapped lines are folded first (`join_continuations`, C2). | same |
 | Registry rule: `admitted: true` + `status: conformant` + at least 2 captures from at least 2 DISTINCT script families, at least one of them a COMMUNITY script. Each entry is `{capture, script, community, verdict: MATCH, runtimePane: on}`. An `obj:*` entry also needs `objectsV2: MATCH` + `objectsLane: runtime`. | `api/services/rollout_gate.py::pine_capability_admission`, `pine_evidence_script` |
 | `capability_admitted(source) -> (ok, missing)`; `admitted_capabilities()`; `capability_admission_on()` (read per call; only `on` is on); `PINE_RUNTIME_CAPABILITY_DENY` (subtract-only) | `api/services/runtime_definitions.py` |
-| `not_graded` admits by capability while ON (never with `graded_only`). `stamp_served`, the save door and `allow_report` therefore follow. `server_lane_refusal` stays per-script. | same |
+| `not_graded` admits by capability while ON (never with `graded_only`). `stamp_served`, the save door and `allow_report` therefore follow. `server_lanes_refusal` stays per-script. | same |
+| **Serving cost (re-verify).** Each source's capability set is computed ONCE and PERSISTED (`runtime_capabilities` in user_definitions.db: source sha256, `pine_capabilities.DETECTOR_VERSION`, the ids; no member identifier). It is written at the save door (flag on) and backfilled on first serve. In front of it sits a TRUE LRU (4096), a fallback only. A request does at most `DETECTOR_RUNS_PER_REQUEST` = 8 fresh detector runs, and starts none after `DETECTOR_SECONDS_PER_REQUEST` = 0.3 s of detector time. A row past the budget is served fail-closed ("still being checked") and fills on a later request. History asks the capability question of the LATEST version only. The verdict door computes but stores nothing (`persist=False`). With the flag OFF, none of this runs and the table is never created. | `api/services/runtime_definitions.py` (`capabilities_for`, `DetectorBudget`), `api/routers/user_definitions.py` (list, history) |
+| `DETECTOR_VERSION` + `detector_fingerprint()`: a sha256 over every FEATURES row, the vocabulary, every compiled pattern, the namespaces, the cap and the repaint rule table. The rail is red while the recorded fingerprint and the version disagree, so a changed regex can never be served from sets an older detector computed. | `api/services/pine_capabilities.py` |
 | `POST /api/user-definitions/runtime-admission {source} -> {sha256, admitted, missing}`. Paid-only. **Rate-limited per member: `RUNTIME_ADMISSION_MAX_PER_MINUTE` = 60/min** (`_charge_runtime_admission`, charged before any work). At most 128 KiB UTF-8 (413). The body is any JSON, checked by hand, so a non-object body or a script is never echoed. Stores nothing and never logs. **With the flag OFF it answers `{admitted: false, missing: []}` without running the detector.** `GET /runtime-kill` carries `capability_admission: true` ONLY while the flag is on. | `api/routers/user_definitions.py` |
 | Per-hash verdicts: LRU 64; re-asked after 60 s by a consult that holds the source; latched only under the script's own hash; fails closed with its own "still being checked" sentence; allowlist first; the lists' re-read carries the switch. | `app/src/components/chart/engine/runtimeKill.js` |
 | MemberPane latches the switch from the kill read, asks for the verdict once the source has been still for 250 ms, and rebuilds via `killVersion`. | `app/src/components/chart/builder/memberPane/MemberPane.jsx` |
@@ -215,6 +221,55 @@ purpose:
 Nothing else was lost. The A6 census snapshot was regenerated, and the detector never names fewer
 capabilities than the census, except the over-cap scripts, which are admitted as nothing.
 
+## Serving cost with the flag ON (re-verify of #1204 at 4e30752e41)
+
+**Before.** The reviewer measured these, all flag ON:
+- `stamp_served` over 200 near-128 KiB rows: 53 s cold;
+- 300 rows: 79 s, then 87 s on the second pass (the 256-entry FIFO missed every source again);
+- history stamped every stored version; the list stamped up to 50 rows (about 13 s cold);
+- the cache was process-wide.
+
+**After** (`serve_timings.py`, kept with the run notes; 100 KB sources):
+
+| case | time |
+|---|---:|
+| list, 50 near-cap rows, cold, flag ON (server-lane stamp held still, below) | **0.53 s** (filled after 24 requests; warm 0.12 s) |
+| `stamp_served` 200 rows with one request budget: cold / second pass | 0.76 s / 0.68 s |
+| `stamp_served` 300 rows with one request budget: cold / second pass | 0.84 s / 0.84 s |
+| verdict-door path (LRU, nothing stored), 300 near-cap sources: first / second pass | 51.4 s / **0.03 s** |
+| history, 300 versions, cold | under 1 s (rail), 1 detector run |
+
+**The rails** in `tests/test_pine_capability_admission.py`, all flag ON:
+- SERVE list: 50 near-cap rows, cold, under 1 s; at most 8 runs; the rest are served "still being
+  checked"; they fill on later requests; each source is computed exactly once.
+- SERVE history: 300 versions under 1 s, with exactly 1 detector run.
+- SERVE sweep: 300 sources twice; the second pass takes at most 1/4 of the first.
+- Also railed: the true-LRU eviction order; the budget's run and time limits; a row saved with the
+  flag on is never re-run on the hot path; a set stored by an older `DETECTOR_VERSION` is
+  recomputed; the fingerprint.
+
+Mutants S1-S8 are below.
+
+**Pre-existing master cost, not admission (reported, not changed here).** With the flag OFF, the
+list endpoint over the same 50 near-cap runtime rows takes **9.7 s**:
+- The cost is `svc.server_lanes_stamp`: `server_lane_composition` calls `request_reads`, which
+  calls `runtime_repaint_of`, three lexer runs per runtime row (150 calls).
+- It is master code, unrelated to this flag, which is why the list rail holds it still.
+- **FOLLOW-UP:** persist `request_reads` per source sha256, on the same pattern as the capability
+  sets.
+
+**Evidence classifier hardening.**
+- `PINE_PROBE_PREFIXES` = `uctprobe`, `vw-`, `probe-`, `uct-`, compared lowercased on the title or
+  the capture id.
+- Variant suffixes: `v<n>` / NEG / POS / ALT after `_`, `-` or a space.
+- These now classify as ours, not community:
+  - `probe-default-colour-v3/v4/v6` and `probe-sparse-rows`;
+  - the legacy `uct-dmi`, `rsi-atr`, `sma-ema`, `hma-macd`, `rma-wma` and `stoch-parity-v1`
+    captures;
+  - `UCTPROBE L1 library import`.
+- Railed. Re-derived: `runs/evidence.json` and the registry are byte-identical, so **no admitted
+  capability changes**. None of those captures is runtime-lane evidence.
+
 ## C2 / C3 / endpoint
 
 - **C2.** `join_continuations` folds Pine's wrapped lines before scanning: a line where `(` or `[`
@@ -261,7 +316,7 @@ The method:
 `.pyc` files are cleared and `PYTHONDONTWRITEBYTECODE=1` is set. C0 (no edit) is green for every
 set. The record is `runs/mutants.json`.
 
-Run at `549deeb910`. 38 mutants, all KILLED; C0 green for each of the three sets.
+Sets 1-3 ran at `549deeb910` (38 mutants); set 4 (S1-S8, serving cost) ran at `f344fbd526`. 46 mutants in all, every one KILLED; C0 green for every set.
 
 | id | mutant | killed by |
 |---|---|---|
@@ -291,6 +346,14 @@ Run at `549deeb910`. 38 mutants, all KILLED; C0 green for each of the three sets
 | C3a / C3b | an unreadable source is not `unreadable` / an id outside the vocabulary is not missing | C3 rails |
 | E1 / E2 | scripts counted per capture, not family / no community script required | A1 (evidence quality) |
 | E3 / E4 | evidence calls a probe a community script / names a probe variant as its own script (data) | A8 |
+| S1 | the FIFO cache restored (256, no touch on a hit) | SERVE sweep (second pass not faster) |
+| S2 | history stamps every version with the capability question | SERVE history (8 runs, not 1) |
+| S3 | the list has no detector budget | SERVE list (over 1 s; more than 8 runs) |
+| S4 | a computed set is not persisted | SERVE saved row (re-run on the hot path) |
+| S5 | a stored set is read whatever detector computed it | SERVE older detector |
+| S6 | the budget ignores time | SERVE budget |
+| S7 | probe- and uct- captures read as community | EVIDENCE classifier |
+| S8 | the detector changes without a version bump | SERVE fingerprint |
 
 
 ## Not built here (follow-ups)
@@ -300,6 +363,8 @@ Run at `549deeb910`. 38 mutants, all KILLED; C0 green for each of the three sets
   refusals should ride on it.
 - **Per-built-in evidence for `core`** (see C1 above).
 - **A scheduled REACH re-measure** (see above).
+- **Persist `request_reads` per source.** The server-lane stamp's pre-existing 9.7 s on 50
+  near-cap rows (see Serving cost).
 - **Naming each undrawn fill by title** (D note; needs an engine bump).
 - **The chart outside MemberPane.** It latches the switch and the verdicts only after a MemberPane
   kill read in that tab, exactly as the allowlist does today.

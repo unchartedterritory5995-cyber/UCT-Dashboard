@@ -623,5 +623,137 @@
    "restoredBlobMatches": true
   }
  ],
- "note": "reviewFixes pass 1 (at b2bda92601): B1c SURVIVED (the rail used a raising stub that capability_admitted swallows); the rail now spies on the detector; pass 2 kills all."
+ "note": "reviewFixes pass 1 (at b2bda92601): B1c SURVIVED (the rail used a raising stub that capability_admitted swallows); the rail now spies on the detector; pass 2 kills all.",
+ "servingCost": {
+  "ranAt": "f344fbd526",
+  "results": [
+   {
+    "id": "C0",
+    "mutant": "no edit (control)",
+    "runs": {
+     "tests/test_pine_capability_admission.py::EVIDENCE": [
+      0,
+      "16 passed, 82 deselected in 4.38s"
+     ],
+     "tests/test_pine_capability_admission.py::SERVE": [
+      0,
+      "10 passed, 88 deselected in 24.00s"
+     ],
+     "tests/test_pine_capability_admission.py::SERVE_a_saved_row": [
+      0,
+      "1 passed, 97 deselected in 1.30s"
+     ],
+     "tests/test_pine_capability_admission.py::SERVE_a_set_from_an_older": [
+      0,
+      "1 passed, 97 deselected in 1.38s"
+     ],
+     "tests/test_pine_capability_admission.py::SERVE_history": [
+      0,
+      "1 passed, 97 deselected in 2.05s"
+     ],
+     "tests/test_pine_capability_admission.py::SERVE_the_budget": [
+      0,
+      "1 passed, 97 deselected in 1.28s"
+     ],
+     "tests/test_pine_capability_admission.py::SERVE_the_list": [
+      0,
+      "1 passed, 97 deselected in 16.92s"
+     ],
+     "tests/test_pine_capability_admission.py::detector_version_moves": [
+      0,
+      "1 passed, 97 deselected in 1.22s"
+     ]
+    },
+    "green": true
+   },
+   {
+    "id": "S1",
+    "mutant": "the FIFO cache restored (256, no touch on a hit)",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 6 passed, 88 deselected in 21.05s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "S2",
+    "mutant": "history stamps every version with the capability question",
+    "file": "api/routers/user_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 97 deselected in 2.67s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "S3",
+    "mutant": "the list has no detector budget",
+    "file": "api/routers/user_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 97 deselected in 11.68s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "S4",
+    "mutant": "a computed set is not persisted",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 97 deselected in 1.51s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "S5",
+    "mutant": "a stored set is read whatever detector computed it",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 97 deselected in 1.29s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "S6",
+    "mutant": "the budget ignores time",
+    "file": "api/services/runtime_definitions.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 97 deselected in 1.79s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "S7",
+    "mutant": "probe- and uct- captures read as community",
+    "file": "api/services/rollout_gate.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 4 passed, 82 deselected in 3.76s"
+    ],
+    "restoredBlobMatches": true
+   },
+   {
+    "id": "S8",
+    "mutant": "the detector changes without a version bump",
+    "file": "api/services/pine_capabilities.py",
+    "killed": true,
+    "run": [
+     1,
+     "1 failed, 97 deselected in 1.44s"
+    ],
+    "restoredBlobMatches": true
+   }
+  ]
+ }
 }
