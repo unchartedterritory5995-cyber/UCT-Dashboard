@@ -42,6 +42,10 @@ take the runtime lane), (2) is graded MATCH runtime-on, (3) whose script uses th
 in the whole run are `atr-support-and-resistance-{rddt,spy}` INCONCLUSIVE -> MATCH, host lane, used
 as evidence for nothing). Full table: `runs/evidence.json`.
 
+**THE ONE RULE (coordinator ruling 2026-11-13), applied to every capability with no exception in
+either direction:** >= 2 MATCH captures from >= 2 scripts, drawn by the runtime lane; an `obj:*`
+family also needs objects v2 runtime-on MATCH with the run drawing it.
+
 | capability | captures / scripts | admitted |
 |---|---:|---|
 | core | 26 / 18 | YES |
@@ -53,16 +57,16 @@ as evidence for nothing). Full table: `runs/evidence.json`.
 | fn-multi | 19 / 12 | YES |
 | for | 12 / 8 | YES |
 | compound-assign | 7 / 5 | YES |
+| while | 4 / 3 (Renko Candles Overlay, UCTPROBE_VW_FORIN_COLLECTIONS, UCTPROBE_VW_LOOP_IN_BLOCK) | YES (ruling) |
+| typed-array | 4 / 3 (Kalman Price Filter, vw-h4-loops, UCTPROBE_VW_FORIN_COLLECTIONS) | YES (ruling) |
+| method-call | 4 / 3 (AlgoAlpha Trend Targets, UCTPROBE_VW_INT_ARRAY_AVG, UCTPROBE_VW_INT_ARRAY_AVG_NEG) | YES (ruling) |
 | history-expr | 3 / 2 (D-RSI, Wyckoff) | YES |
 | tuple-destructure | 3 / 2 (D-RSI, AlgoAlpha Trend Targets) | YES |
-| switch | 2 / 1 | NO: 1 script (fibonacci-dolphintradebot) |
-| while | 4 / 3 | NO by instruction (plan: 1 script; now renko, vw-forin, vw-loop-in-block). Owner call |
-| typed-array | 4 / 3 | NO by instruction (plan: 1 script; now kalman, vw-h4-loops, vw-forin). Owner call |
-| max_bars_back | 4 / 2 | NO by instruction |
-| conditional-ta | 7 / 4 | NO: `divergent` (R4); 1 runtime-drawn DIVERGE (vw-deadband-ticks-brk-a) |
+| generics | 2 / 2 (UCTPROBE_VW_INT_ARRAY_AVG, UCTPROBE_VW_INT_ARRAY_AVG_NEG) | YES (ruling) |
+| switch | 2 / 1 | NO: one script (fibonacci-dolphintradebot) |
+| max_bars_back | 4 / 2 | NO (ruling) |
+| conditional-ta | 7 / 4 | NO: `divergent` (R4); one runtime-drawn DIVERGE (vw-deadband-ticks-brk-a) |
 | obj:line / label / box / delete / collection / getter / linefill | 13/8, 11/8, 5/3, 9/5, 5/3, 3/3, 2/1 | NO: v1 only, no objects v2 runtime-on MATCH (engine 54's rail) |
-| method-call | 4 / 3 | NO: outside the plan's table. Owner call |
-| generics | 2 / 2 | NO: outside the plan's table. Owner call |
 | realtime-state, calc-bars | 5/4, 2/1 | NO: runtime-only ids; a historical capture does not grade them |
 | table, polyline, varip, request-other, for-in, udt, method-def, enum, import, strategy-decl, library-decl | 0-1 | NO |
 
@@ -75,29 +79,40 @@ The test asserts its control: no NOT-admitted script reaches the runtime lane (0
 
 | population | scripts | admitted | runtime-lane picture | host lane | refused | core only |
 |---|---:|---:|---:|---:|---:|---:|
-| committed | 266 | 26 | 7 | 17 | 2 | 4 |
+| committed | 266 | 28 | 8 | 17 | 3 | 4 |
 | reference | 271 | 64 | 5 | 50 | 9 | 7 |
 | builtin | 142 | 51 | 4 | 42 | 5 | 30 |
-| **corpus** | **679** | **141** | **16** | 109 | 16 | 41 |
-| vendor captures | 369 | 136 | 12 | 81 | 43 | 31 |
+| **corpus** | **679** | **143** | **17** | 109 | 17 | 41 |
+| vendor captures | 369 | 140 | 16 | 81 | 43 | 31 |
+
+(First pass, before the ruling admitted while/typed-array/method-call/generics: corpus 141 admitted,
+16 runtime lane; captures 136 / 12.)
 
 "Admitted" is mostly scripts the host lane already draws; admission changes a member's picture only
 for the runtime-lane column (and DIV-4 run colours on a host document).
 
-**The 12 admitted captures the runtime lane draws, production -> runtime-on:** adx-and-di-for-v4 x2,
-delta-rsi rddt, h3-alma-v4 x2, r1-strategy-draws-indicator, vw-var-seed: INCONCLUSIVE -> MATCH (7);
-atr-stepped-pdf-ma-loxx, cc-yata, delta-rsi spy, fvg-trend, nadaraya-watson: INCONCLUSIVE ->
-INCONCLUSIVE (5). **No DIVERGE. No capture anywhere moves MATCH -> DIVERGE** (fresh production vs
-fresh runtime-on, all 364 graded captures).
+### THE REACH RULE: no capture drawn by the runtime lane may DIVERGE, and no capture may move MATCH->DIVERGE
 
-**Admitted but ungraded (no capture of that source): 121** (95 host lane, 16 refused, 10 runtime
+Coordinator ruling 2026-11-13. Railed by `tests/test_pine_capability_admission.py` (REACH: over the
+committed reach run `runs/report.json` and the committed harness snapshots of BOTH lanes,
+`docs/pine/vendor-harness/{production,runtime-on}/verdicts.json`, refreshed here from the
+`5885720335` runs by the corpus writer) and `capabilityEvidenceLane.test.js` (re-asks the door for
+the lane of every admitted capture, so the report's lanes are the door's). Mutants R1-R4 below.
+
+**The 16 admitted captures the runtime lane draws, production -> runtime-on:** adx-and-di-for-v4 x2,
+delta-rsi rddt, h3-alma-v4 x2, kalman-price-filter, r1-strategy-draws-indicator, vw-h4-loops x2,
+vw-var-seed: INCONCLUSIVE -> MATCH (10); atr-stepped-pdf-ma-loxx, cc-yata, delta-rsi spy, fvg-trend,
+nadaraya-watson, vw-array-na: INCONCLUSIVE -> INCONCLUSIVE (6). **No runtime-lane DIVERGE. 0
+captures move MATCH -> DIVERGE** (all 364 graded captures). Nothing had to be dropped.
+
+**Admitted but ungraded (no capture of that source): 122** (95 host lane, 17 refused, 10 runtime
 lane). The 10 that would newly draw bar by bar with no capture of their own:
 committed one-sided-gaussian-support-resistance-rate-loxx; reference heatmap-volume-xdecow,
 kaufman-adaptive-bands, laguerre-rsi-v4-lk, parabolic-sar-alerts-on-close-quantnomad,
 twiggs-money-flow-lazybear; builtin fisher-transform, mcginley-dynamic,
 time-weighted-average-price, williams-fractal.
 
-### STOP candidates: 6 admitted captures DIVERGE runtime-on, all HOST lane
+**Host-drawn DIVERGEs among admitted captures (not stops: the production picture, unchanged):**
 
 | capture | caps | production | runtime-on | same picture both lanes? |
 |---|---|---|---|---|
@@ -107,13 +122,6 @@ time-weighted-average-price, williams-fractal.
 | vw-nvi-pvi-spy-truncated | core, ternary | DIVERGE | DIVERGE | identical |
 | vw-rt6-runtime-colour-rddt | core, if-block, reassign, ternary, var | DIVERGE | DIVERGE | plots identical; paints DIVERGE -> MATCH (DIV-4 run colour now agrees) |
 | vw-rt6-runtime-colour-spy | same | DIVERGE | DIVERGE | same |
-
-None is drawn by the runtime lane, and with admission on each shows exactly the production picture
-(the only change, rt6's barcolor, goes from withheld to agreeing). Read literally ("any admitted
-script whose own capture DIVERGEs is a STOP; do not admit the capability that let it in"), the
-capabilities that "let them in" are `core` and `ternary`, and withholding those admits nothing at
-all. **Not applied; reported for the owner's ruling.** The flag stays dark, so no member sees any of
-it until that ruling.
 
 ## Flag OFF is byte-identical to master
 
@@ -131,7 +139,7 @@ it until that ruling.
 4. `coverage_map.usage_of` after the move equals the pre-move function on all 679 scripts (and
    `FEATURES`, `STRATEGY_ORDERS` equal).
 
-## Mutants (`runs/mutants.json`, run at `4b2fdf75e4`, after the master merge)
+## Mutants (`runs/mutants.json`, run at `9e93df7e56`, after the second master merge; C0 green for both sets)
 
 Method: copy the file, edit, run the focused tests, restore FROM THE SAVED COPY, then `git
 hash-object` == the committed blob (every one matched). `.pyc` cleared, `PYTHONDONTWRITEBYTECODE=1`.
@@ -158,8 +166,12 @@ C0 (no edit): every focused run GREEN.
 | C4 | client: verdicts unbounded | same |
 | C5 | client: the lists' re-read drops the switch-off | same |
 | L1 | evidence names a capture the HOST lane drew (data) | capabilityEvidenceLane.test.js |
+| R1 | a capture the runtime lane draws is graded DIVERGE (data, runtime-on snapshot) | REACH |
+| R2 | a capture moves MATCH -> DIVERGE (data, production snapshot) | REACH |
+| R3 | the reach run records a runtime-drawn capture as host (data) | capabilityEvidenceLane.test.js (lane re-ask) |
+| R4 | the reach run drops an admitted capture (data) | REACH |
 
-All 19 KILLED.
+All 23 KILLED.
 
 ## Not built here (Before Part 2 notes, carried)
 
@@ -167,7 +179,12 @@ All 19 KILLED.
   in that tab, exactly as the allowlist does today; a stored RUNTIME row is served by the server's
   stamp and does not wait on it, but DIV-4 run colours on a saved `ast` document read the tab's
   verdict and stay refused (host colours) until one is latched. Fail closed.
-- Rail-refusal telemetry per script hash (Before Part 2 item d) is not added.
+- Rail-refusal telemetry per script hash (Before Part 2 item d): FOLLOW-UP, not in this PR by
+  coordinator ruling; engine 54 (PR #1202) builds run-half refusal telemetry, and capability
+  admission's refusals should ride it.
 - Pre-existing, not this slice: the member door took 32 s on one corpus script in the admission
-  measurement (p50 19 ms, p95 468 ms); the `catch (e)` unused-variable lint error at `MemberPane.jsx:266` (the same line on master) and
-  `reachable.test.js` "connected to nothing" (5 files, none from this slice) are red on master too.
+  measurement (p50 19 ms, p95 468 ms); the `catch (e)` unused-variable lint error at `MemberPane.jsx:266` and `reachable.test.js`
+  "connected to nothing" are red on master too: CONFIRMED by swapping origin/master's copies of this
+  PR's `app/src` files in (MemberPane.jsx, runtimeKill.js; the three new test files removed): eslint
+  reports the same error at master's line 240 and reachable fails the same test; every file then
+  restored from the saved copy, `git hash-object` == HEAD blob.

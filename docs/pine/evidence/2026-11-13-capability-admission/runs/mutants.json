@@ -1,5 +1,5 @@
 {
- "ranAt": "4b2fdf75e4",
+ "ranAt": "9e93df7e56",
  "results": [
   {
    "id": "C0",
@@ -8,73 +8,73 @@
     "js:src/components/chart/engine/__tests__/runtimeCapabilityAdmission.test.js:None": [
      [
       0,
-      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m17 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+      "      Tests  17 passed (17)"
      ]
     ],
     "js:src/components/chart/engine/__tests__/vendorHarness/capabilityEvidenceLane.test.js:None": [
      [
       0,
-      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m28 passed\u001b[39m\u001b[22m\u001b[90m (28)\u001b[39m"
+      "      Tests  169 passed (169)"
      ]
     ],
     "py:tests/test_pine_capabilities.py:A6": [
      [
       0,
-      "3 passed, 34 deselected in 8.07s"
+      "3 passed, 34 deselected in 9.61s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A1": [
      [
       0,
-      "17 passed, 45 deselected in 1.13s"
+      "17 passed, 48 deselected in 1.29s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A2": [
      [
       0,
-      "4 passed, 58 deselected in 1.17s"
+      "4 passed, 61 deselected in 1.30s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A3": [
      [
       0,
-      "2 passed, 60 deselected in 1.01s"
+      "2 passed, 63 deselected in 1.31s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A4": [
      [
       0,
-      "1 passed, 61 deselected in 1.15s"
+      "1 passed, 64 deselected in 1.17s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A5": [
      [
       0,
-      "7 passed, 55 deselected in 1.19s"
+      "7 passed, 58 deselected in 1.14s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A7": [
      [
       0,
-      "4 passed, 58 deselected in 1.13s"
+      "4 passed, 61 deselected in 1.11s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A8": [
      [
       0,
-      "2 passed, 60 deselected in 2.68s"
+      "2 passed, 63 deselected in 2.98s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:A9": [
      [
       0,
-      "1 passed, 61 deselected in 1.14s"
+      "1 passed, 64 deselected in 1.36s"
      ]
     ],
     "py:tests/test_pine_capability_admission.py:OFF": [
      [
       0,
-      "11 passed, 51 deselected in 1.37s"
+      "11 passed, 54 deselected in 1.44s"
      ]
     ]
    },
@@ -88,7 +88,7 @@
    "runs": [
     [
      1,
-     "1 failed, 3 passed, 45 deselected in 1.24s"
+     "1 failed, 3 passed, 48 deselected in 1.52s"
     ]
    ],
    "restoredBlobMatches": true
@@ -101,7 +101,7 @@
    "runs": [
     [
      1,
-     "1 failed, 6 passed, 45 deselected in 1.21s"
+     "1 failed, 6 passed, 48 deselected in 1.54s"
     ]
    ],
    "restoredBlobMatches": true
@@ -114,7 +114,7 @@
    "runs": [
     [
      1,
-     "1 failed, 58 deselected in 1.27s"
+     "1 failed, 61 deselected in 1.55s"
     ]
    ],
    "restoredBlobMatches": true
@@ -127,7 +127,7 @@
    "runs": [
     [
      1,
-     "1 failed, 60 deselected in 1.17s"
+     "1 failed, 63 deselected in 1.35s"
     ]
    ],
    "restoredBlobMatches": true
@@ -140,7 +140,7 @@
    "runs": [
     [
      1,
-     "1 failed, 61 deselected in 1.17s"
+     "1 failed, 64 deselected in 1.67s"
     ]
    ],
    "restoredBlobMatches": true
@@ -153,7 +153,7 @@
    "runs": [
     [
      1,
-     "1 failed, 55 deselected in 1.15s"
+     "1 failed, 58 deselected in 1.55s"
     ]
    ],
    "restoredBlobMatches": true
@@ -166,7 +166,7 @@
    "runs": [
     [
      1,
-     "1 failed, 34 deselected in 7.72s"
+     "1 failed, 34 deselected in 8.69s"
     ]
    ],
    "restoredBlobMatches": true
@@ -179,7 +179,7 @@
    "runs": [
     [
      1,
-     "1 failed, 34 deselected in 8.25s"
+     "1 failed, 34 deselected in 7.65s"
     ]
    ],
    "restoredBlobMatches": true
@@ -192,7 +192,7 @@
    "runs": [
     [
      1,
-     "1 failed, 58 deselected in 1.40s"
+     "1 failed, 61 deselected in 1.31s"
     ]
    ],
    "restoredBlobMatches": true
@@ -205,7 +205,7 @@
    "runs": [
     [
      1,
-     "1 failed, 60 deselected in 2.67s"
+     "1 failed, 63 deselected in 3.26s"
     ]
    ],
    "restoredBlobMatches": true
@@ -218,7 +218,7 @@
    "runs": [
     [
      1,
-     "1 failed, 61 deselected in 1.31s"
+     "1 failed, 64 deselected in 1.59s"
     ]
    ],
    "restoredBlobMatches": true
@@ -231,7 +231,7 @@
    "runs": [
     [
      1,
-     "1 failed, 8 passed, 51 deselected in 1.61s"
+     "1 failed, 8 passed, 54 deselected in 2.04s"
     ]
    ],
    "restoredBlobMatches": true
@@ -244,7 +244,7 @@
    "runs": [
     [
      1,
-     "1 failed, 3 passed, 51 deselected in 1.63s"
+     "1 failed, 3 passed, 54 deselected in 3.17s"
     ]
    ],
    "restoredBlobMatches": true
@@ -257,7 +257,7 @@
    "runs": [
     [
      1,
-     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m2 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+     "      Tests  2 failed | 15 passed (17)"
     ]
    ],
    "restoredBlobMatches": true
@@ -270,7 +270,7 @@
    "runs": [
     [
      1,
-     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+     "      Tests  1 failed | 16 passed (17)"
     ]
    ],
    "restoredBlobMatches": true
@@ -283,7 +283,7 @@
    "runs": [
     [
      1,
-     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m2 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+     "      Tests  2 failed | 15 passed (17)"
     ]
    ],
    "restoredBlobMatches": true
@@ -296,7 +296,7 @@
    "runs": [
     [
      1,
-     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+     "      Tests  1 failed | 16 passed (17)"
     ]
    ],
    "restoredBlobMatches": true
@@ -309,7 +309,7 @@
    "runs": [
     [
      1,
-     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+     "      Tests  1 failed | 16 passed (17)"
     ]
    ],
    "restoredBlobMatches": true
@@ -322,7 +322,80 @@
    "runs": [
     [
      1,
-     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m28 passed\u001b[39m\u001b[22m\u001b[90m (29)\u001b[39m"
+     "      Tests  1 failed | 169 passed (170)"
+    ]
+   ],
+   "restoredBlobMatches": true
+  }
+ ],
+ "reachRails": [
+  {
+   "id": "C0",
+   "mutant": "no edit (control)",
+   "runs": {
+    "js:src/components/chart/engine/__tests__/vendorHarness/capabilityEvidenceLane.test.js:None": [
+     [
+      0,
+      "      Tests  169 passed (169)"
+     ]
+    ],
+    "py:tests/test_pine_capability_admission.py:REACH": [
+     [
+      0,
+      "3 passed, 62 deselected in 10.36s"
+     ]
+    ]
+   },
+   "green": true
+  },
+  {
+   "id": "R1",
+   "mutant": "a capture the runtime lane draws is graded DIVERGE",
+   "file": "docs/pine/vendor-harness/runtime-on/verdicts.json",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 1 passed, 62 deselected in 7.24s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "R2",
+   "mutant": "a capture moves MATCH -> DIVERGE (production MATCH)",
+   "file": "docs/pine/vendor-harness/production/verdicts.json",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 1 passed, 62 deselected in 5.58s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "R3",
+   "mutant": "the reach run records a runtime-drawn capture as host",
+   "file": "docs/pine/evidence/2026-11-13-capability-admission/runs/report.json",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "      Tests  1 failed | 168 passed (169)"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "R4",
+   "mutant": "the reach run drops an admitted capture",
+   "file": "docs/pine/evidence/2026-11-13-capability-admission/runs/report.json",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 62 deselected in 5.95s"
     ]
    ],
    "restoredBlobMatches": true

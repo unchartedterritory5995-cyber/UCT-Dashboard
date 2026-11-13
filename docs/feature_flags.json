@@ -2534,7 +2534,7 @@
       "status": "dark",
       "where": [],
       "owner": "pine parity programme",
-      "owner_decision": "2026-11-13 WS-I Part 2 (ENGINE53-PLAN section 3): admission by capability is BUILT dark; arming it is the owner's call. Kept off because the admitted set is the runtime-on vendor evidence of 2026-11-13 only (no obj:* family, no switch/while/typed-array, no max_bars_back, no conditional-ta), and the Before Part 2 latch note (fail-closed sentence while a verdict is in flight) is the client half shipped with it.",
+      "owner_decision": "2026-11-13 WS-I Part 2 (ENGINE53-PLAN section 3): admission by capability is BUILT dark; arming it is the owner's call. Kept off because the admitted set is the runtime-on vendor evidence of 2026-11-13 only (no obj:* family, no switch, no max_bars_back, no conditional-ta, no runtime-only id), and the Before Part 2 latch note (fail-closed sentence while a verdict is in flight) is the client half shipped with it.",
       "default": "off",
       "values": [
         "off",
