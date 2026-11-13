@@ -25,6 +25,13 @@
 // P5 Task 5 (ruling P5-R-C12): "How do you trade?" (StarterPackOffer) sits at the top of the list column while
 //    R-P5-5 holds, and a quiet "Starter packs" button beside New template and Community opens it whenever the
 //    starter-packs switch is on, whatever the member answered before.
+// Follow-up C (one room for templates): while wave 11 is on, a view switch at the top (a tablist: Active, Archived,
+//    Recently deleted). Archived and Recently deleted render My tools' own list (myTools/TemplateList.jsx, ONE
+//    implementation: its rows, Restore, Delete permanently with the typed name, "Kept until"). A member's own row in
+//    Active gains Archive (with the hint that its notes keep it) and "Used in N notes" (the list of those notes, in
+//    the editor column). Delete's Undo line names the template and says it moved to Recently deleted.
+//    `show` / `showKey` (NotebookTab, from `?styles=1&show=` or a link in the New note sheet): read once per opening,
+//    'archived' or 'deleted' opens that view; anything else opens Active.
 import { useContext, useEffect, useRef, useState } from 'react'
 import { useInRouterContext, useSearchParams } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
@@ -32,6 +39,12 @@ import Sheet from '../../../../../components/mobile/Sheet'
 import { focusableWithin } from '../../../../../components/mobile/useFocusTrap'
 import UIcon, { UICON_NAMES } from '../../../../../components/ui/UIcon'
 import usePreferences from '../../../../../hooks/usePreferences'
+import { useIsPhone } from '../../../../../hooks/useBreakpoint'
+import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
+import { archiveTemplate, listTemplates } from '../../../lib/templateLibrary'
+import TemplateList, { ArchivePanel, BACK_LABEL, usedOf } from '../myTools/TemplateList'
+import UsedInList from '../myTools/UsedInList'
+import { actionFailure, templateArchiveSentence, usedInText } from '../myTools/myToolsLib'
 import { AuthContext } from '../../../../../context/AuthContext'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { journalStylesEnabled } from '../../../lib/journalStylesFlag'
@@ -53,6 +66,11 @@ import { markOfferApplied, offerApplied } from './offerApplied'
 import styles from './StylesManager.module.css'
 
 const MAX_KIND_NAME = 40                           // note_kinds.MAX_KIND_NAME_CHARS
+/** The manager's three views (follow-up C), keyed as My tools' list reads them. */
+export const MANAGER_VIEWS = Object.freeze([['live', 'Active'], ['archived', 'Archived'], ['deleted', 'Recently deleted']])
+const VIEW_KEYS = MANAGER_VIEWS.map(([k]) => k)
+/** What `show` may open as a view; anything else (unknown, absent) opens Active. */
+const viewOf = (show) => (show === 'archived' || show === 'deleted' ? show : 'live')
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 const dismissed = (v) => String(v ?? '').replace(/^"|"$/g, '') === 'dismissed'
 const newDraftStyle = (kindId) => ({ id: null, name: '', kindId, outlineTemplateId: null, outlineBodyJson: null, blocks: [], properties: {} })
@@ -75,11 +93,31 @@ function LibraryUpdateParam({ onFound }) {
   return null
 }
 
-export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
+export default function StylesManager({ open, onClose, blockedNoteIds = [], show = null, showKey = 0 }) {
   const on = journalStylesEnabled()
   const libraryOn = styleLibraryEnabled()
+  // Read per render (the flag is latched per tab, so it never flips under an open manager), as MyToolsSheet does.
+  const viewsOn = widgetsWaveOn(11)
+  const phone = useIsPhone()
   const inRouter = useInRouterContext()
   const { data, error, isLoading, mutate } = useJournalStyles({ enabled: open })
+  // The member's own templates with their "Used in" counts (the picker's list has none): My tools' live list.
+  const { data: usage, mutate: refreshUsage } = useSWR(open && on && viewsOn ? 'journal-styles:usage' : null,
+    async () => {
+      const got = await listTemplates('live')
+      return got.ok && Array.isArray(got.data.styles) ? got.data.styles : []
+    }, { shouldRetryOnError: false, revalidateOnFocus: false })
+  const usedById = new Map((usage || []).filter((s) => s && s.id).map((s) => [s.id, usedOf(s)]))
+  const [view, setView] = useState(() => viewOf(show))
+  const [aside, setAside] = useState(null)             // { kind: 'usedIn' | 'archive', s } in the editor column
+  const [asideError, setAsideError] = useState('')
+  const tabRefs = useRef({})
+  // `show` is read once per opening (and again when a door asks again: `showKey`).
+  useEffect(() => {
+    if (!open) return
+    setView(viewOf(show))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, showKey])
   const { updates, refresh: refreshUpdates } = useStyleUpdates({ enabled: open && on })
   const [sharing, setSharing] = useState(null)          // the style row a Share form is open for
   const [updating, setUpdating] = useState(null)        // the adopted copy whose update sheet is open
@@ -141,7 +179,8 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const kindRowEls = useRef({})
   const kindDeleteBtns = useRef({})
   const confirmYesRef = useRef(null)
-  const pendingFocus = useRef(null)                     // { type: 'opener' | 'undo' | 'row' | 'kindDelete' | 'kindRow' | 'addKind', id? }
+  const newBtnRef = useRef(null)
+  const pendingFocus = useRef(null)                     // { type: 'opener' | 'undo' | 'row' | 'kindDelete' | 'kindRow' | 'addKind' | 'newTemplate', id? }
 
   // The editor opened: bring it to the member. (On a phone it sits below the whole list.)
   useEffect(() => {
@@ -174,11 +213,14 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     } else if (pf.type === 'addKind') {
       pendingFocus.current = null
       document.getElementById('js-kind-name')?.focus()
+    } else if (pf.type === 'newTemplate') {
+      if (newBtnRef.current) { pendingFocus.current = null; newBtnRef.current.focus() }
     }
   })
 
   if (!on) return null
 
+  const shownView = viewsOn ? view : 'live'
   const kinds = data?.kinds || []
   const ownKinds = kinds.filter((k) => !k.builtin)
   const offline = data?.fromCache === true
@@ -195,6 +237,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   }
   const finish = () => {
     setUndo(null); setStatus(''); setProblem(''); setKindProblem(''); setEditing(null); setConfirmDiscard(null); setConfirmKind(null)
+    setAside(null); setAsideError('')
     starter.reset()
     onClose()
   }
@@ -215,7 +258,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     then?.()
   }
 
-  const openEditor = (style, opener) => { openerRef.current = opener || null; openSeq.current += 1; setEditing({ style, seq: openSeq.current }) }
+  const openEditor = (style, opener) => { setAside(null); openerRef.current = opener || null; openSeq.current += 1; setEditing({ style, seq: openSeq.current }) }
   const editStyle = (s, opener) => run(async () => {
     const out = await getJournalStyle(s.id)
     openEditor(out.style, opener)
@@ -229,6 +272,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     if (!full.builtin) body.duplicateOf = full.id
     const out = await createJournalStyle(body, { via: 'duplicate' })
     await mutate()
+    if (viewsOn) refreshUsage()
     if (thenEdit) openEditor(out.style, opener); else setStatus('Template duplicated.')
   })
   const makeDefault = (s) => run(async () => {
@@ -239,13 +283,66 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
   const remove = (s) => run(async () => {
     await deleteJournalStyle(s.id)
     await mutate()
+    if (viewsOn) refreshUsage()
     if (editing?.style?.id === s.id) { setEditing(null); setEditorDirty(false); setConfirmDiscard(null) }
+    if (aside?.s?.id === s.id) setAside(null)
     pendingFocus.current = { type: 'undo' }            // the row that held focus is gone: Undo is the next stop
-    setUndo({ id: s.id })
+    setUndo({ id: s.id, name: s.name })
   })
+  // Follow-up C: Archive (My tools' action, now in the one room). A template in notes asks first, with the sentence
+  // that says its notes keep it (ArchivePanel, in the editor column); one in no note archives at once.
+  const archiveNow = (s) => run(async () => {
+    setAsideError('')
+    const list = stylesOfKind(data, s.kindId)
+    const at = list.findIndex((x) => x.id === s.id)
+    const next = list[at + 1] || list[at - 1]
+    const got = await archiveTemplate(s.id)
+    if (!got.ok) {
+      const text = actionFailure(got)
+      if (aside?.kind === 'archive') setAsideError(text); else setProblem(text)
+      return
+    }
+    if (editing?.style?.id === s.id) { setEditing(null); setEditorDirty(false); setConfirmDiscard(null) }
+    setAside(null)
+    await mutate()
+    refreshUsage()
+    pendingFocus.current = next ? { type: 'row', id: next.id } : { type: 'newTemplate' }
+    setStatus(`Archived “${s.name}”. Restore it from Archived.`)
+  })
+  const askArchive = (s, opener) => guard(() => {
+    if ((usedById.get(s.id) || 0) > 0) openAside('archive', s, opener)
+    else archiveNow(s)
+  })
+  /** The editor column shows one panel at a time: the editor, or a row's "Used in" list or Archive question. */
+  const openAside = (kind, s, opener) => {
+    setEditing(null); setEditorDirty(false); setConfirmDiscard(null); setAsideError('')
+    openerRef.current = opener || null
+    setAside({ kind, s: { ...s, usedIn: usedById.get(s.id) || 0 } })
+  }
+  const closeAside = () => {
+    setAside(null); setAsideError('')
+    pendingFocus.current = { type: 'opener' }
+  }
+  /** Another view: the Undo line and any panel belong to the view left behind. */
+  const showView = (v) => guard(() => {
+    setEditing(null); setEditorDirty(false); setConfirmDiscard(null)
+    setAside(null); setUndo(null); setStatus(''); setProblem('')
+    setView(v)
+  })
+  const onTabsKey = (e) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1, Home: 'first', End: 'last' }[e.key]
+    if (step == null) return
+    e.preventDefault()
+    const at = VIEW_KEYS.indexOf(shownView)
+    const to = step === 'first' ? 0 : step === 'last' ? VIEW_KEYS.length - 1 : (at + step + VIEW_KEYS.length) % VIEW_KEYS.length
+    const asks = Boolean(editing && editorDirty)      // the discard question takes focus instead
+    showView(VIEW_KEYS[to])
+    if (!asks) tabRefs.current[VIEW_KEYS[to]]?.focus()
+  }
   const restore = () => run(async () => {
     await restoreJournalStyle(undo.id)
     await mutate()
+    if (viewsOn) refreshUsage()
     pendingFocus.current = { type: 'row', id: undo.id }
     setUndo(null)
     setStatus('Template restored.')
@@ -255,6 +352,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
     setStatus(`Saved ${s?.name || 'the template'}.`)
     closeEditor()
     mutate()
+    if (viewsOn) refreshUsage()
   }
 
   const addKind = (e) => {
@@ -323,11 +421,30 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
           A template is how a note type starts: its outline, its blocks and the properties it fills. Changing a template never changes a note you already made unless you choose to update it.
         </p>
 
+        {viewsOn && (
+          <div role="tablist" aria-label="Show" className={styles.views} onKeyDown={onTabsKey}>
+            {MANAGER_VIEWS.map(([k, label]) => (
+              <button key={k} type="button" role="tab" id={`js-view-${k}`} aria-selected={shownView === k}
+                aria-controls="js-view-panel" tabIndex={shownView === k ? 0 : -1}
+                ref={(el) => { if (el) tabRefs.current[k] = el; else delete tabRefs.current[k] }}
+                className={`${styles.viewTab} ${shownView === k ? styles.viewTabOn : ''}`} onClick={() => showView(k)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className={styles.viewPanel} id="js-view-panel" role={viewsOn ? 'tabpanel' : undefined}
+          aria-labelledby={viewsOn ? `js-view-${shownView}` : undefined}>
+        {shownView !== 'live' ? (
+          <TemplateList filter={shownView} phone={phone} onCloseAll={finish}
+            onChanged={() => { mutate(); refreshUsage() }} />
+        ) : (
+        <>
         <div className={styles.stickyTop} data-empty={undo || status || confirmDiscard ? undefined : 'true'}>
           <div role="status" aria-live="polite">
             {undo ? (
               <p className={styles.notice}>
-                <span>Template deleted.</span>
+                <span>{viewsOn ? `Deleted “${undo.name}”. Moved to Recently deleted.` : `Deleted “${undo.name}”.`}</span>
                 <button type="button" ref={undoRef} className={styles.btn} onClick={restore} disabled={busy}>Undo</button>
               </p>
             ) : status ? <p className={styles.notice}>{status}</p> : null}
@@ -367,7 +484,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
             <div className={styles.listCol} data-starter-offer={starter.settled ? 'settled' : 'deciding'}>
               {starter.show && <StarterPackOffer onClose={starter.close} offline={offline} />}
               <div className={styles.rowActions}>
-                <button type="button" className={`${styles.btn}`} disabled={locked || !kinds.length} data-tour="styles-new"
+                <button type="button" ref={newBtnRef} className={`${styles.btn}`} disabled={locked || !kinds.length} data-tour="styles-new"
                   onClick={(e) => { const opener = e.currentTarget; guard(() => { setUndo(null); openEditor(newDraftStyle(kinds[0]?.id), opener) }) }}>
                   <UIcon name="plus" size={14} gold={false} /> New template
                 </button>
@@ -418,6 +535,17 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                               {s.isDefault && <span className={styles.badge}>Default</span>}
                               <span className={styles.version}>{`v${s.version}`}</span>
                             </div>
+                            {viewsOn && !s.builtin && usedById.has(s.id) && (
+                              <div className={styles.rowMeta}>
+                                {usedById.get(s.id) > 0 ? (
+                                  <button type="button" className={styles.linkBtn}
+                                    onClick={(e) => { const opener = e.currentTarget; guard(() => openAside('usedIn', s, opener)) }}
+                                    aria-label={`${usedInText(usedById.get(s.id))}: list the notes made with ${s.name}`}>
+                                    {usedInText(usedById.get(s.id))}
+                                  </button>
+                                ) : <span>{usedInText(0)}</span>}
+                              </div>
+                            )}
                             <div className={styles.rowActions}>
                               {s.builtin ? (
                                 <button type="button" className={styles.btn} disabled={locked} onClick={(e) => { const opener = e.currentTarget; guard(() => duplicate(s, opener)) }}
@@ -437,6 +565,12 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                               {!s.isDefault && (
                                 <button type="button" className={styles.btn} disabled={locked} onClick={() => makeDefault(s)}
                                   aria-label={`Set ${s.name} as default`}>Set as default</button>
+                              )}
+                              {viewsOn && !s.builtin && (
+                                <button type="button" className={styles.btn} disabled={locked}
+                                  onClick={(e) => askArchive(s, e.currentTarget)} aria-label={`Archive ${s.name}`}
+                                  title={templateArchiveSentence(usedById.get(s.id) || 0)}
+                                  aria-description={templateArchiveSentence(usedById.get(s.id) || 0)}>Archive</button>
                               )}
                               {!s.builtin && (
                                 <button type="button" className={`${styles.btn} ${styles.danger}`} disabled={locked} onClick={() => remove(s)}
@@ -519,12 +653,19 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [] }) {
                   <StyleEditor key={editing.seq} style={editing.style} kinds={kinds} offline={offline}
                     onSaved={saved} onCancel={closeEditor} onDirtyChange={setEditorDirty} />
                 </>
+              ) : aside?.kind === 'usedIn' ? (
+                <UsedInList d={aside.s} kind="template" onBack={closeAside} onNavigate={finish} backLabel={BACK_LABEL} />
+              ) : aside?.kind === 'archive' ? (
+                <ArchivePanel d={aside.s} onBack={closeAside} onArchive={archiveNow} busy={busy} error={asideError} />
               ) : (
                 <p className={styles.hint}>Pick a template to edit, or make a new one.</p>
               )}
             </div>
           </div>
         )}
+        </>
+        )}
+        </div>
         {sharing && (
           <ShareStyleForm style={sharing} onClose={() => setSharing(null)}
             onShared={(sentence) => { setSharing(null); setUndo(null); setProblem(''); setStatus(sentence) }} />

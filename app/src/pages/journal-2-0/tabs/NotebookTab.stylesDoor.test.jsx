@@ -13,8 +13,11 @@ import { pressToolbar, toolbarOffers } from './__tests__/toolbarDoors'
 // The manager has its own rail (styles/StylesManager.test.jsx), and refuses to render while the switch is off.
 // It is replaced here by a stub that does NOT refuse, so these tests prove the TAB's gate on its own: with the
 // tab's gate removed, a stub that shows whenever it is opened would appear with the switch off.
+// Follow-up C: the stub also shows WHERE it was asked to open (`show`), and how many times (`showKey`).
 vi.mock('../components/notebook/styles/StylesManager', () => ({
-  default: ({ open }) => (open ? <h2>Manage templates</h2> : null),
+  default: ({ open, show, showKey }) => (open ? (
+    <><h2>Manage templates</h2><p data-testid="manager-show">{`${String(show)} #${showKey}`}</p></>
+  ) : null),
 }))
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
@@ -89,5 +92,31 @@ describe('the Styles door on the Notebook tab', () => {
     await settle()
     expect(screen.queryByRole('heading', { name: 'Manage templates' })).toBeNull()
     expect(globalThis.fetch.mock.calls.some(([u]) => String(u).includes('journal-styles'))).toBe(false)
+  })
+
+  // Follow-up C: `?styles=1&show=` names where the manager opens (My tools' "Open Manage templates"; a link that
+  // wants a place). The tab hands the value over once and takes both out of the URL; the manager decides what an
+  // unknown value means (Active: StylesManager.views.test.jsx).
+  it('?styles=1&show=archived|deleted|plain hands the place to the manager', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    for (const place of ['archived', 'deleted', 'plain']) {
+      await show(`/journal/notebook?view=all&styles=1&show=${place}`)
+      expect(await screen.findByTestId('manager-show')).toHaveTextContent(new RegExp(`^${place} #`))
+      cleanup()
+    }
+  })
+
+  it('the More menu opens the manager at Active even after a link opened it somewhere else', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    await show('/journal/notebook?view=all&styles=1&show=archived')
+    expect(await screen.findByTestId('manager-show')).toHaveTextContent(/^archived #/)
+    pressToolbar('Manage templates')
+    expect(await screen.findByTestId('manager-show')).toHaveTextContent(/^null #/)
+  })
+
+  it('?styles=1&show=daily is not a URL place (the daily control is an in-app ask): it opens Active', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    await show('/journal/notebook?view=all&styles=1&show=daily')
+    expect(await screen.findByTestId('manager-show')).toHaveTextContent(/^null #/)
   })
 })

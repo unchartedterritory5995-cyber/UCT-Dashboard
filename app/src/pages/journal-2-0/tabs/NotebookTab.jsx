@@ -671,11 +671,21 @@ export default function NotebookTab() {
   // anything shows (one guard, not two).
   const stylesOn = journalStylesEnabled()
   const [stylesOpen, setStylesOpen] = useState(() => searchParams.get('styles') === '1')
+  // Follow-up C: where the manager opens (`show`, read by StylesManager once per opening: 'archived', 'deleted',
+  // 'plain', 'daily'; anything else is Active). `n` makes a second ask with the same place a new one.
+  const [stylesAsk, setStylesAsk] = useState(() => ({ show: searchParams.get('styles') === '1' ? searchParams.get('show') : null, n: 0 }))
+  const openStyles = useCallback((show = null) => {
+    setStylesAsk((a) => ({ show, n: a.n + 1 }))
+    setStylesOpen(true)
+  }, [])
   useEffect(() => {
     if (searchParams.get('styles') !== '1') return
-    setStylesOpen(true)
-    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('styles'); return p }, { replace: true })
-  }, [searchParams, setSearchParams])
+    // `?styles=1&show=archived|deleted|plain` (My tools' "Open Manage templates", a link that wants a place): read
+    // once, then both leave the URL. 'daily' is an in-app ask only, so the URL cannot name it.
+    const show = searchParams.get('show')
+    openStyles(show === 'daily' ? null : show)
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('styles'); p.delete('show'); return p }, { replace: true })
+  }, [searchParams, setSearchParams, openStyles])
   // Plan E Task 10: `?import=evernote` (the Evernote tile's `.enex` offer, `ENEX_IMPORT_HREF` in
   // connectors/evernoteCopy.js; NotebookTab.importParam.test.jsx routes to that constant) opens the
   // import wizard once, through the ordinary door, and leaves the URL clean. The same pattern as `?styles=1`.
@@ -2652,7 +2662,7 @@ export default function NotebookTab() {
     },
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools, row: 'my_tools' },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
-    stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true), row: 'manage_templates' },
+    stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => openStyles(), row: 'manage_templates' },
   ].filter(Boolean)
 
   // A successful import can create notes AND folders — refresh both. Notes
@@ -3626,7 +3636,8 @@ export default function NotebookTab() {
           onClose={() => setImportOpen(false)}
           onImported={handleImported}
         />
-        {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]} />}
+        {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]}
+          show={stylesAsk.show} showKey={stylesAsk.n} />}
         {/* P0.1: the New-note sheet and the voice-note dialog are mounted OUTSIDE the pane's
             branches, so a door beside an open note (the phone "+" sheet) is never a dead button.
             (Research Home's "New note" menu was the first such door; it went in go-live wave 1.) */}
