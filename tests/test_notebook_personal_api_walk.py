@@ -101,7 +101,12 @@ class _Server:
         return _Resp(404)
 
 
-DAILY = {"id": "f-daily", "name": "Daily", "parentId": None}
+# Simplify pass 2 (A3): the door makes a root folder named note_daily.DAILY_FOLDER_NAME ("Daily notes" since then).
+# The walk still matches only that name, so this stub library uses it; an existing member's legacy "Daily" folder
+# (bench@'s, in production) reads to the walk as "no folder" -> NOT RUN until Task 4 teaches it the legacy names.
+from api.services.journal_two.note_daily import DAILY_FOLDER_NAME as _DAILY_NAME  # noqa: E402
+
+DAILY = {"id": "f-daily", "name": _DAILY_NAME, "parentId": None}
 OTHER = {"id": "f-other", "name": "Trading", "parentId": None}
 
 
@@ -160,8 +165,8 @@ def test_CONTROL_with_no_note_dated_today_the_walk_does_append(walk):
     assert rec["made"]["note_ids"] == ["made-by-this-run"], "only what this run made is the walk's"
 
 
-@pytest.mark.parametrize("folders", [[], [OTHER], [{"id": "f-sp", "name": " Daily", "parentId": None}],
-                                     [{"id": "f-sub", "name": "Daily", "parentId": "f-other"}, OTHER]])
+@pytest.mark.parametrize("folders", [[], [OTHER], [{"id": "f-sp", "name": f" {_DAILY_NAME}", "parentId": None}],
+                                     [{"id": "f-sub", "name": _DAILY_NAME, "parentId": "f-other"}, OTHER]])
 def test_without_the_doors_own_daily_folder_nothing_is_posted(walk, folders):
     """The door would CREATE a root Daily folder; the walk never creates one."""
     server = _Server([], folders)

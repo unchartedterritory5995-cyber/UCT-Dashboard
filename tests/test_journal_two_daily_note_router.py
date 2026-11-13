@@ -29,6 +29,10 @@ from fastapi.testclient import TestClient
 
 from api.middleware import auth_middleware as authmw
 
+#: Simplify pass 2 (A3): the folder a NEW member's daily notes go in. An existing member's "Daily" is still used.
+DAILY = "Daily notes"
+LEGACY = "Daily"
+
 
 @pytest.fixture
 def db_path(monkeypatch):
@@ -81,7 +85,7 @@ def test_today_creates_the_days_note_in_a_daily_folder(app, client):
     note = body["note"]
     assert note["title"] == "2026-09-24 · Thursday"
     assert note["dailyDate"] == "2026-09-24"
-    daily = [f for f in _folders(client) if f["name"] == "Daily"]
+    daily = [f for f in _folders(client) if f["name"] == DAILY]
     assert len(daily) == 1 and daily[0]["parentId"] is None
     assert note["folderId"] == daily[0]["id"]
 
@@ -102,7 +106,7 @@ def test_another_day_is_another_note_in_the_same_folder(app, client):
     assert b["id"] != a["id"]
     assert b["title"] == "2026-09-25 · Friday"
     assert b["folderId"] == a["folderId"]
-    assert len([f for f in _folders(client) if f["name"] == "Daily"]) == 1
+    assert len([f for f in _folders(client) if f["name"] == DAILY]) == 1
 
 
 @pytest.mark.parametrize("bad", ["2026-02-30", "2026-9-24", "24/09/2026", "", None, 20260924, "2026-09-24T10:00"])
@@ -161,7 +165,7 @@ def test_two_tabs_pressing_today_at_once_make_one_note(app, client, monkeypatch)
     assert len({r["note"]["id"] for r in results}) == 1
     assert sum(1 for r in results if r["created"]) == 1
     _login_as(app, "u1")
-    daily = [f for f in _folders(client) if f["name"] == "Daily"]
+    daily = [f for f in _folders(client) if f["name"] == DAILY]
     assert len(daily) == 1
     listed = client.get("/api/j2/notes", params={"folder_id": daily[0]["id"]}).json()
     assert listed["total"] == 1
@@ -243,6 +247,60 @@ def test_a_member_made_daily_folder_is_used(app, client):
     mine = client.post("/api/j2/note-folders", json={"name": "Daily"}).json()["folder"]["id"]
     assert _today(client).json()["note"]["folderId"] == mine
     assert len([f for f in _folders(client) if f["name"] == "Daily"]) == 1
+
+
+# ── A3 (simplify pass 2): new members get "Daily notes"; an existing "Daily" is still found and never renamed ──
+
+def test_A3_the_names_are_the_ones_the_spec_gives():
+    from api.services.journal_two import note_daily
+    assert note_daily.DAILY_FOLDER_NAME == DAILY
+    assert note_daily.LEGACY_DAILY_FOLDER_NAMES == (LEGACY,)
+
+
+def test_A3_a_member_with_a_daily_folder_keeps_using_it_and_gets_no_daily_notes_folder(app, client):
+    _login_as(app, "u1")
+    mine = client.post("/api/j2/note-folders", json={"name": LEGACY}).json()["folder"]["id"]
+    a = _today(client, "2026-09-24").json()["note"]
+    b = _today(client, "2026-09-25").json()["note"]
+    assert a["folderId"] == mine and b["folderId"] == mine
+    names = [f["name"] for f in _folders(client)]
+    assert names.count(LEGACY) == 1, "the member's folder was never renamed"
+    assert DAILY not in names, "no second folder was made beside it"
+
+
+def test_A3_a_member_with_neither_gets_a_daily_notes_folder(app, client):
+    _login_as(app, "u1")
+    note = _today(client).json()["note"]
+    roots = [f for f in _folders(client) if f["parentId"] is None]
+    assert [f["name"] for f in roots] == [DAILY]
+    assert note["folderId"] == roots[0]["id"]
+
+
+def test_A3_a_daily_notes_folder_already_there_is_used_not_doubled(app, client):
+    _login_as(app, "u1")
+    mine = client.post("/api/j2/note-folders", json={"name": DAILY}).json()["folder"]["id"]
+    assert _today(client).json()["note"]["folderId"] == mine
+    assert [f["name"] for f in _folders(client)] == [DAILY]
+
+
+def test_A3_a_member_with_both_names_gets_notes_in_daily_never_split(app, client):
+    # "Daily notes" made FIRST (older), so "oldest folder wins" alone would pick it: the legacy name must win.
+    _login_as(app, "u1")
+    newer_name = client.post("/api/j2/note-folders", json={"name": DAILY}).json()["folder"]["id"]
+    legacy = client.post("/api/j2/note-folders", json={"name": LEGACY}).json()["folder"]["id"]
+    assert newer_name != legacy
+    days = ["2026-09-24", "2026-09-25", "2026-09-26"]
+    assert {_today(client, d).json()["note"]["folderId"] for d in days} == {legacy}
+    assert len(_folders(client)) == 2, "nothing was made, nothing was renamed"
+
+
+def test_A3_a_daily_folder_inside_another_folder_is_not_the_daily_folder(app, client):
+    _login_as(app, "u1")
+    parent = client.post("/api/j2/note-folders", json={"name": "Trading"}).json()["folder"]["id"]
+    client.post("/api/j2/note-folders", json={"name": LEGACY, "parentId": parent})
+    note = _today(client).json()["note"]
+    root_daily = [f for f in _folders(client) if f["parentId"] is None and f["name"] == DAILY]
+    assert len(root_daily) == 1 and note["folderId"] == root_daily[0]["id"]
 
 
 def test_each_member_has_their_own_day(app, client):

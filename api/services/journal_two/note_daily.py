@@ -1,8 +1,9 @@
 """Wave 6 (lane E, item 4) — the member's daily note.
 
 "Today" (and Ctrl/Cmd+Alt+D) opens the member's note for today, creating it the
-first time: titled `YYYY-MM-DD · Weekday`, in a root `Daily` folder made on
-first use. The day is the member's ET day, computed by the CLIENT (`todayET`,
+first time: titled `YYYY-MM-DD · Weekday`, in a root `Daily notes` folder made
+on first use (simplify pass 2, A3: a member who already has a root `Daily` folder
+keeps getting their notes there; it is never renamed and nothing is migrated). The day is the member's ET day, computed by the CLIENT (`todayET`,
 lib/calendar.js) and sent here; this module only checks it is a real day.
 
 ⛔⛔ EXACTLY ONE PER MEMBER PER DAY, ENFORCED SERVER-SIDE — by the unique index
@@ -34,7 +35,12 @@ from typing import Any, Callable
 
 from api.services.auth_db import get_connection
 
-DAILY_FOLDER_NAME = "Daily"
+#: The folder a member's daily notes go in when they have none yet (simplify pass 2, A3: was "Daily", which sat
+#: right under the panel row "Daily brief").
+DAILY_FOLDER_NAME = "Daily notes"
+#: Root folder names an existing member's daily notes already live in. Found FIRST, so a member who has one keeps
+#: every daily note in it, and a member who somehow has both names never gets their days split.
+LEGACY_DAILY_FOLDER_NAMES = ("Daily",)
 _WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -59,18 +65,20 @@ def daily_title(day: date) -> str:
 
 
 def _daily_folder_id(user_id: str, conn: sqlite3.Connection) -> str:
-    """The member's root `Daily` folder (any casing they gave it), made on first
-    use. Inside the caller's transaction: no commit here."""
+    """The member's root daily folder, made on first use. In order: a root folder named any legacy name (any casing
+    they gave it; the oldest first), else one named `DAILY_FOLDER_NAME`, else a new `DAILY_FOLDER_NAME`. No rename,
+    no migration. Inside the caller's transaction: no commit here."""
     from api.services.journal_two import notes as notes_service
 
-    row = conn.execute(
-        "SELECT id FROM j2_note_folders WHERE user_id = ?"
-        " AND (parent_id IS NULL OR parent_id = '') AND name = ? COLLATE NOCASE"
-        " ORDER BY created_at, id LIMIT 1",
-        (user_id, DAILY_FOLDER_NAME),
-    ).fetchone()
-    if row:
-        return row["id"]
+    for name in (*LEGACY_DAILY_FOLDER_NAMES, DAILY_FOLDER_NAME):
+        row = conn.execute(
+            "SELECT id FROM j2_note_folders WHERE user_id = ?"
+            " AND (parent_id IS NULL OR parent_id = '') AND name = ? COLLATE NOCASE"
+            " ORDER BY created_at, id LIMIT 1",
+            (user_id, name),
+        ).fetchone()
+        if row:
+            return row["id"]
     return notes_service.create_folder(user_id, DAILY_FOLDER_NAME, conn=conn)["id"]
 
 
