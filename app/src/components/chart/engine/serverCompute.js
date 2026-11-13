@@ -281,14 +281,23 @@ export function alignColumns(parsed, bars) {
     if (!at.has(k)) at.set(k, i)
   }
 
+  // ⚡ WHERE EACH BAR SITS IN THE ENVELOPE IS WORKED OUT ONCE, NOT ONCE PER COLUMN (2026-11-13).
+  // The join used to parse every bar's date for every column: the RS line carries 24 columns,
+  // so a 4,374-bar daily chart parsed 105,000 dates to place them, on every paint (13 ms of
+  // the lane's 24 ms for a five-definition RS suite, measured). One pass finds each bar's row;
+  // each column is then a plain copy. The answer is the same cell for cell.
+  const n = series.length
+  const row = new Int32Array(n)
+  for (let i = 0; i < n; i++) {
+    const j = at.get(barTimeKey(series[i] && series[i].t))
+    row[i] = j === undefined ? -1 : j
+  }
+
   const out = {}
   for (const key of keys) {
     const src = columns[key]
-    const col = new Float64Array(series.length)
-    for (let i = 0; i < series.length; i++) {
-      const j = at.get(barTimeKey(series[i] && series[i].t))
-      col[i] = j === undefined ? NaN : src[j]
-    }
+    const col = new Float64Array(n)
+    for (let i = 0; i < n; i++) col[i] = row[i] < 0 ? NaN : src[row[i]]
     out[key] = col
   }
   return out
