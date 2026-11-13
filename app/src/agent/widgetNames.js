@@ -4,7 +4,7 @@
 // model on the FIRST call, with that widget's controls — not only after a need_groups reroute. The names are the registry's
 // own labels (header, Widgets menu, tab), so there is no phrase list here. A label that is a chart-surface word ("Volume", the
 // Volume Surge tab) is not a widget's name: those words already mean the chart. Pure: the caller passes the board's types.
-import { WIDGET_REGISTRY } from '../widgets/registry'
+import { WIDGET_REGISTRY, agentLabelsOf } from '../widgets/registry'
 import { widgetControls as registryControls } from '../widgets/widgetControls'
 import { COMPANY_TABS, normalizeDock } from '../pages/charts/widgets/chartDock'
 import { COMPANY_INFO, setFeatureOpen } from '../pages/charts/widgets/chartFeatures'
@@ -76,7 +76,7 @@ const MEMO = new Map()
 /** A type's names (each a word list): its labels, less a one-word label that names the chart surface (`surfaceWord`). */
 export function widgetNamesOf(type, surfaceWord = () => false) {
   if (MEMO.has(type)) return MEMO.get(type)
-  const labels = Object.values(WIDGET_REGISTRY[type]?.labels || {})
+  const labels = Object.values(agentLabelsOf(type))
   const seen = new Set()
   const names = labels.map(nameWords).filter(n => n.length && !(n.length === 1 && (n[0].length < 3 || surfaceWord(n[0]) || surfaceWord(`${n[0]}s`))))
     .filter(n => { const k = n.join(' '); if (seen.has(k)) return false; seen.add(k); return true })

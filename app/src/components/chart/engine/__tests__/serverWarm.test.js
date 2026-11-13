@@ -58,8 +58,8 @@ beforeEach(() => {
   __resetDeskVisibility()
   calls = []
   pending = []
-  // (`uct.rslane.tfs`: a member with no remembered timeframe habit. One symbol asked for by
-  // priority may be warmed from a habit, which `serverLaneTfHabit.test.js` covers.)
+  // (`uct.rslane.tfs`: a member with no remembered timeframe habit. ONE announced symbol may
+  // be warmed from a habit, which `serverLaneTfHabit.test.js` covers.)
   try { localStorage.removeItem('uct.indwarm.off'); localStorage.removeItem('uct.rslane.tfs'); localStorage.setItem('barspack.version', 'x') } catch { /* */ }
   vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('no network in this suite') }))
 })
