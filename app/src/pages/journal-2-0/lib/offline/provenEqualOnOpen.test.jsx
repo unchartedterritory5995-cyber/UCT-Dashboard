@@ -10,14 +10,16 @@
  * ⛔ Controls: a record whose words differ is untouched and the banner path is unchanged; an
  * entry whose words differ is never deleted.
  */
-import { render, screen, act, waitFor } from '@testing-library/react'
+import { render, renderHook, screen, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { createFakeIndexedDbFactory, settleIdb } from './__fixtures__/fakeIndexedDb'
-import { __resetNotebookConnections, connectNotebookDb } from './useDurableNote'
+import { createFakeDb, createFakeIndexedDbFactory, settleIdb } from './__fixtures__/fakeIndexedDb'
+import { __resetNotebookConnections, connectNotebookDb, useDurableNote } from './useDurableNote'
+import { DURABLE } from './durableWriter'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
 import { dbNameFor } from './notebookDb'
 import { noteHasUnsentWork } from './noteHasUnsentWork'
+import { SAVED_WORDS, SAVING_WORDS, offlineKept, saveIndicatorWords, unsyncedLabel } from './unsyncedCopy'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -126,6 +128,119 @@ describe('⭐ F2 (d): a dirty record equal to the server is settled on open', ()
     expect(record()).toMatchObject({ dirty: 1, baseUpdatedAt: T0 })
     expect(queue().map((e) => e.patch.bodyJson)).toEqual([SAVED, OTHER])
     expect((await unsent()).unsent).toBe(true)
+  })
+})
+
+/** Hold the outbox READ `recover()` makes, so the page can be read before the device answers. */
+function holdRecovery() {
+  const s = store()
+  let release
+  const gate = new Promise((r) => { release = r })
+  const orig = s.transaction.bind(s)
+  s.transaction = (names, mode = 'readonly') => {
+    const tx = orig(names, mode)
+    if (names !== 'outbox' || mode !== 'readonly') return tx
+    const inner = tx.objectStore
+    tx.objectStore = (n) => {
+      const os = inner(n)
+      return {
+        ...os,
+        getAll: () => {
+          const req = { result: [] }
+          gate.then(() => { const r = os.getAll(); r.onsuccess = () => { req.result = r.result; req.onsuccess?.() } })
+          return req
+        },
+      }
+    }
+    return tx
+  }
+  return () => release()
+}
+
+describe('⭐ F3 (f): the label claims nothing before the device answers, then says what the store holds', () => {
+  const said = []
+  const look = async (rounds) => {
+    for (let i = 0; i < rounds; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => { vi.advanceTimersByTime(250); await settleIdb(6) })
+      said.push(indicator()?.textContent ?? null)
+    }
+  }
+  beforeEach(() => { said.length = 0 })
+
+  it('a clean store: nothing while the store is held, then "Saved"', async () => {
+    factory.open(ACCOUNT_DB)
+    await act(async () => { await settleIdb(2) })
+    const release = holdRecovery()
+    await openTheNote()
+    await look(4)
+    expect(indicator()).not.toBeNull()
+    expect(said.every((t) => !t)).toBe(true)
+    await act(async () => { release(); await settleIdb(6) })
+    await waitFor(() => expect(indicator().textContent).toBe(SAVED_WORDS))
+  })
+
+  it('the unseen landing: nothing, then "Saved" only after the record is settled (never the queue\'s words first)', async () => {
+    await leftOnDevice()
+    const release = holdRecovery()
+    // every text the region ever holds, not only the samples
+    const seen = new MutationObserver(() => { said.push(indicator()?.textContent ?? null) })
+    seen.observe(document.body, { subtree: true, childList: true, characterData: true })
+    await openTheNote()
+    await look(4)
+    expect(said.every((t) => !t)).toBe(true)
+    await act(async () => { release(); await settleIdb(6) })
+    await look(6)
+    seen.disconnect()
+    expect(said.filter(Boolean)).toEqual(said.filter(Boolean).map(() => SAVED_WORDS))
+    expect(indicator().textContent).toBe(SAVED_WORDS)
+    expect(record().dirty).toBe(0)
+  })
+
+  it('a dirty record the server does not hold: the queue\'s own words, never "Saved"', async () => {
+    await leftOnDevice({ body: OTHER, entries: [] })
+    await openTheNote()
+    await screen.findByText(/Unsaved changes from a previous session/)
+    await look(4)
+    expect(indicator().textContent).toBe(unsyncedLabel(null))
+    expect(said).not.toContain(SAVED_WORDS)
+    // Discard writes through this mount's writer: from its commit on, `unsynced` speaks, as before follow-up D
+    await act(async () => { screen.getByRole('button', { name: 'Discard' }).click(); await settleIdb(6) })
+    await look(4)
+    expect(indicator().textContent).toBe(SAVED_WORDS)
+  })
+
+  it('a write this mount committed while recovery was still reading makes that read stale: not "held"', async () => {
+    const db = createFakeDb()
+    db.seed('notes', { noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: OTHER, dirty: 1, baseUpdatedAt: T0 })
+    let release
+    const gate = new Promise((r) => { release = r })
+    const orig = db.transaction.bind(db)
+    db.transaction = (names, mode = 'readonly') => {
+      const tx = orig(names, mode)
+      if (names !== 'outbox' || mode !== 'readonly') return tx
+      const inner = tx.objectStore
+      tx.objectStore = (n) => {
+        const os = inner(n)
+        return { ...os, getAll: () => { const req = {}; gate.then(() => { req.result = []; req.onsuccess?.() }); return req } }
+      }
+      return tx
+    }
+    const { result } = renderHook(() => useDurableNote({ accountId: 'u42', noteId: 'n1', debounceMs: 0, connect: async () => db }))
+    let recovering
+    await act(async () => { recovering = result.current.recover({ server: SERVER }); await settleIdb(4) })
+    await act(async () => { result.current.schedule({ title: 'Thesis', subtitle: '', bodyJson: SAVED, baseUpdatedAt: T1 }); await settleIdb(6) })
+    expect(result.current.status).toBe(DURABLE)
+    await act(async () => { release(); await recovering; await settleIdb(4) })
+    expect(result.current.held).toBe(false)
+  })
+
+  it('the words, one authority: held only changes what an online "saved" claims', () => {
+    expect(saveIndicatorWords({ status: 'saved', held: true, persisted: true })).toBe(unsyncedLabel(true))
+    expect(saveIndicatorWords({ status: 'saved', held: false })).toBe(SAVED_WORDS)
+    expect(saveIndicatorWords({ status: 'saving', held: true })).toBe(SAVING_WORDS)
+    expect(saveIndicatorWords({ status: 'saved', held: true, loading: true })).toBe('')
+    expect(saveIndicatorWords({ status: 'saved', held: true, offline: true, persisted: true })).toBe(offlineKept(true))
   })
 })
 

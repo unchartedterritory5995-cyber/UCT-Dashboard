@@ -577,6 +577,12 @@ export function useDurableNote({
   const supported = Boolean(offlineEnabled() && offlineStorageAvailable() && accountId && noteId)
   const [status, setStatus] = useState(supported ? IDLE : UNAVAILABLE)
   const [unsynced, setUnsynced] = useState(false)
+  // ⭐ Follow-up D (F3): what `recover()` READ for this note on open: a dirty record or a
+  // queued entry. Cleared once this mount commits a write of its own (then `unsynced` speaks
+  // for the store, as before) or `settleProvenEqual` settles. The indicator reads it so that
+  // "Saved" is never shown over unsent work the device holds.
+  const [held, setHeld] = useState(false)
+  const wroteRef = useRef(false)   // a write of this mount committed: a read taken before it is stale
   const [error, setError] = useState(null)
   // What the PLATFORM says about retention, read once. ⛔ It is a wording
   // input, never a gate: `null` and `false` both mean "not positively granted",
@@ -752,6 +758,8 @@ export function useDurableNote({
         } else if (next === DURABLE) {
           setError(null)
           setUnsynced(committedDirtyRef.current)
+          wroteRef.current = true
+          setHeld(false)
         }
       },
     })
@@ -816,6 +824,7 @@ export function useDurableNote({
         // ⛔ See the header: a clean record is not a candidate.
         idbRecord = rec && rec.dirty ? rec : null
         const entries = await listOutbox(db)
+        if (!wroteRef.current) setHeld(Boolean(rec?.dirty) || entries.some((e) => e?.noteId === noteId))
         // ⭐ D3 / F5P-1: the queued entry is the evidence that these words were
         // already committed to the server — see `queuedWorkToAdopt`.
         if (idbRecord) queued = entries.find((e) => e?.noteId === noteId) || null
@@ -870,7 +879,9 @@ export function useDurableNote({
     if (!supported || !server) return false
     try {
       const db = await connect(accountId)
-      return (await settleIfServerHolds(db, noteId, server, server.updatedAt)) === 'settled'
+      const settled = (await settleIfServerHolds(db, noteId, server, server.updatedAt)) === 'settled'
+      if (settled) setHeld(false)
+      return settled
     } catch { return false }
   }, [supported, accountId, noteId, connect])
 
@@ -893,7 +904,7 @@ export function useDurableNote({
   }, [supported, accountId, connect])
 
   return {
-    supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover, withCopyStore,
+    supported, status, unsynced, held, error, persisted, schedule, markSynced, flush, recover, withCopyStore,
     settleProvenEqual,
   }
 }

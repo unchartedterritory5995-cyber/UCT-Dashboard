@@ -87,8 +87,11 @@ export const SAVED_WORDS = 'Saved'
 export function offlineKept(persisted) {
   return persisted === true ? 'Offline · saved on this device' : 'Offline · saved in this browser'
 }
+// Follow-up D (F3): `held` is the device's store, read on open, holding this note's unsent work (a dirty record or a
+// queued entry). Online, "Saved" is then not claimed; the queue's own words are. `loading` covers the time before the
+// store has answered at all.
 export function saveIndicatorWords({ status, unsynced = false, persisted = false, offline = false, blocked = false,
-  loading = false } = {}) {
+  loading = false, held = false } = {}) {
   if (loading || blocked || status === 'conflict' || status === 'refused') return ''
   // Fix round 1 (Tier 1a): an edit still inside the durable debounce is not yet kept anywhere -- "Saving…", even offline.
   if (status === 'dirty') return SAVING_WORDS
@@ -103,5 +106,5 @@ export function saveIndicatorWords({ status, unsynced = false, persisted = false
   }
   if (status === 'error' || status === 'reconnecting') return ''
   if (status === 'saving' || status === 'dirty') return SAVING_WORDS
-  return SAVED_WORDS
+  return held ? unsyncedLabel(persisted) : SAVED_WORDS
 }

@@ -3628,7 +3628,9 @@ export default function NoteEditorPage({
     <span className={className} role="status" aria-live="polite" data-save-indicator="">
       {indicatorOn ? saveIndicatorWords({
         status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
-        offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
+        offline: isOffline, blocked: noteIsBlocked, held: Boolean(durable.held),
+        // Follow-up D (F3): nothing is claimed until the device's recovery decision for this note is made.
+        loading: isLoading || !note || recoveryDecidedFor !== note.id,
       }) : ''}
     </span>
   )
