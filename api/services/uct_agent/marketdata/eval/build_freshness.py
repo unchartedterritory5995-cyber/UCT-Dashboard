@@ -13,7 +13,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from api.services.uct_agent.marketdata import envelope as env                    # noqa: E402
-from api.services.uct_agent.marketdata import (breadth as br, earnings as ern,    # noqa: E402
+from api.services.uct_agent.marketdata import (bars_daily as bd, breadth as br, earnings as ern,    # noqa: E402
                                               news_company as nc, quotes as q, ratings as rt,
                                               statements as stm, themes as th)
 
@@ -214,6 +214,26 @@ add("b-stale", "What was MSFT's last daily close?",
       stale=True, data={**bars, "through": "2026-10-28"},
       notes=["the newest bar held is 2026-10-28; the newest completed session is 2026-10-30"]),
     category="historical-stale")
+# Phase 2 history: tf W / M — a forming week is partial, never a closed bar; a pre-2003 row is labelled yfinance
+wk = lambda **k: {"date": "2026-10-30", "first_session": "2026-10-26", "last_session": "2026-10-28", "sessions": 3,  # noqa: E731
+                  "open": 1, "high": 2, "low": 0.5, "close": 1.5, "volume": 30, "change_pct": 1.0, **k}
+add("b-week-forming", "How has AAPL done this week?",
+    E("bars.daily", status="ok", freshness="historical", as_of="2026-10-28T20:00:00Z", source="uct-bars",
+      params={"symbol": "AAPL", "tf": "W", "bars": 1},
+      data={"symbol": "AAPL", "timeframe": "W", "bars": [wk(partial=True, partial_reason="forming")],
+            "through": "2026-10-28", "latest_completed_session": "2026-10-28", "current_period_partial": True},
+      notes=[bd.NOTE_COMPLETED, bd.NOTE_RESAMPLED["W"], bd.NOTE_FORMING.format(unit="week", d="2026-10-30")]),
+    category="historical", disclose=["still forming", "partial"])
+add("b-month-pre-floor", "What are MSFT's monthly closes back to 2003, through the latest month?",
+    E("bars.daily", status="ok", freshness="historical", as_of="2003-12-31T21:00:00Z", source="uct-bars",
+      params={"symbol": "MSFT", "tf": "M", "from": "2003-01-01", "to": "2003-12-31"},
+      data={"symbol": "MSFT", "timeframe": "M", "bars": [wk(date="2003-08-01", first_session="2003-08-01",
+                                                           last_session="2003-08-29", sessions=21, partial=False,
+                                                           pre_vendor_floor=True)],
+            "through": "2003-12-31", "latest_completed_session": "2003-12-31", "current_period_partial": False,
+            "window_from": "2003-01-01"},
+      notes=[bd.NOTE_COMPLETED, bd.NOTE_RESAMPLED["M"], bd.NOTE_FROM.format(d="2003-01-01"), bd.NOTE_PRE_FLOOR]),
+    category="historical", disclose=["yfinance"])
 
 # ── fundamentals / earnings / news ────────────────────────────────────────────────────────────────────
 add("f-current", "What's AAPL's revenue now?",
