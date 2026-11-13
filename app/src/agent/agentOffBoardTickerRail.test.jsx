@@ -4,9 +4,11 @@
 // Generated: off-board tickers × anaphor × exclusion phrasings × boards of 1, 2 and 3 charts × no click / a click on the plan's
 // chart / a click on another chart. The scripted plan always changes SPY (a wrong-chart plan for "Change AMD …").
 //   DECIDED   (2+ charts, no click on the plan's chart): the rule fires → asked, and NO chart changes.
-//   NOT CONSULTED  (1 chart; or the plan's chart is the one clicked): the rules that run before it decide, exactly as without it
-//             (recorded with the rule disabled, M4+M5: identical outcomes) — the plan's chart is the only one written, the excluded
-//             chart never is. The rule adds no write here either.
+//   NOT CONSULTED  (1 chart; or the plan's chart is the one clicked): the rules that run before it decide. At aee4be9f54 the plan's
+//             chart was written there (identical with the rule disabled, M4+M5). Since the AUDIT target-ticker ruling
+//             (deixis.targetTickerConflict) "Change AMD …" with the plan on SPY is ASKED there too — so every cell: asked, no write.
+// GUARD SITES: the two places the rule withholds an identification are held directly (screenUnnamedTargets / screenDeicticOps),
+// because in the panel targetTickerConflict now asks behind them as well (the panel cells alone no longer isolate this rule).
 // Unit block: what the reader counts as an off-board ticker (never an exclusion, an on-board symbol, an indicator acronym, or
 // words typed in capitals).
 // Evidence: LOCAL / SIMULATED (BROWSER-MOCK-MODEL): jsdom, the real panel (panelHarness), scripted plans, no model call.
@@ -14,7 +16,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup, screen } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { setupPanel, bareSettings } from './testing/panelHarness'
-import { offBoardTicker } from './deixis'
+import { offBoardTicker, screenUnnamedTargets, screenDeicticOps } from './deixis'
+import { getCapability, getTargetKind } from './capabilities'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -63,15 +66,31 @@ describe('offBoardTicker only ever turns an act into an ask: never a write', () 
     const written = ids.filter(id => stored(m.board, id) !== before[id])
     // every cell: the excluded chart (NVDA, w1) and any third chart never change
     expect(written.filter(id => id !== 'w0'), transcript()).toEqual([])
-    const decided = syms.length >= 2 && sel !== 'w0'
-    if (decided) {
-      expect(asked(), transcript()).toBe(true)
-      expect(written, transcript()).toEqual([])
-    } else {
-      // not consulted: the only chart / the clicked plan chart decides, exactly as with the rule disabled
-      expect(written, transcript()).toEqual(['w0'])
-    }
+    // every cell: asked, nothing written (decided by this rule on 2+ charts; by the target-ticker ruling elsewhere)
+    expect(asked(), transcript()).toBe(true)
+    expect(written, transcript()).toEqual([])
   }, 60000)
+})
+
+// ── GUARD SITES, held directly: with the rule, "the one left" never identifies the plan's chart for an off-board target ─────────
+describe('GUARD SITES: "the one left" is withheld when the change words name an off-board ticker', () => {
+  const GUARD = OFF_BOARD.flatMap(T => EXCLUSIONS.map(exc => [T, exc('NVDA')]))
+  const opsOnSpy = [{ action: 'chart.setTimeframe', target: 'w0', args: { timeframe: '60' } }]
+  it.each(GUARD)('screenUnnamedTargets: "Change %s to the 1-hour timeframe%s" (SPY + NVDA, no click) → asks', (T, tail) => {
+    const m = mount(['SPY', 'NVDA'])
+    const r = screenUnnamedTargets({ host: m.h, ops: opsOnSpy, text: `Change ${T} to the 1-hour timeframe${tail}`, getTargetKind, getCapability })
+    expect(r?.ask, JSON.stringify(r)).toBeTruthy()
+  })
+  it.each(GUARD)('screenDeicticOps: "Change %s to the 1-hour timeframe, add a 20 EMA to it%s" (SPY + NVDA, no click) → asks', (T, tail) => {
+    const m = mount(['SPY', 'NVDA'])
+    const r = screenDeicticOps({ host: m.h, ops: opsOnSpy, text: `Change ${T} to the 1-hour timeframe, add a 20 EMA to it${tail}`, getTargetKind, getCapability })
+    expect(r?.ask, JSON.stringify(r)).toBeTruthy()
+  })
+  it('controls: the same words naming SPY (on the board) identify SPY at both sites', () => {
+    const m = mount(['SPY', 'NVDA'])
+    expect(screenUnnamedTargets({ host: m.h, ops: opsOnSpy, text: "Change SPY to the 1-hour timeframe. Don't touch NVDA.", getTargetKind, getCapability })).toBeNull()
+    expect(screenDeicticOps({ host: m.h, ops: opsOnSpy, text: "Change SPY to the 1-hour timeframe, add a 20 EMA to it. Don't touch NVDA.", getTargetKind, getCapability })).toBeNull()
+  })
 })
 
 describe('offBoardTicker: what counts as a ticker the board does not show', () => {

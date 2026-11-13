@@ -69,6 +69,25 @@ describe('TARGET-SHAPED: a ticker named as the chart being changed, the plan on 
   }, 60000)
 })
 
+// a target ticker the plan does not write is never met by "this one" beside it: the click stands only BESIDE a met target
+describe('TARGET + "this one": an unmet target ticker still asks; a met one lets "this one too" stand', () => {
+  it.each(TICKERS)('"Change %s to the 1-hour timeframe and add a 20 EMA to this chart" (SPY clicked): asked, nothing written', async (T) => {
+    const m = mount(['SPY', 'NVDA'], 'w0')
+    const before = snapshot(m.board, ['w0', 'w1'])
+    p.st.envelopes.push((body) => p.env('apply', [OPS.timeframe(body), OPS.ema(body)]))
+    await m.say(`Change ${T} to the 1-hour timeframe and add a 20 EMA to this chart`)
+    expect(asked(), transcript()).toBe(true)
+    expect(snapshot(m.board, ['w0', 'w1'])).toEqual(before)
+  }, 60000)
+  it('"make the NVDA chart hourly and this one too" (SPY clicked): both hourly', async () => {
+    const m = mount(['SPY', 'NVDA'], 'w0')
+    p.st.envelopes.push((body) => p.env('apply', [OPS.timeframe(body), { action: 'chart.setTimeframe', target: body.context.charts.find(c => c.label === 'Chart (NVDA)').ref, args: { timeframe: '60' } }]))
+    await m.say('make the NVDA chart hourly and this one too')
+    expect(asked(), transcript()).toBe(false)
+    expect(m.board.state.widgets.map(w => w.opts.tf), transcript()).toEqual(['60', '60'])
+  }, 60000)
+})
+
 // ── VALUE-SHAPED (carve-out): the symbol change runs ──────────────────────────────────────────────────────────────────────
 const VALUE_DEICTIC = [(T) => `change this chart to ${T}`, (T) => `switch to ${T}`, (T) => `put ${T} on this chart`, (T) => `replace SPY with ${T}`,
   (T) => `show ${T} instead`, (T) => `change SPY to ${T}`]

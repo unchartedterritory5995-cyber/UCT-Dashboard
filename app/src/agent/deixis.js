@@ -791,19 +791,28 @@ export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTarg
     // a chart the words identify by place / order / relation (not by symbol) is named there in its own right
     const w = changeWords(text)
     const bySym = chartsNamedBySymbol(w, charts)
-    const other = new Set([...chartsNamedBy(w, charts, selectedChart(host))].filter(r => !bySym.has(r)))
+    const sel = selectedChart(host)
+    const other = new Set([...chartsNamedBy(w, charts, sel)].filter(r => !bySym.has(r)))
+    // "the TSLA chart to hourly and THIS one too": a clause that points at the click names it as a target of its own
+    if (sel && /\b(?:this|here)\b/i.test(w)) other.add(sel)
     const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
+    const written = []
     for (const o of ops || []) {
       const cap = getCapability(o?.action)
       const kind = cap ? getTargetKind(cap.target) : null
       if (!kind || cap.query || aliases.has(o.target)) continue
       const snap = (kind.list(host) || []).find(x => x.ref === o.target)
       const chart = snap ? chartRefOf(kind, snap) : null
-      if (!chart || other.has(chart)) continue
+      if (chart) written.push(chart)
+    }
+    const symOfChart = (ref) => String(charts.find(x => x.ref === ref)?.symbol || '').toUpperCase()
+    // every target ticker must be a chart the plan writes; a chart identified another way stands only BESIDE that (never instead)
+    const unmet = targets.filter(t => !written.some(r => symOfChart(r) === t))
+    for (const chart of written) {
       const c = charts.find(x => x.ref === chart)
-      const shown = String(c?.symbol || '').toUpperCase()
-      if (targets.includes(shown)) continue
-      const t = targets[0]
+      const shown = symOfChart(chart)
+      if (targets.includes(shown) || (other.has(chart) && !unmet.length)) continue
+      const t = unmet[0] || targets[0]
       const where = charts.some(x => String(x.symbol || '').toUpperCase() === t) ? '' : ` ${t} isn't on a chart here.`
       return { ticker: t, shown, ask: { text: `You named ${t}, but ${c?.label || 'that chart'} shows ${shown || 'something else'}.${where} Which chart do you mean? Nothing has changed yet.` } }
     }
