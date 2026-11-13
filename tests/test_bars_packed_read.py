@@ -190,5 +190,74 @@ def test_one_result_row_whatever_the_bar_count(store, monkeypatch):
     assert len(real().execute(bars_sqlite._PACKED_SQL, ("SPY", "D", 5000)).fetchall()) == 1
 
 
+# ── PROVEN ON THE SQLITE THIS PROCESS RUNS ───────────────────────────────────
+#
+# Everything above ran on the sqlite of the machine that ran it. Production is another build
+# (python:3.12-slim-bookworm), and CI does not run this file on that image. So the read proves
+# itself in every process before its first answer, and turns itself off if the proof fails.
+
+def test_this_sqlite_reproduces_the_proof_set_and_the_proof_runs_once(store, monkeypatch):
+    assert bars_sqlite._packed_self_test() is True
+    assert len(bars_sqlite._proof_values()) >= 256
+    runs = []
+    real = bars_sqlite._packed_self_test
+    monkeypatch.setattr(bars_sqlite, "_packed_self_test", lambda: runs.append(1) or real())
+    monkeypatch.setattr(bars_sqlite, "_packed_proof", None)
+    store("SPY", "D", [(20260101, 1.25, 2.5, 0.5, 1.75, 10)])
+    for _ in range(3):
+        assert bars_sqlite.get_bars_packed("SPY", "D", 10) == [(20260101, 1.25, 2.5, 0.5, 1.75, 10)]
+    assert runs == [1], "once per process, not once per read"
+    assert bars_sqlite.packed_reads_proven() is True
+
+
+def _through_text(column, below=None):
+    """The shipped statement with ONE column first rendered the way sqlite renders a REAL as text
+    (15 significant digits): what a naive one-step read does. Off by about one part in 10^16.
+    `below`: only values under it are rendered (so every error is tiny in absolute terms too)."""
+    inner = "SELECT ts, o, h, l, c, v FROM ohlcv WHERE"
+    assert bars_sqlite._PACKED_SQL.count(inner) == 1
+    text = "CAST(printf('%.15g', {x}) AS REAL)"
+    lossy = text if below is None else f"CASE WHEN abs({{x}}) < {below} THEN {text} ELSE {{x}} END"
+    cols = ", ".join((lossy.format(x=x) + f" AS {x}") if x == column else x for x in ("o", "h", "l", "c"))
+    return bars_sqlite._PACKED_SQL.replace(inner, f"SELECT ts, {cols}, v FROM ohlcv WHERE")
+
+
+@pytest.mark.parametrize("breakage", ["a wrong rebuild", "the open through 15 digits of text",
+                                      "only the close through 15 digits of text",
+                                      "only values below one through 15 digits of text", "the proof itself errors"])
+def test_a_sqlite_that_fails_the_proof_turns_the_one_step_read_off_and_says_so_once(store, monkeypatch, caplog, breakage):
+    store("SPY", "D", [(20260101, 1.25, 2.5, 0.5, 1.75, 10)])
+    if breakage == "a wrong rebuild":
+        monkeypatch.setattr(bars_sqlite, "_PACK_INV", 2.0 ** -51)
+    elif breakage == "the open through 15 digits of text":
+        monkeypatch.setattr(bars_sqlite, "_PACKED_SQL", _through_text("o"))
+    elif breakage == "only the close through 15 digits of text":
+        monkeypatch.setattr(bars_sqlite, "_PACKED_SQL", _through_text("c"))
+    elif breakage == "only values below one through 15 digits of text":
+        # every error here is under 1e-15 in absolute terms: only a comparison of the BITS sees it
+        monkeypatch.setattr(bars_sqlite, "_PACKED_SQL", _through_text("o", below=1))
+    else:
+        monkeypatch.setattr(bars_sqlite, "ohlcv_ddl", lambda name="ohlcv": "CREATE TABLE nope (")
+    monkeypatch.setattr(bars_sqlite, "_packed_proof", None)
+    assert bars_sqlite._packed_self_test() is False
+    with caplog.at_level("ERROR", logger=bars_sqlite._logger.name):
+        assert bars_sqlite.get_bars_packed("SPY", "D", 10) is None
+        assert bars_sqlite.get_bars_packed("SPY", "D", 10) is None
+    assert bars_sqlite.packed_reads_proven() is False
+    said = [r for r in caplog.records if "one-step reads OFF" in r.getMessage()]
+    assert len(said) == 1, "said once, not on every read"
+    # and the rows are still served, the old way
+    assert bars_sqlite.get_bars("SPY", "D", 10) == [(20260101, 1.25, 2.5, 0.5, 1.75, 10)]
+
+
+def test_the_proof_set_holds_what_fifteen_digits_would_lose():
+    """The proof must contain values a text rendering cannot carry, or it proves nothing."""
+    lossy = [x for x in bars_sqlite._proof_values() if x and float("%.15g" % x) != x]
+    assert len(lossy) >= 100, len(lossy)
+    kinds = bars_sqlite._proof_values()
+    assert any(0 < abs(x) < 1e-3 for x in kinds) and any(x > 1e15 for x in kinds) and any(x < 0 for x in kinds)
+    assert 0.0 in kinds
+
+
 def test_the_row_reader_is_named_by_identity():
     assert bars_sqlite.ROW_READER is bars_sqlite.get_bars

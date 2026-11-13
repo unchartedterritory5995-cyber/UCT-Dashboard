@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import sqlite3
+import struct
 import threading
 import time
 
@@ -1943,16 +1944,9 @@ def _packed_ts(row: tuple) -> int:
     return row[0]
 
 
-def get_bars_packed(ticker: str, tf: str, max_bars: int) -> list[tuple] | None:
-    """`get_bars(ticker, tf, max_bars)`, read in ONE sqlite step (see above): the same
-    tuples, oldest first, every value equal to the row reader's. ``None`` means "this read
-    cannot be made exactly in one step" (a value outside the proven range, a fractional
-    volume, a sqlite without JSON functions): read the rows with `get_bars` instead.
-    A database error other than a missing JSON function is the row reader's to raise."""
-    try:
-        text, exact, count = _conn().execute(_PACKED_SQL, (ticker.upper(), tf, max_bars)).fetchone()
-    except sqlite3.OperationalError:
-        return None
+def _unpack(result: tuple) -> list[tuple] | None:
+    """The one-step statement's single result row, as `get_bars`' tuples (None: not exact)."""
+    text, exact, count = result
     if not count:
         return []
     if exact != 1:
@@ -1968,6 +1962,89 @@ def get_bars_packed(ticker: str, tf: str, max_bars: int) -> list[tuple] | None:
                     v))
     out.sort(key=_packed_ts)        # an aggregate's input order is not promised: ts is the order
     return out
+
+
+# ⛔ PROVEN ON THE SQLITE THIS PROCESS RUNS, BEFORE THE FIRST ANSWER. The arithmetic above is
+# exact by the rules of binary floating point, and the suite holds it bit for bit, but the
+# suite ran on the sqlite of the machine that ran it: production is `python:3.12-slim-bookworm`
+# (sqlite 3.40), a laptop is not, and CI does not run that file on that image. So the first
+# call in every process pushes a fixed set of doubles (values that do not survive 15 digits,
+# sub-dollar and very large ones, negatives, and 256 with every mantissa bit in play)
+# through the SAME statement on an in-memory database and compares them with the row read by
+# their 64 bits. Anything but a perfect match, or any error, turns the one-step read OFF for
+# the life of the process (every read is then row by row) and says so in the log, once.
+_packed_proof: bool | None = None
+_packed_proof_lock = threading.Lock()
+
+
+def _proof_values() -> list:
+    vals = [0.1 + 0.2, 1 / 3, 2 / 3, 123456.78901234567, 1.0000000000000002, 0.9999999999999999,
+            33.333333333333336, 4503599627370495.5, 9007199254740991.0, 2.0 ** -20, 5e-10, -17.25, -0.1,
+            0.0, 1.0, 1e15 + 0.125, 0.0007, 32.78, 711000.0]
+    state = 0x9E3779B97F4A7C15
+    for _ in range(256):
+        state = (state * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+        exponent = 1023 - 30 + (state & 0xFFF) % 70             # 2^-30 .. 2^39: what a price can be
+        vals.append(struct.unpack("<d", struct.pack("<Q", (exponent << 52) | (state >> 12)))[0])
+    return vals
+
+
+def _same_bits(a, b) -> bool:
+    if a is None or b is None:
+        return a is b
+    return struct.pack("<d", a) == struct.pack("<d", b)
+
+
+def _packed_self_test() -> bool:
+    """True when this sqlite reproduces `_proof_values` bit for bit through `_PACKED_SQL`."""
+    try:
+        mem = sqlite3.connect(":memory:")
+        try:
+            mem.execute(ohlcv_ddl())
+            rows = [("T", "D", i, x, x / 3, x * 0.7, x / 2 + 0.1, i) for i, x in enumerate(_proof_values())]
+            mem.executemany("INSERT INTO ohlcv(ticker, tf, ts, o, h, l, c, v) VALUES (?,?,?,?,?,?,?,?)", rows)
+            want = mem.execute("SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker='T' AND tf='D' ORDER BY ts").fetchall()
+            got = _unpack(mem.execute(_PACKED_SQL, ("T", "D", len(rows))).fetchone())
+        finally:
+            mem.close()
+    except Exception:                                     # noqa: BLE001 — any failure is "not proven"
+        return False
+    return (got is not None and len(got) == len(want) == len(rows)
+            and all(g[0] == w[0] and g[5] == w[5] and all(_same_bits(x, y) for x, y in zip(g[1:5], w[1:5]))
+                    for g, w in zip(got, want)))
+
+
+def packed_reads_proven() -> bool:
+    """Has this process proven the one-step read exact on its own sqlite? (Run once, remembered.)"""
+    global _packed_proof
+    if _packed_proof is None:
+        with _packed_proof_lock:
+            if _packed_proof is None:
+                ok = _packed_self_test()
+                if ok:
+                    _logger.info("[bars] one-step reads ON: sqlite %s reproduced the proof set bit for bit",
+                                 sqlite3.sqlite_version)
+                else:
+                    _logger.error("[bars] one-step reads OFF for this process: sqlite %s did not reproduce the "
+                                  "proof set; every read is row by row", sqlite3.sqlite_version)
+                _packed_proof = ok
+    return _packed_proof
+
+
+def get_bars_packed(ticker: str, tf: str, max_bars: int) -> list[tuple] | None:
+    """`get_bars(ticker, tf, max_bars)`, read in ONE sqlite step (see above): the same
+    tuples, oldest first, every value equal to the row reader's. ``None`` means "this read
+    cannot be made exactly in one step" (this sqlite did not pass the proof, a value outside
+    the proven range, a fractional volume, a sqlite without JSON functions): read the rows
+    with `get_bars` instead. A database error other than a missing JSON function is the row
+    reader's to raise."""
+    if not packed_reads_proven():
+        return None
+    try:
+        result = _conn().execute(_PACKED_SQL, (ticker.upper(), tf, max_bars)).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    return _unpack(result)
 
 
 def get_bars_before(ticker: str, tf: str, max_bars: int, to_key: int) -> list[tuple]:
