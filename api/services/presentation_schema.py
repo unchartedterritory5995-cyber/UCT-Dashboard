@@ -564,8 +564,9 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
 #: CLOSED: anything else is refused.
 RUNTIME_OBJECTS_FIELDS = ("source", "outputs", "runtimeLanguage", "runtimeFrontend", "runtimeIr",
                           "runtimeOutputSignature", "sites", "programSha256", "programGraphSha256")
-_RO_SITE_ID = re.compile(r"^s\d+$")
-_RO_SITE_KEY = re.compile(r"^\d+:\d+$")
+# ASCII digits only, as the client's JS `\d` reads them (Python's `\d` would admit any Unicode digit)
+_RO_SITE_ID = re.compile(r"^s[0-9]+$")
+_RO_SITE_KEY = re.compile(r"^[0-9]+:[0-9]+$")
 _RO_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 

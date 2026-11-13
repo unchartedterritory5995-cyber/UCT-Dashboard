@@ -766,6 +766,8 @@ const RUN_HALF_WHY = Object.freeze({
     + "bar by bar, and that run hasn't been checked against TradingView for this script",
   'run-half:program-unbound': "the indicator's plots and drawings have changed since it was set up to run bar "
     + 'by bar',
+  'run-half:program-unstamped': 'it was set up to run bar by bar by an older version of the app, which did '
+    + 'not record what that run must be checked against',
   'run-half:rail-not-loaded': 'the part of the app that checks those drawings is not loaded',
   'run-half:uncompared-site': 'running it bar by bar makes drawings this chart cannot check against its own, '
     + "and that run hasn't been checked against TradingView for this script",

@@ -40,7 +40,7 @@
 // the binder now calls too: one evaluation path, never two).
 import { objectReaderFor } from './objectColumns'
 import { evaluateObjects, OBJECT_STATUS } from './objectRuntime'
-import { toRenderState } from './objectRenderState'
+import { toRenderState, RENDER_COLOUR_SLOTS } from './objectRenderState'
 import { registerRunHalfObjectRail, runHalfEvidenceAdmits } from './runHalfRailSeam.js'
 import { runtimeSourceHash } from './runtimeKill'
 
@@ -107,8 +107,10 @@ function colourKey(s) {
   return s
 }
 
-/** Two drawn values agree: numbers to the price tolerance policy (`na` with `na`), strings as
- *  one colour spelling or exactly, arrays and objects member by member. */
+/** Two drawn values agree: numbers to the price tolerance policy (`na` with `na`), strings
+ *  EXACTLY (a label's text `#abc` is not the text `#AABBCC`), arrays and objects member by member.
+ *  ⛔ Only a COLOUR SLOT of the render state is compared as a colour (`sameColour`, through
+ *  `sameRow`): normalising every string made colour-shaped TEXT compare equal (review of #1202). */
 function sameValue(a, b, depth = 0) {
   if (Object.is(a, b)) return true
   if (depth > 8) return false
@@ -120,7 +122,7 @@ function sameValue(a, b, depth = 0) {
     const d = Math.abs(a - b)
     return d <= ABS || d <= REL * Math.max(Math.abs(a), Math.abs(b))
   }
-  if (typeof a === 'string' && typeof b === 'string') return colourKey(a) === colourKey(b)
+  if (typeof a === 'string' && typeof b === 'string') return a === b
   if (Array.isArray(a) || Array.isArray(b)) {
     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
     return a.every((x, i) => sameValue(x, b[i], depth + 1))
@@ -133,6 +135,43 @@ function sameValue(a, b, depth = 0) {
   }
   return false
 }
+
+/** Two values of a colour slot agree: one `#rrggbbaa` spelling when both are strings. */
+function sameColour(a, b) {
+  if (typeof a === 'string' && typeof b === 'string') return colourKey(a) === colourKey(b)
+  return Object.is(a, b) || (a === undefined && b === undefined)
+}
+
+/** The key of a row (or of a cell, `family` 'cell') that differs, or null. Colour slots
+ *  (`objectRenderState.RENDER_COLOUR_SLOTS`) as colours, a table's cells cell by cell, every
+ *  other key exactly (`sameValue`). */
+function rowDiff(family, a, b) {
+  const colours = new Set(RENDER_COLOUR_SLOTS[family] || [])
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)].filter((k) => a[k] !== undefined || b[k] !== undefined))
+  for (const k of keys) {
+    if (family === 'table' && k === 'cells') {
+      const ca = Array.isArray(a.cells) ? a.cells : []
+      const cb = Array.isArray(b.cells) ? b.cells : []
+      if (ca.length !== cb.length) return 'cells'
+      for (let i = 0; i < ca.length; i += 1) {
+        const d = rowDiff('cell', ca[i] || {}, cb[i] || {})
+        if (d) return `cells[${i}].${d}`
+      }
+      continue
+    }
+    if (colours.has(k) ? !sameColour(a[k], b[k]) : !sameValue(a[k], b[k])) return k
+  }
+  return null
+}
+
+/** ⭐ THE TWO SENTINEL THEMES the rows are drawn under (review of #1202). The binder draws with
+ *  the chart's own theme, so a theme reference (`chart.fg_color`) resolves per chart; drawn with
+ *  NO theme it fell to the slot's default and compared equal to a literal of that default. Under
+ *  two distinct themes a theme-relative value can never equal one literal on both. */
+const SENTINEL_THEMES = Object.freeze([
+  Object.freeze({ fg: '#010203', bg: '#040506' }),
+  Object.freeze({ fg: '#0A0B0C', bg: '#0D0E0F' }),
+])
 
 const ROWS = { line: 'lines', label: 'labels', box: 'boxes', table: 'tables', linefill: 'fills' }
 
@@ -220,9 +259,9 @@ export function runHalfObjectVerdict({ program, hostRun, sites, payload, bars, t
     if ((hc.get(k) || 0) < n) return refuse(RUN_HALF_OBJECT_RAIL, `the run makes ${n} drawings at line ${k.split(':')[0]}, the host ${hc.get(k) || 0}`)
   }
   // ⛔ then pair by creation order across every compared site, and compare what is drawn
-  const opts = { bars, tf }
-  const hRows = rowsById(toRenderState(host.map((x) => x.o), { ...opts, pineVersion: program && program.pineVersion }))
-  const rRows = rowsById(toRenderState(run.map((x) => x.o), { ...opts, pineVersion: payload.pineVersion }))
+  const hState = (theme) => rowsById(toRenderState(host.map((x) => x.o), { bars, tf, theme, pineVersion: program && program.pineVersion }))
+  const rState = (theme) => rowsById(toRenderState(run.map((x) => x.o), { bars, tf, theme, pineVersion: payload.pineVersion }))
+  const themed = SENTINEL_THEMES.map((theme) => ({ hRows: hState(theme), rRows: rState(theme) }))
   const hPos = new Map(host.map((x, i) => [x.o.id, i]))
   const rPos = new Map(run.map((x, i) => [x.o.id, i]))
   for (let i = 0; i < host.length; i += 1) {
@@ -231,26 +270,26 @@ export function runHalfObjectVerdict({ program, hostRun, sites, payload, bars, t
     const at = `drawing ${i + 1} (a ${h.o.family} at line ${h.k.split(':')[0]})`
     if (h.k !== r.k || h.o.family !== r.o.family) return refuse(RUN_HALF_OBJECT_RAIL, `${at}: the run's is made at another call`)
     if (h.o.createdBar !== r.o.createdBar) return refuse(RUN_HALF_OBJECT_RAIL, `${at}: made on bar ${h.o.createdBar} by the host, ${r.o.createdBar} by the run`)
-    const hr = hRows.get(h.o.id)
-    const rr = rRows.get(r.o.id)
-    if (!hr || !rr) {
-      if (hr || rr) return refuse(RUN_HALF_OBJECT_RAIL, `${at}: drawn by one lane and not the other`)
-      continue
-    }
-    const { id: _hi, ...hRest } = hr
-    const { id: _ri, ...rRest } = rr
-    if (h.o.family === 'linefill') {
-      // a fill's two lines, by which compared drawing they are
-      for (const side of ['a', 'b']) {
-        if (hPos.get(hRest[side]) === undefined || hPos.get(hRest[side]) !== rPos.get(rRest[side])) {
-          return refuse(RUN_HALF_OBJECT_RAIL, `${at}: it fills between other lines`)
-        }
-        delete hRest[side]; delete rRest[side]
+    for (const { hRows, rRows } of themed) {
+      const hr = hRows.get(h.o.id)
+      const rr = rRows.get(r.o.id)
+      if (!hr || !rr) {
+        if (hr || rr) return refuse(RUN_HALF_OBJECT_RAIL, `${at}: drawn by one lane and not the other`)
+        continue
       }
-    }
-    if (!sameValue(hRest, rRest)) {
-      const diff = Object.keys({ ...hRest, ...rRest }).find((k) => !sameValue(hRest[k], rRest[k])) || 'a property'
-      return refuse(RUN_HALF_OBJECT_RAIL, `${at}: its \`${diff}\` differs`)
+      const { id: _hi, ...hRest } = hr
+      const { id: _ri, ...rRest } = rr
+      if (h.o.family === 'linefill') {
+        // a fill's two lines, by which compared drawing they are
+        for (const side of ['a', 'b']) {
+          if (hPos.get(hRest[side]) === undefined || hPos.get(hRest[side]) !== rPos.get(rRest[side])) {
+            return refuse(RUN_HALF_OBJECT_RAIL, `${at}: it fills between other lines`)
+          }
+          delete hRest[side]; delete rRest[side]
+        }
+      }
+      const diff = rowDiff(h.o.family, hRest, rRest)
+      if (diff) return refuse(RUN_HALF_OBJECT_RAIL, `${at}: its \`${diff}\` differs`)
     }
   }
   // ⛔⛔ EVERY OBJECT THE RUN DRAWS MUST COME FROM A SITE THIS RAIL COMPARED. A drawing made at a

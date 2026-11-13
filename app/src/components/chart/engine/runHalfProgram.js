@@ -93,6 +93,13 @@ export function runHalfProgramStampKey(definition) {
   return isGraphForm(definition) ? RUN_HALF_PROGRAM_GRAPH_STAMP : RUN_HALF_PROGRAM_STAMP
 }
 
+/** ⭐ Does the document carry a program stamp at all? A run half minted before engine 54 carries
+ *  none (`run-half:program-unstamped`: said as "an older version", not as "changed"). */
+export function runHalfProgramStamped(definition) {
+  const ro = definition && definition.compute && definition.compute.runtimeObjects
+  return isObj(ro) && (ro[RUN_HALF_PROGRAM_STAMP] !== undefined || ro[RUN_HALF_PROGRAM_GRAPH_STAMP] !== undefined)
+}
+
 const _verdicts = new WeakMap()
 /** ⭐ The bind's question: does this document's program still digest to the stamp its door
  *  wrote for its form? Memoised per document object (a document is installed frozen).

@@ -349,7 +349,14 @@ describe('⛔⛔ the program binding (the forgery residual)', () => {
     const forgedSites = edited(minted, (d) => { d.compute.runtimeObjects.sites = { s1: '11:13' } }, { keepStamp: true })
     expect(runHalfOf(bind(install(forgedSites))).code).toBe(registry.RUN_HALF_PROGRAM_UNBOUND)
     const noStamp = edited(minted, (d) => { delete d.compute.runtimeObjects[RUN_HALF_PROGRAM_STAMP] }, { keepStamp: true })
-    expect(runHalfOf(bind(install(noStamp))).code).toBe(registry.RUN_HALF_PROGRAM_UNBOUND)
+    // ⭐ review of #1202: a document with NO stamp at all was minted by an older engine, said so
+    expect(runHalfOf(bind(install(noStamp))).code).toBe(registry.RUN_HALF_PROGRAM_UNSTAMPED)
+    expect(runHalfRefusedSentence(registry.RUN_HALF_PROGRAM_UNSTAMPED)).not.toBe(runHalfRefusedSentence(registry.RUN_HALF_PROGRAM_UNBOUND))
+    expect(runHalfRefusedSentence(registry.RUN_HALF_PROGRAM_UNSTAMPED)).toMatch(/older version/)
+    expect(runHalfRefusedSentence(registry.RUN_HALF_PROGRAM_UNSTAMPED)).not.toMatch(GUARD_TOKEN)
+    // a stamp that is present and wrong is still "changed"
+    const wrongStamp = edited(minted, (d) => { d.compute.runtimeObjects[RUN_HALF_PROGRAM_STAMP] = '0'.repeat(64) }, { keepStamp: true })
+    expect(runHalfOf(bind(install(wrongStamp))).code).toBe(registry.RUN_HALF_PROGRAM_UNBOUND)
     expect(runHalfOf(bind(install(edited(minted, () => {})))).state, 'CONTROL: re-stamped, unchanged').toBe('served')
   })
 
@@ -433,5 +440,98 @@ describe('⭐ refusal telemetry: counted per document session, beaconed {code, h
     expect(runHalfBeaconOf(SRC, 'the run draws a label differently')).toBe(null)
     expect(runHalfBeaconOf(SRC, 'run-half:object-rail')).toEqual({ code: 'run-half:object-rail', hash: runtimeSourceHash(SRC).slice(0, 12) })
     expect(RUN_HALF_CODE_RE.test('pane:not-graded')).toBe(true)
+  })
+})
+
+// ─── REVIEW OF #1202 (CHANGES-REQUIRED at 3a0b463ea6) ─────────────────────────────────────
+const TXT = ['//@version=5', 'indicator("txt", overlay = true)', 'm = ta.sma(close, 5)', 'plot(m, "m")',
+  'if barstate.islast', '    label.new(bar_index, high, "#abc", tooltip = "#fff")', '    for i = 0 to 2',
+  '        if close[i] > open[i]', '            line.new(bar_index - i, low[i], bar_index, high[i])'].join(LF)
+// G7: two label.new calls of the same shape on lines 6 and 7
+const PAIR = ['//@version=5', 'indicator("pair", overlay = true)', 'm = ta.sma(close, 5)', 'plot(m, "m")',
+  'if barstate.islast', '    label.new(bar_index, high, "a")', '    label.new(bar_index, high, "a")', '    for i = 0 to 2',
+  '        if close[i] > open[i]', '            line.new(bar_index - i, low[i], bar_index, high[i])'].join(LF)
+// G8: a label changed by setters after it is made
+const SETTER = ['//@version=5', 'indicator("setter", overlay = true)', 'm = ta.sma(close, 5)', 'plot(m, "m")',
+  'if barstate.islast', '    lb = label.new(bar_index, high, "a")', '    label.set_text(lb, "b")', '    label.set_y(lb, low)',
+  '    for i = 0 to 2', '        if close[i] > open[i]', '            line.new(bar_index - i, low[i], bar_index, high[i])'].join(LF)
+
+describe('⛔⛔ review of #1202: TEXT is compared exactly, only a colour slot as a colour', () => {
+  const L = (id, site, props) => ({ family: 'label', id, site, createdBar: 5, props: { x: 3, y: 101, text: 'Up', ...props } })
+  const program = { ops: [{ k: 'create', family: 'label', site: 's1' }] }
+  const verdict = (h, r) => runHalfObjectVerdict({ program, sites: { s1: '6:5' }, bars: BARS, tf: 'D',
+    hostRun: { status: 'ok', live: [L(1, 's1', h)] }, payload: { status: 'ok', live: [L(2, '6:5', r)] } })
+  it('pure: colour-shaped text and tooltips that differ are refused; a colour slot is still a colour', () => {
+    expect(verdict({ text: '#abc' }, { text: '#AABBCC' }).code).toBe(RUN_HALF_OBJECT_RAIL)
+    expect(verdict({ text: 'rgb(1,2,3)' }, { text: '#010203' }).code).toBe(RUN_HALF_OBJECT_RAIL)
+    expect(verdict({ tooltip: '#fff' }, { tooltip: '#FFFFFF' }).code).toBe(RUN_HALF_OBJECT_RAIL)
+    expect(verdict({ text: 'Up' }, { text: 'up' }).code, 'CONTROL: case is text').toBe(RUN_HALF_OBJECT_RAIL)
+    expect(verdict({ text: '#abc' }, { text: '#abc' }).ok, 'CONTROL: the same text').toBe(true)
+    expect(verdict({ color: '#abc', textcolor: 'rgb(1,2,3)' }, { color: '#AABBCC', textcolor: '#010203' }).ok,
+      'a colour SLOT keeps one spelling').toBe(true)
+    expect(verdict({ color: '#abc' }, { color: '#abd' }).code).toBe(RUN_HALF_OBJECT_RAIL)
+  })
+  it("pure: a table cell's text is exact, its colours are colours", () => {
+    const T = (id, site, cell) => ({ family: 'table', id, site, createdBar: 0, props: { position: 'top_right' },
+      cells: [{ col: 0, row: 0, props: { text: 'x', ...cell } }] })
+    const prog = { ops: [{ k: 'create', family: 'table', site: 's1' }] }
+    const v = (h, r) => runHalfObjectVerdict({ program: prog, sites: { s1: '6:5' }, bars: BARS, tf: 'D',
+      hostRun: { status: 'ok', live: [T(1, 's1', h)] }, payload: { status: 'ok', live: [T(2, '6:5', r)] } })
+    expect(v({ text: '#fff' }, { text: '#FFFFFF' }).code).toBe(RUN_HALF_OBJECT_RAIL)
+    expect(v({ bgcolor: '#fff' }, { bgcolor: '#FFFFFF' }).ok).toBe(true)
+  })
+  it("at the bind: a run label whose text or tooltip is the colour-shaped spelling of the host's is refused", () => {
+    admit(TXT)
+    const d = door(TXT)
+    expect(d.runHalf, JSON.stringify(d.runHalfDeclined)).toBeTruthy()
+    const def = install(d.definition)
+    expect(runHalfOf(bind(def)).state, 'CONTROL: honest').toBe('served')
+    for (const [k, v] of [['text', '#AABBCC'], ['text', 'rgb(170,187,204)'], ['tooltip', '#FFFFFF']]) {
+      registry.registerRuntimeLane(tamperedLane((p) => { p.live.find((o) => o.family === 'label').props[k] = v }))
+      expect(runHalfOf(bind(def)), `${k} ${v}`).toEqual({ state: 'refused', code: RUN_HALF_OBJECT_RAIL })
+    }
+  })
+})
+
+describe('⛔ review of #1202: a theme reference never equals a literal', () => {
+  const Ln = (id, site, color) => ({ family: 'line', id, site, createdBar: 5, props: { x1: 1, y1: 1, x2: 2, y2: 2, color } })
+  const program = { ops: [{ k: 'create', family: 'line', site: 's1' }] }
+  const v = (h, r) => runHalfObjectVerdict({ program, sites: { s1: '6:5' }, bars: BARS, tf: 'D',
+    hostRun: { status: 'ok', live: [Ln(1, 's1', h)] }, payload: { status: 'ok', live: [Ln(2, '6:5', r)] } })
+  it("host chart.fg_color against the run's #2962FF (the slot default) is refused; the same reference agrees", () => {
+    expect(v('chart.fg_color', '#2962FF').code).toBe(RUN_HALF_OBJECT_RAIL)
+    expect(v('#2962FF', 'chart.fg_color').code).toBe(RUN_HALF_OBJECT_RAIL)
+    expect(v('chart.fg_color', 'chart.bg_color').code).toBe(RUN_HALF_OBJECT_RAIL)
+    expect(v('chart.fg_color@50', 'chart.fg_color').code).toBe(RUN_HALF_OBJECT_RAIL)
+    expect(v('chart.fg_color', 'chart.fg_color').ok, 'CONTROL').toBe(true)
+  })
+})
+
+describe('⛔ review of #1202: two same-shape calls keep two sites (G7); a setter is compared at its final state (G8)', () => {
+  it('G7: label.new on lines 6 and 7, same arguments: two sites in the probe, the door and the run; served', () => {
+    admit(PAIR)
+    const probe = probeRuntimeProgram(PAIR, { objectsInRun: true })
+    expect(probe.objectSites.filter((x) => x.fn === 'label.new').map((x) => x.site).sort()).toEqual(['6:5', '7:5'])
+    const d = door(PAIR)
+    expect(d.runHalf, JSON.stringify(d.runHalfDeclined)).toBeTruthy()
+    expect(Object.values(d.definition.compute.runtimeObjects.sites).sort()).toEqual(['6:5', '7:5'])
+    const cols = bind(install(d.definition))
+    expect(runHalfOf(cols)).toEqual({ state: 'served', code: null })
+    expect(runtimeObjectsOf(cols).live.filter((o) => o.family === 'label').map((o) => o.site)).toEqual(['6:5', '7:5'])
+  })
+  it("G8: the host and the run agree at the label's FINAL text and y; a run at its create-time props is refused", () => {
+    admit(SETTER)
+    const d = door(SETTER)
+    expect(d.runHalf, JSON.stringify(d.runHalfDeclined)).toBeTruthy()
+    const def = install(d.definition)
+    const cols = bind(def)
+    expect(runHalfOf(cols)).toEqual({ state: 'served', code: null })
+    const lab = runtimeObjectsOf(cols).live.find((o) => o.family === 'label')
+    expect(lab.props.text).toBe('b')
+    expect(lab.props.y).toBe(BARS[BARS.length - 1].l)
+    registry.registerRuntimeLane(tamperedLane((p) => { p.live.find((o) => o.family === 'label').props.text = 'a' }))
+    expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: RUN_HALF_OBJECT_RAIL })
+    registry.registerRuntimeLane(tamperedLane((p) => { p.live.find((o) => o.family === 'label').props.y = BARS[BARS.length - 1].h }))
+    expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: RUN_HALF_OBJECT_RAIL })
   })
 })

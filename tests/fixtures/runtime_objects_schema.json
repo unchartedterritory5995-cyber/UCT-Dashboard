@@ -44,6 +44,8 @@
   {"name": "engine 54: a source call with a trailing newline", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "sites": {"s1": "8:5\n"}}, "paths": ["compute.runtimeObjects.sites.s1"]},
   {"name": "engine 54: a program stamp in upper case", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "programSha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}, "paths": ["compute.runtimeObjects.programSha256"]},
   {"name": "engine 54: a short graph stamp", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "programGraphSha256": "ab"}, "paths": ["compute.runtimeObjects.programGraphSha256"]},
-  {"name": "engine 54: a program stamp that is not a string", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "programSha256": null}, "paths": ["compute.runtimeObjects.programSha256"]}
+  {"name": "engine 54: a program stamp that is not a string", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "programSha256": null}, "paths": ["compute.runtimeObjects.programSha256"]},
+  {"name": "engine 54: a source call in non-ASCII digits", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "sites": {"s1": "١:٢"}}, "paths": ["compute.runtimeObjects.sites.s1"]},
+  {"name": "engine 54: a site id in non-ASCII digits", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "sites": {"s١": "8:5"}}, "paths": ["compute.runtimeObjects.sites.s١"]}
  ]
 }

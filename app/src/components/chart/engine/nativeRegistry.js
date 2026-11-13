@@ -167,7 +167,7 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from './runtimeKill'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
-import { runHalfProgramBound } from './runHalfProgram.js'
+import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
 import { registeredRunHalfObjectRail } from './runHalfRailSeam.js'
 import { noteRunHalfAnswer } from './runHalfTelemetry.js'
 import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
@@ -3327,6 +3327,9 @@ export const RUN_HALF_COLUMN_RAIL = 'run-half:column-rail'
 /** ⭐⭐ ENGINE 54 — the document's trees and object program are not the ones its door stamped
  *  (`runHalfProgram.js`): the run half is not drawn beside a program it was not minted for. */
 export const RUN_HALF_PROGRAM_UNBOUND = 'run-half:program-unbound'
+/** ⭐⭐ ENGINE 54 (review) — the run half carries no program stamp at all: it was minted by an
+ *  older engine, before the program binding (not "changed"; its own sentence). */
+export const RUN_HALF_PROGRAM_UNSTAMPED = 'run-half:program-unstamped'
 /** ⭐⭐ ENGINE 54 — the object rail (`runHalfObjectRail.js`) is not registered in this bundle:
  *  a rail that cannot run is a refusal, never a pass. */
 export const RUN_HALF_RAIL_NOT_LOADED = 'run-half:rail-not-loaded'
@@ -3460,6 +3463,7 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   // ⛔⛔ ENGINE 54 — AND BESIDE THE PROGRAM IT WAS MINTED FOR: the door's digest of the trees, the
   // object program, the output map and the site map, re-derived from this document
   // (`runHalfProgram.js`). An edited tree or object program, kept under the old stamp, is refused.
+  if (!runHalfProgramStamped(def)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
   if (!runHalfProgramBound(def)) return refused(RUN_HALF_PROGRAM_UNBOUND)
   const stamp = servedRunStamp(def)
   if (!runtimePaneBuilt()) return refused('pane:not-built')
