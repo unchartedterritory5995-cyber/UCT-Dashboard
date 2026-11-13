@@ -54,7 +54,7 @@
 //     asks per symbol in its place (`fetchColumnsBatch` refuses for a warm).
 //
 // Kill switch, per browser, no deploy: localStorage['uct.indwarm.off'] = '1'.
-import { liveAsks, hasColumns, fetchColumnsBatch, batchAvailable, chartsNeedTheLane } from './serverCompute'
+import { liveAsks, habitAsks, hasColumns, fetchColumnsBatch, batchAvailable, chartsNeedTheLane } from './serverCompute'
 import { isAppVisible } from '../../../lib/deskVisibility'
 import { afterFirstChartPaint } from '../../../lib/barsPackClient'
 import { registerSymbolWarmer, _packStillIngesting } from '../../../utils/prefetchBars'
@@ -95,8 +95,16 @@ function _symOf(raw) {
   return s && s.length <= 24 && !/\s/.test(s) ? s : ''
 }
 
-function _missing(sym, tf) {
-  return liveAsks(tf).filter((a) => !hasColumns(a.defId, sym, tf, a.inputs))
+// What to replay at `tf`: the asks charts are drawing there now. For the ONE symbol a member
+// rests on (`habit`), when nothing is drawn at `tf` yet, the asks of a timeframe this member
+// uses (`serverCompute.habitAsks`): the first switch to weekly used to wait a round trip.
+function _asksAt(tf, habit) {
+  const live = liveAsks(tf)
+  return live.length || !habit ? live : habitAsks(tf)
+}
+
+function _missing(sym, tf, habit) {
+  return _asksAt(tf, habit).filter((a) => !hasColumns(a.defId, sym, tf, a.inputs))
 }
 
 function _ingesting() {
@@ -149,7 +157,7 @@ function _pump() {
     const cap = _queue[at].near ? ACTIVE_MAX_NEAR : ACTIVE_MAX
     if (_active >= cap) return
     const job = _queue.splice(at, 1)[0]
-    const asks = _missing(job.sym, job.tf)
+    const asks = _missing(job.sym, job.tf, job.habit)
     if (!asks.length) continue                         // landed meanwhile, or nobody draws it any more
     _active += 1
     fetchColumnsBatch(job.sym, job.tf, asks, { quiet: true })
@@ -172,7 +180,10 @@ function _pump() {
 export function warmSymbols(syms, tf, opts = {}) {
   if (!Array.isArray(syms) || !syms.length) return 0
   const T = String(tf == null ? 'D' : tf)
-  if (!liveAsks(T).length || !batchAvailable() || warmDisabled()) return 0
+  // ONE symbol, asked for by priority: the symbol the member rests on, at its other
+  // timeframes. Only that call may be answered from the member's habit (`_asksAt`).
+  const habit = !!opts.priority && syms.length === 1
+  if (!_asksAt(T, habit).length || !batchAvailable() || warmDisabled()) return 0
   const near = !!opts.priority && syms.length <= NEAR_MAX
   const bulk = !near && !opts.visible
   const take = bulk ? syms.slice(0, BULK_HEAD) : syms
@@ -194,13 +205,13 @@ export function warmSymbols(syms, tf, opts = {}) {
   for (const raw of take) {
     const sym = _symOf(raw)
     if (!sym || fresh.some((j) => j.sym === sym)) continue
-    if (!_missing(sym, T).length) continue
+    if (!_missing(sym, T, habit).length) continue
     const at = _queue.findIndex((j) => j.sym === sym && j.tf === T)
     if (at >= 0) {
       if (!near) continue                              // already waiting; keep its place
       _queue.splice(at, 1)                             // re-queued at the front below
     }
-    fresh.push({ sym, tf: T, near })
+    fresh.push({ sym, tf: T, near, habit })
   }
   if (!fresh.length) {
     if (_backlog) _kickSoon()                          // the head was warm already; the tail still waits
