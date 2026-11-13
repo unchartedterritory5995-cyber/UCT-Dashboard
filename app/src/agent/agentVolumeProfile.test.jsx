@@ -219,14 +219,98 @@ describe('P4 · targeting: the clicked chart, a named ticker\'s chart, every cha
     await say('turn on volume profile on every chart except NVDA')
     expect(IDS.map(id => vpOf(b, id).enabled)).toEqual([true, true, false, true])
   }, 40000)
-  it('a chart with no traded volume (an economic series): "not available here", nothing written', async () => {
+  // ⛔ AUDIT #1173 ruling 1 — the words must be TRUE. The PRODUCT still offers the row on these charts:
+  //   · Chart Settings → Indicators: indicatorRegistry.js:1195 `...listCarvedOutIndicators(settings)` — no symbol test;
+  //   · the Indicator Library: indicatorCatalog.js:273 `catalogRows = [...defs, ...CARVED_OUT_ROWS]`, listed by
+  //     IndicatorLibraryDialog.jsx:379 (only `isCatalogRowOffered`, which is true for a row with no definition).
+  // What the chart lacks is VOLUME DATA, so the canvas draws nothing:
+  //   · an economic primary's host rows are `{t}` and nothing else (engine/economicSource.js:308 `bare`;
+  //     engine/economicPrimary.js:92 for W/M), so drawVolumeProfile returns at StockChart.jsx:2797 (no price range);
+  //   · a breadth / indicator series' synthetic bars "carry vol=0" (pane/ChartPane.jsx:1151, `blankVolume`;
+  //     StockChart.jsx:3221), so it returns at StockChart.jsx:2811 (`!maxVol`).
+  // So the Agent DECLINES and says why, names the product's own door, and never says "not available".
+  it('a chart with no volume data (an economic series): declined with the true reason and the product\'s door — nothing written', async () => {
     const econ = (s) => (s.ref === 'c0' || String(s.ref).startsWith('c0') ? { ...label(s), symbol: 'econ:CPIAUCSL' } : label(s))
     const { say, board: b } = mountOn('c0', {}, econ)
     const was = JSON.stringify(b.state.widgets)
     p.st.envelopes.push(plan(['c0', VP, vp({ enabled: true })]))
-    expect(await say('turn on the volume profile here please')).toMatch(/isn’t available on that chart/)
+    const out = await say('turn on the volume profile here please')
+    expect(out).toMatch(/I didn’t turn on Volume Profile on econ:CPIAUCSL: it bins traded volume and econ:CPIAUCSL has no volume data, so nothing would draw\. It is still in that chart’s Chart Settings → Indicators/)
+    expect(out).not.toMatch(/not available|isn’t available/)
     expect(JSON.stringify(b.state.widgets)).toBe(was)
   }, 40000)
+  it('the product door really is there for that chart: the settings rows and the library list the carved-out row whatever the symbol', () => {
+    expect(listAllIndicators(bareSettings(), nativeRegistry).some(r => r.id === 'volumeProfile' && r.engineOwned === false)).toBe(true)
+    expect(CARVED_OUT_ROWS.map(r => r.id)).toEqual(['volumeProfile'])
+  })
+  it('turning it OFF on such a chart (switched on by hand) is allowed — it hides what the member put there', async () => {
+    const econ = (s) => (String(s.ref).startsWith('c0') ? { ...label(s), symbol: 'econ:CPIAUCSL' } : label(s))
+    const { say, board: b } = mountOn('c0', { c0: withVp({ enabled: true }) }, econ)
+    p.st.envelopes.push(plan(['c0', VP, vp({ enabled: false })]))
+    expect(await say('turn the volume profile off here please')).toMatch(/Turned off Volume Profile/)
+    expect(vpOf(b, 'c0').enabled).toBe(false)
+  }, 40000)
+})
+
+describe('AUDIT #1173 rails · bounds, relative bins, an existing profile, a member-customised row', () => {
+  it.each([['set the volume profile bins to 7', 7], ['set the volume profile bins to 51', 51]])('"%s" (fast path): asked, never clamped, nothing written', async (t) => {
+    const { say, board: b } = mountOn('c0', { c0: withVp({ enabled: true, bins: 30 }) })
+    const was = JSON.stringify(b.state.widgets)
+    expect(await say(t)).toMatch(/whole number from 8 to 50 \(as in Chart Settings\) — \d+ isn’t, so nothing was changed\. How many bins\?/)
+    expect(JSON.stringify(b.state.widgets)).toBe(was)
+    expect(p.turns()).toBe(0)
+    expect(undoButton()).toBeNull()
+  }, 40000)
+  // DECISION: a relative request has no product step ("more" is not a number the row takes), so it ASKS for a number in fixed
+  // words — never a guessed step — with no model call and nothing written
+  it.each(['more bins', 'give the volume profile more bins', 'fewer bins', 'use fewer volume profile bins', 'double the bins', 'halve the bins',
+    'double the volume profile rows', 'increase the vpvr rows'])('"%s": asks for a number, nothing written, no model call', async (t) => {
+    const { say, board: b } = mountOn('c0', { c0: withVp({ enabled: true, bins: 30 }) })
+    const was = JSON.stringify(b.state.widgets)
+    expect(await say(t)).toMatch(/How many bins\? Volume Profile takes a whole number from 8 to 50/)
+    expect(JSON.stringify(b.state.widgets)).toBe(was)
+    expect(p.turns()).toBe(0)
+  })
+  it.each(['double the rows', 'add more rows to the grid', 'more bars please', 'increase the bins to 30'])('"%s": not the relative-bins question', (t) => {
+    expect(fastParse(t)?.text || '').not.toMatch(/How many bins\?/)
+  })
+  it.each(['add volume profile', 'turn on volume profile', 'show the volume profile'])('"%s" when it is already on: an honest no-op — never a second profile, no write, no Undo', async (t) => {
+    const { say, board: b } = mountOn('c0', { c0: withVp({ enabled: true, bins: 30 }) })
+    const was = JSON.stringify(b.state.widgets)
+    expect(await say(t)).toMatch(/Volume Profile is already on on this chart/)
+    expect(JSON.stringify(b.state.widgets)).toBe(was)
+    expect(undoButton()).toBeNull()
+  }, 40000)
+  it('"add volume profile with 40 bins" when it is already on at 30: an UPDATE of the one profile (no instance, one key)', async () => {
+    const { say, board: b } = mountOn('c0', { c0: withVp({ enabled: true, bins: 30 }) })
+    const inst = instancesJson(b, 'c0')
+    expect(await say('add volume profile with 40 bins')).toMatch(/Set Volume Profile to 40 bins \(was 30\)/)
+    expect(vpOf(b, 'c0')).toMatchObject({ enabled: true, bins: 40 })
+    expect(instancesJson(b, 'c0')).toBe(inst)
+    expect(Object.keys(stored(b, 'c0').indicators).filter(k => /volume ?profile/i.test(k))).toEqual(['volumeProfile'])
+  }, 40000)
+  // ⭐ THE STORED KEY PATH applyRowPatch WRITES: `indicators.volumeProfile.<enabled|bins|color|pocColor>` (patchFor's `indicator`
+  // branch, indicatorRegistry.js:1289-1295, on the carved-out row's `path: {kind:'indicator', key:'volumeProfile'}`), merged
+  // into the existing block, plus the top-level `preset: 'custom'` the settings row's commit stamps. Nothing else changes.
+  const RAW = { enabled: true, bins: 37, color: '#123456', pocColor: 'rgba(1, 2, 3, 0.5)' }
+  const rawBoard = (vpRow) => {
+    const s = bareSettings()
+    return { ...s, indicators: { ...s.indicators, volumeProfile: vpRow } }
+  }
+  it.each([['a full customised row', RAW], ['a PARTIAL raw row (no colours stored)', { enabled: true, bins: 37 }]])(
+    '%s: the change writes only indicators.volumeProfile.bins (+ preset); Undo restores the RAW previous blob byte-for-byte, not a default row', async (_n, row) => {
+      const { say, board: b } = mountOn('c0', { c0: rawBoard(row) })
+      const before = JSON.stringify(stored(b, 'c0'))
+      expect(await say('set the volume profile bins to 20')).toMatch(/Set Volume Profile to 20 bins \(was 37\)/)
+      const now = stored(b, 'c0')
+      expect(now.indicators.volumeProfile.bins).toBe(20)
+      const outside = (s) => JSON.stringify({ ...s, preset: null, indicators: { ...s.indicators, volumeProfile: null } })
+      expect(outside(now)).toBe(outside(JSON.parse(before)))
+      expect(now.preset).toBe('custom')
+      await say('undo')
+      expect(JSON.stringify(stored(b, 'c0'))).toBe(before)
+      expect(stored(b, 'c0').indicators.volumeProfile).toEqual(row)        // the member's row, not CHART_DEFAULTS'
+    }, 40000)
 })
 
 describe('P5 · NOT_ADDABLE: Volume Profile is still never an indicator.add; the moving-average refusals unchanged', () => {

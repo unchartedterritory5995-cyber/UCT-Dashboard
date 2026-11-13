@@ -27,7 +27,15 @@ const chartCommon = { target: 'chart', surfaces: ['charts'], available: onCharts
 const KEYS = ['enabled', 'bins', 'color', 'pocColor']
 const BINS = () => volumeProfileFields().find(f => f.key === 'bins')
 
-export const VP_NOT_HERE = (sym) => `Volume Profile bins traded volume, and ${sym} has none, so it isn’t available on that chart — nothing was changed.`
+// ⛔ THE PRODUCT STILL OFFERS THE ROW THERE (AUDIT #1173 ruling 1): Chart Settings → Indicators lists the carved-out row on
+// every chart (indicatorRegistry.listAllIndicators → listCarvedOutIndicators, unconditional) and so does the Indicator Library
+// (indicatorCatalog.catalogRows = definitions ∪ CARVED_OUT_ROWS, not filtered by symbol). What these charts lack is VOLUME:
+// an economic primary's host rows are `{t}` only (engine/economicPrimary.primaryEconomicBars) and a breadth / indicator series
+// is a "symbol with no volume" (StockChart `blankVolume`), so drawVolumeProfile draws nothing. So the Agent DECLINES to turn it
+// on there and says why — never "not available" — and points at the product's own door.
+export const VP_NOT_HERE = (sym) => `I didn’t turn on Volume Profile on ${sym}: it bins traded volume and ${sym} has no volume data, so nothing would draw. It is still in that chart’s Chart Settings → Indicators if you want it on anyway — nothing was changed.`
+// relative bins ("more bins", "double the bins", "fewer bins"): the product has no step for "more", so it ASKS for a number
+export const VP_RELATIVE_BINS = `How many bins? Volume Profile takes a whole number from 8 to 50 (as in Chart Settings) — say, for example, “set the volume profile bins to 30”. Nothing was changed.`
 const ASK_WHAT = 'Turn Volume Profile on or off, or change its bins or colours? Nothing was changed.'
 const OFF_WITH_SETTINGS = 'Turning Volume Profile off hides it, so its bins and colours would not show. Turn it off, or change its settings? Nothing was changed.'
 
@@ -51,9 +59,10 @@ const settingWords = (p) => {
 
 function checkVp(st, args = {}) {
   const sym = st.symbol || null
-  if (sym && (isEconomicId(sym) || isBreadthLikeSymbol(sym))) return VP_NOT_HERE(sym)
   const p = vpPatchOf(args)
   if (!Object.keys(p).length) return ASK_WHAT
+  // turning it OFF there is harmless and stays allowed (it may have been switched on by hand)
+  if (sym && (isEconomicId(sym) || isBreadthLikeSymbol(sym)) && p.enabled !== false) return VP_NOT_HERE(sym)
   const chk = checkVolumeProfilePatch(p)
   if (!chk.ok) {
     if (chk.key === 'bins') return `Volume Profile’s bins are a whole number from ${BINS().min} to ${BINS().max} (as in Chart Settings) — ${args.bins} isn’t, so nothing was changed. How many bins?`
@@ -98,6 +107,16 @@ const ON = '(?:add|show|turn on|enable|display|put|apply|switch on)'
 const OFF = '(?:remove|hide|turn off|disable|delete|switch off)'
 const WHERE = '(?: (?:on|to|onto|from|off) (?:the )?chart| from| off)?'
 const BINS_WORD = '(?:bins?|rows?|buckets?|levels?)'
+// relative bins — "more bins", "fewer volume profile bins", "double the bins", "halve the vpvr rows": ASKED for a number in fixed
+// words (never a guessed step), and only when it is the whole message. "Bins" alone is Volume Profile's word (no other UCT control
+// has bins); rows / buckets / levels count only beside the profile's own name ("double the rows" is the Multi Chart grid's).
+const REL = '(?:more|fewer|less|extra|double|twice|triple|half|halve|increase|decrease|raise|lower|bump|cut|reduce)'
+const REL_BINS = new RegExp(`^(?!.*\\d).*\\b${REL}\\b.*\\b(?:bins?|bin count)\\b`)
+const REL_ROWS = new RegExp(`^(?!.*\\d)(?=.*\\b(?:volume[ -]?profile|vpvr)\\b).*\\b${REL}\\b.*\\b(?:rows?|buckets?|levels?)\\b`)
+function fastRelative(lower, typed) {
+  if (/[,;&]|\b(?:and|then)\b/.test(String(typed || lower).toLowerCase())) return null
+  return REL_BINS.test(lower) || REL_ROWS.test(lower) ? { __say: VP_RELATIVE_BINS } : null
+}
 function fastVp(lower) {
   let m = new RegExp(`^${ON} ${NAME_OR_VP}${WHERE}$`).exec(lower)
   if (m) return { enabled: true, bins: null, color: null, pocColor: null }
@@ -130,7 +149,8 @@ export function registerVolumeProfileCapabilities() {
       color: { type: ['string', 'null'] },
       pocColor: { type: ['string', 'null'] },
     }, required: KEYS, additionalProperties: false },
-    fast: ({ lower }) => fastVp(lower),
+    fast: ({ lower, typed }) => fastVp(lower) || fastRelative(lower, typed),
+    fastWhole: true,
     check: checkVp,
     apply(st, args = {}) {
       const r = writeVolumeProfile(st.cs, vpPatchOf(args), nativeRegistry)
