@@ -227,7 +227,7 @@ details p, details div { margin: 6px 0; }
   }
   function decided(id) { var r = S.reviews[id]; return !!(r && r.v); }
   // ── Part 4: the sample review (docs/study/OVERBUILD_PLAN.md section 7) ─────────────────────────────────────────
-  var SAMPLE_FIRST = 10, SAMPLE_WIDE = 15;
+  var SAMPLE_FIRST = 5, SAMPLE_WIDE = 10;      // owner 2026-11-12: 5 per lesson; one defect widens it to 15
   function isUp(id) { var c = S.calls[id]; return !!(c && /Upgraded/.test(c.r || '')); }
   function hash(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function unitSample(u) {
@@ -257,7 +257,7 @@ details p, details div { margin: 6px 0; }
   }
   function firstUndecided(queue) { for (var i = 0; i < queue.length; i++) if (!decided(queue[i])) return i; return -1; }
   function setStage(stage, pos) {
-    S.stage = stage; S.queue = buildQueue(stage); S.noteFor = null;
+    S.stage = stage; S.queue = buildQueue(stage); S.noteFor = null; S.pause = false; S.chunk = 0;
     var p = pos != null ? pos : firstUndecided(S.queue);
     S.pos = p < 0 ? S.queue.length : p;
     lsSet('libreview2.stage', stage);
@@ -505,6 +505,12 @@ details p, details div { margin: 6px 0; }
       $('toFb').onclick = openFeedback; $('toMenu').onclick = openMenu;
       return;
     }
+    if (S.pause) {
+      main.innerHTML = pauseHtml();
+      $('bNext5').onclick = resume;
+      $('bStop').onclick = function () { main.innerHTML = '<div class="done"><h2>Saved. See you next time.</h2><p>Everything you did is on this computer. Double-click Start Library Review whenever you want to pick up again.</p><div class="row" style="justify-content:center"><button class="plain" id="bAgain" type="button">Actually, 5 more</button></div></div>'; $('bAgain').onclick = resume; };
+      window.scrollTo(0, 0); return;
+    }
     if (S.stage === 3) { renderDecision(S.queue[S.pos]); return; }
     var id = S.queue[S.pos];
     main.innerHTML = '<p class="where">Loading…</p>';
@@ -589,10 +595,22 @@ details p, details div { margin: 6px 0; }
       persistRec({ id: id, kind: 'q', unit: S.ofId[id].slug, key: S.qById[id].key, v: v, note: note || '', tags: tags, q: String(S.qById[id].q || '').slice(0, 160) });
     }
     S.times.push(Date.now()); S.noteFor = null; S._tagsFor = null; S.noteTags = []; S.pos++;
+    S.chunk = (S.chunk || 0) + 1;
+    if (S.chunk >= CHUNK) { S.chunk = 0; S.pause = true; }     // owner 2026-11-12: feedback in chunks of 5
     if (S.stage === 4) S.queue = buildQueue(4);     // a defect in the first ten widens the sample
     render();
   }
-  function back() { if (S.pos > 0) { S.noteFor = null; S.pos--; render(); } }
+  var CHUNK = 5;
+  function resume() { S.pause = false; S.chunk = 0; render(); }
+  function pauseHtml() {
+    var left = 0; S.queue.forEach(function (id) { if (!decided(id)) left++; });
+    var td = todayCount();
+    return '<div class="done"><h2>5 done. Nice work.</h2><p>Everything is saved. ' + nf(td) + ' answered today, ' + nf(left) + ' left in this step.</p>' +
+      '<p>Take a break whenever you like: close the tab, and next time it opens right here.</p>' +
+      '<div class="row" style="justify-content:center"><button class="primary" id="bNext5" type="button">Next 5 <small class="kh">Enter</small></button>' +
+      '<button class="plain" id="bStop" type="button">Stop for now</button></div></div>';
+  }
+  function back() { S.pause = false; S.chunk = 0; if (S.pos > 0) { S.noteFor = null; S.pos--; render(); } }
   function skip() { if (S.pos < S.queue.length) { S.noteFor = null; S.pos++; render(); } }
 
   // ── the menu ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -614,7 +632,7 @@ details p, details div { margin: 6px 0; }
     $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>Menu</h2><button class="menubtn" id="mClose" type="button">Close</button></div>' +
       '<p class="said">' + nf(c.done) + ' of ' + nf(c.tot) + ' questions done · ' + nf(c.keep) + ' good · ' + nf(c.fix) + ' to change · ' + nf(c.cut) + ' to remove</p>' +
       '<button class="big" id="mP3" type="button">Step 1: the decisions (' + nd + ')<small>Start here. One answer settles many rules and questions at once. The first 9 settle about ' + nf(S.decs.slice(0, 9).reduce(function (a, d) { return a + (d.ndep || 0); }, 0)) + ' questions.</small></button>' +
-      '<button class="big" id="mP4" type="button">Step 2: the sample review<small>10 random upgraded questions per lesson, riskiest first. All 10 good approves the lesson; one bad widens it to 25.</small></button>' +
+      '<button class="big" id="mP4" type="button">Step 2: the sample review<small>5 random upgraded questions per lesson, riskiest first. All 5 good approves the lesson; one bad widens it to 15.</small></button>' +
       '<p class="said" style="margin:14px 0 4px">Optional, only if you want to see more than the sample:</p>' +
       '<button class="big" id="mP1" type="button">Every question Claude changed or doubted (' + nf(look) + ')<small>The full pass. After the overbuild this is nearly every question.</small></button>' +
       '<button class="big" id="mP2" type="button">Every question, in order<small>Picks up at the first one you have not decided.</small></button>' +
@@ -644,7 +662,7 @@ details p, details div { margin: 6px 0; }
     var rows = S.idx.units.map(function (u) { return { u: u, sm: unitSample(u) }; }).filter(function (x) { return x.sm.ups; });
     var ok = rows.filter(function (x) { return x.sm.status === 'ok'; }).length;
     var h = '<div class="row" style="justify-content:space-between"><h2>Lesson status board</h2><button class="menubtn" id="lsBack" type="button">Back to menu</button></div>' +
-      '<p class="cnt">' + ok + ' of ' + rows.length + ' upgraded lessons approved. A lesson is approved when your sample of 10 is all good; one defect widens it to 25; three send it back to the pipeline.</p><div class="list">';
+      '<p class="cnt">' + ok + ' of ' + rows.length + ' upgraded lessons approved. A lesson is approved when your sample of 5 is all good; one defect widens it to 15; three send it back to the pipeline.</p><div class="list">';
     rows.forEach(function (x, i) {
       h += '<button class="lsrow" type="button" data-i="' + i + '"><span><span class="t">' + esc(x.u.unit) + ' · ' + esc(x.u.title) + '</span><br><span class="n">' + x.sm.done + ' of ' + x.sm.total + ' sampled · ' + x.sm.ups + ' upgraded</span></span><span class="stat ' + x.sm.status + '">' + esc(x.sm.label) + '</span></button>';
     });
@@ -761,6 +779,7 @@ details p, details div { margin: 6px 0; }
     var t = e.target && e.target.tagName;
     if (e.key === 'Escape' && !$('overlay').hidden) { closeMenu(); return; }
     if (t === 'TEXTAREA' || t === 'SELECT' || e.ctrlKey || e.metaKey || e.altKey || !$('overlay').hidden) return;
+    if (S.pause) { if (e.key === 'Enter' && t !== 'BUTTON') { e.preventDefault(); resume(); } return; }
     if (S.noteFor || S.sideNote || S.pos >= S.queue.length) return;
     var id = S.queue[S.pos]; if (!id) return;
     if (S.stage !== 3 && !S.qById[id]) return;

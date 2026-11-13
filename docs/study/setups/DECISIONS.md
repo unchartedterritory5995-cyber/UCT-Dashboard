@@ -2710,3 +2710,56 @@ Every one of the 596 questions, by dossier. Part C ids are marked (settled).
 | 44:9 | D-001 |
 | 44:10 | D-014 |
 
+
+## The owner's rulings (2026-11-12)
+
+Given on the local review page on 2026-11-12 (Step 1 of the overbuild review); two clarified in chat the same day. Each entry gives his words, then the rule the lessons apply. Where a ruling and a default above disagree, the ruling wins. Machine-readable copy: `docs/study/setups/RULINGS_2026-11-12.json`.
+
+- **D-003.** His words: "I very rarely buy at close. It is always just the trigger for each trade never the close. My stop is always LOD or PLOD or range low. I have a variety of ways of buying and a variety of setups and patterns."
+  Rule: Every setup buys as price trades through its trigger, during the day. There is NO close-entry exception (drop the proposed Slingshot / Launchpad / Kell Wedge Pop close carve-out). The stop goes under the low of day, the prior day's low, or the range low. Entry methods vary by setup; the trigger is always the entry event.
+- **D-002.** His words: "a flag is a flag imo and i think the slight variations are not as important." (chat: "One Flag setup, HTF a version")
+  Rule: One Flag setup. The High Tight Flag is the strongest version of a flag, taught inside the flag family, not a separate setup with its own rules. Do not test fine distinctions between flag variants as right/wrong. Every other row of the setup map keeps the proposed default.
+- **D-005.** His words: "will go up to 5% but prefer 1-3% risk ish. 3.5% is good. But I will take them, think this is based on buying at close and i rarely do that it is always through the trigger or based on "is this the LOD"" (chat: "Over 5%: mostly wait for a tighter trigger")
+  Rule: Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable. Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it. This replaces the proposed one-ADR rule. Never move the stop up to make a trade fit.
+- **D-008.** His words: "well all of those are fine but yes LOD is primarily the spot where the stop should be taken."
+  Rule: The low of day (the entry day's low) is the primary stop. The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.
+- **D-006.** His words: "volume really only raises the grade, it is not a major requirement but some people disagree with me so idk. Always a bit of it is it depends."
+  Rule: Volume raises the grade; it is not a requirement for the setup to count (except where volume IS the setup, as proposed: HVE and the burst setups). Questions must not make big volume a must-have; it can be a plus.
+- **D-009.** His words: "Yeah thats a pretty hard rule yes. will buy leverage etfs or indexes under on a reversal extension or parabolic long"
+  Rule: Below the 200-day is a hard no for stocks. The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.
+- **D-013.** His words: "sometimes it is not R based. SOmetimes it is day based. Looking for 3-5-7 day push for our first sell and that might be 10-12-20R."
+  Rule: The first sell is not always R-based. It is often time-based: sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R. The R-based thirds stay one taught way to take profits, but a question must not teach 3R as the only correct first sell; a day-based first sell on a strong push is equally ours.
+- **D-001.** His words: "Yeah short teachings are fine but only recomended for traders who have made $1 Million."
+  Rule: Shorts may be taught, but every short lesson says shorting is recommended only for traders who have already made $1 million trading. This replaces the proposed bar of 50 journaled trades.
+- **D-115.** His words: "yeah all of that is fine. Especially because when you buy it these all essentially start the same"
+  Rule: Agrees with the default: both wick-play forms are ours (strict day-3 and same-day push).
+- **D-022.** His words: "If there is a gap past it you can potentially buy it intraday on a morning flush/pullback and curl back up"
+  Rule: The buy point is the trigger level (default). When the day gaps more than 4% past it, one more way in is allowed: buy intraday on a morning flush or pullback that curls back up (besides the 30-minute ORB or the first pause).
+- **D-032.** His words: "those are fine but eh not a main emphasis besies earnings and really notable news."
+  Rule: Agrees with the default list, but the lessons put the emphasis on earnings and really notable news; lesser catalysts are mentioned, not drilled.
+- **D-031.** His words: "Yeah i will trade certain strong moves at the trigger at the open if they trigger properly really. Also use the hourly and the 30 minute for pivots and reversals later in the session"
+  Rule: The first 30-minute bar stays the default window, but a strong move may be bought at the trigger right at the open if it triggers properly; the hourly and 30-minute bars are used for pivots and reversals later in the session. Questions must not make waiting 30 minutes mandatory.
+- **D-033.** His words: "any of those work really"
+  Rule: Agrees with the default (4% plus 0.75 ATR for the scan and a PEG; 10% is the EP floor and the A+ mark). Do not test the exact floor as a hard right/wrong.
+- **D-025.** His words: "yeah if its earnings then its just earnings"
+  Rule: Agrees with the default: the earnings day itself belongs to the earnings/catalyst-gap units.
+- **D-029.** His words: "I have no problem with any of those really"
+  Rule: Agrees with the default (30% prior advance). Do not test the exact number as a hard right/wrong.
+- **D-036.** His words: "def more of just a judgement thing"
+  Rule: How deep an undercut may go and how fast it must reclaim is a judgment call, not a fixed number. The default (about 1 ATR, back the same day for an A) is a guide; questions must not key a single number as the only right answer.
+- **D-103.** His words: "yeah all of those work good depending on the situation"
+  Rule: Any obvious level works for a U&R depending on the situation: prior lows, base lows, rising moving averages, gap lows, prior highs, round numbers, VWAP. (The prior day's low alone stays with the Oops reversal, as proposed.)
+- **D-116.** His words: "idk whatever you think is ebst make an analysis and judgement call"
+  Rule: Delegated to the session: keep the default. A little touch of the body is allowed (about 0.25 ATR, as Kell allowed on GOOG), and day 1 needs a real upper wick (about a quarter of its range). Both are measurable and match the best-known example.
+- **D-021.** His words: "(agreed with the default)"
+  Rule: 9 and 20 EMA everywhere, with the 50 and 200 SMA.
+- **D-040.** His words: "(agreed with the default)"
+  Rule: Default stands.
+- **D-023.** His words: "(agreed with the default)"
+  Rule: Default stands.
+- **D-024.** His words: "(agreed with the default)"
+  Rule: Default stands.
+
+Still open (he asked what these mean; the defaults stand until he answers):
+- **D-007.** He was not sure what it asks. Plain version for him: before any chart example goes into a lesson, do you want to see and approve each one (keep / keep with a note / cut), as you did for the Kicker? Default stays until he answers.
+- **D-016.** He was not sure what it asks. Plain version for him: a table of small naming choices (which name a setup goes by, and which family it is filed under in the journal). Default stays until he answers.
