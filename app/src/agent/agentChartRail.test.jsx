@@ -203,6 +203,9 @@ describe('units · replyRelation / keptCharts / isAdditive / requestedPanels', (
     const q = { text: QUESTION, choices: [] }
     expect(replyRelation(REPLY, q, ASK, isNewRequest)).toBe('answer')
     expect(replyRelation('AAPL and MSFT', q, ASK, isNewRequest)).toBe('answer')
+    // each rule on its own: the back-reference alone (a question that asked no tickers), the tickers slot alone (no cue)
+    expect(replyRelation(REPLY, { text: 'Daily or weekly?', choices: [] }, ASK, isNewRequest)).toBe('answer')
+    expect(replyRelation('Add AAPL and MSFT', q, ASK, isNewRequest)).toBe('answer')
     expect(replyRelation('Add AAPL and MSFT', { text: 'Daily or weekly?', choices: [] }, ASK, isNewRequest)).toBe('unclear')
     // LT-6 unchanged: a new request of its own on a task that is not about the board's charts
     expect(replyRelation('trendline on nvda from 2031-01-01 to today', { text: 'Which October low do you mean — Oct 10 or Oct 24?', choices: [{ label: 'Oct 10' }, { label: 'Oct 24' }] }, 'draw a trendline on nvda from the october lows', isNewRequest)).toBe('new')
