@@ -161,7 +161,7 @@ export const knownIn = (text, known) => {
   return [...new Set((known || []).map(k => String(k || '').toLowerCase()).filter(k => k && words.has(k)))]
 }
 const ADD_REST = /\badd(?:ing)?\b[^.;!?]*\b(?:other|others|remaining|rest)\b|\b(?:as|for|in|into) the (?:other|remaining|empty|new)\b/i
-const REPLACE = /\b(?:replace|replacing|replaced|instead|swap(?:ping)? out|get rid of|switch (?:out|over)|change (?:the |my |that |this |both |all )?(?:\w+ )?(?:chart|charts|one|ones|symbol|ticker)s?\b(?!\s+layout)|(?:change|switch|turn|flip) (?:the |my |that |this )?(?:\w+ )?(?:chart |one )?(?:to|into) \$?[A-Za-z]{1,5}\b)/i
+const REPLACE = /\b(?:replace|replacing|replaced|instead|swap(?:ping)? out|swap (?:the |my )?(?:tickers?|symbols?|charts?)\b|swap \$?[A-Za-z]{1,5} (?:and|with) |get rid of|switch (?:out|over)|change (?:the |my |that |this |both |all )?(?:\w+ )?(?:chart|charts|one|ones|symbol|ticker)s?\b(?!\s+layout)|(?:change|switch|turn|flip) (?:the |my |that |this )?(?:\w+ )?(?:chart |one )?(?:to|into) \$?[A-Za-z]{1,5}\b)/i
 const REMOVAL = /\b(?:remove|removing|delete|deleting|close|closing|get rid|replace|replacing|clear|clean(?:ing)? up|tidy|drop|dropping|only|just|fewer|less|reduce|down to|instead|swap(?:ping)? out|single|one chart)\b/i
 const SHAPE = /\b([1-4])\s*(?:x|×|by|-by-|\s+by\s+)\s*([1-4])\b/i
 const QUAD = /\bquad\b/i
@@ -184,8 +184,9 @@ export function multiResymbolAllowed(words, resym, known, host) {
   if (REPLACE.test(w)) return true
   if (resym.every(e => named(w, e, host))) return true
   const named2 = new Set([...tickersIn(w), ...knownIn(w, known).map(x => x.toUpperCase())]).size
-  return !addsCharts(w, known) && (requestedPanels(w) != null || CHART_COUNT.test(w)) && named2 >= 2
+  return !addsCharts(w, known) && (requestedPanels(w) != null || CHART_COUNT.test(w) || LAYOUT_WORDS.test(w)) && named2 >= 2
 }
+const LAYOUT_WORDS = /\b(?:side[\s-]by[\s-]side|next to each other|beside each other|stacked|on top of each other|in a (?:row|column|grid))\b/i
 // "just add …" / "only add …" limit what is ADDED — never a permission to remove
 const removalWords = (w) => String(w || '').replace(/\b(?:just|only)\s+(?=(?:add|adds|added|adding|put|include|includes|included|including)\b)/gi, ' ')
 export function requestedPanels(words) {
@@ -223,8 +224,10 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       if (bad.length) return `I didn’t change anything: you asked for more charts, but this would have changed the ones you have (${listOf([...new Set(bad.map(said))])}). I only replace a chart when you say which one — ask to add them as new charts, or say which chart to replace.`
     }
     // MULTI: two or more existing charts re-symbolled in one turn only on explicit words (structural)
-    const resym = [...new Map(effects.filter(e => e.type === 'symbol' && !e.linked).map(e => [e.ref, e])).values()]
-    if (resym.length >= 2 && mode !== 'approved' && !multiResymbolAllowed(w, resym, known, host)) {
+    const resym = [...new Map(effects.filter(e => e.type === 'symbol' && !e.linked && e.to).map(e => [e.ref, e])).values()]
+    const want0 = requestedPanels(w)
+    const short = want0 && (panelsAfter(plan, host) ?? want0) < want0
+    if (resym.length >= 2 && !short && mode !== 'approved' && !multiResymbolAllowed(w, resym, known, host)) {
       return `I didn’t change anything: this would have changed ${resym.length} of your charts at once (${listOf(resym.map(said))}), and you didn’t say to replace them. Say which charts to replace — for example “replace both charts with …” or “change the left to … and the right to …” — or ask to add them as new charts.`
     }
     // REMOVAL: never at once without the words for it
