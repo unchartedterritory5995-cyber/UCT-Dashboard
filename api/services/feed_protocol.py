@@ -54,12 +54,15 @@ THE PIECES
    channel subscribe/unsubscribe deltas and the client lease.
 4. `SeqTracker` (web side): epoch/seq bookkeeping returning explicit actions.
 5. `LegacyFilter` + `RevClock` + `relay_bars` (web side): the v2/legacy older-t
-   filter and the HLC `rev` stamp, byte-compatible with BarBroadcaster._dispatch.
+   filter and the HLC `rev` stamp, semantically equal to BarBroadcaster._dispatch
+   (same fields, rev and legacy/v2 routing; JSON key order is not a contract).
+   See `relay_bars` for the one deliberate difference (no-subscriber keys).
 """
 from __future__ import annotations
 
 import enum
 import math
+import re
 from collections import OrderedDict, deque
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Optional, Union
@@ -85,8 +88,19 @@ BAR_KEYS = frozenset(KEY_SPEC)
 #: Hard input bound for `decode` (bytes). A full snapshot batch for ~3k symbols
 #: is well under 2MB; 16MB is a corruption guard, not a tuning knob.
 MAX_MESSAGE_BYTES = 16 * 1024 * 1024
-MAX_SYM_LEN = 24
+#: The repo's live-feed ticker rule, the same pattern `api/routers/time_and_sales.py`
+#: (`_SYM_RE`, the T&S lane that rides this same Massive socket),
+#: `api/routers/terminal_grade.py` and `api/services/congress_trades.py` use. It is
+#: restated rather than imported so this module stays pure (importing the router
+#: would pull fastapi in); `test_sym_rule_is_the_repo_ticker_rule` pins the two
+#: patterns together. Massive/bar_stream form: upper case, class shares with a dot.
+SYM_PATTERN = r"^[A-Z][A-Z0-9.\-]{0,9}$"
+_SYM_RE = re.compile(SYM_PATTERN)
 MAX_ID_LEN = 128
+#: Every integer on the wire is a signed 64-bit value. orjson cannot encode
+#: beyond 64 bits, so decode rejects what encode could never have produced.
+INT64_MIN = -(2 ** 63)
+INT64_MAX = 2 ** 63 - 1
 #: Bound on an opaque JSON object (nhnl/status/seed): nesting depth and node count.
 MAX_OPAQUE_DEPTH = 6
 MAX_OPAQUE_NODES = 200_000
@@ -221,14 +235,14 @@ def _bad(detail: str):
 
 
 def _is_int(x) -> bool:
-    return isinstance(x, int) and not isinstance(x, bool)
+    return isinstance(x, int) and not isinstance(x, bool) and INT64_MIN <= x <= INT64_MAX
 
 
 def _is_num(x) -> bool:
     if isinstance(x, bool):
         return False
     if isinstance(x, int):
-        return True
+        return INT64_MIN <= x <= INT64_MAX
     return isinstance(x, float) and math.isfinite(x)
 
 
@@ -259,10 +273,9 @@ def _str_id(x, what: str, maxlen: int = MAX_ID_LEN) -> str:
 
 
 def _sym(x, what: str = "sym") -> str:
-    s = _str_id(x, what, MAX_SYM_LEN)
-    if any(ch.isspace() for ch in s) or s != s.upper():
-        _bad(f"{what} must be an upper-case symbol without whitespace")
-    return s
+    if not isinstance(x, str) or not _SYM_RE.fullmatch(x):   # fullmatch: "AAPL\n" is not a ticker
+        _bad(f"{what} must match the ticker rule {SYM_PATTERN}")
+    return x
 
 
 def _bar_key(x) -> str:
@@ -629,7 +642,10 @@ class BufferLimits:
     max_tas_syms: int = 20              # design: T&S for <= 20 symbols
     max_tas_per_sym: int = 512          # per-symbol T&S prints between drains
     max_nhnl_keys: int = 8192           # top-level keys of nhnl / nhnl_rt each
-    max_final_guards: int = 16384       # (sym, key) final watermarks remembered (LRU)
+    #: (sym, key) final watermarks remembered (LRU). 32768 covers ~3k symbols x 6
+    #: keys (18k) with ~80% headroom. An evicted watermark lets ONE stale non-final
+    #: for that (sym, key) through (counted in counters["guards_evicted"]).
+    max_final_guards: int = 32768
 
 
 class CoalescingBuffer:
@@ -649,12 +665,34 @@ class CoalescingBuffer:
     whole. T&S: append-only, bounded per sym; overflow evicts the oldest prints
     and the drained list starts with an explicit TasGap.
 
+    FINALITY MUST BE MONOTONIC (contract with the producer). The final-wins rule
+    keeps a per-(sym, key) watermark, the newest finalized t. It is sound only
+    while the producer never un-finalizes a bucket. BarBroadcaster resets that
+    (its `_clear_symbol` drops the minute map and hwm when a symbol's last
+    subscriber leaves; a later resubscribe/reseed starts finality over). The
+    ingest wiring MUST call `buffer.forget(sym)` on every live buffer whenever it
+    performs a `_clear_symbol`-style reset, or the stale watermark would refuse
+    the new session's legitimate non-finals. The watermark map is an LRU bounded
+    by `BufferLimits.max_final_guards`; an evicted watermark lets a stale
+    non-final for that (sym, key) through, counted in
+    counters["guards_evicted"] (the default bound is sized so that does not
+    happen at ~3k symbols x 6 keys).
+
     Memory is bounded by `BufferLimits`. Overflowing any pending bound (other
     than per-sym T&S, which degrades with a gap marker) puts the buffer in the
-    STALLED state: pending data is released, every offer returns STALLED and
-    `drain()` returns None. That is the design's "a stalled client gets
-    disconnected and receives a full snapshot on reconnect": loss is never
-    silent, it always forces a resync."""
+    STALLED state: pending data is released, every offer returns STALLED,
+    `drain()` returns None, and counters["stalls_total"] is incremented. That is
+    the design's "a stalled client gets disconnected and receives a full snapshot
+    on reconnect": loss is never silent, it always forces a resync.
+
+    SNAPSHOT CONTRACT (PR4). A stall DROPS PENDING FINALS, including a late-AM
+    correction of a bucket that already closed. The reconnect snapshot therefore
+    MUST carry, for every (sym, key) the client wants, the latest FINAL of each
+    closed bucket that may not have been acknowledged (at least every bucket
+    still inside BarBroadcaster's retained window that closed since the client's
+    last fully drained batch; simplest: every retained closed bucket), not only
+    the current developing bucket. Otherwise a final lost in the stall is gone
+    for good and the web mirror keeps the pre-correction bar."""
 
     def __init__(self, epoch: int, limits: BufferLimits = BufferLimits()):
         if not _is_int(epoch) or epoch < 0:
@@ -674,11 +712,12 @@ class CoalescingBuffer:
         self._tas: dict[str, deque] = {}
         self._tas_gap: dict[str, list] = {}   # sym -> [dropped, first_t, last_t]
         self.counters = {"superseded": 0, "rejected": 0, "tas_dropped": 0,
-                         "guards_evicted": 0, "batches": 0}
+                         "guards_evicted": 0, "batches": 0, "stalls_total": 0}
 
     # -- state --
 
     def _stall(self, reason: str) -> Offer:
+        self.counters["stalls_total"] += 1
         self.stalled = True
         self.stall_reason = reason
         self._bars.clear()
@@ -795,7 +834,9 @@ class CoalescingBuffer:
         return Offer.ACCEPTED
 
     def forget(self, sym: str) -> None:
-        """Drop the final watermarks of a symbol no client wants any more."""
+        """Drop the final watermarks of a symbol. REQUIRED whenever the producer
+        resets the symbol's finality (a BarBroadcaster `_clear_symbol`: minute map
+        and hwm dropped); see the class docstring."""
         for k in BAR_KEYS:
             self._final_hi.pop((sym, k), None)
 
@@ -934,8 +975,13 @@ class DesiredUnion:
     # -- control events --
 
     def hello(self, client_id: str, gen: int, now: float) -> ChannelDelta:
-        """A client (re)connects. A known client keeps its held set until its new
-        `desired` (gen must not go backwards); an unknown one starts empty."""
+        """A client (re)connects. An unknown client starts empty. A known one
+        (gen must not go backwards) keeps its HELD set, so the union and the
+        upstream subscriptions do not move (lease semantics), but that held set
+        belongs to the previous connection: `has_desired` drops to False, so
+        every patch is rejected (PatchOutOfOrder) until this connection sends a
+        full `desired`. Without that, a patch(gen=N+1, seq=1) sent before the
+        gen-N+1 desired would be applied on top of the gen-N set."""
         _str_id(client_id, "client_id")
         _int(gen, "gen")
         c = self._clients.get(client_id)
@@ -948,6 +994,7 @@ class DesiredUnion:
         c.connected = True
         c.lease_until = None
         c.patch_seq = 0
+        c.has_desired = False
         return ChannelDelta()
 
     def set_desired(self, client_id: str, desired: Desired, now: float) -> ChannelDelta:
@@ -975,7 +1022,7 @@ class DesiredUnion:
         if patch.gen < c.gen:
             raise StaleGeneration(f"patch gen {patch.gen} < current {c.gen}")
         if patch.gen != c.gen or not c.has_desired:
-            raise PatchOutOfOrder(f"patch for gen {patch.gen} before its desired")
+            raise PatchOutOfOrder(f"patch for gen {patch.gen} before this connection's desired")
         if patch.seq != c.patch_seq + 1:
             raise PatchOutOfOrder(f"patch seq {patch.seq}, expected {c.patch_seq + 1}")
         before = self._snapshot()
@@ -1058,7 +1105,13 @@ class SeqTracker:
     batches start at seq 1 and increase by exactly 1. A new epoch starting at 1
     resets the mirror (invariant 8). Any gap or duplicate within an epoch, or a
     new epoch that does not start at 1, requires a resync; until a fresh epoch
-    begins every batch is DISCARDed."""
+    begins every batch is DISCARDed.
+
+    EPOCH REUSE. The tracker recognises a new stream only by a CHANGED epoch. If
+    the ingest side ever reuses an epoch id on a new connection (it should not:
+    mint one per connection), the web client MUST call `reset()` when that
+    connection opens; otherwise its seq-1 batch reads as a duplicate of the old
+    stream and triggers RESYNC."""
 
     def __init__(self):
         self.epoch: Optional[int] = None
@@ -1173,10 +1226,21 @@ class RelayFrame:
     legacy_ok: bool
 
 
+_BAR_KEY_ORDER = ("t", "o", "h", "l", "c", "v", "final", "trade_ts")
+
+
 def frame_for(sym: str, key: str, bar: Mapping, final: bool, rev: int) -> dict:
-    """The SSE frame BarBroadcaster._msg + _dispatch build for one bar."""
+    """The SSE frame BarBroadcaster._msg + _dispatch build for one bar.
+
+    The contract is SEMANTIC equality with BarBroadcaster's frame (same fields,
+    values, rev and routing), not byte equality. The bar's keys are emitted in
+    `_derive`'s order (t, o, h, l, c, v, final, trade_ts) as a courtesy, but no
+    consumer may depend on JSON key order."""
     tf, sess = KEY_SPEC[key]
-    msg = {"sym": sym, "tf": tf, "bar": {**bar, "final": bool(final)}}
+    full = {**bar, "final": bool(final)}
+    out_bar = {k: full[k] for k in _BAR_KEY_ORDER if k in full}
+    out_bar.update({k: v for k, v in full.items() if k not in out_bar})
+    msg = {"sym": sym, "tf": tf, "bar": out_bar}
     if tf == "60":
         msg["session"] = sess
     msg["rev"] = rev
@@ -1187,7 +1251,21 @@ def relay_bars(bars: Iterable[BarUpdate], legacy: LegacyFilter, revs: RevClock,
                now_ms: int) -> list:
     """Turn a batch's bars into subscriber frames, in batch order: rev stamped per
     frame, legacy admission decided per frame. A subscriber receives a frame iff
-    `LegacyFilter.deliver(frame.legacy_ok, subscriber_is_v2)`."""
+    `LegacyFilter.deliver(frame.legacy_ok, subscriber_is_v2)`.
+
+    DELIBERATE DIFFERENCE from BarBroadcaster._dispatch: `_dispatch` returns
+    early when a key has no subscribers, so neither `rev` nor `_legacy_hi`
+    advances for frames nobody received. `relay_bars` ALWAYS stamps and ALWAYS
+    advances the legacy high-water mark, and that is the intended behaviour:
+    - the web mirror (and the REST developing.rev read from it) moves with every
+      frame, so rev must too, or REST could serve a rev a later stream frame
+      ties or undercuts;
+    - in-process, a legacy subscriber that joins after an unsubscribed newer t
+      (it gets the current bucket as its snapshot) can still receive an older-t
+      correction, because `_legacy_hi` never moved. Advancing unconditionally
+      closes that hole: legacy never sees a t older than one already relayed.
+    With at least one subscriber on the key the two are semantically identical
+    (pinned by test_relay_frames_semantically_equal_to_bar_broadcaster_dispatch)."""
     out = []
     for b in bars:
         rev = revs.stamp(b.sym, b.key, now_ms)

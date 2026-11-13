@@ -204,6 +204,43 @@ def test_decode_rejects_non_json_and_oversize():
         fp.decode(big, max_bytes=1000)
 
 
+def test_sym_rule_is_the_repo_ticker_rule():
+    """feed_protocol restates (to stay pure) the ticker rule of the T&S router,
+    which rides the same Massive socket; pin the two together."""
+    from api.routers import time_and_sales as tas_router
+    assert fp.SYM_PATTERN == tas_router._SYM_RE.pattern
+    for ok in ("AAPL", "BRK.B", "X", "BF-B", "A1", "ABCDEFGHIJ"):
+        m = fp.Desired(gen=0, tas_syms=frozenset({ok}))
+        assert fp.decode(fp.encode(m)) == m
+    for bad in ("aapl", "", "1AB", "ABCDEFGHIJK", "AA PL", "AAPL\n", "$AAPL", "I:SPX", "É"):
+        o = _wire(fp.Desired(gen=0))
+        o["tas_syms"] = [bad]
+        with pytest.raises(fp.MalformedMessage):
+            fp.decode(orjson.dumps(o))
+
+
+@pytest.mark.parametrize("val", [2 ** 63, -(2 ** 63) - 1, 2 ** 64 - 1, 10 ** 30])
+def test_ints_outside_int64_rejected_by_decode_and_encode(val):
+    # orjson parses 2**63..2**64-1 as int (rejected by the int64 rule); literals
+    # beyond u64 / below i64 come back as float (rejected where an int is due).
+    for raw in (b'{"v":1,"k":"batch","epoch":%d,"seq":1}' % val,
+                b'{"v":1,"k":"batch","epoch":1,"seq":1,"bars":[["A","1",'
+                b'{"t":%d,"o":1,"h":1,"l":1,"c":1,"v":1},true]]}' % val):
+        with pytest.raises(fp.MalformedMessage):
+            fp.decode(raw)
+    if val in (2 ** 63, 2 ** 64 - 1):
+        with pytest.raises(fp.MalformedMessage):
+            fp.decode(b'{"v":1,"k":"batch","epoch":1,"seq":1,"nhnl":{"n":%d}}' % val)
+    with pytest.raises(fp.MalformedMessage):
+        fp.encode(fp.Batch(epoch=1, seq=1, nhnl={"n": val}))
+    with pytest.raises(fp.MalformedMessage):
+        fp.encode(fp.Batch(epoch=val, seq=1))
+    # the int64 edges themselves are fine both ways
+    for edge in (fp.INT64_MAX, fp.INT64_MIN):
+        b = fp.Batch(epoch=1, seq=1, nhnl={"n": edge})
+        assert fp.decode(fp.encode(b)) == b
+
+
 def test_opaque_bounds_are_enforced():
     deep = {}
     cur = deep
@@ -440,6 +477,35 @@ def test_memory_bounded_and_overflow_stalls_explicitly(seed):
         assert buf.stall_reason
 
 
+def test_forget_is_required_after_a_clear_symbol_style_reset():
+    """Final-wins is sound only while finality is monotonic. A producer-side
+    `_clear_symbol` (minute map + hwm dropped) restarts finality, so the wiring
+    must call forget(sym); without it the new session's non-finals are refused."""
+    buf = fp.CoalescingBuffer(epoch=1)
+    bar = {"t": 600_000, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}
+    buf.offer_bar("A", "1", bar, True)
+    buf.offer_bar("A", "5", bar, True)
+    buf.drain()
+    # symbol cleared upstream and re-subscribed: the same bucket is developing again
+    assert buf.offer_bar("A", "1", {**bar, "t": 540_000}, False) is fp.Offer.SUPERSEDED   # what forgetting prevents
+    buf.forget("A")
+    assert buf.final_watermark("A", "1") is None and buf.final_watermark("A", "5") is None
+    assert buf.offer_bar("A", "1", {**bar, "t": 540_000}, False) is fp.Offer.ACCEPTED
+    assert buf.offer_bar("A", "5", bar, False) is fp.Offer.ACCEPTED
+
+
+def test_final_guard_eviction_lets_a_stale_non_final_through_and_is_counted():
+    assert fp.BufferLimits().max_final_guards >= 3000 * 6 * 1.5
+    buf = fp.CoalescingBuffer(epoch=1, limits=fp.BufferLimits(max_final_guards=2))
+    bar = {"t": 60_000, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}
+    for s in ("A", "B", "C"):
+        buf.offer_bar(s, "1", bar, True)
+    assert buf.counters["guards_evicted"] == 1
+    assert buf.final_watermark("A", "1") is None                 # oldest guard evicted
+    assert buf.offer_bar("A", "1", bar, False) is fp.Offer.ACCEPTED   # the documented cost
+    assert buf.offer_bar("C", "1", bar, False) is fp.Offer.SUPERSEDED
+
+
 def test_overflow_of_pending_bars_stalls_never_drops_silently():
     buf = fp.CoalescingBuffer(epoch=1, limits=fp.BufferLimits(max_pending_bars=3))
     for t in range(3):
@@ -449,6 +515,8 @@ def test_overflow_of_pending_bars_stalls_never_drops_silently():
     assert buf.offer_bar("A", "1", {"t": 9, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}, True) is fp.Offer.STALLED
     assert buf.stalled and buf.drain() is None
     assert buf.offer_price("A", 1.0, 1) is fp.Offer.STALLED
+    assert buf.counters["stalls_total"] == 1                 # counted once, not per refused offer
+    assert "SNAPSHOT CONTRACT" in fp.CoalescingBuffer.__doc__  # PR4 must resend closed-bucket finals
 
 
 # ── 3. desired-state union + lease ──────────────────────────────────────────────
@@ -601,6 +669,31 @@ def test_generation_and_patch_order_are_enforced_and_atomic():
         u.disconnect("nobody", 0)
 
 
+def test_patch_after_gen_raise_is_rejected_until_new_desired():
+    """Review blocker (#1193): a hello that raises gen must not let a patch for
+    the new gen apply onto the previous gen's held set. The held set stays (lease
+    semantics) and patches are refused until this connection's desired."""
+    u = fp.DesiredUnion()
+    u.hello("w1", 1, 0)
+    u.set_desired("w1", fp.Desired(gen=1, owners={"bars": {"AAPL": frozenset({"T"})}}), 0)
+    u.disconnect("w1", 1)
+    assert u.hello("w1", 2, 2).is_empty()
+    assert u.channels() == {"AAPL": frozenset({"T"})}          # held, feed stays warm
+    with pytest.raises(fp.PatchOutOfOrder):
+        u.apply_patch("w1", fp.Patch(gen=2, seq=1, owners={"bars": {"MSFT": frozenset({"T"})}}), 3)
+    assert u.channels() == {"AAPL": frozenset({"T"})}          # NOT AAPL+MSFT
+    # a same-gen re-hello also drops the old connection's patch stream
+    u.set_desired("w1", fp.Desired(gen=2, owners={"bars": {"AAPL": frozenset({"T"})}}), 4)
+    u.hello("w1", 2, 5)
+    with pytest.raises(fp.PatchOutOfOrder):
+        u.apply_patch("w1", fp.Patch(gen=2, seq=1, owners={"bars": {"MSFT": frozenset({"T"})}}), 6)
+    # once the new desired lands, patches apply on top of IT
+    d = u.set_desired("w1", fp.Desired(gen=2, owners={"bars": {"NVDA": frozenset({"T"})}}), 7)
+    assert d.subscribe == {"NVDA": frozenset({"T"})} and d.unsubscribe == {"AAPL": frozenset({"T"})}
+    u.apply_patch("w1", fp.Patch(gen=2, seq=1, owners={"bars": {"MSFT": frozenset({"T"})}}), 8)
+    assert u.channels() == {"NVDA": frozenset({"T"}), "MSFT": frozenset({"T"})}
+
+
 def test_diff_channels():
     sub, unsub = fp.diff_channels({"A": {"AM", "T"}, "B": {"A"}}, {"A": {"T", "A"}, "C": {"AM"}})
     assert sub == {"A": frozenset({"A"}), "C": frozenset({"AM"})}
@@ -625,6 +718,18 @@ def test_seq_tracker_actions():
     tr.reset()
     assert tr.accept(12, 1) is T.RESET_AND_APPLY       # after an explicit reconnect, the same epoch id may restart
     assert tr.counters["duplicates"] == 1 and tr.counters["gaps"] >= 2
+
+
+def test_reusing_an_epoch_across_connections_requires_reset():
+    T = fp.TrackAction
+    tr = fp.SeqTracker()
+    assert tr.accept(5, 1) is T.RESET_AND_APPLY
+    assert tr.accept(5, 2) is T.APPLY
+    # new connection, SAME epoch id, no reset(): its seq 1 reads as a duplicate
+    assert tr.accept(5, 1) is T.RESYNC
+    tr.reset()
+    assert tr.accept(5, 1) is T.RESET_AND_APPLY
+    assert "reset()" in fp.SeqTracker.__doc__
 
 
 @pytest.mark.parametrize("seed", SEEDS)
@@ -718,9 +823,20 @@ def test_rev_strictly_increasing_across_epochs_and_clock_steps(seed):
         rc.stamp("AAPL", "1", 1.5)
 
 
-def test_relay_frames_byte_identical_to_bar_broadcaster_dispatch():
-    """The relay must produce exactly the frames BarBroadcaster._dispatch sends,
-    with the same rev and the same legacy/v2 routing (compatibility rail)."""
+def _derive_order(bar, final):
+    """A bar as BarBroadcaster._derive builds it: final BEFORE trade_ts."""
+    out = {k: bar[k] for k in ("t", "o", "h", "l", "c", "v")}
+    out["final"] = final
+    if "trade_ts" in bar:
+        out["trade_ts"] = bar["trade_ts"]
+    return out
+
+
+def test_relay_frames_semantically_equal_to_bar_broadcaster_dispatch():
+    """With subscribers on the key, the relay produces the same frames as
+    BarBroadcaster._dispatch: same fields and values, same rev, same legacy/v2
+    routing. The contract is SEMANTIC equality (decoded dicts), not bytes: JSON
+    key order is not part of it."""
     from api.services import bar_broadcaster as bb
 
     clock = [1_700_000_000_000]
@@ -732,7 +848,7 @@ def test_relay_frames_byte_identical_to_bar_broadcaster_dispatch():
             self.name = name
 
         def call_soon_threadsafe(self, fn, q, msg):
-            got[self.name].append(orjson.dumps(msg))
+            got[self.name].append(orjson.loads(orjson.dumps(msg)))
 
     pairs = [(object(), _Loop("legacy"), False), (object(), _Loop("v2"), True)]
     lf, rc = fp.LegacyFilter(), fp.RevClock()
@@ -743,13 +859,38 @@ def test_relay_frames_byte_identical_to_bar_broadcaster_dispatch():
         sym, key = r.choice(["AAPL", "SPY"]), r.choice(KEYS)
         bar = _bar(r, r.randint(0, 5) * 60_000)
         final = r.random() < 0.4
-        b._dispatch(sym, key, [{**bar, "final": final}], pairs)
+        b._dispatch(sym, key, [_derive_order(bar, final)], pairs)
         for f in fp.relay_bars([fp.BarUpdate(sym, key, bar, final)], lf, rc, clock[0]):
             for name, v2 in (("legacy", False), ("v2", True)):
                 if fp.LegacyFilter.deliver(f.legacy_ok, v2):
-                    mine[name].append(orjson.dumps(f.msg))
+                    mine[name].append(orjson.loads(orjson.dumps(f.msg)))
     assert mine == got
     assert len(got["v2"]) > len(got["legacy"]) > 0
+    # the relay keeps _derive's key order too (a courtesy, not a contract)
+    f = fp.frame_for("AAPL", "1", {"trade_ts": 5, "t": 0, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}, True, 9)
+    assert list(f["bar"]) == ["t", "o", "h", "l", "c", "v", "final", "trade_ts"]
+
+
+def test_relay_always_stamps_even_where_dispatch_skips_no_subscriber_keys():
+    """Documented, intended difference: BarBroadcaster._dispatch returns early
+    for a key with no subscribers (rev and _legacy_hi do not move); relay_bars
+    always stamps rev and always advances the legacy high-water mark, so a legacy
+    subscriber joining later can never be sent a t older than one already
+    relayed, and rev keeps moving with the mirror REST reads."""
+    from api.services import bar_broadcaster as bb
+
+    b = bb.BarBroadcaster(clock_ms=lambda: 1000)
+    newer = {"t": 120_000, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}
+    b._dispatch("AAPL", "1", [{**newer, "final": False}], [])     # nobody subscribed
+    assert b._rev.get(("AAPL", "1")) is None
+    assert b._legacy_hi.get(("AAPL", "1")) is None
+
+    lf, rc = fp.LegacyFilter(), fp.RevClock()
+    fp.relay_bars([fp.BarUpdate("AAPL", "1", newer, False)], lf, rc, 1000)
+    assert rc.peek("AAPL", "1") == 1000 and lf.high("AAPL", "1") == 120_000
+    late = fp.BarUpdate("AAPL", "1", {"t": 60_000, "o": 2, "h": 2, "l": 2, "c": 2, "v": 2}, True)
+    (f2,) = fp.relay_bars([late], lf, rc, 1000)
+    assert f2.msg["rev"] == 1001 and not f2.legacy_ok   # v2-only; rev still strictly increasing
 
 
 # ── rails ───────────────────────────────────────────────────────────────────────
@@ -782,7 +923,7 @@ def test_module_is_deterministic_no_wall_clock_or_io_imports():
             continue
         bad = set(names) & _FORBIDDEN_IMPORTS
         assert not bad, f"feed_protocol imports {bad}: time must be a parameter, never read"
-        assert all(n in {"__future__", "enum", "math", "collections", "dataclasses",
+        assert all(n in {"__future__", "enum", "math", "re", "collections", "dataclasses",
                          "typing", "orjson"} for n in names), names
     src = MODULE.read_text(encoding="utf-8")
     for needle in ("time.time", "monotonic(", "datetime.now", "perf_counter"):
