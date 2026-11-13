@@ -196,7 +196,11 @@ describe('⭐⭐ v2 — the running measurement, step by step', () => {
   //   after  step 2b  cells 4   cell:text 2   unboundLocals  0
   //   after  step 3   cells 6   cell:text 0   unboundLocals  0   ← every cell
   it('⭐⭐ ALL SIX CELLS CARRY THEIR TEXT — nothing is dropped', () => {
-    expect(ops.filter((o) => o.k === 'cell')).toHaveLength(6)
+    // ⛔⛔ ENGINE 52 (STOP item, reported): every cell's TEXT is still carried, but the ATRx
+    // cell's `text_color` (a reassigned colour on a block-local test) is unreadable, so that
+    // cell is WITHHELD by name (`pine:prop-unreadable`), never drawn at the default ink.
+    expect(ops.filter((o) => o.k === 'cell')).toHaveLength(5)
+    expect(t.objectDiagnostics.withheldPropNames).toEqual(['cell.text_color@576'])
     expect(t.objectDiagnostics.dropReasons['cell:text']).toBeUndefined()
   })
 

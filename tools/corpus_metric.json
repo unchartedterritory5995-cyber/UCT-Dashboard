@@ -797,10 +797,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:objects-only"
+        "pine:prop-unreadable"
       ],
       "screenerGuards": [
-        "pine:objects-only"
+        "pine:prop-unreadable"
       ]
     },
     {

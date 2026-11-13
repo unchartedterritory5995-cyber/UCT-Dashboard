@@ -17,7 +17,7 @@ def _no_network(monkeypatch):
 
 
 def _seed(ticker, ipo=None, splits=None):
-    cache.set(bs._META_KEY.format(ticker), {"ipo": ipo, "splits": splits or []}, ttl=3600)
+    bs._META_CACHE.set(bs._META_KEY.format(ticker), {"ipo": ipo, "splits": splits or []}, ttl=3600)
 
 
 def _day(d):
