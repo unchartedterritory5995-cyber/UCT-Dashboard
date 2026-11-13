@@ -59,21 +59,24 @@ Deliberate readings, stated:
 
 ## Measurement (plan section 4)
 
-All runs on `242db4f0b7` (the branch head before evidence), under `heavy_lock` label `eng53`,
-`--maxWorkers=1`. BEFORE = the same tree with `origin/master`'s `memberPaneDefinition.js`
-swapped in (so no run half is ever minted), restored afterwards from the saved copy
-(`git hash-object` = committed blob `7eb37a5f9d`). Summaries in `runs/`.
+Measured TWICE, under `heavy_lock` label `eng53`, `--maxWorkers=1`: on `242db4f0b7` (engine 51
+base) and again on `f552c13d09`, the branch with `origin/master` (engine 52, PR #1164) merged
+in. Both runs give the same verdicts on every capture; the numbers below and in `runs/` are the
+POST-MERGE run except where a pre-merge figure is named. BEFORE = the same tree with
+`origin/master`'s `memberPaneDefinition.js` swapped in (so no run half is ever minted),
+restored afterwards from the saved copy (`git hash-object` = committed blob `7eb37a5f9d`, both
+runs).
 
 ### (i) Reach — the member door over 679 scripts (266 committed corpus + 271 reference + 142 builtin)
 
-`runHalf.reach.measure.test.js` (`runs/reach.json`). Host-OK scripts 299; host-partial
-(verdict partial / removes) **58**.
+`runHalf.reach.measure.test.js` (`runs/reach.json`). Host-OK scripts 297; host-partial
+(verdict partial / removes) **57** (pre-merge on engine 51: 299 / 58).
 
 | lane | minted | declined |
 |---|---|---|
-| off (runtime pane dark: every member without the stage) | **0** | `run-half:pane-off` 58 |
-| real (pane on, the SERVER allowlist: adx-and-di-for-v4 only) — production for an admin | **0** | `runtime:not-yet-graded` 58 |
-| every (test-only allow-every override: upper bound) | **7** | 51, by code below |
+| off (runtime pane dark: every member without the stage) | **0** | `run-half:pane-off` 57 |
+| real (pane on, the SERVER allowlist: adx-and-di-for-v4 only) — production for an admin | **0** | `runtime:not-yet-graded` 57 |
+| every (test-only allow-every override: upper bound) | **7** | 50, by code below |
 
 So with the real allowlist the slice is production-inert: 0 run halves minted, therefore 0
 that draw; and every declined document is byte-identical to the door that never asks
@@ -84,17 +87,22 @@ Upper bound, the 7 minted, bound over a 600-bar synthetic series from the listin
 gates and the rail run; never parity): **4 served** (atr-support-and-resistance,
 auto-trendlines-by-pivots, fabio-style-order-flow, intraday-power-3-visual), **3 refused**
 (`runtime:limit` 2: volume-profile, fourier-extrapolator; `interpret:bind-time-text` 1:
-dual-view-htf-candlestick-patterns). Bind time with the run (synchronous, cold): p50 41 ms,
-**p95 340 ms**, max 340 ms, against the pane's 1,000 ms budget (`RUNTIME_PANE_TIME_BUDGET_MS`).
+dual-view-htf-candlestick-patterns). Bind time with the run (synchronous, cold): p50 93 ms,
+**p95 317 ms**, max 317 ms (pre-merge 41 / 340 / 340), against the pane's 1,000 ms budget
+(`RUNTIME_PANE_TIME_BUDGET_MS`).
 
-Door decline codes, upper-bound lane (count): `pine:function` 7, `runtime:request` 7,
+Door decline codes, upper-bound lane (count): `pine:function` 8, `runtime:request` 6,
 `runtime:conditional-history` 5, `runtime:request-with-state` 5, `runtime:history-dynamic-offset` 5,
 `pine:request` 3, `runtime:statement` 2, `budget:lookback` 2, `pine:builtin` 2,
 `runtime:call-text-state` 2, and 1 each: `runtime:call-windowed-state`, `runtime:object-op`,
 `lower-tf:store-unmeasured`, `runtime:block-value`, `runtime:colour`, `runtime:input-state`,
-`runtime:call-undeclared-builtin-state`, `lower-tf:lookahead`, `pine:colour-value`,
-`runtime:function`, `runtime:history-expression` (the run cannot build the script with its
-drawings: the objects-in-run probe's own guard).
+`runtime:call-undeclared-builtin-state`, `lower-tf:lookahead`, `runtime:function`,
+`runtime:history-expression` (the run cannot build the script with its drawings: the
+objects-in-run probe's own guard; pre-merge also `pine:colour-value` 1). The decline for a run
+that lowers no drawing is `run-half:no-object-ops` (renamed from `runtime:no-object-ops` after
+the heavy run: the editor-status rail requires every `runtime:` literal to have a family, and a
+decline is not a refusal). Bind refusal codes observed: `runtime:limit` 2,
+`interpret:bind-time-text` 1 (synthetic bars); `runtime:limit` 4 (captures, below).
 
 partialDrawing census, runtime pane on + permit + allow-every (committed corpus, objects-only
 flag off / on): minted 2 / 3, the rest declined by the same probe codes.
@@ -130,7 +138,8 @@ Measured cold and synchronous on 600 bars: p95 340 ms (above). Inert in producti
 
 ## Mutants (copy -> edit -> focused tests -> restore FROM THE SAVED COPY -> hash-object == committed blob)
 
-`runs/mutants.json`. C0 (no edit): GREEN, 29 tests. Every restore: blob equal.
+`runs/mutants.json`, run on `9b8856b9e4` (before the merge; engine 52 changed none of the
+mutated lines). C0 (no edit): GREEN, 29 tests. Every restore: blob equal.
 
 | id | mutant | killed by |
 |---|---|---|
@@ -153,4 +162,52 @@ Measured cold and synchronous on 600 bars: p95 340 ms (above). Inert in producti
 
 All 18 KILLED.
 
-<!-- RUNS -->
+## hostParity, service smoke
+
+- After the merge (engine 52 base): `node tools/pine_runtime_host_parity.mjs --write` moved ONLY
+  `digest` (166) and `script_engine` (52 -> 53), recorded on Node v24.13.1 as master's file was;
+  `--host node --check` **HP-1 GREEN 166/166**; `--mutation-control` **HP-4 GREEN** (perturbed
+  bundle red on 35 cases). (A first `--write` under Node 20.20.2 also moved `node` / `v8`, and two
+  `transcendental` digests differ between the two V8s, so it was re-recorded on v24 to keep
+  master's host.)
+- `service_smoke.json` re-recorded against a LOCAL engine-53 pine-runtime service (Node 20.20.2,
+  the Dockerfile's permission flags, a throwaway in-memory secret; `main({env})` handed only the
+  allowlisted variables while the Windows process kept `SystemRoot` for Winsock): `--record`
+  PASS, plain smoke PASS (engine 53/1/1, canary green, digest `caa68b29f15b`, unsigned POST 401).
+  Only `digest` and `identity.script_engine` moved.
+
+## Tests
+
+- Focused (<= 5 files per run, `--maxWorkers=1`): `runHalf.test.jsx` (23), `runHalf.pairing.rail`
+  (6), `runtimeObjectsSchemaParity` (23); member-pane batches (`memberPaneDefinition`,
+  `partialDrawing`, `runtimeObjectsDoor`, `w4T13CandlePane`, `div4RuntimeReadPaint`, `wse*`,
+  `objectsOnlyPane`, `savedDocumentRoundTrip`, `runtimeDocumentRoundTrip`, `runtimeProductWorkflow`,
+  `savedScriptUpgrade`, `MemberPane`, `w9T12MarkersDoor`) and engine batches (`rt5RuntimeObjects`,
+  `runtimeObjectsWithheldPlain`, `defSchema`, `nativeRegistry`, `objectsNotShownNote`,
+  `objectRenderDrops`, `eventColumns`, `runtimeWarmupDrawings`, `rt6ColourCarriage`,
+  `runtimeAllowlistParity`): all green. Post-merge: the run-half files + `memberPaneDefinition` +
+  `engine52ServeNeverDefault`: 113 green; after the rename, `editorStatus.families` + the
+  run-half files: 43 green.
+- ONE heavy run on the merged head `f552c13d09` (`engine/ast`, `engine/runtime/__tests__`,
+  `engine/__tests__`, `builder`, `--maxWorkers=1`, heavy lock): **1,133 files, 19,691 passed,
+  11 failed, 200 skipped** (1,099 files passed, 30 skipped). Failures:
+  - `rsRatingDef` / `rsVsEmaDef` (1 each): the known master reds (#1136).
+  - `readoutSchema.va2.test.js` (8): a MASTER red from the RS readout work that landed with
+    engine 52's merge (`080bd7ad98`, `2f0d981bf2`). It fails identically with master's
+    `nativeRegistry.js`, `defSchema.js`, `binder.js`, `runtimeObjects.js` and `objectLoss.js`
+    swapped in (restored from saved copies, blobs equal). Not touched here.
+  - `editorStatus.families.test.js` (1): mine, fixed after the run (the rename above).
+- Python: `test_runtime_objects_schema_parity`, `test_engine53_stamp_served_ast`,
+  `test_runtime_definitions`, `test_div4_runtime_colour_paint`, `test_pine_runtime_engine_identity`,
+  `test_pine_runtime_service_smoke`, `test_pine_runtime_codec`, `test_pine_runtime_client`,
+  `test_saved_script_prebump`, `test_script_engine_version_gate`, `test_line_width_cap_parity`,
+  `test_batch2_save_door`: **574 passed**.
+
+## Deferred
+
+- Part 2 (capability admission) is not in this PR. Until it lands the allowlist holds only
+  adx-and-di-for-v4 (no drawings), so no member and no admin gets a run half.
+- Named above, not changed: at-defaults counts chrome inputs (DIV-4's rule); the rail is vacuous
+  for a drawing-only partial script; the `runtime:limit` refusals on the upper-bound bind
+  (volume-profile, fourier-extrapolator, dual-view-htf on captures).
+- Owner capture gaps G1-G7 (plan section 4) are unchanged.

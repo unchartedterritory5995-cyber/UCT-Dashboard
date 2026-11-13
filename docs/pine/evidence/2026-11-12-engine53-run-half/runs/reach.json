@@ -1,39 +1,40 @@
 {
+ "base": "f552c13d09 (engine 52 merged)",
  "tally": {
   "off": {
    "scripts": 679,
-   "hostOk": 299,
-   "hostPartial": 58,
+   "hostOk": 297,
+   "hostPartial": 57,
    "minted": 0,
    "declined": {
-    "run-half:pane-off": 58
+    "run-half:pane-off": 57
    },
    "bound": {},
    "boundCodes": {}
   },
   "real": {
    "scripts": 679,
-   "hostOk": 299,
-   "hostPartial": 58,
+   "hostOk": 297,
+   "hostPartial": 57,
    "minted": 0,
    "declined": {
-    "runtime:not-yet-graded": 58
+    "runtime:not-yet-graded": 57
    },
    "bound": {},
    "boundCodes": {}
   },
   "every": {
    "scripts": 679,
-   "hostOk": 299,
-   "hostPartial": 58,
+   "hostOk": 297,
+   "hostPartial": 57,
    "minted": 7,
    "declined": {
     "runtime:call-windowed-state": 1,
     "runtime:object-op": 1,
     "runtime:statement": 2,
-    "runtime:request": 7,
+    "runtime:request": 6,
     "lower-tf:store-unmeasured": 1,
-    "pine:function": 7,
+    "pine:function": 8,
     "runtime:conditional-history": 5,
     "runtime:block-value": 1,
     "pine:request": 3,
@@ -46,7 +47,6 @@
     "lower-tf:lookahead": 1,
     "runtime:history-dynamic-offset": 5,
     "runtime:call-text-state": 2,
-    "pine:colour-value": 1,
     "runtime:function": 1,
     "runtime:history-expression": 1
    },
@@ -60,9 +60,9 @@
    },
    "boundMs": {
     "n": 7,
-    "p50": 41,
-    "p95": 340,
-    "max": 340
+    "p50": 93,
+    "p95": 317,
+    "max": 317
    }
   }
  },
@@ -82,7 +82,7 @@
    "digest": "f0c357892ff18bc8",
    "digestWithout": "68ea9a61c0767304",
    "installs": true,
-   "boundMs": 75,
+   "boundMs": 93,
    "bound": "served",
    "boundCode": null,
    "boundLive": 0
@@ -99,7 +99,7 @@
    "digest": "b434d1a07cf3db28",
    "digestWithout": "f23796469f7f1112",
    "installs": true,
-   "boundMs": 91,
+   "boundMs": 127,
    "bound": "refused",
    "boundCode": "interpret:bind-time-text"
   },
@@ -115,7 +115,7 @@
    "digest": "b73ff70a44e72ce7",
    "digestWithout": "eda7545eedd07abc",
    "installs": true,
-   "boundMs": 41,
+   "boundMs": 45,
    "bound": "refused",
    "boundCode": "runtime:limit"
   },
@@ -131,7 +131,7 @@
    "digest": "78d02d735170ccd5",
    "digestWithout": "c99291ab8a567fe6",
    "installs": true,
-   "boundMs": 24,
+   "boundMs": 43,
    "bound": "served",
    "boundCode": null,
    "boundLive": 68
@@ -148,7 +148,7 @@
    "digest": "dad546bb997792a8",
    "digestWithout": "02d828f7c7349d9c",
    "installs": true,
-   "boundMs": 340,
+   "boundMs": 317,
    "bound": "served",
    "boundCode": null,
    "boundLive": 35
@@ -165,7 +165,7 @@
    "digest": "24d85c9a06a7c1cd",
    "digestWithout": "cc0a5853baca2a21",
    "installs": true,
-   "boundMs": 34,
+   "boundMs": 123,
    "bound": "refused",
    "boundCode": "runtime:limit"
   },
@@ -181,7 +181,7 @@
    "digest": "830456209a897830",
    "digestWithout": "f42811139bc1f8a3",
    "installs": true,
-   "boundMs": 17,
+   "boundMs": 12,
    "bound": "served",
    "boundCode": null,
    "boundLive": 0
@@ -840,6 +840,27 @@
    "runHalf": "declined"
   },
   {
+   "name": "reference:dual-supertrend-ichimoku-and-dmi-color-weighted-by-dgt__6pPzwGaxjU",
+   "mode": "off",
+   "verdict": "partial",
+   "declined": "run-half:pane-off",
+   "runHalf": "declined"
+  },
+  {
+   "name": "reference:dual-supertrend-ichimoku-and-dmi-color-weighted-by-dgt__6pPzwGaxjU",
+   "mode": "real",
+   "verdict": "partial",
+   "declined": "runtime:not-yet-graded",
+   "runHalf": "declined"
+  },
+  {
+   "name": "reference:dual-supertrend-ichimoku-and-dmi-color-weighted-by-dgt__6pPzwGaxjU",
+   "mode": "every",
+   "verdict": "partial",
+   "declined": "pine:function",
+   "runHalf": "declined"
+  },
+  {
    "name": "reference:dynamic-higher-timeframe-fibonacci-pivot-points__8Hv70DXiZU",
    "mode": "off",
    "verdict": "partial",
@@ -1008,27 +1029,6 @@
    "runHalf": "declined"
   },
   {
-   "name": "reference:liquidity-pools-pro-willyalgotrader__409687ce4a",
-   "mode": "off",
-   "verdict": "partial",
-   "declined": "run-half:pane-off",
-   "runHalf": "declined"
-  },
-  {
-   "name": "reference:liquidity-pools-pro-willyalgotrader__409687ce4a",
-   "mode": "real",
-   "verdict": "partial",
-   "declined": "runtime:not-yet-graded",
-   "runHalf": "declined"
-  },
-  {
-   "name": "reference:liquidity-pools-pro-willyalgotrader__409687ce4a",
-   "mode": "every",
-   "verdict": "partial",
-   "declined": "pine:colour-value",
-   "runHalf": "declined"
-  },
-  {
    "name": "reference:liquidity-sniper-pro__da4b93aa0a",
    "mode": "off",
    "verdict": "partial",
@@ -1131,27 +1131,6 @@
    "mode": "every",
    "verdict": "partial",
    "declined": "runtime:request-with-state",
-   "runHalf": "declined"
-  },
-  {
-   "name": "reference:rsi-multi-timeframe-dashboard-by-giua64__cb0cdabd5f",
-   "mode": "off",
-   "verdict": "partial",
-   "declined": "run-half:pane-off",
-   "runHalf": "declined"
-  },
-  {
-   "name": "reference:rsi-multi-timeframe-dashboard-by-giua64__cb0cdabd5f",
-   "mode": "real",
-   "verdict": "partial",
-   "declined": "runtime:not-yet-graded",
-   "runHalf": "declined"
-  },
-  {
-   "name": "reference:rsi-multi-timeframe-dashboard-by-giua64__cb0cdabd5f",
-   "mode": "every",
-   "verdict": "partial",
-   "declined": "runtime:request",
    "runHalf": "declined"
   },
   {

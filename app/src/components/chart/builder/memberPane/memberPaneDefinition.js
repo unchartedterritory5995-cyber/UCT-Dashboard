@@ -1048,7 +1048,7 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
     const r = (probe && probe.refusal) || {}
     return declined(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
   }
-  if (!(probe.objectOps > 0)) return declined('runtime:no-object-ops', 'the run lowered no drawing operation')
+  if (!(probe.objectOps > 0)) return declined('run-half:no-object-ops', 'the run lowered no drawing operation')
   if (probe.requests > 0) {
     return declined('runtime:request', `${probe.requests} \`request.security\` ${probe.requests === 1 ? 'reads' : 'read'} `
       + "another symbol or timeframe, and the run is handed only the chart's own bars")
