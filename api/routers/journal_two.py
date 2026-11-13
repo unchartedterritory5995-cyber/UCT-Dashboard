@@ -2510,7 +2510,20 @@ def daily_note_endpoint(
         # Final fix I3: every "Today's note" press sends `seedToday`, and most presses open a note that already
         # exists. A cheap read first (it also checks the day, so a bad one is a 400 before anything is built); the
         # seed is built only when this press can make the note.
-        if body.get("seedToday") is True and not note_daily.daily_note_exists(user["id"], body.get("date")):
+        # Follow-up B, item 4b: that read must never block opening or making the note. A bad day still raises
+        # DailyNoteError (the 400 below); any other failure means "exists unknown": no seed, and open_daily_note
+        # decides (it opens the note if there is one, makes it plain if not).
+        exists_unknown = False
+        note_exists = False
+        if body.get("seedToday") is True:
+            try:
+                note_exists = note_daily.daily_note_exists(user["id"], body.get("date"))
+            except note_daily.DailyNoteError:
+                raise
+            except Exception:  # noqa: BLE001 -- a convenience read; the day's note is not
+                logger.exception("[notebook] could not read whether today's note exists; opening it without a seed")
+                exists_unknown = True
+        if body.get("seedToday") is True and not exists_unknown and not note_exists:
             try:
                 from api.middleware.auth_middleware import get_user_plan
                 from api.services.journal_two import notebook_today
