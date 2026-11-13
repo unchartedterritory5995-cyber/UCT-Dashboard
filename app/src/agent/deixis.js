@@ -795,7 +795,8 @@ export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTarg
     const w = changeWords(text)
     const bySym = chartsNamedBySymbol(w, charts)
     const sel = selectedChart(host)
-    const other = new Set([...chartsNamedBy(w, charts, sel)].filter(r => !bySym.has(r)))
+    // (a chart the change words name by its symbol in any position — "switch NVDA over to weekly and AMD over to monthly" — is named too)
+    const other = new Set([...chartsNamedBy(w, charts, sel), ...bySym])
     // "the TSLA chart to hourly and THIS one too": a clause that points at the click names it as a target of its own
     if (sel && /\b(?:this|here)\b/i.test(w)) other.add(sel)
     // …and a RELATION's charts ("the AMD chart …, and the one to its right too"; "the one below the QQQ one")
