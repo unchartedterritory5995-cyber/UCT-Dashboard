@@ -166,7 +166,7 @@ describe('the gates the Agent reads are this chart\'s own', () => {
   it('a chart that never fetched patterns: the gates are not known, so a gated layer is never guessed', async () => {
     await mount({ showPatterns: false })
     expect(live.tb.current.uctIntelligence().known).toBe(false)
-    expect(planFor({ op: 'on', layer: 'supportResistance' }).refusals[0].reason).toMatch(/can’t tell yet/)
+    expect(planFor({ op: 'on', layer: 'supportResistance' }).refusals[0].reason).toMatch(/can’t tell whether Support & resistance is available on this chart until UCT Intelligence is on it/)
   })
 })
 

@@ -24,7 +24,7 @@
 // (chartKind.commit → the widget's onOptsChange), read back by chartKind.landed (the stored blob, exactly), and an exact
 // Undo of both keys (chartKind.undoPatch / undoPatchNow). Targeting is the chart kind's (clicked / named / every / except).
 
-import { registerCapability } from '../capabilities'
+import { registerCapability, getCapability } from '../capabilities'
 import {
   readUctIntelligence, isUctIntelligenceAdded, addUctIntelligence, removeUctIntelligence, setUctIntelligenceLayer, effectiveLayers,
 } from '../../components/chart/uctIntelligence'
@@ -49,16 +49,44 @@ const isAre = (k) => (plural(k) ? 'are' : 'is')
 const itThem = (k) => (plural(k) ? 'them' : 'it')
 const notReleased = (k) => `${UCT_LAYERS[k]} ${plural(k) ? 'aren’t' : 'isn’t'} released to your account on this chart, so the UCT Intelligence panel has no switch for ${itThem(k)} — I can’t turn ${itThem(k)} on.`
 const SR_EMPTY = 'Support & resistance has no clear levels on this chart (the UCT Intelligence panel shows that switch greyed out), so there is nothing to turn on.'
-const unknownGate = (k) => `I can’t tell yet whether ${UCT_LAYERS[k]} ${isAre(k)} available on this chart — its pattern data hasn’t loaded (it loads once UCT Intelligence or Auto patterns is on). Add UCT Intelligence first, then ask again.`
+// gates not known yet: on a chart WITH the indicator its data is loading (say so, nothing else); WITHOUT it nothing loads until it is
+// added, so the honest next step is to add it first
+const unknownGate = (k, added) => (added
+  ? `I can’t tell yet whether ${UCT_LAYERS[k]} ${isAre(k)} available on this chart — UCT Intelligence’s pattern data is still loading. Try again in a moment.`
+  : `I can’t tell whether ${UCT_LAYERS[k]} ${isAre(k)} available on this chart until UCT Intelligence is on it (its pattern data loads once it is added). Add UCT Intelligence first, then ask again.`)
+// ⛔ the panel's ADMIN section (UctIntelligencePanel `admin`: learned lines, all tiers, key levels) is never a layer of this action —
+// refused here by key, not only left out of the manifest's enum
+export const ADMIN_LAYERS = Object.freeze(['admin-learned', 'admin-all', 'admin-levels', 'learned', 'learnedLines', 'showLearned', 'allTiers', 'showAll', 'all', 'keyLevels', 'levels', 'showLevels', 'showPatternLevels'])
+const ADMIN_REFUSAL = 'That is one of the UCT Intelligence panel’s admin-only switches (learned lines, all tiers, key levels); UCT Agent doesn’t change those.'
 const LABELS_NEED_PANEL = 'Pattern labels are switched in the UCT Intelligence panel, which isn’t on this chart. Say “add UCT Intelligence” first.'
 
 const gates = (env) => env?.target?.uctIntel?.availability || {}
 
+// ⛔ "PATTERNS" IS TWO FEATURES ON ONE CHART (AUDIT #1172): the toolbar's Chart IQ button (`showChartIq`, ChartIqToolbarButton,
+// "Toggle Chart IQ pattern recognition") and UCT Intelligence's Patterns button (`showPatterns`, PatternToolbarButton, "Toggle chart
+// patterns overlay" = Auto patterns). chart.setSetting's fast path reads a bare "patterns" as Chart IQ (its descriptor words). On a
+// chart where UCT Intelligence is added or its Patterns button is on, that would be a silent wrong-feature write, so this whole-
+// sentence phrase ASKS instead (no op, no model). Anywhere else the fast path is exactly master's.
+export const WHICH_PATTERNS = 'Which patterns do you mean — UCT Intelligence’s Auto patterns (the chart’s Patterns button) or Chart IQ pattern recognition? Say “auto patterns” or “Chart IQ”.'
+export function bareChartIqPatterns({ lower, host }) {
+  if (!/\bpatterns\b/.test(lower || '') || /\b(?:chart ?iq|recognition)\b/.test(lower)) return false
+  return getCapability('chart.setSetting')?.fast?.({ raw: lower, lower, core: lower, host })?.setting === 'showChartIq'
+}
+function patternsAmbiguous({ lower, host }) {
+  if (!bareChartIqPatterns({ lower, host })) return false
+  let charts = []
+  try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
+  let sel = null
+  try { sel = host?.charts?.selected?.() || null } catch { sel = null }
+  const scope = sel && charts.some(c => c.ref === sel) ? charts.filter(c => c.ref === sel) : charts
+  return scope.some(c => { const u = readUctIntelligence(c.cs); return u.added || u.autoPatterns })
+}
+
 /** Why a gated layer may not be turned ON here, or null — the panel's own rule (the switch exists and is not quiet). */
-export function layerOnRefusal(uci, layer) {
+export function layerOnRefusal(uci, layer, added = false) {
   if (!GATED.includes(layer)) return null
   const a = uci?.availability || {}
-  if (a[layer] !== true) return uci?.known ? notReleased(layer) : unknownGate(layer)
+  if (a[layer] !== true) return uci?.known ? notReleased(layer) : unknownGate(layer, added)
   if (layer === 'supportResistance' && a.supportResistanceEmpty === true) return SR_EMPTY
   return null
 }
@@ -122,6 +150,9 @@ export function registerUctIntelligenceCapabilities() {
     summary: 'ONE chart\'s UCT Intelligence INDICATOR (its Indicators library row and panel): add or remove it, or turn one of its layers on or off, as the member\'s own switches do. Layers not released to the member are refused. Undo restores it exactly.',
     hints: 'target = the chart. op add | remove (the indicator), or on | off with layer = autoPatterns (the Patterns button / auto chart patterns) | labels (pattern labels & numbers) | supportResistance | candles (candlestick patterns) | setups | caution. Creating or modifying an indicator WITH UCT Intelligence is indicator authoring, not this. Chart IQ is chart.setSetting.',
     args: { type: 'object', properties: { op: { type: 'string', enum: OPS }, layer: { type: ['string', 'null'], enum: [...LAYER_IDS, null] } }, required: ['op', 'layer'], additionalProperties: false },
+    // whole-sentence only: a bare "patterns" toggle on a chart with UCT Intelligence's patterns asks which (WHICH_PATTERNS)
+    fastWhole: true,
+    fast: (q) => (patternsAmbiguous(q) ? { __say: WHICH_PATTERNS } : null),
     check(st, { op, layer } = {}, env) {
       const t = env?.target || {}
       if (!('uctIntel' in t)) return NOT_HERE
@@ -130,9 +161,12 @@ export function registerUctIntelligenceCapabilities() {
       if (!uci.available) return NOT_FOR_YOU
       if (!OPS.includes(op)) return ASK
       if (op === 'add' || op === 'remove') return null
+      if (ADMIN_LAYERS.includes(layer)) return ADMIN_REFUSAL
       if (!layer || !LAYER_IDS.includes(layer)) return ASK
       const s = readUctIntelligence(st.cs)
-      if (op === 'on') return layerOnRefusal(uci, layer)
+      // `added` as the chart IS (the snapshot), never as an earlier op of this plan leaves it: a compound "add it with S/R" on a
+      // chart whose gates have not loaded is refused whole, with the add-first wording
+      if (op === 'on') return layerOnRefusal(uci, layer, readUctIntelligence(t.cs).added)
       if (layer === 'labels' && !s.added && s.autoPatterns && s.labels) return LABELS_NEED_PANEL
       return null
     },

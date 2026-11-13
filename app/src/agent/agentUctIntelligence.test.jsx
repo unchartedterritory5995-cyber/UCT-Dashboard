@@ -309,3 +309,82 @@ describe('U8 · one settings commit per action', () => {
     expect(readUctIntelligence(writes[0].settings)).toMatchObject({ added: true, autoPatterns: true, setups: true })
   })
 })
+
+// ── AUDIT #1172 ruling 1: "patterns" is two features (Chart IQ's button, showChartIq; UCT Intelligence's Patterns button,
+// showPatterns). On a chart with UCT Intelligence's patterns the bare word ASKS; elsewhere master's Chart IQ fast path is unchanged.
+describe('U9 · a bare "patterns" toggle on a chart with UCT Intelligence asks which; never a silent Chart IQ write', () => {
+  it.each([
+    ['UCT Intelligence added', { showPatterns: true, uctIntelligence: { added: true, labels: true } }],
+    ['UCT Intelligence added, Auto patterns off', { showPatterns: false, uctIntelligence: { added: true } }],
+    ['only the Patterns button on', { showPatterns: true }],
+  ])('%s: "turn the patterns off on this chart" asks, writes nothing, calls no model', async (_n, mine) => {
+    const { say, board: b } = mountOn('c0', { c0: { ...mine, showChartIq: true } })
+    const was = JSON.stringify(b.state.widgets)
+    expect(await say('turn the patterns off on this chart')).toMatch(/Which patterns do you mean — UCT Intelligence’s Auto patterns \(the chart’s Patterns button\) or Chart IQ pattern recognition\?/)
+    expect(JSON.stringify(b.state.widgets)).toBe(was)
+    expect(p.turns()).toBe(0)
+  }, 40000)
+  it('a chart WITHOUT UCT Intelligence patterns: master\'s fast path, Chart IQ, named on the receipt', async () => {
+    const { say, board: b } = mountOn('c0', { c0: { showPatterns: false, showChartIq: true } })
+    const out = await say('turn the patterns off on this chart')
+    expect(out).not.toMatch(/Which patterns/)
+    expect(out).toMatch(/Chart IQ pattern recognition/)
+    expect(stored(b, 'c0').showChartIq).toBe(false)
+    expect(stored(b, 'c0').showPatterns).toBe(false)
+  }, 40000)
+  it('naming Chart IQ on a chart WITH UCT Intelligence: no question, Chart IQ only — Auto patterns untouched', async () => {
+    const { say, board: b } = mountOn('c0', { c0: { showPatterns: true, showChartIq: true, uctIntelligence: { added: true } } })
+    const out = await say('turn off chart iq')
+    expect(out).not.toMatch(/Which patterns/)
+    expect(stored(b, 'c0').showChartIq).toBe(false)
+    expect(stored(b, 'c0').showPatterns).toBe(true)
+  }, 40000)
+})
+
+// ── AUDIT #1172 ruling 2: gates not known yet — honest wording either way, and a compound refused whole
+describe('U10 · unknown gates: "still loading" on a chart WITH the indicator, "add it first" on one without', () => {
+  const UNKNOWN = { available: true, known: false, availability: { setups: false } }
+  it('added, gates not loaded: says it can\'t tell yet (loading), never "add it first"; nothing written', async () => {
+    const { say, board: b } = mountOn('c0', { c0: { showPatterns: true, uctIntelligence: { added: true } } }, { c0: UNKNOWN })
+    const was = JSON.stringify(b.state.widgets)
+    p.st.envelopes.push(plan(['c0', op('on', 'supportResistance')]))
+    const out = await say('turn on support and resistance')
+    expect(out).toMatch(/can’t tell yet whether Support & resistance is available on this chart — UCT Intelligence’s pattern data is still loading/)
+    expect(out).not.toMatch(/Add UCT Intelligence first/)
+    expect(JSON.stringify(b.state.widgets)).toBe(was)
+  }, 40000)
+  it('not added: "add UCT Intelligence first"; nothing written', async () => {
+    const { say, board: b } = mountOn('c0', {}, { c0: UNKNOWN })
+    const was = JSON.stringify(b.state.widgets)
+    p.st.envelopes.push(plan(['c0', op('on', 'candles')]))
+    expect(await say('turn on support and resistance')).toMatch(/until UCT Intelligence is on it .* Add UCT Intelligence first, then ask again/)
+    expect(JSON.stringify(b.state.widgets)).toBe(was)
+  }, 40000)
+  it('the compound "add it with S/R on" on a chart without it: refused WHOLE (no add either), add-first wording', async () => {
+    const { say, board: b } = mountOn('c0', {}, { c0: UNKNOWN })
+    const was = JSON.stringify(b.state.widgets)
+    p.st.envelopes.push(plan(['c0', op('add')], ['c0', op('on', 'supportResistance')]))
+    const out = await say('add uct intelligence with support and resistance on')
+    expect(out).toMatch(/Add UCT Intelligence first/)
+    expect(out).not.toMatch(/Added UCT Intelligence/)
+    expect(JSON.stringify(b.state.widgets)).toBe(was)
+    expect(undoButton()).toBeNull()
+  }, 40000)
+})
+
+// ── AUDIT #1172 ruling 4: the panel's ADMIN switches are refused by the capability itself, by key
+describe('U11 · admin-only switches are never a layer of this action', () => {
+  const ADMIN_KEYS = ['admin-learned', 'admin-all', 'admin-levels', 'showLearned', 'showAll', 'showLevels', 'learned', 'keyLevels', 'allTiers']
+  const env = { target: { uctIntel: { available: true, known: true, availability: { ...AV, supportResistance: true } }, cs: mergeChartSettings(null) } }
+  it.each(ADMIN_KEYS)('check() refuses %s by key (capability level, not only the manifest enum)', (k) => {
+    for (const o of ['on', 'off']) expect(getCapability(A).check({ cs: mergeChartSettings(null) }, { op: o, layer: k }, env)).toMatch(/admin-only switches/)
+  })
+  it.each(ADMIN_KEYS)('a model plan naming %s is refused; nothing written', async (k) => {
+    const { say, board: b } = mountOn('c0', { c0: { showPatterns: true, uctIntelligence: { added: true } } })
+    const was = JSON.stringify(b.state.widgets)
+    p.st.envelopes.push(plan(['c0', op('on', k)]))
+    const out = await say('switch that layer for me please')
+    expect(out).not.toMatch(/Turned|Added/)
+    expect(JSON.stringify(b.state.widgets)).toBe(was)
+  }, 40000)
+})

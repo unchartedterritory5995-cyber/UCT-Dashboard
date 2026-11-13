@@ -2162,7 +2162,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "volume.setState": {
    "domain": "volume",

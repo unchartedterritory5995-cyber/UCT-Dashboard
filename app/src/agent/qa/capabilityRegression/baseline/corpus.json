@@ -11164,8 +11164,7 @@
       },
       "phrasings": [
         "turn off auto patterns",
-        "hide the chart patterns",
-        "switch the patterns button off"
+        "hide the chart patterns"
       ]
     },
     {
@@ -11239,6 +11238,43 @@
       "phrasings": [
         "turn on candlestick patterns",
         "show the candlestick pattern markers"
+      ]
+    },
+    {
+      "id": "uctIntelligence.patterns.which",
+      "source": "AUDIT #1172 ruling 1: a bare \"patterns\" is two features on a chart with UCT Intelligence — Chart IQ (showChartIq, ChartIqToolbarButton) and Auto patterns (showPatterns, PatternToolbarButton). chart.setSetting's fast path reads it as Chart IQ; on this board (UCT Intelligence added) uctIntelligence.set's whole-sentence phrase ASKS which, so nothing is written and no model is called. On a chart without UCT Intelligence the Chart IQ fast path is master's (agentUctIntelligence.test.jsx U9).",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "deterministic": {
+        "say": "^Which patterns do you mean"
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "off",
+              "layer": "autoPatterns"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "says": [
+          "Which patterns do you mean"
+        ],
+        "modelTurns": 0,
+        "receipt": false
+      },
+      "phrasings": [
+        "turn the patterns off on this chart"
       ]
     },
     {

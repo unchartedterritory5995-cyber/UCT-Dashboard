@@ -4504,11 +4504,6 @@
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
-    },
-    "switch the patterns button off": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
     }
    }
   },
@@ -4536,6 +4531,16 @@
      "modes": {}
     },
     "show the candlestick pattern markers": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.patterns.which": {
+   "digest": "a386783468197b46",
+   "phrasings": {
+    "turn the patterns off on this chart": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}

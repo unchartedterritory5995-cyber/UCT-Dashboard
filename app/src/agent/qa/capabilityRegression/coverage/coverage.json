@@ -8888,7 +8888,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -8924,14 +8924,16 @@
      "corpus uctIntelligence.layer",
      "corpus uctIntelligence.autoPatterns",
      "corpus uctIntelligence.remove",
-     "corpus uctIntelligence.gated"
+     "corpus uctIntelligence.gated",
+     "corpus uctIntelligence.patterns.which"
     ],
     "execution": [
      "uctIntelligence.add (c)",
      "uctIntelligence.layer (c)",
      "uctIntelligence.autoPatterns (c)",
      "uctIntelligence.remove (c)",
-     "uctIntelligence.gated (c)"
+     "uctIntelligence.gated (c)",
+     "uctIntelligence.patterns.which (c)"
     ],
     "receipt": [
      "uctIntelligence.add (c)",
