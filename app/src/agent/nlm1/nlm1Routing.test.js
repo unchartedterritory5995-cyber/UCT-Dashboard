@@ -263,3 +263,19 @@ describe('#1076 drawingOps controls and the undo words, v1 and v2', () => {
     expect(first(v, msg).names.has('agent.undo')).toBe(true)
   })
 })
+
+// calc-TF family (indicatorStyle.setCalcTimeframe): its own words reach the action in the FIRST call (v1 and v2), and plain
+// chart-timeframe / show-on words do not pull it in (they keep chart.setTimeframe / indicatorStyle.set)
+describe('calc-TF: indicatorStyle.setCalcTimeframe is sent on its own words, and only on them', () => {
+  const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const opts = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold, correct })
+  const sent = (v, msg) => new Set((v === 'v2' ? routeManifestV2(full(), msg, opts()) : routeManifest(full(), msg, opts())).manifest.map(c => c.name))
+  const OWN = ['show a weekly rsi on this daily chart', 'make the 50 sma use the weekly', 'calculate the rsi on weekly bars', 'compute the macd on the daily', 'put rsi back to the chart\'s timeframe']
+  it.each(['v1', 'v2'].flatMap(v => OWN.map(m => [v, m])))('%s "%s" carries indicatorStyle.setCalcTimeframe', (v, msg) => {
+    expect(sent(v, msg).has('indicatorStyle.setCalcTimeframe')).toBe(true)
+  })
+  it.each(['switch the chart to weekly', 'go to the daily', 'weekly chart please', 'show me the monthly', 'change the timeframe to 1 hour'])
+  ('"%s": the calc words do not select indicatorSetup (the chart\'s own timeframe)', (msg) => {
+    expect(wordsSelect('indicatorSetup', msg)).toBe(false)
+  })
+})

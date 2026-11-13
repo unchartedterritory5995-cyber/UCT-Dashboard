@@ -21,6 +21,8 @@ export const PAST_TO_PENDING = Object.freeze({
   Locked: 'Lock', Unlocked: 'Unlock', Starred: 'Star', Unstarred: 'Unstar', Reordered: 'Reorder', Discarded: 'Discard',
   // #1104 chart zoom (chartSetup.zoom: 'Zoomed this chart in …')
   Zoomed: 'Zoom',
+  // calc-TF family (indicatorStyle.setCalcTimeframe: 'Calculated RSI 14 on Chart (QQQ) on weekly bars …')
+  Calculated: 'Calculate',
 })
 // phrases that state a RESULT as already true
 const PHRASES = [

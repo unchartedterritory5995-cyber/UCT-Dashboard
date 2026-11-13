@@ -102,3 +102,11 @@ def test_the_chart_menu_family_is_a_CHART_action_not_history():
     # #1106: the chart's right-click Ask AI and watermark Reset act on ONE chart (the chart domain), never history
     assert v2.domain_for("chartMenu.askAi") == "chart"
     assert v2.domain_for("chartMenu.resetWatermark") == "chart"
+
+
+def test_the_calc_timeframe_action_is_an_INDICATOR_action_and_withheld():
+    # calc-TF family: indicatorStyle.setCalcTimeframe files under the indicator domain (as indicatorStyle.* does), never history,
+    # and its bare name is withheld by the existing indicatorStyle × set enumeration (no new GUARD_KNOWN_UNWITHHELD entry)
+    assert v2.domain_for("indicatorStyle.setCalcTimeframe") == v2.domain_for("indicatorStyle.set") != "history"
+    assert guard.suspicious(_bare("indicatorStyle.setCalcTimeframe")) is True
+    assert "indicatorStyle.setCalcTimeframe" not in GUARD_KNOWN_UNWITHHELD

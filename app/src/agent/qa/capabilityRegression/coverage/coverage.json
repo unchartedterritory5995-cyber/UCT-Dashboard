@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 202,
-  "withProductionKinds": 193,
+  "all": 203,
+  "withProductionKinds": 194,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 202,
-  "withAnyRegressionCase": 150,
+  "capabilities": 203,
+  "withAnyRegressionCase": 151,
   "perProtection": {
    "nl": {
-    "covered": 147,
-    "applicable": 202
+    "covered": 148,
+    "applicable": 203
    },
    "routing": {
-    "covered": 144,
-    "applicable": 202
+    "covered": 145,
+    "applicable": 203
    },
    "args": {
-    "covered": 150,
-    "applicable": 202
+    "covered": 151,
+    "applicable": 203
    },
    "execution": {
-    "covered": 147,
-    "applicable": 202
+    "covered": 148,
+    "applicable": 203
    },
    "receipt": {
-    "covered": 119,
-    "applicable": 202
+    "covered": 120,
+    "applicable": 203
    },
    "refusal": {
-    "covered": 34,
-    "applicable": 202
+    "covered": 35,
+    "applicable": 203
    },
    "permission": {
-    "covered": 195,
-    "applicable": 202
+    "covered": 196,
+    "applicable": 203
    },
    "undo": {
-    "covered": 73,
-    "applicable": 132
+    "covered": 74,
+    "applicable": 133
    },
    "multiStep": {
     "covered": 39,
-    "applicable": 202
+    "applicable": 203
    },
    "phrasings": {
-    "covered": 143,
-    "applicable": 202
+    "covered": 144,
+    "applicable": 203
    }
   }
  },
@@ -6208,6 +6208,62 @@
      "indicator.followup-daily-only: after an earlier turn",
      "GW-27.indicator-package-draft-to-delete"
     ],
+    "phrasings": []
+   }
+  },
+  "indicatorStyle.setCalcTimeframe": {
+   "domain": "indicatorStyle",
+   "group": "indicatorSetup",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": true,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "indicatorStyle.calcTimeframe-weekly: \"calculate the 50 sma on weekly\"",
+     "indicatorStyle.calcTimeframe-weekly: \"compute the 50 sma on the weekly bars\"",
+     "indicatorStyle.calcTimeframe-weekly: \"make the 50 sma use the weekly\""
+    ],
+    "routing": [
+     "indicatorStyle.calcTimeframe-weekly: \"calculate the 50 sma on weekly\"",
+     "indicatorStyle.calcTimeframe-weekly: \"compute the 50 sma on the weekly bars\"",
+     "indicatorStyle.calcTimeframe-weekly: \"make the 50 sma use the weekly\""
+    ],
+    "args": [
+     "corpus indicatorStyle.calcTimeframe-weekly"
+    ],
+    "execution": [
+     "indicatorStyle.calcTimeframe-weekly (c)"
+    ],
+    "receipt": [
+     "indicatorStyle.calcTimeframe-weekly (c)"
+    ],
+    "refusal": [
+     "refuse.calcTimeframe.unclear-put-on-weekly"
+    ],
+    "permission": [],
+    "undo": [
+     "indicatorStyle.calcTimeframe-weekly: undo restores"
+    ],
+    "multiStep": [],
     "phrasings": []
    }
   },

@@ -6879,6 +6879,38 @@
    "shape": null
   },
   {
+   "name": "indicatorStyle.setCalcTimeframe",
+   "domain": "indicatorStyle",
+   "target": "indicatorEdits",
+   "summary": "Calculate ONE indicator on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own — the chart's timeframe does not change. Undo puts it back.",
+   "hints": "target = the chart's indicatorEdits entry; instance = the indicator; timeframe = 1, 5, 15, 30, 60, D, W, M or \"chart\". Not showOn (which charts it shows on) and not chart.setTimeframe. \"Put the RSI on weekly\" is unclear: ask which.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     },
+     "timeframe": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "instance",
+     "timeframe"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "pane.move",
    "domain": "pane",
    "target": "indicatorEdits",

@@ -1458,6 +1458,19 @@
    ],
    "fast": true
   },
+  "indicatorStyle.setCalcTimeframe": {
+   "domain": "indicatorStyle",
+   "group": "indicatorSetup",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "indicatorTemplate.apply": {
    "domain": "indicatorTemplate",
    "group": "chartSetup",

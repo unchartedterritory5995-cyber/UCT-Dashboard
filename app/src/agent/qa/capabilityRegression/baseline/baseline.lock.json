@@ -3712,6 +3712,26 @@
     }
    }
   },
+  "indicatorStyle.calcTimeframe-weekly": {
+   "digest": "e047db71b09811d5",
+   "phrasings": {
+    "calculate the 50 sma on weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "compute the 50 sma on the weekly bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make the 50 sma use the weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "indicatorCopy.duplicate": {
    "digest": "c6951d43c3be58f7",
    "phrasings": {
@@ -4648,6 +4668,11 @@
   }
  },
  "refusals": {
+  "refuse.calcTimeframe.unclear-put-on-weekly": {
+   "digest": "ad7e43c51ae45ee5",
+   "gap": false,
+   "mode": null
+  },
   "refuse.undo-nothing": {
    "digest": "c4ac79408ca94a75",
    "gap": false,
