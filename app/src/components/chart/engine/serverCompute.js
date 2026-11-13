@@ -29,7 +29,8 @@
 // overlay — never a retry storm and never a client-side "are you paid?" branch
 // that could disagree with the server.
 
-import { withDerivedColumns } from './derivedColumns'
+import { withDerivedColumns, withDerivedScalars } from './derivedColumns'
+import { readoutConditionOpen } from './readoutSchema'
 // ⭐ U2b — the forming bar's live value for a `plots[].liveTail` (`liveTail.js`):
 // the one cell of a cached envelope that moves with price, recomputed where the
 // envelope is aligned. The module imports nothing of this one.
@@ -1321,8 +1322,40 @@ export function scalarsFor(def, inputs, ctx) {
   // says "Scaled to 6M: 90 on Nov 11" or why the line is drawn unscaled. The same
   // object every paint (memoised per envelope), the payload itself while off.
   const e = rescaleEntry(def, parsed, inputs, ctx.tf)
-  if (e) return e.scalars || null
-  return parsed.payload || null
+  const base = e ? (e.scalars || null) : (parsed.payload || null)
+  // ⭐ 2026-11-13 — plus each declared derived average's reading (`plots[].derive`
+  // kind 'ma' with a `scalar`, `derivedColumns.withDerivedScalars`): the UCT RS
+  // Line's second average prints "above its 50 SMA by 2.1%" beside the server's
+  // first. Read off the envelope's own columns; memoised per (envelope, base
+  // scalars, length, type) so the readout's identity memo still hits.
+  return derivedScalarsFor(def, parsed, base, inputs)
+}
+
+const _derivedScalarsMemo = new WeakMap()   // parsed -> Map(signature -> {base, out})
+
+function derivedScalarsFor(def, parsed, base, inputs) {
+  const specs = (def && Array.isArray(def.plots) ? def.plots : [])
+    .filter((p) => p && p.derive && p.derive.kind === 'ma' && typeof p.derive.scalar === 'string')
+  if (!specs.length || !base || typeof base !== 'object') return base
+  const sig = specs.map((p) => {
+    const d = p.derive
+    const read = (s) => (typeof s === 'string' && s.startsWith('input:') ? readInputValue(def, inputs, s.slice(6)) : s)
+    const open = d.activeWhen === undefined ? true : readoutConditionOpen(d.activeWhen, def, inputs || {})
+    return `${p.key}:${open ? 1 : 0}:${String(read(d.length))}:${String(read(d.type))}`
+  }).join('|')
+  let byKey = _derivedScalarsMemo.get(parsed)
+  if (!byKey) { byKey = new Map(); _derivedScalarsMemo.set(parsed, byKey) }
+  const hit = byKey.get(sig)
+  if (hit && hit.base === base) return hit.out
+  const out = withDerivedScalars(def, base, parsed.columns, inputs)
+  byKey.set(sig, { base, out })
+  return out
+}
+
+function readInputValue(def, inputs, key) {
+  if (inputs && Object.prototype.hasOwnProperty.call(inputs, key)) return inputs[key]
+  const inp = def && Array.isArray(def.inputs) ? def.inputs.find((i) => i && i.key === key) : null
+  return inp ? inp.default : undefined
 }
 
 // ─── WHAT THE LIVE SERVER DECLARES (UCT RS Phase 3, unit 3-01) ───────────────
