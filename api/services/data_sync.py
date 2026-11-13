@@ -892,6 +892,57 @@ def get_latest_snapshot_ts() -> Optional[str]:
         return None
 
 
+SWAP_BUSY_TIMEOUT_S = 30
+
+
+def _swap_in_bars_db(src_db: str, dst: str, bs) -> bool:
+    """⛔ THE SAFE WHOLESALE SWAP (2026-11-13). Install `src_db` as `dst` without ever leaving a
+    write-ahead log beside a main file it does not belong to.
+
+    ⚰️ The old code `shutil.move`d the new main file over the old one and left the old
+    `bars.db-wal` / `-shm` in place. bars-api installs in a background thread AFTER it starts
+    serving, so a 19-minute download let live cold fetches build an interim store + WAL; the swap
+    then put the new 19.5 GB file beside that WAL and the next connection read it as
+    "database disk image is malformed" (bars-api 2026-11-13 20:52 UTC: `post-install init_db
+    failed: malformed` right after a verified install).
+
+    Same discipline as `adopt_clustered_store` step 5: under the write lock AND `DB_SWAP_LOCK`,
+    TRUNCATE-checkpoint the old store (its -wal/-shm are then empty and reset, safe beside the new
+    file); busy => refuse, keep the old store. No old main file => any -wal/-shm left behind are
+    orphans of a store that no longer exists, and are removed. Then replace and bump the epoch so
+    every thread reopens the new inode before its next query. Returns False (store untouched) on
+    any refusal."""
+    with bs._WRITE_LOCK, bs.DB_SWAP_LOCK:
+        if os.path.exists(dst):
+            c = sqlite3.connect(dst, timeout=SWAP_BUSY_TIMEOUT_S)
+            try:
+                busy = c.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
+            except sqlite3.DatabaseError as e:
+                busy = None
+                logger.warning(f"[data_sync] old store unreadable ({e}); replacing it whole")
+            finally:
+                c.close()
+            if busy:
+                logger.error("[data_sync] old store busy; could not checkpoint before the swap; "
+                             "snapshot NOT installed, old store kept")
+                return False
+            if busy is None:                 # damaged old store: its sidecars are meaningless too
+                for suf in ("-wal", "-shm"):
+                    if os.path.exists(dst + suf):
+                        os.remove(dst + suf)
+        else:
+            for suf in ("-wal", "-shm"):
+                if os.path.exists(dst + suf):
+                    os.remove(dst + suf)     # orphans of a removed store
+        try:
+            bs._drop_local_conn()
+        except Exception:  # noqa: BLE001
+            pass
+        shutil.move(src_db, dst)
+        bs.bump_db_epoch()
+    return True
+
+
 def download_snapshot(ts: str) -> bool:
     """Download snapshot <ts> to _DATA_DIR, replacing existing bars.db + bars_cache/.
 
@@ -949,20 +1000,13 @@ def download_snapshot(ts: str) -> bool:
                     f"refusing to install"
                 )
                 return False
-            # Note: we do NOT remove the OLD bars.db-wal / -shm sidecars here
-            # even though stale WAL+new-main can theoretically cause
-            # "disk image is malformed" on next open. An earlier version of
-            # this code DID remove them and caused a regression: writers
-            # mid-transaction had their WAL deleted from under them, which
-            # SQLite reported as "disk I/O error" on the next operation.
-            # The malformed-image risk is handled by integrity_ok() at boot
-            # plus the put_bars malformed handler that triggers force_resync.
-            # That fail-safe path is much cheaper than corrupting writes
-            # every 5 min during snapshot pulls.
+            # ⛔ The swap goes through `_swap_in_bars_db`: the old store is TRUNCATE-checkpointed
+            # under the write + swap locks (its -wal/-shm become empty, safe beside the new file),
+            # orphaned sidecars are removed, busy => refuse. ⚰️ This said "we do NOT remove the OLD
+            # sidecars" and moved the new file beside a live WAL: bars-api 2026-11-13 malformed.
             from api.services import bars_sqlite as _bs_swap
-            with _bs_swap.DB_SWAP_LOCK:       # the checkpointer never straddles the swap
-                shutil.move(src_db, os.path.join(_DATA_DIR, "bars.db"))
-                _bs_swap.bump_db_epoch()
+            if not _swap_in_bars_db(src_db, os.path.join(_DATA_DIR, "bars.db"), _bs_swap):
+                return False
         # Replace bars_cache (replace the whole directory, not merge)
         src_cache = os.path.join(tmpdir, "bars_cache")
         if os.path.isdir(src_cache):
