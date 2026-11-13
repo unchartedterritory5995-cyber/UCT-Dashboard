@@ -1000,10 +1000,7 @@
      "the 50-over-200 order is the card's rule, not B26"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q03",
@@ -1036,10 +1033,7 @@
      "which low the stop sits under is held as D-008, so the question keys only 'a few cents'"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q04",
@@ -1076,10 +1070,7 @@
      "the buy trigger itself is held as D-003 and is not graded"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q05",
@@ -1344,10 +1335,7 @@
      "+2 ties to the held trigger decision D-003 (the buy follows the hold day)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q13",
@@ -1479,10 +1467,7 @@
      "the buy trigger behind the example is held as D-003"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q17",
@@ -2202,9 +2187,6 @@
      "+2 rests on the card's own tell, which can change"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -2247,10 +2229,7 @@
      "+2 rests on the card's lookalike tell, which can change"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q36",
@@ -3287,10 +3266,7 @@
      "+2 ties to held decision D-003 (the buy over the hold day's high is the default, not a ruling)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q65",
@@ -3368,9 +3344,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3458,9 +3431,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3714,10 +3684,7 @@
      "the named entry variants belong to the trigger, which is still pending (D-003)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q79",
@@ -4150,19 +4117,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c01 verbatim on the card; the 20/50/200 stack and price over the 200-day make it True. Why keeps the 'not a buy' caveat. No tell."
+   "notes": "agrees with its rulings"
   },
   "q03": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "F62 verbatim (a few cents under the day's low). Key is cents; ATR, dollars, percent are real misreadings. Does not pick which low (D-008)."
+   "notes": "agrees with its rulings"
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E57 and c16 verbatim: market order the moment the trigger trades, in regular hours. Key is not the longest choice; the other three break the rule (limit, after close, next open)."
+   "notes": "agrees with its rulings"
   },
   "q05": {
    "status": "pass",
@@ -4210,7 +4177,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Close at or above the line: c14 verbatim incl. the undercut-and-reclaim clause; low may dip under per c10. Held by D-003."
+   "notes": "agrees with its rulings"
   },
   "q13": {
    "status": "cut",
@@ -4233,8 +4200,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc right: 86.93 + 3 x 1.11 = 90.26. But the why says 'MOH reached 3R in one session' when the question never names MOH, and the lesson line 'Know your 3R before the open' is in no cited quote. Dropped the MOH line and dMOHw, and rewrote the lesson line."
+   "fixed": false,
+   "notes": "agrees with its rulings"
   },
   "q17": {
    "status": "cut",
@@ -4369,7 +4336,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "l3 and c14 verbatim: the buy as price trades back above a broken line is Undercut and Rally. 'No depth is taught' is a deliberate statement about the lesson. Held by D-002."
+   "notes": "agrees with its rulings"
   },
   "q36": {
    "status": "pass",
@@ -4529,8 +4496,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Take it is right on the YELP data. Three defects: (1) 'A leader' is not in dYELPw, which says 'a stock'; (2) '3R came the next day', placed after the touch-day sentence, reads as the day after the touch, but dYELP has the trigger on 06-26 and 3R on 06-27, the day after the buy; (3) the deeper's stop line (3.6%, so the size comes down) gives away q48's YELP answer. Fixed all three and dropped dYELPs. Lesson-level: q48's named YELP story still makes this hidden chart recognizable."
+   "fixed": false,
+   "notes": "agrees with its rulings"
   },
   "q65": {
    "status": "pass",
@@ -4616,8 +4583,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Out of chunk: q79's reveal lists the reversal candle and names q78's key; trim q79's why. D-003 pending.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with its rulings"
   },
   "q79": {
    "status": "cut",

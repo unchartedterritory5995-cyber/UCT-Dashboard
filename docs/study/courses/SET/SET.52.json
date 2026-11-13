@@ -53,6 +53,14 @@
    "title": "Wick Play dossier, sections 3.1, 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/37-wick-play.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -589,6 +597,12 @@
    "source": "c1",
    "quote": "the next session's low was 99.49, stopped for 0R, and the stock never traded above 102.53 in the following 20 sessions.",
    "claim": "AMZN: stopped the next session, and the stock never traded above 102.53 in the following 20 sessions."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "well all of those are fine but yes LOD is primarily the spot where the stop should be taken.",
+   "claim": "The low of day is the primary stop; the pattern low is an acceptable alternative."
   }
  ],
  "walkthroughs": [
@@ -694,8 +708,7 @@
     ]
    },
    "depends_on": [
-    "D-010",
-    "D-116"
+    "D-010"
    ],
    "batch": "wave5"
   },
@@ -779,9 +792,6 @@
      "trigger timing (strict day 3 or same-day push) is pending D-115; the key holds under both"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -820,9 +830,6 @@
      "the trigger rests on the strict versus same-day form held in D-115 (the key holds under every option)"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -884,9 +891,6 @@
      "rests on the owner's rulebook (A3, F62) and the day-3 form held in D-115"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -1053,9 +1057,6 @@
      "the body-touch tolerance is held in D-116 (well into the body is a no-trade under every option)"
     ]
    },
-   "depends_on": [
-    "D-116"
-   ],
    "batch": "wave5"
   },
   {
@@ -1133,9 +1134,6 @@
      "the minimum wick size is held in D-116 (no threshold is keyed)"
     ]
    },
-   "depends_on": [
-    "D-116"
-   ],
    "batch": "wave5"
   },
   {
@@ -1302,9 +1300,6 @@
      "house stop rule (F62); the day-3 stop is pending D-115"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -1496,9 +1491,6 @@
      "house rule (A13); the day-3 buy and stop are pending D-115"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -1580,9 +1572,6 @@
      "the body-touch tolerance is held in D-116 (78.60 is above the body under every option)"
     ]
    },
-   "depends_on": [
-    "D-116"
-   ],
    "batch": "wave5"
   },
   {
@@ -1911,7 +1900,7 @@
     "Gap past stop: first 30-minute low"
    ],
    "answer": "Staggered stops at the 10 and 20 EMAs",
-   "why": "Staggered stops at the 10 and 20 EMAs. Our card lists that as TraderLion's plan from one review, and we do not use it. Our stop is a real broker order a few cents under day 2's low, the prior day's low at the buy. The one change allowed is the gap rule. On a gap against the stop, the low of the first 30-minute bar becomes the new stop.",
+   "why": "Staggered stops at the 10 and 20 EMAs. Our card lists that as TraderLion's plan from one review, and we do not use it. Our stop is a real broker order a few cents under the low of the day. Day 2's low, the prior day's low, is an accepted alternative. The one change allowed is the gap rule. On a gap against the stop, the low of the first 30-minute bar becomes the new stop.",
    "lesson_line": "One stop, a few cents under the low.",
    "facts": [
     "cNot",
@@ -1919,15 +1908,16 @@
     "cStopA",
     "h18",
     "h02",
-    "h06"
+    "h06",
+    "r01"
    ],
    "wrong": {
-    "A stop just under day 2's low": "That is ours for a buy over the prior day's high.",
+    "A stop just under day 2's low": "That is ours too. The day's low is primary, and the prior day's low is an accepted alternative.",
     "A real stop order with a broker": "That is ours. Every position has one.",
     "Gap past stop: first 30-minute low": "That is ours. On a gap against the stop, the low of the first 30-minute bar becomes the new stop."
    },
    "house": true,
-   "simple": "Staggered stops at the 10 and 20 EMAs, because that is another trader's plan. Ours sits just under day 2's low.",
+   "simple": "The staggered EMA stops, because that is another trader's plan. Ours sits just under the low.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1935,10 +1925,7 @@
      "stop rules from the owner's rulebook (A4, B20, D41, F62); the same-day stop is pending D-008"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q37",
@@ -1980,9 +1967,6 @@
      "fixed before (day 1's open added 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -2067,9 +2051,6 @@
      "criterion wk.day2_same_day is pending D-115; the key holds under every option"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -2158,10 +2139,6 @@
      "the body-touch tolerance is pending D-116 and criterion wk.day2_strict D-115; the key holds under every option"
     ]
    },
-   "depends_on": [
-    "D-115",
-    "D-116"
-   ],
    "batch": "wave5"
   },
   {
@@ -2204,9 +2181,6 @@
      "the body-touch tolerance is held in D-116 (a drop to 40.30, 1.70 under the 42.00 body top, is well into the body under every option)"
     ]
    },
-   "depends_on": [
-    "D-116"
-   ],
    "batch": "wave5"
   },
   {
@@ -2248,9 +2222,6 @@
      "the strict versus same-day form is held in D-115 (the question now names Deepvue's strict test)"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -2569,9 +2540,6 @@
      "fixed before (10-day distance added 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -2620,9 +2588,6 @@
      "fixed before (2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -3056,9 +3021,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -3085,9 +3047,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-115"
-   ],
    "batch": "wave5"
   },
   {
@@ -3374,9 +3333,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "cNot verbatim: TraderLion's staggered EMA stops are not ours. The other three are ours (h24/cStopA, h18, h06). Holds under D-008 since F62 puts the stop under the day's low.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "D-008: LOD primary, prior-day low alternative; quote verbatim (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q37": {
    "status": "pass",

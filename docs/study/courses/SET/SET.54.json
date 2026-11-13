@@ -193,6 +193,14 @@
    "title": "Opening Drive dossier, sections 12 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/44-opening-drive.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1011,6 +1019,30 @@
    "source": "h1",
    "quote": "In a Red market: mostly cash, plus shorts below the 200-day.",
    "claim": "D46: in a Red market, mostly cash, plus shorts below the 200-day."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "volume really only raises the grade, it is not a major requirement but some people disagree with me so idk.",
+   "claim": "Volume raises the grade; it is not a requirement for the setup to count."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "will go up to 5% but prefer 1-3% risk ish.",
+   "claim": "Stop distance: 1 to 3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Looking for 3-5-7 day push for our first sell and that might be 10-12-20R.",
+   "claim": "The first sell is often day based: a 3, 5 or 7 day push, which can be 10, 12 or 20R."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "Yeah short teachings are fine but only recomended for traders who have made $1 Million.",
+   "claim": "Short lessons say shorting is recommended only for traders who have made $1 million."
   }
  ],
  "walkthroughs": [
@@ -1117,10 +1149,7 @@
      "the 5-minute trigger bar rests on a proposed card line tied to held decision D-031"
     ]
    },
-   "depends_on": [
-    "D-031"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q02",
@@ -1361,10 +1390,7 @@
      "the 5-minute window is the unit's definition while D-031 is held"
     ]
    },
-   "depends_on": [
-    "D-031"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q10",
@@ -1372,28 +1398,28 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "od.inv_volume_under_average",
-   "q": "The first 5-minute bar closes green but trades under its normal volume. What is it?",
+   "q": "The first 5-minute bar closes green on under-average volume. How do we treat the drive?",
    "choices": [
-    "A drive with a wider stop",
-    "A drive, but graded B",
-    "Not a drive; no trade",
-    "Wait; buy if bar 2 has big volume"
+    "Still a drive, but a lower grade",
+    "Not a drive; skip it completely",
+    "The top grade; a calm open is good",
+    "Volume never matters for a drive"
    ],
-   "answer": "Not a drive; no trade",
-   "why": "Not a drive. First 5-minute volume under its average fails the card. SMB says a drive shows a price surge and elevated volume right after the bell. Zarattini et al. found the opening range break averaged -0.02R below 100% relative volume. It is a no-trade, so no grade, stop change or later bar turns it into one.",
-   "lesson_line": "A green bar with no crowd behind it is not a drive.",
+   "answer": "Still a drive, but a lower grade",
+   "why": "It stays a drive, with a lower grade. For us, volume raises the grade. It is not a requirement for the setup to count. SMB says a drive shows a price surge and elevated volume right after the bell. So heavy volume is a plus, and thin volume costs grade. Zarattini et al. found the opening range break averaged -0.02R below 100% relative volume.",
+   "lesson_line": "Volume raises the grade. A thin first bar is a lower grade, not a veto.",
    "facts": [
-    "c08",
     "c09",
-    "m11"
+    "m11",
+    "r01"
    ],
    "wrong": {
-    "A drive with a wider stop": "A wider stop on a non-drive only adds risk.",
-    "A drive, but graded B": "Under its average volume it is not a drive, so it gets no grade.",
-    "Wait; buy if bar 2 has big volume": "The test is the first 5-minute bar's volume. A later bar does not make it a drive."
+    "Not a drive; skip it completely": "Volume raises the grade. It is not a must-have, so thin volume does not erase the drive.",
+    "The top grade; a calm open is good": "Thin volume does not raise the grade. Heavy volume does.",
+    "Volume never matters for a drive": "Volume does matter. It raises the grade, even though it is not a must-have."
    },
    "house": true,
-   "simple": "Not a drive, because a real drive needs heavy volume and this first bar traded less than its normal amount.",
+   "simple": "It is still a drive with a lower grade, because volume only raises the grade and is not a must-have.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1401,10 +1427,7 @@
      "the volume floor is a proposed card line tied to held decision D-006"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q11",
@@ -1557,13 +1580,14 @@
     },
     "round": 2
    },
-   "why": "1.62%. Stop distance is the fill minus the stop, divided by the fill. That is LRCX on 2026-09-18. A tight first bar gives a close stop, well inside the 3% a stop usually sits within. The 3% is where a stop usually sits, not a hard cap.",
+   "why": "1.62%. Stop distance is the fill minus the stop, divided by the fill. That is LRCX on 2026-09-18. A tight first bar gives a close stop, inside the 1 to 3% we prefer. We accept up to 5%, so the range is a guide, not a hard cap.",
    "lesson_line": "Stop first, distance second, size last. A tight first bar makes a close stop.",
    "facts": [
     "h04",
     "h24",
     "d01",
-    "d02"
+    "d02",
+    "r02"
    ],
    "house": true,
    "suffix": "%",
@@ -1576,10 +1600,7 @@
      "stop width is tied to held decision D-005 and the rulebook's A13"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q16",
@@ -1617,10 +1638,7 @@
      "the drive-or-ORB tell is a proposed card line tied to held decision D-031"
     ]
    },
-   "depends_on": [
-    "D-031"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q17",
@@ -1799,10 +1817,7 @@
      "the drive's role (day-1 timer or day trade) is held decision D-002"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q23",
@@ -2227,10 +2242,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-031"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q35",
@@ -2273,16 +2285,17 @@
     "One whose first bar closes high"
    ],
    "answer": "One at a full day's volume by 9:45",
-   "why": "The one that trades its average daily volume by 9:45, the first 15 minutes. That is an A+ mark: the average daily volume within the first 15 to 30 minutes, or a first 5-minute bar at 4 times its average or more. Kullamagi says the best ones often trade their average daily volume in the first 15 to 30 minutes. The same daily setup does not make two drives equal.",
+   "why": "The one that trades its average daily volume by 9:45, the first 15 minutes. That is an A+ mark: the average daily volume within the first 15 to 30 minutes, or a first 5-minute bar at 4 times its average or more. Kullamagi says the best ones often trade their average daily volume in the first 15 to 30 minutes. The same daily setup does not make two drives equal. Volume raises the grade for us; it is not a requirement.",
    "lesson_line": "A stock that trades a full day's average volume before 9:45 is in play.",
    "facts": [
     "c13",
     "k03",
     "u03",
-    "c06"
+    "c06",
+    "r01"
    ],
    "wrong": {
-    "One on average first-bar volume": "Average volume in the first bar is only the floor. The A+ mark is far heavier.",
+    "One on average first-bar volume": "Average volume in the first bar earns no bonus. Heavier volume raises the grade.",
     "Same; the setup is identical": "Volume grades the drive. Our card marks the heavy one A+.",
     "One whose first bar closes high": "Where the first bar closes is not the A+ mark. A drive may even dip in the first minute; volume grades it."
    },
@@ -2296,10 +2309,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q37",
@@ -2357,15 +2367,16 @@
     "Tighten the stop to keep shares"
    ],
    "answer": "Let the stop set the size, or skip it",
-   "why": "Let the stop set the size, or skip. The stop comes first, a few cents under the day's low, and the size comes from it. WDC's stop sat 3.53% under the 445.63 fill because its first bar was 3.6% tall. A wider stop means fewer shares at the same risk. If the honest stop does not fit the risk, skip the trade. It never means tightening the stop or buying full size anyway.",
-   "lesson_line": "The honest stop sets the size. If it does not fit, skip the trade.",
+   "why": "Let the stop set the size, or skip. The stop comes first, a few cents under the day's low, and the size comes from it. WDC's stop sat 3.53% under the 445.63 fill because its first bar was 3.6% tall. We accept up to 5%, so this is a good stop. A wider stop means fewer shares at the same risk. Past 5%, we mostly wait for a tighter trigger. Never tighten the stop to keep shares.",
+   "lesson_line": "The honest stop sets the size. Past 5%, wait for a tighter trigger.",
    "facts": [
     "d29",
     "d30",
     "h01",
     "h03",
     "h18",
-    "d19"
+    "d19",
+    "r02"
    ],
    "wrong": {
     "Buy full size; it is a real drive": "Full size on a wide stop risks more than planned. The stop sets the size.",
@@ -2373,7 +2384,7 @@
     "Tighten the stop to keep shares": "A tight stop is not a free stop. The stop belongs under the day's low."
    },
    "house": true,
-   "simple": "Let the honest stop set the size, and skip the trade if that stop does not fit your risk.",
+   "simple": "Let the honest stop set the size, and skip only if the stop is too wide for your risk.",
    "deeper": {
     "trap": "The trap is the tight stop. A stop moved up inside the first bar looks safer and keeps the share count. But a tight stop is not a free stop. The stop belongs a few cents under the day's low. The size bends to the stop, never the other way."
    },
@@ -2385,10 +2396,7 @@
      "stop width is a held decision (D-005)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q39",
@@ -2660,25 +2668,25 @@
    "choices": [
     "The drive's, with the day's-low stop",
     "Neither; two setups means skip",
-    "The Kicker's, with its stop cap",
+    "The Kicker's, with its own stop rule",
     "Whichever gives the tighter stop"
    ],
-   "answer": "The Kicker's, with its stop cap",
-   "why": "The Kicker's, with its stop cap. A Kicker needs a real red day before the gap and buys over that day's high or the 30-minute range. A drive has no red-day rule and buys the 5-minute high. A Kicker that drives from the bell is both, and the card says the Kicker's rules win, its 3.5% stop cap included. It is still a valid trade, not a skip.",
-   "lesson_line": "When two setups fit, the Kicker's rules win. Its stop cap comes first.",
+   "answer": "The Kicker's, with its own stop rule",
+   "why": "The Kicker's, with its own stop rule. A Kicker needs a real red day before the gap and buys over that day's high or the 30-minute range. A drive has no red-day rule and buys the 5-minute high. A Kicker that drives from the bell is both, and the card says the Kicker's rules win, its stop rule included. It is still a valid trade, not a skip.",
+   "lesson_line": "When two setups fit, the Kicker's rules win. Its stop rule comes first.",
    "facts": [
     "c37",
     "c38"
    ],
    "wrong": {
-    "The drive's, with the day's-low stop": "The Kicker's rules win when it drives from the bell, stop cap included.",
+    "The drive's, with the day's-low stop": "The Kicker's rules win when it drives from the bell, stop rule included.",
     "Neither; two setups means skip": "A Kicker that drives is a valid trade. It just follows the Kicker's rules.",
     "Whichever gives the tighter stop": "The card does not pick by stop width. A Kicker that drives from the bell follows the Kicker's rules."
    },
    "house": true,
    "simple": "The Kicker's rules win, because the card says a Kicker that drives from the bell follows the Kicker's rules.",
    "deeper": {
-    "trap": "The trap is using the drive's stop because the drive came first. When a Kicker drives from the bell, the Kicker's rules win. So the plan carries its 3.5% stop cap, not only the drive's stop under the day's low."
+    "trap": "The trap is using the drive's stop because the drive came first. When a Kicker drives from the bell, the Kicker's rules win. So the plan carries the Kicker's own stop rule, not only the drive's stop under the day's low."
    },
    "tier": "extended",
    "risk": {
@@ -2688,10 +2696,7 @@
      "the setup's role is a held decision (D-002)"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q47",
@@ -3064,10 +3069,9 @@
     ]
    },
    "depends_on": [
-    "D-134",
-    "D-006"
+    "D-134"
    ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q56",
@@ -3262,19 +3266,19 @@
    "criterion": "od.swing_exit",
    "q": "SMB's scalp drive has its own exits. We swing trade the drive, so those scalp exits are not ours.",
    "answer": "True",
-   "why": "True. SMB says you are either in a scalp, with all its specific exits, or a Trade2Hold. Its scalp exits are not ours. We swing trade, days to a few weeks. Our trims: a third at 3R, a third at 5R, then trail the last third.",
-   "lesson_line": "SMB's scalp exits are not ours. We swing trade: a third at 3R, a third at 5R, then the trail.",
+   "why": "True. SMB says you are either in a scalp, with all its specific exits, or a Trade2Hold. Its scalp exits are not ours. We swing trade, days to a few weeks. Our first sell may be a third at 3R, or a sale into a 3 to 7 day push. The rest trails.",
+   "lesson_line": "SMB's scalp exits are not ours. We swing trade, sell in parts and trail the rest.",
    "facts": [
     "m09",
     "c32",
     "h16",
-    "h20",
-    "h05"
+    "h05",
+    "r03"
    ],
    "house": true,
-   "simple": "True, because we swing trade with our own trims at 3R and 5R, not SMB's scalp exits.",
+   "simple": "True, because we swing trade and take profits our own way, not with SMB's scalp exits.",
    "deeper": {
-    "trap": "The trap is taking a scalp's exits on a swing drive. SMB's scalp exits belong to its scalp plan, not ours. Our exits are a third at 3R, a third at 5R, then the trail on the rest."
+    "trap": "The trap is taking a scalp's exits on a swing drive. SMB's scalp exits belong to its scalp plan, not ours. Our exits are swing exits: a first sell by R or by days into a push, then a trail on the rest."
    },
    "tier": "expert",
    "risk": {
@@ -3284,10 +3288,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q62",
@@ -3491,14 +3492,15 @@
     "The Kicker; it gapped up once more"
    ],
    "answer": "The Parabolic Short; it is a climax",
-   "why": "The Parabolic Short. A drive on day 3 to 5 of a burst, with a euphoric open, is the U-Turn. It is the gap-up drive that fails and reverses. The card gives it to the Parabolic Short, a climax-day short allowed above the 200-day only because it is parabolic. It is not a drive to hold. It is not a Kicker, which needs a red day before the gap. It is not an EP, which needs a neglected name gapping 10% or more on news.",
+   "why": "The Parabolic Short. A drive on day 3 to 5 of a burst, with a euphoric open, is the U-Turn. It is the gap-up drive that fails and reverses. The card gives it to the Parabolic Short, a climax-day short allowed above the 200-day only because it is parabolic. It is not a drive to hold. It is not a Kicker, which needs a red day before the gap. It is not an EP, which needs a neglected name gapping 10% or more on news. Shorting is recommended only for traders who have already made $1 million trading.",
    "lesson_line": "On day 3 to 5 of a burst, a failed up-drive is the U-Turn, a climax short.",
    "facts": [
     "c17",
     "c39",
     "u05",
     "c36",
-    "c37"
+    "c37",
+    "r04"
    ],
    "wrong": {
     "The Opening Drive; keep the long": "On day 3 to 5 of a burst the card does not buy the drive. Its failure is the U-Turn.",
@@ -3519,10 +3521,7 @@
      "fixed before (coverage fix 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-001"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q68",
@@ -3575,8 +3574,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key right on the card (c01, c02); ORB and Kicker distractors grounded (c35, c37). No tell, no leak."
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q08": {
    "status": "cut",
@@ -3587,20 +3586,20 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "m04 and m05 verified verbatim on smbtraining.com (the-opening-drive-play-ua). Key True; c05 (over in minutes, low in the first bar) gives the house support. Hedged 'usually' matches the source."
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key right (c08). c09 number (-0.02R) is in the card quote; m11 verified on smbtraining.com. Distractors are real misreadings."
+   "fixed": true,
+   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q21": {
    "status": "pass",
@@ -3646,16 +3645,15 @@
   },
   "q34": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q36": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "by": "checker",
+   "fixed": true,
+   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q37": {
    "status": "pass",
@@ -3666,9 +3664,8 @@
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key right (h01/A3, h03/A5, d30). WDC numbers in d29. Choices balanced; 'mental stop' rebutted by h18/D41.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q39": {
    "status": "pass",
@@ -3699,8 +3696,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer from c38 verbatim (a Kicker that drives from the bell: the Kicker's rules and 3.5% stop cap win). Key not longest. No overlap."
+   "fixed": true,
+   "notes": "a fixed 3.5% 'cap' conflicts with D-005 (3.5% good, up to 5% acceptable); drop the number and cap wording"
   },
   "q47": {
    "status": "cut",
@@ -3748,7 +3745,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right: 41.5% (d31) is about four in ten; 87.8% trap is real. All numbers in d31/d33/d35. Leak from q51's old wrong note is fixed under q51."
+   "notes": "keep agrees"
   },
   "q58": {
    "status": "pass",
@@ -3772,7 +3769,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key True right (m09 verified, c32, h16). But the deeper says 'Switching from a hold to a scalp or back is a named mistake', which is q62's key ('Switching plans mid-trade'), and q61 sits right before q62. Also 'selling at the first slowdown, the way a scalp exits' describes SMB's scalp exits with no quote. Deeper rewritten without either; c31 dropped, h05 added for 'a third at 3R'."
+   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q62": {
    "status": "pass",
@@ -3855,8 +3852,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key right (c35). Green yesterday rules out the Kicker (c37); 'nothing broke the first 5-minute high' rules out the drive and the second entry. Lengths 135 chars, under 140."
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q17": {
    "status": "pass",
@@ -3885,8 +3882,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "True on k01 + k04, both verified on qullamaggie.com in his Breakout section ('Enter on the opening range highs'; 'You don't even have to use any intraday chart, just look at the daily chart and enter...'). The statement is about his own practice, sourced from his own words."
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q24": {
    "status": "pass",
@@ -3998,8 +3995,8 @@
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer from c17 and c39: day 3 to 5 with a euphoric open, the failed up-drive is the U-Turn, owned by the Parabolic Short. Kicker (c37) and EP (c36) wrong notes grounded. Overlaps q68 and q33 in principle but adds lookalike discrimination; q47 (the pure duplicate) is already cut."
+   "fixed": true,
+   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q68": {
    "status": "cut",

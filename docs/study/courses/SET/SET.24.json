@@ -76,6 +76,14 @@
    "title": "2B dossier, section 4.5: the 2Bs UCT named, on the same bars",
    "url": "repo:docs/study/setups/research/28-2b-reversal.md#45-the-2bs-uct-named-on-the-same-bars",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -678,6 +686,18 @@
    "source": "h1",
    "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
    "claim": "C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "D-005: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "D-005: past 5%, mostly wait for a tighter trigger."
   }
  ],
  "walkthroughs": [
@@ -849,10 +869,7 @@
      "+2 keyed through the card's proposed 'never before the reclaim' while the trigger rule is held (D-003)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q04",
@@ -1116,9 +1133,6 @@
      "rests on the owner's rulebook F62 and the held stop decision D-005 for slow reclaims"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
    "batch": "wave3"
   },
   {
@@ -1587,10 +1601,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q26",
@@ -1628,10 +1639,7 @@
      "rests on the owner's rulebook F62 and the held stop decision D-005 for slow reclaims"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q27",
@@ -2806,9 +2814,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
    "batch": "wave3"
   },
   {
@@ -2946,37 +2951,35 @@
    ],
    "story": "A leader undercuts its 74.57 low to 66.12 and closes back above the low the next day.",
    "answer": "No; the stop is much too wide",
-   "why": "No. A deep undercut at full size is a named mistake: the stop is far wider than it looks. PLTR undercut its 74.57 low by 11.3%, to 66.12, well past the 3% line. Our stop usually sits within about 3% of the buy, and if the honest stop does not fit the risk, skip the trade.",
+   "why": "No. A deep undercut at full size is a named mistake: the stop is far wider than it looks. PLTR undercut its 74.57 low by 11.3%, to 66.12, far past the 5% limit. We prefer a stop 1 to 3% away and accept up to 5%. Past that, mostly wait for a tighter trigger.",
    "lesson_line": "The deeper the undercut, the wider the stop.",
    "facts": [
     "dPLTR",
     "m_deep",
     "h04",
     "h01",
-    "t_inv"
+    "t_inv",
+    "r01",
+    "r02"
    ],
    "wrong": {
     "Yes, the reclaim is strong enough": "A strong reclaim does not make the stop closer.",
-    "Yes, with the stop at the old low": "The stop has to be the honest one, not one picked to fit. If the honest stop does not fit the risk, skip the trade.",
+    "Yes, with the stop at the old low": "The stop has to be the honest one, not one picked to fit. Past the limit, wait for a tighter trigger.",
     "No; the reclaim came a day late": "A close back above the next day is inside the 3-session window."
    },
    "house": true,
-   "simple": "No. The undercut is far past 3%, so the honest stop sits far from the buy.",
+   "simple": "No. The honest stop sits far from the buy, past what we accept, so wait for a tighter trigger.",
    "deeper": {
-    "trap": "A close back above is not the whole test. The depth is. PLTR closed back above its 74.57 low, but only after going 11.3% under it, to 66.12. The usual line is 3%. The more it undercuts, the farther the honest stop sits."
+    "trap": "A close back above is not the whole test. The depth is. PLTR closed back above its 74.57 low, but only after going 11.3% under it, to 66.12. We accept a stop up to 5% away. The more it undercuts, the farther the honest stop sits."
    },
    "tier": "expert",
    "risk": {
-    "score": 4,
+    "score": 3,
     "reasons": [
-     "+2 rests on the rulebook's stop line (A13, A3)",
-     "+2 where the stop goes on a slow reclaim is held (D-005)"
+     "the stop range and the wait-for-a-tighter-trigger rule are the owner's ruling D-005"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q65",
@@ -3509,7 +3512,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rests on t_never, h22, t_inv. Choices balanced. Overlaps q04 (outside my set): recommend cutting q04."
+   "notes": "keep right: trade back above is a trigger"
   },
   "q04": {
    "status": "cut",
@@ -3641,13 +3644,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only one price above the low and near it; 109.63 matches dQCOM and h22. Depends on D-003 (declared)."
+   "notes": "keep right"
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "108.25 matches dQCOM (1.26 percent) and h24. Other prices are clearly wrong by h24 and the story."
+   "notes": "keep right: stop under day low"
   },
   "q27": {
    "status": "pass",
@@ -3857,7 +3860,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PLTR undercut 74.57 to 66.12 is 11.3% (dPLTR). Key rests on m_deep, h04 and h01. Overlaps q54 in lesson but not in wording; depends on D-005."
+   "notes": "D-005 wording matches; quotes verbatim"
   },
   "q65": {
    "status": "pass",

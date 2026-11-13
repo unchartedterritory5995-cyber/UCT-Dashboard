@@ -123,6 +123,14 @@
    "title": "Bull Flag dossier, sections 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/02-bull-flag.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1025,6 +1033,24 @@
    "source": "c1",
    "quote": "a flat base rests at least 25 sessions in a box up to 15% deep with a flat ceiling tapped twice",
    "claim": "A flat base rests at least 25 sessions in a box up to 15% deep, with a flat ceiling tapped twice."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "D-005: a stop 1-3% away is preferred, 3.5% is good, up to 5% is acceptable."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "D-005: past 5% from the trigger, mostly wait for a tighter trigger rather than take it."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "The first sell is not always R-based. It is often time-based: sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R.",
+   "claim": "D-013: the first sell is often time-based, into a 3, 5 or 7 day push, not only R-based."
   }
  ],
  "walkthroughs": [
@@ -1266,10 +1292,7 @@
      "+2 a statistic that changes (Bulkowski's 74%, updated 2020)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q06",
@@ -1398,10 +1421,7 @@
      "+2 rests on the owner's rulebook (A3, F62) and the card's proposed stop line (D-002)"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q10",
@@ -1536,31 +1556,32 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "bf.trim_1",
-   "q": "By our hard rule, where does the first third come off a flag trade?",
+   "q": "On a flag trade, when does our first sell come?",
    "choices": [
-    "At 3R, three times the risk",
-    "After 3 to 5 days held",
-    "At the measured move",
-    "Never; let the trade run"
+    "Into a 3, 5 or 7 day push, or 3R",
+    "Only at 3R; never by the clock",
+    "Only at the measured move target",
+    "Never; let the whole trade run"
    ],
-   "answer": "At 3R, three times the risk",
-   "why": "At 3R. The hard rule is a third off at 3R. The rulebook calls the first trim ideal anywhere from 3R to 6R, but 3R is the rule. Kullamagi sells a third to a half after 3 to 5 days. That is his rule, not ours.",
-   "lesson_line": "A third at 3R. Sell partials into strength.",
+   "answer": "Into a 3, 5 or 7 day push, or 3R",
+   "why": "Both ways are ours. The first sell is not always counted in R. Often it is time-based: we sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R. A third at 3R is one way we also teach. Kullamagi sells a third to a half after 3 to 5 days.",
+   "lesson_line": "Sell the first piece into a strong push, by days or by R.",
    "facts": [
     "h05",
     "h20",
     "k6",
-    "k7"
+    "k7",
+    "r03"
    ],
    "wrong": {
-    "After 3 to 5 days held": "That is Kullamagi's rule. Ours counts in R, not days.",
-    "Never; let the trade run": "Our plan trims in stages and trails the last third. It does not let the whole trade run.",
-    "At the measured move": "Our trim is set in R, not by a measured move."
+    "Only at 3R; never by the clock": "Not only. Our first sell is often time-based, into a push of a few days, not just a set number of R.",
+    "Only at the measured move target": "Our first sell is set by R or by the days of the push, not by a measured move.",
+    "Never; let the whole trade run": "Our plan trims in stages and trails the last part. It does not let the whole trade run."
    },
    "house": true,
-   "simple": "We sell the first third at 3R, which is three times our risk, not after a set number of days.",
+   "simple": "We sell the first piece into a strong push of a few days, or at a set multiple of our risk.",
    "deeper": {
-    "counter": "Kullamagi, a respected breakout trader, sells a third to a half after 3 to 5 days and then moves the stop to breakeven. We count in R instead of days. Both take some profit early and trail the rest."
+    "counter": "Kullamagi, a respected breakout trader, sells a third to a half after 3 to 5 days and then moves the stop to breakeven. We sell by days too, and by R. Both take some profit early and trail the rest."
    },
    "tier": "core",
    "risk": {
@@ -1569,10 +1590,7 @@
      "+2 rests on the owner's rulebook (B19, E51)"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q15",
@@ -1789,9 +1807,6 @@
      "+2 rests on the owner's rulebook (B22) and the held earnings-flag decision (D-025)"
     ]
    },
-   "depends_on": [
-    "D-025"
-   ],
    "batch": "wave1"
   },
   {
@@ -1935,9 +1950,6 @@
      "rests on a held decision (D-029, the pole size line), kept out of the key"
     ]
    },
-   "depends_on": [
-    "D-029"
-   ],
    "batch": "wave1"
   },
   {
@@ -2284,10 +2296,7 @@
      "+2 rests on a held decision (D-006, the breakout volume line)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q34",
@@ -2303,15 +2312,16 @@
     "Buy a starter, the rest later"
    ],
    "answer": "Take fewer shares than planned",
-   "why": "Take fewer shares. Stop first, and the size comes from the stop. Here the honest stop sits 4.6% away, so it buys fewer shares. If it still does not fit the risk, skip the trade or wait for a tighter spot.",
+   "why": "Take fewer shares. Stop first, and the size comes from the stop. Here the honest stop sits 4.6% away. That is inside the 5% we accept, but wider than the 1% to 3% we prefer, so it buys fewer shares. Past 5%, we mostly wait for a tighter trigger.",
    "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
    "facts": [
     "h01",
     "h03",
     "c38",
     "c12",
-    "h04",
-    "h12"
+    "h12",
+    "r01",
+    "r02"
    ],
    "wrong": {
     "Tighten the stop; full size": "The honest stop is where the idea fails. Stop first; the size comes from the stop.",
@@ -2332,10 +2342,7 @@
      "+1 fixed before (a long sentence was split)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q35",
@@ -2946,9 +2953,6 @@
      "fixed before: a flagged question"
     ]
    },
-   "depends_on": [
-    "D-029"
-   ],
    "batch": "wave1"
   },
   {
@@ -3522,10 +3526,7 @@
      "the count of failures is our own scan"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q65",
@@ -4158,9 +4159,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Zanger and Bulkowski back 'shrinks'; stem says usually. Choices even length, no tell. Examples d07/d10 ground the deeper.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "keep right: describes usual volume, no must-have | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q06": {
    "status": "pass",
@@ -4184,8 +4184,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False is backed by c14 and c25 (8% to 15%). Retargeted at the 3% distance, so it no longer mirrors q03."
+   "fixed": true,
+   "notes": "keep right: flag low is rarely a 3% stop; LOD stays primary | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q10": {
    "status": "pass",
@@ -4214,9 +4214,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Owner B19 hard rule is a third at 3R; stem says hard rule. Kullamagi 3-5 days correctly labeled not ours. h05 quote verified in sizing_rule.md.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "edit agrees with D-013: day-based push or 3R both ours; wrong options keyed | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q15": {
    "status": "pass",
@@ -4330,15 +4329,14 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Stem asks which break three named sources trust, so no entry change. p2, p3, z3, cs5 support. 2.1x and 0.7x are in the story."
+   "fixed": true,
+   "notes": "keep right: volume a plus, level still the trigger | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q34": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answer is right (A3, A5). Defect: wrong{} has an entry for the correct answer 'Take fewer shares than planned' (4 entries for 3 wrong choices); the explanation would show against the key. Remove it.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "edit right: 4.6% inside the accepted 5%; fewer shares still correct | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q35": {
    "status": "pass",
@@ -4520,9 +4518,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key matches d32 (three of four failures closed the trigger day at the high) and p2/p3 for the volume mark. Wrong notes grounded in d19, d21, h05.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "keep right: low volume is a mark against, not an exit | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q65": {
    "status": "cut",

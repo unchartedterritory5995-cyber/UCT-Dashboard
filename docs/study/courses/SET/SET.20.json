@@ -99,6 +99,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -803,6 +811,18 @@
    "source": "c1",
    "quote": "Prefer a gap out of a base: an open above the top of a base of 4 weeks or more, or out of a quiet range where the prior 60 sessions' high is no more than 35% above their low.",
    "claim": "Card: prefer a gap out of a base or a quiet range, the prior 60 sessions' high no more than 35% above their low."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "If there is a gap past it you can potentially buy it intraday on a morning flush/pullback and curl back up",
+   "claim": "D-022: past a gap, buy intraday on a morning flush or pullback that curls back up."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "volume really only raises the grade, it is not a major requirement but some people disagree with me so idk.",
+   "claim": "D-006: volume raises the grade, it is not a major requirement."
   }
  ],
  "walkthroughs": [
@@ -938,9 +958,6 @@
      "tied to held decision D-032 (catalyst types)"
     ]
    },
-   "depends_on": [
-    "D-032"
-   ],
    "batch": "wave2"
   },
   {
@@ -1221,9 +1238,6 @@
      "tied to held decision D-032 (catalyst types)"
     ]
    },
-   "depends_on": [
-    "D-032"
-   ],
    "batch": "wave2"
   },
   {
@@ -1513,9 +1527,6 @@
      "the card is the only source for the A+ size"
     ]
    },
-   "depends_on": [
-    "D-033"
-   ],
    "batch": "wave2"
   },
   {
@@ -1606,9 +1617,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-033"
-   ],
    "batch": "wave2"
   },
   {
@@ -1664,11 +1672,12 @@
     "Buy with a wider stop to fit it in"
    ],
    "answer": "Pass; buying here is chasing",
-   "why": "Pass. 41.80 is more than 4% over the 40.00 reclaim level, and we never buy more than 4% above the buy point. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
-   "lesson_line": "Miss it rather than chase it. Four percent and done.",
+   "why": "Pass. 41.80 is more than 4% over the 40.00 reclaim level, and we never buy more than 4% above the buy point. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. If a day gaps past the level, a morning flush that curls back up is another way in.",
+   "lesson_line": "Miss it rather than chase it. A morning flush that curls back up can be another way in.",
    "facts": [
     "h11",
-    "h12"
+    "h12",
+    "r01"
    ],
    "wrong": {
     "Buy, the reclaim is confirmed": "Confirmed and too far away are both true. The chase line is 4%.",
@@ -1688,10 +1697,7 @@
      "the reference level (reclaim or base pivot) is held under D-022"
     ]
    },
-   "depends_on": [
-    "D-022"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q27",
@@ -1871,10 +1877,9 @@
     ]
    },
    "depends_on": [
-    "D-086",
-    "D-005"
+    "D-086"
    ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q32",
@@ -1912,10 +1917,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q33",
@@ -2055,12 +2057,13 @@
     "c46",
     "c01",
     "c04",
-    "c05"
+    "c05",
+    "r02"
    ],
    "wrong": {
     "The 18% size of the gap on the day": "A gapper can gap that far too. A gap of 10% or more is the A+ gap.",
     "The contract headline behind the move": "A News Gapper has a named catalyst too. The EP tell is neglect.",
-    "The 9x volume that traded on the gap day": "A News Gapper needs heavy volume too, at least 3 times."
+    "The 9x volume that traded on the gap day": "A News Gapper can have big volume too. The EP tell is neglect."
    },
    "house": true,
    "simple": "An Episodic Pivot is the first gap in six months or more on a neglected name.",
@@ -2072,10 +2075,7 @@
      "whether an EP is a version of the News Gapper is held under D-002"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q37",
@@ -2119,9 +2119,6 @@
      "all cited facts come from one criteria card"
     ]
    },
-   "depends_on": [
-    "D-033"
-   ],
    "batch": "wave2"
   },
   {
@@ -2199,10 +2196,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-032",
-    "D-033"
-   ],
    "batch": "wave2"
   },
   {
@@ -2657,9 +2650,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-025"
-   ],
    "batch": "wave2"
   },
   {
@@ -2668,46 +2658,41 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ng.volume",
-   "q": "Is it a News Gapper?",
+   "q": "How should the light volume change your view?",
    "story": "AAPL, 2022. The report was the day before. The stock gaps up 4.1% on 1.7x its 50-day volume and closes at its high.",
    "choices": [
-    "No; the volume is too light for it",
-    "Yes; it closed right at its high",
-    "Yes; earnings gaps can use less volume",
-    "No; the report was the day before"
+    "It lowers the grade; it is no veto",
+    "It voids the setup; no trade at all",
+    "It makes the gap an even better buy",
+    "It only matters on non-report gaps"
    ],
-   "answer": "No; the volume is too light for it",
-   "why": "No. The volume was 1.7x the 50-day average, under the line of at least 3 times. The close at the high does not fix thin volume. Kullamagi: volume is the number one thing to focus on.",
-   "lesson_line": "Under three times average volume is not a News Gapper.",
+   "answer": "It lowers the grade; it is no veto",
+   "why": "It lowers the grade, and it is no veto. For us volume raises the grade and is not a must-have. AAPL gapped on 1.7x the 50-day volume and closed at its high, so it still counts, at a lower grade.",
+   "lesson_line": "Volume raises the grade. It is not a must-have.",
    "facts": [
     "d23",
-    "c04",
     "k01",
-    "c47",
-    "c01"
+    "r02"
    ],
    "wrong": {
-    "Yes; it closed right at its high": "A strong close does not replace the volume line.",
-    "Yes; earnings gaps can use less volume": "The line for this setup is at least 3 times. A report reaction day on a leader can belong to the PEG instead.",
-    "No; the report was the day before": "The catalyst is released outside market hours, so the gap comes on the next session. The timing fits."
+    "It voids the setup; no trade at all": "Volume is not a requirement for this setup to count. It only raises the grade.",
+    "It makes the gap an even better buy": "Light volume does not help. Heavy volume raises the grade.",
+    "It only matters on non-report gaps": "Volume raises the grade on every gap. It never decides whether the setup counts."
    },
    "house": true,
-   "simple": "No, because volume was only 1.7x the 50-day average, and a News Gapper needs at least 3 times.",
+   "simple": "Light volume lowers the grade but does not cancel the setup. Volume raises the grade and is not a must-have.",
    "deeper": {
-    "counter": "Kullamagi: volume is the number one thing to focus on. AAPL gapped 4.1% after a report and closed at its high, a strong picture. But 1.7x the 50-day volume is under the line of 3 times. A strong close cannot stand in for the volume test."
+    "counter": "Kullamagi calls volume the number one thing to focus on, and some traders treat it as a must. Our owner says it only raises the grade. AAPL's light volume costs it grade, not its place."
    },
    "tier": "extended",
    "risk": {
-    "score": 5,
+    "score": 3,
     "reasons": [
-     "the 3 times line is a proposed card number, held under D-006",
+     "volume as a grade raiser, not a must, is the owner's ruling D-006",
      "one example from our own scan, not yet owner reviewed"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q53",
@@ -3179,9 +3164,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-033"
-   ],
    "batch": "wave2"
   },
   {
@@ -3556,10 +3538,7 @@
      "new in wave2"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q75",
@@ -3599,10 +3578,7 @@
      "new in wave2"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   }
  ],
  "conflicts": [
@@ -3722,8 +3698,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key correct: day one over the opening-range high with hot volume and still above the open (ng.entry_day1, F62 stop). 9% clears the 4% floor; 2% stop is under the 3% / 1.5 ATR limits. u01 and u04 verified on the Substack pages. Entry rule is a pending-owner default (D-086, D-005), not an owner ruling.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep right: day-one trigger buy, stop under day low about 2%"
   },
   "q49": {
    "status": "cut",
@@ -3851,7 +3826,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Arithmetic from the question: 41.80 is 4.5% over 40.00, rule h11. Wider-stop and half-size notes follow h12. Lone Pass is inherent to a no-chase item. D-022 flagged by Resolver."
+   "notes": "pass stands (not a gap, no flush); flush note ok"
   },
   "q28": {
    "status": "pass",
@@ -3875,8 +3850,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c47 exactly. Rests on D-002 (flagged). q74 teaches the PEG first, then q32 applies it; accepted as teach then apply.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep right: map unchanged"
   },
   "q33": {
    "status": "pass",
@@ -3900,8 +3874,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Single tell (neglect, c46); each foil refuted. Longest choice is a foil (40 chars). D-002 flagged by Resolver."
+   "fixed": true,
+   "notes": "wrong text said a News Gapper needs at least 3x volume, a must-have against D-006"
   },
   "q37": {
    "status": "pass",
@@ -3981,7 +3955,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.7x vs the 3x line (d23, c04); key does not state the number. Both Yes foils and the timing No are refuted by cited facts. D-006 flagged."
+   "notes": "re-key to volume raises grade, no veto, matches D-006; quote verbatim"
   },
   "q53": {
    "status": "pass",
@@ -4092,15 +4066,14 @@
   "q74": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is correct (c47), but it is the only choice without the word gap while all three distractors contain it, and PEG stands for Power Earnings Gap: a mild tell. Rewritten so all four say gap. Distractor wrong-notes are supported by c46, c48, c26."
+   "fixed": false,
+   "notes": "keep right"
   },
   "q75": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key says 'weeks on', but c50 says 2 to 60 sessions on, and the gapper's pullback is 2 to 10 sessions, so the time wording overreaches and overlaps the 'within days' distractor. The real difference is testing the low itself versus keeping every close above it (c10, c50). Rewritten.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "keep right"
   }
  }
 }

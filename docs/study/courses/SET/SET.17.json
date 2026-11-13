@@ -169,6 +169,14 @@
    "title": "Wedge Drop dossier, sections 8.11, 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/16-wedge-drop.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1077,6 +1085,24 @@
    "source": "h1",
    "quote": "Never take a trade from an alert, a post or a video without your own entry, stop and size by these rules.",
    "claim": "F66: no trade from an alert, a post or a video without your own entry, stop and size by these rules."
+  },
+  {
+   "id": "r51",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop.",
+   "claim": "The low of day is the primary stop."
+  },
+  {
+   "id": "r52",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Stops: 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r53",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "Past 5%, mostly wait for a tighter trigger."
   }
  ],
  "walkthroughs": [
@@ -1324,7 +1350,7 @@
     "Exactly on the trigger day's high"
    ],
    "answer": "A few cents over the trigger day's high",
-   "why": "A few cents over the trigger day's high. Stop first. A short loses when price rises, so the stop sits above the entry. It goes a few cents past the day's high, not exactly on it. TraderLion also puts it just above the recent high. The card also allows a few cents over the higher of the trigger day and the day before. If the stop is more than about 3% away, we skip or size down.",
+   "why": "A few cents over the trigger day's high. Stop first. A short loses when price rises, so the stop sits above the entry. The high of the day is the main stop, the mirror of the low of day on a long. It goes a few cents past the high, not exactly on it. TraderLion also puts it just above the recent high. The card also allows a few cents over the higher of the trigger day and the day before. We prefer stops 1 to 3% away, and up to 5% is acceptable. Past 5%, we mostly wait for a tighter trigger.",
    "lesson_line": "Stop first: a few cents over the trigger day's high, not exactly on it.",
    "facts": [
     "h01",
@@ -1332,8 +1358,9 @@
     "h16",
     "c47",
     "t05",
-    "h04",
-    "c16"
+    "r51",
+    "r52",
+    "r53"
    ],
    "house": true,
    "wrong": {
@@ -1349,10 +1376,7 @@
      "+2 rests on the owner's rulebook and a held decision (D-008, where the stop goes)"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q07",
@@ -1492,9 +1516,6 @@
      "tied to a held decision (D-021)"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "order": "fixed",
    "batch": "wave2"
   },
@@ -1654,9 +1675,6 @@
      "tied to a held decision (D-021)"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave2"
   },
   {
@@ -1994,9 +2012,6 @@
      "+1 fixed before"
     ]
    },
-   "depends_on": [
-    "D-023"
-   ],
    "batch": "wave2"
   },
   {
@@ -2529,10 +2544,7 @@
      "+2 rests on the owner's rulebook and a held decision (D-006, trigger volume)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q39",
@@ -2684,10 +2696,7 @@
      "tied to a held decision (D-002)"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q43",
@@ -2752,9 +2761,6 @@
      "+2 rests on a held decision (D-040, the parabolic exception)"
     ]
    },
-   "depends_on": [
-    "D-040"
-   ],
    "batch": "wave2"
   },
   {
@@ -2911,9 +2917,6 @@
      "tied to a held decision (D-040)"
     ]
    },
-   "depends_on": [
-    "D-040"
-   ],
    "batch": "wave2"
   },
   {
@@ -3070,9 +3073,6 @@
      "+1 fixed before"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
    "batch": "wave2"
   },
   {
@@ -3371,9 +3371,6 @@
      "+1 fixed before"
     ]
    },
-   "depends_on": [
-    "D-023"
-   ],
    "batch": "wave2"
   },
   {
@@ -3420,10 +3417,7 @@
      "+1 fixed before"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q61",
@@ -3512,9 +3506,6 @@
      "one dated example carries the proof (d37)"
     ]
    },
-   "depends_on": [
-    "D-023"
-   ],
    "batch": "wave2"
   },
   {
@@ -3842,8 +3833,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Mirror of F62/A3 via D47 and the card's c47; the exact-on-the-high choice is ruled out by h22. No tell, ties on length. 3% line is c16/h04.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q07": {
    "status": "pass",
@@ -4037,8 +4027,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rests on the card's close-position row (c13, c42) and Kell's influx of sellers; why says grading is a judgment call (E50). Mild: Drop B is the lone B choice, and q25 already treats a mid-range close as no trigger. Acceptable.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep agrees with ruling"
   },
   "q39": {
    "status": "pass",
@@ -4060,9 +4049,9 @@
   },
   "q42": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "keep agrees with ruling"
   },
   "q43": {
    "status": "pass",
@@ -4175,7 +4164,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key 40 characters, allowed. Stop 134.79 is 3 cents over the stated high, 2.71% from the fill. The 134.76 high is a number from the question itself but is not in the dossier (d07 gives only the stop 134.79); the existing owner flag to confirm it against the GS bars must be closed before going live."
+   "notes": "kept; stop over the day's high mirrors D-008, 2.7% in band. Note: entry on the close is the Wedge Drop's close-based trigger, D-003 is about long buys; flag for owner."
   },
   "q61": {
    "status": "pass",

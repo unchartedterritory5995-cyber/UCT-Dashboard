@@ -85,6 +85,14 @@
    "title": "Kicker dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/26-kicker.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -831,6 +839,12 @@
    "source": "c1",
    "quote": "A giant red bar from a one-day market shock is not an orderly pullback",
    "claim": "The criteria card: a giant red bar from a one-day market shock is not an orderly pullback."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "If there is a gap past it you can potentially buy it intraday on a morning flush/pullback and curl back up",
+   "claim": "D-022: past a gap, buy intraday on a morning flush or pullback that curls back up."
   }
  ],
  "walkthroughs": [
@@ -1217,9 +1231,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-025"
-   ],
    "batch": "wave3"
   },
   {
@@ -1319,9 +1330,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-025"
-   ],
    "batch": "wave3"
   },
   {
@@ -1669,10 +1677,7 @@
      "which 30 minutes counts is a held decision (D-031)"
     ]
    },
-   "depends_on": [
-    "D-031"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q23",
@@ -1864,28 +1869,25 @@
     },
     "round": 1
    },
-   "why": "3.4%. Take the open minus the buy point, over the buy point: 86.00 against 83.20 is about 3.4%. We never buy more than 4% above the buy point, so this open is inside the limit. Past 4% it is a chase.",
+   "why": "3.4%. Take the open minus the buy point, over the buy point: 86.00 against 83.20 is about 3.4%. We never buy more than 4% above the buy point, so this open is inside the limit. Past 4%, the open is a chase. A morning flush that curls back up is another way in.",
    "lesson_line": "Measure the open against your buy point. Past 4% over it, you are chasing.",
    "facts": [
     "h11",
-    "h12"
+    "h12",
+    "r01"
    ],
    "house": true,
    "suffix": "%",
    "simple": "The open is 3.4% over the buy point, under the 4% chase limit, so it is not a chase.",
    "tier": "core",
    "risk": {
-    "score": 5,
+    "score": 3,
     "reasons": [
      "a computed key",
-     "rests on the owner's rulebook (C28) and a held decision (D-022)",
-     "fixed before"
+     "the 4% chase limit is the owner's rulebook (C28); the flush way in is the owner's ruling D-022"
     ]
    },
-   "depends_on": [
-    "D-022"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q28",
@@ -1902,12 +1904,13 @@
    ],
    "story": "The red high is 50.00, so your buy point is 50.01. The Kicker day opens at 52.60.",
    "answer": "No; over 4% above the buy point",
-   "why": "No. The open, 52.60, is more than 4% above the 50.01 buy point. Never buy more than 4% above the buy point. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. A gap up is not a reason to chase.",
-   "lesson_line": "Past 4% over the buy point, the open is not ours.",
+   "why": "No. The open, 52.60, is more than 4% above the 50.01 buy point. Never buy more than 4% above the buy point. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. A gap up is not a reason to chase. A morning flush that curls back up is another way in.",
+   "lesson_line": "Past 4% over the buy point, the open is not ours. A morning flush that curls up can be.",
    "facts": [
     "h11",
     "h12",
-    "k_ea"
+    "k_ea",
+    "r01"
    ],
    "wrong": {
     "Yes, a gap up shows strength": "Strength is not a reason to chase. Never buy more than 4% above the buy point.",
@@ -1920,13 +1923,10 @@
    "risk": {
     "score": 2,
     "reasons": [
-     "rests on the owner's rulebook (C28, the 4% no-chase limit) and a held decision on what to do past it (D-022)"
+     "the 4% no-chase limit is the owner's rulebook (C28); the flush way in is the owner's ruling D-022"
     ]
    },
-   "depends_on": [
-    "D-022"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q29",
@@ -2544,9 +2544,6 @@
      "rests on the owner's rulebook (E52) and a held decision (D-024)"
     ]
    },
-   "depends_on": [
-    "D-024"
-   ],
    "batch": "wave3"
   },
   {
@@ -2703,9 +2700,6 @@
      "fixed before (softened by the checker)"
     ]
    },
-   "depends_on": [
-    "D-025"
-   ],
    "batch": "wave3"
   },
   {
@@ -4004,10 +3998,7 @@
      "which 30 minutes counts is a held decision (D-031)"
     ]
    },
-   "depends_on": [
-    "D-031"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q83",
@@ -4503,7 +4494,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per k_eb; kq1 used only for the 30-minute first bar. Note: q82's stem names 'entry B, the 30-minute break', which hints this key; inherent to the ladder, not fixable here."
+   "notes": "keep right: entry B is one way, not mandatory"
   },
   "q23": {
    "status": "pass",
@@ -4533,15 +4524,14 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc right (2.80/83.20 = 3.37, so 3.4). But the why calls the open-minus-buy-point distance 'the gap', which clashes with q36 (the gap is measured from the red close). The last sentence (distance grows) also overreaches for a Kicker open fill, whose stop is capped at 3.5% under the fill (k_stop, k_open)."
+   "fixed": false,
+   "notes": "math unchanged, flush note ok"
   },
   "q28": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "answer stands; flush note ok"
   },
   "q29": {
    "status": "cut",
@@ -4871,7 +4861,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches k_low (30-minute bar's low with entry B) and k_stop. Stem now defines entry B. Mild dependence on q22 (stem presupposes entry B); keep q22 first. D-031 flag stands."
+   "notes": "keep right"
   },
   "q83": {
    "status": "pass",

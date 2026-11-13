@@ -95,6 +95,14 @@
    "title": "Oops Reversal criteria card (docs/study/setups/criteria/30-oops-reversal.json, as of 2026-11-10)",
    "url": "repo:docs/study/setups/criteria/30-oops-reversal.json",
    "accessed": "2026-11-11"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -949,6 +957,42 @@
    "source": "d1",
    "quote": "then two months of closes under a 0.7%-wide bundle near a flat 200-day",
    "claim": "ILMN: two months of closes under a 0.7%-wide bundle near a flat 200-day."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "D-003: every setup buys as price trades through its trigger during the day, not at the close."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "My stop is always LOD or PLOD or range low.",
+   "claim": "D-003: the owner's stop is the low of day, the prior day's low or the range low."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "When the day gaps more than 4% past it, one more way in is allowed: buy intraday on a morning flush or pullback that curls back up (besides the 30-minute ORB or the first pause).",
+   "claim": "D-022: past a gap of more than 4%, a morning flush or pullback that curls back up is one more way in."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "D-005: a stop 1-3% away is preferred, 3.5% is good, up to 5% is acceptable."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "D-005: past 5% from the trigger, mostly wait for a tighter trigger rather than take it."
+  },
+  {
+   "id": "r09",
+   "source": "h2",
+   "quote": "Never move the stop up to make a trade fit.",
+   "claim": "D-005: never move the stop up to make a trade fit."
   }
  ],
  "walkthroughs": [
@@ -1099,17 +1143,19 @@
    "rung": 1,
    "format": "tf",
    "criterion": "lp.stop",
-   "q": "Buying a launchpad at the close, the stop goes a few cents under the launch day's low.",
+   "q": "On a launchpad bought through its trigger, the stop goes a few cents under the day's low.",
    "answer": "True",
-   "why": "True. Stop first: a few cents under the launch day's low, not exactly on it. The size comes from that stop. If the honest stop does not fit the risk, skip the trade.",
+   "why": "True. We buy as price trades through the trigger during the day, not at the close. The stop goes a few cents under the day's low. The size comes from that stop.",
    "lesson_line": "Stop first: a few cents under the launch day's low.",
    "facts": [
     "c17",
     "h24",
-    "h01"
+    "h01",
+    "r04",
+    "r05"
    ],
    "house": true,
-   "simple": "True. The stop goes a few cents under the launch day's low, and the size comes from that distance.",
+   "simple": "True. The stop goes a few cents under the day's low, and the size comes from that distance.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1119,10 +1165,7 @@
      "fixed-width stop rule, wording could change if D-003 flips"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q04",
@@ -1782,13 +1825,13 @@
     "Buy half size to cut the risk"
    ],
    "answer": "Pass; 5% is past the 4% limit",
-   "why": "Pass. Never buy more than 4% above the buy point. The open at 52.50 is 5% over the launch close of 50.00, and further over the averages at 47.00. Either way it fails. The 6% line is a different test: it limits how far the launch bar itself may open above its prior close. Chasing costs size, not risk, because the stop stays put.",
+   "why": "Pass at this open. Never buy more than 4% above the buy point. The open at 52.50 is 5% over the launch close of 50.00, and further over the averages at 47.00. Either way it fails. The 6% line is a different test: it limits how far the launch bar itself may open above its prior close. Chasing costs size, not risk, because the stop stays put. One more way in is a morning flush or pullback that curls back up.",
    "lesson_line": "I would rather miss it than chase it. Four percent and done.",
    "facts": [
     "h11",
     "h12",
-    "r1",
-    "c12"
+    "c12",
+    "r06"
    ],
    "house": true,
    "wrong": {
@@ -1805,9 +1848,9 @@
     },
     "round": 1
    },
-   "simple": "Pass, because the open is 5% over the launch close, and we never buy more than 4% above the buy point.",
+   "simple": "Pass, because 5% over the buy point is past our 4% limit. We can wait for a morning flush that curls back up.",
    "deeper": {
-    "trap": "The limit is on what you pay. Chasing keeps the same stop under the buy point, so the distance grows and the shares shrink, and the rule still says never past 4%. A half-size chase does not fix a price that fails the test. The 6% gap line belongs to the launch bar, not to the next morning's entry."
+    "trap": "The limit is on what you pay. Chasing keeps the same stop under the buy point, so the distance grows and the shares shrink. A half-size chase does not fix a price that fails the test. The 6% gap line belongs to the launch bar, not to the next morning's entry. A gap past 4% is not the end: a morning flush that curls back up is one more way in."
    },
    "tier": "core",
    "risk": {
@@ -1818,10 +1861,7 @@
      "+2 computed key (5% from the story)"
     ]
    },
-   "depends_on": [
-    "D-022"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q24",
@@ -2017,15 +2057,15 @@
     },
     "round": 2
    },
-   "why": "3.56%. Fill minus stop, divided by the fill: 122.69 less 118.32, over 122.69. Our stop usually sits within about 3% of the buy, so this one is a little over that habit.",
-   "lesson_line": "Measure the stop as a percent of the fill. About 3% is the usual.",
+   "why": "3.56%. Fill minus stop, divided by the fill: 122.69 less 118.32, over 122.69. We prefer a stop of 1% to 3%, and 3.5% is good. This one is just past that, but it is inside the 5% we accept.",
+   "lesson_line": "Measure the stop as a percent of the fill. We prefer 1% to 3% and accept up to 5%.",
    "facts": [
-    "h04",
-    "d05"
+    "d05",
+    "r07"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 3.56% below the fill, a bit over the usual 3%.",
+   "simple": "The stop is 3.56% below the fill, a little wider than we prefer but still inside what we accept.",
    "deeper": {
     "trap": "Divide by the fill, not by the stop. The distance is measured against the price you paid, so dividing by the stop would read a bigger number."
    },
@@ -2037,10 +2077,7 @@
      "+2 rests on the owner's rulebook habit (A13, about 3%) and a held decision (D-005, the stop cap)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q30",
@@ -2248,10 +2285,7 @@
      "fixed before: a long sentence was split in the cold check"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q36",
@@ -2297,13 +2331,13 @@
     "The stop: wider means a bigger loss"
    ],
    "answer": "The size: fewer shares, 1R lost",
-   "why": "The size. A stop 4.9% away is wider than the usual 3%, so the position was small. Shares come from account risk divided by the stop distance, so a wider honest stop means fewer shares. When the stop traded, the loss stayed at 1R, as planned.",
+   "why": "The size. A stop 4.9% away is wider than the 1% to 3% we prefer, though inside the 5% we accept, so the position was small. Shares come from account risk divided by the stop distance, so a wider honest stop means fewer shares. When the stop traded, the loss stayed at 1R, as planned.",
    "lesson_line": "A wide honest stop buys fewer shares. It never buys a tighter stop.",
    "facts": [
     "d15",
     "d16",
     "h03",
-    "h04"
+    "r07"
    ],
    "house": true,
    "wrong": {
@@ -2311,7 +2345,7 @@
     "Nothing changed; risk is risk": "Risk is the same only because the size changed. That is the whole point of sizing from the stop.",
     "The stop: wider means a bigger loss": "Not so. Size comes from the stop, so a wider stop means fewer shares and the same risk. The loss stayed at 1R."
    },
-   "story": "A 22% correction, a tight pad, a +4.6% launch on 2.36x volume. The stop sat 4.9% under the close. Two sessions later the stop traded.",
+   "story": "A 22% correction, a tight pad, a +4.6% launch on 2.36x volume. The stop sat 4.9% under the buy. Two sessions later the stop traded.",
    "simple": "A wider stop means fewer shares, so the loss stayed at 1R when the stop traded.",
    "tier": "extended",
    "risk": {
@@ -2320,10 +2354,7 @@
      "rests on the owner's rulebook (A5 sizing from the stop)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q38",
@@ -3321,38 +3352,37 @@
    "criterion": "lp.stop",
    "q": "Write the plan: entry, stop, first trim.",
    "choices": [
-    "Late market buy; day-low stop; 3R",
-    "Limit below price; base-low stop",
+    "Through the trigger; day-low stop; 3R",
+    "Limit below price; day-low stop; 3R",
     "Next open; 200-day stop; 2R",
-    "Late market buy; 3% stop; 3R"
+    "At the close; day-low stop; 3R"
    ],
-   "answer": "Late market buy; day-low stop; 3R",
-   "why": "Buy at market in the last minutes, stop a few cents under the launch day's low, a third off at 3R. The card's buy is a market order in the last minutes of the launch day, once the day meets the launch tests. BABA filled at 89.14 with the stop at 86.43 and reached 3R in three sessions. Entries are market orders, so a limit below the market is not the plan. The base low is not the stop.",
+   "answer": "Through the trigger; day-low stop; 3R",
+   "why": "Buy as price trades through the trigger during the day, with the stop a few cents under that day's low and a third off at 3R. We do not buy at the close. Entries are market orders, so a limit below the market is not the plan.",
    "lesson_line": "Entry, stop, trim, trail. Know them before you buy and execute without a debate.",
    "facts": [
     "d03",
     "d04",
-    "r1",
     "c17",
     "h22",
     "h05",
-    "c18",
     "c52",
-    "h04",
     "h24",
     "h03",
-    "c41"
+    "c41",
+    "r04",
+    "r05"
    ],
    "house": true,
    "wrong": {
-    "Limit below price; base-low stop": "Entries are market orders, so a limit below the market is not the plan, and the base low is not the stop.",
-    "Next open; 200-day stop; 2R": "The buy is a market order in the last minutes of the launch day, not the next open. The stop goes under the launch day's low, not the 200-day. At 2R the stop only moves up to the entry.",
-    "Late market buy; 3% stop; 3R": "The 3% is how far the stop usually sits, not how it is set. It goes a few cents under the launch day's low, and a wider honest stop means fewer shares."
+    "Next open; 200-day stop; 2R": "The buy comes as price trades through the trigger, not at the next open. At 2R the stop only moves up to the entry.",
+    "Limit below price; day-low stop; 3R": "Entries are market orders as price trades through the trigger, so a limit below the market is not the plan.",
+    "At the close; day-low stop; 3R": "We rarely buy at the close. The buy comes as price trades through the trigger during the day."
    },
-   "story": "BABA, January 2025: weeks of closes under the bundle, the 200-day 1% away. In the last minutes of 2025-01-24 it sits at its high, up 3.5%, above all four.",
-   "simple": "Buy at market in the last minutes, stop a few cents under the launch day's low, and sell a third at 3R.",
+   "story": "BABA, January 2025: weeks of closes under the bundle, the 200-day 1% away. On 2025-01-24 it launches, up 3.5% and above all four.",
+   "simple": "Buy as price trades through the trigger, put the stop a few cents under the day's low, and sell a third at 3R.",
    "deeper": {
-    "trap": "The trap is the stop. The scanner's stop under the bundle and the base low both sit far outside the 3% habit. Sizing from them gives a tiny position or a stop pulled in to fit. The honest stop is a few cents under the launch day's low."
+    "trap": "The trap is the entry and the stop. Buying at the close is not our way, and a stop far under the bundle or the base sits outside what we accept. Sizing from it gives a tiny position or a stop pulled in to fit. The primary stop is a few cents under the day's low."
    },
    "tier": "expert",
    "risk": {
@@ -3363,10 +3393,7 @@
      "fixed before (resolver)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q66",
@@ -3474,20 +3501,21 @@
    "rung": 9,
    "format": "tf",
    "criterion": "lp.stop",
-   "q": "Haber waits or passes when the stop is more than 3% away; our stop usually sits within about 3% of the buy.",
+   "q": "Haber waits or passes past a 3% stop. We prefer 1% to 3% but accept a stop up to 5% away.",
    "answer": "True",
-   "why": "True. Haber: if the distance is more than 3%, the entry isn't there yet. Wait, or pass. Our own stop usually sits within about 3% of the buy. A wider honest stop means a smaller size, never a tighter stop. If the honest stop does not fit the risk, skip the trade.",
-   "lesson_line": "Haber waits or passes past 3%. We usually keep the stop within about 3%, and a wider stop shrinks the size.",
+   "why": "True. Haber: if the distance is more than 3%, the entry isn't there yet. Wait, or pass. We prefer 1% to 3%, call 3.5% good, and accept up to 5%. Past 5%, we mostly wait for a tighter trigger. We never pull the stop in to fit.",
+   "lesson_line": "Haber passes past 3%. We prefer 1% to 3%, accept up to 5%, and never pull the stop in.",
    "facts": [
     "b06",
-    "h04",
     "h03",
-    "h01"
+    "r07",
+    "r08",
+    "r09"
    ],
    "house": true,
-   "simple": "True, because Haber waits or passes when the stop is over 3% away, and our stop usually sits within about 3%.",
+   "simple": "True. Haber waits past 3%, while we prefer 1% to 3% and accept up to 5%.",
    "deeper": {
-    "trap": "Haber's 3% and ours are not the same line. His is a go or no-go on the entry: over 3% away, wait or pass. Ours is where the stop usually sits, and the size follows from the stop. A wider honest stop means fewer shares, and if it still does not fit the risk, skip. Neither one pulls the stop in to fit."
+    "trap": "Haber's 3% and ours are not the same line. His is a go or no-go on the entry: over 3% away, wait or pass. Ours is a range: 1% to 3% preferred, 3.5% good, up to 5% acceptable. Past 5%, we mostly wait for a tighter trigger. Neither pulls the stop in to fit."
    },
    "tier": "expert",
    "risk": {
@@ -3497,10 +3525,7 @@
      "the stop-width habit is tied to a held decision (D-005)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   }
  ],
  "conflicts": [
@@ -3554,8 +3579,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. Key from c17/h24. Walkthroughs already teach the stop, so q11 is an application, not a leak. D-003 dependence flagged."
+   "fixed": true,
+   "notes": "edit right: buy through trigger, stop under day low | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q04": {
    "status": "pass",
@@ -3675,8 +3700,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "52.50 vs 50.00 = 5.0% (calc), over C28's 4%; also far over 47.00, so the held buy-point choice (D-022) does not change the key. Stem asks 'and why', so the two 'Pass' choices differ on reason. Key is not the longest choice. Minor: the 6% distractors state c12's number, which gives a little away to q25, not enough to cut."
+   "fixed": true,
+   "notes": "edit right: still pass at open; morning flush way in added | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q24": {
    "status": "cut",
@@ -3712,8 +3737,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(122.69 - 118.32) / 122.69 = 3.56%. 'A little over the usual 3%' is true against A13 and matches walkthrough w3. Keys arithmetic only, never the held 6% cap (D-005)."
+   "fixed": true,
+   "notes": "edit right: 3.56% inside accepted 5% | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q30": {
    "status": "pass",
@@ -3749,8 +3774,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. Grounded in c11/c56. Minor: q44 re-tests the 2x cue (D-006), noted."
+   "fixed": true,
+   "notes": "keep right: 2x is a grade cue not a rule | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q36": {
    "status": "cut",
@@ -3761,8 +3786,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from d15/d16/h03: wider stop, fewer shares, 1R lost. Story numbers match dossier NEE row. Lengths balanced, no tell."
+   "fixed": true,
+   "notes": "edit right: 4.9% inside accepted 5%, fewer shares | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q38": {
    "status": "cut",
@@ -3934,9 +3959,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "edit right: through the trigger; at-the-close distractor clearly wrong per D-003 | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q66": {
    "status": "pass",
@@ -3953,8 +3977,8 @@
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found."
+   "fixed": true,
+   "notes": "edit right: 1-3% preferred, up to 5% accepted | mechanical: depends_on left empty, restored to the ruling id(s)"
   }
  }
 }

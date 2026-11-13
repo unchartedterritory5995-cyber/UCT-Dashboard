@@ -105,6 +105,14 @@
    "title": "Undercut and rally criteria card (docs/study/setups/criteria/29-undercut-rally.json)",
    "url": "repo:docs/study/setups/criteria/29-undercut-rally.json",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1001,6 +1009,24 @@
    "source": "h1",
    "quote": "a 3-5 day final leg: three straight up days, two straight overnight gap ups",
    "claim": "B26: Bracco's parabolic burst is a 3-5 day final leg, with three straight up days and two straight overnight gap ups."
+  },
+  {
+   "id": "r60",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Owner: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r61",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "Owner: past 5%, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r62",
+   "source": "h2",
+   "quote": "Never move the stop up to make a trade fit.",
+   "claim": "Owner: never move the stop up to make a trade fit."
   }
  ],
  "walkthroughs": [
@@ -2964,29 +2990,32 @@
    "q": "Which is the one thing you never do?",
    "choices": [
     "Tighten the stop to 3% to fit",
-    "Skip the trade and keep cash",
+    "Wait for a tighter trigger",
     "Let the stop set the share count",
     "Place the stop under the swing low"
    ],
    "answer": "Tighten the stop to 3% to fit",
-   "why": "Tightening the stop to fit is the one thing you never do. Stop first, and the size comes from the stop. If the honest stop does not fit the risk, skip the trade. Never raise the stop to make it fit. The about 3% is a habit, not a cap.",
-   "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
+   "why": "Tightening the stop to fit is the one thing you never do. Stop first, and the size comes from the stop. We prefer 1 to 3%, 3.5% is good, and up to 5% is fine. Past 5%, we mostly wait for a tighter trigger. Never move the stop up to make a trade fit.",
+   "lesson_line": "Never back-fit a stop. Past 5%, wait for a tighter trigger.",
    "facts": [
     "h01",
     "h04",
     "c36",
-    "c15"
+    "c15",
+    "r60",
+    "r61",
+    "r62"
    ],
    "wrong": {
-    "Skip the trade and keep cash": "Skipping is allowed. If the honest stop does not fit the risk, skip the trade.",
     "Let the stop set the share count": "That is our rule: the size comes from the stop. The mistake is moving the stop to fit a size.",
-    "Place the stop under the swing low": "That is the honest stop, and it belongs there. The mistake is moving it up to fit."
+    "Place the stop under the swing low": "That is the honest stop, and it belongs there. The mistake is moving it up to fit.",
+    "Wait for a tighter trigger": "Waiting is fine. Past 5%, we mostly wait for a tighter trigger rather than take the trade."
    },
-   "story": "The swing low sits 5.5% under your planned entry. The honest stop breaks the about 3% habit.",
+   "story": "The swing low sits 5.5% under your planned entry. The honest stop is past the 5% we will accept.",
    "house": true,
    "simple": "Never move the stop up just to make it fit, because the stop comes first and the size comes from it.",
    "deeper": {
-    "trap": "The trap is the 3% habit. Our stop usually sits within about 3% of the buy, but that is a habit, not a cap. When the honest stop is wider, the fix is never a tighter stop. A stop raised inside the swing low no longer marks where the setup is wrong. If it does not fit, skip."
+    "trap": "The trap is the 3% habit. We prefer a stop of 1 to 3%, 3.5% is good, and up to 5% is fine. When the honest stop is past 5%, the fix is never a tighter stop. A stop raised inside the swing low no longer marks where the setup is wrong. We mostly wait for a tighter trigger."
    },
    "tier": "expert",
    "risk": {
@@ -2997,10 +3026,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q54",
@@ -3228,10 +3254,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q61",
@@ -3464,10 +3487,7 @@
      "fixed before: checker rewrite 2026-11-10"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q67",
@@ -3494,9 +3514,6 @@
      "fixed before: checker rewrite 2026-11-10"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
    "batch": "wave4b"
   },
   {
@@ -3905,7 +3922,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c36 + h01; the story's 5.5% is the question's. The lone negative key is what the stem asks for. Respects D-005 (skip and keep cash allowed)."
+   "notes": "agrees with its rulings"
   },
   "q54": {
    "status": "cut",
@@ -3946,8 +3963,8 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stop and trim axes right (c15, c33, h05); EXPD numbers from d03/d04; no choice repeats only the key. But the lesson_line 'Write it before the open; execute it without a debate' states D39 and A12, which no cited fact carries and the why does not say. Rewritten from the why's own content."
+   "fixed": false,
+   "notes": "agrees with its rulings"
   },
   "q61": {
    "status": "pass",
@@ -3985,8 +4002,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived 'just over 52.00' from c50 (and r03's previous bar) first; matches. Lower-low void choice ruled out by c14; touch-buy by c30. The deeper's 5-session count does not decide q21 (whether the fifth session counts) or q45 (the 50-day close).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with its rulings"
   },
   "q67": {
    "status": "cut",

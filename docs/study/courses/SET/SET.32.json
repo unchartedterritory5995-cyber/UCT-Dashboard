@@ -138,6 +138,14 @@
    "title": "Opening Range Breakout dossier, sections 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/40-opening-range-breakout.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -836,6 +844,24 @@
    "source": "c1",
    "quote": "The nearest source is Bysshe (source 16): the 20 and 50-day rising and the stock above the 20-day. The 50-day is the dossier's proposal.",
    "claim": "The 50-day line is the card's own proposal; Bysshe, the nearest source, wants rising 20 and 50-day averages."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Owner: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r12",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "Owner: past 5% from the trigger, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r13",
+   "source": "h2",
+   "quote": "Never move the stop up to make a trade fit.",
+   "claim": "Owner: never move the stop to make a trade fit."
   }
  ],
  "walkthroughs": [
@@ -919,10 +945,9 @@
  "verify": {
   "q01": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "by": "checker",
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q02": {
    "status": "pass",
@@ -945,8 +970,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "b09 and k06 each verbatim; claim says only what each supports and is labelled as the authors, not UCT. c28 backs the lesson line."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q06": {
    "status": "pass",
@@ -1006,8 +1031,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(418.46-412.01)/418.46 = 1.54%. d01, h04, h24 verbatim; every number in the question."
+   "fixed": true,
+   "notes": "edited by writer, agrees with ruling"
   },
   "q16": {
    "status": "pass",
@@ -1151,8 +1176,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "4.58% calc checks (185.11 to 176.63). Key rests on h01 and h04 ('loss on the position, not the account', so smaller size does not shrink it). A 3% stop (179.56) is above the 176.63 low, so the Pull-in note is right. D-005 owner flag stays (d13 says 'skip or size down'); no size-down choice is offered, so the key is unique."
+   "fixed": true,
+   "notes": "edited by writer, agrees with ruling"
   },
   "q40": {
    "status": "pass",
@@ -1194,21 +1219,20 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c21 (a doji before the gap gives a plain gap ORB) and c22 (EP is 10% or more) support the key; 3% is under 10%. c28 no longer keyed. Card proposals, owner flags filed.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c22 verbatim (10% on a catalyst, range usually too wide for a 3% stop); h01/h24 for the stop. Key states only what is settled; D-005 flagged by the resolver."
+   "fixed": true,
+   "notes": "answer right; why tied the EP range to the old 3% card line, reworded to the 5% ruling"
   },
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c18, b05, k04, d12, d12b, d01 support the key; both breaks share the same range-high edge. No fixed volume line is taught as ours. Minor one-way leak: the 1.03x wrong note says quiet belongs to the day before the open (the q37 key); not a defect in play."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q49": {
    "status": "pass",
@@ -1378,10 +1402,7 @@
      "rests on the house 30-minute window (D-031 pending; 30 minutes kept as the default in every option)"
     ]
    },
-   "depends_on": [
-    "D-031"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q02",
@@ -1507,10 +1528,7 @@
      "the parent-setup role is a held decision (D-002); keyed only as two authors' words"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q06",
@@ -1828,13 +1846,13 @@
     },
     "round": 2
    },
-   "why": "1.54%. Take the fill minus the stop, 418.46 minus 412.01, and divide by the fill. That was FFIV's stop, a few cents under the range low. It sits inside the 3% a stop usually stays within, and it sets the size.",
+   "why": "1.54%. Take the fill minus the stop, 418.46 minus 412.01, and divide by the fill. That was FFIV's stop, a few cents under the range low. It sits inside the 1 to 3% we prefer, and it sets the size.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
-    "h04",
     "h24",
     "d01",
-    "h01"
+    "h01",
+    "r11"
    ],
    "house": true,
    "suffix": "%",
@@ -1847,10 +1865,7 @@
      "3% stop width is a held decision (D-005); only A13's 'usually about 3%' is used"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q16",
@@ -2723,29 +2738,30 @@
    "story": "At 10:00 the range is 4.55% wide on 2.7x opening volume, RS 92. The break fills at 185.11; a few cents under the low is 176.63, 4.58% away.",
    "q": "What do you do?",
    "choices": [
-    "Pass; the honest stop does not fit",
-    "Pass; heavy volume is a red flag here",
+    "Buy; keep the honest stop, size to it",
+    "Pass; any stop past 3% is a skip",
     "Pull the stop in to a flat 3% loss",
-    "Buy; the heavy volume carries it"
+    "Pass; heavy volume is a red flag here"
    ],
-   "answer": "Pass; the honest stop does not fit",
-   "why": "Pass. Stop first; the size comes from the stop. The stop here is 4.58% under the fill, and we almost never take a loss past 3% on a position. Cutting the size does not shrink that loss on the position. If the honest stop does not fit, skip the trade.",
+   "answer": "Buy; keep the honest stop, size to it",
+   "why": "Buy it. The stop is 4.58% under the fill. We prefer 1 to 3%, 3.5% is good, and up to 5% is acceptable. Keep the honest stop under the low and let it set the size. Never move the stop up to make a trade fit.",
    "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
    "facts": [
     "h01",
-    "h04",
-    "d13",
     "d13b",
     "c03",
-    "c18"
+    "c18",
+    "r11",
+    "r12",
+    "r13"
    ],
    "wrong": {
-    "Pass; heavy volume is a red flag here": "Heavy opening volume is a grade cue, not a reason to skip. The reason to pass is the honest stop.",
+    "Pass; heavy volume is a red flag here": "Heavy opening volume is a grade cue, not a reason to skip. The stop is inside 5%.",
     "Pull the stop in to a flat 3% loss": "A stop pulled in to 3% sits above the day's low, inside the range. It is no longer the honest stop.",
-    "Buy; the heavy volume carries it": "Volume grades the day. It does not shrink a 4.58% stop. GKOS reached 0.33R and was stopped."
+    "Pass; any stop past 3% is a skip": "3% is the preferred end, not a limit. Up to 5% is acceptable, and this stop is 4.58%."
    },
    "house": true,
-   "simple": "Pass. The honest stop is 4.58% away, past our usual 3%, and we do not squeeze a stop to make a trade fit.",
+   "simple": "Buy it. The honest stop is 4.58% away, inside the 5% we accept, so keep it and let it set the size.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2754,10 +2770,7 @@
      "the 4.58% comes from one dossier scan row"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q40",
@@ -3040,10 +3053,7 @@
      "the card's 'not traded alone' line (c28, D-002) is no longer keyed"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q47",
@@ -3054,29 +3064,31 @@
    "story": "A stock gaps 12% on earnings news. The first 30-minute range runs 7% from low to high. At 10:10 it trades through the high.",
    "q": "What is it, for our rules?",
    "choices": [
-    "An EP day; the stop sets the size",
+    "An EP day; wait for a tighter trigger",
     "An ordinary ORB; buy the break",
-    "A Kicker; cap the stop at 3.5%",
+    "A Kicker; the gap sets the stop",
     "A gap ORB; pull the stop in to 3%"
    ],
-   "answer": "An EP day; the stop sets the size",
-   "why": "An EP day. An EP opens 10% or more above the prior close on a named catalyst. Its 30-minute range is usually too wide for a 3% stop. Here the gap is 12% and the range runs 7%. The stop sits a few cents under the day's low, and it sets the size. If the honest stop does not fit the risk, skip the trade.",
-   "lesson_line": "Measure the gap and the range. A 7% range is not a 3% stop.",
+   "answer": "An EP day; wait for a tighter trigger",
+   "why": "An EP day. An EP opens 10% or more above the prior close on a named catalyst. Its 30-minute range is usually too wide for our stop. Here the gap is 12% and the range runs 7%, past the 5% we accept. The stop sits a few cents under the day's low, so we mostly wait for a tighter trigger.",
+   "lesson_line": "Measure the gap and the range. A 7% range makes the stop too wide.",
    "facts": [
     "c22",
-    "h04",
     "h01",
-    "h24"
+    "h24",
+    "r11",
+    "r12",
+    "r13"
    ],
    "wrong": {
-    "An ordinary ORB; buy the break": "A 12% gap on news is the EP's test, not the ORB's. The range alone is wider than our usual stop.",
-    "A Kicker; cap the stop at 3.5%": "A Kicker needs a real red day before the gap, and none is given. This is a 12% news gap.",
-    "A gap ORB; pull the stop in to 3%": "The stop sits a few cents under the day's low. Pulling it in to 3% inside a 7% range is not the honest stop."
+    "An ordinary ORB; buy the break": "A 12% gap on news is the EP's test, not the ORB's. The range alone is wider than the 5% we accept.",
+    "A gap ORB; pull the stop in to 3%": "The stop sits a few cents under the day's low. Pulling it in to 3% inside a 7% range is not the honest stop.",
+    "A Kicker; the gap sets the stop": "A Kicker needs a real red day before the gap, and none is given. This is a 12% news gap."
    },
    "house": true,
-   "simple": "An EP day: a 12% gap on news. The range is wider than a usual 3% stop, so the stop sets the size.",
+   "simple": "An EP day, a 12% gap on news. The range is wider than the stop we accept, so we wait for a tighter trigger.",
    "deeper": {
-    "trap": "Do not shrink the stop to make the trade fit. The stop sits a few cents under the day's low, and a stop usually sits within about 3% of the buy. If the honest stop does not fit the risk, skip."
+    "trap": "Do not shrink the stop to make the trade fit. The stop sits a few cents under the day's low. We prefer 1 to 3% and accept up to 5%. Past 5%, we mostly wait for a tighter trigger."
    },
    "tier": "extended",
    "risk": {
@@ -3087,10 +3099,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q48",
@@ -3137,10 +3146,7 @@
      "the cue is the card's proposal and E50 says grading is discretionary"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q49",

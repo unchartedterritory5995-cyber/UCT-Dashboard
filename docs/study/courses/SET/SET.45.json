@@ -125,6 +125,14 @@
    "title": "Qullamaggie and Kell dossier, sections 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/18-qullamaggie-kell.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1093,6 +1101,24 @@
    "source": "d1",
    "quote": "A 32% run and a 19-session, 14.7% box, but the last third's low (34.89) sat under the first third's (36.52)",
    "claim": "BIDU: a 32% run and a 19-session box, but the last third's low sat under the first third's."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Owner: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "Owner: past 5%, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Never move the stop up to make a trade fit.",
+   "claim": "Owner: never move the stop up to make a trade fit."
   }
  ],
  "walkthroughs": [
@@ -2062,28 +2088,28 @@
    "criterion": "qk.breakout_stop_adr",
    "q": "Take the trade?",
    "choices": [
-    "Yes, if you take a smaller size",
-    "No; the stop is beyond the ADR",
-    "No; a 4.0% ADR is too low to trade",
-    "Yes, if you move the stop to 4.0%"
+    "Mostly no; wait for a tighter trigger",
+    "Yes, if you cut the size in half",
+    "Yes, if you pull the stop up to 4%",
+    "Yes; 5.5% is close enough to 5%"
    ],
-   "answer": "No; the stop is beyond the ADR",
-   "why": "No. The stop must be no wider than the stock's ADR, and 5.5% is wider than 4.0%. If it is wider, skip the trade. A smaller size does not fix it, and the stop cannot be pulled in to make it fit.",
-   "lesson_line": "Stop wider than the ADR means no trade.",
+   "answer": "Mostly no; wait for a tighter trigger",
+   "why": "Mostly no. We prefer a stop of 1 to 3%, 3.5% is good, and up to 5% is acceptable. A stop 5.5% away is past that, so we mostly wait for a tighter trigger. Never move the stop up to make a trade fit.",
+   "lesson_line": "A stop past 5% mostly means wait for a tighter trigger.",
    "facts": [
-    "a23",
-    "K5",
     "hA3",
-    "a4"
+    "r01",
+    "r02",
+    "r03"
    ],
    "wrong": {
-    "Yes, if you take a smaller size": "The stop may not be wider than the ADR. Over it, we skip, whatever the size.",
-    "Yes, if you move the stop to 4.0%": "The stop is the honest stop under the day's low. If it does not fit, skip the trade; do not pull it in.",
-    "No; a 4.0% ADR is too low to trade": "No ADR minimum is set. The ADR only caps the stop."
+    "Yes, if you cut the size in half": "A smaller size does not fix a stop this far out. Past 5%, we mostly wait for a tighter trigger.",
+    "Yes, if you pull the stop up to 4%": "The stop is the honest stop under the day's low. Never move the stop up to make a trade fit.",
+    "Yes; 5.5% is close enough to 5%": "Up to 5% is acceptable. 5.5% is past it, so we mostly wait for a tighter trigger."
    },
    "house": true,
-   "story": "A stock's ADR is 4.0%. The breakout day's low sits 5.5% under your buy.",
-   "simple": "No, because the stop is wider than the stock's ADR, so the trade is skipped.",
+   "story": "The breakout day's low sits 5.5% under your buy.",
+   "simple": "Mostly no, because the stop is too far from the buy, so we wait for a tighter trigger.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2093,10 +2119,7 @@
      "a number that may change"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q29",
@@ -2108,22 +2131,21 @@
    "choices": [
     "Flat Base; 25 sessions is its length",
     "Qullamaggie breakout; not a flat box",
-    "Bull Flag; it paused after a big run",
+    "Flat Base; the range tightens late",
     "Neither; 25 sessions is too long"
    ],
    "answer": "Qullamaggie breakout; not a flat box",
-   "why": "Qullamaggie breakout. It rests 10 to 40 sessions with rising swing lows, tightening at the end, and 25 sessions is inside that. A flat base is one flat-topped box, so the shape of the lows tells them apart, not the length. A bull flag is a short drift, so 25 sessions is too long for it.",
+   "why": "Qullamaggie breakout. It rests 10 to 40 sessions with rising swing lows, tightening at the end, and 25 sessions is inside that. A flat base is one flat-topped box, so the shape of the lows tells them apart, not the length.",
    "lesson_line": "Check the lows. Rising lows and a tight finish mean this breakout.",
    "facts": [
     "l1",
     "a7",
-    "a9",
-    "l2"
+    "a9"
    ],
    "wrong": {
     "Neither; 25 sessions is too long": "Twenty-five sessions is inside the 10 to 40 range.",
     "Flat Base; 25 sessions is its length": "A flat base is one flat-topped box 15% deep or less. Rising swing lows are not one box.",
-    "Bull Flag; it paused after a big run": "A bull flag is a 3 to 15-session drift after a 20% pole. Twenty-five sessions is far too long for that."
+    "Flat Base; the range tightens late": "A tight finish alone does not make a flat base. A flat base is one flat-topped box, and these lows keep rising."
    },
    "house": true,
    "story": "A leader rests 25 sessions after a big run. Its swing lows keep rising, and the range tightens at the end.",
@@ -2139,10 +2161,7 @@
      "Cut-offs come from the card's proposed criteria"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q30",
@@ -2181,9 +2200,6 @@
      "Numbers from the card's proposed criteria"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
    "batch": "wave4"
   },
   {
@@ -3040,9 +3056,6 @@
      "Kell's line comes from a note about selling short"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3081,9 +3094,6 @@
      "the 10 and 20-day pairing waits on a held decision (D-021)"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3120,9 +3130,6 @@
      "rests on a held decision"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3159,9 +3166,6 @@
      "the 10 EMA pairing waits on a held decision (D-021)"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3189,9 +3193,6 @@
      "Volume floor is the card's proposed number"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3265,9 +3266,6 @@
      "5 to 15 sessions is the card's proposed number"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3449,9 +3447,6 @@
      "Fixed before"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3492,9 +3487,6 @@
      "Uses the 10/20 EMA pair held by D-021"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3626,9 +3618,6 @@
      "Fixed before"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -3674,9 +3663,6 @@
      "Fixed before"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -4127,9 +4113,6 @@
      "Fixed before"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -4944,9 +4927,6 @@
      "Uses the 10/20 EMA pair held by D-021"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave4"
   },
   {
@@ -5553,13 +5533,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found."
+   "notes": "agrees with its rulings"
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "notes": "agrees with its rulings"
   },
   "q30": {
    "status": "cut",

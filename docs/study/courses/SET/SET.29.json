@@ -149,6 +149,14 @@
    "title": "Failed H&S dossier, sections 4.5, 4.6, 12 and 14: the run, the examples, the failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/33-failed-hs-rounded-top.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1069,6 +1077,36 @@
    "source": "c1",
    "quote": "Not more than 4% above the right-shoulder high; on a gap past that, wait for a retest of the level or skip.",
    "claim": "On a gap more than 4% over the right-shoulder high: wait for a retest of the level or skip."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop.",
+   "claim": "D-008: the entry day's low is the primary stop."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "claim": "D-008: the pattern's low and a line minus a cushion are acceptable alternatives."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "When the day gaps more than 4% past it, one more way in is allowed: buy intraday on a morning flush or pullback that curls back up (besides the 30-minute ORB or the first pause).",
+   "claim": "D-022: past a gap over 4%, one more way in is a morning flush or pullback that curls back up."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "It is often time-based: sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R.",
+   "claim": "D-013: the first sell is often time-based, into a 3, 5 or 7 day push."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "The R-based thirds stay one taught way to take profits, but a question must not teach 3R as the only correct first sell; a day-based first sell on a strong push is equally ours.",
+   "claim": "D-013: R-based thirds are one taught way, not the only first sell."
   }
  ],
  "walkthroughs": [
@@ -1181,10 +1219,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-001"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q02",
@@ -1223,10 +1258,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q03",
@@ -1234,19 +1266,20 @@
    "rung": 1,
    "format": "tf",
    "criterion": "fh.stop",
-   "q": "The stop on a failed head-and-shoulders goes a few cents under the trigger day's low.",
+   "q": "The primary stop on a failed head-and-shoulders goes a few cents under the trigger day's low.",
    "answer": "True",
-   "why": "True. The stop goes a few cents under the trigger day's low, with a real stop order. Our stop habit: the low of the day, until it can go to breakeven. Stop first: the size comes from the stop, and if the honest stop does not fit the risk, skip the trade. The undercut low is only the invalidation line, not the stop.",
+   "why": "True. The stop goes a few cents under the trigger day's low, with a real stop order. The low of day is the primary stop. The undercut low is an acceptable alternative, but the day's low comes first. Stop first: the size comes from the stop, and if the honest stop does not fit the risk, skip the trade.",
    "lesson_line": "Stop first: a few cents under the trigger day's low.",
    "facts": [
     "c03",
     "h24",
     "u06",
     "h01",
-    "c04"
+    "r01",
+    "r02"
    ],
    "house": true,
-   "simple": "True, the stop sits a few cents under the trigger day's low, not exactly on it.",
+   "simple": "True, the primary stop sits a few cents under the trigger day's low, not exactly on it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1254,10 +1287,7 @@
      "rests on the owner's rulebook (A3, F62)"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q04",
@@ -1430,10 +1460,7 @@
      "rests on a held decision (D-001, no short)"
     ]
    },
-   "depends_on": [
-    "D-001"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q09",
@@ -1645,10 +1672,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q15",
@@ -1886,10 +1910,7 @@
      "key reworded so it no longer repeats the story's word"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q22",
@@ -1973,14 +1994,14 @@
    "story": "The right-shoulder high is 327.76. After earnings the stock opens at 365.00, 11.4% over it, and the failure is complete on the gap.",
    "q": "What do you do?",
    "choices": [
-    "Skip it; the fill is a chase",
+    "Skip it; wait for a dip to curl up",
     "Buy the open; the failure is done",
     "Buy half size right at the open",
     "Buy, stop under the neckline"
    ],
-   "answer": "Skip it; the fill is a chase",
-   "why": "Skip it. Our rule is never to buy more than 4% above the buy point, and this open is 11.4% over the right-shoulder high. On our card a gap past that line means skip, or wait for a retest of the level. Chasing a gap far over the right shoulder is a named mistake: LULU in 2023 was bought at 365.00 after an earnings gap and lost 1.0R. Chasing costs size, not risk, because the stop stays under the buy point.",
-   "lesson_line": "I would rather miss it than chase it. A gap far past the level is not my entry.",
+   "answer": "Skip it; wait for a dip to curl up",
+   "why": "Do not buy the open. Our rule is never to buy more than 4% above the buy point, and this open is 11.4% over the right-shoulder high. When a day gaps that far past the level, one more way in is a morning flush or pullback that curls back up. If none comes, skip it. LULU in 2023 was bought at 365.00 after an earnings gap and lost 1.0R.",
+   "lesson_line": "I would rather miss it than chase it. A gap far past the level is not my entry at the open.",
    "facts": [
     "h11",
     "h12",
@@ -1988,15 +2009,16 @@
     "d34",
     "h04",
     "lb01",
-    "c02"
+    "c02",
+    "r03"
    ],
    "wrong": {
-    "Buy the open; the failure is done": "The failure is complete, but the open is 11.4% over the level. The stop stays under the buy point, so a fill this far up leaves a wide stop and a small position.",
-    "Buy, stop under the neckline": "A stop under the neckline sits far below a fill 11.4% over the level. The stop usually sits within about 3% of the buy.",
+    "Buy the open; the failure is done": "The failure is complete, but the open is 11.4% over the level. That is a chase, and our rule limits it to 4% over the buy point.",
+    "Buy, stop under the neckline": "The stop belongs under the day's low, not the far-off neckline. A neckline stop is nowhere near a fill 11.4% over the level.",
     "Buy half size right at the open": "Half size still pays the chase price. The rule limits how far above the buy point you may buy, whatever the size."
    },
    "house": true,
-   "simple": "Skip it, because buying 11.4% above the level is a chase.",
+   "simple": "Do not buy the open, because it is far over the level. Wait for a morning dip to curl back up, or skip it.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -2006,11 +2028,7 @@
      "the answer has a hedge, skip or wait"
     ]
    },
-   "depends_on": [
-    "D-022",
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q25",
@@ -2690,11 +2708,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-002",
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q43",
@@ -2838,10 +2852,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-001"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q47",
@@ -3015,10 +3026,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q52",
@@ -3275,36 +3283,36 @@
    "format": "scenario",
    "criterion": "fh.invalidation_line",
    "story": "SPG broke its neckline at 65.03 and fell to 61.03 before recovering over seven weeks. The trade over the right shoulder at 69.52 fills at 69.53.",
-   "q": "Where is the stop?",
+   "q": "Where is the primary stop?",
    "choices": [
     "Just under the trigger day's low",
-    "Just under the failed-break low",
-    "Just under the neckline, 65.03",
-    "Breakeven, right at the fill price"
+    "A flat 10% under the fill, 62.58",
+    "Breakeven, right at the fill price",
+    "No order; watch for a close under 65.03"
    ],
    "answer": "Just under the trigger day's low",
-   "why": "A few cents under the trigger day's low: 68.76, which is 1.1% under the 69.53 fill. Our rule is stop first, a few cents under the day's low, with a real stop order. The undercut low at 61.03 is the invalidation line, not the stop. In our run a stop under the failed-break low was a median 9.3% away, and our card lists using it as a named mistake.",
-   "lesson_line": "The stop is the day's low. The undercut low only tells you when the top has won.",
+   "why": "A few cents under the trigger day's low: 68.76, which is 1.1% under the 69.53 fill. The low of day is the primary stop, placed with a real stop order. The undercut low at 61.03 and the neckline at 65.03 are acceptable alternatives, but both sit far under the fill. In our run a stop under the failed-break low was a median 9.3% away.",
+   "lesson_line": "The stop starts at the day's low. The undercut low is a far alternative that tells you when the top has won.",
    "facts": [
     "d05",
     "d06",
-    "c04",
     "h24",
     "h05",
-    "c23",
     "c12",
     "d37",
-    "c44"
+    "c44",
+    "r01",
+    "r02"
    ],
    "wrong": {
-    "Just under the failed-break low": "That is the invalidation line, not the stop. At 61.03 it sits far from the 69.53 fill, and using it is a named mistake.",
-    "Just under the neckline, 65.03": "A close back under the neckline is the failure of the failure, and the stop should already be above that. At 65.03 it sits far under the 69.53 fill.",
-    "Breakeven, right at the fill price": "Breakeven comes between 2R and 5R, not on the fill. A stop at the fill price leaves no room."
+    "Breakeven, right at the fill price": "Breakeven comes between 2R and 5R, not on the fill. A stop at the fill price leaves no room.",
+    "A flat 10% under the fill, 62.58": "A flat percent is tied to nothing on the chart. The stop sits at a chart low, and the day's low comes first.",
+    "No order; watch for a close under 65.03": "Every position has a real stop order with the broker, not a stop kept in your head."
    },
    "house": true,
-   "simple": "The stop goes a few cents under the trigger day's low, not under the deep undercut low.",
+   "simple": "The primary stop goes a few cents under the trigger day's low, which keeps it close to the fill.",
    "deeper": {
-    "trap": "Two lines on this chart look like stops and neither is. The undercut low at 61.03 tells you when the top has won, and the neckline at 65.03 tells you the failure failed. Both sit far below a 69.53 fill. The stop is set by the trigger day alone, a few cents under its low, and that kept the risk to 1.1% here."
+    "trap": "The deep lines tempt. The undercut low at 61.03 and the neckline at 65.03 are acceptable stops, but both sit far below a 69.53 fill. The primary stop is the trigger day's low, a few cents under it. That kept the risk to 1.1% here."
    },
    "tier": "expert",
    "risk": {
@@ -3314,10 +3322,7 @@
      "choices rewritten so the stop's number no longer appears only in the key"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q59",
@@ -3361,11 +3366,7 @@
      "rests on the owner's rule C28 and the held decisions D-022 and D-003"
     ]
    },
-   "depends_on": [
-    "D-022",
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q60",
@@ -3457,7 +3458,7 @@
    "format": "scenario",
    "criterion": "fh.trigger",
    "story": "MGM, September 2004: shoulders within 0.3% of each other, a flat neckline at 21.22, a four-week failed breakdown bought back. The right-shoulder high is 22.70. Today it trades over 22.70 on 1.9x volume; the day's low is 22.35.",
-   "q": "Write the plan: entry, stop, first trim.",
+   "q": "Using R-based thirds, write the plan: entry, stop, first trim.",
    "choices": [
     "Market 22.71; stop 22.30; third at 3R",
     "Limit 21.22; stop 19.80; all at 2R",
@@ -3465,7 +3466,7 @@
     "Market 22.71; stop 22.30; all at 5R"
    ],
    "answer": "Market 22.71; stop 22.30; third at 3R",
-   "why": "Market at 22.71, stop 22.30, a third at 3R. The entry is a market order as price trades over the right-shoulder high, in regular hours. The stop sits a few cents under the day's low of 22.35, with a real stop order. The first trim is a third at 3R. MGM reached 3R in 5 days and 23.7R at best.",
+   "why": "Market at 22.71, stop 22.30, a third at 3R. The entry is a market order as price trades over the right-shoulder high, in regular hours. The stop sits a few cents under the day's low of 22.35, the primary stop, with a real stop order. In R-based thirds the first trim is a third at 3R. A strong push can also be sold into on day 3, 5 or 7, which can be 10, 12 or 20R. MGM reached 3R in 5 days and 23.7R at best.",
    "lesson_line": "Entry, stop, trim, trail. Write the plan, then execute it without a debate.",
    "facts": [
     "h22",
@@ -3476,17 +3477,20 @@
     "h20",
     "h21",
     "h23",
-    "h18"
+    "h18",
+    "r01",
+    "r04",
+    "r05"
    ],
    "wrong": {
-    "Limit 21.22; stop 19.80; all at 2R": "A limit at the neckline sits well under price and does not buy the trigger. 19.80 is the undercut low, the invalidation line, not the stop. The hard rule is a third at 3R, not all at 2R.",
-    "Market close; stop 19.80; hold all": "By our current default, the trigger is the trade through, not the close, and the undercut low is not the stop.",
-    "Market 22.71; stop 22.30; all at 5R": "The entry and stop are right, but the first trim is a third at 3R, not everything at 5R. The hard rule is a third at 3R, a third at 5R, then trail the rest."
+    "Limit 21.22; stop 19.80; all at 2R": "A limit at the neckline sits well under price and does not buy the trigger. All at 2R is not R-based thirds either.",
+    "Market close; stop 19.80; hold all": "The trigger is the trade through, not the close, and holding all with no trim is not R-based thirds.",
+    "Market 22.71; stop 22.30; all at 5R": "The entry and stop are right, but R-based thirds start with a third, not everything at 5R. They run a third at 3R, a third at 5R, then trail the rest."
    },
    "house": true,
-   "simple": "Buy at market over the shoulder high, with the stop a few cents under the day's low. Sell a third at 3R.",
+   "simple": "Buy at market over the shoulder high, stop a few cents under the day's low. In R-based thirds, sell a third at 3R.",
    "deeper": {
-    "example": "Buy at market over the shoulder high. Put the stop a few cents under the day's low. Take a third off at 3R and another third at 5R. Trail the rest on the 10-day or the 21-day. MGM reached 3R in 5 days and 23.7R at best."
+    "example": "Buy at market over the shoulder high. Put the stop a few cents under the day's low. In R-based thirds, take a third off at 3R and another third at 5R. Trail the rest on the 10-day or the 21-day. MGM reached 3R in 5 days and 23.7R at best."
    },
    "tier": "expert",
    "risk": {
@@ -3496,10 +3500,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q63",
@@ -3854,20 +3855,20 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from c01/u01/u03. Choices are all when/as clauses so the key is not a lone conditional; not the longest. 70% note scoped to tops above the 200-day (d45). Rests on D-001 (owner)."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "br01 quote supports the key. All three wrong notes present. Key is not the longest choice. Rests on D-003."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c03, h24, u06, h01 support it; Brandt br02 removed. Sentences 22 words or fewer."
+   "fixed": true,
+   "notes": "ruling-faithful; say primary stop in the statement"
   },
   "q04": {
    "status": "pass",
@@ -3898,7 +3899,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (m02 in context: Murphy at the right shoulder, trend only sideways; m01, sc02 verified on the pages). But the simple line 'Do not short yet' implies a short after the break, which contradicts c16/D-001 and the why ('we do not teach the break as a short setup'). Drop 'yet'."
+   "notes": "agrees with ruling"
   },
   "q09": {
    "status": "pass",
@@ -3933,8 +3934,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c17 and b09 support the key. Rests on D-002. Bulkowski quotes unverifiable by script (site blocks), as the lesson's conflicts note says."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q15": {
    "status": "pass",
@@ -3975,8 +3976,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c19, c20, b08, c18 support the key; the story rules out the other three. Teaches itself in the why; q70 is not needed."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q22": {
    "status": "pass",
@@ -3993,8 +3994,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "All numbers are in d34, c42 and h11. Lone skip against three buys is a mild tell, but any second skip would be a second right answer under lb01. Owner flag on the retest sentence stands."
+   "fixed": true,
+   "notes": "answer right under D-022 and 4% rule; old text said stop stays under the buy point and within 3% of buy, which clashes with D-008/D-005"
   },
   "q25": {
    "status": "pass",
@@ -4107,7 +4108,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key sound (c17, c18, b09; D-002/D-003 provisional as recorded). The why's last sentence is the c18 flat-base line copied verbatim from its own wrong note and q48's wrong note, and does not explain the key; stem says 'where was the trigger' while the story's trigger is now."
+   "notes": "agrees with ruling"
   },
   "q43": {
    "status": "pass",
@@ -4130,8 +4131,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "h10, c16 and d45 support it; Murphy sentence removed. Rests on D-001."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q47": {
    "status": "pass",
@@ -4160,8 +4161,8 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Story now puts the stock above its 200-day, so the short is wrong by h10 and c16. c22 and sc03 back the key."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q52": {
    "status": "pass",
@@ -4204,14 +4205,14 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "68.76 is 1.1% under 69.53 (d05). c04, c23, d37, h05 support the wrong notes."
+   "fixed": true,
+   "notes": "rebuilt around primary day low; distractors clearly wrong; r01/r02 quotes verbatim"
   },
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "d09 and d10 give 27.71, 27.98, 1% and the MCO result; h11 gives the 4% line. Two buys differ in the stop, so the key is not a lone Buy."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q60": {
    "status": "pass",
@@ -4229,8 +4230,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: d03 fill 22.71, stop 22.30 = 5 cents under 22.35, third at 3R (h05); '23.7R at best' matches the dossier's Best R definition. But the why says 'in regular hours' and 'with a real stop order' and neither is in the cited facts; h23 (E58) and h18 (D41) are in the lesson and must be cited.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with ruling"
   },
   "q63": {
    "status": "pass",

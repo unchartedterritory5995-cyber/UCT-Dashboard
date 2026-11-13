@@ -77,6 +77,14 @@
    "title": "Oops dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/30-oops-reversal.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -655,6 +663,12 @@
    "source": "d1",
    "quote": "the stock went on to a new high (187.05 on 09-09, over the 184.07 20-day high) from a later entry.",
    "claim": "V: the stock went on to a new high on 09-09 from a later entry."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "D-005: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
   }
  ],
  "walkthroughs": [
@@ -970,9 +984,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
    "batch": "wave3"
   },
   {
@@ -1460,33 +1471,31 @@
     },
     "round": 2
    },
-   "why": "1.24%. The distance is the fill minus the stop, divided by the fill, times 100. That is well inside the 3% where the stop usually sits. About 3% is the usual reach, not a hard cap, and the Oops-day low still sets the stop. This is the ACN trade.",
-   "lesson_line": "Measure the stop as a percent of the fill. About 3% is the usual reach.",
+   "why": "1.24%. The distance is the fill minus the stop, divided by the fill, times 100. That is inside the 1 to 3% we prefer, and up to 5% is acceptable. The Oops-day low still sets the stop. This is the ACN trade.",
+   "lesson_line": "Measure the stop as a percent of the fill. We prefer 1 to 3%, and up to 5% is fine.",
    "facts": [
     "h04",
     "dACN",
     "dDELL",
     "h12",
-    "o_stop"
+    "o_stop",
+    "r01"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 1.24% below the fill, well inside the 3% our stops usually stay within.",
+   "simple": "The stop is 1.24% below the fill, which is inside the range we prefer.",
    "deeper": {
-    "counter": "Counter-example: DELL on 2026-03-19 had a deeper undercut, so its stop was wider. The buy was 149.22 and the stop 146.52, which is 1.81% away. That is still inside about 3%, but a wider stop means fewer shares for the same risk."
+    "counter": "Counter-example: DELL on 2026-03-19 had a deeper undercut, so its stop was wider. The buy was 149.22 and the stop 146.52, which is 1.81% away. That is still in the preferred range, but a wider stop means fewer shares for the same risk."
    },
    "tier": "core",
    "risk": {
-    "score": 4,
+    "score": 2,
     "reasons": [
      "computed key",
-     "tied to a held decision (D-005, stop width)"
+     "the stop range is the owner's ruling D-005"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q25",
@@ -1608,10 +1617,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q28",
@@ -1768,10 +1774,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q32",
@@ -3481,8 +3484,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc (31.51-31.12)/31.51*100 = 1.24 matches dACN; DELL 1.81% matches dDELL. But the why says the Oops-day low sets the stop and the deeper note says a deeper undercut made the stop wider: both rest on o_stop, which is not cited. Add o_stop."
+   "fixed": false,
+   "notes": "D-005 range matches; quote verbatim"
   },
   "q25": {
    "status": "pass",
@@ -3500,7 +3503,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+   "notes": "keep right"
   },
   "q28": {
    "status": "pass",
@@ -3525,7 +3528,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+   "notes": "keep right"
   },
   "q32": {
    "status": "pass",

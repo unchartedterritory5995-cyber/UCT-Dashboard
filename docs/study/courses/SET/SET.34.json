@@ -71,6 +71,14 @@
    "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/",
    "accessed": "2026-11-09",
    "why_reliable": "The trader's own site, in his own words. Used only for the day-low stop and the moving-average trail he shares with the card."
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -655,6 +663,24 @@
    "source": "h1",
    "quote": "The full size at one price with one stop; no adding.",
    "claim": "A5: the full size goes in at one price with one stop; no adding."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Owner: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r12",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "Owner: past 5% from the trigger, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r13",
+   "source": "h2",
+   "quote": "Never move the stop up to make a trade fit.",
+   "claim": "Owner: never move the stop to make a trade fit."
   }
  ],
  "walkthroughs": [
@@ -1868,28 +1894,30 @@
    "q": "The turn is valid. What do you do?",
    "choices": [
     "Size down from the stop",
-    "Buy full size at the close",
+    "Buy full size; ignore the stop width",
     "Tighten the stop to fit it",
     "Buy the open, skip the wait"
    ],
    "answer": "Size down from the stop",
-   "why": "Size down from the stop. The turn is valid, but the first candle was too big to buy at its close. The stop under its low is 4.96% from the entry. The size comes from the stop, so a far stop means fewer shares. If the honest stop does not fit the risk, skip. A stop usually sits within about 3% of the buy, and this one is wider.",
+   "why": "Size down from the stop. The turn is valid, and the stop under the first candle's low is 4.96% from the entry. We prefer 1 to 3%, and up to 5% is acceptable. So we take it with fewer shares. Past 5%, we mostly wait for a tighter trigger.",
    "lesson_line": "A giant first candle widens the stop. Size follows the stop.",
    "facts": [
     "d18",
     "d19",
     "h01",
     "g27",
-    "h04"
+    "r11",
+    "r12",
+    "r13"
    ],
    "wrong": {
-    "Buy full size at the close": "That first candle was too big to buy at its close at full size: the stop is 4.96% away.",
-    "Tighten the stop to fit it": "Never tighten the stop to fit. The honest stop marks the real low. If it does not fit, skip.",
-    "Buy the open, skip the wait": "The open is before the turn. Buying it is the blind open buy."
+    "Tighten the stop to fit it": "Never move the stop up to make a trade fit. The honest stop marks the real low.",
+    "Buy the open, skip the wait": "The open is before the turn. Buying it is the blind open buy.",
+    "Buy full size; ignore the stop width": "Full size on a stop 4.96% away risks more than planned. The size comes from the stop."
    },
    "house": true,
    "story": "After a 2.8% gap down the first candle runs from 315.73 to 329.02. The stop under its low is 4.96% from the entry.",
-   "simple": "Size the trade from the stop, because the stop is far away and fewer shares fit the risk.",
+   "simple": "Size down from the stop. It is 4.96% away, inside the 5% we accept, so it only means fewer shares.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1898,10 +1926,7 @@
      "fixed before: variety rewrite (+1)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q37",
@@ -2007,10 +2032,7 @@
      "fixed before: variety rewrite (+1)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q40",
@@ -2510,9 +2532,6 @@
      "fixed before: variety rewrite (+1)"
     ]
    },
-   "depends_on": [
-    "D-031"
-   ],
    "batch": "wave4"
   },
   {
@@ -3690,8 +3709,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. d18/d19 plus rulebook A3/A5/A13; depends on D-005."
+   "fixed": true,
+   "notes": "edited by writer, agrees with ruling"
   },
   "q37": {
    "status": "pass",
@@ -3708,9 +3727,9 @@
   },
   "q39": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q40": {
    "status": "pass",

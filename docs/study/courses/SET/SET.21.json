@@ -80,6 +80,14 @@
    "title": "High Volume Edge dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/24-high-volume-edge.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -796,6 +804,18 @@
    "source": "d1",
    "quote": "Because the stop is small, 3R is often only 3-7% over the buy and was reached the next session in most winners",
    "claim": "Because the stop is small, 3R is often only 3% to 7% over the buy."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "D-005: past 5%, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "Never move the stop up to make a trade fit.",
+   "claim": "D-005: never move the stop up to make a trade fit."
   }
  ],
  "walkthroughs": [
@@ -962,10 +982,7 @@
      "+2 rests on the card's day-2 trigger and the held D-005 (whether a close entry is taught at all)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q04",
@@ -1773,9 +1790,6 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "depends_on": [
-    "D-024"
-   ],
    "batch": "wave2"
   },
   {
@@ -2662,18 +2676,20 @@
     "Place the stop under that low"
    ],
    "answer": "Pull the stop in to fit",
-   "why": "Pull the stop in to fit. The stop comes first, a few cents under the day-2 low, and the size comes from it. If the honest stop does not fit the risk, skip the trade. NAVN's honest day-2 stop was 7.5% wide. Sizing from the real stop and skipping both obey the rule. Pulling the stop in does not.",
+   "why": "Pull the stop in to fit. The stop comes first, a few cents under the day-2 low. Past 5% away, we mostly skip and wait for a tighter trigger. NAVN's honest day-2 stop was 7.5% wide. Never move the stop up to make a trade fit.",
    "lesson_line": "Never move the stop to fit the size. Move the size, or skip.",
    "facts": [
     "h01",
     "h02",
     "d28",
     "c17",
-    "c04"
+    "c04",
+    "r01",
+    "r02"
    ],
    "wrong": {
-    "Skip and wait for a later setup": "That is the plan when the stop does not fit. Skip, then watch the level.",
-    "Size down from the real stop": "Sizing from the real stop is the rule. Pulling it in is the mistake.",
+    "Skip and wait for a later setup": "That is the usual call when the stop is past 5% away. Skip, then wait for a tighter trigger.",
+    "Size down from the real stop": "Sizing from the real stop is honest. Past 5% away, we mostly skip and wait instead.",
     "Place the stop under that low": "Stop first, a few cents under the day-2 low, is the honest stop. The skip or size call comes after."
    },
    "house": true,
@@ -2688,10 +2704,7 @@
      "rests on the owner's rulebook (A3) and the pending stop-width decision D-005"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q51",
@@ -2737,9 +2750,6 @@
      "+1 fixed before (the story fill was corrected)"
     ]
    },
-   "depends_on": [
-    "D-024"
-   ],
    "batch": "wave2"
   },
   {
@@ -3252,10 +3262,7 @@
      "+1 fixed before (the question was reworded)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q65",
@@ -3452,8 +3459,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c12. Day 3 is ruled out by 'not a later day'. No tell (key not longest).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep right: day-2 trigger, not a close buy"
   },
   "q04": {
    "status": "pass",
@@ -3740,8 +3746,8 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "A3/A4 settle it; skip or size from the real stop both obey; pulling in does not."
+   "fixed": true,
+   "notes": "answer right; add D-005 past-5% wait-for-tighter-trigger and cite the rulings"
   },
   "q51": {
    "status": "pass",
@@ -3824,9 +3830,9 @@
   },
   "q64": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "keep right"
   },
   "q65": {
    "status": "pass",

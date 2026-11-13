@@ -191,6 +191,14 @@
    "title": "Episodic Pivot dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/20-episodic-pivot.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1129,6 +1137,24 @@
    "source": "c1",
    "quote": "consecutive up closes before the delayed trigger",
    "claim": "The three-green test counts up closes in a row before the delayed trigger."
+  },
+  {
+   "id": "r51",
+   "source": "h2",
+   "quote": "It is always just the trigger for each trade never the close.",
+   "claim": "He buys the trigger, never the close."
+  },
+  {
+   "id": "r52",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "Past 5%, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r53",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Stops: 1-3% preferred, 3.5% good, up to 5% acceptable."
   }
  ],
  "walkthroughs": [
@@ -1278,9 +1304,6 @@
      "rests on the card's catalyst line, a held decision (D-032)"
     ]
    },
-   "depends_on": [
-    "D-032"
-   ],
    "batch": "wave2"
   },
   {
@@ -1375,12 +1398,14 @@
     "k09",
     "u04",
     "h22",
-    "c32"
+    "c32",
+    "r51",
+    "r52"
    ],
    "wrong": {
     "At the open, before a range forms": "Our day-one buy waits for the first 5-minute candle, then goes over its high. Kullamagi also waits for the opening-range high.",
     "On a limit order a bit under the open": "Our entries are market orders, so a limit under the open is not the plan.",
-    "At the close, if the gap held all day": "A close entry puts the stop far away, 7% or more in the card's example. Then the size is tiny or the 3% rule breaks. Buy early, near the opening-range high."
+    "At the close, if the gap held all day": "We do not buy the close. By then the low of the day is far under the price, 7% or more in the card's example. That is past the 5% we accept, so we wait for a tighter trigger instead."
    },
    "house": true,
    "simple": "Buy at market when price trades over the opening-range high, so the stop under the day's low stays close.",
@@ -1392,10 +1417,7 @@
      "rests on the owner's rulebook (E57, market orders)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q06",
@@ -1776,9 +1798,6 @@
      "the gap floor is a held decision (D-033)"
     ]
    },
-   "depends_on": [
-    "D-033"
-   ],
    "batch": "wave2"
   },
   {
@@ -1819,9 +1838,6 @@
      "rests on the card's catalyst line, a held decision (D-032)"
     ]
    },
-   "depends_on": [
-    "D-032"
-   ],
    "batch": "wave2"
   },
   {
@@ -1839,7 +1855,7 @@
    ],
    "story": "A neglected stock gaps 14% on earnings, with volume on pace for 6x the average. At 9:40 it trades over the 5-minute high. The low of the day is 2.1% below.",
    "answer": "Buy at market; stop under the low",
-   "why": "Buy at market, with the stop a few cents under the low of the day. The volume is on pace, and the stop is 2.1% away, inside the 3% line. Our GRRR plan did the same: enter there and place a stop at the low of the day. The full size goes in at one price with one stop.",
+   "why": "Buy at market, with the stop a few cents under the low of the day. The volume is on pace, and the stop is 2.1% away, inside the 1 to 3% we prefer. Our GRRR plan did the same: enter there and place a stop at the low of the day. The full size goes in at one price with one stop.",
    "lesson_line": "A tight low under a holding gap is the day-one buy. Take it.",
    "facts": [
     "c11",
@@ -1847,10 +1863,10 @@
     "u04",
     "u01",
     "h22",
-    "h04",
     "h31",
     "c19",
-    "u02"
+    "u02",
+    "r53"
    ],
    "wrong": {
     "Wait for the close to confirm the gap": "By the close the stop is far away and the size is tiny. The opening range is the tight entry.",
@@ -1866,10 +1882,7 @@
      "the day-one buy is a held decision (D-005)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q19",
@@ -1886,18 +1899,18 @@
    ],
    "story": "A stock gaps 14% on earnings on 6x volume and holds. At 10:00 it trades over the opening-range high, but the low of the day is 8% below the price.",
    "answer": "Wait for a delayed-entry trigger",
-   "why": "Wait for a delayed-entry trigger. The honest stop is a few cents under the day's low, and that is 8% away. Our stop usually sits within about 3% of the buy. If the honest stop does not fit, skip the trade rather than tighten it. While the gap holds, a later tight trigger can still give a stop within 3%.",
+   "why": "Wait for a delayed-entry trigger. The honest stop is a few cents under the day's low, and that is 8% away. We prefer stops 1 to 3% away, and up to 5% is acceptable. Past 5%, we mostly wait for a tighter trigger, and we never tighten the stop to fit. While the gap holds, a later tight trigger can still give a stop within 5%.",
    "lesson_line": "Stop first, distance second, size last. A wide low means wait, not tighten.",
    "facts": [
-    "c18",
     "h01",
-    "h04",
     "c14",
-    "h18"
+    "h18",
+    "r52",
+    "r53"
    ],
    "wrong": {
-    "Go in with an 8% stop, usual shares": "The usual share count with a stop 8% away risks far more than planned. The stop usually sits within about 3%, and the size comes from the stop.",
-    "Put the stop 3% under and buy": "A stop 3% under sits above the day's low, so you tightened it to fit. The card says skip rather than tighten.",
+    "Go in with an 8% stop, usual shares": "A stop 8% away is past the 5% we accept. And the usual share count would risk far more than planned, since the size comes from the stop.",
+    "Put the stop 3% under and buy": "A stop 3% under sits above the day's low, so you tightened it to fit. We never tighten a stop to fit. We wait for a tighter trigger.",
     "Buy first; set a stop once it settles": "Every position has a real stop order with the broker from the start. No stop, no trade."
    },
    "house": true,
@@ -1910,10 +1923,7 @@
      "held decision D-005 (day-one stop width)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q20",
@@ -2090,10 +2100,7 @@
      "neglect line is a proposed card line"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q25",
@@ -2448,9 +2455,6 @@
      "held decision D-024 (the trail line)"
     ]
    },
-   "depends_on": [
-    "D-024"
-   ],
    "batch": "wave2"
   },
   {
@@ -3296,9 +3300,6 @@
      "held decision D-024 (the trail line)"
     ]
    },
-   "depends_on": [
-    "D-024"
-   ],
    "batch": "wave2"
   },
   {
@@ -3674,9 +3675,6 @@
      "neglect line is a proposed card line"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
    "batch": "wave2"
   },
   {
@@ -3993,8 +3991,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "edit ok: close-entry note now cites the trigger-not-close ruling and the 5% band; 7% figure is in card c32."
   },
   "q06": {
    "status": "pass",
@@ -4075,13 +4072,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c18/h01/h04/c14: honest stop 8% away, skip rather than tighten, delayed trigger while gap holds. Holds under D-005 a and b only because of the usual-shares wording (owner flag stands)."
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q20": {
    "status": "pass",
@@ -4111,7 +4108,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c27/c05: up 40% in a six-week base is a PEG, not an EP; Kicker note fits c29. Same neglect skill as q39 but different tests."
+   "notes": "keep agrees with ruling"
   },
   "q25": {
    "status": "pass",

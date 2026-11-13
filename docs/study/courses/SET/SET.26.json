@@ -86,6 +86,14 @@
    "url": "https://deepvue.com/knowledge-base/technical/",
    "accessed": "2026-11-09",
    "why_reliable": "A scanner vendor's own bar definitions. Used only to name what an Oops-type bar is, never for a rule."
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -712,6 +720,42 @@
    "source": "h1",
    "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours.",
    "claim": "E50: grading a setup is discretionary and hard to define; no fixed checklist is taught as ours."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Owner: every setup buys as price trades through its trigger, during the day, never at the close."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The stop goes under the low of day, the prior day's low, or the range low.",
+   "claim": "Owner: the stop goes under the low of day, the prior day's low or the range low."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "How deep an undercut may go and how fast it must reclaim is a judgment call, not a fixed number.",
+   "claim": "Owner: how deep and how fast the reclaim must be is a judgment call, not a fixed number."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "Any obvious level works for a U&R depending on the situation: prior lows, base lows, rising moving averages, gap lows, prior highs, round numbers, VWAP.",
+   "claim": "Owner: any obvious level works for a U&R, depending on the situation."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "Owner: below the 200-day is a hard no for stocks."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "Owner: only indexes and leveraged ETFs may be bought under the 200-day, on a reversal extension or a parabolic long."
   }
  ],
  "walkthroughs": [
@@ -918,7 +962,7 @@
    ],
    "wrong": {
     "As price first trades under the level": "That is the undercut itself. Never buy it before the level is back.",
-    "At the close of the third day under it": "Three days under is the edge of the window. It is a limit, not a signal.",
+    "At the close of the third day under it": "Waiting under the level is not a signal. The buy comes as price trades back over it.",
     "When it makes a new 52-week high": "A new high is a different setup. The U&R buys the reclaim of the level."
    },
    "house": true,
@@ -930,10 +974,7 @@
      "the trigger rests on the card (c03) and Morales (o1)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q06",
@@ -941,27 +982,28 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "ur.trigger_intraday",
-   "q": "How do we place a U&R entry order?",
+   "q": "How do we treat the close on a U&R reclaim day?",
    "choices": [
-    "A market order on the reclaim",
-    "A limit below the undercut",
-    "A stop at last week's high",
-    "A limit order at the 50-day"
+    "We buy as it trades back over the level",
+    "We wait for the close, then buy",
+    "We buy only at the close of that day",
+    "We buy only after two closes above it"
    ],
-   "answer": "A market order on the reclaim",
-   "why": "A market order on the reclaim. Entries are market orders. A limit order below the undercut would buy the undercut itself, and we never buy that.",
-   "lesson_line": "Market order on the reclaim.",
+   "answer": "We buy as it trades back over the level",
+   "why": "We buy as it trades back over the level. The trigger is the entry, during the day, never the close. The stop goes under the low of day. Waiting for a close gives a later, higher entry.",
+   "lesson_line": "Buy as it trades through. Never wait for the close.",
    "facts": [
-    "h22",
+    "r01",
+    "r02",
     "c03"
    ],
    "wrong": {
-    "A limit below the undercut": "That waits for the break to get worse. It buys the undercut, not the reclaim.",
-    "A stop at last week's high": "That is a later, higher entry. The U&R buys as price trades back over the level.",
-    "A limit order at the 50-day": "A limit at an average can sit unfilled while the stock leaves. Entries are market orders."
+    "We wait for the close, then buy": "That is a later, higher entry. We buy as price trades through the level, not after the close.",
+    "We buy only at the close of that day": "We buy as price trades through the level, never at the close. The trigger is the entry.",
+    "We buy only after two closes above it": "Waiting for more closes means a late, high entry. The reclaim itself is the trigger."
    },
    "house": true,
-   "simple": "Use a market order the moment price trades back over the level.",
+   "simple": "We buy as price trades back over the level during the day, and we do not wait for the close.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -970,10 +1012,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q07",
@@ -998,10 +1037,7 @@
      "the visible-level line is the card's only"
     ]
    },
-   "depends_on": [
-    "D-103"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q08",
@@ -1050,22 +1086,23 @@
    "format": "fill",
    "criterion": "ur.inv_no_reclaim",
    "q": "Tap the word that fits the blank.",
-   "sentence": "No close back above the level within ___ sessions means a breakdown, not a U&R.",
+   "sentence": "A U&R takes the level back ___. A long stay under it is a breakdown.",
    "bank": [
-    "3",
-    "1",
-    "5",
-    "10",
-    "20"
+    "fast",
+    "slowly",
+    "never",
+    "late",
+    "eventually"
    ],
-   "answer": "3",
-   "why": "3. If there is no close back above the level within 3 sessions, it is a breakdown, not a U&R. No trade. The trap has to be taken back fast. A level that stays lost for longer is a different story, so we do not buy it as a U&R.",
-   "lesson_line": "Three sessions to take it back. After that it is a breakdown.",
+   "answer": "fast",
+   "why": "Fast. The trap has to be taken back quickly. How quickly is a judgment call, not one fixed number. About 3 sessions is our guide. A level that stays lost for longer is a breakdown, so we do not buy it as a U&R.",
+   "lesson_line": "Taken back fast is a U&R. Left lost is a breakdown.",
    "facts": [
+    "r03",
     "c02"
    ],
    "house": true,
-   "simple": "Three sessions is the limit, so no close back over the level in that time means a breakdown and no trade.",
+   "simple": "A U&R takes the level back fast, and a level that stays lost is a breakdown, so there is no trade.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1074,10 +1111,7 @@
      "the 3-session limit is held with the owner, D-036"
     ]
    },
-   "depends_on": [
-    "D-036"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q10",
@@ -1107,10 +1141,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-036"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q11",
@@ -1326,10 +1357,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-036"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q18",
@@ -1356,10 +1384,7 @@
      "the Morales and Kacher facts come from one publisher, so the card line c25 carries the support rule"
     ]
    },
-   "depends_on": [
-    "D-103"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q19",
@@ -1395,9 +1420,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-103"
-   ],
    "batch": "wave3"
   },
   {
@@ -2176,10 +2198,7 @@
      "the card's option C line is proposed"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q42",
@@ -2319,10 +2338,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-103"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q46",
@@ -2359,31 +2375,30 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ur.level",
-   "q": "Which lesson owns this?",
+   "q": "What is the level that was undercut?",
    "choices": [
-    "Gap Support at the gap low",
-    "A U&R at a swing low",
-    "A 2B at a swing low",
-    "A Remount at the gap low"
+    "The gap-up day's low",
+    "A swing low in a base",
+    "A rising 20-day average",
+    "A round number"
    ],
-   "answer": "Gap Support at the gap low",
-   "why": "Gap Support. Name the level first. When it is the gap-up day's low of a still-open gap on heavy volume, it is Gap Support, with its own card. Here the gap was 9% on 3x volume. The shape is the same, a dip and a reclaim, but the level decides which lesson owns it.",
-   "lesson_line": "Gap-up day's low, gap still open: that is Gap Support.",
+   "answer": "The gap-up day's low",
+   "why": "The gap-up day's low. Name the level first. A gap low is an obvious level, and it works as a U&R level depending on the situation. Here the gap was 9% on 3x volume and still open, which also has its own lesson, Gap Support.",
+   "lesson_line": "Name the level first. A gap-up day's low is an obvious one.",
    "facts": [
     "c26",
-    "c24",
-    "c21"
+    "r04"
    ],
    "wrong": {
-    "A U&R at a swing low": "The level is the gap-up day's low, so the Gap Support card applies.",
-    "A 2B at a swing low": "A 2B is one swing low on its first break. This level is a gap-up day's low.",
-    "A Remount at the gap low": "A Remount needs a long stay under a line. This was a dip and reclaim."
+    "A swing low in a base": "The story names no swing low. The dip went under the gap-up day's low.",
+    "A rising 20-day average": "The story names no average. The level is the gap-up day's low.",
+    "A round number": "The story names no round number. The level is the gap-up day's low."
    },
    "house": true,
    "story": "A stock gapped up 9% on earnings, on 3x its usual volume. The gap is still open. Two weeks later it dips under the gap-up day's low and closes back above it that day.",
-   "simple": "The level is the gap-up day's low and the gap is still open, so this belongs to the Gap Support lesson.",
+   "simple": "The story says the dip went under the gap-up day's low, so that is the level.",
    "deeper": {
-    "trap": "Trap: it looks like a plain U&R because the shape is the same. The name of the level is what separates them. Ask what the level is, then pick the lesson."
+    "trap": "Trap: it looks like a plain swing-low U&R because the shape is the same. Name the level first. A gap low works as a U&R level, and a still-open gap on heavy volume also has its own lesson, Gap Support."
    },
    "tier": "extended",
    "risk": {
@@ -2394,10 +2409,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-103"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q48",
@@ -2413,23 +2425,23 @@
     "A spring off a floor"
    ],
    "answer": "A U&R of the average line",
-   "why": "A U&R of the average line, here the 20-day EMA. A rising 20 EMA is a U&R level. One swing low on its first break is the 2B instead. Here the leader closed above a rising average, dipped under it and closed back above it. That is the U&R trap with an average as the level.",
-   "lesson_line": "Name the level. A rising average is a U&R. One swing low is a 2B.",
+   "why": "A U&R of the average line, here the 20-day EMA. A rising average is an obvious level. The leader closed above it, dipped under it and closed back above it. That is the U&R trap with an average as the level.",
+   "lesson_line": "Name the level. A rising average is a good U&R level.",
    "facts": [
-    "c24",
     "c25",
-    "v2"
+    "v2",
+    "r04"
    ],
    "wrong": {
-    "A 2B of the swing low": "A 2B is one swing low, on its first break. A rising average is a U&R level.",
+    "A 2B of the swing low": "The story touches no swing low. The level here is a rising average, which works as a U&R level.",
     "An Oops at prior close": "An Oops opens under the prior close and reclaims it the same day. This level is a rising average.",
     "A spring off a floor": "The level here is a rising average, not the floor of a range."
    },
    "house": true,
    "story": "A leader closed above its rising 20-day EMA yesterday. Today it dipped under the line and closed back above it.",
-   "simple": "The level is a rising 20-day average, so this is a U&R, while one swing low on its first break would be a 2B.",
+   "simple": "The level is a rising 20-day average, so this is a U&R with an average as the level.",
    "deeper": {
-    "counter": "Counter: if the line were one swing low on its first break, the same candles would be a 2B. If the stock opened under the prior close, traded under yesterday's low and reclaimed the prior close the same day, it would be an Oops. Same dip, three names, set by the level and the candle."
+    "counter": "Counter: if the line were a prior swing low, the same candles would still be a U&R, since any obvious level works. If the stock opened under the prior close, traded under yesterday's low and reclaimed the prior close the same day, it would be an Oops. The level and the candle set the name."
    },
    "tier": "extended",
    "risk": {
@@ -2439,10 +2451,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-103"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q49",
@@ -2484,10 +2493,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-103"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q50",
@@ -2820,18 +2826,19 @@
     "Yes, if volume doubles"
    ],
    "answer": "Yes; over the level, within 4%",
-   "why": "Yes. Two closes under the level is inside the 3-session window. The open of 159.97 is back over 159.37, only 0.4% over. The buy must be no more than 4% over the level, so it is valid. WYNN bought the open, and 3R took 8 days.",
+   "why": "Yes. Two closes under the level is a quick retake, inside our guide of 3 sessions. How fast is a judgment call. The open of 159.97 is back over 159.37, only 0.4% over. The buy must be no more than 4% over the level, so it is valid. We buy as price trades through the level, and here the open itself was the trigger. WYNN bought the open, and 3R took 8 days.",
    "lesson_line": "A gap back over the level is the reclaim. Buy it at the open.",
    "facts": [
     "d03",
     "d04",
     "c02",
     "c13",
-    "h22",
-    "o2"
+    "o2",
+    "r01",
+    "r03"
    ],
    "wrong": {
-    "No; wait for a close above": "The buy is a market order as price trades back over the level, so the open itself can be the trigger.",
+    "No; wait for a close above": "We do not wait for a close. We buy as price trades back over the level, so the open itself can be the trigger.",
     "No; a gap means you skip it": "A gap back over the level is allowed. WYNN did it and the open was only 0.4% over.",
     "Yes, if volume doubles": "Morales says volume is generally not a factor. The trigger is the trade back over the level."
    },
@@ -2850,11 +2857,7 @@
      "rests on the owner's rulebook (the 4% limit)"
     ]
    },
-   "depends_on": [
-    "D-036",
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q59",
@@ -2911,7 +2914,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ur.above_200",
-   "q": "Hidden ticker, the reclaim day. A level was undercut and taken back the same day. Check the 200-day. Take it or pass?",
+   "q": "Hidden stock, the reclaim day. A level was undercut and taken back the same day. Check the 200-day. Take it or pass?",
    "choices": [
     "Pass; under a falling 200-day",
     "Pass; the reclaim took too long",
@@ -2919,12 +2922,13 @@
     "Take it; it reclaimed the same day"
    ],
    "answer": "Pass; under a falling 200-day",
-   "why": "Pass. The close was 9.7% under a falling 200-day SMA. We take no longs below the 200-day simple moving average, apart from a parabolic long. The U&R shape under that line is a watch, not a buy. A same-day reclaim does not change the rule.",
-   "lesson_line": "A U&R shape under the 200-day is a watch, not a buy.",
+   "why": "Pass. The close was 9.7% under a falling 200-day SMA. A stock under its 200-day is a hard no for a long. Only indexes and ETFs built to multiply an index's move are the exception, on a reversal extension or a parabolic long. This is a stock. The U&R shape under that line is a watch, not a buy. A same-day reclaim does not change the rule.",
+   "lesson_line": "A stock's U&R shape under the 200-day is a watch, not a buy.",
    "facts": [
     "d24",
     "d25",
-    "h10",
+    "r05",
+    "r06",
     "c21"
    ],
    "wrong": {
@@ -2939,7 +2943,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Pass, because the close sits under a falling 200-day line, and we take no longs below it, apart from a parabolic long.",
+   "simple": "Pass, because a stock under its falling 200-day line is a hard no for a long, however good the shape looks.",
    "deeper": {
     "trap": "Trap: the shape is perfect, a level undercut and taken back the same day, so it feels like a buy. The 200-day check comes before the candle check."
    },
@@ -2952,10 +2956,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q61",
@@ -3173,21 +3174,20 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key right (c03, o1). q06 no longer handed its answer. Depends on D-003."
+   "fixed": true,
+   "notes": "right answer fine; a wrong note called 3 sessions a hard limit (D-036)"
   },
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key E57 (h22) plus c03; distractors clearly wrong; no tell.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "agrees with D-003; wrong note said 'very rarely' but the rule is never at the close"
   },
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass, thin by design (rung 1); depends on D-103."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q08": {
    "status": "pass",
@@ -3197,15 +3197,15 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c02 and c21 support it; the number 3 is out of the why so q09 keeps its answer."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q11": {
    "status": "pass",
@@ -3247,14 +3247,14 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(59.95 - 59.04) / 59.95 = 1.518%, rounds to 1.5; stem states one decimal; STLD 1.52% is in d07."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass; v2 plus card c25 support the key. Depends on D-103."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q19": {
    "status": "cut",
@@ -3393,8 +3393,8 @@
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass; later-than-reclaim follows from i2 and c29. Owner may drop the contrast."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q42": {
    "status": "pass",
@@ -3417,9 +3417,8 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Story matches c22 exactly and excludes other levels; b1 checked on Deepvue docs; rests on D-103 default, flagged in risk.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q46": {
    "status": "cut",
@@ -3431,21 +3430,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "c26 quote stopped at 'gap-up day's low' and never said Gap Support or still-open gap; card needs a 4% gap on 2x volume but the story said only 'hard' and 'heavy', and reclaim timing was open. Patch c26 quote (verbatim card lookalike tell, 31 words), put numbers and a same-day close in the story.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Question fields hold, but its two key facts are fragments that do not say what the claims say: c25 never says 'it is a U&R', c24 never says 'one swing low'. Patch both quotes to the full card lookalike tell (verbatim, 22 and 24 words).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c27 and y1 support; story numbers (20 sessions, three touches, back inside next day) fit the card's spring tell; the U&R-of-the-floor lookalike is not offered."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q50": {
    "status": "cut",
@@ -3498,9 +3495,8 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass; keys on proposed 3-session window (D-036) and intraday trigger (D-003). Owner to confirm.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q59": {
    "status": "pass",
@@ -3512,7 +3508,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Lone 'Pass' against three 'Take it' (tell); one wrong-choice note and the trap leaned on d28, an off-topic scan caveat. Swapped in a second Pass distractor and dropped d28."
+   "notes": "exception is indexes and leveraged ETFs, so the hidden ticker must be said to be a stock"
   },
   "q61": {
    "status": "pass",

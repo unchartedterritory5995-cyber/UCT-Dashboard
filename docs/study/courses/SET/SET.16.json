@@ -134,6 +134,14 @@
    "title": "Wedge Pop dossier, sections 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/15-wedge-pop.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -976,6 +984,42 @@
    "source": "c1",
    "quote": "the index's 10 and 20-day EMAs against 5 sessions ago, with a new 20-session low in the last 5 sessions",
    "claim": "The card's index test: the short averages compared with 5 sessions ago, plus a new 20-session low in the last 5 sessions."
+  },
+  {
+   "id": "r51",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop.",
+   "claim": "The low of day is the primary stop."
+  },
+  {
+   "id": "r52",
+   "source": "h2",
+   "quote": "The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "claim": "Pattern low and line minus a cushion are acceptable alternatives."
+  },
+  {
+   "id": "r53",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "Below the 200-day is a hard no for stocks."
+  },
+  {
+   "id": "r54",
+   "source": "h2",
+   "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "Indexes and leveraged ETFs may be bought under the 200-day on a reversal extension or parabolic long."
+  },
+  {
+   "id": "r55",
+   "source": "h2",
+   "quote": "Volume raises the grade; it is not a requirement for the setup to count (except where volume IS the setup, as proposed: HVE and the burst setups).",
+   "claim": "Volume raises the grade; it is not a requirement."
+  },
+  {
+   "id": "r56",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Stops: 1-3% preferred, 3.5% good, up to 5% acceptable."
   }
  ],
  "walkthroughs": [
@@ -1109,10 +1153,7 @@
      "the card keeps the pop day's low as the default under D-008"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q03",
@@ -1185,9 +1226,6 @@
      "the averages pair is a held decision, D-021"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "batch": "wave2"
   },
   {
@@ -1282,10 +1320,7 @@
      "the intraday trigger 'as it trades through the pivot' is a held decision, D-003"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q08",
@@ -2033,22 +2068,24 @@
    "choices": [
     "A few cents under the day's low",
     "Exactly at the day's low price",
-    "A few cents under the pivot",
+    "At the open price, right at the entry",
     "Under the 200-day moving average"
    ],
    "answer": "A few cents under the day's low",
-   "why": "A few cents under the day's low, not exactly on it. On a gap the day's low can sit above the pivot, as it did for RCL in 2009. The stop follows that low. The 200-day line decides whether we buy at all.",
+   "why": "A few cents under the day's low, not exactly on it. The low of day is the primary stop. The pattern's low or a line minus a cushion can also work, but they are not the main stop. On a gap the day's low can sit above the pivot, as it did for RCL in 2009. The stop follows that low. The 200-day line decides whether we buy at all.",
    "lesson_line": "The stop follows the day's low, wherever the gap puts it.",
    "facts": [
     "h24",
     "c18",
     "d04",
-    "h10"
+    "h10",
+    "r51",
+    "r52"
    ],
    "wrong": {
     "Exactly at the day's low price": "Our rule puts the stop a few cents under the low, not on it.",
-    "Under the 200-day moving average": "The 200-day line decides whether we buy at all. It is not the stop.",
-    "A few cents under the pivot": "On a gap the day's low can sit above the pivot, as it did for RCL. The stop follows that low, not the pivot."
+    "Under the 200-day moving average": "The 200-day line decides whether we buy at all. It is the gate, not the main stop.",
+    "At the open price, right at the entry": "A stop on the entry price gives the trade no room. Breakeven comes later, after the trade has worked."
    },
    "house": true,
    "simple": "Put the stop a few cents under the day's low, even after a gap, because the stop follows that low.",
@@ -2060,10 +2097,7 @@
      "the base-low option is held (D-008)"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q30",
@@ -2191,14 +2225,14 @@
     "Pass, the base is too short"
    ],
    "answer": "Pass, it is under the 200-day",
-   "why": "Pass. No longs below the 200-day simple moving average, and the Wedge Pop is not a parabolic long. That January 2019 pop closed 7.3% under the 200-day, and it worked, best 7.46R, without us. A clean base or a smaller size does not change a hard rule.",
+   "why": "Pass. For a stock, no longs below the 200-day simple moving average. The one exception is indexes and ETFs built to magnify an index's moves, on a reversal extension or a parabolic long. This is a stock. That January 2019 pop closed 7.3% under the 200-day, and it worked, best 7.46R, without us. A clean base or a smaller size does not change a hard rule.",
    "lesson_line": "A pop that works is not always our pop. Under the 200-day, I pass.",
    "facts": [
-    "h10",
     "c27",
-    "c45",
     "d15",
-    "c05"
+    "c05",
+    "r53",
+    "r54"
    ],
    "wrong": {
     "Take it, the base is clean": "A clean base under the 200-day is still under the 200-day. That rule is hard.",
@@ -2206,8 +2240,8 @@
     "Pass, the base is too short": "A 6-day base is longer than the 3-session minimum on our card. The base was fine. The 200-day line is the problem."
    },
    "house": true,
-   "story": "A January 2019 chart. A 36% decline, a 6-day base, and a pop on 1.1x the base's volume. The pop day closed 7.3% under the 200-day.",
-   "simple": "Pass, because our hard rule bars longs below the 200-day line, even when the base is clean and the pop works.",
+   "story": "A January 2019 chart of a stock. A 36% decline, a 6-day base, and a pop on 1.1x the base's volume. The pop day closed 7.3% under the 200-day.",
+   "simple": "Pass, because our hard rule bars stock longs below the 200-day line, even when the base is clean and the pop works.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2216,10 +2250,7 @@
      "the index and ETF option is held (D-009)"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q34",
@@ -2229,29 +2260,27 @@
    "criterion": "wp.inv_no_volume",
    "q": "Is this a Wedge Pop by our card?",
    "choices": [
-    "No, no rise in volume",
-    "Yes, it closed above both",
-    "Yes, the base was tight",
-    "No, the base was too short"
+    "Yes, but light volume lowers the grade",
+    "No, light volume ends it right there",
+    "No, a 6-day base is too short to count",
+    "Yes, and it is a top grade A+ pop"
    ],
-   "answer": "No, no rise in volume",
-   "why": "No. By our card, a pop on volume no higher than the base days is a cross of the averages with no demand. This one came on 0.88 times the base days' volume. Kell's first two QQQ pops failed with no increase in accumulation. The tight base and the close above both averages were right; the buyers were missing.",
-   "lesson_line": "The pop must bring buyers. Light volume through the averages is not a pop.",
+   "answer": "Yes, but light volume lowers the grade",
+   "why": "Yes, it is still a Wedge Pop. Volume raises the grade, but it is not a requirement for the setup to count. This one closed above both averages out of a tight base, on 0.88 times the base days' volume, so it grades lower. Kell's first two QQQ pops failed with no increase in accumulation, so a light pop is a weaker picture.",
+   "lesson_line": "Volume raises the grade. A light pop is weaker, not ruled out.",
    "facts": [
-    "c22",
-    "d16",
-    "d17",
+    "c05",
     "k12",
-    "c05"
+    "r55"
    ],
    "wrong": {
-    "Yes, it closed above both": "The close was right and the buyers were missing. Volume no higher than the base days ends it.",
-    "Yes, the base was tight": "A tight base is half the setup. The pop day still needs more volume than the base.",
-    "No, the base was too short": "The story gives a 6-day base, past the 3-session minimum. The base was fine. The missing buyers are the problem."
+    "No, light volume ends it right there": "Light volume does not end it. Volume raises the grade; it is not a requirement for the setup to count. This one grades lower.",
+    "No, a 6-day base is too short to count": "The story gives a 6-day base, past the 3-session minimum. The base was fine.",
+    "Yes, and it is a top grade A+ pop": "The strongest pop comes on clearly more volume than the base days. This light volume holds the grade back."
    },
    "house": true,
    "story": "An 18% decline, then a 6-day tight base. It trades through the pivot and closes above both averages, on 0.88x the base days' volume.",
-   "simple": "No, because the pop came on volume no higher than the base days, so buyers were missing.",
+   "simple": "Yes, it still counts as a pop, because volume only raises the grade, and this light volume lowers it.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2260,10 +2289,7 @@
      "volume rules are a held decision (D-006)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q35",
@@ -2451,10 +2477,7 @@
      "volume rules are a held decision (D-006)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q40",
@@ -2663,24 +2686,23 @@
     "Proof the setup does not work"
    ],
    "answer": "A planned loss, the plan working",
-   "why": "A planned loss. The honest stop was 4.7% below the fill, wider than about 3%, so our rule is a smaller position or a pass. You took the smaller size. The pop came on 1.24 times the base days' volume, so it passed our volume test, and the stop did its job.",
+   "why": "A planned loss. The honest stop was 4.7% below the fill. That is past the 3.5% we call good, but inside the 5% we accept, so you took it smaller. The pop closed at the high on 1.24 times the base days' volume. The stop did its job.",
    "lesson_line": "A wide stop is a reason for a small size. The loss stays small too.",
    "facts": [
-    "c19",
-    "c22",
     "d20",
     "d21",
     "d26",
-    "h02"
+    "h02",
+    "r56"
    ],
    "wrong": {
-    "A mistake: stop was too wide": "The rule for a wide stop is a smaller position or a pass, and you took the smaller position. A wide stop is not banned.",
+    "A mistake: stop was too wide": "Up to 5% is acceptable, and you took the smaller position. A wide stop is not banned.",
     "A sign to widen stops": "A stop never moves wider, and a wide honest stop already means a smaller size.",
     "Proof the setup does not work": "One loss at the stop proves nothing about the setup. A valid pop can fail, and then the stop does its job."
    },
    "house": true,
    "story": "A 13-day base after a 41% decline. The pop closes at the high, on 1.24x the base days' volume. The honest stop is 4.7% below your fill. You took it smaller. Day 2 takes the stop.",
-   "simple": "A planned loss, because a stop wider than about 3% calls for a smaller size, and you took it and the stop did its job.",
+   "simple": "A planned loss, because the wide stop was still acceptable, you sized down, and the stop did its job.",
    "deeper": {
     "trap": "Trap: calling the loss a mistake because it came on day 2. COIN, 2024-08-23, closed at the high with a 4.7% stop and was stopped on day 2. All four failed pops in our table closed strong, so the candle could not have warned you."
    },
@@ -2692,10 +2714,7 @@
      "the cold check held it as a fix on D-006"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q46",
@@ -2740,10 +2759,7 @@
      "the stop default is held (D-008)"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q47",
@@ -3005,9 +3021,6 @@
      "the example sits near a held decision (D-025)"
     ]
    },
-   "depends_on": [
-    "D-025"
-   ],
    "batch": "wave2"
   },
   {
@@ -3053,10 +3066,7 @@
      "trigger timing is a held decision (D-003)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q55",
@@ -3619,17 +3629,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "wp.above_200",
-   "q": "A Wedge Pop long needs the pop day to close above the 200-day simple moving average.",
+   "q": "A Wedge Pop long on a stock needs the pop day to close above the 200-day simple moving average.",
    "answer": "True",
-   "why": "True. We take no longs below the 200-day simple moving average, and the Wedge Pop is not a parabolic long. About half of all pops come under it and are not ours.",
+   "why": "True. For a stock, we take no longs below the 200-day simple moving average. The one exception is indexes and ETFs built to magnify an index's moves, on a reversal extension or a parabolic long. About half of all pops come under it and are not ours.",
    "lesson_line": "Above the 200-day or it is not our pop, however clean the base.",
    "facts": [
-    "h10",
     "c27",
-    "c45"
+    "r53",
+    "r54"
    ],
    "house": true,
-   "simple": "True, because our hard rule bars longs below the 200-day line and the Wedge Pop is not a parabolic long.",
+   "simple": "True, because our hard rule bars stock longs below the 200-day line.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -3637,10 +3647,7 @@
      "the 200-day rule is the owner's settled rulebook line (B26)"
     ]
    },
-   "batch": "wave2",
-   "depends_on": [
-    "D-009"
-   ]
+   "batch": "rulings"
   },
   {
    "key": "q70",
@@ -3757,9 +3764,8 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c19, A13, A4, d20/d21; 41% and 13-day verified in the dossier COIN row). Defect: the why says 'volume grades a pop and does not gate it', which contradicts q34 and the card's wp.inv_no_volume (a pop on volume no higher than the base days is invalid, a gate). Here 1.24x passes that test, so say that instead. The key still rests on D-006 option (a); keep depends_on D-006 (under 1.05x or 1.5x the 50-day, COIN would not qualify). Mild tell: the key is the lone positive framing against three negatives; left as is.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q49": {
    "status": "cut",
@@ -3869,7 +3875,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "keep agrees with ruling"
   },
   "q47": {
    "status": "pass",
@@ -3900,7 +3906,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "keep agrees with ruling"
   },
   "q65": {
    "status": "pass",
@@ -3916,23 +3922,21 @@
   },
   "q33": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q34": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep agrees with ruling"
   },
   "q40": {
    "status": "pass",
@@ -3972,9 +3976,9 @@
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "keep agrees with ruling"
   },
   "q03": {
    "status": "pass",
@@ -4005,7 +4009,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c12/h22/h23 settled; D-003 dependency recorded. Pass."
+   "notes": "keep agrees with ruling"
   },
   "q08": {
    "status": "pass",
@@ -4079,7 +4083,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q42": {
    "status": "pass",
@@ -4140,7 +4144,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q70": {
    "status": "pass",

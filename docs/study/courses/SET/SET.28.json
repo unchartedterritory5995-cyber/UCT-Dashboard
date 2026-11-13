@@ -108,6 +108,14 @@
    "title": "The Wyckoff Method: A Tutorial",
    "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -794,6 +802,18 @@
    "source": "c1",
    "quote": "averages (20 EMA, 50-day, 200-day) still above price after the remount day",
    "claim": "Card 32: the all-averages cue counts the 20 EMA, the 50-day and the 200-day still above price after the remount day."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Volume raises the grade; it is not a requirement for the setup to count",
+   "claim": "Owner: volume only raises the grade, it is not a requirement for the setup to count."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "When the day gaps more than 4% past it, one more way in is allowed: buy intraday on a morning flush or pullback that curls back up",
+   "claim": "Owner: after a gap more than 4% past the trigger, one more way in is a morning flush or pullback that curls back up."
   }
  ],
  "walkthroughs": [
@@ -1197,9 +1217,6 @@
      "the light-volume invalidation is proposed on card 13 and held (D-006)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
    "batch": "wave3"
   },
   {
@@ -1421,10 +1438,7 @@
      "which low anchors the stop is held (D-008)"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q19",
@@ -1486,10 +1500,7 @@
      "the pause entry is card 13's proposed Entry B, held (D-003)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q21",
@@ -2065,9 +2076,6 @@
      "the index-under-its-200-day line is proposed on card 32 and held (D-023)"
     ]
    },
-   "depends_on": [
-    "D-023"
-   ],
    "batch": "wave3"
   },
   {
@@ -2186,30 +2194,30 @@
    "criterion": "rm.inv_light_after_heavy",
    "q": "What is the call?",
    "choices": [
-    "Pass; the retake lacks real buying",
+    "Wait; the quiet inside day comes first",
+    "Pass; light volume kills the setup",
     "Pass; it was under too briefly",
-    "Buy; the line is retaken on the close",
-    "Buy half size and use a tight stop"
+    "Buy; the line is retaken on the close"
    ],
-   "answer": "Pass; the retake lacks real buying",
-   "why": "Pass. The stock lost its 50-day on heavy volume and came back on light volume. Our card lists that light-volume reclaim after a heavy-volume break as an invalidation. Few buyers came with the close, and IBD notes stocks often need a large boost of buying power to muscle back above a lost 50-day line.",
-   "lesson_line": "Heavy break, light retake: no trade.",
+   "answer": "Wait; the quiet inside day comes first",
+   "why": "Wait. The stock lost its 50-day on heavy volume and retook it on light volume. Light volume earns no extra grade, but it does not void the setup, because volume only raises the grade. What arms the buy is the pause, a quiet inside day above the line. Then buy as price trades over that day's high.",
+   "lesson_line": "Light-volume retake: no grade boost, and still wait for the quiet day.",
    "facts": [
-    "m09",
-    "k13",
-    "i1",
-    "k18"
+    "k18",
+    "m10",
+    "m11",
+    "r01"
    ],
    "wrong": {
-    "Buy; the line is retaken on the close": "The line is retaken, but a light-volume reclaim after a heavy-volume break is an invalidation.",
-    "Buy half size and use a tight stop": "Half size does not fix it. A light retake after a heavy break is no trade.",
-    "Pass; it was under too briefly": "Three weeks under the line is long enough to count as lost. The problem is light buying after a heavy break."
+    "Buy; the line is retaken on the close": "A close back over the line is the retake, not the buy. The buy waits for a quiet inside day and then a break of its high.",
+    "Pass; it was under too briefly": "Three weeks under the line is long enough to count as lost. The retake is real, and the pause is still missing.",
+    "Pass; light volume kills the setup": "Volume only raises the grade. It is not a must, so light volume alone does not kill a Remount."
    },
    "house": true,
    "story": "A stock lost its 50-day on heavy volume and stayed under it for three weeks. It drifts back over the line and closes above it on light volume.",
-   "simple": "Pass. The break came on heavy volume and the retake on light volume, so too few buyers came back to trust the line.",
+   "simple": "Wait. Light volume does not kill a Remount, so the next step is a quiet inside day above the line.",
    "deeper": {
-    "trap": "Heavy volume on the break and light volume on the retake is the pattern to fear. The close is back over the line, but few buyers came with it. A close over the line alone does not make a Remount."
+    "trap": "Trap: light volume on the retake feels like a veto. It is not. Volume only raises the grade. What is missing is the pause, a quiet inside day above the line. Without it there is nothing to buy yet."
    },
    "tier": "extended",
    "risk": {
@@ -2218,10 +2226,7 @@
      "the volume rule is proposed on card 13 and held (D-006)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q41",
@@ -2460,13 +2465,14 @@
     "Buy and widen the stop to fit"
    ],
    "answer": "Pass; the gap is too far past 50.00",
-   "why": "Pass. Never buy more than 4% above the buy point. The quiet day's high of 50.00 is the buy point, and a fill at 52.60 is more than 4% above it. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
-   "lesson_line": "Four percent over the buy point and I am done.",
+   "why": "Pass. Never buy more than 4% above the buy point. The quiet day's high of 50.00 is the buy point, and a fill at 52.60 is more than 4% above it. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. A morning flush or pullback that curls back up is one more way in.",
+   "lesson_line": "Past four percent at the open, do not chase. Wait for a flush.",
    "facts": [
     "h11",
     "h12",
     "m11",
-    "h02"
+    "h02",
+    "r02"
    ],
    "wrong": {
     "Pass; the trigger has not fired": "The trigger did fire, since the stock opened over 50.00. The problem is the fill, not the signal.",
@@ -2475,9 +2481,9 @@
    },
    "house": true,
    "story": "The quiet day's high is 50.00. The stock gaps up to 52.60 at the open.",
-   "simple": "Pass, because the gap puts the fill more than 4% above the buy point, and we never chase past 4%.",
+   "simple": "Pass at the open, because the gap puts the fill more than 4% above the buy point, and we never chase it.",
    "deeper": {
-    "trap": "The trigger did fire, since price traded over the high. The 4% check is made on the fill, not on the signal. A gap up is where it bites. The stop stays under the buy point, so the risk per share grows and the share count has to shrink."
+    "trap": "The trigger did fire, since price traded over the high. The 4% check is made on the fill, not on the signal. A gap up is where it bites. The stop stays under the buy point, so the risk per share grows and the share count has to shrink. A morning flush or pullback that curls back up can give another way in later in the day."
    },
    "tier": "extended",
    "risk": {
@@ -2489,10 +2495,7 @@
      "edited at the cold check"
     ]
    },
-   "depends_on": [
-    "D-022"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q47",
@@ -2575,10 +2578,7 @@
      "rests on the owner's rulebook (B22)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q49",
@@ -2790,9 +2790,6 @@
      "+1 fixed before"
     ]
    },
-   "depends_on": [
-    "D-023"
-   ],
    "batch": "wave3"
   },
   {
@@ -2837,9 +2834,6 @@
      "the old key said Nothing and was softened"
     ]
    },
-   "depends_on": [
-    "D-023"
-   ],
    "batch": "wave3"
   },
   {
@@ -2934,10 +2928,7 @@
      "rests on a held decision (D-003, the pause entry over a quiet inside day)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q57",
@@ -3198,10 +3189,7 @@
      "rests on a held decision (D-008, what a close back under the line means after the buy)"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q64",
@@ -4068,8 +4056,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q19": {
    "status": "pass",
@@ -4080,9 +4068,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "m10, m11 and card 32 rm.entry_pause support it. The distractors are clearly not quiet days. The key is not the longest choice. The red-to-green variant is not offered, so there is no second answer.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q21": {
    "status": "pass",
@@ -4204,7 +4191,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (m09, k13). But the why's IBD sentence repeats q11's stem plus its key ('as your chance to sell'). The deeper trap gives q09's key ('mark a sell level'). The simple, the lesson_line and the half-size wrong note also say 'sell', and the why is a near-copy of q11's why. 'It takes a large boost' also hardens IBD's 'often need' (i1). Rewritten to stand on the card and i1's exact hedge."
+   "notes": "re-key to wait is right (D-006); 'light volume lowers the grade' is not the owner's ruling, say no boost"
   },
   "q41": {
    "status": "pass",
@@ -4242,9 +4229,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q47": {
    "status": "pass",
@@ -4255,8 +4241,8 @@
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q49": {
    "status": "pass",
@@ -4305,8 +4291,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "NKE 2020-08-05/06/07 matches dossier rows d01/d02 (verified in 32-remount.md line 1147). The +1.3 ATR close, the inside day, 101.19/99.98 and 1.2% (calc 1.196%) are all grounded. Two Take and two Pass choices. 'Buy now' is clearly anticipating the trigger."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q57": {
    "status": "pass",
@@ -4348,8 +4334,8 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "m06 (card 13, settled by D-136) covers a 200-day remount exactly. A4 and C33 hold. Breakeven at 2R to 5R (h05) rules out 46.01. 45.60 is above the 44.80 stop. I could not break it."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q64": {
    "status": "cut",

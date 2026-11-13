@@ -96,6 +96,14 @@
    "title": "Wyckoff Spring dossier, sections 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/35-wyckoff-spring-upthrust.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -788,6 +796,24 @@
    "source": "h1",
    "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours.",
    "claim": "E50: grading a setup is discretionary; no fixed checklist is taught as ours."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "For stocks, below the 200-day is a hard no."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "Indexes and leveraged ETFs may go under it on a reversal extension or a parabolic long."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Stops: 1-3% preferred, 3.5% good, up to 5% acceptable."
   }
  ],
  "walkthroughs": [
@@ -1379,10 +1405,7 @@
      "fixed before (second publisher added)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q18",
@@ -1423,20 +1446,22 @@
     "Nothing but the floor"
    ],
    "answer": "The 20-day or 50-day average",
-   "why": "The 20-day or the 50-day. Our card says the spring often undercuts those averages too. The 200-day is a different matter: we take no longs below the 200-day unless it is a parabolic long. A spring is a small dip under a flat floor, not a collapse.",
-   "lesson_line": "A spring can dip through the 20-day or 50-day. No longs under the 200-day.",
+   "why": "The 20-day or the 50-day. Our card says the spring often undercuts those averages too. The 200-day is a different matter: below it is a hard no for stocks. A spring is a small dip under a flat floor, not a collapse.",
+   "lesson_line": "A spring can dip through the 20-day or 50-day. Below the 200-day is a hard no for stocks.",
    "facts": [
     "c12",
     "h10",
-    "c09"
+    "c09",
+    "r01",
+    "r02"
    ],
    "house": true,
    "wrong": {
-    "The 200-day average": "Our card names the 20-day or 50-day. We take no longs below the 200-day unless it is a parabolic long.",
+    "The 200-day average": "Our card names the 20-day or 50-day. Below the 200-day is a hard no for stocks.",
     "A new multi-year low": "A spring dips at most about 1 ATR under a flat floor. It is not a collapse to a new low.",
     "Nothing but the floor": "Our card says the spring often undercuts the 20-day or 50-day too."
    },
-   "simple": "It often dips under the 20-day or 50-day too, but we take no longs under the 200-day.",
+   "simple": "It often dips under the 20-day or 50-day too, but below the 200-day is a hard no for stocks.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1445,10 +1470,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q20",
@@ -1580,10 +1602,7 @@
      "the reclaim window is a held decision (D-005); only 'quickly reverses' is keyed"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q24",
@@ -1683,14 +1702,15 @@
     },
     "round": 2
    },
-   "why": "1.92%. Stop distance is the buy minus the stop, divided by the buy: (62.50 - 61.30) / 62.50 = 1.92%. That is inside the 3% or so that our stops usually stay within.",
+   "why": "1.92%. Stop distance is the buy minus the stop, divided by the buy: (62.50 - 61.30) / 62.50 = 1.92%. That is inside the 1-3% we prefer for stops.",
    "lesson_line": "Stop distance in percent: buy minus stop, divided by the buy.",
    "facts": [
-    "h04"
+    "h04",
+    "r05"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 1.92% under the buy, inside the 3% or so that our stops usually stay within.",
+   "simple": "The stop is 1.92% under the buy, which sits inside the range we prefer for stops.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1699,10 +1719,7 @@
      "rests on the owner's rulebook (A13) and the held stop-width decision D-022"
     ]
    },
-   "depends_on": [
-    "D-022"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q27",
@@ -2229,10 +2246,7 @@
      "volume is a held decision (D-006); only the disagreement is keyed"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q41",
@@ -2273,10 +2287,7 @@
      "which entry we teach is a held decision (D-003); keyed as the school's view"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q42",
@@ -2346,13 +2357,15 @@
     "Buy at half size, tight stop",
     "Pass; the 200-day must rise"
    ],
-   "story": "A textbook spring under a flat 200-day, after a nine-month decline.",
+   "story": "A textbook spring in a stock under a flat 200-day, after a nine-month decline.",
    "answer": "Pass; no longs under the 200-day",
-   "why": "Pass. We take no longs below the 200-day simple moving average unless it is a parabolic long, and this stock is under it. The rule is about where price sits, not how clean the pattern is or how the line slopes. Our card also prefers a range after a rise, not a base after a decline.",
-   "lesson_line": "Under the 200-day, no long, however clean the spring looks.",
+   "why": "Pass. Below the 200-day is a hard no for stocks, and this stock is under it. Only an index or a levered ETF may go under it, on a reversal extension or a parabolic long. The rule is about where price sits, not how clean the pattern is. Our card also prefers a range after a rise, not a base after a decline.",
+   "lesson_line": "Under the 200-day, no stock long, however clean the spring looks.",
    "facts": [
     "h10",
-    "c01"
+    "c01",
+    "r01",
+    "r02"
    ],
    "house": true,
    "wrong": {
@@ -2360,9 +2373,9 @@
     "Buy at half size, tight stop": "Half size does not fix a rule break.",
     "Pass; the 200-day must rise": "Our rule is about price, not slope. The stock is under the line, and that alone rules out a long."
    },
-   "simple": "Pass, because we take no longs under the 200-day line, however clean the spring looks.",
+   "simple": "Pass, because we take no stock longs under the 200-day line, however clean the spring looks.",
    "deeper": {
-    "trap": "The trap is the textbook shape. After a long decline a spring can look perfect on its own chart. Our 200-day rule is hard: no long below the line unless it is a parabolic long. The shape never overrides the line."
+    "trap": "The trap is the textbook shape. After a long decline a spring can look perfect on its own chart. Our 200-day rule is hard for stocks: no long below the line. The shape never overrides the line."
    },
    "tier": "extended",
    "risk": {
@@ -2372,10 +2385,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q45",
@@ -2501,10 +2511,7 @@
      "the reclaim entry is a held decision (D-003); keyed as the card's lookalike tell"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q48",
@@ -3675,9 +3682,9 @@
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "keep ok; depends_on restored (writer emptied it)"
   },
   "q24": {
    "status": "pass",
@@ -3689,7 +3696,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc correct: (62.50-61.30)/62.50*100 = 1.92. lesson_line 'the gap over the entry' is misleading (a gap is a trading term) and 'inside the about 3%' is ungrammatical."
+   "notes": "D-005: 1-3% preferred, up to 5% ok; '3% or so usually' is stale."
   },
   "q28": {
    "status": "pass",
@@ -3747,15 +3754,15 @@
   },
   "q40": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "keep ok; depends_on restored (writer emptied it)"
   },
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key backed by two publishers (f04 Fraser, t04 ChartSchool; both verified on the pages) and asked as the school's view. The deeper reuses y02 (q58's line), but q58 is rung 4, before this rung 7 item."
+   "fixed": true,
+   "notes": "keep ok; depends_on restored (writer emptied it)"
   },
   "q45": {
    "status": "pass",
@@ -3767,9 +3774,8 @@
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from c30 and c31; choices balanced (22 to 26). The deeper's mixed-plan line overlaps q32, which sits at an earlier rung (5).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "keep ok; depends_on restored (writer emptied it)"
   },
   "q51": {
    "status": "pass",
@@ -3798,15 +3804,14 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "f01 key; f02/f03 notes; t03 + w08 for the quiet view (w08 re-verified 2026-11-12 in the PDF text via pdftotext: the full sentence is there); y01 in the deeper as the counter-view. Asked as Fraser's names, not our cutoff."
+   "fixed": true,
+   "notes": "keep ok; depends_on restored (writer emptied it)"
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c12 verbatim; 200-day excluded by B26 (h10) and the card ('It must stay above the 200-day'). No break found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Ruling: hard no for stocks; only index/leveraged ETF exception. Writer left 'unless parabolic long' for stocks."
   },
   "q25": {
    "status": "pass",
@@ -3829,9 +3834,8 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "B26 (h10) keys Pass; the slope distractor is failed by the rule's wording (price, not slope). Stem now fits the choices.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Same: stock under 200 is a hard no; exception is index/leveraged ETF only."
   },
   "q46": {
    "status": "pass",

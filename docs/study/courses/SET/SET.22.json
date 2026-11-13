@@ -75,6 +75,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -767,6 +775,36 @@
    "source": "c1",
    "quote": "Not a fixed 1% to 3% under the gap-up low: his slight breaches are often deeper than that, so the stop would sit above the test day's low.",
    "claim": "Not a fixed 1% to 3% under the gap-up low, because a slight breach is often deeper, so that stop would sit above the test day's low."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "D-003: every setup buys as price trades through its trigger, during the day."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "D-009: below the 200-day is a hard no for stocks."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "D-009: indexes and leveraged ETFs are the one exception."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "Looking for 3-5-7 day push for our first sell and that might be 10-12-20R.",
+   "claim": "D-013: the first sell is often day-based, a 3, 5 or 7 day push."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "The R-based thirds stay one taught way to take profits, but a question must not teach 3R as the only correct first sell; a day-based first sell on a strong push is equally ours.",
+   "claim": "D-013: R thirds are one taught way, not the only first sell."
   }
  ],
  "walkthroughs": [
@@ -1362,9 +1400,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
    "batch": "wave3"
   },
   {
@@ -1634,9 +1669,6 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
    "batch": "wave3"
   },
   {
@@ -1833,10 +1865,7 @@
      "rests on the owner's market-reading rule (A10, F65)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q32",
@@ -1949,10 +1978,7 @@
      "two facts"
     ]
    },
-   "depends_on": [
-    "D-001"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q35",
@@ -2350,11 +2376,11 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "gs.not_stretched",
-   "q": "Buy the close?",
-   "story": "A test day holds the line and closes strong, but the close is 12% above the 10-day average.",
+   "q": "Take the buy?",
+   "story": "A test day holds the line and price trades through your trigger, but it is 12% above the 10-day average.",
    "choices": [
     "No; more than 10% over the 10-day",
-    "No; the close must sit under the 10-day",
+    "No; price must sit under the 10-day",
     "Yes; the test day looks textbook",
     "Yes, but only at half the usual size"
    ],
@@ -2363,12 +2389,13 @@
    "lesson_line": "Skip a long more than 10% above its 10-day.",
    "facts": [
     "g37",
-    "h13"
+    "h13",
+    "r01"
    ],
    "wrong": {
-    "No; the close must sit under the 10-day": "Our stretch rule is about being more than 10% above the 10-day, not about sitting under it.",
     "Yes; the test day looks textbook": "A textbook chart still has to pass the stretch rule.",
-    "Yes, but only at half the usual size": "Half size does not fix a stretched entry."
+    "Yes, but only at half the usual size": "Half size does not fix a stretched entry.",
+    "No; price must sit under the 10-day": "Our stretch rule is about being more than 10% above the 10-day, not about sitting under it."
    },
    "house": true,
    "simple": "No. We skip a long more than 10% above its 10-day average, and 12% is over that line.",
@@ -2380,10 +2407,7 @@
      "the question says buy the close, which waits on D-003"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q47",
@@ -2421,7 +2445,7 @@
    "format": "scenario",
    "criterion": "gs.after_entry_stop",
    "q": "What was that loss?",
-   "story": "AVGO. A 16.2% earnings gap on 4.3x volume. Thirteen sessions later the test day holds near perfectly, and you buy the close with the stop a few cents under the test day's low. The stop trades without any gain.",
+   "story": "AVGO. A 16.2% earnings gap on 4.3x volume. Thirteen sessions later the test day holds near perfectly. You buy it with the stop a few cents under the test day's low. The stop trades without any gain.",
    "choices": [
     "A planned loss; a clean test can lose",
     "A sign the setup no longer works",
@@ -2435,7 +2459,8 @@
     "e15",
     "g12",
     "h01",
-    "h02"
+    "h02",
+    "r01"
    ],
    "wrong": {
     "A sign the setup no longer works": "One loss does not show that. AVGO held near perfectly and still lost. A clean test can lose.",
@@ -2456,10 +2481,7 @@
      "story says buy the close, D-003"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q49",
@@ -2611,7 +2633,7 @@
    "format": "scenario",
    "criterion": "gs.above_200",
    "q": "Take it or pass?",
-   "story": "EVR, 2019. An 11.3% gap on 4.1x volume above a rising 50-day. Six sessions later the test closes 6.9% under the 200-day.",
+   "story": "EVR, 2019. A stock gaps 11.3% on 4.1x volume above a rising 50-day. Six sessions later the test closes 6.9% under the 200-day.",
    "choices": [
     "Pass; it closed under the 200-day",
     "Pass; the 50-day is not rising enough",
@@ -2619,12 +2641,14 @@
     "Take it, but at half the usual size"
    ],
    "answer": "Pass; it closed under the 200-day",
-   "why": "Pass. The test closed 6.9% under the 200-day. The gap came on 4.1x volume above a rising 50-day. Still, we take no longs below the 200-day simple moving average, unless it is a parabolic long.",
-   "lesson_line": "A close under the 200-day means pass, however good the rest looks.",
+   "why": "Pass. The test closed 6.9% under the 200-day. The gap came on 4.1x volume above a rising 50-day. Still, below the 200-day is a hard no for a stock. Only indexes and levered ETFs may be bought there, on a reversal extension or a parabolic long.",
+   "lesson_line": "A stock under its 200-day is a pass, however good the rest looks.",
    "facts": [
     "e25",
     "g03",
-    "h10"
+    "h10",
+    "r02",
+    "r03"
    ],
    "wrong": {
     "Take it; the gap is huge on volume": "Gap size does not change the 200-day rule.",
@@ -2632,7 +2656,7 @@
     "Take it, but at half the usual size": "Half size does not fix a 200-day failure."
    },
    "house": true,
-   "simple": "Pass. The test closed 6.9% under the 200-day, and we take no longs below the 200-day.",
+   "simple": "Pass. The test closed 6.9% under the 200-day, and a stock below its 200-day is a hard no.",
    "deeper": {
     "trap": "Letting a strong gap overrule the 200-day. An 11.3% gap on 4.1x volume above a rising 50-day looks strong. The test day still closed under the 200-day, and the rule is checked on the test day's close."
    },
@@ -2640,14 +2664,11 @@
    "risk": {
     "score": 2,
     "reasons": [
-     "rests on the owner's 200-day rule (B26)",
+     "rests on the owner's 200-day ruling D-009",
      "example read from our own bars"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q54",
@@ -2698,7 +2719,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "gs.post_gap_high_trim",
-   "q": "By our plan, where does the first third go?",
+   "q": "On the R plan, where does the first third come off?",
    "story": "LLY, 2021. A news gap. The test is bought at 231.13 with the stop at 228.43. The post-gap high is 239.37.",
    "choices": [
     "A third at 3R, at 239.23",
@@ -2716,14 +2737,16 @@
     },
     "round": 2
    },
-   "why": "A third at 3R, 239.23. One R is the fill minus the stop, 231.13 minus 228.43. Three of those above the fill is 239.23. The post-gap high, 239.37, sits above 3R, so it comes second and the third stays at 3R.",
-   "lesson_line": "The first third comes off at 3R.",
+   "why": "A third at 3R, 239.23. On the R plan, one R is the fill minus the stop, 231.13 minus 228.43. Three of those above the fill is 239.23. The post-gap high, 239.37, sits above 3R, so it comes second. A day-based first sell on a strong push is also ours.",
+   "lesson_line": "On the R plan, the first third comes off at 3R.",
    "facts": [
     "h05",
     "h20",
     "g20",
     "e30",
-    "e31"
+    "e31",
+    "r04",
+    "r05"
    ],
    "wrong": {
     "A third at 239.37": "The first third comes off at 3R, and 239.23 comes before 239.37.",
@@ -2731,24 +2754,19 @@
     "A third on a 240 close": "There is no rule to wait for 240."
    },
    "house": true,
-   "simple": "Sell the first third at 3R, 239.23. The post-gap high, 239.37, is above 3R, so it comes second.",
+   "simple": "On the R plan, sell the first third at 3R, 239.23. The post-gap high, 239.37, is above 3R, so it comes second.",
    "deeper": {
-    "trap": "The two levels sit close together, so it is easy to pick the high. The plan is a third at 3R, and 3R is reached first."
+    "trap": "The two levels sit close together, so it is easy to pick the high. On the R plan a third comes off at 3R, and 3R is reached first. We also sell into a 3, 5 or 7 day push, but this question asks for the R plan."
    },
    "tier": "expert",
    "risk": {
-    "score": 5,
+    "score": 3,
     "reasons": [
-     "tied to a held decision (D-013)",
-     "computed key",
-     "fixed before"
+     "the R-based thirds are one taught way; the first sell can also be day-based (owner ruling D-013)",
+     "computed key"
     ]
    },
-   "depends_on": [
-    "D-013",
-    "D-025"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q56",
@@ -2928,7 +2946,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "gs.test_close_position",
-   "q": "Hidden ticker, the test day is the last bar. Judging the test day alone, buy the close or pass?",
+   "q": "Hidden ticker, the test day is the last bar. Judging the test day alone, is it a buy or a pass?",
    "choices": [
     "Take it; closed back over the line",
     "Pass; the gap has already filled",
@@ -2936,7 +2954,7 @@
     "Pass; it closed under the gap-up low"
    ],
    "answer": "Take it; closed back over the line",
-   "why": "Take it. The low dipped 0.3% under the 27.00 gap-up low, but the day closed at 27.15, back over the line. That close is 62% of its range, in the upper half. The scan bought 27.15 with the stop at 26.89.",
+   "why": "Take it. The low dipped 0.3% under the 27.00 gap-up low, but the day closed at 27.15, back over the line. That close is 62% of its range, in the upper half. The stop sits a few cents under the day's low, at 26.89.",
    "lesson_line": "A hold at the line with a strong close is the setup.",
    "facts": [
     "e01",
@@ -2945,7 +2963,8 @@
     "g08",
     "g10",
     "g11",
-    "g27"
+    "g27",
+    "r01"
    ],
    "wrong": {
     "Pass; the gap has already filled": "The gap was still open. No close had sat at or under the prior day's high since the gap day.",
@@ -2972,10 +2991,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q62",
@@ -2983,7 +2999,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "gs.inv_still_falling",
-   "q": "Hidden ticker, the test day is the last bar. Did it hold the line and close back strong? Buy the close or pass.",
+   "q": "Hidden ticker, the test day is the last bar. Did it hold the line and close back strong? Is it a buy or a pass?",
    "choices": [
     "Pass; it closed right at its low",
     "Pass; it needs a deeper undercut first",
@@ -2997,7 +3013,8 @@
     "e21",
     "e22",
     "g28",
-    "g11"
+    "g11",
+    "r01"
    ],
    "wrong": {
     "Take it; it held the line today": "It closed under the line, not on it.",
@@ -3024,10 +3041,7 @@
      "choice added"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q63",
@@ -3891,8 +3905,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "231.13 + 3 x 2.70 = 239.23. The post-gap high 239.37 is above 3R, so the key is 3R under either D-013 ruling (g20, h05). 5R is 244.63. Facts cite the LLY rows. News gap used for arithmetic only (D-025 noted).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "R plan framing, day-based first sell noted; quotes verbatim"
   },
   "q01": {
    "status": "pass",
@@ -4026,7 +4039,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Red = mostly cash and shorts per g32/h26 (and D46). Each distractor maps to a different reading. Story's clean test is a fair temptation. No cross-answer with q05 beyond feedback text."
+   "notes": "keep: not about entry"
   },
   "q32": {
    "status": "pass",
@@ -4044,7 +4057,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from g41 verbatim. Wrong notes supported. Depends on held D-001 only for the short mirror, not asked."
+   "notes": "keep: bear gap is not a long; no short teaching"
   },
   "q35": {
    "status": "pass",
@@ -4113,14 +4126,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from g37/h13; 12% over 10% is clear; lengths balanced."
+   "notes": "trigger buy wording agrees with D-003; 10% test unchanged"
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (card: 16% gap is not banned, over 30% is only a lower grade). Two problems. (1) Wrong note for 'you should have waited a day' says waiting would not change the stop; that is false in hindsight: the stop traded the very next session (dossier table: 2025-09-25), so waiting a day would have dodged it. Replaced that choice. (2) Lone non-blame key against three 'mistake/broken rule' choices is a tell; the new distractor is also non-blame. FACT ISSUE outside this question: e15 cites d1 but its quote is verbatim only in c1 (25-gap-support.json, failures AVGO entry); in d1 the text has '(20",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cite D-003 ruling"
   },
   "q49": {
    "status": "pass",
@@ -4138,7 +4150,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from g03/g29/h10/e25; numbers in e25. Note: q47 (not in scope) is the same 200-day case without the real example; recommend cutting q47 rather than this one."
+   "notes": "200-day hard no for stocks with exception; quotes verbatim"
   },
   "q54": {
    "status": "pass",
@@ -4169,14 +4181,14 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "GPN test day: low 0.3% under 27.00, close 27.15 back over, 62% of range (e01-e03); gap still open (g08). Wrong notes rest on cited facts. Lone Take shape accepted. Note: the same GPN example is walkthrough w1, so the chart can be recalled; unavoidable with the dossier's hit set."
+   "fixed": true,
+   "notes": "why said the scan bought 27.15, the close; D-003 has no close entry"
   },
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from e21/e22/g28. Same DE case as q51 (rung 7) by design; kept."
+   "fixed": true,
+   "notes": "cite D-003 ruling"
   },
   "q63": {
    "status": "pass",

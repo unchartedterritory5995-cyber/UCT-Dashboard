@@ -879,9 +879,6 @@
      "rests on a held decision: the role of red to green, D-002 (+2)"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
    "batch": "wave5"
   },
   {
@@ -940,9 +937,6 @@
      "rests on the trigger-or-setup framing, a held owner decision (D-002)"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
    "batch": "wave5"
   },
   {
@@ -982,10 +976,7 @@
      "rests on the rulebook and a held decision on the stop, D-008 (+2)"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q07",
@@ -1466,10 +1457,7 @@
      "rests on the trigger-or-setup framing, a held owner decision (D-002)"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q22",
@@ -1497,10 +1485,7 @@
      "reworded in this upgrade"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q23",
@@ -1542,10 +1527,7 @@
      "fixed before: variety rewrite 2026-11-10"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q24",
@@ -2977,9 +2959,6 @@
      "the stop placement is a held owner decision (D-008); the rulebook's A3 also names the prior day's low"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
    "batch": "wave5"
   },
   {
@@ -3619,8 +3598,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer: a few cents under the dip's low (cStop, h01, h24). Key matches. Kullamagi and Raschke lines match ku1 and ra1. Choice lengths 29-32. 8% is a choice in the question, not a claim. No second defensible answer: A3's 'prior day's low' is not among the choices."
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q07": {
    "status": "pass",
@@ -3709,21 +3688,21 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key rests on the motive (room), mWide verbatim; A3 lets the prior day's low be a default stop but never for room, so not against section 9. D-008 owner flag already filed."
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Decided Wait before reading key (mAnt, cOrder, h22). bo1 verified live on stockstotrade.com. Limit-order choice is exactly 40 chars; its note is supported by cOrder/h22 (a buy limit above the market would fill under the line now). No tell."
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q24": {
    "status": "pass",

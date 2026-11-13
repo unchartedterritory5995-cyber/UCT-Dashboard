@@ -121,6 +121,14 @@
    "title": "Bear Gap dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/27-bear-gap.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -741,6 +749,12 @@
    "source": "d1",
    "quote": "the bounce stalled under the declining 20-day and the zone",
    "claim": "OI's bounce stalled under the declining 20-day and the gap zone."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Shorts may be taught, but every short lesson says shorting is recommended only for traders who have already made $1 million trading.",
+   "claim": "Shorts are taught, but only for traders who have made $1 million."
   }
  ],
  "walkthroughs": [
@@ -808,14 +822,15 @@
     "A gap that will fill soon"
    ],
    "answer": "A level to read, not a trade",
-   "why": "A level to read, not a trade. Today the app defines no trade for the bear gap. The lesson shows the level, and the fall is measured, not traded. It is never a reflex short at the gap-day close. On a stock you own, it is a warning.",
+   "why": "A level to read, not a trade. Today the app defines no trade for the bear gap. The lesson shows the level, and the fall is measured, not traded. It is never a reflex short at the gap-day close. On a stock you own, it is a warning. Any short is recommended only for traders who have already made $1 million trading.",
    "lesson_line": "Today the bear gap is a level to read. The fall is measured, not traded.",
    "facts": [
     "c01",
     "c02",
     "c08",
     "c11",
-    "g03"
+    "g03",
+    "r01"
    ],
    "house": true,
    "wrong": {
@@ -833,10 +848,7 @@
      "fixed before by the checker"
     ]
    },
-   "depends_on": [
-    "D-001"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q02",
@@ -1770,11 +1782,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-009",
-    "D-013"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q29",
@@ -3369,10 +3377,7 @@
      "computed key"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q78",
@@ -3487,11 +3492,12 @@
     "The 10-day, within the first week"
    ],
    "answer": "The zone, or a falling 20 or 50-day",
-   "why": "The zone, or a falling 20-day or 50-day. Our card gives the bounce up to 25 sessions to rally into the gap zone or a declining 20-day or 50-day, with no close above the zone's top edge. A bounce that fails there is the retest read.",
+   "why": "The zone, or a falling 20-day or 50-day. Our card gives the bounce up to 25 sessions to rally into the gap zone or a declining 20-day or 50-day, with no close above the zone's top edge. A bounce that fails there is the retest read. Any short from it is recommended only for traders who have already made $1 million trading.",
    "lesson_line": "The retest read: a bounce into the zone or a declining 20-day or 50-day that fails.",
    "facts": [
     "c39",
-    "c34"
+    "c34",
+    "r01"
    ],
    "house": true,
    "wrong": {
@@ -3509,10 +3515,7 @@
      "rests on held decision D-001 (level only, short, or both)"
     ]
    },
-   "depends_on": [
-    "D-001"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   }
  ],
  "conflicts": [
@@ -3741,8 +3744,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key derived from c01/c02 before reading it. Choices 25-28 chars, no tell. Wrong notes rest on c11, c01, g03. The why's no-reflex line also teaches q19's rule, but q19 is a rung-4 application of it, so this is teaching, not a leak."
+   "fixed": true,
+   "notes": "agrees, $1M note added; depends_on restored (writer emptied it)"
   },
   "q12": {
    "status": "pass",
@@ -3777,8 +3780,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c23 and B26's parabolic burst (three up days, climax-day gap up) fit the story; bear gap gaps down, News Failure and Parabolic Long excluded by c21/c24. No second answer."
+   "fixed": true,
+   "notes": "keep ok; depends_on restored (writer emptied it)"
   },
   "q36": {
    "status": "pass",
@@ -4011,8 +4014,8 @@
   "q77": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (45-40)/(48-40)*100 = 62.5 recomputed. c35 supports 'middle or high'; depends_on D-009 present."
+   "fixed": true,
+   "notes": "keep ok; depends_on restored (writer emptied it)"
   },
   "q78": {
    "status": "pass",
@@ -4035,8 +4038,8 @@
   "q81": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c39 verbatim. Key one character longer than the next choice, not a real tell. Does not give away q59, q60 or q73."
+   "fixed": true,
+   "notes": "agrees, $1M note added; depends_on restored (writer emptied it)"
   }
  }
 }

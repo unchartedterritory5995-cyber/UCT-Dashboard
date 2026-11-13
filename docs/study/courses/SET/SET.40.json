@@ -138,6 +138,14 @@
    "title": "Sunday Scans, 2025-07-13 (RDDT)",
    "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-6a6",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -866,6 +874,30 @@
    "source": "h1",
    "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours.",
    "claim": "E50: grading a setup is discretionary and hard to define; no fixed checklist is taught as ours."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Owner: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r12",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "Owner: past 5% from the trigger, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r13",
+   "source": "h2",
+   "quote": "Never move the stop up to make a trade fit.",
+   "claim": "Owner: never move the stop to make a trade fit."
+  },
+  {
+   "id": "r15",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Owner: every setup buys as price trades through its trigger, never at the close."
   }
  ],
  "walkthroughs": [
@@ -1427,10 +1459,9 @@
     ]
    },
    "depends_on": [
-    "D-003",
     "D-038"
    ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q16",
@@ -1637,30 +1668,32 @@
    "criterion": "id.stop_wide",
    "q": "What do you do?",
    "choices": [
-    "Keep the stop; cut the shares",
+    "Pass; wait for a tighter trigger",
     "Use the mother low; size down",
     "Pull the stop to 3%; size down",
     "Keep the stop; buy the usual size"
    ],
-   "answer": "Keep the stop; cut the shares",
-   "why": "Size down or skip. A stop well over 3% from the buy means a smaller position or no trade. The stop stays under the inside day's low, and the size follows it. Never use the mother low to give it room, and never pull the stop in to fit.",
+   "answer": "Pass; wait for a tighter trigger",
+   "why": "Pass and wait for a tighter trigger. We prefer 1 to 3%, 3.5% is good, and up to 5% is acceptable. This stop is 6% from the trigger, so we mostly wait. The stop stays under the inside day's low. Never use the mother low to give it room.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
-    "c15",
     "h01",
     "h03",
-    "c36"
+    "c36",
+    "r11",
+    "r12",
+    "r13"
    ],
    "house": true,
    "wrong": {
     "Use the mother low; size down": "Never use the mother low just to give it room. The stop stays under the inside day's low.",
-    "Pull the stop to 3%; size down": "A 3% stop sits above the inside day's low. The stop stays under the low; the size moves.",
-    "Keep the stop; buy the usual size": "The same shares on a wider stop risk more than planned. The size comes from the stop, so a wide stop means fewer shares or no trade."
+    "Pull the stop to 3%; size down": "A 3% stop sits above the inside day's low. Never move the stop up to make a trade fit.",
+    "Keep the stop; buy the usual size": "The same shares on a wider stop risk more than planned. Past 5%, we mostly wait for a tighter trigger."
    },
    "story": "The inside day is wide: the stop under its low sits 6% from the trigger. The mother bar's low is 8% away.",
-   "simple": "Keep the stop under the inside low and cut the shares, because the size follows the stop.",
+   "simple": "Pass and wait for a tighter trigger, because this stop is past the 5% we accept.",
    "deeper": {
-    "counter": "A wide stop is not a flaw in the setup. It is information. The planned loss is the shares times the distance to the stop. A wider stop means fewer shares, never the same shares with the stop moved closer."
+    "counter": "A wide stop is not a flaw in the setup. It is information. Up to 5% is acceptable, with the size set by the stop. Past 5%, we mostly wait for a tighter trigger, never the same shares with the stop moved closer."
    },
    "tier": "core",
    "risk": {
@@ -1669,10 +1702,7 @@
      "rests on the owner's rulebook (A3, A5) and a stop-size line still held"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q23",
@@ -1970,10 +2000,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q31",
@@ -2591,27 +2618,25 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "id.stop_wide",
-   "q": "Buy 50.00, stop 48.40. The 14-day ATR is 1.20. How many ATR is the stop?",
-   "answer": 1.33,
+   "q": "Buy 50.00, stop 48.40. How far below the buy is the stop, in percent?",
+   "answer": 3.2,
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "(a - b) / c",
+     "expr": "(a - b) / a * 100",
      "a": 50.0,
-     "b": 48.4,
-     "c": 1.2
+     "b": 48.4
     },
     "round": 2
    },
-   "why": "1.33 ATR. The stop distance divided by the ATR. Over 1 ATR is wide, so we size down or skip, and never use the mother low to give it room. Kullamagi also keeps the stop no wider than the ATR or ADR.",
-   "lesson_line": "Measure the stop in ATR. Over one ATR, size down or skip.",
+   "why": "3.2%. Take the buy minus the stop, 50.00 minus 48.40, and divide by the buy. We prefer a stop 1 to 3% away, and 3.5% is good. This one is a touch past the preferred range. Up to 5% is acceptable, so we take it and the stop sets the size.",
+   "lesson_line": "Measure the stop as a percent of the buy. Past 5%, wait for a tighter trigger.",
    "facts": [
-    "c15",
-    "k03"
+    "r11"
    ],
-   "suffix": " ATR",
+   "suffix": "%",
    "house": true,
-   "simple": "The stop is 1.33 ATR away, which is over 1 ATR, so it counts as wide.",
+   "simple": "The stop is 3.2% below the buy: the buy minus the stop, divided by the buy.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2621,10 +2646,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q49",
@@ -2951,12 +2973,13 @@
     "h05",
     "h20",
     "h21",
-    "d17"
+    "d17",
+    "r15"
    ],
    "house": true,
    "wrong": {
     "Buy 55.02, stop 52.00, and hold it all": "The stop belongs a few cents under the inside day's low, 54.28. And a third comes off at 3R.",
-    "Wait for the close; mother-low stop": "The trigger is the trade over the high, our default, not the close. The mother low is the named mistake.",
+    "Wait for the close; mother-low stop": "We buy as price trades through the high, never at the close. The mother low is the named mistake.",
     "Buy 55.02, stop 54.28, no trims": "The stop is right, but a fixed stop with no trims is a loser on average unless the winners are trailed. A third comes off at 3R."
    },
    "story": "NVDA, January 2024: an inside day four days after a breakout, on light volume. The next session opens a hair over the high.",
@@ -2972,10 +2995,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q58",
@@ -3247,10 +3267,7 @@
      "tied to the held decision D-002 on the narrow-range look-alike"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q64",
@@ -3277,7 +3294,7 @@
     "d07",
     "d08",
     "h26",
-    "c15"
+    "c36"
    ],
    "house": true,
    "wrong": {
@@ -3298,10 +3315,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q65",
@@ -3498,8 +3512,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E57, E58 and the card's trigger (a cent over, bought at market) carry the key. D-038 accepts a resting buy-stop, and the distractor is a LIMIT order a cent over, so it is still wrong under E57. Choice lengths are even.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep agrees with ruling"
   },
   "q16": {
    "status": "pass",
@@ -3540,8 +3553,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "6% is well over 3% (c15); keep stop, cut shares; key is not longest; wrong notes grounded in c15/c36."
+   "fixed": true,
+   "notes": "edited by writer, agrees with ruling"
   },
   "q23": {
    "status": "pass",
@@ -3589,8 +3602,8 @@
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key grounded in c21, c31, u06. Held D-002 stays flagged. Leak: q11's why ends 'Watch for the reclaim instead', which answers this question; that is outside this chunk and needs q11 fixed."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q31": {
    "status": "pass",
@@ -3697,9 +3710,9 @@
   },
   "q48": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "edited by writer, agrees with ruling"
   },
   "q49": {
    "status": "pass",
@@ -3754,8 +3767,8 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Only the no-trims wrong note changed; supported by d17 and h05/h20."
+   "fixed": true,
+   "notes": "edited by writer, agrees with ruling"
   },
   "q58": {
    "status": "pass",
@@ -3790,14 +3803,14 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "d13 and c46 support Pass: high 0.30% above the prior high. Two Take, two Pass; D-002 tie unaffected. The 0.30% gap needs the chart's OHLC readout, already noted."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Story too thin for a 'take it' key under the card: c04 also needs the 50-day above the 200-day, and the trigger must come within the next sessions. Added both, and cited c04. Key, choices and why unchanged."
+   "notes": "c15 still quotes the old 1 ATR / 3% rule; swapped for c36 which carries the mother-low point"
   },
   "q65": {
    "status": "pass",

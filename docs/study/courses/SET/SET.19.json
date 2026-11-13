@@ -107,6 +107,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -841,6 +849,12 @@
    "source": "d1",
    "quote": "holds the PEG-day low and never trades back to the prior close (no gap fill), then a market order the first day price trades over the pause high",
    "claim": "The scanned pause buy: the pause holds the PEG-day low, the gap never fills, then a market order as price trades over the pause high."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "D-005: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
   }
  ],
  "walkthroughs": [
@@ -1564,9 +1578,6 @@
      "rests on the owner's rulebook E52; the trail choice is held under D-024"
     ]
    },
-   "depends_on": [
-    "D-024"
-   ],
    "batch": "wave2"
   },
   {
@@ -1635,9 +1646,6 @@
      "the 10% A cue is proposed and the gap floor is held under D-033"
     ]
    },
-   "depends_on": [
-    "D-033"
-   ],
    "batch": "wave2"
   },
   {
@@ -1685,28 +1693,26 @@
     },
     "round": 1
    },
-   "why": "2.3. The fill minus the stop, divided by the fill, comes to 2.3%. The stop usually sits within about 3% of the buy, so this is inside it. These are LULU's levels.",
+   "why": "2.3. The fill minus the stop, divided by the fill, comes to 2.3%. We prefer a stop 1 to 3% away, and up to 5% is acceptable. This is inside that range. These are LULU's levels.",
    "lesson_line": "Stop distance is the fill minus the stop, over the fill.",
    "facts": [
     "h04",
     "d07",
-    "d08"
+    "d08",
+    "r01"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop sits 2.3 percent under the 90.25 fill, which is inside the usual 3 percent.",
+   "simple": "The stop sits 2.3 percent under the 90.25 fill, which is inside the range we prefer.",
    "tier": "core",
    "risk": {
-    "score": 4,
+    "score": 2,
     "reasons": [
      "a computed key",
-     "the 3% stop cap is held under D-005"
+     "the stop range is the owner's ruling D-005"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q26",
@@ -3604,9 +3610,9 @@
   },
   "q25": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "edit agrees with D-005; quote verbatim"
   },
   "q26": {
    "status": "pass",

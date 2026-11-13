@@ -140,6 +140,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -910,6 +918,24 @@
    "source": "c1",
    "quote": "Depth from the left-side high to the base's lowest low",
    "claim": "The card measures depth from the left-side high to the base's lowest low."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "D-005: a stop 1-3% away is preferred, 3.5% is good, up to 5% is acceptable."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "D-005: past 5% from the trigger, mostly wait for a tighter trigger rather than take it."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Volume raises the grade; it is not a requirement for the setup to count (except where volume IS the setup, as proposed: HVE and the burst setups).",
+   "claim": "D-006: volume raises the grade; it is not needed for the setup to count."
   }
  ],
  "walkthroughs": [
@@ -1529,16 +1555,16 @@
     },
     "round": 1
    },
-   "why": "7.3. The stop is 7.3% under the fill: the gap divided by the fill, not by the stop. Our stop usually sits within about 3% of the buy, so this one is wide. The size comes from the stop, so a wide stop means fewer shares. If the honest stop does not fit the risk, we skip the trade.",
-   "lesson_line": "Measure the stop in percent. A wide stop means fewer shares, not a tighter stop.",
+   "why": "7.3. The stop is 7.3% under the fill: the gap divided by the fill, not by the stop. We prefer a stop of 1% to 3% and accept up to 5%. This is wider than that. Past 5%, we mostly wait for a tighter trigger instead of taking the trade.",
+   "lesson_line": "Measure the stop in percent. Past 5%, mostly wait for a tighter trigger.",
    "facts": [
-    "h04",
     "d05",
-    "h01"
+    "r01",
+    "r02"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 7.3% under the fill, which is wide for us, so the position must be smaller.",
+   "simple": "The stop is 7.3% under the fill, which is wider than we accept, so we mostly wait for a tighter trigger.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1547,10 +1573,7 @@
      "rests on the owner's rulebook (A13) and the held stop-width decision (D-005)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q18",
@@ -1750,7 +1773,7 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "ipo.breakout_volume",
-   "q": "The base averaged 1,200,000 shares a day. Our card wants 1.4 times that on breakout day. How many shares?",
+   "q": "The base averaged 1,200,000 shares a day. Our card gives its top grade at 1.4 times that on breakout day. How many shares?",
    "answer": 1680000.0,
    "calc": {
     "fn": "arith",
@@ -1760,14 +1783,15 @@
     },
     "round": 0
    },
-   "why": "1,680,000. Our card wants breakout-day volume of at least 1.4 times the average of the base's sessions: 1,200,000 times 1.4. The listing week is left out of that average. IBD's test is 40% above the 50-day average, and many new issues have yet to trade that long. Our card compares with the base's own sessions.",
+   "why": "1,680,000. Our card gives the top grade for breakout-day volume of at least 1.4 times the base's average: 1,200,000 times 1.4. Volume raises the grade. It is not needed for the setup to count. The listing week is left out of that average. IBD's test is 40% above the 50-day average, and many new issues have yet to trade that long. Our card compares with the base's own sessions.",
    "lesson_line": "Measure breakout volume against the base's own sessions, not the listing week.",
    "facts": [
     "c06",
-    "i07"
+    "i07",
+    "r03"
    ],
    "house": true,
-   "simple": "It takes 1,680,000 shares, because our card wants at least 1.4 times the base's average of 1,200,000 a day.",
+   "simple": "It takes 1,680,000 shares, because the top grade needs at least 1.4 times the base's average of 1,200,000 a day.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1776,10 +1800,7 @@
      "the 1.4 times line is a proposed card gate that D-006 may turn into a grade cue"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q25",
@@ -1969,10 +1990,7 @@
      "fixed before: story rewritten"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q30",
@@ -2066,26 +2084,27 @@
    "q": "How do you handle the size?",
    "choices": [
     "Fewer shares; size from the stop",
-    "Set the stop at the low of the base",
+    "Buy full size and skip the stop",
     "Pull the stop in to 3% to keep size",
     "Risk more to keep the same size"
    ],
    "answer": "Fewer shares; size from the stop",
-   "why": "Fewer shares. Stop first, a few cents under the day's low. The size comes from the stop, so a wide honest stop means fewer shares. Shares equal account times risk percent, divided by entry minus stop, rounded down. This stop is wider than the usual 3%. If the honest stop does not fit the risk, skip the trade.",
-   "lesson_line": "Never pull the stop in to fit the size. Cut the shares or skip.",
+   "why": "Fewer shares. Stop first, a few cents under the day's low. The size comes from the stop, so a wide honest stop means fewer shares. Shares equal account times risk percent, divided by entry minus stop, rounded down. This stop is inside the 5% we accept. Past 5%, we mostly wait for a tighter trigger.",
+   "lesson_line": "Never pull the stop in to fit the size. Cut the shares, or wait for a tighter trigger.",
    "facts": [
     "h01",
     "h03",
-    "h04",
-    "c42"
+    "c42",
+    "r01",
+    "r02"
    ],
    "wrong": {
-    "Set the stop at the low of the base": "The base low is not our stop, and it is farther still.",
     "Pull the stop in to 3% to keep size": "Pulling the stop in to fit the size is a trap. The honest stop stays.",
-    "Risk more to keep the same size": "The size comes from the stop, not the other way round. A wide stop means fewer shares, not more risk."
+    "Risk more to keep the same size": "The size comes from the stop, not the other way round. A wide stop means fewer shares, not more risk.",
+    "Buy full size and skip the stop": "With no stop there is no defined risk. The stop sets the size and is never skipped."
    },
    "house": true,
-   "story": "A breakout fills at 41.20. The honest stop is 38.95, well beyond the usual 3%.",
+   "story": "A breakout fills at 41.20. The honest stop is 39.40, wider than the 1% to 3% we prefer.",
    "simple": "Buy fewer shares. The stop sets the size, so a wide honest stop means a smaller position.",
    "tier": "extended",
    "risk": {
@@ -2096,10 +2115,7 @@
      "fixed before: variety rewrite 2026-11-10"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q33",
@@ -2548,10 +2564,7 @@
      "rests on a held decision (D-002: the first-year window)"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q45",
@@ -2567,13 +2580,13 @@
     "Weak; no demand on the day"
    ],
    "answer": "Weak; no demand on the day",
-   "why": "Weak. The breakout traded 0.75x the base's average volume, which is below average. IBD wants heavy volume on the breakout day and week. The spin-off label and the shallow base do not change that. This one's best was 0.82R.",
-   "lesson_line": "A breakout on below-average volume has no demand behind it.",
+   "why": "Weak. The breakout traded 0.75x the base's average volume, which is below average. IBD wants heavy volume on the breakout day and week. For us volume raises the grade, so this one grades weak. It does not cancel the setup. The spin-off label and the shallow base do not change that. This one's best was 0.82R.",
+   "lesson_line": "A breakout on below-average volume grades weak: little demand on the day.",
    "facts": [
     "d22",
     "i20",
-    "c06",
-    "i02"
+    "i02",
+    "r03"
    ],
    "wrong": {
     "Strong; the base was tight": "A tight base helps, but the breakout day still needs buyers.",
@@ -2584,7 +2597,7 @@
    "story": "A spin-off listed in June. A 6-week, 10% base at the high breaks out in October on 0.75x the base's average volume.",
    "simple": "Weak, because the breakout came on less volume than the base averaged, so buyers were not there.",
    "deeper": {
-    "trap": "Do not read a clean base as proof of demand. NWSA had a 6-week, 10% base at the high, yet the breakout came on 0.75x the base's volume. Check the volume on the day before you buy."
+    "trap": "Do not read a clean base as proof of demand. NWSA had a 6-week, 10% base at the high, yet the breakout came on 0.75x the base's volume. Volume is the demand check, and here it graded the breakout weak. A weak grade is not a ban."
    },
    "tier": "extended",
    "risk": {
@@ -2594,10 +2607,9 @@
     ]
    },
    "depends_on": [
-    "D-006",
     "D-054"
    ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q46",
@@ -3996,8 +4008,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "1.43/19.53 = 7.3. A13 'about 3%' and A3/A5 support the wide-stop reading."
+   "fixed": true,
+   "notes": "edit right: 7.3% is past 5%, mostly wait for a tighter trigger | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q18": {
    "status": "pass",
@@ -4038,8 +4050,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "1,200,000 x 1.4 = 1,680,000. Asked as 'our card wants', which matches c06; consistent with IBD 40% over."
+   "fixed": true,
+   "notes": "edit right: 1.4x is the top-grade mark, volume only raises grade | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q25": {
    "status": "pass",
@@ -4070,9 +4082,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Story supports the IPO base card (young, first rest, listing date decides). 'None' choice and wrong notes grounded in c30b, c32.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "keep right: card choice by listing age, no ruling touched | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q30": {
    "status": "pass",
@@ -4091,8 +4102,8 @@
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "41.20 and 38.95 give about 5.5% stop, beyond the usual 3% (h04). Key follows h01 and h03. Risk-more distractor is live and refuted by the sizing formula."
+   "fixed": true,
+   "notes": "base-low stop choice could read as a valid alternative under D-008; replaced with a clearly wrong choice"
   },
   "q33": {
    "status": "pass",
@@ -4164,14 +4175,14 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "318 > 252 (c13/d21); B and D both false; key fine."
+   "fixed": true,
+   "notes": "keep right: card choice by age | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.75x is below the base average, so no demand on the day; d22, i20, i02 support it, and the 10% base is shallow so 'too deep' is wrong. Story numbers match d22 (spin-off, 6 weeks, 10%, 0.75x; 0.82R best). Two Strong, two Weak, key not longest. Verdict holds whether volume is a gate or a cue (D-006). Mild lead-in from the q24 stem (1.4x) but not an answer."
+   "notes": "edit right: low volume grades weak, not a ban"
   },
   "q46": {
    "status": "cut",

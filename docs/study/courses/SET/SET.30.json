@@ -169,6 +169,14 @@
    "title": "Parabolic Long dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/38-parabolic-long.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1083,6 +1091,18 @@
    "source": "d1",
    "quote": "Bought on a Friday; Monday closed 24.49 in its lower 3%, through the stop, and the low came on 09-29 at 23.85.",
    "claim": "WDC: bought on a Friday, Monday closed 24.49 through the 24.94 stop, and the low came on 09-29 at 23.85."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "D-009: below the 200-day is a hard no for stocks."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "D-009: indexes and leveraged ETFs may be bought under their 200-day on a parabolic long."
   }
  ],
  "walkthroughs": [
@@ -1272,27 +1292,28 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "pl.below_200",
-   "q": "Which is the one long our 200-day rule allows below the line?",
+   "q": "Our 200-day rule bars stocks below the line. What may we buy under it?",
    "choices": [
-    "A parabolic long",
-    "A flat base breakout",
-    "Any stock down 30%",
-    "A pullback to the 50-day"
+    "Index or 2x-3x ETF, parabolic long",
+    "A stock, on a parabolic long setup",
+    "A stock that is down 30% from its high",
+    "A stock pulling back to its 50-day line"
    ],
-   "answer": "A parabolic long",
-   "why": "A parabolic long. Our rule is no longs below the 200-day simple moving average, unless it is a parabolic long. Shorts mirror it: only below the 200-day, unless it is a parabolic short. A parabolic long also needs no RS rating.",
-   "lesson_line": "Below the 200-day there is one long, and this is it.",
+   "answer": "Index or 2x-3x ETF, parabolic long",
+   "why": "An index or a 2x-3x ETF on a parabolic long. Below the 200-day is a hard no for stocks. The one exception is an index or an ETF built to move two or three times the index, bought on a parabolic long. A parabolic long also needs no RS rating.",
+   "lesson_line": "Below the 200-day, stocks are a no. An index or 2x-3x ETF on a parabolic long is the exception.",
    "facts": [
-    "h10",
-    "c10"
+    "c10",
+    "r01",
+    "r02"
    ],
    "house": true,
    "wrong": {
-    "A flat base breakout": "A flat base is a normal long. Below the 200-day it is not allowed.",
-    "Any stock down 30%": "A percent fall is not the exception. The parabolic burst is.",
-    "A pullback to the 50-day": "A pullback is a normal long. Below the 200-day it is off."
+    "A stock, on a parabolic long setup": "Below the 200-day, stocks are a hard no, even in a parabolic burst. Only an index or a 2x-3x ETF gets the exception.",
+    "A stock that is down 30% from its high": "A percent fall is not the exception. Below the 200-day, a stock is a hard no.",
+    "A stock pulling back to its 50-day line": "A pullback is a normal long. Below the 200-day, a stock is a hard no."
    },
-   "simple": "Only a parabolic long may be bought below the 200-day line. Every other long needs price above it.",
+   "simple": "Stocks are a hard no below the 200-day line. Only an index or a 2x-3x ETF may be bought there, on a parabolic long.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1301,10 +1322,7 @@
      "its narrowing is a held decision (D-009)"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q05",
@@ -1445,10 +1463,7 @@
      "mirrors Bracco's VWAP rule (p10)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q09",
@@ -1719,10 +1734,7 @@
      "the box count is a held decision (D-002)"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q17",
@@ -2280,10 +2292,7 @@
      "+2 pl.trigger_vwap is keyed while D-003 is still pending"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q32",
@@ -2436,9 +2445,6 @@
      "+1 fixed before"
     ]
    },
-   "depends_on": [
-    "D-023"
-   ],
    "batch": "wave3"
   },
   {
@@ -2479,10 +2485,7 @@
      "+1 rests on the card's hold-longer line (c21); the exit fraction (D-013) is held but the key no longer leans on it"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q37",
@@ -3044,7 +3047,7 @@
    "format": "scenario",
    "criterion": "pl.below_200",
    "q": "Which family?",
-   "story": "A stock is 20% under its 200-day after a four-day, 60% fall with two gap downs. The index is capitulating too. After the low, the stock reclaims VWAP.",
+   "story": "A 2x-3x ETF is 20% under its 200-day after a four-day, 60% fall with two gap downs. The index is capitulating too. After the low, the ETF reclaims VWAP.",
    "choices": [
     "Parabolic; a U&R needs a level",
     "A U&R; VWAP is the level",
@@ -3052,22 +3055,23 @@
     "Not tradable; it is under the 200-day"
    ],
    "answer": "Parabolic; a U&R needs a level",
-   "why": "The parabolic family. A U&R undercuts a visible low after a dip of a few percent, in a stock above its 200-day. A parabolic long needs no level and may sit under the 200-day. This stock fits the second.",
-   "lesson_line": "No level, under the 200-day, after a crash: that is parabolic territory, not a U&R.",
+   "why": "The parabolic family. A U&R undercuts a visible low after a dip of a few percent, in a name above its 200-day. A parabolic long needs no level. Below the 200-day, a stock is a hard no, but a 2x-3x ETF may be bought there on a parabolic long. This one fits.",
+   "lesson_line": "No level, under the 200-day, a 2x-3x ETF after a crash: that is parabolic territory, not a U&R.",
    "facts": [
     "c37",
-    "h10",
-    "c12"
+    "c12",
+    "r01",
+    "r02"
    ],
    "house": true,
    "wrong": {
-    "A U&R; VWAP is the level": "VWAP is the trigger, not a level. A U&R needs a visible low and a stock above its 200-day.",
+    "A U&R; VWAP is the level": "VWAP is the trigger, not a level. A U&R needs a visible low and a name above its 200-day.",
     "A flat base; wait for the pivot": "Nothing is basing. A four-day crash is a burst.",
-    "Not tradable; it is under the 200-day": "Our 200-day rule bars longs below the line unless it is a parabolic long. This one is."
+    "Not tradable; it is under the 200-day": "Below the 200-day, a stock is a hard no. A 2x-3x ETF may be bought there on a parabolic long, and this one is."
    },
-   "simple": "It is the parabolic family, because a U&R needs a visible level and this stock has none. Being under the 200-day does not stop it.",
+   "simple": "Parabolic, because a U&R needs a visible level and this ETF has none. A 2x-3x ETF may sit under the 200-day.",
    "deeper": {
-    "trap": "Our 200-day rule bars longs under the line, with one exception, the parabolic long. Do not stretch that exception to a U&R. A U&R needs a visible low and a stock above its 200-day. A parabolic long needs no level and may sit under it."
+    "trap": "Below the 200-day, stocks are a hard no. The exception is an index or a 2x-3x ETF on a parabolic long. Do not stretch it to a U&R. A U&R needs a visible low and a name above its 200-day. A parabolic long needs no level and may sit under it."
    },
    "tier": "extended",
    "risk": {
@@ -3076,10 +3080,7 @@
      "+2 D-009 (the 200-day exception) is held; only B26's own exception is keyed"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q52",
@@ -3129,10 +3130,7 @@
      "fixed before: the old key had no balanced second 'Take it' choice"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q53",
@@ -3593,7 +3591,7 @@
     "Buy close, stop under low, high"
    ],
    "answer": "Buy reclaim, stop under low, 9 EMA",
-   "why": "Buy the reclaim at market, put the stop a few cents under the climax low, and target the daily 9 EMA. Entries are market orders, and the full size goes in at one price. On our bars BABA closed 2.2% above its open and reached 3R the next session. Know the exit before you buy.",
+   "why": "Buy the reclaim at market, put the stop a few cents under the climax low, and target the daily 9 EMA. Entries are market orders, and the full size goes in at one price. On our bars BABA closed 2.2% above its open and reached 3R the next session. A stock this far under its 200-day is a hard no today, so this is a drill. Only an index or a 2x-3x ETF gets this plan. Know the exit before you buy.",
    "lesson_line": "Entry at the reclaim, stop under the low, target the 9 EMA. Write it before the turn.",
    "facts": [
     "d01",
@@ -3601,7 +3599,9 @@
     "c12",
     "c16",
     "c18",
-    "h22"
+    "h22",
+    "r01",
+    "r02"
    ],
    "house": true,
    "wrong": {
@@ -3622,10 +3622,7 @@
      "fixed before: the key tied the longest choice"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q65",
@@ -3744,10 +3741,7 @@
      "the exit is a held decision (D-013)"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q68",
@@ -3813,10 +3807,7 @@
      "+1 fixed before"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q70",
@@ -3913,9 +3904,9 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q05": {
    "status": "pass",
@@ -3938,8 +3929,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c12/c13/c32 support key and wrong notes; D-003 pending is flagged by the resolver."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q09": {
    "status": "pass",
@@ -3987,8 +3978,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Three distractors are boxes 1, 2 and 4 (c03, c03b); the 2x volume is the separate pl.volume_climax gate (c06). No count rule keyed, so D-002 is respected."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q17": {
    "status": "pass",
@@ -4078,8 +4069,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from c12; story still sliding so no turn; numbers are in the question."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q32": {
    "status": "pass",
@@ -4109,8 +4100,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from c21/h28/c18; key rests on new trade with own stop, not the open exit fraction. Near-twin phrasing of q61 key is accepted (different situation)."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q37": {
    "status": "pass",
@@ -4202,14 +4193,14 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from c37/h10; 200-day under the exception; holds under D-009 options."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "d09 gives GE 2025-04-07 as 5/5 boxes with the quoted numbers; no take-or-pass call. Importer must find the bars (owner flag)."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q53": {
    "status": "pass",
@@ -4283,9 +4274,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Entry, stop and target from c12, c16, c18, h22; BABA numbers match d01/d02. Each key part is shared with exactly one distractor, so no tell. D-003 pending is flagged in risk.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "BABA is a stock far under its 200-day; D-009 bars it. Plan skill stays, but say so honestly"
   },
   "q65": {
    "status": "pass",
@@ -4302,9 +4292,8 @@
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "R = 1.50, 3R = 44.50 (calc), under 45.10; 9 EMA is 3.4R away, over the 2R floor (c08). Distractors are 2R, 4R, 5R with correct notes.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q68": {
    "status": "cut",
@@ -4333,8 +4322,8 @@
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from p08; D-002 options do not change it because the stem is scoped to Bracco's line."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q70": {
    "status": "pass",

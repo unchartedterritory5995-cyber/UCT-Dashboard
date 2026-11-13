@@ -107,6 +107,14 @@
    "title": "Slingshot dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/31-slingshot.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -853,6 +861,24 @@
    "source": "d1",
    "quote": "the Slingshot's edge is in the resumption of the drive, not in the first close over the line",
    "claim": "The edge is in the resumption of the drive, not the first close over the line."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Owner: every setup buys as price trades through its trigger, during the day, never at the close."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The stop goes under the low of day, the prior day's low, or the range low.",
+   "claim": "Owner: the stop goes under the low of day, the prior day's low or the range low."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "It is often time-based: sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R.",
+   "claim": "Owner: the first sell is often time-based, into a 3, 5 or 7 day push, which can be 10, 12 or 20R."
   }
  ],
  "walkthroughs": [
@@ -1362,11 +1388,7 @@
      "card statement is proposed; whether the 200-day gates this setup is held (D-009)"
     ]
    },
-   "depends_on": [
-    "D-009",
-    "D-016"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q13",
@@ -2037,32 +2059,32 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "ss.earnings_window",
-   "q": "Take the close?",
+   "q": "Take the buy?",
    "choices": [
     "No; the report is inside 3 sessions",
-    "Yes; the trigger is decisive",
+    "Yes; the trigger is firing now",
     "Yes; a huge drive protects it",
     "No; buy tomorrow before earnings"
    ],
    "answer": "No; the report is inside 3 sessions",
-   "why": "No. We make no new buys within 3 sessions before an earnings report, and this report lands tomorrow. A decisive trigger and a huge drive do not override the calendar. FSLR in 2013 reversed the session after the buy, and that was the earnings reaction, not a failure of the setup. A rally Slingshot near a report is the case that binds.",
+   "why": "No. We make no new buys within 3 sessions before an earnings report, and this report lands tomorrow. A trigger that fires and a huge drive do not override the calendar. FSLR in 2013 reversed the session after the buy, and that was the earnings reaction, not a failure of the setup. A rally Slingshot near a report is the case that binds.",
    "lesson_line": "A rally Slingshot near a report is the case that binds. Wait for the report.",
    "facts": [
     "h08",
     "c37",
     "c46",
-    "c47"
+    "r01"
    ],
    "wrong": {
-    "Yes; the trigger is decisive": "The trigger is fine and the calendar still says no. The earnings rule is a hard line.",
     "Yes; a huge drive protects it": "A giant drive does not make the trigger safer. The next session was the earnings reaction.",
-    "No; buy tomorrow before earnings": "Tomorrow is inside the same 3 sessions, so waiting a day fixes nothing. The rule is no new buys within 3 sessions before a report."
+    "No; buy tomorrow before earnings": "Tomorrow is inside the same 3 sessions, so waiting a day fixes nothing. The rule is no new buys within 3 sessions before a report.",
+    "Yes; the trigger is firing now": "The trigger is fine and the calendar still says no. The earnings rule is a hard line."
    },
    "house": true,
-   "story": "The drive was a 45.5% day. The pullback is 3 closes and 7.1% deep, and the trigger closed at 0.94 of its range. The report lands tomorrow.",
+   "story": "The drive was a 45.5% day. The pullback is 3 closes and 7.1% deep. Price is trading back over the line. The report lands tomorrow.",
    "simple": "No, because we make no new buys in the 3 days before an earnings report, and this report lands tomorrow.",
    "deeper": {
-    "counter": "FSLR in 2013 looked perfect: a 45.5% drive, 3 closes, 7.1% deep, a 0.94 close. The earnings table puts the report reaction on 2013-05-07, the session after the buy. The next session opened lower and traded through the stop."
+    "counter": "FSLR in 2013 looked perfect: a 45.5% drive, 3 closes, 7.1% deep. The earnings table puts the report reaction on 2013-05-07, the session after the buy. The next session opened lower and traded through the stop."
    },
    "tier": "core",
    "risk": {
@@ -2072,10 +2094,7 @@
      "asks 'take the close' (D-003 wording)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q33",
@@ -2228,18 +2247,19 @@
     "No trail; sell the rest at 5R"
    ],
    "answer": "10-day if fast, 21-day if steadier",
-   "why": "The 10-day average for a fast mover, the 21-day for a steadier one, and sell on a close below it. The trail starts after both trims and rides the last third. Scot1and trails on the 4-day line itself, a close under the EMA 4. That is his exit, not ours. A touch is not a close below.",
+   "why": "The 10-day average for a fast mover, the 21-day for a steadier one, and sell on a close below it. The trail rides the last third after the earlier sells. Those can be R-based thirds, or sells into a push of a few days. Scot1and trails on the 4-day line itself, a close under the EMA 4. That is his exit, not ours. A touch is not a close below.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "h21",
     "c40",
     "o07",
-    "v01"
+    "v01",
+    "r03"
    ],
    "wrong": {
     "The 4-day line, close below it": "That is Scot1and's own trail, a close under the EMA 4. Our default is the 10-day or the 21-day.",
     "21-day if fast, 50-day if steady": "Our fast movers use the 10-day, and our steadier ones the 21-day. The 50-day is not our trail.",
-    "No trail; sell the rest at 5R": "5R is the second third, not the exit. The last third rides the trail."
+    "No trail; sell the rest at 5R": "A fixed R target is not the exit. The last third rides the trail."
    },
    "house": true,
    "simple": "Trail the last third on the 10-day average for fast movers or the 21-day for steadier ones, selling on a close below it.",
@@ -2251,10 +2271,7 @@
      "held decision D-013 on Scot1and's own exits"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q38",
@@ -2266,7 +2283,7 @@
    "choices": [
     "A 50-day rising above the 200-day",
     "A drive before the pullback began",
-    "A close in the top 30% of its range",
+    "A buy price of $10 or more",
     "At least three closes under the line"
    ],
    "answer": "A 50-day rising above the 200-day",
@@ -2277,19 +2294,19 @@
     "d14",
     "d15",
     "h02",
-    "c04",
+    "c29",
     "c17"
    ],
    "wrong": {
     "A drive before the pullback began": "The story shows a drive, an 8.8% day on volume, before the pullback. This part was met.",
-    "A close in the top 30% of its range": "It closed at its high, well inside the top 30%. This part was met.",
-    "At least three closes under the line": "It had three closes under the line. The minimum was met."
+    "At least three closes under the line": "It had three closes under the line. The minimum was met.",
+    "A buy price of $10 or more": "It bought at 24.90, well over $10. This part was met."
    },
    "house": true,
-   "story": "Drive +8.8% on volume, three closes under the line, 6.9% deep, the trigger closed at its high. You bought 24.90, stop 24.53. On the trigger day the 50-day sat under the 200-day. Stopped the next session.",
+   "story": "Drive +8.8% on volume, three closes under the line, 6.9% deep. You bought 24.90, stop 24.53. On the trigger day the 50-day sat under the 200-day. Stopped the next session.",
    "simple": "Our card prefers a rising 50-day above the 200-day, and this stock's 50-day sat under the 200-day.",
    "deeper": {
-    "counter": "LOW's trigger day closed at its high, a 1.0 range close, and still stopped out on day 1. A strong close does not guarantee the trade works; the stop is there for that."
+    "counter": "LOW met the drive, the rest and the price, and still stopped out on day 1. A good picture does not guarantee the trade works; the stop is there for that."
    },
    "tier": "extended",
    "risk": {
@@ -2300,10 +2317,7 @@
      "fixed before: lesson line and wrong note corrected"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q39",
@@ -2607,9 +2621,6 @@
      "rulebook B26"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
    "batch": "wave3"
   },
   {
@@ -2837,26 +2848,26 @@
    "rung": 7,
    "format": "mcq",
    "criterion": "ss.trigger_decisive",
-   "q": "Hidden ticker, the day it closes back over its 4-day line after a news gap. Take the close or pass?",
+   "q": "Hidden ticker, the day it trades back over its 4-day line after a news gap. Take the buy or pass?",
    "choices": [
-    "Take it; decisive close after a rest",
+    "Take it; gap, quiet rest, then trigger",
     "Pass; the gap day was the trigger",
     "Pass; three red days is too long",
     "Take it; a gap this big is the signal"
    ],
-   "answer": "Take it; decisive close after a rest",
-   "why": "Take it. A huge news gap, then three tiny red days hugging the line. Then a decisive close back over it at 0.92 of its range. A decisive close lands in the top 30% of its range, and 0.92 clears that. It reached 3R in 3 sessions. That is one case, not the rule.",
-   "lesson_line": "Drive, tiny red days, a decisive close. That is the whole picture.",
+   "answer": "Take it; gap, quiet rest, then trigger",
+   "why": "Take it. A huge news gap, then three tiny red days hugging the line. Then price trades back over it, and the trigger is the entry, never the close. Our table, built on a buy at the close, shows 3R in 3 sessions. That is one case, not the rule.",
+   "lesson_line": "Drive, tiny red days, then the break back over the line.",
    "facts": [
-    "c04",
     "c02",
     "d01",
-    "d02"
+    "d02",
+    "r01"
    ],
    "wrong": {
-    "Pass; the gap day was the trigger": "The gap day is the drive, never the trigger. The trigger is today's close back over the line.",
+    "Pass; the gap day was the trigger": "The gap day is the drive, never the trigger. The trigger is price trading back over the line after the rest.",
     "Pass; three red days is too long": "Three closes under the line is the minimum, not too long.",
-    "Take it; a gap this big is the signal": "The gap is the drive, never the trigger. The trigger is the decisive close back over the line after the rest."
+    "Take it; a gap this big is the signal": "The gap is the drive, never the trigger. The trigger is price trading back over the line after the rest."
    },
    "house": true,
    "chart": {
@@ -2865,9 +2876,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it, because a news gap came first, three tiny red days followed, and the day closed near its high back over the line.",
+   "simple": "Take it, because a news gap came first, three tiny red days followed, and then price traded back over the line.",
    "deeper": {
-    "example": "UTHR, trigger 2025-09-18: a 37.7% news gap on 2025-09-02 was the drive. Three tiny red days hugged the line, 9.3% deep and 0.45 ATR. The trigger closed at 0.92 of its range. Buy 409.87, stop 402.47. It reached 3R in 3 sessions."
+    "example": "UTHR, trigger 2025-09-18: a 37.7% news gap on 2025-09-02 was the drive. Three tiny red days hugged the line, 9.3% deep and 0.45 ATR. Our table, built on a buy at the close, shows 3R in 3 sessions. A buy through the trigger would differ a little."
    },
    "tier": "extended",
    "risk": {
@@ -2877,10 +2888,7 @@
      "asks 'take the close' (D-003)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q55",
@@ -2929,9 +2937,6 @@
      "asks 'take the close' (D-003)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
    "batch": "wave3"
   },
   {
@@ -3088,9 +3093,6 @@
      "fixed before: lesson line reworded"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
    "batch": "wave3"
   },
   {
@@ -3253,10 +3255,7 @@
      "fixed before: story corrected"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q63",
@@ -3264,7 +3263,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "ss.stop",
-   "q": "You buy the trigger close. Entry, stop and first trim?",
+   "q": "You buy as it trades over the line, on an R-based plan. Entry, stop and first trim?",
    "choices": [
     "62.40; stop 60.82; a third at 3R",
     "62.40; stop 58.30; out at 2R",
@@ -3272,24 +3271,26 @@
     "62.40; stop 60.82; all out at 3R"
    ],
    "answer": "62.40; stop 60.82; a third at 3R",
-   "why": "Market at the close, 62.40. The stop goes a few cents under the day's low, 60.82. A third comes off at 3R, another third at 5R, and the last third trails.",
-   "lesson_line": "Entry, stop, trim, trail. Write it before the close prints; execute it without a debate.",
+   "why": "Market as it trades over the line, 62.40. The stop goes a few cents under the day's low, 60.82. A third comes off at 3R, another third at 5R, and the last third trails. That is one taught plan. A sell into a push of a few days is equally ours.",
+   "lesson_line": "Entry, stop, trim, trail. Write it before the trigger fires; execute it without a debate.",
    "facts": [
-    "h22",
+    "r01",
+    "r02",
     "h24",
     "h05",
-    "h20"
+    "h20",
+    "r03"
    ],
    "wrong": {
-    "62.40; stop 58.30; out at 2R": "That stop is nowhere near the day's low. And the hard rule puts the first trim at 3R, not 2R.",
+    "62.40; stop 58.30; out at 2R": "That stop is nowhere near the day's low. And the R-based plan puts the first trim at 3R, not 2R.",
     "62.40; stop at the gap low; hold to 5R": "The gap low is a different level. The stop goes a few cents under the day's low, not at the gap low.",
     "62.40; stop 60.82; all out at 3R": "Entry and stop are right, the exit is not. The plan takes a third at 3R, another third at 5R, and trails the last third."
    },
    "house": true,
-   "story": "A stock gapped up 9%, then rested three small red candles. Today it closes back over its line at 62.40. The day's low was 60.85.",
-   "simple": "Buy the close at 62.40, put the stop a few cents under the day's low at 60.82, and take a third off at 3R.",
+   "story": "A stock gapped up 9%, then rested three small red candles. Today it trades back over its line, and you buy at 62.40. The day's low so far is 60.85.",
+   "simple": "Buy at 62.40 as price trades over the line, stop a few cents under the day's low at 60.82, and a third off at 3R.",
    "deeper": {
-    "trap": "Write the whole plan before the close prints: entry, stop, first trim, trail. The stop sets the size, so the distance to the stop decides how many shares you can buy. Then carry the plan out without a debate."
+    "trap": "Write the whole plan before the trigger fires: entry, stop, first trim, trail. The stop sets the size, so the distance to the stop decides how many shares you can buy. Then carry the plan out without a debate."
    },
    "tier": "expert",
    "risk": {
@@ -3299,10 +3300,7 @@
      "rests on rulebook E51, E57 and F62"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q64",
@@ -3650,9 +3648,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q13": {
    "status": "pass",
@@ -3774,9 +3772,8 @@
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key follows B22/c37 (no buys within 3 sessions of a report); FSLR facts c46/c47 support the why. Choices balanced two No, two Yes; D-003 dependency declared.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q33": {
    "status": "pass",
@@ -3805,15 +3802,14 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key is h21/c40; Scot1and's 4-day trail is a named distractor (o07); key not longest.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "LOW 2008-08-28 matches d14/d15 (8.8% drive, 3 closes, 6.9%, DCR 1.0, 24.90/24.53, 50-day under 200-day). Every choice mirrors a story fact, so the key is not a lone echo; the student must know which three the card wants and which one was missed (c12). Grounded."
+   "fixed": true,
+   "notes": "answer fine, but a distractor and the story taught the close-in-top-30% filter as part of the card's picture, a close-entry rule D-003 drops"
   },
   "q39": {
    "status": "cut",
@@ -3910,14 +3906,14 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "0.92 and 3R in 3 sessions from d01/d02; key not longest, two Take, two Pass. Concern for the owner: walkthrough w1 teaches the same UTHR trade, so a learner can answer from memory of w1 rather than the chart."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q55": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "cut in rulings: see the resolver's notes"
   },
   "q56": {
    "status": "pass",
@@ -3964,14 +3960,14 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "h30, h33, h26 verbatim; grade is the story's own read, consistent with E50. No-trade note is supported by D38."
+   "fixed": true,
+   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
   },
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "60.85 low minus a few cents = 60.82 (h24, calc); market at the close 62.40 (h22); a third at 3R, a third at 5R, trail the rest (h05, h20). Each wrong choice fails on a clear part. Lengths fine."
+   "fixed": true,
+   "notes": "entry and stop agree with D-003; first trim keyed 3R so the stem must say it is the R-based plan (D-013), and 'hard rule' wording removed"
   },
   "q64": {
    "status": "pass",

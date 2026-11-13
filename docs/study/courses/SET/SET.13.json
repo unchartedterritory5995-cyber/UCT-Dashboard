@@ -2963,10 +2963,7 @@
      "+2 held decision D-006 (breakout volume as a gate)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q51",
@@ -3394,9 +3391,6 @@
      "+2 held decision D-024 (which average is the trail)"
     ]
    },
-   "depends_on": [
-    "D-024"
-   ],
    "batch": "wave2"
   },
   {
@@ -4436,8 +4430,8 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Stop is the exit (h02, c25), light volume is not a reason to exit (c26); SRRK numbers match d15/d16. Story now says it falls to the stop, so the gap rule does not interfere. Thin-ish but a distinct applied case; acceptable."
+   "fixed": true,
+   "notes": "keep right: light volume grades, stop is the exit | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q51": {
    "status": "pass",

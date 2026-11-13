@@ -918,10 +918,7 @@
      "+2 tied to D-002 (standalone setup or trigger); the warning line itself holds under every option and four sources agree"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q03",
@@ -1075,7 +1072,7 @@
     "The 50-day crossing the 200-day"
    ],
    "answer": "Trades through the line and prior high",
-   "why": "It trades through the line's value for the day and above the prior day's high, during regular hours, bought at market. That is our default trigger. A touch from below is not a break.",
+   "why": "It trades through the line's value for the day and above the prior day's high, during regular hours, bought at market. That is our trigger. A touch from below is not a break.",
    "lesson_line": "Through the line and the prior high, in hours, at market.",
    "facts": [
     "c12",
@@ -1100,10 +1097,7 @@
      "+1 fixed before (the old why ruled the close out as settled)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q09",
@@ -1895,10 +1889,7 @@
      "the standalone-or-trigger question is held (D-002)"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q34",
@@ -2571,9 +2562,6 @@
      "+2 tied to D-002 (the setup map)"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
    "batch": "wave4b"
   },
   {
@@ -2617,10 +2605,7 @@
      "the structural stop is held (D-008) and never keyed"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q52",
@@ -2832,10 +2817,7 @@
      "+1 fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q57",
@@ -3194,10 +3176,7 @@
      "the trigger is held (D-003)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q66",
@@ -3223,9 +3202,6 @@
      "+2 tied to D-021 (which fast pair the course names)"
     ]
    },
-   "depends_on": [
-    "D-021"
-   ],
    "house": true,
    "batch": "wave4b"
   }
@@ -3280,8 +3256,8 @@
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key True from the card's tl.structure ('On its own a break is a warning'), c34, x03 and x06; why paraphrases x03 faithfully. 'On its own' keeps it consistent with q08's trigger."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q03": {
    "status": "pass",
@@ -3316,9 +3292,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from c12 (verbatim in card), h22, h23. Distractors are real misreads; no length tell; why does not hand over q09/q64/q65 any more. D-003 still pending (risk recorded).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "'default trigger' hinted at alternatives; the ruling says the trigger is always the entry"
   },
   "q09": {
    "status": "cut",
@@ -3469,7 +3444,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c39). But the why's numbers (20% pole in the 20 sessions before, a 3 to 15 session pause) are in no cited quote: the earlier checker's new fact was filed as c44, which collides with the existing c44 (the 10/21 EMA gate), so the pole quote never reached the lesson. New fact c46 is verbatim in the card's 02-bull-flag lookalike tell. Dropped c44 and c37 (not used). Lesson needs c46 added to its facts."
+   "notes": "keep agrees with ruling"
   },
   "q34": {
    "status": "pass",
@@ -3571,16 +3546,16 @@
    "notes": "Story levels recomputed: 145.75+3x1.58=150.49 and 145.75+5x1.58=153.65, both correct; the 152.00 open is past 3R and short of 5R. h25/c22 verbatim, d11/d12 verbatim. No calc possible: courses_lib requires a choice key to show the calc result. Numbers sit in the story as givens."
   },
   "q50": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Story names the high tight flag; key from c43 (verbatim); why separates it from q33's plain flag (c39). No length tell."
+   "notes": "cut in rulings: see the resolver's notes"
   },
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "19 cents, 209.53, 6% and 217 are all in d14's quote. Key from h28/c30 verbatim."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q52": {
    "status": "cut",
@@ -3611,8 +3586,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c15, h24, h01, c20, h20); 2x2 choices, no tell. lesson_line contradicts the item: 'Write it before the open' while the stop depends on the day's low so far, which is only known during the day. lesson_line only.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep agrees with ruling"
   },
   "q57": {
    "status": "pass",
@@ -3666,8 +3640,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from h12 (verbatim) and c14 (verbatim); x14b re-read live on Brandt's page. Asks the cost, not q64's fact."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q66": {
    "status": "pass",

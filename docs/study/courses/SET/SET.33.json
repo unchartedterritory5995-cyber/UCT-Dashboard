@@ -121,6 +121,14 @@
    "title": "30-Minute Pivot dossier, sections 4.3, 12 and 14: named examples, examples, failures and near-misses",
    "url": "repo:docs/study/setups/research/41-30-minute-pivot.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -939,6 +947,24 @@
    "source": "c1",
    "quote": "R at which the stop moves to the entry",
    "claim": "The card measures breakeven as the R at which the stop moves to the entry price."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Owner: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r12",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "Owner: past 5% from the trigger, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r14",
+   "source": "h2",
+   "quote": "This replaces the proposed one-ADR rule.",
+   "claim": "Owner: the one-ADR stop rule is replaced."
   }
  ],
  "walkthroughs": [
@@ -1029,14 +1055,14 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c01 verbatim: first green 30-minute candle after the red string. Key not the longest; each wrong choice is a real misreading."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "o01 verbatim, u01 and c20 support the entry-timer reading. True is right as an attribution to the originator."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q03": {
    "status": "pass",
@@ -1070,15 +1096,15 @@
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "o05 and d26 verbatim; h24 supports 'a few cents under, never on'. Key is not the longest and the stem no longer echoes '30-minute'. Wrong notes rest on c20 and the choices' own levels."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q10": {
    "status": "pass",
@@ -1124,9 +1150,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "dropped 'no longer' (learner never saw the old rule)"
   },
   "q18": {
    "status": "pass",
@@ -1283,8 +1309,8 @@
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Higher stop is closer to the buy on a long, from the question's own numbers; d27 and c05 support. Wrong notes true; 'not on' is h24. The 'This asks only...' sentence is awkward but harmless."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q44": {
    "status": "cut",
@@ -1295,8 +1321,8 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "u02 verbatim ('30 min pivot ... 527 and a 520 stop'); d30 gives 543.15; ORB excluded by price. Weak: the Go Signal and 5-minute choices are excluded only by the story's '30-minute chart' clue, and the key repeats it. Kept because the owner's own words name it a 30-min pivot. D-003 (fill under the pivot high) is a flagged owner matter."
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q46": {
    "status": "pass",
@@ -1325,9 +1351,9 @@
   },
   "q50": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q51": {
    "status": "pass",
@@ -1375,9 +1401,8 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "d03, F62 (h24), D41 (h18) verbatim. 0.76% re-derived: 1.82/238.91. 'Both stop choices agree' holds because the pivot candle is the day's low (d03). The 230.00 in the last decoy is a hypothetical price, not a claim.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "keep agrees with ruling"
   },
   "q59": {
    "status": "pass",
@@ -1510,10 +1535,7 @@
      "+2 the unit stands on D-002, the turn candle at support"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q02",
@@ -1539,10 +1561,7 @@
      "+2 the unit stands on D-002, which setup the name means"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q03",
@@ -1739,10 +1758,7 @@
      "which low the stop protects is the held decision D-008 and is not keyed here"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q09",
@@ -1780,10 +1796,7 @@
      "which stop is ours is the held decision D-008; this item asks only what the originator does"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q10",
@@ -2015,17 +2028,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "pvt.stop_width",
-   "q": "On our card, a pivot stop wider than 3% is fine as long as it is inside the stock's average daily range.",
+   "q": "In our rules, a pivot stop 6% away is fine if it is inside the stock's average daily range.",
    "answer": "False",
-   "why": "False. On our card, skip if the stop is more than 3% away or wider than the stock's average daily range. Both checks apply. The rulebook says the stop usually sits within about 3%. Kullamagi also keeps the stop no wider than the ATR or ADR.",
-   "lesson_line": "Two checks on the stop: under 3%, and inside a normal day's range.",
+   "why": "False. We prefer a stop 1 to 3% away, 3.5% is good, and up to 5% is acceptable. Past 5% from the trigger, we mostly wait for a tighter trigger. The average daily range does not set the limit.",
+   "lesson_line": "Up to 5% is acceptable. Past that, wait for a tighter trigger.",
    "facts": [
-    "c04",
-    "k01",
-    "h04"
+    "r11",
+    "r12",
+    "r14"
    ],
    "house": true,
-   "simple": "False. A pivot stop must pass two checks, within 3% and within the stock's average daily range.",
+   "simple": "False. A pivot stop 6% away is past the 5% we accept, so we mostly wait for a tighter trigger.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2034,10 +2047,7 @@
      "the card's hard 3% skip is a number the held decision D-005 still has open"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q18",
@@ -2955,10 +2965,7 @@
      "which low we use is the held decision D-008; this item asks only which is tighter"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q44",
@@ -3027,11 +3034,7 @@
      "the role of the 30-minute pivot is the held decision D-002; DELL's fill under the pivot high is D-003"
     ]
    },
-   "depends_on": [
-    "D-002",
-    "D-003"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q46",
@@ -3247,10 +3250,7 @@
      "which setup the pivot name means is the held decision D-002"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q51",
@@ -3593,10 +3593,7 @@
      "+2 rests on the owner's rulebook (F62)"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q59",

@@ -166,6 +166,14 @@
    "title": "Cup with Handle dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/04-cup-handle.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1104,6 +1112,12 @@
    "source": "h1",
    "quote": "The full size at one price with one stop; no adding.",
    "claim": "A5: the full size at one price with one stop; no adding."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is not always R-based. It is often time-based: sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R.",
+   "claim": "D-013: the first sell is often time-based, into a 3, 5 or 7 day push, not only R-based."
   }
  ],
  "walkthroughs": [
@@ -1249,10 +1263,7 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q03",
@@ -1762,13 +1773,14 @@
    "rung": 3,
    "format": "numeric",
    "criterion": "ch.trim_1",
-   "q": "One R is the fill minus the stop. Fill 38.60, stop 37.90. By our hard rule, at what price does the first third come off?",
+   "q": "One R is the fill minus the stop. Fill 38.60, stop 37.90. At what price is the 3R level, where we can take a third?",
    "answer": 40.7,
-   "why": "40.70, the 3R level. One R is the fill minus the stop. Add three of those to the fill and you get 40.70. The hard rule is a third off at 3R. Another third comes off at 5R and the last third trails.",
-   "lesson_line": "Know your 3R before the open. A third comes off there.",
+   "why": "40.70, the 3R level. One R is the fill minus the stop. Add three of those to the fill and you get 40.70. Taking a third at 3R is one way we sell. We also sell into a push of 3, 5 or 7 days. Another third can come off at 5R, and the last third trails.",
+   "lesson_line": "Know your 3R before the open. It is one place a third can come off.",
    "facts": [
     "h05",
-    "h20"
+    "h20",
+    "r01"
    ],
    "calc": {
     "fn": "arith",
@@ -1781,7 +1793,7 @@
    },
    "house": true,
    "prefix": "$",
-   "simple": "By our hard rule a third comes off at 3R, which is the fill plus three times the gap down to the stop.",
+   "simple": "A third comes off at the 3R level, which is the fill plus three times the gap down to the stop.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1791,10 +1803,7 @@
      "the stem says hard rule because the owner's practice is to wait longer"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q19",
@@ -2135,10 +2144,9 @@
     ]
    },
    "depends_on": [
-    "D-008",
     "D-007"
    ],
-   "batch": "wave1"
+   "batch": "rulings"
   },
   {
    "key": "q29",
@@ -3685,9 +3693,6 @@
      "wrong note fixed before in the cold check"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
    "batch": "wave1"
   },
   {
@@ -4727,9 +4732,8 @@
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key is c01/c03; stem scoped to our card; old-high refuted by z06; choices 31-32 chars.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "keep right: buy as price trades through handle high in the day | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q03": {
    "status": "pass",
@@ -4825,8 +4829,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Re-derived 38.60 + 3 x 0.70 = 40.70. Hard rule third at 3R is B19/E51 verbatim; stem says hard rule. Numbers from the question."
+   "fixed": true,
+   "notes": "edit right: 3R level only, day-based push also taught; answer unchanged | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q19": {
    "status": "pass",
@@ -4886,7 +4890,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(56.61-55.27)/56.61 = 2.367%, rounds to 2.37. A13 about 3% and d10 (2.4%) check out."
+   "notes": "keep right: percent arithmetic, 2.37% inside preferred range"
   },
   "q29": {
    "status": "pass",

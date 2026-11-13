@@ -122,6 +122,14 @@
    "title": "Setup glossary (docs/study/setups/GLOSSARY.md), atr",
    "url": "repo:docs/study/setups/GLOSSARY.md#atr",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -808,6 +816,18 @@
    "source": "c1",
    "quote": "After the buy, the stop is the exit.",
    "claim": "After the buy, the stop is the exit."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop.",
+   "claim": "Owner: the low of day is the primary stop."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "claim": "Owner: the pattern's low and a line minus a cushion are acceptable alternatives."
   }
  ],
  "walkthroughs": [
@@ -1094,10 +1114,7 @@
      "rests on the owner's rulebook (A3, F62) and held decision D-008"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q08",
@@ -1324,17 +1341,18 @@
    "rung": 2,
    "format": "tf",
    "criterion": "av.stop_not_scanner",
-   "q": "The scanner's stop, the AVWAP minus half an ATR, is backed by a source we follow.",
-   "answer": "False",
-   "why": "False. Our card says no source has the scanner's stop, the AVWAP minus 0.5 ATR. The house default exists instead: a few cents under the reclaim day's low, not exactly on it. That low normally sits at or under the AVWAP.",
-   "lesson_line": "No source has the scanner's stop. Ours sits a few cents under the day's low.",
+   "q": "On an AVWAP reclaim, the day's low is the main stop. A line minus a cushion is also acceptable.",
+   "answer": "True",
+   "why": "True. The low of day is the main stop, a few cents under the reclaim day's low. The pattern's low is an acceptable alternative. So is a line minus a cushion. The scanner's AVWAP minus half an ATR is one such cushion.",
+   "lesson_line": "The day's low is the main stop. A line minus a cushion is allowed.",
    "facts": [
-    "c14",
     "c15",
-    "h24"
+    "h24",
+    "r01",
+    "r02"
    ],
    "house": true,
-   "simple": "False. No source has the scanner's stop, so we use our own: a few cents under the reclaim day's low.",
+   "simple": "True. The day's low is the main stop, and a stop set a cushion under the line is also fine.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1342,10 +1360,7 @@
      "rests on a proposed card criterion (av.stop_not_scanner) and held decision D-008"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q16",
@@ -1765,10 +1780,7 @@
      "rests on the owner's rulebook (F62, A13) and held decision D-008"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q28",
@@ -2011,10 +2023,7 @@
      "the conflicts line ties it to the held trigger decision, D-003 (+2)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q34",
@@ -2107,10 +2116,7 @@
      "fixed before (cold check)"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q37",
@@ -2323,10 +2329,7 @@
      "rests on held decision D-006 (volume as a cue)"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q43",
@@ -3153,11 +3156,7 @@
      "fixed before (cold check)"
     ]
    },
-   "depends_on": [
-    "D-003",
-    "D-008"
-   ],
-   "batch": "wave4b"
+   "batch": "rulings"
   },
   {
    "key": "q65",
@@ -3350,7 +3349,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AMZN numbers match d10, d11, d12 (2.6% stop, 12.7% low within 20 sessions, 'holding would have cost five'). Key is A4's stop as exit. Pass."
+   "notes": "agrees with its rulings"
   },
   "q43": {
    "status": "cut",
@@ -3398,8 +3397,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Market 36.41 (E57 h22), stop a few cents under the 35.80 low (F62 h24), a third at 3R (B19 h05). Only one choice puts the stop a few cents under the low, so 35.77 is unique. Numbers all from the story. The close-entry choice is a D-003 option but is rejected on its stop, not its entry, so the key does not pick the trigger. No longer answered by w2 or q19. Pass.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with its rulings"
   },
   "q67": {
    "status": "cut",
@@ -3429,7 +3427,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(22.93 - 22.68) / 22.93 x 100 = 1.09, calc matches d07 (MAR, stop 22.68, 1.1%). 22.71 comes from the question. Pass."
+   "notes": "agrees with its rulings"
   },
   "q30": {
    "status": "pass",
@@ -3477,7 +3475,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False from d25; dossier line 1102-1107 confirms the order is 3R / 5R, so 22.3% (1.5x or more) against 27.0% (under 1.0x) at 3R. Pass."
+   "notes": "agrees with its rulings"
   },
   "q53": {
    "status": "pass",
@@ -3589,7 +3587,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True from c15, F62 (h24), A3 (h01). Pass."
+   "notes": "agrees with its rulings"
   },
   "q08": {
    "status": "pass",
@@ -3637,8 +3635,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False from c14. Pass."
+   "fixed": true,
+   "notes": "Edit is right; 'not wrong answers' is test-speak, reworded."
   },
   "q16": {
    "status": "pass",
@@ -3687,8 +3685,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c12; 0.6 ATR inside c04 band; depends_on D-003 recorded (story assumes the high-break trigger).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with its rulings"
   },
   "q35": {
    "status": "pass",

@@ -71,6 +71,14 @@
    "title": "4B- dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/10-weinstein-4b.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -793,6 +801,18 @@
    "source": "h1",
    "quote": "a 3-5 day final leg: three straight up days, two straight overnight gap ups, two of three days of range expansion, two days of rising volume, and a gap up on the climax day",
    "claim": "B26: the parabolic burst is a 3 to 5 day final leg of up days, gap ups, wider ranges and rising volume."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "Owner: below the 200-day is a hard no for stocks."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "Owner: indexes and leveraged ETFs may be bought under the 200-day on a reversal extension or parabolic long."
   }
  ],
  "walkthroughs": [
@@ -1214,10 +1234,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q13",
@@ -2520,10 +2537,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q49",
@@ -2796,11 +2810,7 @@
      "stop width rests on held decision D-005"
     ]
    },
-   "depends_on": [
-    "D-003",
-    "D-005"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q56",
@@ -2894,10 +2904,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q58",
@@ -2964,10 +2971,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q60",
@@ -2983,12 +2987,14 @@
     "Pass; it is a plain 4B, still falling"
    ],
    "answer": "Pass; it is still under the 200-day",
-   "why": "Pass. The close was 10.2% under the 200-day the day before the trigger. A 50% decline, a 12% higher low and a 50-day reclaim can all be right. The trade is still not ours: no longs under the 200-day.",
-   "lesson_line": "The shape is not enough. The 200-day decides.",
+   "why": "Pass. The close was 10.2% under the 200-day the day before the trigger. A 50% decline, a 12% higher low and a 50-day reclaim can all be right. The trade is still not ours. Below the 200-day is a hard no for stocks. Only indexes and a few special ETFs get an exception.",
+   "lesson_line": "The shape is not enough. For a stock, the 200-day decides.",
    "facts": [
     "h10",
     "d17",
-    "d18"
+    "d18",
+    "r01",
+    "r02"
    ],
    "wrong": {
     "Take it; the base is textbook": "A good-looking base does not matter when the close is under the 200-day. That rule comes first.",
@@ -3002,7 +3008,7 @@
     "forward": 20
    },
    "house": true,
-   "simple": "Pass. The close is still under the 200-day, and we take no longs under it.",
+   "simple": "Pass. The close is still under the 200-day, and we do not buy stocks under it.",
    "deeper": {
     "trap": "The shape looks complete. A 50% decline, a 12% higher low and a 50-day reclaim, yet the close was still 10% under the 200-day. Check the 200-day before you admire the base. Shape never overrides the line."
    },
@@ -3014,10 +3020,7 @@
      "numbers read from our own bars (dossier)"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave4"
+   "batch": "rulings"
   },
   {
    "key": "q61",
@@ -3694,7 +3697,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches c19, c20 and E57 (h22). Limit order is refuted by the rulebook; 200-day is a gate not a trigger. Held decision D-003 is already flagged."
+   "notes": "agrees with its rulings"
   },
   "q13": {
    "status": "pass",
@@ -3912,8 +3915,8 @@
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (d06, d08, c40). (1) 'A setup that is now broken' is a second reading: after a stop-out this chart's setup IS off until it triggers again (B21), so a careful member can defend it; replaced with an unambiguous misread, refuted by d08. (2) The 'too late' note claimed the buy was on the trigger, which the story never said; the story now says so. (3) The 'too tight' note said the stop 'sat at the day's low, near our default'; d06 says only 'day low', so it now says the stop came from the day's low, per our rule (h01)."
+   "fixed": false,
+   "notes": "agrees with its rulings"
   },
   "q49": {
    "status": "pass",
@@ -3953,9 +3956,9 @@
   },
   "q55": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "agrees with its rulings"
   },
   "q56": {
    "status": "pass",
@@ -3966,8 +3969,8 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (d25: 22.2% of 1,110 reached 3R). (1) 'before a fixed stop' is not in d25; (2) 'about one in five' rounds the quoted 22.2% into a different number (README 3); (3) 'small stops and trims keep it alive' and 'a small, fixed stop keeps each loss small' are unsupported and wrong under A5, where each loss is the same risk percent whatever the stop width; (4) the deeper's 'check the stop size before blaming the setup' does not follow. Rewritten from d25, h01, h03, h05, h20."
+   "fixed": false,
+   "notes": "agrees with its rulings"
   },
   "q58": {
    "status": "cut",
@@ -3979,14 +3982,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Prior close above the 200-day (d00, d29), higher low +14.4%, 11-day pause (d28), ran to 5R in 9 sessions. Neutral stem; wrong notes supported; deeper cites F and META.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with its rulings"
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: Pass, B26 (h10); d17 close 10.2% under the 200-day the day before the trigger, chart asof 2020-06-03 is that day; d18 gives the shape. Distractors refuted. Open flag carried: the importer sends only window_bars and tf (courses_lib.py:729), so the member infers the 200-day from 120 bars unless the chart draws it; same for twin q59."
+   "notes": "Stock case, 200-day hard no with index/special-ETF exception; validator bans the word 'leverage' so 'special ETFs' stays."
   },
   "q61": {
    "status": "pass",

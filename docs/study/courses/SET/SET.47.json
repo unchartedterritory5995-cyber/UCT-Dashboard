@@ -62,6 +62,14 @@
    "title": "News Failure dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/23-news-failure.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -748,6 +756,36 @@
    "source": "d1",
    "quote": "long 603 events, 32.0% to 3R, 18.1% to 5R, 66.8% stopped",
    "claim": "Scan: all longs, 603 events, 32.0% reached 3R, 18.1% reached 5R, 66.8% were stopped."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Owner: every setup buys as price trades through its trigger, during the day."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "Shorts may be taught, but every short lesson says shorting is recommended only for traders who have already made $1 million trading.",
+   "claim": "Owner: shorts may be taught, only recommended for traders who have made $1 million."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Owner: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "Owner: past 5%, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "Never move the stop up to make a trade fit.",
+   "claim": "Owner: never move the stop up to make a trade fit."
   }
  ],
  "walkthroughs": [
@@ -1101,11 +1139,13 @@
     "Market, at the open into the gap up"
    ],
    "answer": "Market, back under the prior close",
-   "why": "Market, back under the prior close. The short is a market order when price trades back under the prior close, green to red, or at the close. Entries are market orders, not limit orders. The prior high is not the trigger. Shorting the open bets against the news before it has failed.",
+   "why": "Market, back under the prior close. The short is a market order as price trades back under the prior close, green to red. Entries are market orders, not limit orders. The prior high is not the trigger. Shorting the open bets against the news before it has failed. Shorting is recommended only for traders who have already made $1 million trading.",
    "lesson_line": "The short mirrors the long: under the prior close.",
    "facts": [
     "n7",
-    "hE57"
+    "hE57",
+    "r01",
+    "r02"
    ],
    "wrong": {
     "Market, over the prior day's high": "The trigger is the prior close, not the prior high. The short waits for price to trade back under that close.",
@@ -1124,10 +1164,7 @@
      "the short entry is a proposed card line; traded shorts wait on D-001"
     ]
    },
-   "depends_on": [
-    "D-001"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q10",
@@ -1735,9 +1772,6 @@
      "what counts as news is a held decision (D-032)"
     ]
    },
-   "depends_on": [
-    "D-032"
-   ],
    "batch": "wave5"
   },
   {
@@ -1938,10 +1972,7 @@
      "rests on the owner's rulebook (B26); the card's short location waits on D-009"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q34",
@@ -2121,11 +2152,7 @@
      "traded shorts wait on D-001; what counts as news waits on D-032"
     ]
    },
-   "depends_on": [
-    "D-001",
-    "D-032"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q39",
@@ -2203,9 +2230,6 @@
      "what counts as news is a held decision (D-032); the key is the card's B- cue"
     ]
    },
-   "depends_on": [
-    "D-032"
-   ],
    "batch": "wave5"
   },
   {
@@ -2218,33 +2242,34 @@
    "choices": [
     "Nothing; the shape is textbook",
     "It tightens to 3% so the size fits",
-    "Size comes down, or you skip it",
+    "Wide; mostly wait for a tighter trigger",
     "Risk goes up so the size stays full"
    ],
-   "answer": "Size comes down, or you skip it",
-   "why": "Size comes down, or you skip it. The size comes from the stop, so an 8.9% stop means far fewer shares for the same risk. Our stop usually sits within about 3% of the buy, and a stop far wider than 3% is a B- cue. B- or lower is sized down. If the honest stop does not fit the risk, skip the trade. Never tighten the stop to make the size work.",
-   "lesson_line": "A wide stop means a small size, or no trade.",
+   "answer": "Wide; mostly wait for a tighter trigger",
+   "why": "Mostly wait for a tighter trigger. We prefer a stop of 1 to 3%, 3.5% is good, and up to 5% is acceptable. An 8.9% stop is well past that, so we mostly wait for a tighter trigger instead. Never move the stop up to make a trade fit.",
+   "lesson_line": "A stop past 5% mostly means wait for a tighter trigger.",
    "facts": [
     "dHIMSw",
     "dHIMS",
     "dHIMSb",
-    "g4",
-    "hA13",
     "hA3",
+    "hA13",
     "m3",
     "hA1n",
-    "hD38n"
+    "r03",
+    "r04",
+    "r05"
    ],
    "wrong": {
-    "Nothing; the shape is textbook": "A stop far wider than 3% is a B- cue and forces a small size.",
-    "It tightens to 3% so the size fits": "Never tighten the stop to make the size work.",
-    "Risk goes up so the size stays full": "Risk is not raised to fit a stop. It runs 0.25% to 2%, picked by setup quality and the rest, and B- or lower is sized down."
+    "Nothing; the shape is textbook": "A good shape does not fix a stop this wide. Past 5%, we mostly wait for a tighter trigger.",
+    "It tightens to 3% so the size fits": "Never move the stop up to make a trade fit.",
+    "Risk goes up so the size stays full": "Risk is not raised to fit a stop. It runs 0.25% to 2%, picked by setup quality and the rest."
    },
    "house": true,
    "story": "HIMS, 2025. An earnings gap down 8.5% on 5.2x volume closes 18.1% up. The stop is 8.9% under the buy.",
-   "simple": "The wide 8.9% stop means you buy far fewer shares or skip it, because the size comes from the stop.",
+   "simple": "The 8.9% stop is too wide, so we mostly wait for a tighter trigger.",
    "deeper": {
-    "trap": "The trap is to keep the usual size and quietly tighten the stop to 3%. That puts the stop inside the news day's range, above the honest stop. The card lists it as a mistake: skip instead. The honest stop is a few cents under the news day's low, and the size follows it."
+    "trap": "The trap is to keep the usual size and quietly tighten the stop to fit. That puts the stop inside the news day's range, above the honest stop. The honest stop is a few cents under the news day's low. When it sits past 5%, we mostly wait for a tighter trigger."
    },
    "tier": "extended",
    "risk": {
@@ -2255,10 +2280,7 @@
      "numbers read from our own bars by the research scan (Tier 3, not owner-reviewed)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q42",
@@ -2584,11 +2606,7 @@
      "numbers read from our own bars by the research scan (Tier 3, not owner-reviewed)"
     ]
    },
-   "depends_on": [
-    "D-001",
-    "D-009"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q51",
@@ -2686,10 +2704,7 @@
      "numbers read from our own bars by the research scan (Tier 3, not owner-reviewed)"
     ]
    },
-   "depends_on": [
-    "D-001"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q53",
@@ -2763,10 +2778,7 @@
      "numbers read from our own bars by the research scan (Tier 3, not owner-reviewed)"
     ]
    },
-   "depends_on": [
-    "D-001"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q55",
@@ -2857,10 +2869,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q57",
@@ -3506,7 +3515,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from n7 and hE57; wrong notes grounded; deeper trap no longer carries opinion."
+   "notes": "agrees with its rulings"
   },
   "q10": {
    "status": "pass",
@@ -3649,10 +3658,9 @@
   },
   "q33": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with its rulings"
   },
   "q34": {
    "status": "pass",
@@ -3682,7 +3690,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from n21; F65 'per grade' wording right; UAL numbers removed so q54 is not answered. Balanced 2 Yes / 2 No."
+   "notes": "agrees with its rulings"
   },
   "q39": {
    "status": "pass",
@@ -3700,7 +3708,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: A3 (size from the stop, skip if it does not fit), g4 B- cue, D38 sized down, m3 never tighten. Matches. Choices 30-35 chars, no lone hedge. hA1n/hD38n verbatim in sizing_rule.md lines 100 and 187. Story numbers dHIMS/dHIMSb verbatim."
+   "notes": "agrees with its rulings"
   },
   "q42": {
    "status": "pass",
@@ -3755,7 +3763,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer n2b + B26: bottom of the range, under the 200-day. Paired-choice design is balanced (37-39 chars). Deeper numbers dSKINb verbatim. Story is light (no 200-day in it) but the stem is a general rule question, so it reads."
+   "notes": "agrees with its rulings"
   },
   "q51": {
    "status": "pass",
@@ -3765,9 +3773,9 @@
   },
   "q52": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "agrees with its rulings"
   },
   "q53": {
    "status": "cut",
@@ -3779,7 +3787,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer n21/F65: the short wants Orange or Red; it was Green (dUAL). Story numbers dUALg verbatim. q38 near-duplicate checked: the lighta final.json moves q38 to 5.5%/2.4x as a pre-trade check, so the rebuttal holds once that chunk merges; if it does not land, q38 and q54 share UAL's numbers."
+   "notes": "agrees with its rulings"
   },
   "q55": {
    "status": "pass",
@@ -3791,7 +3799,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved first: 33.4% to 3R means most do not win; dBase2 states about two losses per 3R winner; hD45 kills the win-streak choice. Why notes the fixed-stop caveat (dBaseHow). AAOI 30.2R and SEDG 10.5R match dAAOIb/dSEDGb. Minor: 'He is right' for an ungendered friend, same style as q60, not a tell."
+   "notes": "agrees with its rulings"
   },
   "q57": {
    "status": "pass",

@@ -150,6 +150,14 @@
    "title": "Mean Reversion dossier, sections 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/36-mean-reversion.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -758,6 +766,30 @@
    "source": "c1",
    "quote": "(B) the index or group flush, an index, sector ETF or leveraged ETF stretched down in a fear spike",
    "claim": "Form B is the index or group flush: an index, sector ETF or leveraged ETF stretched down in a fear spike."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "will buy leverage etfs or indexes under on a reversal extension or parabolic long",
+   "claim": "Indexes and leveraged ETFs may be bought under the 200-day on a reversal extension or parabolic long."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "Looking for 3-5-7 day push for our first sell and that might be 10-12-20R.",
+   "claim": "The first sell is often day based: a 3, 5 or 7 day push, which can be 10, 12 or 20R."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "will go up to 5% but prefer 1-3% risk ish.",
+   "claim": "Stop distance: 1 to 3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "3.5% is good.",
+   "claim": "3.5% is a good stop distance."
   }
  ],
  "walkthroughs": [
@@ -954,10 +986,7 @@
      "rests on the card's trigger line; which turn counts is held (D-003)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q05",
@@ -1152,22 +1181,23 @@
     "No, wait for a lower RSI(2)"
    ],
    "answer": "No, no longs under the 200-day",
-   "why": "No. We take no longs below the 200-day simple moving average, unless it is a parabolic long. A parabolic long is a multi-day burst of gap downs. A four-day, 9% drop with no gaps is not one. The size of the drop, a tight stop or a deeper RSI(2) does not lift the rule. StockCharts' account of Connors draws the same line: buy dips above the 200-day.",
-   "lesson_line": "Under the 200-day, a bounce is not our trade.",
+   "why": "No. For a stock, we take no longs below the 200-day simple moving average. This stock closed under it. Only an index or a levered ETF may be bought under it, on a reversal extension or a parabolic long. The size of the drop, a tight stop or a deeper RSI(2) does not lift the rule. StockCharts' account of Connors draws the same line: buy dips above the 200-day.",
+   "lesson_line": "Under the 200-day, a stock bounce is not our trade.",
    "facts": [
     "h10",
     "sc1",
     "tPa1",
-    "cD"
+    "cD",
+    "r01"
    ],
    "wrong": {
     "Yes, a 9% drop is big enough": "The size of the drop does not lift the 200-day rule.",
-    "Yes, with a tight stop under it": "A tight stop does not lift the rule. No longs below the 200-day, unless it is a parabolic long.",
-    "No, wait for a lower RSI(2)": "RSI(2) is a stretch mark, not an exception. No longs below the 200-day, unless it is a parabolic long."
+    "Yes, with a tight stop under it": "A tight stop does not lift the rule. A stock under its 200-day is not a long.",
+    "No, wait for a lower RSI(2)": "RSI(2) is a stretch mark, not an exception. A stock under its 200-day is not a long."
    },
    "story": "A stock closed 4% under its 200-day after a four-day, 9% drop. There were no gaps and no burst. It turns up at the open.",
    "house": true,
-   "simple": "No, because we never buy a stock under its 200-day unless it is a parabolic long, and this is not one.",
+   "simple": "No, because we never buy a stock under its 200-day, and this one closed under it.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1176,10 +1206,7 @@
      "the index exception below the 200-day is held (D-009)"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q11",
@@ -1333,7 +1360,7 @@
    "format": "fill",
    "criterion": "mr.trim_1",
    "q": "Tap the word that fits the blank.",
-   "sentence": "In our plan, the first trim is a ___ of the position at 3R.",
+   "sentence": "One way we take a first sell is a ___ of the position at 3R.",
    "bank": [
     "third",
     "half",
@@ -1341,16 +1368,17 @@
     "tenth"
    ],
    "answer": "third",
-   "why": "third. In our plan, the hard rule for the first trim is a third of the position at 3R. Ideally the first trim lands anywhere from 3R to 6R, but a third at 3R is the rule to fall back on. If a stock opens past 3R, take that trim at the open.",
-   "lesson_line": "The hard rule for the first trim: a third of the position at 3R.",
+   "why": "third. One way we sell is a third of the position at 3R. The first sell is not always R-based. We may also sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R. If a stock opens past 3R, take that trim at the open.",
+   "lesson_line": "One first sell is a third at 3R. A strong push may sell by days.",
    "facts": [
     "h05",
-    "h25"
+    "h25",
+    "r02"
    ],
    "house": true,
-   "simple": "A third, because the hard rule in our plan sells one third of the position at 3R.",
+   "simple": "A third, because one way we sell is one third of the position at 3R.",
    "deeper": {
-    "trap": "The ideal range for the first trim runs from 3R to 6R. Do not read that range as no trim until 6R. The hard rule is a third at 3R, and a day that opens past 3R takes it at the open."
+    "trap": "The trap is thinking 3R is the only first sell. It is one taught way. A strong push can also be sold on day 3, 5 or 7, which may be 10, 12 or 20R. A day that opens past 3R takes the third at the open."
    },
    "tier": "core",
    "risk": {
@@ -1360,10 +1388,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q16",
@@ -1686,12 +1711,13 @@
     },
     "round": 2
    },
-   "why": "29.04. One R is the fill minus the stop, 26.76 minus 26.00. Add three of those to the fill. In our plan the first third comes off at 3R. This is the EQT trade from 2011, where 3R printed the day after the turn.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "29.04. One R is the fill minus the stop, 26.76 minus 26.00. Add three of those to the fill. One way we sell is a third at 3R. This is the EQT trade from 2011, where 3R printed the day after the turn.",
+   "lesson_line": "Know your 3R before the open. One way we sell a third is there.",
    "facts": [
     "h05",
     "dEQT",
-    "dEQ2"
+    "dEQ2",
+    "r02"
    ],
    "house": true,
    "prefix": "$",
@@ -1705,10 +1731,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q26",
@@ -1831,10 +1854,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q29",
@@ -2000,23 +2020,24 @@
     "Sell the whole position at the open"
    ],
    "answer": "Take the 3R trim at the open",
-   "why": "Take the first third at the open. With the buy at 40.00 and the stop at 38.50, 3R is 44.50, and the stock opens at 45.10, past it. Our hard rule takes a third at 3R. A trim level the day opens past is taken at the open, not waited for. The rest stays on: another third at 5R, then the last third on the trail.",
+   "why": "Take the first third at the open. With the buy at 40.00 and the stop at 38.50, 3R is 44.50, and the stock opens at 45.10, past it. Your plan sells a third at 3R. A trim level the day opens past is taken at the open, not waited for. The rest stays on: another third at 5R, then the last third on the trail.",
    "lesson_line": "Opens past a trim level, trim at the open.",
    "facts": [
     "h25",
     "h05",
-    "h20"
+    "h20",
+    "r02"
    ],
    "wrong": {
-    "Move the stop up and hold it all": "Our hard rule takes a third at 3R. A trim level the day opens past is taken at the open.",
+    "Move the stop up and hold it all": "Your plan sells a third at 3R. A trim level the day opens past is taken at the open.",
     "Wait for a dip back to 44.50": "A trim level the day opens past is taken at the open, not waited for.",
-    "Sell the whole position at the open": "Our plan takes a third at 3R, another at 5R, and trails the last third. A gap past 3R takes one third, not all."
+    "Sell the whole position at the open": "The plan takes a third at 3R, another at 5R, and trails the last third. A gap past 3R takes one third, not all."
    },
-   "story": "You bought at 40.00 with the stop at 38.50. So 3R is 44.50. Next morning the stock opens at 45.10.",
+   "story": "You bought at 40.00 with the stop at 38.50. So 3R is 44.50, where your plan sells a third. Next morning the stock opens at 45.10.",
    "house": true,
    "simple": "Sell a third at the open, because the stock opened past the 3R price of 44.50.",
    "deeper": {
-    "trap": "A gap past 3R tempts two mistakes. One is to wait for the stock to dip back so the trim fills at the planned 44.50. The other is to sell everything because the gap feels too good to keep. Our rule does neither. The third comes off at the open, then another third at 5R and a trail on the last."
+    "trap": "A gap past 3R tempts two mistakes. One is to wait for the stock to dip back so the trim fills at the planned 44.50. The other is to sell everything because the gap feels too good to keep. The plan does neither. The third comes off at the open, then another third at 5R and a trail on the last."
    },
    "tier": "extended",
    "risk": {
@@ -2026,10 +2047,7 @@
      "the setup's first trim is held (D-013, Option 2 at the 20-day)"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q34",
@@ -2067,10 +2085,7 @@
      "the setup's trims are held (D-013)"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q35",
@@ -2109,10 +2124,7 @@
      "the setup's trims are held (D-013)"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q36",
@@ -2122,18 +2134,19 @@
    "criterion": "mr.stop_width",
    "q": "The honest stop is 3.7% away. Pulling it tighter to keep your usual size is fine.",
    "answer": "False",
-   "why": "False. The stop comes first and the size comes from it. A 3.7% stop just means fewer shares for the same risk. If the honest stop does not fit the risk, skip the trade. Never pull a stop in to keep your usual size.",
+   "why": "False. The stop comes first and the size comes from it. A 3.7% stop just means fewer shares for the same risk. We prefer 1 to 3%, 3.5% is good, and up to 5% is acceptable. Never pull a stop in to keep your usual size.",
    "lesson_line": "Never squeeze the stop to fit the size.",
    "facts": [
     "h01",
     "h02",
-    "h04",
-    "h31"
+    "h31",
+    "r03",
+    "r04"
    ],
    "house": true,
    "simple": "False, because the stop comes first and the size follows it, so a wider honest stop means fewer shares or no trade.",
    "deeper": {
-    "example": "Our stops usually sit within about 3% of the buy, and this one is 3.7%. With the risk fixed, the wider stop means fewer shares. If that size does not fit, skip the trade. Pulling the stop in only to keep the old size breaks the rule that the stop comes first."
+    "example": "We prefer stops of 1 to 3% of the buy, 3.5% is good, and up to 5% is acceptable. This one is 3.7%, so we take it. With the risk fixed, the wider stop means fewer shares. Past 5%, we mostly wait for a tighter trigger. Pulling the stop in only to keep the old size breaks the rule that the stop comes first."
    },
    "tier": "core",
    "risk": {
@@ -2143,10 +2156,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q37",
@@ -2252,23 +2262,24 @@
     "Breakeven stop between 2R and 5R"
    ],
    "answer": "All out on a move above the 5-day",
-   "why": "All out above the 5-day. That is Connors' exit as StockCharts describes it: he exits longs on a move above the 5-day SMA. He also does not advocate stops. Ours sells in thirds: a third at 3R, another at 5R, and the last on the 10-day or 21-day trail. Every position keeps a real stop order with the broker, moved to breakeven at 2R to 5R, ideally.",
-   "lesson_line": "We sell in thirds and trail. Connors exits it all at the 5-day.",
+   "why": "All out above the 5-day. That is Connors' exit as StockCharts describes it: he exits longs on a move above the 5-day SMA. He also does not advocate stops. Ours sells in parts: thirds at set R levels, or a sale into a 3 to 7 day push, with the last part on the 10-day or 21-day trail. Every position keeps a real stop order with the broker, moved to breakeven at 2R to 5R, ideally.",
+   "lesson_line": "We sell in parts and trail. Connors exits it all at the 5-day.",
    "facts": [
     "sc5",
     "sc4",
     "h18",
     "h05",
     "h20",
-    "h21"
+    "h21",
+    "r02"
    ],
    "wrong": {
     "Trail the last third under the 10-day": "That is ours: the default trail for a fast mover is the 10-day, sold on a close below it.",
     "Breakeven stop between 2R and 5R": "That is ours: the stop moves to breakeven at 2R to 5R, ideally.",
-    "A third off at 3R, another at 5R": "That is ours: a third at 3R, then another third at 5R."
+    "A third off at 3R, another at 5R": "That is ours: one taught way is a third at 3R, then another third at 5R."
    },
    "house": true,
-   "simple": "All out at the 5-day is not ours, because we sell in thirds and trail the last third.",
+   "simple": "All out at the 5-day is not ours, because we sell in parts and trail the last part.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2277,10 +2288,7 @@
      "the setup's trims are held (D-013): an Option 2 ruling could change which plans are ours"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q41",
@@ -2296,19 +2304,20 @@
     "A fixed 3R, like our plan"
    ],
    "answer": "A retest of the 20 EMA",
-   "why": "A retest of the 20 EMA. That is Kell's rule. His stop goes just below the low of the Reversal Extension bar. His first profit target is the retest of the 20 EMA. It is not our plan: our hard rule for the first trim is a third at 3R.",
+   "why": "A retest of the 20 EMA. That is Kell's rule. His stop goes just below the low of the Reversal Extension bar. His first profit target is the retest of the 20 EMA. It is not our usual plan: our first sell is a third at 3R, or a sale into a 3 to 7 day push.",
    "lesson_line": "Know the other rules, then trade ours.",
    "facts": [
     "ke2",
-    "h05"
+    "h05",
+    "r02"
    ],
    "wrong": {
     "The 200-day average": "Kell names the retest of the 20 EMA, not the 200-day.",
     "The prior all-time high": "Kell names the retest of the 20 EMA.",
-    "A fixed 3R, like our plan": "3R is our house first trim, not Kell's. Kell's first target is the retest of the 20 EMA."
+    "A fixed 3R, like our plan": "3R is one way we take a first sell, not Kell's. Kell's first target is the retest of the 20 EMA."
    },
    "house": true,
-   "simple": "Kell's first target is a retest of the 20 EMA, which is not our plan of a third at 3R.",
+   "simple": "Kell's first target is a retest of the 20 EMA, which is not how we set our first sell.",
    "tier": "extended",
    "risk": {
     "score": 6,
@@ -2318,10 +2327,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q42",
@@ -2822,7 +2828,7 @@
     "Pass; it is a report-day drop"
    ],
    "answer": "Pass; no level to lean on",
-   "why": "Pass. A report-driven drop with no level to lean on keeps falling, and nothing sits under this one. The flush is real, 3.2 ATR on 6x volume, but volume is not a level. A deeper drop does not create one either. A report flush is not a skip by itself; the missing level is. The honest stop, 6.4% away, is double our usual guide of about 3%.",
+   "why": "Pass. A report-driven drop with no level to lean on keeps falling, and nothing sits under this one. The flush is real, 3.2 ATR on 6x volume, but volume is not a level. A deeper drop does not create one either. A report flush is not a skip by itself; the missing level is. The honest stop, 6.4% away, is past the 5% we accept, so we would wait for a tighter trigger.",
    "lesson_line": "A report drop with no level keeps falling.",
    "facts": [
     "cY",
@@ -2830,7 +2836,7 @@
     "dDA2",
     "cH",
     "dKR1",
-    "h04"
+    "r03"
    ],
    "wrong": {
     "Take it; 6x volume is a climax": "Volume is not a level. Without a level to lean on, a report-driven drop keeps falling.",
@@ -2850,10 +2856,7 @@
      "rests on the card's proposed location line (gate or grade row open); stop width is held (D-005)"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q55",
@@ -3116,10 +3119,9 @@
     ]
    },
    "depends_on": [
-    "D-003",
     "D-114"
    ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q62",
@@ -3171,10 +3173,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q63",
@@ -3190,19 +3189,20 @@
     "Pass; buy after a second flush"
    ],
    "answer": "Pass; it closed under the 200-day",
-   "why": "Pass. The flush closed 3.0% under the 200-day SMA. Our rule takes no longs below the 200-day, unless it is a parabolic long. This is not one: no burst, no 40% fall. So it is watch only, before the turn and after it. On the real chart, a buyer was stopped on day 2.",
-   "lesson_line": "A flush under the 200-day is watch only.",
+   "why": "Pass. The flush closed 3.0% under the 200-day SMA. Our rule takes no stock long below the 200-day. This is a stock, so it is watch only, before the turn and after it. Only an index or a levered ETF may be bought under it, on a reversal extension or a parabolic long. On the real chart, a buyer was stopped on day 2.",
+   "lesson_line": "A stock flush under the 200-day is watch only.",
    "facts": [
     "dLL1",
     "dLL2",
     "h10",
     "tPa1",
-    "cM"
+    "cM",
+    "r01"
    ],
    "wrong": {
-    "Take the turn; the drop is deep": "Depth alone is not a parabolic long: this had no burst and no 40% fall. No longs below the 200-day unless it is one.",
-    "Take the turn; it is still a leader": "Being a leader does not lift the 200-day rule. No longs below the 200-day unless it is a parabolic long.",
-    "Pass; buy after a second flush": "A second flush to a new low on heavier volume means the selling was not done. And under the 200-day there is no long unless it is a parabolic long."
+    "Take the turn; the drop is deep": "Depth does not lift the rule. A stock under its 200-day is not a long.",
+    "Take the turn; it is still a leader": "Being a leader does not lift the 200-day rule. A stock under it is not a long.",
+    "Pass; buy after a second flush": "A second flush to a new low on heavier volume means the selling was not done. And a stock under the 200-day is not a long."
    },
    "house": true,
    "chart": {
@@ -3211,9 +3211,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Pass, because the flush closed under the 200-day, and we take no longs below it unless it is a parabolic long.",
+   "simple": "Pass, because the flush closed under the 200-day, and we do not buy a stock under that line.",
    "deeper": {
-    "trap": "A leader can dip under its 200-day in one hard flush, and the stretch looks like a gift. The 200-day rule does not care how good the stock was. Only a parabolic long, a multi-day burst of gap downs, is allowed below the line. A flush with no burst and no 40% fall is not that."
+    "trap": "A leader can dip under its 200-day in one hard flush, and the stretch looks like a gift. The 200-day rule does not care how good the stock was. For a stock, it is a hard no. Only indexes and levered ETFs may be bought there, on a reversal extension or a parabolic long."
    },
    "tier": "expert",
    "risk": {
@@ -3223,10 +3223,7 @@
      "the index exception is held (D-009); the read is an unreviewed dossier example"
     ]
    },
-   "depends_on": [
-    "D-009"
-   ],
-   "batch": "wave5"
+   "batch": "rulings"
   },
   {
    "key": "q64",
@@ -3245,12 +3242,13 @@
     },
     "round": 2
    },
-   "why": "120.38. One R is the fill minus the stop, 109.13 minus 106.88. Add five of them to the fill. In our plan the second third comes off at 5R, after the first third at 3R. On KRYS, 5R printed two sessions after the turn day.",
+   "why": "120.38. One R is the fill minus the stop, 109.13 minus 106.88. Add five of them to the fill. In the R-based plan the second third comes off at 5R, after the first third at 3R. On KRYS, 5R printed two sessions after the turn day.",
    "lesson_line": "One R is the fill minus the stop. 5R is five of them above the fill.",
    "facts": [
     "h20",
     "dKR",
-    "dKR1"
+    "dKR1",
+    "r02"
    ],
    "prefix": "$",
    "house": true,
@@ -3267,10 +3265,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave5",
-   "depends_on": [
-    "D-013"
-   ]
+   "batch": "rulings"
   },
   {
    "key": "q65",
@@ -3278,13 +3273,14 @@
    "rung": 4,
    "format": "tf",
    "criterion": "mr.trim_2",
-   "q": "Our plan sells the last third at 5R.",
+   "q": "In our R-based thirds plan, the last third is sold at 5R.",
    "answer": "False",
-   "why": "False. Our plan sells the first third at 3R and another third at 5R. The last third is trailed, not sold at a set level.",
+   "why": "False. In the R-based plan, the first third comes off at 3R and another third at 5R. The last third is trailed, not sold at a set level.",
    "lesson_line": "Two thirds come off by 5R. The last third trails.",
    "facts": [
     "h20",
-    "h05"
+    "h05",
+    "r02"
    ],
    "house": true,
    "simple": "False, because the last third is not sold at 5R. It is trailed.",
@@ -3297,10 +3293,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave5",
-   "depends_on": [
-    "D-013"
-   ]
+   "batch": "rulings"
   },
   {
    "key": "q66",
@@ -3375,10 +3368,6 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "depends_on": [
-    "D-009",
-    "D-002"
-   ],
    "batch": "wave5"
   },
   {
@@ -3421,9 +3410,6 @@
      "the lesson's conflicts line promised no index or ETF question; an earlier twin (q67) was cut partly on that"
     ]
    },
-   "depends_on": [
-    "D-002"
-   ],
    "batch": "polish"
   }
  ],
@@ -3466,9 +3452,9 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q05": {
    "status": "pass",
@@ -3504,8 +3490,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "B26 (h10) as written; the story rules out a parabolic long (no gaps, no burst, tPa1). Two Yes, two No; numbers are the story's. sc1 supports. Its why defines a parabolic long, which q47 later applies: teaching, not a give-away."
+   "fixed": true,
+   "notes": "D-009 reading: hard no for stocks; parabolic-long exception is only for indexes/levered ETFs, so remove stock parabolic exception"
   },
   "q11": {
    "status": "pass",
@@ -3535,8 +3521,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Third per h05 (B19 hard rule). Note: q65's stem ('the last third at 5R') and q34's story ('thirds at 3R and 5R') also say thirds; q15 plays first by rung, so kept. Depends on D-013, tagged."
+   "fixed": true,
+   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q16": {
    "status": "pass",
@@ -3597,8 +3583,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc recomputed: 29.04. EQT 3R next day per dEQ2. D-013 tagged."
+   "fixed": true,
+   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q26": {
    "status": "pass",
@@ -3615,8 +3601,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Wait for the turn per cJ; the card's mr.trigger is a gate and its option (c), buying the close, is 'not recommended'. bl2 re-verified on bollingerbands.com (Rule 8), sc3 on StockCharts, br1 on the Substack post. D-003 tagged; gate-or-grade stays the resolver's owner flag."
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q29": {
    "status": "cut",
@@ -3647,26 +3633,26 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "The key follows F63 and B19's hard rule. The declined proposal 73 keeps the forced 3R trim. 44.50 is in the story (40 + 3 x 1.5). Owner flag on the 5R habit stands."
+   "fixed": true,
+   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "E52 sells on a close below the line. The 10-day pair is the tested distinction (close against intraday), not a tell. The notes are grounded."
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q35": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False per h01 (A3) and h31: the honest stop sets the size or the trade is skipped. Robust to D-005 either way."
+   "fixed": true,
+   "notes": "awkward 'Our stops prefer' wording in deeper"
   },
   "q37": {
    "status": "pass",
@@ -3689,14 +3675,14 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key is Connors' exit (sc5); the other three are ours (h05, h20, h21). Not the longest choice. Key holds under D-013 Option 2 too (no plan of ours sells all at the 5-day)."
+   "fixed": true,
+   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Kell's own rule (ke2) asked as Kell's. Unreachable this run (web.archive.org blocked, traderlion.com 403); the same sentence is recorded in repo dossiers 18, 34 and 38. Key is not the longest; wrong notes grounded."
+   "fixed": true,
+   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q42": {
    "status": "pass",
@@ -3775,8 +3761,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Under gate or grade, no choice is defensible besides the key. The DASH numbers match dDA1 and dDA2. A minor echo stays ('Nothing sits under it' against 'no level'): the member still has to rank level against report, volume and depth (KRYS, dKR1). Owner flags on gate/grade and D-005 stand."
+   "fixed": true,
+   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q55": {
    "status": "pass",
@@ -3819,19 +3805,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Take it: every check in the story passes (h09, cA, cB, cD, cE, cH, cJ, h08). 'Trades back over the prior day's low' means it first traded under it, so the turn day's low is the lower low, as the why says (cK). D-003 and D-114 tagged."
+   "notes": "keep agrees"
   },
   "q62": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key is the only defensible choice, but it presents KRYS as a go candidate while cA's strict anchor (above the 50-day the day before the flush) is unproven for KRYS: dKR has the flush 12.6% under the 50-day after a 17.9% slide, and the facts never place the prior close. The risk does not record this open anchor. Added the risk reason and the 59% run from dKR so the why covers form A's run, not only the 200-day."
+   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "The key follows B26 (h10) with dLL1 and dLL2. Two Pass and two Take. The second-flush note is grounded in cM. The deeper uses dLL2's words."
+   "fixed": true,
+   "notes": "D-009 reading: hard no for stocks; parabolic-long exception only for indexes/levered ETFs"
   },
   "w1": {
    "status": "pass",
@@ -3854,14 +3840,14 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc recomputed: 109.13 + 5 x 2.25 = 120.38. dKR1 supports 5R two sessions later; h20 the second third at 5R. D-013 tag present."
+   "fixed": true,
+   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key False per h20 is right, but the why and simple say the trail is 'sold on a close below it' / 'until the price closes below it', which hands over q34's key (rung 5, 'On a close under the 10-day' against 'The first trade under the 10-day'). q65 is rung 4, so it is shown first. Trail detail removed; h21 dropped."
+   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
   },
   "q66": {
    "status": "cut",

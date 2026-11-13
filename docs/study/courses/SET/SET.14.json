@@ -140,6 +140,14 @@
    "title": "20 EMA Pullback dossier, sections 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/11-ema20-pullback.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -856,6 +864,30 @@
    "source": "h1",
    "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours.",
    "claim": "E50: grading is discretionary; no fixed checklist is taught as ours."
+  },
+  {
+   "id": "r51",
+   "source": "h2",
+   "quote": "How deep an undercut may go and how fast it must reclaim is a judgment call, not a fixed number.",
+   "claim": "Undercut depth and reclaim speed are judgment calls, not fixed numbers."
+  },
+  {
+   "id": "r52",
+   "source": "h2",
+   "quote": "The stop goes under the low of day, the prior day's low, or the range low.",
+   "claim": "The stop goes under the low of day, the prior day's low, or the range low."
+  },
+  {
+   "id": "r53",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop.",
+   "claim": "The low of day is the primary stop."
+  },
+  {
+   "id": "r54",
+   "source": "h2",
+   "quote": "a flag is a flag imo and i think the slight variations are not as important.",
+   "claim": "A flag is a flag; the slight variations matter little."
   }
  ],
  "walkthroughs": [
@@ -1109,10 +1141,7 @@
      "the cent-over-the-high buy is the proposed fallback trigger, held under D-003"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q06",
@@ -1166,10 +1195,7 @@
      "if D-003 moves the buy to the hold session itself, the wording may need a re-read"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q08",
@@ -1311,9 +1337,6 @@
      "fixed before by the checker"
     ]
    },
-   "depends_on": [
-    "D-029"
-   ],
    "batch": "wave2"
   },
   {
@@ -1360,17 +1383,17 @@
    "rung": 2,
    "format": "tf",
    "criterion": "e20.inv_close_under",
-   "q": "Two closes in a row under the 20 EMA during the pullback end the setup until it sets up again.",
+   "q": "If the pullback keeps closing under the 20 EMA, the line is lost and the setup is off.",
    "answer": "True",
-   "why": "True. Two closes in a row under the 20 EMA end the setup. So does a single close more than 0.5 ATR under it. One shakeout close of 0.5 ATR or less, reclaimed the next session, is still allowed. No trade until it sets up again.",
-   "lesson_line": "One shakeout is allowed. Two closes under the line is a line lost.",
+   "why": "True. Closes that keep sitting under the 20 EMA mean the line is lost. The setup is off until it sets up again. One shakeout that is reclaimed the next session can still be a hold. How deep a dip may go, and how fast it must come back, is a judgment call, not a fixed number.",
+   "lesson_line": "One shakeout can be fine. Closes that stay under the line mean it is lost.",
    "facts": [
-    "c14",
     "c21",
-    "c32"
+    "c32",
+    "r51"
    ],
    "house": true,
-   "simple": "True, because two closes in a row under the 20 EMA end the setup until it forms again.",
+   "simple": "True, because closes that stay under the 20 EMA mean the line is lost, and we wait for a new setup.",
    "tier": "core",
    "risk": {
     "score": 8,
@@ -1381,10 +1404,7 @@
      "fixed before by the checker"
     ]
    },
-   "depends_on": [
-    "D-036"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q14",
@@ -1637,9 +1657,6 @@
      "fixed before by the checker"
     ]
    },
-   "depends_on": [
-    "D-024"
-   ],
    "batch": "wave2"
   },
   {
@@ -1815,9 +1832,6 @@
      "tied to held decision D-029"
     ]
    },
-   "depends_on": [
-    "D-029"
-   ],
    "batch": "wave2"
   },
   {
@@ -1976,10 +1990,7 @@
      "fixed before by the checker"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q30",
@@ -2254,10 +2265,7 @@
      "grading on volume is held under D-006, as a grade cue not a gate"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q38",
@@ -2509,26 +2517,29 @@
    "q": "Where does the stop go?",
    "choices": [
     "A few cents under 93.60",
-    "A few cents under 93.88",
-    "A few cents under the 20 EMA",
-    "A few cents under the 50-day"
+    "At the entry price itself",
+    "A close under the 20 EMA",
+    "A fixed 1% under the entry"
    ],
    "answer": "A few cents under 93.60",
-   "why": "A few cents under 93.60. The stop goes a few cents under the lower of the holding candle's low and the trigger session's low. The holding candle's low is 93.88. The next session dipped to 93.60 first, so 93.60 sets the stop.",
-   "lesson_line": "The stop sits under the lowest low of the hold and the trigger day.",
+   "why": "A few cents under 93.60, the low of day. Our stop goes under the low of day, the prior day's low, or the range low, and the low of day is the main one. The hold candle's low is 93.88, but the next session dipped to 93.60 first, so 93.60 is the low of day.",
+   "lesson_line": "The stop sits a few cents under the low of day.",
    "facts": [
     "c12",
     "h24",
-    "c13"
+    "c13",
+    "h05",
+    "r52",
+    "r53"
    ],
    "wrong": {
-    "A few cents under 93.88": "The trigger session printed a lower low first, 93.60. A stop a few cents under 93.88 would sit above a low the stock has already made.",
-    "A few cents under the 20 EMA": "The stop is built from a candle's low, not from the line. Here the lower low is 93.60.",
-    "A few cents under the 50-day": "The stop is built from a candle's low, not from the 50-day. Here the lower low is 93.60."
+    "At the entry price itself": "A stop right on the entry gives the trade no room. Breakeven comes later, after the trade has worked.",
+    "A close under the 20 EMA": "A close under the line is not the first stop. The stop is an order a few cents under a low.",
+    "A fixed 1% under the entry": "The stop comes from a low, not from a fixed percent. The size is then set from that stop."
    },
    "house": true,
    "story": "The holding candle's low is 93.88. The next session dips to 93.60, still above the rising 20 EMA, then trades over the hold candle's high and you buy.",
-   "simple": "The stop goes a few cents under 93.60, because we use the lower of the two lows.",
+   "simple": "The stop goes a few cents under 93.60, because that is the low of day.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2537,10 +2548,7 @@
      "fixed before by the checker"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q46",
@@ -2615,7 +2623,7 @@
     "EMA Crossback; a fresh reclaim",
     "20 EMA pullback; old uptrend",
     "Remount; the 50-day was lost",
-    "Bull flag; a pause in a run"
+    "Flag; a pause after a sharp run"
    ],
    "answer": "EMA Crossback; a fresh reclaim",
    "why": "The EMA Crossback. Count the sessions since the stock closed back above both the 9 and 20 EMA out of a decline. Eight sessions ago here. The first test of the averages soon after that pop is Kell's crossback.",
@@ -2624,12 +2632,13 @@
     "c20",
     "k03",
     "c21",
-    "c23"
+    "c23",
+    "r54"
    ],
    "wrong": {
     "20 EMA pullback; old uptrend": "Same line, but the averages were just reclaimed and this is the first test. The card names that the EMA Crossback, not the pullback.",
     "Remount; the 50-day was lost": "A Remount is five or more closes under a 50-day or 200-day line, then retaken. This story reclaims the 9 and 20 EMA.",
-    "Bull flag; a pause in a run": "A flag needs a pole, a gain of 20% or more inside 20 sessions. The story describes a reclaim of the averages, not a pole."
+    "Flag; a pause after a sharp run": "A flag follows a sharp run up, the pole. The story describes a reclaim of the averages, not a pole."
    },
    "house": true,
    "story": "The stock slid for weeks, then closed back over its 9 and 20 EMA eight sessions ago. Now it tests the 20 EMA for the first time since.",
@@ -2647,10 +2656,9 @@
     ]
    },
    "depends_on": [
-    "D-002",
     "D-026"
    ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q49",
@@ -2734,9 +2742,6 @@
      "fixed before by the checker"
     ]
    },
-   "depends_on": [
-    "D-029"
-   ],
    "batch": "wave2"
   },
   {
@@ -2782,11 +2787,6 @@
      "fixed before by the checker"
     ]
    },
-   "depends_on": [
-    "D-002",
-    "D-003",
-    "D-036"
-   ],
    "batch": "wave2"
   },
   {
@@ -2984,10 +2984,7 @@
      "one worked example"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q57",
@@ -3228,10 +3225,7 @@
      "one worked example"
     ]
    },
-   "depends_on": [
-    "D-003"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q63",
@@ -3287,26 +3281,25 @@
     "No; it needs a second hold first"
    ],
    "answer": "Yes; it held, so no line was lost",
-   "why": "Yes. The low dipped 0.28 ATR under the line, inside the touch band, and the same session closed back above it. That is a hold, not a lost line. What ends the setup is a close more than 0.5 ATR under the line, or two closes in a row under it. CRM did this in June 2020 and reached 3R in 2 sessions.",
+   "why": "Yes. The low dipped under the line, but the same session closed back above it. That is a hold, not a lost line. How deep a dip may go is a judgment call, not a fixed number. Here the dip was 0.28 ATR and the close came back over the line. CRM did this in June 2020 and reached 3R in 2 sessions.",
    "lesson_line": "A low under the line that closes back above it still counts as a hold.",
    "facts": [
     "c32",
-    "c14",
-    "c02",
     "d05",
     "d06",
-    "c18"
+    "c18",
+    "r51"
    ],
    "wrong": {
-    "No; any dip under the line is off": "The low may sit up to 1 ATR under the line. What ends the setup is a close well under it, or two closes under.",
-    "Yes; any dip under the line is fine": "Not any dip. The low may sit up to 1 ATR under the line, and the close decides: two closes under it end the setup.",
+    "No; any dip under the line is off": "A dip under the line is not an automatic fail. How deep it goes is a judgment call, and this one closed back above the line.",
+    "Yes; any dip under the line is fine": "Not any dip. How deep a dip may go is a judgment call. This one was shallow and closed back over the line.",
     "No; it needs a second hold first": "There is nothing to wait for. The session held and the next one triggered."
    },
    "house": true,
    "story": "The hold session's low dips 0.28 ATR under the 20 EMA and it closes back above the line the same day. Next session it trades over that candle's high.",
    "simple": "Yes, because the low dipped under the line but the session closed back above it, so the hold still counts.",
    "deeper": {
-    "trap": "The low is not the test. The touch band lets the low sit up to 1 ATR under the line. The close is the test: at or above the line. A close under it by no more than 0.5 ATR, reclaimed the next session, is also allowed. Two closes in a row under it end the setup."
+    "trap": "Treating the depth of the dip as a fixed number. A shallow dip that closes back over the line is the easy case. A deeper dip, or closes that stay under the line, is harder, and we judge each one."
    },
    "tier": "expert",
    "risk": {
@@ -3316,10 +3309,7 @@
      "one worked example"
     ]
    },
-   "depends_on": [
-    "D-036"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q65",
@@ -3606,7 +3596,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c09, wrong notes c09/c10/c18. D-003 flag stands."
+   "notes": "keep agrees with ruling"
   },
   "q06": {
    "status": "pass",
@@ -3618,7 +3608,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c10. D-003 flag stands."
+   "notes": "keep agrees with ruling"
   },
   "q08": {
    "status": "cut",
@@ -3656,7 +3646,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c14 verbatim (two closes in a row, or one over 0.5 ATR under); shakeout allowance c32/c21. Consistent with q38."
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q14": {
    "status": "pass",
@@ -3754,7 +3744,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c09, c12, c13 verbatim; stop under Wednesday's low is the lower of the two lows. Teaches the fallback trigger (held D-003), flagged. Wrong notes true."
+   "notes": "keep agrees with ruling"
   },
   "q30": {
    "status": "cut",
@@ -3802,8 +3792,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Keyed on a pending-owner grade cue (e20.pullback_volume, D-006) and the lesson's own conflicts note says the dossier test found quiet pullbacks did worse; owner rule E50 says grading is discretionary with no fixed checklist taught as ours. Ask what Shannon prefers instead, which his quote (a02, verified on the page) and TraderLion (t01) support."
+   "fixed": false,
+   "notes": "keep agrees with ruling"
   },
   "q38": {
    "status": "pass",
@@ -3852,7 +3842,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c12 verbatim (lower of the holding candle's low and the trigger session's low); 93.60 < 93.88. Teaches the fallback (held D-003), flagged."
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q46": {
    "status": "pass",
@@ -3871,8 +3861,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c20 / k03 / c21 / c23 verbatim; eight sessions is inside 3 to 20; Remount and flag wrong notes true. Rests on held D-002/D-026, flagged.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q49": {
    "status": "pass",
@@ -3920,8 +3909,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Distractor 'the gap rule moved the stop' is a second defensible No: B20 (h06) says the first 30 minutes of the gap-down day decide, and the story says the stock gapped down. The wrong note ('open above the stop so the rule never applied') is not backed by any cited fact (only the card's 'through the stop', not cited). Remove the gap framing and the distractor."
+   "fixed": false,
+   "notes": "keep agrees with ruling"
   },
   "q57": {
    "status": "pass",
@@ -3956,8 +3945,8 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and numbers fine (100.38+0.01, 99.10-0.03, third at 3R by B19/E51). But deeper says 'after the first trim the stop moves up to breakeven', which overreaches B19 (breakeven somewhere from 2R to 5R, ideally)."
+   "fixed": false,
+   "notes": "kept; entry/stop agree with D-003. First trim 3R is the house plan; D-013 not tagged here."
   },
   "q63": {
    "status": "pass",
@@ -3970,7 +3959,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.28 ATR is inside the touch band (c02) and the same session closed above the line (c32). Key matches d05/d06. D-036 flag stands."
+   "notes": "edit verified against rulings, quotes word for word"
   },
   "q65": {
    "status": "pass",

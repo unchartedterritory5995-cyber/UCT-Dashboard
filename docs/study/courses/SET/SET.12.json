@@ -80,6 +80,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -724,6 +732,18 @@
    "source": "cm",
    "quote": "A buy stop limit order just above the pivot handles the execution.",
    "claim": "ChartMill: a buy stop limit order just above the pivot handles the execution."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop.",
+   "claim": "D-008: the entry day's low is the primary stop."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "claim": "D-008: the pattern's low and a line minus a cushion are acceptable alternatives."
   }
  ],
  "walkthroughs": [
@@ -965,7 +985,7 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "vcp.stop",
-   "q": "By our default, where does the stop go on a VCP breakout?",
+   "q": "On a VCP breakout, which is our primary stop?",
    "choices": [
     "Exactly on the day's low",
     "At the 50-day average",
@@ -973,15 +993,17 @@
     "A few cents under the day's low"
    ],
    "answer": "A few cents under the day's low",
-   "why": "A few cents under the day's low, by default. The stop comes first, and the share size comes from the stop. It sits under the low, not exactly on it. The rulebook also allows the prior day's low as the reference.",
+   "why": "A few cents under the day's low is the primary stop. The stop comes first, and the share size comes from the stop. It sits under the low, not exactly on it. The pattern's low and a line minus a cushion are acceptable alternatives. The prior day's low also works.",
    "lesson_line": "Stop first: a few cents under the day's low, then size from the stop.",
    "facts": [
     "h01",
-    "h24"
+    "h24",
+    "r01",
+    "r02"
    ],
    "wrong": {
-    "At the low of the first pullback": "That can sit far from the entry. Our default is a few cents under the day's low.",
-    "At the 50-day average": "Our stop is a few cents under the day's low, not at an average.",
+    "At the low of the first pullback": "That is a pattern low, an acceptable alternative. It can sit far from the entry, so the day's low comes first.",
+    "At the 50-day average": "A line minus a cushion is an acceptable alternative. The day's low is the primary stop.",
     "Exactly on the day's low": "Our rule is a few cents under the low, not exactly on it."
    },
    "house": true,
@@ -993,10 +1015,7 @@
      "+2 rests on the owner's rulebook (A3, F62) and the held decision D-008 on which low"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q08",
@@ -1024,7 +1043,6 @@
     ]
    },
    "depends_on": [
-    "D-029",
     "D-060"
    ],
    "batch": "wave2"
@@ -1315,10 +1333,7 @@
      "+2 sits beside the held decision D-005 on stop width"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q18",
@@ -1584,11 +1599,10 @@
     ]
    },
    "depends_on": [
-    "D-002",
     "D-042",
     "D-043"
    ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q25",
@@ -1669,10 +1683,7 @@
      "+2 keys a proposed card check (vcp.stop_structure_check) beside the held decision D-008"
     ]
    },
-   "depends_on": [
-    "D-008"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q27",
@@ -2021,10 +2032,7 @@
      "+1 fixed before"
     ]
    },
-   "depends_on": [
-    "D-006"
-   ],
-   "batch": "wave2"
+   "batch": "rulings"
   },
   {
    "key": "q37",
@@ -3821,8 +3829,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "fixed": true,
+   "notes": "edit right: asks for the primary stop; alternatives explained | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q08": {
    "status": "pass",
@@ -3881,8 +3889,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "fixed": true,
+   "notes": "keep right: percent arithmetic, 2.7% inside preferred range | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q18": {
    "status": "pass",
@@ -3924,7 +3932,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "keep right: HTF distractor is wrong for pole size, not a variant distinction (mild risk: HTF as separate setup name)"
   },
   "q25": {
    "status": "pass",
@@ -3935,8 +3943,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key right (c18, c29). Wrong choices are real misreadings. Rests on a proposed card check (D-008) but the stem says 'by our card'."
+   "fixed": true,
+   "notes": "keep right: day low under last swing low is a structure break | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q27": {
    "status": "pass",
@@ -3996,8 +4004,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "fixed": true,
+   "notes": "keep right: light volume is a red flag, stop is the exit | mechanical: depends_on left empty, restored to the ruling id(s)"
   },
   "q37": {
    "status": "pass",

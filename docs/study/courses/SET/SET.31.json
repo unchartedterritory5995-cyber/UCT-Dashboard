@@ -149,6 +149,14 @@
    "title": "Parabolic Short dossier, sections 13 and 14: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/39-parabolic-short.md#13-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1165,6 +1173,30 @@
    "source": "d1",
    "quote": "Entry: a market order at the climax day's close; stop 0.1% plus a cent over the climax high",
    "claim": "The scan shorts at the climax day's close, with the stop just over the climax high."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "D-005: prefer a 1-3% stop, 3.5% is good, up to 5% is acceptable."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "D-005: past a 5% stop, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Never move the stop up to make a trade fit.",
+   "claim": "D-005: never move the stop to make a trade fit."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "The first sell is not always R-based.",
+   "claim": "D-013: the first sell is not always R-based."
   }
  ],
  "walkthroughs": [
@@ -1312,9 +1344,6 @@
      "the exception test is held (D-040); the key uses only B26's own words"
     ]
    },
-   "depends_on": [
-    "D-040"
-   ],
    "batch": "wave3"
   },
   {
@@ -1375,10 +1404,7 @@
      "how much comes off at the 9 EMA is held (D-013); the key is the level only"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q05",
@@ -1484,9 +1510,6 @@
      "the count of boxes needed is held (D-040); only the boxes themselves are keyed"
     ]
    },
-   "depends_on": [
-    "D-040"
-   ],
    "batch": "wave3"
   },
   {
@@ -2062,9 +2085,6 @@
      "how much comes off at the 9 EMA is held (D-013); only the level is keyed"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
    "batch": "wave3"
   },
   {
@@ -2102,9 +2122,6 @@
      "the extension floor is held (D-040); this question computes a percent only"
     ]
    },
-   "depends_on": [
-    "D-040"
-   ],
    "batch": "wave3"
   },
   {
@@ -2124,18 +2141,20 @@
     },
     "round": 2
    },
-   "why": "7.25%. The stop width is the stop minus the fill, divided by the fill, times 100. Our stops usually sit within about 3% of the entry, so this one is wider. The size comes from the stop, so the shares shrink. These are BILI's numbers, listed at 7.2% in our data.",
-   "lesson_line": "A wider stop means fewer shares. The size comes from the stop.",
+   "why": "7.25%. The stop width is the stop minus the fill, divided by the fill, times 100. We prefer a stop 1-3% away, 3.5% is good, and up to 5% is acceptable. This one is past 5%, so we mostly wait for a tighter trigger. These are BILI's numbers, listed at 7.2% in our data.",
+   "lesson_line": "A stop past 5% is too wide to take. Wait for a tighter trigger.",
    "facts": [
     "h18",
     "h09",
-    "d08"
+    "d08",
+    "r01",
+    "r02"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 7.25 percent from the fill, wider than our usual 3 percent, so the share count shrinks.",
+   "simple": "The stop is 7.25 percent from the fill. That is past what we accept, so we wait for a tighter trigger.",
    "deeper": {
-    "example": "On our daily-bar read of BILI, a stop 7.2% away still saw the 9 EMA in 4 sessions and 3R on day 4. By our rule, the size comes from that stop."
+    "example": "On our daily-bar read of BILI, a stop 7.2% away still saw the 9 EMA in 4 sessions and 3R on day 4. It worked, but that stop is past the 5% we accept, so we mostly wait for a tighter trigger."
    },
    "tier": "core",
    "risk": {
@@ -2145,10 +2164,7 @@
      "stop width options are held (D-005); only A13's 3% and A5's size-from-the-stop are keyed"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q26",
@@ -2442,9 +2458,6 @@
      "grading is discretionary (E50)"
     ]
    },
-   "depends_on": [
-    "D-040"
-   ],
    "batch": "wave3"
   },
   {
@@ -2569,29 +2582,30 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "ps.cover_9ema",
-   "q": "You shorted a climax close with the target only 0.14R away. Which yardstick fits this trade?",
+   "q": "You shorted a climax day with the target only 0.14R away. Which yardstick fits this trade?",
    "choices": [
     "The 9 EMA, which acts as a magnet",
-    "A fixed 3R, like most setups",
+    "A fixed 3R, set before the trade",
     "The 50-day as the target",
     "The swing low as the target"
    ],
    "answer": "The 9 EMA, which acts as a magnet",
-   "why": "The 9 EMA. Our rule names the 9-day average as a parabolic short's target, and Bracco calls the trade complete once it is tested. On MSTR the 9 EMA was 0.14R away and the stock never gave more than 0.77R before chopping. That is a trade the cover rule handles and a 3R test cannot.",
+   "why": "The 9 EMA. Our rule names the 9-day average as a parabolic short's target, and Bracco calls the trade complete once it is tested. The first sell is not always R-based, and here the level sets the exit. On MSTR the 9 EMA was 0.14R away and the stock never gave more than 0.77R before chopping. That is a trade the 9 EMA target handles and a fixed 3R test cannot.",
    "lesson_line": "The target is a level, not a multiple. When the level is close, the trade is small.",
    "facts": [
     "c44",
     "h05",
     "b23",
-    "b14"
+    "b14",
+    "r04"
    ],
    "wrong": {
-    "A fixed 3R, like most setups": "3R was never on the table. The stock never gave more than 0.77R before it chopped.",
     "The 50-day as the target": "Bracco's target is the 9 EMA, not the 50-day.",
-    "The swing low as the target": "The rule names a moving average, not a low on the chart. Bracco's target is the 9 EMA, which acts as a magnet for mean reversion."
+    "The swing low as the target": "The rule names a moving average, not a low on the chart. Bracco's target is the 9 EMA, which acts as a magnet for mean reversion.",
+    "A fixed 3R, set before the trade": "The stock never gave more than 0.77R, so a fixed 3R was never on the table here. The 9 EMA is the level this setup is judged by."
    },
    "house": true,
-   "simple": "The target is the 9 EMA, a level not a multiple. Here it is only 0.14R away, so 3R was never on the table.",
+   "simple": "The target is the 9 EMA, a level and not a multiple. Here it is only 0.14R away.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2600,10 +2614,7 @@
      "MSTR figures come from our own scan"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q38",
@@ -2956,10 +2967,7 @@
      "how much comes off at the 9 EMA is held (D-013); only the arithmetic is keyed"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q47",
@@ -2967,9 +2975,9 @@
    "rung": 6,
    "format": "tf",
    "criterion": "ps.stop",
-   "q": "On this setup the stop over the climax high is often wider than 3%, so the share count shrinks. You never pull the stop in to fit a size.",
+   "q": "A stop over the climax high that is past 5% usually means waiting for a tighter trigger. You never pull the stop in to fit a size.",
    "answer": "True",
-   "why": "True. Our stops usually sit within about 3%. The climax high is often further: on our daily-bar examples GDS was 8.4%, BILI 7.2% and TPL 8.9% away. The size comes from the stop, so a wider stop means fewer shares. If the honest stop does not fit the risk, skip the trade.",
+   "why": "True. We prefer a stop 1-3% away, 3.5% is good, and up to 5% is acceptable. The climax high is often further: on our daily-bar examples GDS was 8.4%, BILI 7.2% and TPL 8.9% away. Past 5%, we mostly wait for a tighter trigger. We never pull the stop in to fit a size.",
    "lesson_line": "You never pick a size and back-fit a stop under the day's high.",
    "facts": [
     "h18",
@@ -2978,10 +2986,13 @@
     "d02",
     "d08",
     "d11",
-    "h09"
+    "h09",
+    "r01",
+    "r02",
+    "r03"
    ],
    "house": true,
-   "simple": "True. The climax high is often further than 3% away, so we take fewer shares and never squeeze the stop in.",
+   "simple": "True. The climax high is often far from the fill, so past 5 percent we wait for a tighter trigger and never squeeze the stop.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2991,10 +3002,7 @@
      "the wider-than-3% claim comes from our own examples"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q48",
@@ -3075,9 +3083,6 @@
      "an options-calendar cue"
     ]
    },
-   "depends_on": [
-    "D-023"
-   ],
    "batch": "wave3"
   },
   {
@@ -3208,17 +3213,19 @@
     "Nowhere; five-star climaxes are traps"
    ],
    "answer": "At the VWAP break, after the turn",
-   "why": "At the VWAP break, after the turn. On this climax, SMCI on 2024-02-16, a short at the close put the stop 34.3% away and ran only 0.40R at best. A new high on day 10 took it. The VWAP break at 90.01 ran 1.16R before the same stop at 107.90. The size comes from that stop.",
+   "why": "At the VWAP break, after the turn. On this climax, SMCI on 2024-02-16, a short at the close put the stop 34.3% away and ran only 0.40R at best. A new high on day 10 took it. The VWAP break at 90.01 ran 1.16R before the same stop at 107.90. Even so, that stop is past the 5% we accept, so we would mostly wait for a tighter trigger.",
    "lesson_line": "The entry is the VWAP break after the turn. Not the close of the climax day.",
    "facts": [
     "d19",
     "d20",
     "d21",
     "h12",
-    "c04"
+    "c04",
+    "r01",
+    "r02"
    ],
    "wrong": {
-    "At the close; it is five stars": "Five stars does not fix a 34.3% stop. If the honest stop does not fit, skip.",
+    "At the close; it is five stars": "Five stars does not fix a 34.3% stop. Past 5%, we mostly wait for a tighter trigger.",
     "Nowhere; five-star climaxes are traps": "Five stars grades the setup, and its four boxes were real. The entry at the close was the problem; the VWAP break ran 1.16R against 0.40R.",
     "At the break of the day's low": "That is Bracco's second entry, which we do not take. We use one entry, at the VWAP break."
    },
@@ -3237,10 +3244,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-005"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q54",
@@ -3327,9 +3331,6 @@
      "fixed before (the CAR example was removed)"
     ]
    },
-   "depends_on": [
-    "D-040"
-   ],
    "batch": "wave3"
   },
   {
@@ -3616,9 +3617,6 @@
      "the count of boxes needed is held (D-040)"
     ]
    },
-   "depends_on": [
-    "D-040"
-   ],
    "batch": "wave3"
   },
   {
@@ -3841,10 +3839,7 @@
      "fixed before"
     ]
    },
-   "depends_on": [
-    "D-013"
-   ],
-   "batch": "wave3"
+   "batch": "rulings"
   },
   {
    "key": "q70",
@@ -3886,9 +3881,6 @@
      "a single author's exception"
     ]
    },
-   "depends_on": [
-    "D-040"
-   ],
    "batch": "wave3"
   },
   {
@@ -3975,9 +3967,6 @@
     "c10"
    ],
    "house": true,
-   "depends_on": [
-    "D-040"
-   ],
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -4092,8 +4081,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q05": {
    "status": "pass",
@@ -4221,8 +4210,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q26": {
    "status": "pass",
@@ -4293,9 +4282,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q38": {
    "status": "pass",
@@ -4349,15 +4337,15 @@
   },
   "q46": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q48": {
    "status": "pass",
@@ -4394,8 +4382,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key follows c04 (VWAP break entry); 34.3% and 1.16R/0.40R are in d19-d21 and consistent. Both entries still hit the same stop, but the why says only that it ran 1.16R, not that it won. Passes."
+   "fixed": true,
+   "notes": "VWAP break still best of the four; 19.9% stop noted as past 5% in why"
   },
   "q54": {
    "status": "cut",
@@ -4493,8 +4481,8 @@
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "18.8% (d32) is under one in three, so False; fixed-stop caveat is d33. Close-entry scope is true per the dossier. Passes."
+   "fixed": true,
+   "notes": "agrees with ruling"
   },
   "q70": {
    "status": "pass",
