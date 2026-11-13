@@ -117,4 +117,15 @@ describe('L6 question filter (useAgent dropExcluded), the spatial net stubbed ou
       expect(offered(), transcript()).not.toContain('Chart (BL)')
       expect(weekly(m.board)).toEqual([])
     }, 40000)
+  it.each([['switch to weekly; dont touch TSLA'], ["switch to weekly, but leave TSLA's alone"]])(
+    '"%s" (TSLA on two charts, plan on SPY, no click): neither TSLA chart is offered', async (t) => {
+      const widgets = IDS.map(([id, r, c]) => ({ id, x: c * W, y: r * H, w: W, h: H, type: 'chart', color: 'N', opts: { settings: bareSettings() } }))
+      const m = p.mount(widgets, Object.fromEntries(widgets.map((x, i) => [`N:${x.id}`, ['SPY', 'TSLA', 'NVDA', 'TSLA'][i]])), { decorate: (s) => ({ ...s, label: `Chart (${s.ref})` }) })
+      off.spatial = true
+      p.st.envelopes.push(tfPlan(['TL']))
+      await m.say(t)
+      expect(offered(), transcript()).toMatch(/Chart \(/)
+      expect(offered(), transcript()).not.toMatch(/Chart \((?:TR|BR)\)/)
+      expect(weekly(m.board)).toEqual([])
+    }, 40000)
 })
