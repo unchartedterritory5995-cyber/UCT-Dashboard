@@ -48,7 +48,10 @@ import { SETUPS_BOARD_PATH } from '../../lib/setupsBoardLink'
 import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
 import { passedSetupsEnabled } from '../../lib/researchCapture'
 import { NOTEBOOK_PREP_HASH } from '../../lib/notebookDoors'
-import { getRegistryTourWanted, subscribeRegistryTourWanted } from './onboarding/tourRegistryControl'
+import {
+  getRegistryTourClosedCount, getRegistryTourWanted, hasPendingRegistryTourOpen, subscribeRegistryTourClosed,
+  subscribeRegistryTourWanted,
+} from './onboarding/tourRegistryControl'
 import styles from './TodayHome.module.css'
 
 export const TODAY_URL = '/api/j2/notes/today'
@@ -612,12 +615,22 @@ export default function TodayHome({
   useTodayRefresh(mutate, data)
   // Review 4e: a registry walkthrough running now (the signal MoreBoxes unfolds the boxes on).
   const tourWanted = useSyncExternalStore(subscribeRegistryTourWanted, getRegistryTourWanted, () => null)
+  // Final fix (C5): the gate publishes the wanted tour from an EFFECT, after the render in which this home first draws
+  // (with its chunk in hand), so the latches below could set before the tour was wanted and Notices drew under a
+  // starting tour. A walkthrough asked for on THIS visit (Help's navigation state, or a request still pending) holds
+  // the latches from the first render until that tour has ended (the gate's closed count moves on, which it also does
+  // for a request it drops).
+  const location = useLocation()
+  const closedCount = useSyncExternalStore(subscribeRegistryTourClosed, getRegistryTourClosedCount, () => 0)
+  const [askedAt] = useState(() => (
+    location.state?.startRegistryTourId || hasPendingRegistryTourOpen() ? getRegistryTourClosedCount() : null))
+  const tourAsked = Boolean(tourWanted) || (askedAt !== null && closedCount === askedAt)
   // Fix round 2 (re-review): the hold covers only what has not been drawn yet. Once Notices or the note sections are on
   // screen they stay, so a walkthrough that starts later never unmounts them and shifts the boxes up mid-tour.
   const [noticesDrawn, setNoticesDrawn] = useState(false)
   const [notesDrawn, setNotesDrawn] = useState(false)
-  const showNotices = noticesDrawn || !tourWanted
-  const showNotes = notesDrawn || (Boolean(data || error) && !tourWanted)
+  const showNotices = noticesDrawn || !tourAsked
+  const showNotes = notesDrawn || (Boolean(data || error) && !tourAsked)
   if (showNotices && !noticesDrawn) setNoticesDrawn(true)
   if (showNotes && !notesDrawn) setNotesDrawn(true)
 

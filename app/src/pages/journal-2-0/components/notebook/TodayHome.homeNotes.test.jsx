@@ -10,7 +10,9 @@ vi.mock('./NoticesBox', () => ({ default: () => <section data-testid="notices-bo
 
 import TodayHome, { TODAY_URL } from './TodayHome'
 import { NEEDS_REVIEW_TITLE, OPEN_POSITIONS_TITLE, OPEN_POSITION_TAG, reviewReasonsLine } from './TodayHomeNotes'
-import { __resetRegistryTourControl, publishRegistryTourWanted } from './onboarding/tourRegistryControl'
+import {
+  __resetRegistryTourControl, announceRegistryTourClosed, carryRegistryTourOpen, publishRegistryTourWanted,
+} from './onboarding/tourRegistryControl'
 
 const HOME_URL = '/api/j2/notebook/home'
 const TODAY = {
@@ -122,6 +124,43 @@ describe('Notices on the Daily brief', () => {
 
 // Fix round 1 (review 4e): during a walkthrough the Daily brief holds back what lands late and would push the folded
 // boxes the tour scrolls into view: the Notices box and the note sections (and their read). They come in when it ends.
+// Final fix (C5): the gate publishes the wanted tour from an effect, after this home's first render; a walkthrough asked
+// for on this visit must hold the latches from that first render, or Notices draws and shifts the boxes under it.
+describe('a walkthrough asked for on this visit, before the gate says it is wanted (C5)', () => {
+  const renderAsked = (state) => render(
+    <MemoryRouter initialEntries={[{ pathname: '/journal', search: '?view=today', state }]}>
+      <TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} />
+    </MemoryRouter>)
+  const settleLong = () => act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+
+  it('a request from Help (navigation state): Notices waits from the first render, through the tour, and comes after it', async () => {
+    renderAsked({ startRegistryTourId: 'earnings-prep' })
+    await screen.findByTestId('today-plan')
+    await settleLong()
+    expect(screen.queryByTestId('notices-box')).toBeNull()
+    act(() => { publishRegistryTourWanted('earnings-prep') })
+    await settleLong()
+    expect(screen.queryByTestId('notices-box')).toBeNull()
+    act(() => { publishRegistryTourWanted(null); announceRegistryTourClosed('earnings-prep', true) })
+    expect(await screen.findByTestId('notices-box')).toBeInTheDocument()
+  })
+
+  it('a pending request the gate drops (never wanted): Notices comes once the gate says it ended', async () => {
+    carryRegistryTourOpen('earnings-prep')
+    renderAsked(null)
+    await screen.findByTestId('today-plan')
+    await settleLong()
+    expect(screen.queryByTestId('notices-box')).toBeNull()
+    act(() => { announceRegistryTourClosed('earnings-prep', false) })
+    expect(await screen.findByTestId('notices-box')).toBeInTheDocument()
+  })
+
+  it('CONTROL: nothing asked for: Notices draws at once', async () => {
+    renderAsked(null)
+    expect(await screen.findByTestId('notices-box')).toBeInTheDocument()
+  })
+})
+
 describe('a walkthrough running: the late pieces wait', () => {
   it('while a tour is wanted: no Notices box, no note sections, no home read; after it ends, both arrive', async () => {
     act(() => { publishRegistryTourWanted('earnings-prep') })

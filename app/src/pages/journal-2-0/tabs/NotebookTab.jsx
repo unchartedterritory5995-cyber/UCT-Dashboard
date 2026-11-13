@@ -84,7 +84,7 @@ import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 import FirstRunGate from '../components/notebook/FirstRunGate'
 import { TODAY_VIEW, todayLandingOn } from '../lib/todayHome'
-import { FIRST_RUN_MARKS, firstRunIsDue, useFirstRunShowing } from '../lib/firstRun'
+import { FIRST_RUN_MARKS, firstRunIsDue, setFirstRunPending, useFirstRunShowing } from '../lib/firstRun'
 import { starterPacksEnabled } from '../lib/starterPacksFlag'
 import { TIPS_PREF, seenTips } from '../lib/notebookTips'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
@@ -955,6 +955,10 @@ export default function NotebookTab() {
   const firstRunUndecided = firstRunOn && (Boolean(prefsLoading) || (!notesKnown && !firstRunSeen))
   const firstRunDue = firstRunOn && firstRunIsDue({ enabled: true, prefsReady: !prefsReadFailed, tipsRaw, notesKnown, hasAnyNotes })
   const todayRead = firstRunShowing || firstRunDue ? 'hold' : firstRunUndecided ? 'wait' : 'make'
+  // Final fix (C5): the shell's walkthrough gate holds a walkthrough while the first run is due here or undecided.
+  const firstRunPending = firstRunDue || firstRunUndecided
+  useLayoutEffect(() => { setFirstRunPending(firstRunPending) }, [firstRunPending])
+  useLayoutEffect(() => () => setFirstRunPending(false), [])
   // Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row) while the list
   // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
   // S15: the Daily brief has no list toolbar either.

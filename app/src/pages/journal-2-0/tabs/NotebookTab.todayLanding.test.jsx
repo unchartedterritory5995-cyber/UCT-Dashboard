@@ -38,6 +38,7 @@ vi.mock('../components/notebook/TodayHome', () => {
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 
 import NotebookTab from './NotebookTab'
+import { useFirstRunPending } from '../lib/firstRun'
 import { __setTodayLandingForTests } from '../lib/todayHome'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
@@ -98,5 +99,36 @@ describe('the first run and the day note (I9, R1-B)', () => {
     prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }
     at('/journal?view=today')
     await waitFor(() => expect(screen.getByTestId('today-home').getAttribute('data-read')).toBe('make'), T)
+  })
+})
+
+// Final fix (C5): the shell's walkthrough gate (RegistryToursGate.jsx) cannot compute the first run's due rule (it does
+// not know the notes count), so the notes list publishes "the first run is due here or not decided yet" for it.
+function PendingProbe() {
+  return <p data-testid="pending" data-on={useFirstRunPending() ? '1' : '0'} />
+}
+describe('the notes list publishes "first run pending" for the walkthrough gate (C5)', () => {
+  beforeEach(() => { latchNotebookFlags({ notebook_starter_packs_enabled: true }) })
+  const withProbe = (path) => render(
+    <MemoryRouter initialEntries={[path]}><PendingProbe /><NotebookTab /></MemoryRouter>,
+  )
+
+  it('first run not yet seen and the notes count unknown: pending; leaving the Notebook clears it', async () => {
+    H.total = undefined
+    prefs = {}
+    const view = withProbe('/journal?view=all')
+    await waitFor(() => expect(screen.getByTestId('pending').getAttribute('data-on')).toBe('1'), T)
+    view.unmount()
+    render(<MemoryRouter><PendingProbe /></MemoryRouter>)
+    expect(screen.getByTestId('pending').getAttribute('data-on')).toBe('0')
+  })
+
+  it('CONTROL: an established member (first run recorded, with notes) is never pending', async () => {
+    H.total = 3
+    prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }
+    withProbe('/journal?view=all')
+    await waitFor(() => expect(global.fetch.mock.calls.some(([u]) => String(u) === '/api/auth/preferences')).toBe(true), T)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(screen.getByTestId('pending').getAttribute('data-on')).toBe('0')
   })
 })
