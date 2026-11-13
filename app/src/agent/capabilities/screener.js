@@ -194,7 +194,7 @@ export function loadMeta() {
       const list = Array.isArray(m.fields) ? m.fields : []
       const live = new Set(Array.isArray(m.live_fields) ? m.live_fields : [])
       cache.meta = {
-        fields: list.filter(f => f && f.key && !isHidden(f.key) && (f.type === 'range' || f.type === 'bool' || f.type === 'enum')).map(f => ({ key: f.key, label: f.label || f.key, type: f.type === 'enum' ? 'list' : f.type, unit: f.unit || '', category: f.category || null, ...(f.description ? { description: String(f.description) } : {}), ...(live.has(f.key) ? { live: true } : {}) })),
+        fields: list.filter(f => f && f.key && !isHidden(f.key) && f.agent_omit !== true && (f.type === 'range' || f.type === 'bool' || f.type === 'enum')).map(f => ({ key: f.key, label: f.label || f.key, type: f.type === 'enum' ? 'list' : f.type, unit: f.unit || '', category: f.category || null, ...(f.description ? { description: String(f.description) } : {}), ...(live.has(f.key) ? { live: true } : {}) })),
         // SCREENER_LOGIC_ENABLED as the server reports it. Absent (an older server) reads as unknown: the screen is tried
         // and the engine's own refusal is the answer. The engine stays the authority either way.
         logic: typeof m.logic_enabled === 'boolean' ? m.logic_enabled : null,

@@ -126,7 +126,7 @@ def test_values_equal_relative_strength_on_5000_bar_series(seed):
     got = _collect(full)
     assert {c: got[c] for c in THREE} == _expected(full)
     assert all(got[c] is not None for c in THREE)
-    assert set(got) == set(rs_columns.COLUMNS) | set(THREE)
+    assert set(got) == set(rs_columns.COLUMNS) | set(rs_columns.EXIT_COLUMNS) | set(THREE)
     assert isinstance(got["clenow_score"], float)
 
 
@@ -250,7 +250,7 @@ def test_a_dark_collect_returns_the_ten_and_runs_no_phase3_maths(monkeypatch):
     _forbid_maths(monkeypatch)
     timing = {}
     got = rs_columns.collect_one(full[-WINDOW:], SPY, RSP, timing=timing)
-    assert got == want and set(got) == set(rs_columns.COLUMNS)
+    assert got == want and set(got) == set(rs_columns.COLUMNS) | set(rs_columns.EXIT_COLUMNS)
     assert timing == {}
 
 

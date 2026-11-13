@@ -18,6 +18,7 @@ import { useCallback, useState } from 'react'
 import useSWR from 'swr'
 import { formatCurrency, formatNumberMax } from '../../lib/presentation/presentationPrimitives'
 import { useSymbolResource } from '../../lib/symbolResourceWarm'
+import { useRestedSWR } from '../../lib/symbolPace'
 import styles from './AdjustmentLabel.module.css'
 
 const BASIS_TFS = new Set(['D', 'W', 'M', '1', '5', '15', '30', '60'])
@@ -101,7 +102,8 @@ export default function AdjustmentLabel({ sym, tf, className }) {
   const key = adjustmentBasisKey(sym, tf)
   const keyOf = useCallback((other) => adjustmentBasisKey(other, tf), [tf])
   useSymbolResource(keyOf, fetchJson)
-  const { data } = useSWR(key, fetchJson, { revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 })
+  // (through the rest gate: a symbol the member is racing past is not asked for, lib/symbolPace.js)
+  const { data } = useRestedSWR(key, fetchJson, { revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 })
   const [rawOpen, setRawOpen] = useState(false)
   const basis = data?.adjustment_basis
   const text = adjustmentText(basis)

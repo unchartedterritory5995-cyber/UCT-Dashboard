@@ -1005,6 +1005,14 @@
   padding: 0;
 }
 .attnBadge:hover { opacity: 0.8; }
+/* RS Exit Warnings cell: a small dot (amber Quick Break, orange Quicksand, red Grateful Dead
+   Break) + the warning and its age. Static: nothing here animates. */
+.rsExitCell { gap: 5px; }
+.rsExitDot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; }
+.rsExit_quick { background: var(--warn); }
+.rsExit_sand { background: var(--ind-warn); }
+.rsExit_dead { background: var(--loss); }
+.rsExitText { overflow: hidden; text-overflow: ellipsis; }
 .attnPopover {
   position: fixed;
   background: var(--bg-elevated);

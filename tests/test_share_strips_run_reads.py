@@ -393,3 +393,18 @@ def test_the_routers_that_read_the_store_read_only_the_callers_own_rows():
                 if call.func.attr in _READERS:
                     owner = ast.unparse(call.args[0])
                     assert owner in ('user["id"]', "user['id']", "user_id"), (stem, ast.unparse(call))
+
+
+def test_engine54_a_copy_of_an_engine53_run_half_drops_its_older_sentence_too():
+    """ENGINE 54 changed the drawing note's sentence (plots AND drawings must agree); a document
+    minted under engine 53 carries the older one, and its copy drops that one as well."""
+    doc = copy.deepcopy(HALF["sent"])
+    old = rt.RUN_HALF_DRAWING_SENTENCES_PRIOR[0]
+    assert old != rt.RUN_HALF_DRAWING_SENTENCE
+    for n in doc["meta"]["disclosures"]:
+        if n["note"].endswith(" " + rt.RUN_HALF_DRAWING_SENTENCE):
+            n["note"] = n["note"][:-len(rt.RUN_HALF_DRAWING_SENTENCE)] + old
+    assert any(n["note"].endswith(" " + old) for n in doc["meta"]["disclosures"])      # CONTROL
+    got = rt.without_run_reads(doc)
+    assert not any(n["note"].endswith(old) for n in got["meta"]["disclosures"])
+    assert got["meta"]["disclosures"] == rt.without_run_reads(HALF["sent"])["meta"]["disclosures"]

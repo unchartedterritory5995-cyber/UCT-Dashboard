@@ -182,6 +182,10 @@ _LAST_SYNC_MARKER = ".last_sync_ts"
 _LAST_BASE_DAY_MARKER = ".last_base_day"
 
 
+R2_READ_TIMEOUT_S = int(os.environ.get("DATA_SYNC_READ_TIMEOUT_S", "300"))
+SNAPSHOT_DOWNLOAD_ATTEMPTS = int(os.environ.get("DATA_SYNC_DOWNLOAD_ATTEMPTS", "3"))
+
+
 def _client():
     """Lazy-construct the boto3 S3 client. Returns None if credentials missing."""
     endpoint = os.environ.get("DATA_SYNC_ENDPOINT_URL")
@@ -190,12 +194,18 @@ def _client():
     if not (endpoint and access_key and secret_key):
         return None
     import boto3
+    from botocore.config import Config
+    # ⛔ 2026-11-13: botocore's default 60 s read timeout killed a 5 GB snapshot download on bars-api
+    # after one stall ("Read timeout on endpoint URL"), and that boot then served from an empty store.
+    # A long read timeout plus adaptive retries keeps multi-GB transfers alive through a slow patch.
     return boto3.client(
         "s3",
         endpoint_url=endpoint,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
         region_name=os.environ.get("DATA_SYNC_REGION", "auto"),
+        config=Config(connect_timeout=30, read_timeout=R2_READ_TIMEOUT_S,
+                      retries={"max_attempts": 8, "mode": "adaptive"}),
     )
 
 
@@ -892,6 +902,69 @@ def get_latest_snapshot_ts() -> Optional[str]:
         return None
 
 
+SWAP_BUSY_TIMEOUT_S = 30
+
+
+def _swap_in_bars_db(src_db: str, dst: str, bs) -> bool:
+    """⛔ THE SAFE WHOLESALE SWAP (2026-11-13). Install `src_db` as `dst` without ever leaving a
+    write-ahead log beside a main file it does not belong to.
+
+    ⚰️ The old code `shutil.move`d the new main file over the old one and left the old
+    `bars.db-wal` / `-shm` in place. bars-api installs in a background thread AFTER it starts
+    serving, so a 19-minute download let live cold fetches build an interim store + WAL; the swap
+    then put the new 19.5 GB file beside that WAL and the next connection read it as
+    "database disk image is malformed" (bars-api 2026-11-13 20:52 UTC: `post-install init_db
+    failed: malformed` right after a verified install).
+
+    Same discipline as `adopt_clustered_store` step 5: under the write lock AND `DB_SWAP_LOCK`,
+    TRUNCATE-checkpoint the old store (its -wal/-shm are then empty and reset, safe beside the new
+    file); busy => refuse, keep the old store. No old main file => any -wal/-shm left behind are
+    orphans of a store that no longer exists, and are removed. Then replace and bump the epoch so
+    every thread reopens the new inode before its next query. Returns False (store untouched) on
+    any refusal."""
+    with bs._WRITE_LOCK, bs.DB_SWAP_LOCK:
+        if os.path.exists(dst):
+            c = sqlite3.connect(dst, timeout=SWAP_BUSY_TIMEOUT_S)
+            try:
+                busy = c.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
+            except sqlite3.DatabaseError as e:
+                busy = None
+                logger.warning(f"[data_sync] old store unreadable ({e}); replacing it whole")
+            finally:
+                c.close()
+            if busy:
+                logger.error("[data_sync] old store busy; could not checkpoint before the swap; "
+                             "snapshot NOT installed, old store kept")
+                return False
+            if busy is None:                 # damaged old store: its sidecars are meaningless too
+                for suf in ("-wal", "-shm"):
+                    if os.path.exists(dst + suf):
+                        os.remove(dst + suf)
+        else:
+            for suf in ("-wal", "-shm"):
+                if os.path.exists(dst + suf):
+                    os.remove(dst + suf)     # orphans of a removed store
+        try:
+            bs._drop_local_conn()
+        except Exception:  # noqa: BLE001
+            pass
+        shutil.move(src_db, dst)
+        bs.bump_db_epoch()
+    return True
+
+
+def _stream_object_to(client, bucket: str, key: str, path: str) -> None:
+    """Stream an R2 object to DISK in 8 MB chunks (never resp.read() into memory: a ~5 GB base read
+    whole into RAM spiked the web pod toward OOM on 2026-08-31). Raises on any failure."""
+    body = client.get_object(Bucket=bucket, Key=key)["Body"]
+    with open(path, "wb") as fh:
+        while True:
+            chunk = body.read(8 * 1024 * 1024)
+            if not chunk:
+                break
+            fh.write(chunk)
+
+
 def download_snapshot(ts: str) -> bool:
     """Download snapshot <ts> to _DATA_DIR, replacing existing bars.db + bars_cache/.
 
@@ -910,20 +983,21 @@ def download_snapshot(ts: str) -> bool:
     key = f"{_SNAPSHOT_PREFIX}{ts}.tar.gz"
     tmpdir = tempfile.mkdtemp(prefix="data_sync_")
     _tar_path = os.path.join(tmpdir, "_snapshot.tar.gz")
+    last_err = None
+    for attempt in range(1, SNAPSHOT_DOWNLOAD_ATTEMPTS + 1):
+        try:
+            _stream_object_to(client, bucket, key, _tar_path)
+            last_err = None
+            break
+        except Exception as e:  # noqa: BLE001 -- retried below, then reported
+            last_err = e
+            logger.warning(f"[data_sync] download attempt {attempt}/{SNAPSHOT_DOWNLOAD_ATTEMPTS} "
+                           f"failed for {key}: {e}")
+            if attempt < SNAPSHOT_DOWNLOAD_ATTEMPTS and not os.environ.get("PYTEST_CURRENT_TEST"):
+                time.sleep(min(60, 10 * attempt))
     try:
-        resp = client.get_object(Bucket=bucket, Key=key)
-        # Stream the (multi-GB) tarball to DISK, not resp.read() into memory. A
-        # ~5 GB compressed base read whole into RAM spikes the single web pod toward
-        # OOM (it reached ~10 GB on 2026-08-31, and web-side bar warming has OOM'd
-        # the whole site before). 8 MB chunks keep the memory footprint flat, which
-        # is what makes a force_resync safe to run on the live/booting web pod.
-        body = resp["Body"]
-        with open(_tar_path, "wb") as _fh:
-            while True:
-                _chunk = body.read(8 * 1024 * 1024)
-                if not _chunk:
-                    break
-                _fh.write(_chunk)
+        if last_err is not None:
+            raise last_err
     except Exception as e:
         logger.warning(f"[data_sync] download failed for {key}: {e}")
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -949,20 +1023,13 @@ def download_snapshot(ts: str) -> bool:
                     f"refusing to install"
                 )
                 return False
-            # Note: we do NOT remove the OLD bars.db-wal / -shm sidecars here
-            # even though stale WAL+new-main can theoretically cause
-            # "disk image is malformed" on next open. An earlier version of
-            # this code DID remove them and caused a regression: writers
-            # mid-transaction had their WAL deleted from under them, which
-            # SQLite reported as "disk I/O error" on the next operation.
-            # The malformed-image risk is handled by integrity_ok() at boot
-            # plus the put_bars malformed handler that triggers force_resync.
-            # That fail-safe path is much cheaper than corrupting writes
-            # every 5 min during snapshot pulls.
+            # ⛔ The swap goes through `_swap_in_bars_db`: the old store is TRUNCATE-checkpointed
+            # under the write + swap locks (its -wal/-shm become empty, safe beside the new file),
+            # orphaned sidecars are removed, busy => refuse. ⚰️ This said "we do NOT remove the OLD
+            # sidecars" and moved the new file beside a live WAL: bars-api 2026-11-13 malformed.
             from api.services import bars_sqlite as _bs_swap
-            with _bs_swap.DB_SWAP_LOCK:       # the checkpointer never straddles the swap
-                shutil.move(src_db, os.path.join(_DATA_DIR, "bars.db"))
-                _bs_swap.bump_db_epoch()
+            if not _swap_in_bars_db(src_db, os.path.join(_DATA_DIR, "bars.db"), _bs_swap):
+                return False
         # Replace bars_cache (replace the whole directory, not merge)
         src_cache = os.path.join(tmpdir, "bars_cache")
         if os.path.isdir(src_cache):

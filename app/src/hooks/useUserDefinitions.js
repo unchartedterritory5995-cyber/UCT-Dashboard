@@ -146,6 +146,46 @@ export function useUserDefinitions() {
   }
 }
 
+/** After an accepted save: this tab and every other open tab re-read the store. */
+function revalidateAfterSave() {
+  mutate(USER_DEFINITIONS_KEY)
+  announceDefinitionsChanged()   // A1.4 — other open tabs re-read the store
+  // K3: a saved definition can just have become (or stopped being) a
+  // scannable "My Scans" filter entry — revalidate the rail's category so
+  // every door (BuilderSheet included) sees it without waiting out
+  // useScreenerMeta's 6h SWR dedupe.
+  mutate(META_KEY)
+}
+
+/** ⭐⭐ COLD-LOAD STORM, MEASURED 2026-11-13 — ONE LIST RE-READ PER WRITE-BACK BURST.
+ *
+ *  Every `SCRIPT_ENGINE_VERSION` bump (several a day) makes every saved Pine script
+ *  stale, so the first /charts load after such a deploy re-translates each one and
+ *  writes it back (`savedScriptUpgrade.writeBackOnce`). Each write-back used to call
+ *  `revalidateAfterSave` itself: N scripts ⇒ N re-reads of the WHOLE list, each one
+ *  re-hydrating every row (`fetcher`), re-validating every row
+ *  (`installUserDefinitions`), bumping the registry generation and so re-running every
+ *  chart's `updateChart` — quadratic in the member's script count. Sandbox, 25 stale
+ *  scripts: 25 PUTs ⇒ 26 GETs of the list and ~3.2 s of React work vs 0.1 s warm; in
+ *  production (owner, 2026-11-13) the tab froze for minutes.
+ *
+ *  The write-back's re-read only refreshes the row's VERSION (the tab already draws the
+ *  new translation from the upgrade memo), so it can wait until the burst is quiet:
+ *  every write-back re-arms one trailing timer and the list is re-read once. Nothing
+ *  about what is drawn changes. The window in which this tab still holds the pre-upgrade
+ *  version is the one every re-read already had (a stale `base_version` edit answers
+ *  409 and the Builder says so); it is now `UPGRADE_REVALIDATE_QUIET_MS` longer.
+ *  Ordinary saves (Builder, Formula tab, delete, fork) still re-read at once. */
+export const UPGRADE_REVALIDATE_QUIET_MS = 1500
+let _upgradeRevalidateTimer = null
+function revalidateAfterUpgradeBurst() {
+  if (_upgradeRevalidateTimer !== null) clearTimeout(_upgradeRevalidateTimer)
+  _upgradeRevalidateTimer = setTimeout(() => {
+    _upgradeRevalidateTimer = null
+    revalidateAfterSave()
+  }, UPGRADE_REVALIDATE_QUIET_MS)
+}
+
 /**
  * Store a definition. POST when it is new, PUT when it already has an id.
  *
@@ -243,13 +283,10 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
     return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
   }
   if (r.ok) {
-    mutate(USER_DEFINITIONS_KEY)
-    announceDefinitionsChanged()   // A1.4 — other open tabs re-read the store
-    // K3: a saved definition can just have become (or stopped being) a
-    // scannable "My Scans" filter entry — revalidate the rail's category so
-    // every door (BuilderSheet included) sees it without waiting out
-    // useScreenerMeta's 6h SWR dedupe.
-    mutate(META_KEY)
+    // ⭐ COLD-LOAD STORM (2026-11-13) — an engine-upgrade write-back does NOT re-read the
+    // list on its own; the burst re-reads it ONCE (`revalidateAfterUpgradeBurst`). See there.
+    if (pineSource && options && options.reason === 'engine-upgrade') revalidateAfterUpgradeBurst()
+    else revalidateAfterSave()
     let row = null
     try { row = await r.json() } catch { /* a body-less 200 is still an accepted save */ }
     return { ok: true, row }

@@ -597,6 +597,25 @@ function _hydrateWhenSettled(sym, tf) {
   }, hold))
 }
 
+/**
+ * A row the member is about to reach: what this browser last had for it, read NOW.
+ *
+ * ⚰️ The store was read when a chart ARRIVED on a symbol, so its columns reached the chart 0.1
+ * to 0.2 s after the candles (the read is asynchronous, and it finished behind the flip's own
+ * work), and after the hold when the member had been racing. Measured on production
+ * 2026-11-13 with the pod answering in 7 to 23 s: the store saved every chart, 117 ms late on
+ * 21 of 24. Read when the row is ANNOUNCED, the columns are in memory before the member gets
+ * there and the first paint draws them, whatever the server is doing.
+ *
+ * Local disk, no request: it is not held back while a chart is racing (the newest rows are
+ * the ones about to be shown), and each (symbol, timeframe) is read once per page load. A
+ * page that draws no server-lane definition reads nothing.
+ */
+export function readAhead(sym, tf) {
+  if (!_everAsked || typeof sym !== 'string' || !sym) return
+  _hydrate(sym, String(tf == null ? 'D' : tf))
+}
+
 /** Test seam + a symbol/timeframe change escape hatch. */
 export function clearServerColumns() {
   _cache.clear()
@@ -956,7 +975,14 @@ const _held = new Map()       // `${sym}|${tf}` -> { g, timer }
 // the two (`_stride`): a hold of 1.3 x a 180 ms step ends before a 290 ms step does, and
 // that chart's ask went out for nobody. (The old 250 ms ceiling on the hold was under the
 // 260 to 300 ms a deep chart takes to draw, for the same result; it is 500 now.)
+//
+// ⭐ A STEP TAKEN AFTER A PAUSE IS NOT PART OF THE RUN BEFORE IT (2026-11-13). The pace above
+// read "200 ms, then 5 s, then a step" as 200 ms: the first chart a member moved to after
+// holding the key and stopping had its own ask held for the full ceiling. A gap longer than
+// the longest hold means the chart before it had rested (its ask was sent), so the run is
+// over and this step is a reader's.
 function _pace(s) {
+  if (s.gap > SETTLE_MAX_MS) return s.gap
   return Math.min(s.gap, s.prev)
 }
 function _stride(s) {
@@ -1069,6 +1095,12 @@ function _ownSettled() {
 export function chartsNeedTheLane() {
   const now = Date.now()
   if (_ownOut > 0 && now - _ownSentAt < OWN_PRIORITY_MS) return true
+  // ⭐ ...or is about to be (2026-11-13). An own ask HELD for a chart that just stopped counts
+  // from the moment it is held, not from the moment it is sent. Measured on production: the
+  // landing chart stopped counting as flying after 0.35 s, its ask left after 0.49 s, and in
+  // between the pre-load sent three cold requests that the ask then queued behind for 3.0 s.
+  // (A hold is at most `SETTLE_MAX_MS`, and ends by sending or by dropping: it cannot stick.)
+  if (_held.size > 0) return true
   // (flying lasts until the chart has rested for a whole step at that threshold)
   const fly = flyingMs(now)
   const rest = Math.max(RAPID_MS, fly)

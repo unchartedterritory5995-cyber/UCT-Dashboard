@@ -1186,8 +1186,14 @@ RUN_READ_STAMPS = ("runtimeKilled", "runtimeNotGraded", "runtimePending")
 #: `tests/test_share_strips_run_reads.py::test_the_run_half_sentence_is_the_clients`.
 RUN_HALF_DRAWING_SENTENCE = (
     "Where this chart can run the script bar by bar the way TradingView does (at the script's own "
+    "settings, with every plot and every drawing this chart makes agreeing with that run), its drawings "
+    "are made by that run instead, complete.")
+#: ENGINE 54 -- the sentence a document minted under engine 53 carries (before the object rail): a
+#: copy of such a document drops it too.
+RUN_HALF_DRAWING_SENTENCES_PRIOR = (
+    "Where this chart can run the script bar by bar the way TradingView does (at the script's own "
     "settings, with every plot agreeing with that run), its drawings are made by that run instead, "
-    "complete.")
+    "complete.",)
 
 #: What the door says of a run-read paint (`memberPaneDefinition.js`, the `rtReadLines` note):
 #: recognised by this lead, after the paint's own name.
@@ -1262,12 +1268,13 @@ def without_run_reads(definition: Any) -> Any:
     # the disclosures that promised the run
     if isinstance(new_meta, dict) and isinstance(new_meta.get("disclosures"), list):
         gone_names = {_paint_name(p) for p in dropped}
-        tail = " " + RUN_HALF_DRAWING_SENTENCE
+        tails = [" " + t for t in (RUN_HALF_DRAWING_SENTENCE, *RUN_HALF_DRAWING_SENTENCES_PRIOR)]
         notes = []
         for n in new_meta["disclosures"]:
             note = n.get("note") if isinstance(n, dict) else None
             if isinstance(note, str):
-                if "runtimeObjects" in present and note.endswith(tail):
+                tail = next((t for t in tails if note.endswith(t)), None) if "runtimeObjects" in present else None
+                if tail is not None:
                     n = {**n, "note": note[:-len(tail)]}
                 else:
                     name = next((g for g in gone_names if note.startswith(g + RUN_READ_PAINT_LEAD)), None)

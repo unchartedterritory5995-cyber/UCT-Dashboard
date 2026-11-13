@@ -563,7 +563,11 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
 #: ENGINE 53 -- the fields ``compute.runtimeObjects`` may carry (``defSchema.RUNTIME_OBJECTS_FIELDS``).
 #: CLOSED: anything else is refused.
 RUNTIME_OBJECTS_FIELDS = ("source", "outputs", "runtimeLanguage", "runtimeFrontend", "runtimeIr",
-                          "runtimeOutputSignature")
+                          "runtimeOutputSignature", "sites", "programSha256", "programGraphSha256")
+# ASCII digits only, as the client's JS `\d` reads them (Python's `\d` would admit any Unicode digit)
+_RO_SITE_ID = re.compile(r"^s[0-9]+$")
+_RO_SITE_KEY = re.compile(r"^[0-9]+:[0-9]+$")
+_RO_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _check_runtime_objects(definition: Mapping, plot_keys: set, out: list) -> None:
@@ -574,7 +578,9 @@ def _check_runtime_objects(definition: Mapping, plot_keys: set, out: list) -> No
     non-empty string; ``outputs`` an object mapping a DECLARED plot key to a whole-number run output
     index, no index named twice; the stamp, when present, typed (``runtimeLanguage`` a non-empty
     string, ``runtimeFrontend``/``runtimeIr`` positive whole numbers, ``runtimeOutputSignature`` a list
-    of strings naming every mapped index); no other field."""
+    of strings naming every mapped index); ENGINE 54: ``sites`` an object mapping a create site id
+    (``s<n>``) to its source call (``<line>:<column>``), ``programSha256`` / ``programGraphSha256``
+    64 lowercase hex; no other field."""
     compute = definition.get("compute")
     if not isinstance(compute, Mapping) or "runtimeObjects" not in compute:
         return
@@ -621,6 +627,19 @@ def _check_runtime_objects(definition: Mapping, plot_keys: set, out: list) -> No
     for f in ("runtimeFrontend", "runtimeIr"):
         if f in ro and (not _is_int(ro.get(f)) or ro.get(f) < 1):
             _err(out, f"{path}.{f}", code, f"{path}.{f}: expected a positive whole number, got {ro.get(f)!r}", fp)
+    if "sites" in ro:
+        sites = ro.get("sites")
+        if not isinstance(sites, Mapping):
+            _err(out, f"{path}.sites", code, f"{path}.sites: expected an object mapping a create site to its source call", fp)
+        else:
+            for k, v in sites.items():
+                if not isinstance(k, str) or not _RO_SITE_ID.fullmatch(k):
+                    _err(out, f"{path}.sites.{k}", code, f"{path}.sites.{k}: a create site is named s<n>", fp)
+                if not isinstance(v, str) or not _RO_SITE_KEY.fullmatch(v):
+                    _err(out, f"{path}.sites.{k}", code, f"{path}.sites.{k}: expected a source call <line>:<column>", fp)
+    for f in ("programSha256", "programGraphSha256"):
+        if f in ro and not (isinstance(ro.get(f), str) and _RO_SHA256.fullmatch(ro.get(f))):
+            _err(out, f"{path}.{f}", code, f"{path}.{f}: expected 64 lowercase hex", fp)
     if "runtimeOutputSignature" in ro:
         sig = ro.get("runtimeOutputSignature")
         if not isinstance(sig, list) or not all(isinstance(x, str) for x in sig):

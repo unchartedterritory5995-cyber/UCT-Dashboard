@@ -73,13 +73,14 @@ import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics
 // ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
-import { evaluateObjects } from './objectRuntime'
+// ⭐⭐ ENGINE 54 — the host object program's one evaluation path, and (on import) the run
+// half's object rail registered for the bind (`runHalfRailSeam.js`)
+import { hostObjectRun, hostObjectReaderOpts } from './runHalfObjectRail.js'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runHalfOf, carriesRunHalf } from './runtime/runtimeObjects.js'
 // ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
 import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
   joinMarkersToState } from './runtime/tradeMarkers.js'
-import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
 // ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
 // binder is where that is known per INSTANCE, so it publishes the sentence for
@@ -1297,36 +1298,15 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // ⭐ AND WHETHER THE NEWEST BAR IS STILL FORMING — the same tri-state
         // step 1 hands `computeFor`, for the same reason: `barstate.isconfirmed`
         // in an object guard reads `na` without it (`objectReaderFor`).
-        const reader = objectReaderFor(def, bars, {
-          inputs: inst.inputs, tf: ctx.tf, symbol: ctx.symbol,
-          newestBarIsForming: ctx.newestBarIsForming ?? null,
-          // ⭐ C26 — the same other-symbol supply the plot beside it is handed.
-          secondary: ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null,
-          exchangeOf: ctx.exchangeOf,
-          // ⭐ C41 — the same intraday supply the plot beside it is handed.
-          lowerTf: ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null,
-          // ⭐ C12w — the caller's statement that bar 0 is the listing bar. The
-          // document's own declaration is asked inside `objectReaderFor`.
-          ...(ctx.historyFromListing === true ? { historyFromListing: true } : {}),
-          // ⭐ C45 — and the one about `bar_index` (`barIndexAbsoluteFor`); no member
-          // surface states it.
-          ...(ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
-        })
-        if (!reader) return null
-        const run = evaluateObjects(reader.program, {
-          barCount: bars.length,
-          readNode: reader.readNode,
-          readTime: reader.readTime,
-          // ⭐ C12: an op reading a `var` before its warm-up is withheld, not
-          // drawn off a `NaN` that reads as Pine's `na` (`objectRuntime.js`).
-          readUnknown: reader.readUnknown,
-          // ⭐ OZ r1 — and the same with the chart clock's channel out, so a family the
-          // clock note (C36) already explains is not said twice, and one withheld for
-          // another reason is still said (`objectRuntime.js` `famUnknownOther`).
-          readUnknownOther: reader.readUnknownOther,
-          // ⭐ F1 — off the listing a `var` list of drawings is withheld whole.
-          offListing: reader.historyFromListing !== true,
-        })
+        // ⭐⭐ ENGINE 54 — ONE EVALUATION PATH (`runHalfObjectRail.js::hostObjectRun`), which the
+        // run half's object rail compares the run against: the reader's options are the
+        // instance's inputs and the chart's tf / symbol / forming state, the other-symbol
+        // (C26) and intraday (C41) supplies, the listing (C12w) and `bar_index` (C45)
+        // statements; the evaluator withholds a `var` read before its warm-up (C12), keeps the
+        // chart clock's channel apart (OZ r1) and withholds a `var` list off the listing (F1).
+        const host = hostObjectRun(def, bars, hostObjectReaderOpts(ctx, inst.inputs))
+        if (!host) return null
+        const { reader, run } = host
         return {
           run,
           // ⭐ `tf` so a date-keyed daily series can place an `xloc.bar_time`
