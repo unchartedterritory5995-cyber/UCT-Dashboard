@@ -11042,6 +11042,206 @@
       ]
     },
     {
+      "id": "uctIntelligence.add",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — the Indicators library row's add (addUctIntelligence: Auto patterns + labels on)",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "add",
+              "layer": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": true,
+          "autoPatterns": true,
+          "labels": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "add uct intelligence to this chart",
+        "put the UCT Intelligence indicator on this chart",
+        "turn on uct intelligence"
+      ]
+    },
+    {
+      "id": "uctIntelligence.layer",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — a released layer's panel switch (setUctIntelligenceLayer setups)",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "on",
+              "layer": "setups"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": true,
+          "setups": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on the setups layer",
+        "enable the uct intelligence setups",
+        "switch on setups in uct intelligence"
+      ]
+    },
+    {
+      "id": "uctIntelligence.autoPatterns",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — Auto patterns off (showPatterns, the toolbar Patterns button's key); the indicator stays added",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "off",
+              "layer": "autoPatterns"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": true,
+          "autoPatterns": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn off auto patterns",
+        "hide the chart patterns",
+        "turn the patterns off on this chart"
+      ]
+    },
+    {
+      "id": "uctIntelligence.remove",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — the row's remove / the panel's x (removeUctIntelligence): every layer off, sub-choices kept",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "remove",
+              "layer": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": false,
+          "autoPatterns": false,
+          "supportResistance": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "remove uct intelligence from this chart",
+        "take the UCT Intelligence indicator off"
+      ]
+    },
+    {
+      "id": "uctIntelligence.gated",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — a layer not released to this viewer (no candle_marks): refused, nothing written",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "on",
+              "layer": "candles"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "refusal": true
+      },
+      "phrasings": [
+        "turn on candlestick patterns",
+        "show the candlestick pattern markers"
+      ]
+    },
+    {
       "id": "widget.readOptions",
       "source": "Workspace widget controls: a chart has no controls and the fixture board mounts no widget door; agentWidgetControls.test.jsx and the browser run prove the mounted paths",
       "capabilities": [

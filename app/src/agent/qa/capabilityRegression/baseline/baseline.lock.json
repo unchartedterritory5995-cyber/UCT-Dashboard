@@ -4452,6 +4452,96 @@
     }
    }
   },
+  "uctIntelligence.add": {
+   "digest": "7e2aad12dc9b1350",
+   "phrasings": {
+    "add uct intelligence to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the UCT Intelligence indicator on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on uct intelligence": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.layer": {
+   "digest": "de7f421bb371b5a3",
+   "phrasings": {
+    "turn on the setups layer": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "enable the uct intelligence setups": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch on setups in uct intelligence": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.autoPatterns": {
+   "digest": "2eb31971f4d4cd74",
+   "phrasings": {
+    "turn off auto patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the chart patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn the patterns off on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.remove": {
+   "digest": "2df7df406dc5875f",
+   "phrasings": {
+    "remove uct intelligence from this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "take the UCT Intelligence indicator off": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.gated": {
+   "digest": "28162d06703fe4ce",
+   "phrasings": {
+    "turn on candlestick patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the candlestick pattern markers": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "widget.readOptions": {
    "digest": "bcbf2ab575d27c22",
    "phrasings": {

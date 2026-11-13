@@ -189,6 +189,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     chartView: ['zoom in on this chart', 'zoom the AMD chart out', 'zoom out a lot', 'zoom all the way in', 'get a closer look at the candles', 'give me a wider view of the chart', 'show me fewer bars'],
     // #1082 (C3-205..207): Custom-Period Sort's own words — the tool's name, a rank / sort over dates, a Dock of the ranking
     periodSort: ['open the period sort for themes', 'rank stocks between 2026-01-02 and 2026-03-31', 'sort sectors from mar 3 to jun 30', 'dock the ranking as a widget'],
+    // uctIntelligence.set: the chart INDICATOR by name (never "… with UCT Intelligence" authoring), or one of its panel's switches
+    uctIntelligence: ['add uct intelligence to this chart', 'turn off auto patterns', 'turn on the setups layer', 'show candlestick patterns on this chart'],
     // #1070: the Drawing Boards actions' own words — a switch / rename / delete / new verb governing the board noun, or "drawing board"
     drawingBoards: ['switch to my Earnings board', 'rename Board 3 to Gaps', 'delete the current drawing board', 'make me a new board called Breakouts'],
     // #1076 (Lead decision 2026-11-11): the drawing menu's Duplicate and a position's entry / stop / target alerts
@@ -223,6 +225,14 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   ('"%s": not the Custom-Period Sort', (msg) => {
     expect(wordsSelect('periodSort', msg)).toBe(false)
     expect(sentOf(msg).has('periodSort')).toBe(false)
+  })
+  // uctIntelligence.set NEGATIVE controls: indicator AUTHORING with UCT Intelligence (the builder's "Modify with UCT Intelligence",
+  // Create Indicator) and bare pattern / setup questions never send the UCT Intelligence indicator's group, v1 or the v2 first call
+  it.each(['modify with uct intelligence', 'create an indicator with UCT Intelligence', 'build me a breakout indicator using uct intelligence',
+    'what patterns do you see on nvda', 'describe the setup on this chart', 'turn on chart iq pattern recognition'])
+  ('"%s": not the UCT Intelligence indicator', (msg) => {
+    expect(wordsSelect('uctIntelligence', msg)).toBe(false)
+    expect(sentOf(msg).has('uctIntelligence')).toBe(false)
   })
   it.each(wordsOnly.flatMap(g => (OWN_WORDS[g.id] || []).map(m => [g.id, m])))('%s on its own words: "%s"', (id, msg) => {
     expect(wordsSelect(id, msg)).toBe(true)

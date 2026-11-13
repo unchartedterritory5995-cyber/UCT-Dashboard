@@ -29,6 +29,8 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              # W1-B (2026-11-02): indicator alerts in their own fillLast group (app/src/agent/routing.js)
              "indicatorAlert": "indicatorAlerts",
              "indicatorTemplate": "chartSetup",
+             # Charts family (2026-11-12): the UCT Intelligence chart indicator, its own words-only group (app/src/agent/routing.js)
+             "uctIntelligence": "uctIntelligence",
              # Wave 3 (2026-11-03): the coach's own fillLast group (registered only while UCT_AGENT_COACH is on)
              "coach": "coach", "journal": "coach", "calendar": "calendar",
              # family C (2026-11-11): the chart's right-click Ask AI + watermark Reset, own words-only group

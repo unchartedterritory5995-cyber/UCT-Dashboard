@@ -11236,6 +11236,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -11588,6 +11592,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -11936,6 +11944,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -12294,6 +12306,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -12641,6 +12657,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -12993,6 +13013,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -13341,6 +13365,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -13960,6 +13988,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -14311,6 +14343,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -14658,6 +14694,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -15270,6 +15310,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -15618,6 +15662,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -16237,6 +16285,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -16846,6 +16898,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -17459,6 +17515,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -17807,6 +17867,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -18426,6 +18490,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -18774,6 +18842,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -19132,6 +19204,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -19486,6 +19562,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -19844,6 +19924,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -20192,6 +20276,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -20544,6 +20632,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -20891,6 +20983,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -21241,6 +21337,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -21851,6 +21951,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -22465,6 +22569,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -23074,6 +23182,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
@@ -23687,6 +23799,10 @@
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
      {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -24034,6 +24150,10 @@
      {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
