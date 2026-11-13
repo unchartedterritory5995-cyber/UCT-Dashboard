@@ -555,15 +555,18 @@ def _stall_watch() -> None:
 async def _drain_pending_queue(ws) -> None:
     """Periodically flush queued subscribe/unsubscribe messages to the live WS.
 
-    Runs every 250 ms. Cheap because most ticks the queues are empty.
+    Runs every 250 ms. Cheap because most ticks the queues are empty. The queues
+    are sym -> channels; each flush sends one subscribe and one unsubscribe frame
+    built per channel, and on a failed send re-queues only the channels that are
+    still wanted (subscribe) or still unwanted (unsubscribe).
     """
-    # REQUIRED: the re-queue paths below do `_pending_subscribe |= ...` /
-    # `_pending_unsubscribe |= ...` (augmented assignment). Without this global
-    # declaration Python treats both names as function-LOCAL for the entire
-    # scope, so the reads at the top of the loop (`sorted(_pending_subscribe)`)
-    # raise UnboundLocalError on the drain task's very first tick — the task
-    # dies silently and the subscribe queue NEVER flushes (bars never subscribe
-    # when STREAM_BARS_ENABLED=1). Mirrors _run_websocket's global declaration.
+    # KEEP this declaration. The re-queue paths now mutate the queue dicts in
+    # place (`.setdefault(...).update(...)`), which needs no `global`. But an
+    # earlier version re-queued with `_pending_subscribe |= ...` (augmented
+    # assignment) and had no declaration: Python made both names function-LOCAL,
+    # the first read raised UnboundLocalError, the task died silently and bars
+    # never subscribed. The declaration means a future `|=` or `=` here cannot
+    # bring that back. tests/test_bar_stream_drain_globals.py pins it.
     global _pending_subscribe, _pending_unsubscribe
     while True:
         await asyncio.sleep(0.25)

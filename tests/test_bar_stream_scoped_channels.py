@@ -342,6 +342,29 @@ def test_drain_sends_per_channel_frames(clean, monkeypatch):
     assert ws.sent == [json.dumps({"action": "unsubscribe", "params": "T.AAPL"})]
 
 
+def test_real_drain_chart_release_narrows_to_volume_channels(clean, monkeypatch):
+    """End to end through the REAL _drain_pending_queue with the flag on, both
+    flushes included: volume + chart own AAPL and MSFT is volume-only. The first
+    drain subscribes the union. The chart then releases AAPL, and the second drain
+    sends exactly `T.AAPL` as an unsubscribe and nothing else: A/AM stay for volume."""
+    _scoped(monkeypatch, True)
+    from api.services import volume_live
+    bs.subscribe_symbols(["AAPL", "MSFT"], owner=volume_live.STREAM_OWNER,
+                         channels=volume_live.STREAM_CHANNELS)
+    bs.subscribe_symbols_one("AAPL")                  # the broadcaster's owner, as main.py wires it
+    ws = _FakeWS()
+    asyncio.run(_run_drain_briefly(ws))
+    assert [json.loads(m) for m in ws.sent] == [
+        {"action": "subscribe", "params": "AM.AAPL,A.AAPL,T.AAPL,AM.MSFT,A.MSFT"}]
+
+    bs.unsubscribe_symbols_one("AAPL")                # last chart viewer leaves
+    ws2 = _FakeWS()
+    asyncio.run(_run_drain_briefly(ws2))
+    assert ws2.sent == [json.dumps({"action": "unsubscribe", "params": "T.AAPL"})]
+    assert bs._active_channels == {"AAPL": {"AM", "A"}, "MSFT": {"AM", "A"}}
+    assert not bs._pending_subscribe and not bs._pending_unsubscribe
+
+
 def test_drain_failure_requeues_only_channels_still_wanted(clean, monkeypatch):
     _scoped(monkeypatch, True)
     bs.subscribe_symbols(["AAPL"], owner="bars", channels=bs.CHANNELS_FULL)
