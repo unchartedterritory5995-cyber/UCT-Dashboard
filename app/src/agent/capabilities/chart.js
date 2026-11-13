@@ -224,15 +224,16 @@ const SETTING_HINTS = (() => {
   // W1-B: number settings, grouped by range ("watermark.opacity|x|y: 0–1")
   const ranges = new Map()
   for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'number')) {
-    const key = `${d.min}–${d.max}${d.integer ? ' (whole)' : ''}`
+    const key = `${d.min}–${d.max}${d.integer ? ' (int)' : ''}`
     ranges.set(key, [...(ranges.get(key) || []), d.id])
   }
   const nums = [...ranges.entries()].map(([r, ids]) => `${short(ids)}: ${r}`)
   // (kept under the manifest's 1000-char hints cap — agentContracts.test.js; the exact arg SHAPE is the capability's `shape`)
-  return 'value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. '
-    + `Allowed — ${enums.join('; ')}; ${nums.join('; ')}. `
+  // (pl-grid, gaps C1-058/C1-078 added two enum groups: the fixed prose was tightened to stay under the cap, same meaning)
+  return 'value: true/false for on/off (also crosshair.mode, header.legendMode, bgMode); #rrggbb for colors; numbers in range. '
+    + `Allowed: ${enums.join('; ')}; ${nums.join('; ')}. `
     + 'header.fields|barInfo: +/-field ("+Market Cap"). '
-    + 'Anything else: no op — say where it lives in Chart Settings.'
+    + 'Else no op: say where in Chart Settings.'
 })()
 // "turn off the grid", "hide the watermark", "crosshair off", "show swing labels"
 const SETTING_WORDS = new Map(ELIGIBLE_SETTINGS.flatMap(d => (d.words || []).map(w => [w, d])))

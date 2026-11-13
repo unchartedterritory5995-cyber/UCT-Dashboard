@@ -9,7 +9,7 @@
 // Rows with no capability path are it.todo with the missing piece (see docs/agent/program/EXEC-CHART-SETTINGS.md).
 // ⛔ THE MODEL IS SCRIPTED. Evidence: LOCAL native Windows Node, jsdom, BROWSER-MOCK-MODEL / SIMULATED — not a real browser.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { open, outcomeSuite, afterEachOutcome, chart, QUAD_SYMS, selectedChart, boardRef, waitFor, proposalsNow } from './outcomeHarness'
+import { open, outcomeSuite, afterEachOutcome, chart, QUAD_SYMS, selectedChart, boardRef, waitFor, proposalsNow, must } from './outcomeHarness'
 import { bareSettings } from '../../testing/panelHarness'
 import { mergeChartSettings, CHART_DEFAULTS } from '../../../components/chart/chartDefaults'
 import { settingDescriptor, settingValue } from '../../../components/chart/chartSettingsDescriptors'
@@ -163,14 +163,84 @@ describe('chart display settings, through the real panel (one table)', () => {
     await waitFor(() => expect(JSON.stringify(m.board.state.widgets.map(w => w.opts))).toBe(JSON.stringify(JSON.parse(before).map(w => w.opts))))
   }, 40000)
 
-  // ── GAPS: no capability path today (the missing piece is the todo's text) ──
-  it.todo('C1-058 watermark alignment — GAP: no alignment key in CHART_DEFAULTS.watermark and no ELIGIBLE row (chartSettingsDescriptors.js:98-193); nothing to write')
-  it.todo('C1-067 header colours — GAP: `header.colors.*` is KNOWN, not eligible (chartSettingsDescriptors.js:243); chart.setSetting refuses it')
-  it.todo('C1-077 save / delete a custom colour — GAP: no capability writes the colour picker\'s saved swatches')
-  it.todo('C1-078 light/dark palette (Shift+T) — GAP: `theme` is KNOWN, not eligible (chartSettingsDescriptors.js:246); no chart.setSetting row or dedicated capability')
-  it.todo('C1-081 apply a theme to all widgets — GAP: chart.applyThemeAll (board.js:1414) themes chart widgets only; no capability calls mapThemeToWidgetSettings (chartThemes.js:528)')
-  it.todo('C1-092 overlay an indicator on the volume pane — GAP: `volumeOverlayIndicators` is owned:indicator (chartSettingsDescriptors.js:226); not this family')
-  it.todo('C1-127 open Chart Settings (Alt+, / gear) — GAP: no capability opens the dialog (none in capabilities/chart.js or chartSetup.js)')
+  // ── GAPS not built here (PR-chart-settings-gaps.md says why) ──
+  it.todo('C1-077 save / delete a custom colour — NOT BUILT (PR-chart-settings-gaps.md): member pref chart_saved_colors (ChartPane saveColor/deleteColor), a member-wide pref with no capability')
+  it.todo('C1-081 apply a theme to all widgets — NOT BUILT (PR-chart-settings-gaps.md): the product writes every widget\'s opts AND one global pref per on-screen GLOBAL type (ChartsWorkspace applyThemeToAllWidgets)')
+  it.todo('C1-092 overlay an indicator on the volume pane — STOP: `volumeOverlayIndicators` is owned:indicator (chartSettingsDescriptors.js); Indicator Intelligence\'s family')
+  it.todo('C1-127 open Chart Settings (Alt+, / gear) — NOT BUILT (PR-chart-settings-gaps.md): no host hook reaches ChartWidget paneRef.openSettings')
+})
+
+// ── GAPS BUILT (pl-grid, PR-chart-settings-gaps.md): C1-058 watermark alignment, C1-067 header colours, C1-078 light/dark
+// palette. Each is ONE descriptor row (or a row per colour key, generated from the product's own catalog) over the chart's
+// own writer (withSetting, the shape Chart Settings' setters produce). Each case: the selected chart reads it back through
+// settingValue, the other three charts are untouched, Undo restores the exact blob (a key that did not exist is gone again).
+// Controls (#988 bar): a request naming ANOTHER chart changes that chart only; "every chart except QQQ" never touches QQQ.
+import { HEADER_FIELDS } from '../../../components/chart/headerFields'
+const SIGNED = HEADER_FIELDS.find(f => f.signed)
+const PLAIN = HEADER_FIELDS.find(f => !f.signed && f.colorKey)
+const GAP_ROWS = [
+  { row: 'C1-058', text: 'align the watermark to the left', ops: [set('watermark.align', 'left')], expect: [['watermark.align', 'left']] },
+  { row: 'C1-058', text: 'right-align the watermark text', ops: [set('watermark.align', 'right')], expect: [['watermark.align', 'right']] },
+  { row: 'C1-067', text: 'title in gold, up days green and down days orange in the header',
+    ops: [set('header.colors.title', '#ffd700'), set('header.colors.dayChangeUp', '#00c853'), set('header.colors.dayChangeDown', '#ff9800')],
+    expect: [['header.colors.title', '#ffd700'], ['header.colors.dayChangeUp', '#00c853'], ['header.colors.dayChangeDown', '#ff9800']] },
+  { row: 'C1-067', text: 'make the chart legend text white', ops: [set('header.colors.legend', '#ffffff')], expect: [['header.colors.legend', '#ffffff']] },
+  { row: 'C1-067', text: `colour the ${PLAIN.label} in the info row purple and the ${SIGNED.label} green when positive, red when negative`,
+    ops: [set(`header.colors.${PLAIN.colorKey}`, '#9c27b0'), set(`header.colors.${SIGNED.colorKey}:pos`, '#00ff00'), set(`header.colors.${SIGNED.colorKey}:neg`, '#ff0000')],
+    expect: [[`header.colors.${PLAIN.colorKey}`, '#9c27b0'], [`header.colors.${SIGNED.colorKey}:pos`, '#00ff00'], [`header.colors.${SIGNED.colorKey}:neg`, '#ff0000']] },
+  { row: 'C1-078', text: 'switch this chart to the light palette', ops: [set('theme', 'light')], expect: [['theme', 'light']] },
+  { row: 'C1-078', text: 'put this chart back on the dark palette', seed: { settings: { theme: 'light' } }, ops: [set('theme', 'dark')], expect: [['theme', 'dark']] },
+]
+const symChart = (c, sym) => must((c.charts || []).find(x => x.symbol === sym), `${sym} chart`)
+const blobOf = (m, id) => JSON.stringify(on(m, id).opts)
+const CONTROLS = [
+  ['C1-058', set('watermark.align', 'left'), 'watermark.align', 'left', 'align the watermark left'],
+  ['C1-067', set('header.colors.dayChangeUp', '#00c853'), 'header.colors.dayChangeUp', '#00c853', 'green up days in the header'],
+  ['C1-078', set('theme', 'light'), 'theme', 'light', 'light palette'],
+]
+describe('chart-settings GAPS built: watermark alignment, header colours, light/dark palette (the chart\'s own writer)', () => {
+  for (const r of GAP_ROWS) it(`${r.row} "${r.text}": the selected chart reads ${r.expect.map(([k, v]) => `${k}=${v}`).join(', ')}; others untouched; Undo restores it`, () => runRow(r), 40000)
+
+  it('UNDO EXACTNESS: a key the chart never had is GONE after Undo (watermark.align, header.colors.<key>, theme), never left as a default', async () => {
+    const noTheme = Object.fromEntries(Object.entries(bareSettings()).filter(([k]) => k !== 'theme'))
+    const ws = board()
+    ws[1] = { ...ws[1], opts: { settings: noTheme } }
+    const m = open(ws, QUAD_SYMS, { selected: TARGET })
+    const blob = blobOf(m, TARGET)
+    expect('align' in on(m, TARGET).opts.settings.watermark).toBe(false)
+    expect('theme' in on(m, TARGET).opts.settings).toBe(false)
+    expect('title' in on(m, TARGET).opts.settings.header.colors).toBe(false)
+    await m.say('left-align the watermark, gold title, light palette', (c) => [set('watermark.align', 'left'), set('header.colors.title', '#ffd700'), set('theme', 'light')]
+      .map(o => ({ ...o, target: selectedChart(c).ref })))
+    if (proposalsNow().length) await m.apply()
+    await waitFor(() => { expect(read(m, TARGET, 'watermark.align')).toBe('left'); expect(read(m, TARGET, 'header.colors.title')).toBe('#ffd700'); expect(read(m, TARGET, 'theme')).toBe('light') })
+    await m.say('undo')
+    await waitFor(() => expect(blobOf(m, TARGET)).toBe(blob))
+    const st = on(m, TARGET).opts.settings
+    expect('align' in st.watermark).toBe(false)
+    expect('theme' in st).toBe(false)
+    expect('title' in st.header.colors).toBe(false)
+  }, 40000)
+
+  for (const [row, op, id, v, words] of CONTROLS) {
+    it(`${row} CONTROL (named chart): "${words} on the SPY chart" changes SPY only; the selected QQQ chart and the rest are untouched`, async () => {
+      const m = open(board(), QUAD_SYMS, { selected: TARGET })
+      const keep = Object.fromEntries(['tr', 'bl', 'br'].map(w => [w, blobOf(m, w)]))
+      await m.say(`${words} on the SPY chart`, (c) => [{ ...op, target: symChart(c, 'SPY').ref }])
+      if (proposalsNow().length) await m.apply()
+      await waitFor(() => expect(read(m, 'tl', id)).toEqual(v))
+      for (const [w, b] of Object.entries(keep)) expect(blobOf(m, w), `${row}: ${w} untouched`).toBe(b)
+    }, 40000)
+    it(`${row} CONTROL (excluded chart): "${words} on every chart except QQQ" never touches QQQ`, async () => {
+      const m = open(board(), QUAD_SYMS, { selected: TARGET })
+      const qqq = blobOf(m, 'tr')
+      await m.say(`${words} on every chart except QQQ`, (c) => (c.charts || []).filter(x => x.symbol !== 'QQQ').map(x => ({ ...op, target: x.ref })))
+      if (proposalsNow().length) await m.apply()
+      await waitFor(() => { for (const w of ['tl', 'bl', 'br']) expect(read(m, w, id), w).toEqual(v) })
+      expect(blobOf(m, 'tr'), `${row}: the excluded QQQ chart is untouched`).toBe(qqq)
+      expect(read(m, 'tr', id)).not.toEqual(v)
+    }, 40000)
+  }
 })
 
 // ── HELD-OUT ROUTING (pl-exec routing family): a chart noun is never a ticker ──
