@@ -64,7 +64,6 @@ import { answerWord } from './revealCardHelpers'
 import Prompt from './ui/Prompt'
 import VerdictTakeover from './ui/VerdictTakeover'
 import UiStamp from './ui/Stamp'
-import { barStats } from './drillLook'
 import { memberSettingsOverride } from './studyChartLook'
 import { SETUP_SKILLS, setupName } from './challenges/challengeBank'
 import d5 from '../../lab/duo.module.css'
@@ -75,6 +74,12 @@ export const LEAVE_COPY = 'Leave? Your answers so far are saved.'
 export const CHART_SLOW_MS = 2000
 export const CHART_SKIP_MS = 6000
 export const CHART_HEIGHT = 380
+/** The drill chart's height: the phone keeps CHART_HEIGHT; a bigger screen gives the chart about 60% of its height
+ *  (owner 2026-11-12, "most of the screen"), never under CHART_HEIGHT and never past 720px. */
+export function studyChartHeight(phone, viewportHeight) {
+  if (phone || !viewportHeight) return CHART_HEIGHT
+  return Math.max(CHART_HEIGHT, Math.min(720, Math.round(viewportHeight * 0.6)))
+}
 export const SET_SIZE = 10
 
 /** The chip over the chart: the skill in the member's words (the workbench's question chip). */
@@ -248,7 +253,8 @@ export default function DrillPlayer({
   }, [chartVisible, chartBars, item, baseLen, phase, result])
   const calloutStyle = useMemo(() => calloutLook(phone), [phone])
   // the facts a trader reads before answering, from the bars in hand (the question's own window, not the forward bars)
-  const stats = useMemo(() => (needsChart && chartBars?.length ? barStats(chartBars.slice(0, baseLen || chartBars.length)) : []), [needsChart, chartBars, baseLen])
+  // owner 2026-11-12: "the chart layout should take up most of the screen vs just a tiny portion"
+  const chartHeight = useMemo(() => studyChartHeight(phone, typeof window !== 'undefined' ? window.innerHeight : 0), [phone])
 
   // The bars the item wants looked at (an hourly Go Signal's first three bars of the ruled session), a white
   // dot under each, on the question AND the reveal: they say where to look, never what the answer is.
@@ -432,7 +438,7 @@ export default function DrillPlayer({
           </div>
         </div>
         )}
-        <div className={`${styles.chartRow} ${needsChart && stats.length > 0 ? styles.chartRowFacts : ''}`}>
+        <div className={styles.chartRow}>
         <div
           className={`${styles.chartBox} ${needsChart ? '' : styles.chartHidden}`}
           aria-hidden={!needsChart}
@@ -451,7 +457,7 @@ export default function DrillPlayer({
               {...lookProps}
               sym={chartItemId}
               tf={chartTf}
-              height={CHART_HEIGHT}
+              height={chartHeight}
               studyMode
               barsOverride={shownBars}
               frozen
@@ -482,7 +488,7 @@ export default function DrillPlayer({
           )}
           {needsChart && !chartVisible && (
             <div className={styles.chartSkeleton} data-testid="chart-skeleton">
-              <SkeletonBlock height={CHART_HEIGHT} />
+              <SkeletonBlock height={chartHeight} />
               {chartWait >= 1 && <p className={styles.chartSlow} role="status">Still loading the chart</p>}
               {chartWait >= 2 && (
                 <button type="button" className={styles.ghost} onClick={() => s.defer()}>Skip this one</button>
@@ -493,22 +499,7 @@ export default function DrillPlayer({
             <Overlay item={item} state={state} setState={setState} locked={locked} reveal={reveal} bars={chartBars} />
           )}
         </div>
-        {needsChart && stats.length > 0 && (
-          <div className={styles.facts} data-testid="chart-stats">
-            <div className={styles.factsHead}>The read on this chart</div>
-            <table className={styles.factsTable}>
-              <tbody>
-                {stats.map((st) => (
-                  <tr key={st.id} className={styles[`row_${st.tone}`] || ''}>
-                    <th scope="row">{st.label}</th>
-                    <td className={styles.factVal}>{st.value}</td>
-                    <td className={styles.gauge}><span className={styles.gaugeBar} style={{ width: `${Math.min(100, (Math.abs(st.num || 0) / 30) * 100)}%` }} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* owner 2026-11-12: "remove THE READ ON THIS CHART and all that data there ... just noisy"; the chart takes the room */}
         </div>
         {keyTrade && needsChart ? <ChartKey trade={keyTrade} testId="drill-key" /> : null}
         <div className={styles.body}>
