@@ -16,16 +16,26 @@
 //     src/components/chart/engine/__tests__/vendorHarness/objectsV2Regrade.measure.test.js --maxWorkers=1
 // The lane is production's: the objects-only pane armed, the runtime pane dark
 // (`vendorHarness.corpus.test.js`, VENDOR_HARNESS_RUNTIME_ON=0).
+// ⭐⭐ ENGINE 53 — `PINE_OBJECTS_V2_RUNTIME_ON=1` grades the RUNTIME-ON lane instead: the
+// runtime pane on, as a permitted member with every script graded (the test-only allow-every
+// override: an upper bound, the server's allowlist is not applied), switched at module scope
+// for the reason `vendorHarness.corpus.test.js` gives. In that lane a capture whose door minted
+// a run half (`compute.runtimeObjects`) is graded TWICE: as the chart draws it (the run's
+// drawings where the bind served them) and with the run half killed for its script (the host
+// picture it replaces), so a capture the run half moves from MATCH to DIVERGE is named.
 
 import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
 import { loadCapture, gradeCapture, VENDOR_DIR, REPO } from './harness'
+import { __permitRuntimePaneForTests } from '../../runtimePaneGate'
+import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from '../../runtimeKill'
 import { pairRecords } from './objectRecords'
 import { OBJECTS_V2_FIELDS } from '../../../../../../../tools/vendor_harness/compare.mjs'
 
 const RUN = process.env.PINE_OBJECTS_V2 === '1'
+const RUNTIME_ON = process.env.PINE_OBJECTS_V2_RUNTIME_ON === '1'
 const OUT = process.env.PINE_OBJECTS_V2_OUT ? path.resolve(process.cwd(), process.env.PINE_OBJECTS_V2_OUT) : null
 
 /** The flag NAMES are read off their gate modules, never typed. */
@@ -33,7 +43,17 @@ const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8
   .match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 if (RUN) {
   vi.stubEnv(flagOf('src/components/chart/engine/objectsOnlyPaneGate.js'), '1')
-  vi.stubEnv(flagOf('src/components/chart/engine/runtimePaneGate.js'), '')
+  vi.stubEnv(flagOf('src/components/chart/engine/runtimePaneGate.js'), RUNTIME_ON ? '1' : '')
+  if (RUNTIME_ON) {
+    __permitRuntimePaneForTests()
+    __allowEveryRuntimeScriptForTests()
+  }
+}
+
+/** ⭐ ENGINE 53 — v1's and v2's objects verdicts for one grade. */
+function objectVerdicts(graded) {
+  const v1 = graded && graded.verdict && graded.verdict.objects
+  return { v1: v1 ? v1.verdict : null, v2: graded && graded.objectsV2 ? graded.objectsV2.verdict : null }
 }
 
 function walk(dir, out = []) {
@@ -65,6 +85,26 @@ function v1Family(objects, family) {
   if (rows.some((r) => r.agree === false)) return 'DIVERGE'
   if (rows.some((r) => r.agree === true)) return 'MATCH'
   return null
+}
+
+/** ⭐ ENGINE 53 — the run half's own ledger (runtime-on lane): door and bind answers, and
+ *  every minted capture's objects verdicts before (killed) and after (as the chart draws). */
+function runHalfLedger(rows) {
+  const half = rows.filter((r) => r.runHalf)
+  const out = {
+    door: {}, bind: {}, bindCodes: {},
+    minted: half.filter((r) => r.runHalf.door === 'minted').map((r) => ({ file: r.file, bind: r.runHalf.bind,
+      bindCode: r.runHalf.bindCode, before: r.runHalf.before, after: r.runHalf.after })),
+  }
+  for (const r of half) {
+    out.door[r.runHalf.door] = (out.door[r.runHalf.door] || 0) + 1
+    if (r.runHalf.bind) out.bind[r.runHalf.bind] = (out.bind[r.runHalf.bind] || 0) + 1
+    if (r.runHalf.bindCode) out.bindCodes[r.runHalf.bindCode] = (out.bindCodes[r.runHalf.bindCode] || 0) + 1
+  }
+  out.movedToDiverge = out.minted.filter((m) => m.before && m.after
+    && ((m.before.v1 === 'MATCH' && m.after.v1 === 'DIVERGE') || (m.before.v2 === 'MATCH' && m.after.v2 === 'DIVERGE')))
+    .map((m) => m.file)
+  return out
 }
 
 describe.skipIf(!RUN)('objects v2 — the re-grade over every capture with object records (opt-in)', () => {
@@ -122,8 +162,23 @@ describe.skipIf(!RUN)('objects v2 — the re-grade over every capture with objec
           }
         }
       }
+      // ⭐ ENGINE 53 — a minted run half, graded again with it killed for this script (the
+      // host picture it replaces): `before` is that grade, the row itself the chart's.
+      let runHalf = null
+      if (ours && ours.ok && ours.runHalfDoor) {
+        runHalf = { door: ours.runHalfDoor, bind: (ours.objects && ours.objects.runHalf) || null,
+          bindCode: (ours.objects && ours.objects.runHalfCode) || null }
+        if (ours.runHalfDoor === 'minted') {
+          setRuntimeKillList([runtimeSourceHash(cap.source.text)])
+          try { runHalf.before = objectVerdicts(gradeCapture(cap)) } catch (err) {
+            runHalf.before = { error: String(err && err.message).slice(0, 200) }
+          } finally { setRuntimeKillList([]) }
+          runHalf.after = objectVerdicts(graded)
+        }
+      }
       rows.push({
         file: rel,
+        ...(runHalf ? { runHalf } : {}),
         v1: v1 ? v1.verdict : null,
         v2: objectsV2 ? objectsV2.verdict : null,
         first: objectsV2 ? objectsV2.first : null,
@@ -149,10 +204,14 @@ describe.skipIf(!RUN)('objects v2 — the re-grade over every capture with objec
     fs.mkdirSync(OUT, { recursive: true })
     fs.writeFileSync(path.join(OUT, 'objects-v2-regrade.json'), JSON.stringify({
       generatedBy: 'app/src/components/chart/engine/__tests__/vendorHarness/objectsV2Regrade.measure.test.js',
-      lane: 'production (objects-only pane armed, runtime pane dark)',
-      totals, perFamily, fieldDiffers, codeMap, moved: moved.map((r) => ({ file: r.file, first: r.first, orderOnly: r.orderOnly })), rows,
+      lane: RUNTIME_ON ? 'runtime-on (objects-only pane armed, runtime pane on, permitted, every script graded)'
+        : 'production (objects-only pane armed, runtime pane dark)',
+      totals, perFamily, fieldDiffers, codeMap, moved: moved.map((r) => ({ file: r.file, first: r.first, orderOnly: r.orderOnly })),
+      runHalf: runHalfLedger(rows), rows,
     }, null, 1) + '\n')
     // eslint-disable-next-line no-console
-    console.log('OBJECTS-V2', JSON.stringify({ totals, perFamily, moved: moved.length }))
+    const rh = runHalfLedger(rows)
+    console.log('OBJECTS-V2', JSON.stringify({ lane: RUNTIME_ON ? 'runtime-on' : 'production', totals, perFamily, moved: moved.length,
+      runHalf: rh }))
   }, 3600000)
 })

@@ -554,7 +554,83 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
     # DIV-4 -- a PAINT (never a plot) may also name a colour column the per-bar run computes
     run_keys = _check_runtime_colours(definition, columns, out)
     _check_paints(definition.get("paints"), columns | run_keys, out)
+    # ENGINE 53 -- a host document's run half (``compute.runtimeObjects``), mapped onto PLOT keys
+    plot_keys = {p.get("key") for p in plots if isinstance(p, Mapping) and isinstance(p.get("key"), str)}
+    _check_runtime_objects(definition, plot_keys, out)
     return out
+
+
+#: ENGINE 53 -- the fields ``compute.runtimeObjects`` may carry (``defSchema.RUNTIME_OBJECTS_FIELDS``).
+#: CLOSED: anything else is refused.
+RUNTIME_OBJECTS_FIELDS = ("source", "outputs", "runtimeLanguage", "runtimeFrontend", "runtimeIr",
+                          "runtimeOutputSignature")
+
+
+def _check_runtime_objects(definition: Mapping, plot_keys: set, out: list) -> None:
+    """ENGINE 53 -- ``compute.runtimeObjects = {source, outputs, ...runtimeVersionStamp}``: the RUN
+    HALF of a host document whose object program lost drawings. The mirror of the client's
+    ``defSchema.runtimeObjectsErrors``, rule for rule, held to it by one fixture both suites read
+    (``tests/fixtures/runtime_objects_schema.json``): only on an ``ast`` definition; ``source`` a
+    non-empty string; ``outputs`` an object mapping a DECLARED plot key to a whole-number run output
+    index, no index named twice; the stamp, when present, typed (``runtimeLanguage`` a non-empty
+    string, ``runtimeFrontend``/``runtimeIr`` positive whole numbers, ``runtimeOutputSignature`` a list
+    of strings naming every mapped index); no other field."""
+    compute = definition.get("compute")
+    if not isinstance(compute, Mapping) or "runtimeObjects" not in compute:
+        return
+    ro = compute.get("runtimeObjects")
+    path = "compute.runtimeObjects"
+    fp = "runtimeObjects:" + _canon(ro)
+    code = "runtime-objects"
+    if compute.get("kind") != "ast":
+        _err(out, path, code, f"{path}: only an \"ast\" definition draws its objects from the per-bar run, "
+             f"got kind {compute.get('kind')!r}", fp)
+        return
+    if not isinstance(ro, Mapping):
+        _err(out, path, code, f"{path}: expected {{source, outputs, ...stamp}}", fp)
+        return
+    extra = sorted(k for k in ro if k not in RUNTIME_OBJECTS_FIELDS)
+    if extra:
+        _err(out, path, code, f"{path}: unknown field(s) {', '.join(map(repr, extra))}", fp)
+    if not _is_str(ro.get("source")) or not ro.get("source"):
+        _err(out, f"{path}.source", code, f"{path}.source: expected the script the run runs, a non-empty string", fp)
+    # one document, one script: beside run-read colours both runs read the same source
+    rc = compute.get("runtimeColours")
+    if isinstance(rc, Mapping) and "source" in rc and rc.get("source") != ro.get("source"):
+        _err(out, f"{path}.source", code,
+             f"{path}.source: is not the script compute.runtimeColours.source reads; one document runs one script", fp)
+    outputs = ro.get("outputs")
+    if not isinstance(outputs, Mapping):
+        _err(out, f"{path}.outputs", code,
+             f"{path}.outputs: expected an object mapping a plot key to a run output index", fp)
+    else:
+        seen: set = set()
+        for k, idx in outputs.items():
+            if k not in plot_keys:
+                _err(out, f"{path}.outputs.{k}", code, f"{path}.outputs.{k}: names no declared plot", fp)
+            if not _is_int(idx) or idx < 0:
+                _err(out, f"{path}.outputs.{k}", code,
+                     f"{path}.outputs.{k}: expected a whole-number run output index, got {idx!r}", fp)
+            elif int(idx) in seen:
+                _err(out, f"{path}.outputs.{k}", code, f"{path}.outputs.{k}: run output {int(idx)} is named by two plots", fp)
+            else:
+                seen.add(int(idx))
+    lang = ro.get("runtimeLanguage")
+    if "runtimeLanguage" in ro and (not _is_str(lang) or not lang):
+        _err(out, f"{path}.runtimeLanguage", code, f"{path}.runtimeLanguage: expected a non-empty string", fp)
+    for f in ("runtimeFrontend", "runtimeIr"):
+        if f in ro and (not _is_int(ro.get(f)) or ro.get(f) < 1):
+            _err(out, f"{path}.{f}", code, f"{path}.{f}: expected a positive whole number, got {ro.get(f)!r}", fp)
+    if "runtimeOutputSignature" in ro:
+        sig = ro.get("runtimeOutputSignature")
+        if not isinstance(sig, list) or not all(isinstance(x, str) for x in sig):
+            _err(out, f"{path}.runtimeOutputSignature", code,
+                 f"{path}.runtimeOutputSignature: expected a list of strings", fp)
+        elif isinstance(outputs, Mapping):
+            for k, idx in outputs.items():
+                if _is_int(idx) and idx >= len(sig):
+                    _err(out, f"{path}.outputs.{k}", code,
+                         f"{path}.outputs.{k}: run output {int(idx)} is past the signature's {len(sig)} outputs", fp)
 
 
 def _check_runtime_colours(definition: Mapping, plot_keys: set, out: list) -> set:
