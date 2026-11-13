@@ -12,23 +12,28 @@
 //
 //   target       the rating the member picked, read from the envelope's payload
 //                (`to[<choice>]`, a `scalar:` path such as `scalar:rating.m6`)
-//   anchorValue  the SERVER's value of the `anchor` column on the bar the rating
-//                is dated (`at`, `scalar:rating.asof`): the newest envelope time on
-//                or before that date. On a daily chart that is the rating's own
-//                session; on a weekly chart, the week holding it.
+//   anchorValue  the SERVER's value of the `anchor` column on the LAST COMPLETED
+//                bar of the envelope: the newest cell with a finite positive line
+//                value, skipping the forming bar's cell while the chart's newest bar
+//                is forming (`opts.before`, its time key).
 //
-// ⭐⭐ THE ANCHOR IS THE RATING'S DATE, NOT THE LAST BAR, AND k IS FIXED PER
-// ENVELOPE. The rating is computed nightly from the session's close, so it
-// describes that session: the line equals the rating on the bar the rating
-// belongs to. During the session the forming bar's live point (`liveTail.js`) is
-// raw `close / benchClose` and is multiplied by the same k, so it moves with
-// price, above or below the rating, as the RS line should. Anchoring on the live
-// last bar instead would re-pin the line's end to the rating on every tick and
-// move the whole history with it, which is the one thing this must never do.
+// ⭐⭐ THE LINE ENDS ON THE RATING, THE WAY DEEPVUE DRAWS IT, AND k IS FIXED PER
+// ENVELOPE AND FORMING BAR. ⚰️ The first cut (PR #1165) anchored on the rating's
+// own date (`rating.asof`). Measured on production 2026-11-13 00:10 ET, AMD daily:
+// the rating was dated Nov 11 (96), AMD rose 5.9% on Nov 12, and the line's last
+// point and its axis tag read 101.99 beside an "RS 96" end tag: a "rating" of
+// 102, the tag and the axis disagreeing. So the anchor is the newest CLOSED
+// session in the envelope: with the market closed the line ends exactly on the
+// rating. During the session the forming bar's live point (`liveTail.js`) is raw
+// `close / benchClose` multiplied by the SAME k (anchored on yesterday's close),
+// so it moves with price, a little above or below the rating. Anchoring on the
+// live point instead would re-pin the line's end on every tick and move the whole
+// history with it, which is the one thing this must never do. The rating's date
+// (`at`) is still read, for the readout's "on Nov 11".
 //
 // ⛔ FAIL CLOSED, AND SAY SO. Not on a listed timeframe (intraday), no rating (a
 // young listing, an ETF without one, a dark pod), no finite positive line value
-// on the rating's date: the RAW line is drawn and the summary scalar says why, in
+// on a completed bar: the RAW line is drawn and the summary scalar says why, in
 // words the readout prints. Never a guess, never a zero.
 //
 // ⭐ PRESENTATION, NOT COMPUTE. The choice is never a server input (it is not in
@@ -54,7 +59,7 @@ export const RESCALE_STATES = Object.freeze(['off', 'applied', 'timeframe', 'unr
 export const RESCALE_FALLBACK_WORDS = Object.freeze({
   timeframe: 'Daily and weekly charts only: showing the RS line unscaled',
   unrated: 'Not yet rated: showing the RS line unscaled',
-  noAnchor: 'No RS line value on the rating\'s date: showing the RS line unscaled',
+  noAnchor: 'No RS line value on a closed bar yet: showing the RS line unscaled',
 })
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
@@ -113,9 +118,12 @@ function tfCode(tf) {
  * @param {object} inputs the instance's inputs (declared defaults under the stored)
  * @param {unknown} tf the chart's timeframe code
  * @param {(t: unknown) => number} timeKey the lane's time join (`serverCompute.barTimeKey`)
+ * @param {{before?: number|null}} [opts] `before`: the forming bar's time key while
+ *   the chart's newest bar is forming; cells at or after it are not completed and
+ *   never anchor. Absent (closed, or unknown): the newest cell anchors.
  * @returns {null|{state: string, choice?: unknown, k?: number, target?: number, asof?: string}}
  */
-export function rescaleFactor(def, parsed, inputs, tf, timeKey) {
+export function rescaleFactor(def, parsed, inputs, tf, timeKey, opts) {
   const spec = rescaleOf(def)
   if (!spec) return null
   const choice = rescaleChoice(def, inputs)
@@ -127,23 +135,22 @@ export function rescaleFactor(def, parsed, inputs, tf, timeKey) {
   const target = typeof to === 'string' ? readoutSourceValue(to, payload, def, inputs || {}) : undefined
   if (!isNum(target) || target <= 0) return { state: 'unrated', choice }
   const asof = readoutSourceValue(spec.at, payload, def, inputs || {})
-  const key = typeof timeKey === 'function' && asof != null ? timeKey(asof) : NaN
   const times = parsed && parsed.times && typeof parsed.times.length === 'number' ? parsed.times : null
   const col = parsed && isPlainObject(parsed.columns) ? parsed.columns[spec.anchor] : null
-  if (!isNum(key) || !times || !col || col.length !== times.length) return { state: 'noAnchor', choice, target }
-  // The newest envelope time on or before the rating's date that carries a line
-  // value. ⭐ A blank cell is skipped, not fatal: measured in the sandbox
-  // 2026-11-12, the rating was dated Nov 11 while the benchmark had no Nov 11 bar
-  // yet, so the line ended on Nov 10 ("No SPY bar for Nov 11 yet") and the scale
-  // anchors where the line actually ends.
+  if (typeof timeKey !== 'function' || !times || !col || col.length !== times.length) return { state: 'noAnchor', choice, target }
+  const before = opts && isNum(opts.before) ? opts.before : null
+  // The newest COMPLETED envelope cell that carries a line value. ⭐ A blank cell
+  // is skipped, not fatal: measured in the sandbox 2026-11-12, the benchmark had no
+  // bar for the newest session yet, so the line ended a day early ("No SPY bar for
+  // Nov 11 yet") and the scale anchors where the line actually ends.
   let anchorValue = NaN
   for (let i = times.length - 1; i >= 0; i -= 1) {
     const t = timeKey(times[i])
-    if (!isNum(t) || t > key) continue
+    if (!isNum(t) || (before !== null && t >= before)) continue
     if (isNum(col[i]) && col[i] > 0) { anchorValue = col[i]; break }
   }
   if (!isNum(anchorValue)) return { state: 'noAnchor', choice, target }
-  return { state: 'applied', choice, k: target / anchorValue, target, asof: String(asof) }
+  return { state: 'applied', choice, k: target / anchorValue, target, asof: asof == null ? '' : String(asof) }
 }
 
 /**

@@ -100,7 +100,13 @@ export const BOARDS = {
   GRID: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { grid: true }],
   FOUR: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => chart(id, (i % 2) * 12, Math.floor(i / 2) * 10, 12, 10)),
     { 'N:c1': 'SPY', 'N:c2': 'QQQ', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }],
+  // uctIntelligence.set: a chart whose StockChart offers the UCT Intelligence row (S/R and Setups released; Candlestick
+  // patterns and Caution not) — never added, and with it added (Auto patterns on, Support & resistance chosen)
+  UCTI: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { uctIntel: UCTI_GATES }],
+  UCTI_ADDED: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), showPatterns: true, uctIntelligence: { added: true, labels: true, supportResistance: true } } } }],
+    { 'N:c1': 'NVDA' }, { uctIntel: UCTI_GATES }],
 }
+const UCTI_GATES = { available: true, known: true, availability: { supportResistance: true, supportResistanceEmpty: false, candles: false, setups: true, caution: false } }
 
 // Synthetic screener catalog / universe (never real values)
 const FIELDS = [{ key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%' }, { key: 'price', label: 'Price', type: 'range', unit: '$' },
@@ -528,6 +534,11 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })      // (a TIMED board's charts carry their view: the loaded history)
     // a case may SEED drawings the Agent cannot draw itself (seed.drawings: { SYM: [drawing] }, e.g. a position for its alerts)
     for (const [sym, list] of Object.entries(seed.drawings || {})) for (const d of list) drawingsStore.addDrawing(sym, d)
+  }
+  // uctIntelligence.set: each chart's UCT Intelligence gates as StockChart publishes them (ChartPane → ChartWidget agent.uctIntelligence)
+  if (extra.uctIntel) {
+    const c0 = mounted.h.charts, withUci = (x) => (x ? { ...x, uctIntel: { ...extra.uctIntel } } : x)
+    mounted.h.charts = { ...c0, list: () => c0.list().map(withUci), read: (r) => withUci(c0.read(r)) }
   }
   return { p, st, srv, ...mounted }
 }

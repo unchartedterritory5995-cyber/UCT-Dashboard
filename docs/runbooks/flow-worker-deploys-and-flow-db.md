@@ -44,6 +44,29 @@ Do NOT re-enable auto deploy. If you believe it must change, that is the owner's
 - `[flow-canary] ⛔ flow-worker volume LOW` (free space under 15 GB)
 - the Open Flow board stuck on "computing", Live Flow not advancing
 
+## ⭐ Self-repair (since 2026-11-13): the worker restores the newest backup on its own
+
+`api/flow_db_autorestore.py`. On 2026-11-13 page 1 of flow.db was overwritten at 07:35 ET (no deploy,
+no second writer; 7th damage in 5 days). The canary only logged it, and the tape stayed dead until a
+person restored the 01:44 UTC backup at 09:30:40 ET. Now:
+
+* **The canary posts the onset to Discord** (it used to only log it).
+* **Two fatal canary failures in a row** (unreadable file, malformed image, I/O error; ~10 min at
+  `FLOW_CANARY_SEC=300`) **and** a fresh direct check that also fails → the newest `flow-pre-*.db`
+  backup that reads cleanly is COPIED in (the backup stays), the damaged file is moved to
+  `flow.db.corrupt-auto-<UTC stamp>` (KEPT), and the copy is swapped in. Writes resume without a
+  restart. Discord gets what it did and which days to re-fill.
+* Guards: once per 6 h (`/data/.flow_autorestore_last`), refuses without disk room for the copy,
+  never deletes anything. Kill switch `FLOW_AUTO_RESTORE_ENABLED=0`.
+* **A verified backup every weeknight at 22:15 ET** (`flow-pre-nightly-YYYY-MM-DD.db`): written to a
+  temp name, `quick_check` on the COPY, then it replaces the old one (one backup kept). Refuses when
+  the live file does not read cleanly. Off switch `FLOW_NIGHTLY_BACKUP_ENABLED=0`.
+* The gap-fill's rollback snapshot now refuses to prune anything when the live file does not read
+  cleanly, so a damaged file can never displace the only good backup.
+
+**After a self-repair:** rows written after the backup are missing. Run the gap-fill for each day
+since the backup was taken (status endpoint shows `last_result`), after the close.
+
 ## Recovery (worked twice on 2026-11-12; writes back within seconds, no restart)
 
 Scripts: `tools/flow_db_recovery/stepA_rebuild_and_swap.py`, `stepB_restore_history.py`.

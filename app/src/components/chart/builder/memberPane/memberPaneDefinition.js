@@ -22,7 +22,7 @@
 // where the product can call it. That test is the reason this is a productised
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR } from '../../engine/ast/pine'
+import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
@@ -40,9 +40,15 @@ import { OHLC_DEF_STYLES } from '../../engine/defSchema'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjectsDoor'
+// ⭐⭐ ENGINE 53 — ONE row pairing for both lanes (the runtime document and the run half).
+import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
-import { objectLossNote } from '../../engine/ast/objectLoss'
+import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
+// ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
+import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
+import { storedBytesOf } from './storedBytes'
+import { declaredCalcBarsOf } from '../../engine/runtime/objectStore'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation, pineLineWidth } from '../builderInputs'
 import { manifestFromPlacements, paramLocatorsIn } from '../pineParamManifest'
@@ -138,7 +144,7 @@ function tradingViewDefaultColour(output, version) {
   }
 }
 
-export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true } = {}) {
+export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
   const no = (reason, guard = null, t = null) => ({
     ok: false, definition: null, reason, guard, translation: t, rows: [], notes: [],
   })
@@ -801,6 +807,17 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       .map((x) => x.p)
   }
   const rtReadLines = new Set(rtRead ? rtRead.paints.map((p) => `${p.kind}@${p.line}`) : [])
+  // ⭐⭐ ENGINE 53 — THE RUN HALF (`hostPartialRunHalf`): a script whose host object program
+  // lost drawings may have them made, complete, by the per-bar run, where every gate passes.
+  // Declined, the document is exactly what it was.
+  const runHalf = hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, routeHostPartial })
+  if (runHalf && runHalf.runtimeObjects) {
+    definition.compute = { ...definition.compute, runtimeObjects: runHalf.runtimeObjects }
+    // the document's own script, by hash: what the bind and the store check the run half against
+    definition.meta = { ...(definition.meta || {}), [RUN_HALF_SOURCE_STAMP]: runtimeSourceHash(source) }
+    // Registered once a document that may need it exists (as a runtime document does).
+    ensureRuntimeLane()
+  }
   // ⛔⛔ THE DOOR NEVER GUESSES A PLACEMENT. Every locator above is one the
   // translator TAGGED (`paramLocatorsIn`): a literal that came from the parameter.
   // ⚰️ Round 2 also ran the saved-document migration here, which matched the call
@@ -824,7 +841,10 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // tables are incomplete — or withheld — is the fact a member most needs before
   // reading anything it draws. Worded in `objectLoss.js`, never here; `null` for
   // a clean object program and for a script that draws no objects at all.
-  const drawingNote = objectLossNote(objectsGate.loss, { withheld: withholdObjects })
+  const lossNote = objectLossNote(objectsGate.loss, { withheld: withholdObjects })
+  // ⭐ ENGINE 53 — a document carrying a run half says where its drawings may come from.
+  const drawingNote = lossNote && runHalf && runHalf.runtimeObjects
+    ? { ...lossNote, note: `${lossNote.note} ${RUN_HALF_DRAWING_SENTENCE}` } : lossNote
   if (drawingNote) {
     seen.add(`${drawingNote.name} :: ${drawingNote.note}`)
     notes.push(drawingNote)
@@ -958,20 +978,143 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     ...(blockRunKeys.length ? { blockRuns: { keys: blockRunKeys } } : {}),
   }
 
+  // ⛔⛔ ENGINE 53 — THE STORE'S CAP, ON THE FINISHED DOCUMENT AS THE STORE WILL COUNT IT
+  // (`storedBytes.js`: the save's engine stamp and graph form, the store's own serialisation).
+  // A run half re-embeds the whole script; over the cap it is taken out again, so a document
+  // the door mints is one the store will save.
+  let runHalfOut = runHalf
+  let docOut = definition
+  let notesOut = notes
+  if (runHalf && runHalf.runtimeObjects) {
+    const bytes = storedBytesOf(definition)
+    if (bytes > DOCUMENT_BYTE_BUDGET) {
+      docOut = withoutRunHalf(definition)
+      notesOut = notes.map(withoutRunHalfSentence)
+      runHalfOut = { declined: { code: 'run-half:size', why: `with the run half the document is ${bytes} bytes as `
+        + `the store counts it, past its ${DOCUMENT_BYTE_BUDGET}-byte cap` } }
+    }
+  }
   return {
     ok: true,
-    definition,
+    definition: docOut,
     reason: null,
     guard: null,
     translation: t,
     rows,
-    notes,
+    notes: notesOut,
     // ⚠️ NOT A NOTE YET — a tag needs the BAR COUNT, which only the chart knows.
     // The pane finishes the sentence with `parse.js::requirementNote` once the
     // series has loaded; the producer still owns the wording.
     requirementTags,
+    // ⭐ ENGINE 53 — the run half, minted (how many host plots its column rail compares) or
+    // declined (by code, for the census); absent for a script whose drawings are complete.
+    ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
+    ...(runHalfOut && runHalfOut.declined ? { runHalfDeclined: runHalfOut.declined } : {}),
   }
 }
+
+/** ⭐⭐ ENGINE 53 — THE RUN HALF OF A HOST DOCUMENT WHOSE DRAWINGS ARE INCOMPLETE.
+ *
+ *  The host lane draws this script's plots exactly, and its object program lost some of
+ *  the script's drawings (`objectLoss` verdict `partial` or `removes`): a drawing held in
+ *  a `var`, made in a loop, read back through a getter. The per-bar run executes every
+ *  drawing call in source order, TradingView's own model, so it makes them all. This mints
+ *  `compute.runtimeObjects = {source, outputs, ...runtimeVersionStamp}` on the SAME `ast`
+ *  document (precedent: DIV-4's `compute.runtimeColours`): the plots stay the host's, the
+ *  host program stays as the fallback (`definition.objects`), and the chart draws the run's
+ *  drawings only where every gate passes on every run (`nativeRegistry.js::withRunHalf`).
+ *
+ *  ⛔ MINTED ONLY WHEN EVERY ONE OF THESE HOLDS, else the document is byte-identical and the
+ *  result says why (`runHalfDeclined: {code, why}`):
+ *    · the runtime pane is on for this member (`runtimePaneEnabled`), and the caller did not
+ *      opt out (`routeHostPartial: false`);
+ *    · the host program lost drawings it attempted, and the script is not windowed
+ *      (`calc_bars_count`: the run takes the last N bars and nothing on the host side does);
+ *    · the script is not on the kill list, is on the starter allowlist, and states its
+ *      repaint class;
+ *    · the run builds WITH its drawings, lowers at least one, reads no other symbol or
+ *      timeframe, has no unsettled `na` test, and holds no strategy broker;
+ *    · every visible host row pairs one to one with a run output (`pairRunRows`, the
+ *      runtime document's own pairing) — the column rail at bind compares exactly these;
+ *    · the document still fits the store's 64 KiB.
+ *  ⛔ IT NEVER CREATES A REFUSAL: a decline is the host document as it always was. */
+function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, routeHostPartial }) {
+  const loss = objectsGate && objectsGate.loss
+  if (!loss || (loss.verdict !== 'partial' && loss.verdict !== 'removes')) return null
+  const declined = (code, why) => ({ declined: { code, why } })
+  if (!runtimePaneEnabled() || routeHostPartial === false) {
+    return declined('run-half:pane-off', 'the per-bar runtime pane is not on here')
+  }
+  const diag = (t && t.objectDiagnostics) || {}
+  if (!(Number.isInteger(diag.attemptedOps) && diag.attemptedOps > 0)) {
+    return declined('run-half:no-drawing', 'the host object program attempted no drawing')
+  }
+  if (declaredCalcBarsOf(strippedForScan(String(source || ''))) !== null) {
+    return declined('runtime:calc-bars-count', 'the script runs on its last bars only (`calc_bars_count`), '
+      + 'and the host plots are drawn over every bar')
+  }
+  const killed = runtimeKillOf({ source, defId: id })
+  if (killed) return declined('runtime:killed', killed)
+  const notGraded = runtimeNotGradedOf({ source })
+  if (notGraded) return declined('runtime:not-yet-graded', notGraded)
+  const repaint = runtimeRepaintOf(source)
+  if (!repaint.ok) return declined('runtime:repaint-unstated', repaint.why)
+  let probe
+  try { probe = probeRuntimeProgram(source, { objectsInRun: true }) } catch (err) {
+    probe = { ok: false, refusal: { guard: 'runtime:build', message: String((err && err.message) || err) } }
+  }
+  if (!probe || !probe.ok) {
+    const r = (probe && probe.refusal) || {}
+    return declined(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
+  }
+  if (!(probe.objectOps > 0)) return declined('run-half:no-object-ops', 'the run lowered no drawing operation')
+  if (probe.requests > 0) {
+    return declined('runtime:request', `${probe.requests} \`request.security\` ${probe.requests === 1 ? 'reads' : 'read'} `
+      + "another symbol or timeframe, and the run is handed only the chart's own bars")
+  }
+  if (probe.naTests > 0) {
+    return declined('runtime:na-test', `${probe.naTests} ${probe.naTests === 1 ? 'condition' : 'conditions'} can read `
+      + "an `na` value in a way the run has not been matched to TradingView for the script's `//@version`")
+  }
+  if (probe.broker) return declined('run-half:strategy', 'the run holds a strategy broker, which runs over its own window')
+  const pairing = pairRunRows(t, probe.outputs)
+  if (!pairing.ok) return declined(pairing.code, pairing.why)
+  const outputs = {}
+  for (const [i, o] of drawable.entries()) {
+    if (o.hidden) continue
+    const index = (t.outputs || []).indexOf(o)
+    const run = pairing.runOutputOf.get(index)
+    if (!Number.isInteger(run)) {
+      return declined('run-half:row-unpaired', `\`${o.title || o.kind}\` (a \`${o.kind}\`) has no run output it pairs `
+        + 'with, so the run cannot be checked against it')
+    }
+    outputs[keyAt(i)] = run
+  }
+  // ⛔ The store's 64 KiB cap is asked of the FINISHED document, as the store will count it
+  // (`storedBytes.js`), at the end of `memberPaneDefinition` (`runHalfOverCap`).
+  return { runtimeObjects: { source, outputs, ...runtimeVersionStamp(probe.outputs) } }
+}
+
+/** ⭐ ENGINE 53 — the document with its run half taken out again: the compute key, the
+ *  source stamp and the drawing note's sentence, so it is byte for byte the document the
+ *  door writes when it never asks (`routeHostPartial: false`). */
+function withoutRunHalf(definition) {
+  const compute = { ...definition.compute }
+  delete compute.runtimeObjects
+  const meta = { ...(definition.meta || {}) }
+  delete meta[RUN_HALF_SOURCE_STAMP]
+  if (Array.isArray(meta.disclosures)) meta.disclosures = meta.disclosures.map(withoutRunHalfSentence)
+  return { ...definition, compute, meta }
+}
+const withoutRunHalfSentence = (n) => (n && typeof n.note === 'string' && n.note.endsWith(` ${RUN_HALF_DRAWING_SENTENCE}`)
+  ? { ...n, note: n.note.slice(0, -(RUN_HALF_DRAWING_SENTENCE.length + 1)) } : n)
+
+/** ⭐ ENGINE 53 — the meta key a run-half document names its own script by (the sha256 of the
+ *  Pine source, UTF-8): the bind runs `runtimeObjects.source` only when it hashes to this
+ *  (`nativeRegistry.js::withRunHalf`), and the store saves the document only when this, the
+ *  run half's source and the row's own script are one script (`runtime_definitions.
+ *  run_half_source_refusal`). */
+export const RUN_HALF_SOURCE_STAMP = 'pineSourceSha256'
 
 /** ⭐⭐ DIV-4 — THE COLUMN KEY a runtime-read paint colour lands in (`k` = its place
  *  in `compute.runtimeColours.at`). A name no host row takes (`keyAt` mints
@@ -1026,11 +1169,10 @@ function runtimeReadPaints(source, t, allPaints) {
   return { compute: { source, at, keys }, paints }
 }
 
-/** The Pine outputs a runtime document draws: the ones a chart row carries.
- *  `alertcondition` is ruling D1's (not drawn); `fill`, `hline`, `bgcolor`,
- *  `barcolor` and the candle outputs have no row on this document, and are named
- *  in its disclosure when the script writes one (`RUNTIME_UNDRAWN_KINDS`). */
-const RUNTIME_ROW_KINDS = new Set(['plot', 'plotshape', 'plotchar'])
+/* The Pine outputs a runtime document draws as rows (`RUNTIME_ROW_KINDS`) are the pairing's
+ * (`runRowPairing.js`). `alertcondition` is ruling D1's (not drawn); `fill`, `hline`, `bgcolor`
+ * and `barcolor` have no row on this document, and are named in its disclosure when the script
+ * writes one (`RUNTIME_UNDRAWN_KINDS`). */
 
 /** ⭐ RT6 — the host paint withholdings a runtime document can lift: the colour
  *  (the run computes it) and a v4 `bgcolor`'s default transparency (CAP round 4
@@ -1460,55 +1602,12 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       + '`//@version` (a `?:` below version 4, or an `or` / `not` in version 4 or 5), so it is not drawn bar by bar '
       + 'until the two are shown to agree')
   }
-  // ⭐ RT1 — every host output of a drawn kind, hidden ones included, so the
-  // ordinal of each is the runtime lane's ordinal (the runtime lane emits a
-  // `display.none` plot too). Only the visible ones become rows.
-  const ofKind = []
-  ;(t.outputs || []).forEach((o, index) => {
-    if (o && RUNTIME_ROW_KINDS.has(o.kind)) ofKind.push({ o, index })
-  })
-  const runtimeByKind = new Map()
-  probe.outputs.forEach((ro, k) => {
-    if (!runtimeByKind.has(ro.call)) runtimeByKind.set(ro.call, [])
-    runtimeByKind.get(ro.call).push(k)
-  })
-  const hostByKind = new Map()
-  for (const c of ofKind) hostByKind.set(c.o.kind, (hostByKind.get(c.o.kind) || 0) + 1)
-  for (const kind of RUNTIME_ROW_KINDS) {
-    const n = hostByKind.get(kind) || 0
-    const m = (runtimeByKind.get(kind) || []).length
-    if (m !== n) {
-      return decline('runtime:output-map', `the two lanes disagree on how many \`${kind}\` outputs the script has `
-        + `(${n} against ${m}), so which column is which cannot be known`)
-    }
-  }
-  // ⭐ W4-T13 - THE CANDLES AND BARS, paired the same way: the n-th `plotcandle` of the host's
-  // outputs is the n-th the run emitted (four outputs each, `role` in source order). A count that
-  // disagrees is the same `runtime:output-map` decline as any other kind's.
-  const hostCandles = new Map()
-  ;(t.outputs || []).forEach((o, index) => {
-    if (!o || !Object.hasOwn(RUNTIME_CANDLE_STYLE, o.kind)) return
-    if (!hostCandles.has(o.kind)) hostCandles.set(o.kind, [])
-    hostCandles.get(o.kind).push({ o, index })
-  })
-  const runCandles = new Map()
-  probe.outputs.forEach((ro, k) => {
-    if (!ro || !Object.hasOwn(RUNTIME_CANDLE_STYLE, ro.call)) return
-    if (!runCandles.has(ro.call)) runCandles.set(ro.call, [])
-    const list = runCandles.get(ro.call)
-    if (!list[ro.group]) list[ro.group] = { byRole: {}, ro: null }
-    // keyed by the role the run NAMES (the pane keeps no second list of them)
-    list[ro.group].byRole[ro.role] = k
-    if (ro.role === 'close') list[ro.group].ro = ro
-  })
-  for (const kind of Object.keys(RUNTIME_CANDLE_STYLE)) {
-    const n = (hostCandles.get(kind) || []).length
-    const m = (runCandles.get(kind) || []).filter(Boolean).length
-    if (n !== m * 4) {
-      return decline('runtime:output-map', `the two lanes disagree on how many \`${kind}\` calls the script has `
-        + `(${n / 4} against ${m}), so which column is which cannot be known`)
-    }
-  }
+  // ⭐⭐ ENGINE 53 — THE PAIRING IS ONE FUNCTION (`runRowPairing.js`), shared with the run
+  // half of a host document (`hostPartialRunHalf`): the n-th output of a kind on one lane is
+  // the n-th on the other, candles four to a group; a count that disagrees declines.
+  const pairing = pairRunRows(t, probe.outputs)
+  if (!pairing.ok) return decline(pairing.code, pairing.why)
+  const { ofKind, runtimeByKind, hostCandles, runCandles, runOutputOf } = pairing
   const seen = new Map()
   const carried = []
   const withheld = []
@@ -1526,7 +1625,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
     const shift = runtimeRowShift(o, shiftCtx)
     if (!shift.ok) { withheld.push({ label, why: shift.why }); continue }
-    const out = runtimeByKind.get(o.kind)[ord]
+    const out = runOutputOf.get(index)
     const pres = runtimeRowPresentation(o, t && t.version, probe.outputs[out])
     if (!pres.ok) { withheld.push({ label, why: pres.why }); continue }
     for (const k of shift.keys) shiftPinned.add(k)

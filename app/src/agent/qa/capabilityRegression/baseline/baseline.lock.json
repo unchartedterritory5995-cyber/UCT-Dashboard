@@ -3762,6 +3762,26 @@
     }
    }
   },
+  "indicatorStyle.calcTimeframe-weekly": {
+   "digest": "e047db71b09811d5",
+   "phrasings": {
+    "calculate the 50 sma on weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "compute the 50 sma on the weekly bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make the 50 sma use the weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "indicatorCopy.duplicate": {
    "digest": "c6951d43c3be58f7",
    "phrasings": {
@@ -4337,6 +4357,46 @@
     }
    }
   },
+  "volumeProfile.set": {
+   "digest": "4765e7854fb1a6df",
+   "phrasings": {
+    "turn on volume profile": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the volume profile to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show vpvr": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "volumeProfile.set.bins": {
+   "digest": "4653f21c769be5f6",
+   "phrasings": {
+    "turn on volume profile with 40 bins": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a volume profile with 40 rows": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the volume profile using 40 bins please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartMenu.resetWatermark": {
    "digest": "df220e8af0d696e0",
    "phrasings": {
@@ -4587,6 +4647,101 @@
     }
    }
   },
+  "uctIntelligence.add": {
+   "digest": "7e2aad12dc9b1350",
+   "phrasings": {
+    "add uct intelligence to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the UCT Intelligence indicator on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on uct intelligence": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.layer": {
+   "digest": "de7f421bb371b5a3",
+   "phrasings": {
+    "turn on the setups layer": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "enable the uct intelligence setups": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch on setups in uct intelligence": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.autoPatterns": {
+   "digest": "2eb31971f4d4cd74",
+   "phrasings": {
+    "turn off auto patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the chart patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.remove": {
+   "digest": "2df7df406dc5875f",
+   "phrasings": {
+    "remove uct intelligence from this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "take the UCT Intelligence indicator off": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.gated": {
+   "digest": "28162d06703fe4ce",
+   "phrasings": {
+    "turn on candlestick patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the candlestick pattern markers": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.patterns.which": {
+   "digest": "a386783468197b46",
+   "phrasings": {
+    "turn the patterns off on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "widget.readOptions": {
    "digest": "bcbf2ab575d27c22",
    "phrasings": {
@@ -4783,6 +4938,11 @@
   }
  },
  "refusals": {
+  "refuse.calcTimeframe.unclear-put-on-weekly": {
+   "digest": "ad7e43c51ae45ee5",
+   "gap": false,
+   "mode": null
+  },
   "refuse.undo-nothing": {
    "digest": "c4ac79408ca94a75",
    "gap": false,

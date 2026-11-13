@@ -686,6 +686,20 @@ def _start_flow_schedulers():
                 log.info("[startup] flow.db FULL quick_check registered (daily 03:30 ET)")
             else:
                 log.info("[startup] flow.db FULL quick_check DISABLED")
+
+            # ⭐ 22:15 ET weekdays: one VERIFIED backup a night (2026-11-13). Gap-fill runs make a
+            # backup only when they fill something, so a quiet stretch left none; the 11/13
+            # restore only worked because the 11/10 fill happened to take one. Clear of the
+            # 21:00 gap-fill and the 03:30 whole-file check; quick_check runs on the COPY.
+            if os.environ.get("FLOW_NIGHTLY_BACKUP_ENABLED", "1") == "1":
+                from api import flow_db_autorestore as _far
+                sched.add_job(_far.nightly_backup,
+                              trigger=_CT(day_of_week="mon-fri", hour=22, minute=15,
+                                          timezone=ZoneInfo("America/New_York")),
+                              id="flow_nightly_backup", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow.db nightly verified backup registered (22:15 ET weekdays)")
         except Exception as e:  # noqa: BLE001
             log.warning("flow integrity canary scheduling failed: %s", e)
 

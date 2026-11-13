@@ -9160,6 +9160,64 @@
       ]
     },
     {
+      "id": "indicatorStyle.calcTimeframe-weekly",
+      "source": "calc-TF family (pl-ctf, 11-12): the Inspector's Timeframe — an indicator calculated on a higher timeframe's bars, the chart's own timeframe unchanged",
+      "capabilities": [
+        "indicatorStyle.setCalcTimeframe"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "indicatorStyle.setCalcTimeframe"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorStyle.setCalcTimeframe",
+            "args": {
+              "timeframe": "weekly"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorStyle.setCalcTimeframe",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "ovl:2",
+              "timeframe": "W"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "inputs.period": 50,
+            "inputs.maType": "sma"
+          },
+          "has": {
+            "calculationTimeframe": "W"
+          }
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "calculate the 50 sma on weekly",
+        "compute the 50 sma on the weekly bars",
+        "make the 50 sma use the weekly"
+      ]
+    },
+    {
       "id": "indicatorCopy.duplicate",
       "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — configure an existing indicator",
       "capabilities": [
@@ -10863,6 +10921,94 @@
       ]
     },
     {
+      "id": "volumeProfile.set",
+      "source": "Charts family 11-12: Chart Settings → Indicators → Volume Profile row toggle (applyRowPatch on the carved-out row; the library toggledRow shape)",
+      "capabilities": [
+        "volumeProfile.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "volumeProfile.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "volumeProfile.set",
+            "target": "$charts[0]",
+            "args": {
+              "enabled": true,
+              "bins": null,
+              "color": null,
+              "pocColor": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "volumeProfile": {
+          "enabled": true,
+          "bins": 24
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on volume profile",
+        "add the volume profile to this chart",
+        "show vpvr"
+      ]
+    },
+    {
+      "id": "volumeProfile.set.bins",
+      "source": "Charts family 11-12: the Volume Profile row's Bins field (8-50) with the toggle, one write",
+      "capabilities": [
+        "volumeProfile.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "volumeProfile.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "volumeProfile.set",
+            "target": "$charts[0]",
+            "args": {
+              "enabled": true,
+              "bins": 40,
+              "color": null,
+              "pocColor": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "volumeProfile": {
+          "enabled": true,
+          "bins": 40
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on volume profile with 40 bins",
+        "add a volume profile with 40 rows",
+        "show the volume profile using 40 bins please"
+      ]
+    },
+    {
       "id": "chartMenu.resetWatermark",
       "source": "C1-061 (family C, 11-11): Chart Settings → Watermark → Reset to center (opts.watermarkPos = null)",
       "capabilities": [
@@ -11333,6 +11479,242 @@
         "hide every moving average on this chart",
         "hide all my moving averages",
         "turn off all the moving averages"
+      ]
+    },
+    {
+      "id": "uctIntelligence.add",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — the Indicators library row's add (addUctIntelligence: Auto patterns + labels on)",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "add",
+              "layer": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": true,
+          "autoPatterns": true,
+          "labels": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "add uct intelligence to this chart",
+        "put the UCT Intelligence indicator on this chart",
+        "turn on uct intelligence"
+      ]
+    },
+    {
+      "id": "uctIntelligence.layer",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — a released layer's panel switch (setUctIntelligenceLayer setups)",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "on",
+              "layer": "setups"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": true,
+          "setups": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on the setups layer",
+        "enable the uct intelligence setups",
+        "switch on setups in uct intelligence"
+      ]
+    },
+    {
+      "id": "uctIntelligence.autoPatterns",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — Auto patterns off (showPatterns, the toolbar Patterns button's key); the indicator stays added",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "off",
+              "layer": "autoPatterns"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": true,
+          "autoPatterns": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn off auto patterns",
+        "hide the chart patterns"
+      ]
+    },
+    {
+      "id": "uctIntelligence.remove",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — the row's remove / the panel's x (removeUctIntelligence): every layer off, sub-choices kept",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "remove",
+              "layer": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": false,
+          "autoPatterns": false,
+          "supportResistance": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "remove uct intelligence from this chart",
+        "take the UCT Intelligence indicator off"
+      ]
+    },
+    {
+      "id": "uctIntelligence.gated",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — a layer not released to this viewer (no candle_marks): refused, nothing written",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "on",
+              "layer": "candles"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "refusal": true
+      },
+      "phrasings": [
+        "turn on candlestick patterns",
+        "show the candlestick pattern markers"
+      ]
+    },
+    {
+      "id": "uctIntelligence.patterns.which",
+      "source": "AUDIT #1172 ruling 1: a bare \"patterns\" is two features on a chart with UCT Intelligence — Chart IQ (showChartIq, ChartIqToolbarButton) and Auto patterns (showPatterns, PatternToolbarButton). chart.setSetting's fast path reads it as Chart IQ; on this board (UCT Intelligence added) uctIntelligence.set's whole-sentence phrase ASKS which, so nothing is written and no model is called. On a chart without UCT Intelligence the Chart IQ fast path is master's (agentUctIntelligence.test.jsx U9).",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "deterministic": {
+        "say": "^Which patterns do you mean"
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "off",
+              "layer": "autoPatterns"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "says": [
+          "Which patterns do you mean"
+        ],
+        "modelTurns": 0,
+        "receipt": false
+      },
+      "phrasings": [
+        "turn the patterns off on this chart"
       ]
     },
     {
@@ -11928,6 +12310,46 @@
     }
   ],
   "refusals": [
+    {
+      "id": "refuse.calcTimeframe.unclear-put-on-weekly",
+      "source": "calc-TF family (pl-ctf, 11-12): \"put the 50 sma on weekly\" could mean its calculation, where it shows, or the chart — it ASKS in fixed words, changes nothing, no model turn; the clear follow-up calculates it, and Undo takes it back",
+      "capabilities": [
+        "indicatorStyle.setCalcTimeframe"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "steps": [
+        {
+          "say": "put the 50 sma on weekly",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "calculate the 50 sma on weekly",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "instance": {
+              "find": {
+                "inputs.period": 50,
+                "inputs.maType": "sma"
+              },
+              "has": {
+                "calculationTimeframe": "W"
+              }
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
     {
       "id": "refuse.undo-nothing",
       "capabilities": [

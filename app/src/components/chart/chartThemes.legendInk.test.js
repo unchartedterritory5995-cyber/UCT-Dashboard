@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CHART_THEMES, applyThemeToSettings, legendInkForCanvas, legendCanvasRgb, legendTextContrast, LEGEND_INK_ON_DARK, LEGEND_INK_ON_LIGHT } from './chartThemes'
-import { legendInkVars, LEGEND_ROLES } from './legendInk'
+import { legendInkVars, LEGEND_ROLES, legibleInk } from './legendInk'
 import { parseColor as parseColorRgb, parseColorAlpha } from '../../utils/dividerColor'
 import { CHART_DEFAULTS, PRESETS } from './chartDefaults'
 import { allThemes, parseColor, resolveVars } from '../../pages/terminal/a11y/__tests__/terminalContrast'
@@ -131,7 +131,7 @@ describe('the legend reads it: every neutral legend text rule, and StockChart pu
   })
 
   it('StockChart publishes legendInkVars from the DOM-read tokens and the canvas samples', () => {
-    expect(STOCK_JSX).toMatch(/import \{ legendInkVars, readLegendContext \} from '\.\/chart\/legendInk'/)
+    expect(STOCK_JSX).toMatch(/import \{ legendInkVars, readLegendContext, legibleInk \} from '\.\/chart\/legendInk'/)
     expect(STOCK_JSX).toMatch(/const \{ tokens, under \} = readLegendContext\(el\)/)
     expect(STOCK_JSX).toMatch(/legendInkVars\(\{ tokens, top: canvasSample\.top, low: canvasSample\.low, under, legendColor \}\)/)
     expect(STOCK_JSX).toMatch(/style=\{\{ height, \.\.\.panelVars, \.\.\.legendInks \}\}/)
@@ -240,5 +240,56 @@ describe('the one colour parser reads what a computed style can answer', () => {
     expect(parseColorRgb('#fff8')).toEqual([255, 255, 255])
     expect(parseColorRgb('#ffffffcc')).toEqual([255, 255, 255])
     expect(parseColorRgb('transparent')).toBeNull()
+  })
+})
+
+// ⭐ 2026-11-13 — the RS Line's end tag ("RS 96") wore the line's own colour, #6ba3be,
+// which reads 2.7:1 on a white canvas. A plot colour is text only where it reads.
+describe('legibleInk: a plot colour as legend text only where it reads >= 4.5:1', () => {
+  it('the RS line blue: kept on the dark canvas, refused on every light-family theme', () => {
+    expect(legibleInk('#6ba3be', CHART_DEFAULTS.background)).toBe('#6ba3be')
+    for (const t of CHART_THEMES.filter((x) => x.family === 'light')) {
+      expect(legibleInk('#6ba3be', t.bg), t.id).toBe(null)
+    }
+  })
+  it('a dark plot colour on white is kept; unreadable inputs keep the colour (nothing to judge)', () => {
+    expect(legibleInk('#1f4e79', '#ffffff')).toBe('#1f4e79')
+    expect(legibleInk('#6ba3be', 'nonsense')).toBe('#6ba3be')
+    expect(legibleInk(null, '#ffffff')).toBe(null)
+  })
+  it('StockChart routes the end tag through it and keeps the colour as the swatch', () => {
+    const jsx = STOCK_JSX
+    expect(jsx).toMatch(/color=\{legibleInk\(c\.color, canvasSample\.low\) \|\| undefined\}\s*swatch=\{c\.color\}/)
+  })
+})
+
+// ⭐ 2026-11-13 — FOUND LIVE on a light chart canvas: the RS ranks strip's "1M 3M 6M 9M 12M RS"
+// were near-invisible light grey. The strip reads `--legend-ink-*-low`, and an explicit legend
+// colour won there unconditionally, so a colour stored for a dark canvas (#d6d8dd, what every
+// dark theme stores) stayed on after the background went white.
+describe('the explicit legend colour wins only where it reads', () => {
+  it('a dark-canvas legend colour over a white canvas gives way to the canvas ink, every role, both samples', () => {
+    const v = legendInkVars({ tokens: {}, top: '#ffffff', low: '#ffffff', legendColor: LEGEND_INK_ON_DARK })
+    for (const role of Object.keys(LEGEND_ROLES)) {
+      expect(v[`--legend-ink-${role}`], role).toBe(LEGEND_INK_ON_LIGHT)
+      expect(v[`--legend-ink-${role}-low`], role).toBe(LEGEND_INK_ON_LIGHT)
+    }
+  })
+  it('a gradient: kept at the dark top, replaced at the light bottom where the RS pane sits', () => {
+    const v = legendInkVars({ tokens: {}, top: '#0e0f0d', low: '#f4f4f4', legendColor: LEGEND_INK_ON_DARK })
+    expect(v['--legend-ink-muted']).toBe(LEGEND_INK_ON_DARK)
+    expect(v['--legend-ink-muted-low']).toBe(LEGEND_INK_ON_LIGHT)
+  })
+  it("every theme, dark and light: the strip's inks (bright and muted, low sample) read >= 4.5:1 on its own canvas, even with the OTHER family's legend colour left behind", () => {
+    for (const t of CHART_THEMES) {
+      const bg = t.bgGradient ? t.bgGradient.bottom : t.bg
+      for (const stale of [LEGEND_INK_ON_DARK, LEGEND_INK_ON_LIGHT]) {
+        const v = legendInkVars({ tokens: {}, top: bg, low: bg, legendColor: stale })
+        for (const role of ['bright', 'muted']) {
+          const c = legendTextContrast(v[`--legend-ink-${role}-low`], legendCanvasRgb(bg), LEGEND_ROLES[role].opacity)
+          expect(c, `${t.id} ${role} (stale ${stale})`).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+    }
   })
 })

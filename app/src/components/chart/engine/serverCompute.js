@@ -281,14 +281,23 @@ export function alignColumns(parsed, bars) {
     if (!at.has(k)) at.set(k, i)
   }
 
+  // ⚡ WHERE EACH BAR SITS IN THE ENVELOPE IS WORKED OUT ONCE, NOT ONCE PER COLUMN (2026-11-13).
+  // The join used to parse every bar's date for every column: the RS line carries 24 columns,
+  // so a 4,374-bar daily chart parsed 105,000 dates to place them, on every paint (13 ms of
+  // the lane's 24 ms for a five-definition RS suite, measured). One pass finds each bar's row;
+  // each column is then a plain copy. The answer is the same cell for cell.
+  const n = series.length
+  const row = new Int32Array(n)
+  for (let i = 0; i < n; i++) {
+    const j = at.get(barTimeKey(series[i] && series[i].t))
+    row[i] = j === undefined ? -1 : j
+  }
+
   const out = {}
   for (const key of keys) {
     const src = columns[key]
-    const col = new Float64Array(series.length)
-    for (let i = 0; i < series.length; i++) {
-      const j = at.get(barTimeKey(series[i] && series[i].t))
-      col[i] = j === undefined ? NaN : src[j]
-    }
+    const col = new Float64Array(n)
+    for (let i = 0; i < n; i++) col[i] = row[i] < 0 ? NaN : src[row[i]]
     out[key] = col
   }
   return out
@@ -453,6 +462,8 @@ export function clearServerColumns() {
   for (const h of _held.values()) clearTimeout(h.timer)
   _held.clear()
   _shown.clear()
+  _ownOut = 0
+  _ownSentAt = 0
   _batchDownUntil = 0
   for (const t of _degradedTimers.values()) clearTimeout(t)
   _degradedTimers.clear()
@@ -793,10 +804,51 @@ function _stillShown(sym, tf) {
   return false
 }
 
+// ─── THE CHART ON SCREEN COMES FIRST ─────────────────────────────────────────
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-11-13, after the hold above went live (a fresh list, the
+// key held at once, 11 charts a second, then released): the landing chart sent the ONLY
+// own ask, 245 ms after the stop, and still drew its RS line 4.8 s after its candles. Three
+// pre-load requests for the rows ahead had started a third of a second before the member
+// stopped, and one server core was computing all four at once (2.3 to 2.5 s each instead
+// of about 1).
+//
+// So the lane says when a chart on screen needs it, and a pre-load starts nothing while it
+// does (`serverWarm.js` asks before every request; what is already in flight finishes):
+//   * a chart's own ask is out (for at most `OWN_PRIORITY_MS`: a request that never
+//     settles must not stop the pre-load for good);
+//   * a chart is FLYING: changing symbol faster than every `FLYING_MS`. Six rows ahead at
+//     that pace is well under a second of lead, less than a compute takes, so a request
+//     started now lands on a row already passed and only delays the one the member stops
+//     on. (A chart stepping slower than that, even if "raced" by the hold's measure,
+//     keeps its pre-load: the rows ahead do land in time.)
+/** A chart changing symbol faster than this is flying through a list. */
+export const FLYING_MS = 120
+/** The longest one own ask keeps the pre-load waiting. */
+export const OWN_PRIORITY_MS = 8_000
+let _ownOut = 0
+let _ownSentAt = 0
+
+function _ownSettled() {
+  _ownOut = Math.max(0, _ownOut - 1)
+}
+
+/** True while a chart on screen is waiting on the lane, or is flying through a list. */
+export function chartsNeedTheLane() {
+  const now = Date.now()
+  if (_ownOut > 0 && now - _ownSentAt < OWN_PRIORITY_MS) return true
+  for (const s of _shown.values()) if (s.gap < FLYING_MS && now - s.at < RAPID_MS) return true
+  return false
+}
+
 function _sendOwn(g) {
   const asks = [...g.asks.values()]
-  if (asks.length === 1) fetchColumns(asks[0].defId, g.sym, g.tf, asks[0].inputs)
-  else fetchColumnsBatch(g.sym, g.tf, asks)
+  const sent = asks.length === 1
+    ? fetchColumns(asks[0].defId, g.sym, g.tf, asks[0].inputs)
+    : fetchColumnsBatch(g.sym, g.tf, asks)
+  _ownOut += 1
+  _ownSentAt = Date.now()
+  Promise.resolve(sent).then(_ownSettled, _ownSettled)
 }
 
 function _flushOwnAsks() {
@@ -946,30 +998,44 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
   // forming bar's raw `close / benchClose` is scaled by the same k as the history,
   // so it moves with price on the rated scale. Before `derive`, so a glyph built
   // from the line rides the scaled line. Off (the declared default), identity.
-  const scaled = withRescale(def, live, rescaleFactorFor(def, parsed, inputs, ctx.tf))
+  // ⭐ 2026-11-13 — k anchors on the last COMPLETED bar: while the chart's newest
+  // bar is forming, its cell is skipped (`before`), so the closed line ends on the
+  // rating and only the live point moves with price.
+  const scaled = withRescale(def, live, rescaleFactorFor(def, parsed, inputs, ctx.tf, formingKeyOf(bars, ctx)))
   return withDerivedColumns(def, scaled, inputs)
 }
 
-// One factor per (envelope, choice, timeframe): `scalarsFor` and the compute ask
-// for it on every paint, and the readout's memo keys on the scalars' identity.
-const _rescaleMemo = new WeakMap()   // parsed -> Map(`choice|tf` -> {factor, scalars})
+/** The forming bar's time key while the chart's newest bar is forming, else null
+ *  (sealed, or unknown: the newest envelope cell is then the last completed one). */
+function formingKeyOf(bars, ctx) {
+  if (!ctx || ctx.newestBarIsForming !== true || !Array.isArray(bars) || !bars.length) return null
+  const last = bars[bars.length - 1]
+  const k = last ? barTimeKey(last.t) : NaN
+  return typeof k === 'number' && Number.isFinite(k) ? k : null
+}
 
-function rescaleEntry(def, parsed, inputs, tf) {
+// One factor per (envelope, choice, timeframe, forming bar): `scalarsFor` and the
+// compute ask for it on every paint, and the readout's memo keys on the scalars'
+// identity. The readout's entry is the one with no forming bar (`before` null):
+// its state and sentence name the rating and its date, never the anchor cell.
+const _rescaleMemo = new WeakMap()   // parsed -> Map(`choice|tf|before` -> {factor, scalars})
+
+function rescaleEntry(def, parsed, inputs, tf, before = null) {
   if (!rescaleOf(def) || !parsed || typeof parsed !== 'object') return null
-  const memoKey = `${String(rescaleChoice(def, inputs))}|${String(tf == null ? 'D' : tf).toUpperCase()}`
+  const memoKey = `${String(rescaleChoice(def, inputs))}|${String(tf == null ? 'D' : tf).toUpperCase()}|${before == null ? '' : before}`
   let byKey = _rescaleMemo.get(parsed)
   if (!byKey) { byKey = new Map(); _rescaleMemo.set(parsed, byKey) }
   let hit = byKey.get(memoKey)
   if (!hit) {
-    const factor = rescaleFactor(def, parsed, inputs, tf, barTimeKey)
+    const factor = rescaleFactor(def, parsed, inputs, tf, barTimeKey, { before })
     hit = { factor, scalars: withRescaleScalars(def, parsed.payload || null, factor) }
     byKey.set(memoKey, hit)
   }
   return hit
 }
 
-function rescaleFactorFor(def, parsed, inputs, tf) {
-  const e = rescaleEntry(def, parsed, inputs, tf)
+function rescaleFactorFor(def, parsed, inputs, tf, before) {
+  const e = rescaleEntry(def, parsed, inputs, tf, before)
   return e ? e.factor : null
 }
 
