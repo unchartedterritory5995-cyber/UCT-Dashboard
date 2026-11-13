@@ -163,6 +163,7 @@ import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipV
 // header, a row's `card` opens a three-line About page in the same popover,
 // and Learn links resolve through the app's one Desk-video builder.
 import { scalarsFor } from './chart/engine/serverCompute'
+import { chartShows, chartGone } from './chart/engine/serverCompute'
 // ⭐ UCT RS 3-09 — the server gate the chip menu reads (its Preset page, its readout actions).
 import { serverDeclares, subscribeServerDefinitions } from './chart/engine/serverCompute'
 // ⭐ UCT RS 3-09 — the readout row's "Open the rotation map" asks the workspace's
@@ -237,7 +238,7 @@ import SharedIndicatorsPrompt from './chart/SharedIndicatorsPrompt'
 import UnavailableIndicators from './chart/UnavailableIndicators'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
-import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl } from '../utils/prefetchBars'
+import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
 import { resolveShowExtended } from '../utils/viewSession'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import { LIVE_PERIOD_SECONDS } from '../lib/liveBarMerge'
@@ -1590,6 +1591,7 @@ import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
+import { armServerWarm } from './chart/engine/serverWarm'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalDomain, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
 import { primaryChartTypeFor, primaryChartTypesFor } from './chart/engine/sourceCapability'
@@ -1606,7 +1608,8 @@ import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
-import { markFirstChartPaint } from '../lib/barsPackClient'
+import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient'
+import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
 import { useLegacyChartBars } from './chart/useLegacyChartBars'
 import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
 import { BARSTORE } from './chart/barStoreSwitch'
@@ -1635,6 +1638,28 @@ const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
 engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
   ? import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.ensureRuntimeLane())
   : Promise.reject(new Error('the runtime pane is switched off'))))
+
+// ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
+// prefetch already knows which symbols are next; this registers the lane's warmer with it
+// (`engine/serverWarm.js`) so an RS pane draws with its candles on a list scan instead of
+// 1-2 s after them. ⛔ REGISTERED HERE, in the chart's module, for the reason above: a page
+// that never loads a chart never arms it, and it adds nothing to another route's bytes.
+armServerWarm()
+// ...and the small per-symbol reads (the header's stats, the split label, the event
+// markers below) ride the same tell (`lib/symbolResourceWarm.js`). The two bindings are
+// read inside the call: a stand-in prefetch module must never cost the chart its load.
+armSymbolResourceWarm(() => [registerSymbolWarmer, afterFirstChartPaint])
+
+// ONE spelling of each per-symbol marker key: the chart's own `useSWR` asks under it and
+// the rows ahead are asked for under it. The fetchers are module-level for the same
+// reason: the answer a warm lands is the answer the chart's own fetch would have produced.
+const markersKeyOf = (s) => `/api/chart/markers/${encodeURIComponent(s)}?days=36500`
+const newsKeyOf = (s) => `/api/chart-news/${encodeURIComponent(s)}?days=60`
+const deskKeyOf = (s) => `/api/education/tickers/${encodeURIComponent(s)}/mentions`
+// A warm takes a BACKGROUND bars slot: it never queues a chart a member is looking at.
+const markersWarmFetch = (url) => fetcher(url, undefined, { background: true })
+const newsFetch = (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { news: [] })
+const deskFetch = (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { mentions: [] })
 
 const NOOP = () => {}
 
@@ -4121,7 +4146,7 @@ export default function StockChart({
   const { data: markersData } = useSWR(
     // Request the full window so earnings markers load back to inception alongside
     // the deep price history (backend caps + post-filters; badges cull off-screen).
-    markersEnabled && sym && !_econId && !_study ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
+    markersEnabled && sym && !_econId && !_study ? markersKeyOf(sym) : null,
     instFetcher,
     {
       dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
@@ -4131,9 +4156,17 @@ export default function StockChart({
 
   // ── News markers — /api/chart-news ──
   const showNews = !!cs.markers?.news
+  const deskEnabled = !!cs.markers?.desk
+  // ⚡ The rows a member is about to reach get these three asked for ahead, while this chart
+  // shows them (lib/symbolResourceWarm.js). Off (a null key function) exactly when the
+  // chart's own key below is null for every symbol: the setting is off, or a study chart.
+  // (An economic series is never pre-asked: the warmer takes plain instrument symbols only.)
+  useSymbolResource(markersEnabled && !_study ? markersKeyOf : null, markersWarmFetch)
+  useSymbolResource(showNews && !_study ? newsKeyOf : null, newsFetch)
+  useSymbolResource(deskEnabled && !_study ? deskKeyOf : null, deskFetch)
   const { data: newsData } = useSWR(
-    showNews && sym && !_econId && !_study ? `/api/chart-news/${encodeURIComponent(sym)}?days=60` : null,
-    (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { news: [] }),
+    showNews && sym && !_econId && !_study ? newsKeyOf(sym) : null,
+    newsFetch,
     {
       dedupingInterval: 30 * 60 * 1000,  // 30 minutes
       revalidateOnFocus: false,
@@ -4176,10 +4209,9 @@ export default function StockChart({
   // a NULL SWR key and no request is made at all. A non-OK response degrades to an
   // empty list, and buildDeskMentionMarkers is null-safe on `undefined` data — an
   // error here must never take the other marker categories down with it.
-  const deskEnabled = !!cs.markers?.desk
   const { data: deskData } = useSWR(
-    deskEnabled && sym && !_econId && !_study ? `/api/education/tickers/${encodeURIComponent(sym)}/mentions` : null,
-    (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { mentions: [] }),
+    deskEnabled && sym && !_econId && !_study ? deskKeyOf(sym) : null,
+    deskFetch,
     {
       dedupingInterval: 30 * 60 * 1000,  // 30 minutes — matches the endpoint's TTL cache
       revalidateOnFocus: false,
@@ -8340,6 +8372,14 @@ export default function StockChart({
   // the chart to ask again. Same role `secondarySources` plays one line up,
   // and it joins the SAME dependency array below for the same reason.
   const serverColumnsGeneration = useServerColumns()
+  // ⚡ THE LANE IS TOLD WHAT THIS CHART IS ON (serverCompute `chartShows`), so the ask of a chart
+  // being raced through a list is held and, if the chart has moved on, never sent: the chart the
+  // member lands on is not queued behind requests for the ones they passed (measured: 7.0 s).
+  // A layout effect, so the lane knows before this render's own ask leaves in a microtask.
+  const laneSlotRef = useRef(null)
+  if (laneSlotRef.current === null) laneSlotRef.current = {}
+  useLayoutEffect(() => { chartShows(laneSlotRef.current, sym, resolvedTf) }, [sym, resolvedTf])
+  useEffect(() => () => chartGone(laneSlotRef.current), [])
 
   // ⛔⛔ THE CAPABILITY ORACLE NEEDS ITS REGISTRY, AND THIS CHART MUST NOT ASSUME
   // A SIBLING LOADED IT. The family oracle answers `'unknown'` until the breadth

@@ -1,4 +1,5 @@
-// Tour `passed-setups` (plan 4.2 row 20), on Research Home's Passed setups box. The list
+// Tour `passed-setups` (plan 4.2 row 20), on the Daily brief's Passed setups box (go-live wave 1: it starts at
+// `?view=today`, where the box unfolds while the tour is wanted; it was Research Home's). The list
 // is the first step, so the tour opens once the scored names have loaded.
 const F = 'components/notebook/PassedSetups.jsx'
 

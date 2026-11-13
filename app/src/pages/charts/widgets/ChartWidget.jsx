@@ -333,8 +333,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             chartId: r.chartId, tabId: r.tabId, groupKey: r.activeColor,
             symbol: r.symbol, tf: r.tf, cs: r.cs, stored: r.stored ?? null,
             watermarkPos: r.opts?.watermarkPos ?? null, canvasTheme: r.chartsTheme ?? null,
+            // chartFeatures.companyPanel / earningsStrip: the widget's RAW opts.dock (null = never written). The dock is per
+            // WIDGET, shared by every chart tab, so `dockTabs` says how many tabs show it.
+            dock: r.opts?.dock ?? null, dockTabs: chartTabList(r.opts).length,
           }
         },
+        // chartFeatures.companyPanel / earningsStrip: this widget renders ChartDetailDock and persists opts.dock
+        // (Indicators → Add to Chart's own host features, chartFeatures.js)
+        canDock: () => typeof agentRef.current?.onOptsChange === 'function',
         // The Time Navigator's own read-out and jump (ChartPane → StockChart date-nav API):
         // a VIEW, not a setting — nothing is persisted beyond the view lock the jump itself sets.
         view: () => paneRef.current?.getDateMeta?.() || null,
@@ -377,11 +383,19 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           if ('settings' in patch) tabPatch.settings = patch.settings
           if ('tf' in patch) tabPatch.tf = patch.tf
           const widgetPatch = 'watermarkPos' in patch ? { watermarkPos: patch.watermarkPos } : {}
-          if (Object.keys(tabPatch).length || 'watermarkPos' in patch) {
+          // chartFeatures.*: the dock the product's own transforms produced (addFeature / removeFeature / setFeatureOpen /
+          // normalizeDock), written the way setDock writes it; null = the Undo of a dock never written (the key is dropped)
+          const hasDock = 'dock' in patch
+          if (hasDock && patch.dock != null) widgetPatch.dock = patch.dock
+          const widgetOnly = !Object.keys(tabPatch).length
+          if (!widgetOnly || 'watermarkPos' in patch || hasDock) {
             const o = r.opts || {}
-            if (r.isMainTab || !Object.keys(tabPatch).length) r.onOptsChange?.({ ...o, ...(r.isMainTab ? tabPatch : {}), ...widgetPatch })
-            else if (r.activeExtra) r.onOptsChange?.({ ...patchChartTab(o, r.activeExtra.id, tabPatch), ...widgetPatch })
+            let next
+            if (r.isMainTab || widgetOnly) next = { ...o, ...(r.isMainTab ? tabPatch : {}), ...widgetPatch }
+            else if (r.activeExtra) next = { ...patchChartTab(o, r.activeExtra.id, tabPatch), ...widgetPatch }
             else return false
+            if (hasDock && patch.dock == null) delete next.dock
+            r.onOptsChange?.(next)             // ONE write for everything asked of this widget
           }
           if (patch.symbol) r.setGroupSym?.(r.activeColor, patch.symbol)
           return true

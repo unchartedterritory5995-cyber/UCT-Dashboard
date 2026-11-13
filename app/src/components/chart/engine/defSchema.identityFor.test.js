@@ -58,9 +58,11 @@ describe('identityFor — fail closed', () => {
     refused(withBox({ identityFor: '' }), /identityFor: expected the key of the enum input/)
     refused(withBox({ identityFor: true }), /identityFor: expected the key of the enum input/)
   })
-  it('only on a string input', () => {
+  it('only on a string or enum input', () => {
     refused(def({ inputs: [BENCH, { key: 'n', type: 'int', default: 1, activeWhen: BOX.activeWhen, identityFor: 'benchmark' }] }),
-      /only a "string" input stands in for an option/)
+      /only a "string" or "enum" input stands in for an option/)
+    refused(def({ inputs: [BENCH, { key: 'b', type: 'bool', default: true, activeWhen: BOX.activeWhen, identityFor: 'benchmark' }] }),
+      /only a "string" or "enum" input stands in for an option/)
   })
   it('never on a legacy input', () => {
     refused(withBox({ legacy: true }), /a legacy input is never rendered/)

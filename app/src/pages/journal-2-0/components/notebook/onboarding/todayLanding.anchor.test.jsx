@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, waitFor } from '@testing-library/react'
+import { fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 /**
- * Tier 3b fix round 2 (N7): one UN-MOCKED case beside todayLanding.tours.test.jsx (which stands the homes in). With
- * the Today home as the default landing (ON here), the review-drafts tour's start address renders the REAL Research
- * Home, and the tour's first anchor is on the page.
+ * Tier 3b fix round 2 (N7): one UN-MOCKED case beside todayLanding.tours.test.jsx (which stands the pages in). The
+ * review-drafts tour's start address renders the REAL notes list, and the tour's first anchor is on the page.
+ * Go-live wave 1: Research Home (its old screen) is gone; the tour starts on the list (`?view=all`), at the New menu's
+ * arrow (`templates`), and waits for the menu's "Today's recap" row, which a press on that arrow draws.
  */
 vi.mock('../../../hooks/useJ2Notes', () => ({
   default: () => ({
@@ -24,6 +25,7 @@ import { __setTodayLandingForTests } from '../../../lib/todayHome'
 import { setCurrentAccountId } from '../../../lib/offline/currentAccount'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { getTourEntry } from './tourRegistry'
+import { stepsForScreen } from './tourTiers'
 
 vi.setConfig({ testTimeout: 40000 })
 
@@ -42,13 +44,18 @@ beforeEach(() => {
 afterEach(() => { setCurrentAccountId(null); __resetNotebookFlags() })
 
 describe('the review-drafts tour start, un-mocked (N7)', () => {
-  it('its start address draws the real Research Home with the tour’s first anchor', async () => {
+  it('its start address draws the notes list holding its first anchor, and opening it draws the step it waits for', async () => {
     const entry = getTourEntry('review-drafts')
-    const { steps } = await entry.load()
-    expect(entry.start).toBe('/journal/notebook?view=home')
+    const steps = stepsForScreen((await entry.load()).steps)   // a desktop screen (jsdom has no matchMedia match)
+    expect(entry.start).toBe('/journal/notebook?view=all')
     render(<MemoryRouter initialEntries={[entry.start]}><NotebookTab /></MemoryRouter>)
-    await waitFor(() => expect(document.querySelector(`[data-tour="${steps[0].anchor}"]`)).not.toBeNull(), { timeout: 20000 })
-    expect(steps[0].anchor).toBe('review-drafts-home')
+    await waitFor(() => expect(document.querySelector('[data-list-toolbar]')).not.toBeNull(), { timeout: 20000 })
+    expect(steps[0]).toMatchObject({ anchor: 'templates', waitFor: 'review-drafts-daily' })
+    const first = document.querySelector(`[data-tour="${steps[0].anchor}"]`)
+    expect(first).not.toBeNull()
+    expect(document.querySelector('[data-tour="review-drafts-daily"]')).toBeNull()
+    fireEvent.click(first)
+    for (const s of steps.slice(1)) expect(document.querySelector(`[data-tour="${s.anchor}"]`), s.anchor).not.toBeNull()
     expect(document.querySelector('[data-today-home]')).toBeNull()
   })
 })

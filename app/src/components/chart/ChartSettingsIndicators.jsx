@@ -48,6 +48,7 @@
 //    off used to make its settings vanish.
 import { withoutGuardIds } from './engine/ast/guardIdText'
 import { orderCategories } from './technicalCategories'
+import OptionsSourcePicker from './OptionsSourcePicker'
 import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
@@ -2443,6 +2444,22 @@ export default function ChartSettingsIndicators({
               idBase={`ins-text-${resultIdSafe(row.id)}-${resultIdSafe(f.key)}`}
               onCommit={(next) => onRowPatch?.(row, { [f.key]: next })}
             />
+          )}
+          {/* ⭐ 2026-11-12 — a server-owned list (`optionsSource`, the RS "Pick a
+              theme" benchmark): the shared searchable chooser, one write per pick. */}
+          {f.type === 'pick' && (
+            <span className={styles.insTextCell} data-text-cell="true">
+              <OptionsSourcePicker
+                key={`${row.id}::${f.key}`}
+                field={f} value={val ?? ''} disabled={!!inert.disabled}
+                inputClassName={styles.insText}
+                idBase={`ins-pick-${resultIdSafe(row.id)}-${resultIdSafe(f.key)}`}
+                aria={{ 'aria-labelledby': labelId,
+                  ...(inert['aria-describedby'] ? { 'aria-describedby': inert['aria-describedby'] } : null),
+                  ...(inert['aria-disabled'] ? { 'aria-disabled': inert['aria-disabled'] } : null) }}
+                onPick={(next) => onRowPatch?.(row, { [f.key]: next })}
+              />
+            </span>
           )}
         </span>
       </div>

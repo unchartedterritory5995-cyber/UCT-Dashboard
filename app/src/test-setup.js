@@ -89,9 +89,10 @@ beforeEach(() => { __setBenchmarkTailFetcherForTests(null) })
 // `lib/rsTelemetry.test.js`, and a test sink opens it wherever a suite reads the events.
 beforeEach(() => { __setRsTelemetryOffForTests(true) })
 
-// ── Audit 2026-11-05 (S15): the Today home is the Notebook's default landing. The suites written before it render a
-// bare Notebook and expect Research Home, so the default is off here; `?view=today` still opens Today, and the
-// landing itself is railed ON in `pages/journal-2-0/tabs/NotebookTab.todayLanding.test.jsx`.
+// ── Audit 2026-11-05 (S15), Notebook simplify Task 5: the Notebook opens on the notes list whatever this switch says;
+// it decides only where the 60-second first run's Done lands (the Daily brief when on, today's note when off). The
+// suites written before the Daily brief expect today's note, so it is off here; the production value (on) is railed
+// in `pages/journal-2-0/tabs/NotebookTab.landing.test.jsx`.
 beforeEach(() => { __setTodayLandingForTests(false) })
 
 // ── SWR cache isolation between tests ─────────────────────────────────────

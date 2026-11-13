@@ -24,7 +24,6 @@ import { SWRConfig } from 'swr'
 import { TOURS } from './b4Styles'
 import { TRACK_TOURS } from './index'
 import { TOUR_REGISTRY } from '../tourRegistry'
-import { learnTourGroup } from '../learnTours'
 import { makeRegistryToursGate } from '../RegistryToursGate'
 import { openRegistryTour, __resetRegistryTourControl } from '../tourRegistryControl'
 import {
@@ -71,12 +70,7 @@ describe('the B4 track is registered', () => {
     })
   })
 
-  // S14 (audit 2026-11-05): the Learn menu's five groups; the two template tours still sit together, under Write.
-  it('R-P5-6: both sit together, under Write, in the Learn menu', () => {
-    for (const t of TOURS) expect(learnTourGroup(t.id), t.id).toBe('Write')
-  })
-
-  it('both are replayable (Help and Learn list them)', () => {
+  it('both are replayable (Help lists them)', () => {
     for (const t of TOURS) expect(t.replayable, t.id).toBe(true)
   })
 })
@@ -92,13 +86,17 @@ describe('the steps point where R-P5-7 and the rulings say', () => {
     ])
   })
 
+  // Final fix (A1): the ▾ is not drawn on a phone, so its step is wide-only and two phone steps open the sheet
+  // through ⋯ > "New from a template"; steps 2 to 4 are shared (b1TemplateGallery.steps.test.js pins the tiers).
   it('Community library: Templates (wait for the door), the door (wait for the gallery), the type chips, Adopt', async () => {
     const { steps } = await TOURS.find((t) => t.id === 'style-library').load()
-    expect(steps.map(({ anchor, file, waitFor }) => ({ anchor, file, waitFor: waitFor ?? null }))).toEqual([
-      { anchor: 'templates', file: TAB, waitFor: 'template-gallery-door' },
-      { anchor: 'template-gallery-door', file: PICKER, waitFor: 'library-types' },
-      { anchor: 'library-types', file: GALLERY, waitFor: null },
-      { anchor: 'library-adopt', file: CARD, waitFor: null },
+    expect(steps.map(({ anchor, file, waitFor, tier }) => ({ anchor, file, waitFor: waitFor ?? null, tier: tier ?? null }))).toEqual([
+      { anchor: 'templates', file: TAB, waitFor: 'template-gallery-door', tier: 'wide' },
+      { anchor: 'styles-button', file: TAB, waitFor: 'new-from-template-phone', tier: 'phone' },
+      { anchor: 'new-from-template-phone', file: TAB, waitFor: 'template-gallery-door', tier: 'phone' },
+      { anchor: 'template-gallery-door', file: PICKER, waitFor: 'library-types', tier: null },
+      { anchor: 'library-types', file: GALLERY, waitFor: null, tier: null },
+      { anchor: 'library-adopt', file: CARD, waitFor: null, tier: null },
     ])
   })
 
@@ -132,7 +130,8 @@ describe.each(TOURS.map((t) => [t.id, t]))('tour %s', (id, entry) => {
     expect(steps.length, `${id} step count`).toBeLessThanOrEqual(6)
     expect(Object.keys(copy).sort()).toEqual([...new Set(steps.map((s) => s.id))].sort())
     for (const s of steps) {
-      expect(Object.keys(s).filter((k) => k !== 'waitFor').sort()).toEqual(['anchor', 'file', 'id'])
+      // Go-live wave 1: a step may also declare `tier` (the screen tier it belongs to, tourTiers.js, railed in tourRegistry.test.js)
+      expect(Object.keys(s).filter((k) => k !== 'waitFor' && k !== 'tier').sort()).toEqual(['anchor', 'file', 'id'])
       const c = copy[s.id]
       expect(c?.title?.trim(), `${id}.${s.id} title`).toBeTruthy()
       expect(c?.body?.trim(), `${id}.${s.id} body`).toBeTruthy()

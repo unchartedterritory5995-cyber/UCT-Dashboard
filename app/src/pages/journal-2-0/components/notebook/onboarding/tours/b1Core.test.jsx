@@ -56,8 +56,8 @@ describe('the B1 track is registered', () => {
       'template-gallery': '/journal/notebook?view=all',
       'meaning-search': '/journal/notebook?view=all',
       'formulas-rollups': { note: 'recent' },
-      // P0.10: its door is in Research Home's New note menu
-      'voice-notes': '/journal/notebook?view=home',
+      // P0.10: its door is the New note menu; go-live wave 1: the notes list's (Research Home is gone)
+      'voice-notes': '/journal/notebook?view=all',
     })
   })
 })
@@ -70,7 +70,8 @@ describe.each(TOURS.map((t) => [t.id, t]))('tour %s', (id, entry) => {
     expect(Object.keys(copy).sort()).toEqual([...new Set(steps.map((s) => s.id))].sort())
     for (const s of steps) {
       // W14-C1: a step may also declare `waitFor` (a later step's anchor, railed in tourRegistry.test.js)
-      expect(Object.keys(s).filter((k) => k !== 'waitFor').sort()).toEqual(['anchor', 'file', 'id'])
+      // Go-live wave 1: a step may also declare `tier` (the screen tier it belongs to, tourTiers.js, railed in tourRegistry.test.js)
+      expect(Object.keys(s).filter((k) => k !== 'waitFor' && k !== 'tier').sort()).toEqual(['anchor', 'file', 'id'])
       const c = copy[s.id]
       expect(c?.title?.trim(), `${id}.${s.id} title`).toBeTruthy()
       expect(c?.body?.trim(), `${id}.${s.id} body`).toBeTruthy()

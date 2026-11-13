@@ -67,6 +67,8 @@ export const BOARDS = {
   // + the TIME NAVIGATOR over the synthetic history (view, go-to-date, Replay Mode) and the chart's drawings
   TIMED: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { timeNav: true, drawings: true }],
   // family C (C1-061): a chart whose watermark was dragged by hand (ChartWidget endWatermarkAdjust's opts.watermarkPos)
+  // chartFeatures: a chart whose Company Info panel is added (collapsed, on Ownership, dragged to 520px) and Earnings Strip shown
+  DOCKED: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), dock: { company: true, open: false, tab: 'ownership', rightW: 520, strip: true, stripH: 140 } } }], { 'N:c1': 'NVDA' }],
   WATERMARK: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), watermarkPos: { x: 0.2, y: 0.8, anchor: null } } }], { 'N:c1': 'NVDA' }],
   // a chart drawn with a GRADIENT background (live LT-3: "turn the gradient off on this chart")
   GRADIENT: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), bgMode: 'gradient' } } }], { 'N:c1': 'NVDA' }],
@@ -499,6 +501,15 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
         return true
       },
       widgets: () => mounted.board.state.widgets,
+    }
+    // Tools → Compare Symbols (compare.openView): ChartsWorkspace's compare state answering the `uct:compare-open` detail as the
+    // workspace (opens a closed panel on the detail's tab) and the open panel (switches its tab) do; the panel's own close
+    st.compare = { open: false, tab: null, intent: null }
+    const cmp = st.compare
+    mounted.h.compare = {
+      read: () => ({ here: true, open: cmp.open, tab: cmp.open ? cmp.tab : null, intent: cmp.open ? cmp.intent : null, hasChart: true, scaleLocked: false }),
+      open: (d) => { cmp.intent = d; if (!cmp.open) { cmp.open = true; cmp.tab = d?.tab === 'rotation' ? 'rotation' : 'overlay' } else if (d?.tab === 'rotation' || d?.tab === 'overlay') cmp.tab = d.tab; return true },
+      close: () => { cmp.open = false; cmp.tab = null; cmp.intent = null; return true },
     }
   }
   if (extra.drawings) {

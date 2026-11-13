@@ -4,8 +4,8 @@
 // captured-passage sheet (CapturedSourceSheet) are drawn only after a press, so NoteEditorPage --
 // a first-open file -- loads each through `sourceSheetLoaders` (a dynamic import), never a static
 // one. A static import puts ~11 KB back on the Notebook's first open
-// (`tools/notebook_perf_budgets.py --dist app/dist`). ResearchHome and TickerResearchWorkspace may
-// import them statically: both are lazy views, off first open.
+// (`tools/notebook_perf_budgets.py --dist app/dist`). TickerResearchWorkspace may import them statically: it is a
+// lazy view, off first open (Research Home, the other, was deleted in go-live wave 1).
 // Read by AST, never grep: a path in a comment is not an import (RefusedCopyOffer.lazy.test.js).
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'

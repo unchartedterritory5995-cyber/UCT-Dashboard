@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
-import { mutate as globalMutate, useSWRConfig } from 'swr'
+import useSWR, { mutate as globalMutate, useSWRConfig } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
 import { applyTargetToParams } from '../lib/searchNavigation'
 import { passageNavigationState } from '../lib/openCitation'
@@ -11,6 +11,7 @@ import { TASK_PARAM } from '../lib/noteTasks'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
+import whenIdle from '../lib/whenIdle'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
@@ -32,7 +33,7 @@ import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
 import ConfirmModal from '../components/ConfirmModal'
 import LoadFailed from '../components/LoadFailed'
-import { keysInOrder, neighbourFallback, neighbourKeys, treeRowOf } from '../lib/focusAfterRemoval'
+import { firstFocusable, treeRowOf } from '../lib/focusAfterRemoval'
 import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
@@ -57,16 +58,22 @@ import { TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorV
 import { NOTEBOOK_LIST_HASH, NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
-  joinUndo, runNoteBatch, undoFor,
+  joinUndo, precheckNoteBatch, runNoteBatch, undoFor,
 } from '../lib/noteBatch'
 import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags from '../hooks/useJ2NoteTags'
 import { invalidateNoteViews } from '../lib/offline/invalidateNoteViews'
+import { reviewDraftsEnabled } from '../lib/reviewDraftsFlag'
+// Fix round 1 (first-open bytes): the Reviews rows' words are on first open; the drafting door is fetched on the first press.
+import { REVIEW_PERIODS, reviewDraftFailedSentence, reviewDraftingSentence } from '../lib/reviewPeriods'
+import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import { withDone } from '../components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
-import lazyChunk from '../lib/lazyChunk'
+import lazyChunk, { importWithOneRetry } from '../lib/lazyChunk'
+import { heldModule, useHeldModule } from '../lib/heldModule'
+import NotebookAiPanelSlot, { warmAiPanel } from '../components/notebook/NotebookAiPanelSlot'
 import { journalStylesEnabled } from '../lib/journalStylesFlag'
 import { widgetsWaveOn, doorLostSentence } from '../lib/notebookWidgetsFlags'
 // Tier 2 part B (R-T2B-7): the earnings follow-up card. The slot is small and static; the card itself is a lazy
@@ -76,8 +83,8 @@ import FollowupOfferSlot from '../components/notebook/FollowupOfferSlot'
 import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 import FirstRunGate from '../components/notebook/FirstRunGate'
-import { HOME_VIEW, LANDING_PREF, TODAY_VIEW, resolveLanding, todayLandingOn } from '../lib/todayHome'
-import { FIRST_RUN_MARKS, firstRunIsDue, useFirstRunShowing } from '../lib/firstRun'
+import { TODAY_VIEW, todayLandingOn } from '../lib/todayHome'
+import { FIRST_RUN_MARKS, firstRunIsDue, setFirstRunPending, useFirstRunShowing } from '../lib/firstRun'
 import { starterPacksEnabled } from '../lib/starterPacksFlag'
 import { TIPS_PREF, seenTips } from '../lib/notebookTips'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
@@ -92,6 +99,14 @@ import TourOfferDoor from '../components/notebook/onboarding/TourOfferDoor'
 import NotebookPlusFab from '../components/notebook/NotebookPlusFab'
 import { holdImageForNote } from '../lib/pendingImageInsert'
 import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
+import GettingStartedChecklist from '../components/notebook/GettingStartedChecklist'
+// Fix round 1 (first-open bytes): what the list needs before a press about the sample notebook is its keys module and
+// the two hooks; the sample's client (sampleNotebook.js: add, the removal's sentences, remove) is fetched on a press,
+// and the zero-notes door is a lazy chunk (below).
+import { loadSampleNotebook, useAddSampleNotebook } from '../components/notebook/onboarding/useSampleNotebook'
+import {
+  SAMPLE_PREF, SAMPLE_ROW_COPY, SAMPLE_URL, readSamplePref,
+} from '../components/notebook/onboarding/sampleNotebookKeys'
 import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
@@ -107,6 +122,29 @@ import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 // route in App.jsx already does (review M-5).
 // `fallback` (Task 7.3): a view that is not a page region -- the bulk bar -- passes `null` so nothing
 // flashes while its chunk loads; every other view keeps the skeleton.
+// Go-live wave 1 (A7): the sample's status read (asked for once ⋯ has been opened) and the "anyway" op of its removal.
+// A failed read THROWS (Wave 10 F7), so it shows no row rather than a row for a sample that may be gone.
+const SAMPLE_STATUS_SWR = Object.freeze({ revalidateOnFocus: false, shouldRetryOnError: false })
+const fetchSampleStatus = (url) => fetch(url, { credentials: 'include' }).then((r) => {
+  if (!r.ok) throw new Error(String(r.status))
+  return r.json()
+})
+const REMOVE_SAMPLE_OP = 'remove-sample'
+// Fix round 1 (first-open bytes): the View menu's "Saved views" group is a chunk of its own. It is asked for when the
+// browser is idle after the list's first paint, and again when a pointer or focus reaches "View", into a module-level
+// slot, so it is in hand by the time the menu opens; until then the group is simply not drawn yet. Fix round 2: drawn
+// straight from the slot, never React.lazy (a lazy view suspends on its first render even with its chunk in hand, and
+// the rows would arrive about 300 ms after the menu, under a member's arrow keys; lib/heldModule.js). A fetch that
+// fails leaves the group undrawn (never a page reload) and is asked for again on the next pointer or focus.
+const savedViewsGroupModule = heldModule(() => import('../components/notebook/SavedViewsMenuGroup'))
+const preloadSavedViewsGroup = () => { savedViewsGroupModule.warm() }
+function SavedViewsMenuGroup(props) {
+  const { Component } = useHeldModule(savedViewsGroupModule)
+  return Component ? <Component {...props} /> : null
+}
+// Fix round 1: the zero-notes "Add a sample notebook" door, fetched when the empty state draws (it renders nothing until
+// it lands, and nothing at all for a member it is not for).
+
 function lazyView(load, label, fallback) {
   const Chunk = lazyChunk(load)
   function LazyNotebookView(props) {
@@ -159,9 +197,9 @@ const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardVie
 const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalendarView'), 'calendar')
 const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
 const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
-// Audit 2026-11-05, S15: the Today home, fetched the first time it is shown (lib/todayHome.js is the eager half).
-// Tier 3b fix round 1 (I1): it is the DEFAULT landing, so its chunk is asked for in the Notebook's FIRST render, beside
-// the preferences read (`preloadTodayHome` below) -- never after the landing is known, which made three round trips
+// Audit 2026-11-05, S15: the Today home (the Daily brief since Notebook simplify, Task 5), fetched the first time it is
+// shown (lib/todayHome.js is the eager half). Tier 3b fix round 1 (I1): on its own address (`?view=today`) its chunk is
+// asked for in the Notebook's FIRST render, beside the preferences read -- never after, which made three round trips
 // in a row (preferences, then this chunk, then /notes/today).
 // ONE import in flight for both callers (the preload and the view): a failed one is forgotten, so the view's own
 // retry (lazyChunk) asks again.
@@ -174,8 +212,12 @@ const loadTodayHome = () => {
   return todayHomeImport
 }
 const TodayHome = lazyView(loadTodayHome, 'today')
-// I1: Research Home is no longer the first view, so it is a chunk of its own too (the opt-in landing, ?view=home).
-const ResearchHome = lazyView(() => import('../components/notebook/ResearchHome'), 'research home')
+// Go-live wave 1, fix round 1 (first-open bytes): the zero-notes sample door, through `lazyView` with a null fallback
+// (nothing flashes while the chunk lands).
+const SampleNotebookDoor = lazyView(() => import('../components/notebook/onboarding/SampleNotebookDoor'), 'sample notebook', null)
+// Notebook simplify, Task 5: Research home is no longer routed (`?view=home` opens the list). Its notebook-wide Ask
+// is the list toolbar's "AI" section, a chunk of its own: fix round 2 draws it from a warmed slot, so the question
+// field has focus without React.lazy's first-render hold (components/notebook/NotebookAiPanelSlot.jsx).
 const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
 // Plan F Task 10: the one-time notice for imports that lost pictures. Fetched only when the server
 // says there is one to show, so the first-open bytes are unchanged for everyone else.
@@ -257,6 +299,8 @@ function folderActionButton(label, folder) {
 const SB_MIN = 190
 const SB_MAX = 520
 const SB_DEFAULT = 260
+// Notebook simplify, Task 3: List view's layout, 'rows' (default) or 'cards'. Per browser, like the folders panel.
+const LIST_LAYOUT_KEY = 'uct.notebook.list.layout'
 
 // Wave 10 lane DR-F (design finding D-7): on a phone the folder/tag tree is
 // long (Recents, All notes/Unfiled/Archived/Trash, a folder tree, tags) and
@@ -483,7 +527,7 @@ export default function NotebookTab() {
   const [propertySort, setPropertySort] = useState(null)
   const [saveViewOpen, setSaveViewOpen] = useState(false)
   const {
-    savedViews, error: savedViewsError, refresh: refreshSavedViews,
+    savedViews, error: savedViewsError, isLoading: savedViewsLoading, refresh: refreshSavedViews,
     create: createSavedView, rename: renameSavedView, remove: removeSavedView,
   } = useJ2SavedViews()
   // ⛔⛔ UX #1, 2026-09-22: the hook has always fully implemented rename/
@@ -501,14 +545,13 @@ export default function NotebookTab() {
       setSavedViewError("Couldn't rename that view. It kept its old name.")
     }
   }
-  const [deleteViewTarget, setDeleteViewTarget] = useState(null) // { id, name, after } | null
-  // ⛔ F7 Part C (F4 review, Important 1): the view's Delete button goes with its row, so
-  // focus used to fall to <body>. The view rows around it are recorded now (ids, in the
-  // order they show) and the dialog's `fallbackFocus` finds them after the delete: the next
-  // view, else the one before, else the pane's heading, else "All notes".
-  const onDeleteViewRequest = (id, name) => setDeleteViewTarget({
-    id, name, after: neighbourKeys(keysInOrder(wrapRef.current, 'data-saved-view-row'), String(id)),
-  })
+  const [deleteViewTarget, setDeleteViewTarget] = useState(null) // { id, name } | null
+  // ⛔ F7 Part C (F4 review, Important 1): focus must never fall to <body> after a delete.
+  // Notebook simplify, Task 2: the view's Delete is a row of the View menu now, and the menu hands
+  // focus to its "View" button before the confirm opens, so the confirm gives focus back THERE.
+  // When that button is gone too (deleting the view in use can take the list, and its toolbar,
+  // away), the dialog's `fallbackFocus` is the pane's heading, else "All notes".
+  const onDeleteViewRequest = (id, name) => setDeleteViewTarget({ id, name })
   const onDeleteViewConfirm = async () => {
     if (!deleteViewTarget) return
     const { id } = deleteViewTarget
@@ -631,6 +674,16 @@ export default function NotebookTab() {
       return Number.isFinite(v) ? Math.min(SB_MAX, Math.max(SB_MIN, v)) : SB_DEFAULT
     } catch { return SB_DEFAULT }
   })
+  // Notebook simplify, Task 3: how List view draws its notes -- 'rows' (one note per row, the default) or 'cards'
+  // (the grid). A display choice inside List view, kept in this browser; NOT a view mode (saved views and the server's
+  // modes are untouched). Anything else stored reads as rows.
+  const [listLayout, setListLayoutState] = useState(() => {
+    try { return localStorage.getItem(LIST_LAYOUT_KEY) === 'cards' ? 'cards' : 'rows' } catch { return 'rows' }
+  })
+  const setListLayout = (next) => {
+    setListLayoutState(next)
+    try { localStorage.setItem(LIST_LAYOUT_KEY, next) } catch { /* private mode */ }
+  }
   const [dragging, setDragging] = useState(false)
   const wrapRef = useRef(null)
   const dragWidthRef = useRef(sidebarWidth)
@@ -677,11 +730,6 @@ export default function NotebookTab() {
     setSearchSeed(typeof q === 'string' ? q : '')
     setSearchRequest((n) => n + 1)
   }, [location.hash, location.key]) // eslint-disable-line react-hooks/exhaustive-deps
-  // P0.13: whether the panel's search is open, reported up by the panel so Home can step aside
-  // (one search box on screen, never two). ⛔ H14: `setSidebarSearching` is a stable state setter,
-  // handed straight down; it bails out on an unchanged boolean, so reporting cannot loop. A panel
-  // that is hidden (collapsed) is not "on screen", so Home keeps its own box then.
-  const [sidebarSearching, setSidebarSearching] = useState(false)
 
   // Phone pass follow-up (2026-10-10): a walkthrough that points into the folders panel asks
   // for it (tourAnchorVisibility.requestReveal) when the drawer hides its anchor -- Search by
@@ -850,15 +898,14 @@ export default function NotebookTab() {
     notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes, total: allNotesTotal, error: allNotesError,
   } = useJ2Notes({ sort: 'title' })
   // Wave 8 seam S8-3: "is this member new?" is derived ONCE, here, and handed to both the
-  // first-run screen (ResearchHome) and the tour, so the two can never disagree about it.
+  // first-run gates, the list's empty state and the tour, so they can never disagree about it.
   // `notesKnown` is false while the count is loading -- when `hasAnyNotes` also reads false.
   const hasAnyNotes = allNotesTotal > 0
   const notesKnown = allNotesTotal !== undefined
-  // Tier 4 fix round 3 (R1): Research Home waits for the count (round 2's CLS fix), but a FAILED count read leaves
-  // `allNotesTotal` undefined forever, and Home would sit on its skeleton for good. A failure is an answer for Home:
-  // it renders (and says its own load failure if it has one). ⛔ Only Home reads this: the first-run and tour gates
-  // keep `notesKnown`, so a member whose list failed is never shown the new-member first run.
-  const homeNotesKnown = notesKnown || Boolean(allNotesError)
+  // Notebook simplify, Task 2: the empty list's message needs this answer. A failed count is an answer too (the list
+  // then says what it said before), so only a count still on its way holds the message back.
+  const accountEmpty = notesKnown && !hasAnyNotes
+  const allNotesCountPending = !notesKnown && !allNotesError
 
   // Live folder-tree updates without waiting on a refetch: drop a just-created
   // note in immediately, and reflect the title as it's typed.
@@ -876,67 +923,46 @@ export default function NotebookTab() {
     )
   }, [mutateAllNotes])
   const hasActiveFilters = Boolean(folderId || tag || activeView || propertyFilter || tickerFilter)
-  // Wave H checkpoint decision 32/57: bare-root (no note, no filter, no
-  // explicit ?view=all) renders Research Home instead of the flat All Notes
-  // grid. "All notes" itself stays one click away (the sidebar row), now
-  // via the explicit `view=all` flag rather than being indistinguishable
-  // from Home.
-  // Wave 6: `?view=tasks` is the Tasks mode's door (the 07:00/09:00 ET task
-  // reminder links there). It is never Home — for the render before the effect
-  // below turns it into `?view=all`, too.
-  // ⛔⛔ A2R-03 (a11y second review, 2026-10-01): this read `viewParam === 'all'
-  // || viewParam === 'tasks'` — every OTHER VIEW_MODES id (table/board/
-  // calendar/graph/timeline) fell through to `isHome`, so
-  // `/journal/notebook?view=graph` rendered Research Home, not the Notebook's
-  // toolbar/view-switcher/graph at all. A keyboard walk that opened that URL
-  // and tabbed 70 times never found the graph canvas (role="application",
-  // NoteGraphView.jsx:670-672) because the canvas never existed on the page —
-  // nothing was wrong with the canvas itself. Recognising every VIEW_MODES id
-  // here (not just the two that happened to have a reason to be added) is the
-  // fix: a deep link into ANY real view mode is "I asked for a view", same as
-  // `all`/`tasks` already were.
+  // Notebook simplify, Task 5 ("open on your notes"): the Notebook opens on the notes list. A bare Notebook (no note,
+  // no filter, no `?view=`) IS the list, and so is every `?view=` that is not the Daily brief's: `all`, a view mode
+  // (`?view=board`, `?view=tasks`, ...), `home` (Research home's old address; Research home itself was deleted in go-live
+  // wave 1) or one this build does not know. ⚰️ It used to open the member's LANDING ("Open the Notebook on": Today, Research home or All notes,
+  // default Today), and opening Today MADE the day's note as a side effect of opening the Notebook. Now nothing is made
+  // until the member opens the Daily brief (`?view=today`, its own read) or presses "Today's note".
+  // ⛔ A2R-03 (a11y second review, 2026-10-01): every VIEW_MODES id is a list address -- `?view=graph` once rendered
+  // Research Home, so a keyboard walk never found the graph canvas. With no home behind the list that cannot recur.
   const viewParam = searchParams.get('view')
-  // Audit 2026-11-05, S15: a bare Notebook (no note, no filter, no `?view=`) opens on the member's LANDING -- what
-  // they chose ("Open the Notebook on", the `notebook_landing` preference), else the Today home (lib/todayHome.js).
-  // `?view=today` is the Today home and `?view=home` Research Home, whatever the landing. Until the preferences
-  // answer, a bare Notebook shows neither home (`landingPending`): opening Today makes the day's note.
-  const { prefs: landingPrefs, loading: landingPrefsLoading, readFailed: landingReadFailed } = usePreferences()
-  const bareNotebook = !noteId && !hasActiveFilters && !viewParam && !isTrashView
-  // Fix round 1 (M11): a preferences read that FAILED cannot say what the member chose, so a bare Notebook falls
-  // back to Research Home, which makes nothing; the Today home would make the day's note for a member who may have
-  // opted out of it.
-  const landing = landingReadFailed ? 'home' : resolveLanding(landingPrefs?.[LANDING_PREF])
-  const landingPending = bareNotebook && todayLandingOn() && Boolean(landingPrefsLoading)
-  // I1: the Today chunk is asked for in this first render, in parallel with the preferences read above.
-  // N6: never on a folder or ticker address (that is the list, not a home).
+  // The preferences: the first run's tips (below). The stored `notebook_landing` is no longer read.
+  const { prefs: notebookPrefs, loading: prefsLoading, readFailed: prefsReadFailed } = usePreferences()
+  // I1: on its own address the Daily brief's chunk is asked for in this first render, in parallel with the preferences
+  // read above. N6: never on a folder or ticker address (that is the list).
   useState(() => {
     const filtered = ['folder', 'ticker'].some((k) => searchParams.get(k))   // the filters this tab reads from the address
-    if (todayLandingOn() && !noteId && !filtered && (!viewParam || viewParam === TODAY_VIEW)) loadTodayHome().catch(() => {})
+    if (!noteId && !filtered && viewParam === TODAY_VIEW) loadTodayHome().catch(() => {})
     return null
   })
-  const isToday = !noteId && !hasActiveFilters && !isTrashView
-    && (viewParam === TODAY_VIEW || (bareNotebook && !landingPending && landing === 'today'))
-  const viewAll = viewParam === 'all' || VIEW_MODES.some((m) => m.id === viewParam)
-    || (bareNotebook && !landingPending && landing === 'all')
-  // M4: never Research Home while the landing is still being read (the pane heading said "Research home", then
-  // "Today").
-  const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView && !isToday && !landingPending
+  // The Daily brief (the Today home): `?view=today`, nothing else.
+  const isToday = !noteId && !hasActiveFilters && !isTrashView && viewParam === TODAY_VIEW
   // I9 + fix round 2 (R1-B): what the Today home reads. `hold` (make=0, never make the day's note) only while the
   // 60-second first run IS due or on screen -- Build makes the note, with the names the member typed. `wait` (no read
   // at all; the skeletons stay up) while that cannot be decided yet: the preferences have not answered, or the notes
   // count has not and the tips do not record the first run. A member whose tips record it can never get it again,
   // so their read starts at once, as `make` -- one request, never a make=0 read and then a make=1 read.
   const firstRunShowing = useFirstRunShowing()
-  const tipsRaw = landingPrefs?.[TIPS_PREF]
+  const tipsRaw = notebookPrefs?.[TIPS_PREF]
   const firstRunSeen = seenTips(tipsRaw).has(FIRST_RUN_MARKS.shown)
   const firstRunOn = starterPacksEnabled()
-  const firstRunUndecided = firstRunOn && (Boolean(landingPrefsLoading) || (!notesKnown && !firstRunSeen))
-  const firstRunDue = firstRunOn && firstRunIsDue({ enabled: true, prefsReady: !landingReadFailed, tipsRaw, notesKnown, hasAnyNotes })
+  const firstRunUndecided = firstRunOn && (Boolean(prefsLoading) || (!notesKnown && !firstRunSeen))
+  const firstRunDue = firstRunOn && firstRunIsDue({ enabled: true, prefsReady: !prefsReadFailed, tipsRaw, notesKnown, hasAnyNotes })
   const todayRead = firstRunShowing || firstRunDue ? 'hold' : firstRunUndecided ? 'wait' : 'make'
+  // Final fix (C5): the shell's walkthrough gate holds a walkthrough while the first run is due here or undecided.
+  const firstRunPending = firstRunDue || firstRunUndecided
+  useLayoutEffect(() => { setFirstRunPending(firstRunPending) }, [firstRunPending])
+  useLayoutEffect(() => () => setFirstRunPending(false), [])
   // Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row) while the list
   // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
-  // S15: the Today home and the landing's pending frame have no list toolbar either.
-  const listToolbarShown = !noteId && !isHome && !isToday && !landingPending
+  // S15: the Daily brief has no list toolbar either.
+  const listToolbarShown = !noteId && !isToday
   // the compact sort words, on a phone only (review minor 12)
   const phoneSortWords = useIsPhone()
   // VIS-6 fix round 1 (review 9): the FIELD the sort dropdown shows, whatever the direction (FX4: the table's headers
@@ -947,8 +973,7 @@ export default function NotebookTab() {
   // Wave 8 (8A): the pane heading's words -- what the member is looking at.
   const paneHeading = isTrashView ? 'Trash'
     : isArchiveView ? 'Archived notes'
-      : isToday ? 'Today'
-      : isHome ? 'Research home'
+      : isToday ? 'Daily brief'
         : activeView?.name ? `Saved view: ${activeView.name}`
           : tag ? `Notes tagged ${tag}`
             : folderId ? 'Notes in this folder'
@@ -964,21 +989,9 @@ export default function NotebookTab() {
     setViewMode(viewParam)
     setActiveView(null)
   }, [viewParam])
-  // ⛔ UX #4 (competitive audit, 2026-09-22): bare-root Home and an explicit
-  // `?view=all` on a genuinely empty notebook render two different "you have
-  // no notes" screens for the identical fact. Attempted a route-into-
-  // ResearchHome fix here and reverted it: NotebookTab.test.jsx's OWN header
-  // comment deliberately keeps `?view=all` on the grid ("these tests are
-  // about the tab's OWN template-picker/grid/toolbar wiring, NOT Home...
-  // `?view=all` is the explicit flag that keeps them landing on the grid
-  // unchanged") specifically so this file has a stable surface to test
-  // template-picking against -- the promised split-out
-  // `NotebookTab.researchHome.test.jsx` referenced by that same comment does
-  // not exist. Unifying the two screens is real and correct, but it broke
-  // 20 of this file's 37 tests, all of which need a deliberate decision
-  // about which surface re-exercises template-picking once `?view=all` no
-  // longer does -- not a drive-by two-line change. Left as a named, still-open
-  // quick win rather than a rushed test-suite rewrite.
+  // ⛔ UX #4 (competitive audit, 2026-09-22): bare-root Home and an explicit `?view=all` on an empty notebook rendered
+  // two different "you have no notes" screens. Closed by Notebook simplify, Task 5: there is one, the list's own empty
+  // state (the template picker, Import notes, the sample notebook and the get-started list).
 
   // FolderSidebar owns several of its OWN SWR hooks (the honest Trash count,
   // per-folder counts, per-expanded-folder note lists) with no handle exposed
@@ -1267,7 +1280,7 @@ export default function NotebookTab() {
       return next
     }, { replace: false })
   }
-  // Audit 2026-11-05, S15: the Today home and Research Home, each one click away (`?view=today` / `?view=home`).
+  // Audit 2026-11-05, S15: the Daily brief (the Today home), one click away (`?view=today`).
   const openHomeView = (view) => {
     setFolderId(null)
     setTag(null)
@@ -1282,7 +1295,6 @@ export default function NotebookTab() {
     }, { replace: false })
   }
   const openTodayHome = () => openHomeView(TODAY_VIEW)
-  const openResearchHome = () => openHomeView(HOME_VIEW)
   // Wave 6 item 7 — "open to the side". ⛔⛔ The main note is refused (focus
   // goes to it); the side note already there just takes focus. With no note
   // open there is no "beside" yet, so the note opens as the one note.
@@ -1484,7 +1496,7 @@ export default function NotebookTab() {
   // per row/card (list, table) and in the Trash. The board, calendar and graph
   // keep their own gestures — a checkbox there would be a second way to write
   // the same property the card's own control already writes.
-  const selectionOn = !noteId && !isHome && !isToday && (isShelfView || viewMode === 'list' || viewMode === 'table')
+  const selectionOn = !noteId && !isToday && (isShelfView || viewMode === 'list' || viewMode === 'table')
   const visibleIds = useMemo(() => (selectionOn ? notes.map((n) => n.id) : []), [selectionOn, notes])
   const selection = useNoteSelection(visibleIds)
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -1618,7 +1630,8 @@ export default function NotebookTab() {
   // Keep a notice on screen long enough to read and act on, then let it go.
   // An error stays until dismissed: it describes something the member has to do.
   useEffect(() => {
-    if (!bulkNotice || bulkNotice.tone === 'error') return undefined
+    // Go-live wave 1 (D4): a busy line ("Drafting today's recap…") stays until the work it describes is done.
+    if (!bulkNotice || bulkNotice.tone === 'error' || bulkNotice.busy) return undefined
     const t = setTimeout(() => setBulkNotice(null), 8000)
     return () => clearTimeout(t)
   }, [bulkNotice])
@@ -1690,9 +1703,6 @@ export default function NotebookTab() {
   }
 
   const titleOf = (id) => titleById.get(id) || null
-  // Fix I-3: Research Home names a held sample note -- from the list on screen, else the
-  // all-notes page the sidebar already holds (the home screen shows no list of its own).
-  const titleOfAnyNote = (id) => titleOf(id) || allNotes.find((n) => n.id === id)?.title?.trim() || null
   const startBulk = () => {
     if (bulkBusyRef.current) return false
     bulkBusyRef.current = true
@@ -1903,7 +1913,8 @@ export default function NotebookTab() {
   const runAnyway = (anyway) => {
     if (!anyway || bulkBusyRef.current) return
     setBulkNotice(null)
-    if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true, format: anyway.args?.format })
+    if (anyway.op === REMOVE_SAMPLE_OP) removeSample({ acceptUnchecked: true })
+    else if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true, format: anyway.args?.format })
     // N1 (wave 6 fix round 2): `anyway.args`/`anyway.ctx` are the op's OWN —
     // dropping them to `{}` is exactly N1 (a `renameTag` retry with no
     // `{from, to}` 400s at the server, and its own success sentence would
@@ -1915,7 +1926,7 @@ export default function NotebookTab() {
   // that passes one (S2/B1: never from app focus).
   // `stylesOn` is the switch read once above, beside the Styles manager's state.
   // `focus` is asked for only inside the New-note sheet, never on the inline empty-notebook mount.
-  const kindSection = (focus) => (stylesOn ? <KindSection busy={creating} autoFocusFirst={focus} onCreate={createNote} /> : null)
+  const kindSection = (focus) => (stylesOn ? <KindSection busy={creating} autoFocusFirst={focus} onCreate={createNote} noNotes={notesKnown && !hasAnyNotes} /> : null)
 
   // Create a note. Blank note passes no title/body; a template seeds both
   // (plus its preset tags and, when known, the ticker). The actual network
@@ -2156,16 +2167,6 @@ export default function NotebookTab() {
   const handlePick = (tplOrNull) =>
     tplOrNull ? createFromTemplate(tplOrNull) : createNote()
 
-  // Research Home's "New thesis": the catalog loads on demand (Task 7.2), so the template is awaited.
-  const createThesisNote = async () => {
-    try {
-      const tpl = await getTemplateAsync('thesis')
-      if (tpl) await handlePick(tpl)
-    } catch (e) {
-      console.warn('[notebook] the template catalog did not load; nothing was made', e)
-    }
-  }
-
   // Wave 11 lane 11D: "Trade-plan canvas" in the New note sheet -- a note whose
   // body is a board, made through the canvas's create door (`createTradeCanvasNote`
   // -> createNoteViaApi + settleNoteWrite), then the same tree bookkeeping and
@@ -2187,6 +2188,38 @@ export default function NotebookTab() {
       setCreating(false)
     }
   }
+
+  // Notebook simplify, Task 5: the list toolbar's "AI" button opens the notebook-wide Ask (Research home's Ask
+  // section, moved) under the toolbar; pressed again it closes it. On a phone the button gives way (the row holds
+  // Folders, View, sort and ⋯) and ⋯ carries "Ask your Notebook". Closing the question panel hands focus back to
+  // whichever door opened it.
+  // Fix round 1: the saved-views group's chunk, once, when the browser is idle after the first paint (see above).
+  useEffect(() => whenIdle(preloadSavedViewsGroup), [])
+  // Fix round 2: the AI section's chunk, the same way (and on pointer or focus of "AI", below).
+  useEffect(() => whenIdle(warmAiPanel), [])
+  const [aiOpen, setAiOpen] = useState(false)
+  const aiBtnRef = useRef(null)
+  const aiOpenerRef = useRef(null)
+  const toggleAi = () => {
+    aiOpenerRef.current = aiBtnRef.current
+    setAiOpen((o) => !o)
+  }
+  const openAiFromMenu = () => {
+    aiOpenerRef.current = document.activeElement   // the ⋯ button: the menu hands focus back to it before this runs
+    setAiOpen(true)
+  }
+  // Preview fix round 1 (item 4): closing the question panel closes the WHOLE AI section -- the question panel and
+  // "Or tell Notebook what to change" together (that door used to stay behind on its own) -- and hands focus back.
+  const closeAi = () => {
+    setAiOpen(false)
+    requestAnimationFrame(() => (aiOpenerRef.current || aiBtnRef.current)?.focus?.())
+  }
+  // ...and the section is closed whenever the list is entered: it closes as the member leaves the list (a note, the
+  // Daily brief), so coming back never finds it reopened by itself. Pressing "AI" again opens both pieces.
+  useEffect(() => { if (!listToolbarShown) setAiOpen(false) }, [listToolbarShown])
+  // Notebook simplify, Task 5: Research home's first-run doors for a member with no notes -- "Add a sample notebook"
+  // and the get-started list -- are in the list's own empty state now (Research home is no longer routed).
+  const sampleNotebook = useAddSampleNotebook({ onOpenNote: openNote })
 
   // Wave 6 (item 4): Today — open the member's note for today's ET date,
   // making it the first time (the server keeps it to one per day). The daily
@@ -2231,15 +2264,15 @@ export default function NotebookTab() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // The New-note menu's other doors, ONE each for both menus (Research Home's split button and the
-  // notes list's caret): null while its gate is off, so a menu lists no door that opens nothing.
+  // The New-note menu's other doors, ONE each (the notes list's New menu, its phone rows in ⋯, the phone "+" sheet):
+  // null while its gate is off, so a menu lists no door that opens nothing.
   const openNewNoteSheet = () => setPickerOpen(true)
   const fromStyle = stylesOn ? () => setPickerOpen('kinds') : null
   const recordVoiceNote = voiceOn ? () => startVoiceNote('record') : null
 
   // VIS-5: the empty folder names its folder. Read from the folders list FolderSidebar already fetched
   // (the same SWR key, never a second request); a folder not in it yet reads as "this folder".
-  const { cache: swrCache } = useSWRConfig()
+  const { cache: swrCache, mutate: swrMutate } = useSWRConfig()
   const activeFolderName = (folderId
     && swrCache.get('/api/j2/note-folders')?.data?.folders?.find((f) => f.id === folderId)?.name) || 'this folder'
   // "Move notes…": back to All notes, where every note can be selected and moved with the bulk bar's Move.
@@ -2250,12 +2283,124 @@ export default function NotebookTab() {
     selectAllNotes()
     setBulkNotice({ message: `Select the notes you want, then choose Move to put them in ${name}.`, tone: 'info' })
   }
+  // Notebook simplify, Task 2: the filtered-empty message's "Clear filter". Every list filter goes (tag, ticker, saved
+  // view, property filter and sort) and the member lands on All notes -- selectAllNotes sets the explicit `view=all`
+  // flag, so this never drops them on a landing page. Its button leaves with the message, so focus goes to the pane's
+  // heading.
+  const clearListFilters = () => {
+    setPropertyFilter(null)
+    setPropertySort(null)
+    selectAllNotes()
+    paneHeadingRef.current?.focus()
+  }
+
+  // Notebook simplify, Task 3: the New ▾ "Reviews" group. The account is the member's selected one, the same hook
+  // Research Home's box reads (not fetched while drafts are off). One draft at a time; a failure says so in the
+  // list's notice line, worded by the same door.
+  const reviewsOn = reviewDraftsEnabled()
+  const { accountId: reviewAccountId } = useJ2SelectedAccount(reviewsOn)
+  const reviewDraftBusy = useRef(false)
+  // Go-live wave 1 (D4): while a review drafts, the list's notice line says so ("Drafting today's recap…", held until
+  // the draft lands or fails) and the Reviews rows are disabled, so a second press cannot start a second draft.
+  const [reviewDrafting, setReviewDrafting] = useState(null)
+  const runReviewDraft = async (period) => {
+    if (reviewDraftBusy.current) return
+    reviewDraftBusy.current = true
+    setReviewDrafting(period)
+    setBulkNotice({ message: reviewDraftingSentence(period), tone: 'info', busy: true })
+    try {
+      // Fix round 1: fetched on the first press, under the busy line already on screen (a failed fetch says the
+      // draft failed, like a failed draft).
+      const { draftReview } = await importWithOneRetry(() => import('../lib/reviewDraftRun'), undefined,
+        (m) => typeof m?.draftReview === 'function')
+      await draftReview(period, {
+        accountId: reviewAccountId,
+        onOpenNote: openNote,
+        onNotice: (message) => setBulkNotice({ message, tone: 'info' }),
+      })
+      // The busy line leaves with the draft; a sentence the draft said (where a new daily note went) stays.
+      setBulkNotice((n) => (n?.busy ? null : n))
+    } catch (e) {
+      setBulkNotice({ message: reviewDraftFailedSentence(period, e), tone: 'error' })
+    } finally {
+      reviewDraftBusy.current = false
+      setReviewDrafting(null)
+    }
+  }
+
+  // The Reviews rows, for the New menu (`anchored`: the walkthrough's three literal anchors) and the phone ⋯ group
+  // (plain: an anchor is written once). Disabled while a draft runs (D4).
+  const REVIEW_ROW_ANCHOR = {
+    daily: (p, c) => <button {...p} data-tour="review-drafts-daily">{c}</button>,
+    weekly: (p, c) => <button {...p} data-tour="review-drafts-weekly">{c}</button>,
+    monthly: (p, c) => <button {...p} data-tour="review-drafts-monthly">{c}</button>,
+  }
+  const reviewRows = ({ anchored }) => REVIEW_PERIODS.map(({ period, label }) => ({
+    key: period, label, icon: 'book', run: () => runReviewDraft(period), disabled: Boolean(reviewDrafting),
+    render: anchored ? REVIEW_ROW_ANCHOR[period] : undefined,
+  }))
 
   // S11 (audit 2026-11-05): the notes list's three toolbar menus. Each item is the SAME handler its
   // old toolbar button ran -- moved, never re-implemented -- and an item whose gate is off is absent.
   const viewMenu = useMenuButton()
   const newMenu = useMenuButton()
   const moreMenu = useMenuButton()
+
+  // Go-live wave 1 (A7): "Remove the sample notebook", a row of ⋯ at every width while the sample is active. It was
+  // Research home's strip ("Remove it"); the flow is the same: the bulk trash's pre-check over the sample notes still
+  // out of Trash (a note holding unsent words holds the whole removal back and is named; a device that could not be
+  // asked gets a confirmed "Remove anyway" in the list's notice line), then the DELETE, then every Notebook read
+  // refreshed and one sentence saying what happened.
+  // ⛔ ONE READ, ON DEMAND: the sample's status (`GET /api/j2/onboarding/sample-notebook`) is asked for the first time ⋯
+  // opens, and only for a member whose preferences record a sample at all (onboarding switch on), never on every open.
+  const sampleRecorded = notebookFlag('notebook_onboarding_enabled') === true && Boolean(readSamplePref(prefs?.[SAMPLE_PREF]))
+  const [moreMenuAsked, setMoreMenuAsked] = useState(false)
+  useEffect(() => { if (moreMenu.open) setMoreMenuAsked(true) }, [moreMenu.open])
+  const { data: sampleStatus, error: sampleStatusError, mutate: refreshSampleStatus } = useSWR(
+    sampleRecorded && moreMenuAsked ? SAMPLE_URL : null, fetchSampleStatus, SAMPLE_STATUS_SWR)
+  const sampleActiveIds = Array.isArray(sampleStatus?.activeIds) ? sampleStatus.activeIds : []
+  const removingSampleRef = useRef(false)
+  const removeSample = async ({ acceptUnchecked = false } = {}) => {
+    if (removingSampleRef.current || !sampleActiveIds.length) return
+    removingSampleRef.current = true
+    setBulkNotice({ message: SAMPLE_ROW_COPY.removingLine, tone: 'info', busy: true })
+    let m = null
+    try {
+      // Fix round 1 (first-open bytes): the sample's client is fetched on the press, under the busy line.
+      m = await loadSampleNotebook()
+      // Fix round 1 (review 4d): the pre-check runs over the sample notes out of Trash NOW, not as they were when ⋯
+      // first opened (a sample note restored from Trash since then is one the DELETE will trash too).
+      const fresh = await refreshSampleStatus()
+      if (!fresh) throw new Error('the sample status could not be read')   // said below; LoadFailed says it too
+      const ids = Array.isArray(fresh?.activeIds) ? fresh.activeIds : []
+      if (!ids.length) {
+        setBulkNotice(null)
+        return
+      }
+      const pre = await precheckNoteBatch({ ids, op: 'trash', blockedNoteIds, acceptUnchecked })
+      // Final fix (C1): a held note is always named, on screen or not (sampleNotebook.js `heldTitles`).
+      const hold = m.describeSampleHold(pre, { titleOf: await m.heldTitles(pre, titleOf) })
+      if (hold) {
+        setBulkNotice({ message: hold.message, tone: 'error', anyway: hold.anyway ? { ...hold.anyway, op: REMOVE_SAMPLE_OP } : undefined })
+        return
+      }
+      const out = await m.removeSampleNotebook()
+      if (!out.ok) {
+        setBulkNotice({ message: out.message, tone: 'error' })
+        return
+      }
+      // Review 4d: the row leaves at once (no second press between the DELETE and the re-read).
+      refreshSampleStatus({ activeIds: [] }, { revalidate: false })
+      swrMutate(m.isNotebookKey)
+      handleImported()   // the list, the tree, the counts and the folders (the sample's folder may be gone)
+      setBulkNotice({ message: m.removedMessage(out), tone: 'info' })
+    } catch (e) {
+      console.error('[notebook] remove sample notebook failed', e)
+      setBulkNotice({ message: m?.SAMPLE_COPY?.removeFailed || "We couldn't remove the sample notebook. Try again in a moment.", tone: 'error' })
+    } finally {
+      removingSampleRef.current = false
+    }
+  }
   const currentView = VIEW_MODES.find((m) => m.id === viewMode) || VIEW_MODES[0]
   // The view goes in the address (`?view=board`), so a reload or a shared link opens it again. The URL
   // effect above reads the same param, so this is one fact in one place, not a second store.
@@ -2268,38 +2413,91 @@ export default function NotebookTab() {
     }, { replace: true })
   }
   const viewMenuItems = [
-    ...VIEW_MODES.map(({ id, icon, short }) => ({
-      key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id),
-    })),
+    ...VIEW_MODES.flatMap(({ id, icon, short }) => [
+      { key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id) },
+      // Notebook simplify, Task 3: List's own two-way choice, directly under it, while List is the mode.
+      id === 'list' && viewMode === 'list' && {
+        key: 'list-layout',
+        group: 'List layout',
+        className: styles.layoutGroup,
+        items: [
+          { key: 'rows', label: 'Rows', checked: listLayout === 'rows', run: () => setListLayout('rows') },
+          { key: 'cards', label: 'Cards', checked: listLayout === 'cards', run: () => setListLayout('cards') },
+        ],
+      },
+    ].filter(Boolean)),
     // ⛔ NO Save view IN GRAPH MODE, nor in a mode the table marks `saveable: false` (Tasks): graph has
     // nothing of its own to store, so a "saved" graph view would reopen as a plain Graph click -- a silent
-    // trap (competitive audit UX #18, 2026-09-22). A saved view in use disables the whole menu.
-    ...(viewMode !== 'graph' && SAVEABLE_VIEW_MODES.has(viewMode) ? [
+    // trap (competitive audit UX #18, 2026-09-22).
+    // Notebook simplify, Task 2: the menu now also lists the saved views (below), so it stays open to use while one
+    // is on; picking a mode leaves the saved view (the `?view=` effect clears it). Save view is not offered while a
+    // saved view is on: the ad-hoc filter it stores was cleared when the view was picked, so it would save a copy of
+    // nothing.
+    ...(!activeView && viewMode !== 'graph' && SAVEABLE_VIEW_MODES.has(viewMode) ? [
       { key: 'sep', separator: true },
       { key: 'save', label: 'Save view', icon: 'plus', run: () => setSaveViewOpen(true) },
     ] : []),
   ]
   const newMenuItems = [
     { key: 'blank', label: 'Blank', icon: 'document', run: () => createNote() },
-    // Fix round 1 (review Minor 11): with the template switch on, the ▾ carries BOTH of Home's doors -- "From an
-    // outline" (the sheet, search first) and "From a template" (the same sheet, focus on the first note type, the old
-    // list caret's door). With it off there are no note types, and "From a template" is the plain sheet.
-    fromStyle && { key: 'outline', label: 'From an outline', icon: 'document', run: openNewNoteSheet },
+    // "From a template": with the template switch on, the sheet with focus on the first note type (the old list
+    // caret's door); with it off there are no note types, and it is the plain sheet. Notebook simplify, Task 3: the
+    // "From an outline" row is gone -- it opened the same sheet (search first), one door too many.
     { key: 'template', label: 'From a template', icon: 'library', run: fromStyle || openNewNoteSheet },
-    recordVoiceNote && { key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote },
+    // Go-live wave 1 (C1): the voice-notes walkthrough points at this row (a literal anchor, MenuRows `render`).
+    recordVoiceNote && {
+      key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote,
+      render: (p, c) => <button {...p} data-tour="new-note-voice">{c}</button>,
+    },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport },
+    // Notebook simplify, Task 3: Research Home's "Reviews that write themselves", from the list too. Each runs the ONE
+    // drafting door (lib/reviewDraftRun.js); absent while review drafts are off, so no row opens nothing.
+    // Go-live wave 1 (C2): the review-drafts walkthrough points at the three rows (literal anchors).
+    reviewsOn && {
+      key: 'reviews',
+      group: 'Reviews',
+      heading: true,
+      items: reviewRows({ anchored: true }),
+    },
   ].filter(Boolean)
-  // On a phone "+ New" and Today give way to the floating "+" (S12), so ⋯ carries them there (CSS shows
+  // On a phone "+ New", Today and AI give way to the floating "+" (S12) and the row, so ⋯ carries them there (CSS shows
   // `phoneOnlyItem` rows at <=640px only): every toolbar action stays reachable at every width.
+  // Go-live wave 1 (D2): the toolbar's "AI" is desktop-only (>=1025px), so "Ask your Notebook" is a TOUCH-tier row
+  // (`touchOnlyItem`, <=1024px). (C1, C2) The New menu's Voice note and Reviews are phone rows here too: on a phone the
+  // "+ New" group is not drawn, and these two had no other door on the list there. They sit just under Import, high
+  // in the menu, so a walkthrough card at the foot of a phone screen never covers them.
   const phoneOnly = styles.phoneOnlyItem
+  const touchOnly = styles.touchOnlyItem
   const moreMenuItems = [
-    { key: 'today', label: 'Today', icon: 'sun', run: openToday, className: phoneOnly },
-    { key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly },
+    // Final fix (C5): the same words as the toolbar's button and the first run ("Today's note").
+    { key: 'today', label: "Today's note", icon: 'sun', run: openToday, className: phoneOnly },
+    { key: 'ask', label: 'Ask your Notebook', icon: 'sparkle', run: openAiFromMenu, className: touchOnly },
+    // Final fix (A1): the template-gallery and template-library walkthroughs open here on a phone (a literal anchor).
+    {
+      key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly,
+      render: (p, c) => <button {...p} data-tour="new-from-template-phone">{c}</button>,
+    },
     { key: 'import', label: 'Import', icon: 'upload', run: openImport, className: phoneOnly },
+    recordVoiceNote && {
+      key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote, className: phoneOnly,
+      render: (p, c) => <button {...p} data-tour="new-note-voice-phone">{c}</button>,
+    },
+    reviewsOn && {
+      key: 'reviews',
+      group: 'Reviews',
+      heading: true,
+      className: phoneOnly,
+      render: (p, c) => <div {...p} data-tour="review-drafts-phone">{c}</div>,
+      items: reviewRows({ anchored: false }),
+    },
     // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
     // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
     { key: 'journal-tools', label: 'Journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
     { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true) },
+    // Go-live wave 1 (A7): at every width, only while the sample is active (its status read says so). Final fix residual
+    // R3: right after Export, so on a desktop (no phone rows) More never opens with focus on this destructive row; on a
+    // phone the menu scrolls inside the window above the "+" (C3), so it stays reachable there.
+    sampleActiveIds.length > 0 && { key: 'remove-sample', label: SAMPLE_ROW_COPY.removeRow, icon: 'trash', run: () => removeSample() },
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
     stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true) },
@@ -2386,22 +2584,17 @@ export default function NotebookTab() {
     sidebarOpen: sidebarOpen,
     searchRequest: searchRequest,
     searchSeed: searchSeed,
-    onSearchModeChange: setSidebarSearching,
-    savedViews: savedViews,
-    activeViewId: activeView?.id ?? null,
-    onSelectView: handleSelectView,
-    onRenameView: onRenameView,
-    onDeleteView: onDeleteViewRequest,
-    onAddStarterViews: addStarterThesisViews,
-    isHome: isHome || isToday,
+    // Notebook simplify, Task 2: the saved views are listed in the notes list's View menu now, not in the panel.
+    // `isHome`: All notes is not lit while the Daily brief is the page (the panel's name for "not the list").
+    isHome: isToday,
     onSelectAllNotes: selectAllNotes,
-    // Audit 2026-11-05, S15: the Today row, above All notes.
+    // Notebook simplify, Task 5: the "Daily brief" row, directly under All notes (`?view=today`).
     isToday: isToday,
     onSelectToday: openTodayHome,
     onRenameTag: onRenameTag,
     extraFolderActions: extraFolderActions,
-    // Wave 10 F7 (Part A): the saved views are read here and shown there, so their
-    // failure is said in the panel with the panel's own reads.
+    // Wave 10 F7 (Part A): the saved views are read here, so their failure is said in the panel with the panel's own
+    // reads. (Task 2 moved the list into the View menu; the panel is the one place always on screen to say it.)
     extraLoadFailures: [{ what: 'your saved views', error: savedViewsError, retry: refreshSavedViews }],
   }
   return (
@@ -2411,7 +2604,7 @@ export default function NotebookTab() {
     <div
       ref={wrapRef}
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
-      data-list-toolbar={!noteId && !isHome && !isToday ? '' : undefined}
+      data-list-toolbar={!noteId && !isToday ? '' : undefined}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
       // D2 (design finding D-1): a phone stacks the folder panel ABOVE the notes,
       // so a `?note=` link painted the folder panel first and put the note's title
@@ -2598,7 +2791,9 @@ export default function NotebookTab() {
             note / Research Home / notes-list branches. They used to be inside the notes-list
             branch only, while the folders panel (and its saved views) is also shown beside
             Research Home and beside an open note: there the Delete button set the state and
-            nothing appeared. Rail: NotebookTab.test.jsx, "on Research Home the Delete button". */}
+            nothing appeared. (Notebook simplify, Task 2: the saved views are the list's View menu
+            now, so Delete is only pressed from the list; the confirm stays above the branches,
+            because deleting the view in use can take the list away while it is open.) */}
         {/* UX #1, 2026-09-22: mirrors the folder-delete ConfirmModal in
             FolderSidebar.jsx exactly -- same reason it lives here rather
             than there (folders own rename/remove via their OWN hook call;
@@ -2613,7 +2808,7 @@ export default function NotebookTab() {
             onConfirm={onDeleteViewConfirm}
             onClose={() => setDeleteViewTarget(null)}
             // F3: a landing on "All notes" is its TREEITEM, the folder tree's focus target.
-            fallbackFocus={treeRowOf(neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
+            fallbackFocus={treeRowOf(() => firstFocusable(
               paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]')))}
           />
         )}
@@ -2754,57 +2949,18 @@ export default function NotebookTab() {
             </div>
           )}
           </>
-        ) : landingPending ? (
-          <div role="status" aria-label="Opening the Notebook" className={styles.landingPending} />
         ) : isToday ? (
-          // Audit 2026-11-05, S15 (M1): the Today home -- one read, the cards in the session's order.
+          // Audit 2026-11-05, S15 (M1): the Daily brief (the Today home) -- one read, the cards in the session's order.
           <>
           {repairNotice}
           <TodayHome
             onOpenNote={openNote}
             onCreateNote={() => createNote()}
             onSelectAllNotes={selectAllNotes}
-            onOpenResearchHome={openResearchHome}
             onNoteMade={(note) => { if (note) addNoteToTree(note); refreshAll(); refreshSidebarCounts() }}
             todayRead={todayRead}
             dailyTemplateId={dailyTemplateId}
             onNotice={(message) => setBulkNotice({ message, tone: 'info' })}
-          />
-          </>
-        ) : isHome ? (
-          // Wave H: bare-root Research Home (checkpoint decision 33/57) --
-          // "All notes" itself is unchanged, one click away via the sidebar.
-          // Plan F Task 10: the repair notice sits above Home too, where a member lands; the list
-          // branch renders the same element, and only one branch is ever on screen.
-          <>
-          {repairNotice}
-          <ResearchHome
-            onOpenNote={openNote}
-            onCreateNote={() => createNote()}
-            onCreateThesis={createThesisNote}
-            onImport={openImport}
-            hasAnyNotes={hasAnyNotes}
-            notesKnown={homeNotesKnown}
-            // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
-            blockedNoteIds={blockedNoteIds}
-            titleOf={titleOfAnyNote}
-            // Wave 13 lane 13Q-3 (click-budget fix, Q5): the SAME openToday handler the
-            // All Notes list header already uses below -- one authority, never a second
-            // day-note opener -- so the bare-root Research Home reaches Today in one
-            // click/tap instead of "All notes" -> "Today" (2).
-            onOpenToday={openToday}
-            // S2 (B12): the reviews box's "Saved in your Daily folder." outlives the note opening.
-            onNotice={(message) => setBulkNotice({ message, tone: 'info' })}
-            // P0.1: the Home "New note" menu's other doors -- the SAME sheet opener the
-            // toolbar's Templates button uses, and the SAME voice starter the sheet's own
-            // "Voice note" button calls (null while the voice gate is off, so the menu lists
-            // no door that opens nothing).
-            onOpenNewNoteSheet={openNewNoteSheet}
-            onFromStyle={fromStyle}
-            onStartVoiceNote={recordVoiceNote}
-            // P0.13: Home's search box steps aside while the panel's search is on screen.
-            searchActive={sidebarSearching && sidebarOpen}
-            skipLinkClassName={styles.skipLink}
           />
           </>
         ) : (
@@ -2836,7 +2992,7 @@ export default function NotebookTab() {
           {!isShelfView && (
             <div className={styles.menuSlot}>
               <button {...viewMenu.triggerProps} type="button" className={`btn btn-secondary btn-sm ${styles.toolBtn}`}
-                disabled={Boolean(activeView)} data-tour="view-switcher">
+                data-tour="view-switcher" onPointerEnter={preloadSavedViewsGroup} onFocus={preloadSavedViewsGroup}>
                 {/* the visible words ARE the name: "View: List" (a menu button, so a reader hears "menu") */}
                 View: {currentView.short}
                 <UIcon name="chevronDown" {...TOOLBAR_ICON} />
@@ -2844,6 +3000,17 @@ export default function NotebookTab() {
               {viewMenu.open && (
                 <div {...viewMenu.menuProps} aria-label="View">
                   <MenuRows menu={viewMenu} items={viewMenuItems} />
+                  {/* Notebook simplify, Task 2: the saved views left the folders panel and live here. */}
+                  <SavedViewsMenuGroup
+                    menu={viewMenu}
+                    views={savedViews}
+                    activeViewId={activeView?.id ?? null}
+                    onSelectView={handleSelectView}
+                    onRenameView={onRenameView}
+                    onDeleteView={onDeleteViewRequest}
+                    onAddStarterViews={savedViewsLoading || savedViewsError ? null : addStarterThesisViews}
+                    loadFailed={Boolean(savedViewsError)}
+                  />
                 </div>
               )}
             </div>
@@ -2904,6 +3071,22 @@ export default function NotebookTab() {
             </button>
           )}
           <div className={styles.newWrap}>
+            {/* Notebook simplify, Task 5: Research home's notebook-wide Ask (and "Or tell Notebook what to change"
+                while that switch is on) opens under this row. */}
+            <button
+              ref={aiBtnRef}
+              type="button"
+              className={`btn btn-secondary btn-sm ${styles.toolBtn} ${styles.aiBtn}`}
+              onClick={toggleAi}
+              onPointerEnter={warmAiPanel}
+              onFocus={warmAiPanel}
+              aria-expanded={aiOpen}
+              aria-controls={aiOpen ? 'notebook-ai-panel' : undefined}
+              title="Ask your Notebook"
+            >
+              <UIcon name="sparkle" {...TOOLBAR_ICON} />
+              AI
+            </button>
             <button
               type="button"
               className={`btn btn-secondary btn-sm ${styles.toolBtn} ${styles.todayBtn}`}
@@ -2912,7 +3095,7 @@ export default function NotebookTab() {
               aria-keyshortcuts="Control+Alt+D Meta+Alt+D"
             >
               <UIcon name="sun" {...TOOLBAR_ICON} />
-              Today
+              Today's note
             </button>
             {/* "+ New" makes a blank note in one press; its ▾ lists every way in. The group carries the
                 base tour's Import step: Import lives in this ▾ now (tourCopy.js says so). */}
@@ -2924,6 +3107,9 @@ export default function NotebookTab() {
                 disabled={creating}
                 data-tour="new-note"
                 data-guide="journal.newNote"
+                // Go-live wave 1: the voice tour's "Make a note first" card focuses this ("Show me where",
+                // tourStart.js UNREACHABLE_COPY.firstNote); it was Research Home's "Start a note". Not a tour anchor.
+                data-start-note=""
               >
                 + New
               </button>
@@ -2953,6 +3139,10 @@ export default function NotebookTab() {
           </div>
         </div>
 
+        {aiOpen && (
+          <NotebookAiPanelSlot id="notebook-ai-panel" onOpenNote={openNote} onClose={closeAi} blockedNoteIds={blockedNoteIds} />
+        )}
+
         <NoteConnectorsTrustStrip />
 
         {repairNotice}
@@ -2978,7 +3168,12 @@ export default function NotebookTab() {
         {/* Wave 10 F7 (Part A, 5d): without the property definitions the table's property
             columns, the board's groups and the calendar's date fields are missing -- said,
             not silently absent. */}
-        <LoadFailed failures={[{ what: 'your note properties', error: propertyDefsError, retry: refreshPropertyDefs }]} />
+        {/* Go-live wave 1 (A7): the sample's status read (asked for when ⋯ first opens) failing is said too: without it
+            ⋯ cannot offer "Remove the sample notebook". */}
+        <LoadFailed failures={[
+          { what: 'your note properties', error: propertyDefsError, retry: refreshPropertyDefs },
+          { what: "your sample notebook's status", error: sampleStatusError, retry: () => refreshSampleStatus() },
+        ]} />
 
         {selectionOn && selection.count > 0 && (
           <BulkActionBar
@@ -3015,15 +3210,18 @@ export default function NotebookTab() {
              door — so split view's one-pane rule holds here too. Excluded from
              Trash/Archive like every other mode. */
           <NoteTasksView onOpenTask={(id, index) => openNote({ id }, null, { task: index })} />
-        ) : isLoading && notes.length === 0 ? (
+        ) : (isLoading || allNotesCountPending) && notes.length === 0 ? (
+          // Notebook simplify, Task 2: an empty list waits for the account's note count too, so the empty message
+          // below can say WHICH empty it is (a view that matches nothing, or a notebook with nothing in it).
           // G-106 (Wave B lower-frequency sweep): a small grid of card-shaped
           // skeleton placeholders -- reusing the same `.grid` layout the real
           // NoteCard grid renders into -- instead of bare text. Not
           // view-mode-aware (this branch runs before viewMode is even
           // consulted below), so it approximates the DEFAULT list/grid view.
-          <div className={styles.grid} role="status" aria-label="Loading…">
+          // Notebook simplify, Task 3: shaped like the layout the notes will arrive in (rows or cards).
+          <div className={listLayout === 'cards' ? styles.grid : styles.rows} role="status" aria-label="Loading…">
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className={styles.noteCardSkeleton} aria-hidden="true">
+              <div key={i} className={listLayout === 'cards' ? styles.noteCardSkeleton : styles.noteRowSkeleton} aria-hidden="true">
                 <SkeletonLine width="70%" height={15} />
                 <SkeletonLine width="40%" height={11} />
               </div>
@@ -3055,28 +3253,50 @@ export default function NotebookTab() {
               </button>
             </div>
           </div>
+        ) : notes.length === 0 && (hasAnyNotes || (hasActiveFilters && !accountEmpty)) ? (
+          // Notebook simplify, Task 2: the list is empty because of a filter, a saved view, a ticker or a tag, and the
+          // account HAS notes: say that, with the one way back, and nothing else. ⚰️ It used to say "Your notebook is
+          // empty." and draw the whole template picker (measured: "Add thesis starter views" opened a view matching
+          // nothing in an account of 15 notes). The picker and "Import notes" are for an account with no notes.
+          <div className={styles.empty} data-empty="filtered">
+            <p>No notes match this view.</p>
+            {hasActiveFilters && (
+              <div className={styles.emptyActions}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={clearListFilters}>
+                  Clear filter
+                </button>
+              </div>
+            )}
+          </div>
         ) : notes.length === 0 ? (
           <div className={styles.empty}>
             <p>Your notebook is empty.</p>
             <p className={styles.emptyHint}>
-              Start from a template — or a blank page.
+              Start from a template, or a blank page.
             </p>
             {!hasActiveFilters && (
               <div className={styles.emptyImportPitch}>
                 <p className={styles.emptyHint}>
                   Bring your notes from Notion, Obsidian, Evernote, or anywhere else.
                 </p>
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={openImport}
-                  aria-haspopup="dialog"
-                >
-                  <UIcon name="upload" size={16} gold={false} />
-                  Import notes
-                </button>
+                <div className={styles.emptyActions}>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={openImport}
+                    aria-haspopup="dialog"
+                  >
+                    <UIcon name="upload" size={16} gold={false} />
+                    Import notes
+                  </button>
+                  <SampleNotebookDoor {...sampleNotebook} />
+                </div>
               </div>
             )}
+            {/* The get-started list renders only for a member with no notes, while its switches are on and it is not
+                closed (GettingStartedChecklist decides; nothing is fetched otherwise). */}
+            <GettingStartedChecklist hasAnyNotes={hasAnyNotes} onCreateNote={() => createNote()}
+              onAddSample={auth?.isPaid === true ? sampleNotebook.add : null} />
             {/* P5 final fix: not while the New note sheet is open, so the page holds ONE picker (one
                 gallery door for a tour to wait on, one "How do you trade?", ruling P5-T10-R2). */}
             <div className={styles.emptyPicker}>
@@ -3183,18 +3403,22 @@ export default function NotebookTab() {
             ) : (
               // Lane KEYS round 5: the list is ONE Tab stop. Down and Up go note to note,
               // Right and Left between a note's own controls. Shift+Arrow stays 13Q-5's.
-              <div className={styles.grid} role="group" aria-label="Notes" ref={notesGrid.ref} onFocus={notesGrid.onFocus}
+              // Notebook simplify, Task 3: rows by default (one column, hairlines), or the card grid ("Cards").
+              <div className={listLayout === 'cards' ? styles.grid : styles.rows} data-list-layout={listLayout}
+                role="group" aria-label="Notes" ref={notesGrid.ref} onFocus={notesGrid.onFocus}
                 onKeyDown={(e) => { handleSelectionGridKeyDown(e); notesGrid.onKeyDown(e) }}>
                 {notes.map((n) => (
                   <NoteCard
                     key={n.id}
                     note={n}
+                    layout={listLayout === 'cards' ? 'card' : 'row'}
                     onOpen={openNote}
                     onRestore={isTrashView ? restoreNote : undefined}
                     onUnarchive={isArchiveView ? unarchiveNote : undefined}
                     blocked={blockedNoteIds.has(n.id)}
                     selectable={selectionOn}
                     selected={selection.isSelected(n.id)}
+                    selecting={selection.count > 0}
                     onToggleSelect={(note, opts) => selection.toggle(note.id, opts)}
                   />
                 ))}
@@ -3233,11 +3457,10 @@ export default function NotebookTab() {
           </>
         )}
         {/* Notebook P1: the Styles manager is mounted OUTSIDE the pane's branches for the same reason as the
-            New-note sheet below: the Settings card's `?styles=1` lands on Research Home, where a manager
-            mounted inside the list branch opened nothing (found by the Task 15 walk). */}
+            New-note sheet below: a door can open it from a page that is not the list (found by the Task 15 walk,
+            when the Settings card's `?styles=1` landed on Research Home, since deleted). */}
         {/* Plan F Task 10 (concern 2): the import wizard is mounted OUTSIDE the pane's branches for the
-            same reason. Research Home's "Import notes" and the repair notice there both open it; mounted
-            inside the list branch, both were dead buttons on Home. */}
+            same reason (Research Home's "Import notes" and its repair notice were dead buttons there). */}
         <ImportWizard
           open={importOpen}
           initialRecover={importRecover}
@@ -3247,8 +3470,8 @@ export default function NotebookTab() {
         />
         {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]} />}
         {/* P0.1: the New-note sheet and the voice-note dialog are mounted OUTSIDE the pane's
-            branches. Research Home's "New note" menu opens them, and a sheet mounted inside the
-            list branch would make that door a dead button on Home (and beside an open note). */}
+            branches, so a door beside an open note (the phone "+" sheet) is never a dead button.
+            (Research Home's "New note" menu was the first such door; it went in go-live wave 1.) */}
         <Sheet
           open={!!pickerOpen}
           onClose={() => setPickerOpen(false)}
@@ -3327,7 +3550,7 @@ export default function NotebookTab() {
           <FolderSidebar {...folderSidebarProps} sidebarOpen onToggleSidebar={() => setFolderSheet(false)}
             onSearchModeChange={NOOP}
             onSelectFolder={closeSheetThen(handleSelectFolder)} onSelectTag={closeSheetThen(handleSelectTag)}
-            onOpenNote={closeSheetThen(openNote)} onSelectView={closeSheetThen(handleSelectView)}
+            onOpenNote={closeSheetThen(openNote)}
             onSelectAllNotes={closeSheetThen(selectAllNotes)} />
         </FolderSheet>
       )}

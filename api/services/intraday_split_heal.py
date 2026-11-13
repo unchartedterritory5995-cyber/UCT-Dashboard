@@ -138,8 +138,7 @@ def _declared_or_none(ticker: str):
     from api.services import bars_sanitize as _san
     if os.environ.get("PYTEST_CURRENT_TEST"):
         # cache-only under pytest: no vendor warm thread from a serve-path unit test
-        from api.services.cache import cache
-        meta = cache.get(_san._META_KEY.format(ticker.upper()))
+        meta = _san._META_CACHE.get(_san._META_KEY.format(ticker.upper()))
     else:
         meta = _san._meta_cached(ticker.upper())
     if meta is None:
@@ -155,8 +154,7 @@ def declared_splits_cached(ticker: str) -> list:
     """Declared splits from cache ONLY — never schedules a warm (for the R2 merge)."""
     try:
         from api.services import bars_sanitize as _san
-        from api.services.cache import cache
-        meta = cache.get(_san._META_KEY.format(ticker.upper())) or {}
+        meta = _san._META_CACHE.get(_san._META_KEY.format(ticker.upper())) or {}
         return list(meta.get("splits") or [])
     except Exception:  # noqa: BLE001
         return []

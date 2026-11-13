@@ -27,6 +27,7 @@ import { registerIndicatorAuthoringCapabilities } from './capabilities/indicator
 import { registerChartSetupCapabilities } from './capabilities/chartSetup'
 import { registerCompareGroupCapability } from './capabilities/compareGroup'
 import { registerChartMenuCapabilities } from './capabilities/chartMenu'
+import { registerChartFeatureCapabilities } from './capabilities/chartFeatures'
 import { registerDrawingExtras } from './capabilities/drawingExtras'
 import { registerIndicatorControlCapabilities } from './capabilities/indicatorControls'
 import { registerIndicatorTemplateCapabilities } from './capabilities/indicatorTemplates'
@@ -51,6 +52,8 @@ import { registerJournalCapabilities } from './capabilities/journal'
 import { registerCoachCapabilities } from './capabilities/coach'
 // C3-205..207 (pl-exec6): Tools → Custom-Period Sort — run a sort, dock its panel
 import { registerPeriodSortCapabilities } from './capabilities/periodSort'
+// Tools → Compare Symbols: open the panel on its Rotation (RRG-style) or Overlay tab, switch between them
+import { registerComparePanelCapabilities } from './capabilities/comparePanel'
 
 let done = false
 export function registerBuiltins() {
@@ -83,6 +86,7 @@ export function registerBuiltins() {
   registerChartSetupCapabilities()
   registerCompareGroupCapability()          // C1-035 / C1-037 / C1-040: the Compare panel's group controls
   registerChartMenuCapabilities()           // C1-178 / C1-061: the chart's right-click Ask AI and watermark Reset
+  registerChartFeatureCapabilities()        // Add to Chart's host features: the Company Info panel + the Earnings Strip
   registerDrawingExtras()                   // C1-144 / C1-160 / C1-165: Position Calculator, Save as default, tool favourites
   registerIndicatorControlCapabilities()
   registerIndicatorTemplateCapabilities()
@@ -95,6 +99,7 @@ export function registerBuiltins() {
   registerCalendarCapabilities()
   registerJournalCapabilities()
   registerPeriodSortCapabilities()
+  registerComparePanelCapabilities()        // compare.openView: the Compare panel's Rotation / Overlay view (a view, not saved)
   registerMultiChartCapabilities()   // pl-grid: the Multi Chart grid itself (C3-042..061)
 }
 

@@ -201,7 +201,7 @@ def test_the_rs_addresses_are_appended_last_and_declare_the_benchmark_shape():
         assert alert_series.address_inputs(address) == fn.inputs
         assert "benchmark" in fn.inputs and fn.inputs["benchmark"] == rb.DEFAULT_BENCHMARK == "SPY"
         # the chart's menu minus INDUSTRY, derived from the chart's one list
-        assert fn.input_options["benchmark"] == [b for b in rd.RS_LINE_BENCHMARKS if b != "INDUSTRY"]
+        assert fn.input_options["benchmark"] == [b for b in rd.RS_LINE_BENCHMARKS if b != "INDUSTRY"] + ["THEME"]
         assert "INDUSTRY" not in fn.input_options["benchmark"]
         if "maType" in spec.inputs:
             assert fn.input_options["maType"] == ["EMA", "SMA"]

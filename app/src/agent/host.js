@@ -158,6 +158,9 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
             ? { canOpenSettings: !!e.api.agent.canOpenSettings?.(), settingsOpen: !!e.api.agent.settingsOpen?.() } : {}),
           // C1-178: the right-click "Ask AI about {sym}" door (absent = none: chartMenu.askAi refuses)
           ...(typeof e.api.agent.askAi === 'function' ? { canAskAi: !!e.api.agent.canAskAi?.() } : {}),
+          // chartFeatures.companyPanel / earningsStrip: the widget's Company Info panel + Earnings Strip (opts.dock, RAW; per
+          // WIDGET, shared by its `dockTabs` chart tabs). Absent when the chart has no dock (a Multi Chart cell): refused.
+          ...(e.api.agent.canDock?.() === true ? { canDock: true, dock: e.r.dock ?? null, dockTabs: e.r.dockTabs || 1 } : {}),
           // ⭐ W1-B B-06: the workspace's Replay Mode cutoff ('YYYY-MM-DD' | null) — ONE shared value every linked chart
           // reads (StockChart `replayCutoff`); absent (undefined) when this host has no replay source
           ...(replay ? { replay: replay.read() ?? null } : {}),
@@ -855,7 +858,7 @@ export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, layoutDock = null, watchlists, prefs, navigate, replay = null, periodSort = null, gridControl = null, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, layoutDock = null, watchlists, prefs, navigate, replay = null, periodSort = null, compare = null, gridControl = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -892,6 +895,9 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     // Tools → Custom-Period Sort (capabilities/periodSort.js): the popover's own run, the panel's own Dock, and the
     // panel / Replay cutoff / start marker they write. Absent → periodSort.* refuse (Multi Chart, other pages).
     ...(periodSort ? { periodSort } : {}),
+    // Tools → Compare Symbols (capabilities/comparePanel.js): the panel's open state and tab as it reports them, opened and
+    // switched through the product's own `uct:compare-open` event (pages/charts/compareAgent.js). Absent → compare.* refuse.
+    ...(compare ? { compare } : {}),
     // ⭐ MULTI CHART: the grid's own writers (pages/charts/grid/useGridAgentControl.js), on the board as in the grid — the
     // member enters a grid from the board. Read by capabilities/multiChart.js only.
     ...(gridControl ? { gridControl } : {}),
