@@ -55,14 +55,19 @@ export function useMenuButton() {
   useEffect(() => { if (!open) { setSub(null); subFrom.current = null } }, [open])
   // A second view takes focus to its first child (after "Back"; "Back" itself when every child is disabled). Closing it
   // puts focus back on the row that opened it.
+  // Final fix M7: the row that opened the view can leave while the view is open (its gate turns off); then the menu goes
+  // back to its first view with focus on its first row (`lostSub`, called by MenuRows), never left on the page.
+  const focusFirst = useRef(false)
   useEffect(() => {
     const el = menuRef.current
     if (!el) return
     if (sub) { const rows = rowsOf(el); (rows[1] || rows[0])?.focus() }
+    else if (focusFirst.current) { focusFirst.current = false; rowsOf(el)[0]?.focus() }
     else if (subFrom.current) el.querySelector(`[data-menu-sub="${subFrom.current}"]`)?.focus()
   }, [sub])
   const openSub = (key) => { subFrom.current = key; setSub(key) }
   const back = () => setSub(null)
+  const lostSub = () => { subFrom.current = null; focusFirst.current = true; setSub(null) }
 
   const close = () => { setOpen(false); triggerRef.current?.focus() }
   // ArrowDown / ArrowUp on the trigger open the menu on its first / last item (the menu button pattern);
@@ -114,6 +119,7 @@ export function useMenuButton() {
     sub,
     openSub,
     back,
+    lostSub,
     triggerProps: {
       ref: triggerRef,
       'aria-haspopup': 'menu',
@@ -154,6 +160,9 @@ function rowsOf(menuEl) {
  *  row; Escape there closes the menu. The "Aa" menu's Font and Size lists were the first; they run on this now. */
 export function MenuRows({ menu, items, label = '' }) {
   const parent = menu.sub && findSub(items, menu.sub)
+  // Final fix M7: the open view's row is gone from `items` -- back to the first view, focus on its first row.
+  const lost = Boolean(menu.sub) && !parent
+  useEffect(() => { if (lost) menu.lostSub?.() }, [lost, menu])
   if (!parent) return rowsFor(menu, items)
   return (
     <>

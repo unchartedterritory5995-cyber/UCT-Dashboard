@@ -377,6 +377,39 @@ describe('the engine: a second view inside the same menu', () => {
     expect(screen.getByRole('menuitem', { name: "Today's recap" })).toBeDisabled()
   })
 
+  // Final fix M7: the parent row leaves while its view is open (its gate turned off, e.g. review drafts switched off
+  // mid-session). The menu goes back to its first view with focus on its first row, and the keyboard still works.
+  it('M7: the parent row gone while its view is open: the first view again, focus on its first row', async () => {
+    function Gated({ withReviews }) {
+      const menu = useMenuButton()
+      const items = [
+        { key: 'blank', label: 'Blank', run: () => {} },
+        withReviews && { key: 'reviews', label: 'Draft a review', children: [{ key: 'daily', label: "Today's recap", run: () => {} }] },
+        { key: 'import', label: 'Import', run: () => {} },
+      ].filter(Boolean)
+      return (
+        <div>
+          <button {...menu.triggerProps} type="button">New</button>
+          {menu.open && <div {...menu.menuProps} aria-label="Start a note"><MenuRows menu={menu} items={items} label="Start a note" /></div>}
+        </div>
+      )
+    }
+    const { rerender } = render(<Gated withReviews />)
+    open()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Draft a review' }))
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: "Today's recap" }))
+    rerender(<Gated withReviews={false} />)
+    const blank = await screen.findByRole('menuitem', { name: 'Blank' })
+    expect(screen.queryByRole('menuitem', { name: 'Back to Start a note' })).toBeNull()
+    expect(document.activeElement).toBe(blank)
+    fireEvent.keyDown(blank, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Import' }))
+    // Escape on the first view closes the menu (sub is cleared, not left set), focus on the trigger.
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(document.activeElement).toBe(trigger())
+  })
+
   it('CONTROL: Escape on the first view closes the menu at once', () => {
     render(<Nested />)
     open()
