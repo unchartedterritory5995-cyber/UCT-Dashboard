@@ -621,3 +621,28 @@ Rails: `lib/offline/provenEqualSettles.test.js`, `lib/offline/provenEqualOnOpen.
 - Discard on the recovery banner now discards. Before, it went through the ordinary durable write, whose guard against dropping unsent words kept the offered words dirty and queued, and after the note closed the drain wrote the discarded words into the note. Now one content-checked transaction replaces the device's copy with the server copy and removes the note's queued entries, only while the record and every queued entry hold exactly the offered words (or words the offered copy contains); anything else (words written since the offer, an entry that differs) is refused and the old path runs. Words typed while the banner was up are captured again once the record is clean.
 - The label shows "Saving…" whatever the device has answered; only "Saved" and "waiting to sync" wait for the device's answer (or a save that landed on this page). "Waiting to sync" is cleared when the settle finds the note already clean.
 - `f5Freeze.test.js` records the amendment and pins the drain's two `supersedeIdentical(` calls; `ringVouchAuthority.test.js` reads both helpers' bodies for a plan function or a ring write.
+
+## Follow-up B (2026-11-13): the two day pages one press apart, and the recorded leftovers, base `09f6ebd951`
+
+The Journal's Today tab (the account day) and the Notebook's Daily brief (the notes day) stay two pages; they now link to each other. Each line ends with its one-line undo.
+
+- 1a. Journal Today's Quick actions gains "Daily brief" after "Open Notebook" (`surfaces/today/TodayQuickActions.jsx`, address in `lib/dailyBriefLink.js`). Undo: delete the button.
+- 1b. The command palette gains "Daily brief" (`nb-daily-brief`, six typed characters like its neighbours). Undo: delete the entry.
+- 1c. The setups board's way back reads "Back to Daily brief" and returns there when the member came from the brief's "Open the setups board" (router state `{from: 'daily-brief'}`, carried through the "Find more like this" sheet's address rewrites); otherwise "Back to Notebook" as before. Undo: drop the link's `state` in `TodayHome.jsx`.
+- 1d. On a phone, choosing "Daily brief" in the folders drawer folds it (the fold effect is keyed on the address being the brief; the in-note sheet wraps the row in `closeSheetThen` like its neighbours). Undo: drop `viewParam === TODAY_VIEW` from the fold effect's keys.
+- 2a. Walkthrough tiers read the CSS's own query (desktop `MQ.desktop`, touch the rest; phone `MQ.phone`, wide the rest), so a fractional width under zoom agrees with what is drawn; a screen that answers no query at all (a test environment) still gets the desktop tour. Undo: `STEP_TIERS` desktop/touch back on `MQ.tabletDown`.
+- 2b. Back from a step that an earlier step waited for (the first review inside Draft a review) goes to that step, menu left open, instead of skipping to the step that opened the menu (`GenericTourEngine.jsx` `backFrom`). Undo: `goBack` back on `presentFrom`.
+- 2c. A walkthrough asked for while the first run is UNDECIDED (preferences still loading) waits without a limit; the 10 s release applies only while the first run is due or showing (`lib/firstRun.js` publishes 'due' or 'undecided'). Undo: key the timer on `held` again.
+- 3a. No change: Tab in the note's More > Export view already does what Tab does in the panel's first view (stays inside and wraps, wave 10 K2); now pinned by the kit (`tab: 'stays'`). Undo: none needed.
+- 3b. The second-view test kit also checks Home, End, arrow wrap and Tab, and runs over Aa > Size. Undo: revert `lib/testing/menuSecondView.testkit.js`.
+- 3c. The property formula editor is a held module like the rollup editor (one shared slot factory), warmed when the panel is idle with formulas on; Create and an edit's Save wait for it to be drawn. Undo: back to `lazyChunk` + Suspense in `PropertiesSection.jsx`.
+- 4a. The daily folder: the most recent live daily note decides only when it sits in a root folder with a daily name; nested or Unfiled falls straight to the name order. Undo: restore the root-only join in `note_daily.py`.
+- 4b. A failure of the "does today's note exist?" read no longer blocks opening or making today's note (no seed, `open_daily_note` decides). Undo: remove the try around `daily_note_exists`.
+- 4c. Imports and connectors (Roam's "Daily Notes") reuse a ROOT folder of the same name in any casing (exact case preferred); nested folders unchanged (`notes.find_folder_segment`). Undo: exact match at the root again.
+- 4d. The sample ledger lists `notebook_today.py` (guarded) and `note_daily.py` (exempt, with the reason), and pins that the sample never writes a `daily_date`. `tweet_capture*.py` (another workstream) still red there. Undo: remove the two entries.
+- 5a. The server says "note type" where it said "kind of note" / "No kind" / "Note kind" to members (refusals, the notes widget's label and empty bucket); fixtures regenerated. Undo: revert the six strings.
+- 5b. The Compass weekly email's "Open Compass" opens `/journal/compass`, not the Today tab. Undo: `COMPASS_PATH` back to `/journal`.
+- 6a. A `?view=` link is counted once per router entry (`location.key`), not again on a remount. Undo: drop the key argument.
+- 6b. Regression rail for the Daily brief's Restore accepting a retried library fetch (`TodayHome.restoreRetry.test.jsx`; the loader is a swappable property). Undo: delete the test.
+
+First open 2,252,797 B to 2,253,325 B (+528 B). Full record: `.superpowers/followups/B-report.md` (local).
