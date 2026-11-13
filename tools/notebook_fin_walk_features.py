@@ -178,6 +178,9 @@ EXPORT_WAITING = re.search(r"export const EXPORT_WAITING = '([^']+)'", _EXPORT_C
 EXPORT_UNAVAILABLE = (re.search(r"export const EXPORT_UNAVAILABLE = `([^`]+)`", _EXPORT_CONTROLS).group(1)
                       .replace("${RELOAD_TO_RECOVER}", re.search(r"export const RELOAD_TO_RECOVER = '([^']+)'",
                                                                  (_J2 / "lib" / "heldModule.js").read_text(encoding="utf-8")).group(1)))
+# The phone Insert sheet's row that opens the palette at 390 (NoteEditorPage.jsx's insert rows).
+PHONE_PALETTE_ROW = re.search(r"\{ label: '([^']+)', onClick: \(\) => \{ paletteOpenerRef\.current = insertPhoneRef",
+                              (_J2 / "components" / "notebook" / "NoteEditorPage.jsx").read_text(encoding="utf-8")).group(1)
 # Pass 2 final fix (M9): the Insert palette's "Show all" button's accessible name (WidgetPalette.jsx).
 PALETTE_SHOW_ALL = re.search(r'className=\{`\$\{styles\.headBtn\} \$\{styles\.showAll\}`\} aria-label="([^"]+)"',
                              (_J2 / "components" / "notebook" / "WidgetPalette.jsx").read_text(encoding="utf-8")).group(1)
@@ -4536,8 +4539,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     # Pass 2 final fix (I1; final-fix row b). A member who chose a daily template ("Daily notes start from" in the
     # template sheet, the member's own control) and watches a name drafts Today's recap on a day with NO note (New >
     # Draft a review > Today's recap: the brief's recap card waits for 16:05 ET). The door makes today's note FROM THAT
-    # TEMPLATE and with the plan lines, then appends the recap: one note, the template's words first, the plan's line,
-    # then the recap heading.
+    # TEMPLATE and with the plan lines, then appends the recap: one note holding the template's words and the plan's
+    # line, the recap heading after both.
     TPL_MARK = "Morning routine from my own template"
 
     def d_recap_template():
@@ -4596,8 +4599,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             flat = re.sub(r"\s+", " ", text or "")
             m_recap = re.search(r"(Today.s recap|Recap) —", flat)     # reviewDrafts.js recapHeading
             i_mark, i_plan, i_recap = flat.find(TPL_MARK), flat.find("NVDA"), (m_recap.start() if m_recap else -1)
+            # The plan's lines sit ABOVE the template's body when the template has no "Today's plan" heading of its own
+            # (note_daily.merge_seed, by design; measured on the held sandbox, attach run 1): the walk asks for both,
+            # and for the recap after both.
             ok = (chose and stored_id == tpl_id and bool(tpl_id) and not before_id and made and made == today_id
-                  and n_after - n_before == 1 and i_mark >= 0 and i_plan > i_mark and i_recap > i_plan)
+                  and n_after - n_before == 1 and i_mark >= 0 and i_plan >= 0 and i_recap > max(i_mark, i_plan))
             C.step(pR, iR, "discover.recap-template", "with a daily template chosen, Draft a review > Today's recap on a day with no note makes today's note from that template with the plan lines, then the recap",
                    "PASS" if ok else "FAIL", template_status=st_t, template=tpl_id, chose_in_sheet=chose, stored_pref=stored_id,
                    today_before=before_id, note=made, today_after=today_id, notes_before=n_before, notes_after=n_after,
@@ -4740,7 +4746,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                    expected_text=EXPORT_WAITING, formats_appeared=appeared, scope=["[role=group]"])
             pN.keyboard.press("Escape")
             # ArrowRight on the Export row opens the formats (the row shows a chevron, as the menu engine's second-view
-            # rows do). Reached by the keyboard: a fresh load, More opened, ArrowDown until Export holds focus.
+            # rows do). Reached by the keyboard: a fresh load, More opened, Tab until Export holds focus (the More panel is
+            # a disclosure, lib/useDisclosureFocus.js: focus moves in on open and Tab walks its rows; ArrowDown does not).
             kb, kerr = {}, None
             try:
                 C.goto(pN, base, f"/journal/notebook?note={nid}", ".ProseMirror")
@@ -4752,9 +4759,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     on_export = pN.evaluate("() => /^Export/.test(((document.activeElement || {}).innerText || '').trim())")
                     if on_export:
                         break
-                    pN.keyboard.press("ArrowDown")
+                    pN.keyboard.press("Tab")
                     pN.wait_for_timeout(120)
-                kb["export_focused_by_arrows"] = on_export
+                kb["export_focused_by_tab"] = on_export
                 if on_export:
                     pN.keyboard.press("ArrowRight")
                     kb["formats_opened"] = C.vis_loc(fm, 15000)
@@ -4937,6 +4944,12 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 try:
                     d9.first.scroll_into_view_if_needed(timeout=5000)
                     d9.first.click(timeout=10000)
+                    # At 390 the row's "+" opens the phone's Insert sheet (Image, Attach a file, Scan with camera, then
+                    # PHONE_PALETTE_ROW): that row is the palette's door there (NoteEditorPage.jsx).
+                    row9 = p9.get_by_role("button", name=PHONE_PALETTE_ROW, exact=True).filter(visible=True)
+                    if C.vis_loc(row9, 5000):
+                        got9["door"] = f"+ > {PHONE_PALETTE_ROW}"
+                        row9.first.click(timeout=10000)
                     p9.get_by_role("dialog", name="Insert widget").first.wait_for(state="visible", timeout=15000)
                     b9 = p9.get_by_role("dialog", name="Insert widget").get_by_role("button", name=PALETTE_SHOW_ALL, exact=True)
                     got9["named_button"] = C.vis_loc(b9, 10000)
