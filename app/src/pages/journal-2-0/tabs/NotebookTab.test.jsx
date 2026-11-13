@@ -886,12 +886,16 @@ describe('⛔ Graph mode never offers a "Save this view" trap', () => {
  * a checked `menuitemradio` as the current one, beside `radio`, so a re-pick is a deliberate no-op.
  */
 describe('⛔⛔ FX2 — the view modes are one labelled set (proof-walk item 2)', () => {
+  // Simplify pass 2 (C1): Graph and Timeline are in the menu's "More views" second view -- the SAME role=menu element,
+  // so the set is still one labelled menu (viewOption presses "More views" for them).
   it('the seven modes sit inside one labelled role=menu, as menuitemradio', () => {
     renderTab()
     viewOption('List')
     const menu = screen.getByRole('menu', { name: 'View' })
     for (const label of ['List', 'Table', 'Board', 'Calendar', 'Graph', 'Timeline', 'Tasks']) {
-      expect(within(menu).getByRole('menuitemradio', { name: label })).toBeInTheDocument()
+      const row = viewOption(label)
+      expect(menu.contains(row), label).toBe(true)
+      expect(row).toHaveAttribute('role', 'menuitemradio')
     }
   })
 

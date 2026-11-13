@@ -2369,17 +2369,24 @@ export default function NotebookTab() {
     }
   }
 
-  // The Reviews rows, for the New menu (`anchored`: the walkthrough's three literal anchors) and the phone ⋯ group
-  // (plain: an anchor is written once). Disabled while a draft runs (D4).
+  // Simplify pass 2 (C2): the three reviews are the second view of ONE row, "Draft a review", in the New menu and in the
+  // phone ⋯. Disabled while a draft runs (D4). The walkthrough's anchors are written once, here, and drawn by whichever
+  // menu is open: the two are never open together (opening one closes the other, and the New menu is not drawn on a
+  // phone), so an anchor is on the page at most once, and the phone tier's "Open Draft a review" step can wait for the
+  // first one. Pass 2 merged the walkthrough's weekly and monthly steps (the registry's six-step budget), so the
+  // monthly row carries no anchor.
   const REVIEW_ROW_ANCHOR = {
     daily: (p, c) => <button {...p} data-tour="review-drafts-daily">{c}</button>,
     weekly: (p, c) => <button {...p} data-tour="review-drafts-weekly">{c}</button>,
-    monthly: (p, c) => <button {...p} data-tour="review-drafts-monthly">{c}</button>,
   }
-  const reviewRows = ({ anchored }) => REVIEW_PERIODS.map(({ period, label }) => ({
-    key: period, label, icon: 'book', run: () => runReviewDraft(period), disabled: Boolean(reviewDrafting),
-    render: anchored ? REVIEW_ROW_ANCHOR[period] : undefined,
-  }))
+  const draftReviewRow = (more) => ({
+    key: 'reviews', label: 'Draft a review', icon: 'book',
+    children: REVIEW_PERIODS.map(({ period, label }) => ({
+      key: period, label, icon: 'book', run: () => runReviewDraft(period), disabled: Boolean(reviewDrafting),
+      render: REVIEW_ROW_ANCHOR[period],
+    })),
+    ...more,
+  })
 
   // S11 (audit 2026-11-05): the notes list's three toolbar menus. Each item is the SAME handler its
   // old toolbar button ran -- moved, never re-implemented -- and an item whose gate is off is absent.
@@ -2453,11 +2460,12 @@ export default function NotebookTab() {
       return next
     }, { replace: true })
   }
+  const modeRow = ({ id, icon, short }) => ({ key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id) })
   const viewMenuItems = [
-    ...VIEW_MODES.flatMap(({ id, icon, short }) => [
-      { key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id) },
+    ...VIEW_MODES.filter((m) => !m.more).flatMap((m) => [
+      modeRow(m),
       // Notebook simplify, Task 3: List's own two-way choice, directly under it, while List is the mode.
-      id === 'list' && viewMode === 'list' && {
+      m.id === 'list' && viewMode === 'list' && {
         key: 'list-layout',
         // Simplify pass 2 (A10): "Show as"; "layout" is the page-layout panels' word.
         group: 'Show as',
@@ -2468,6 +2476,13 @@ export default function NotebookTab() {
         ],
       },
     ].filter(Boolean)),
+    // Simplify pass 2 (C1): Graph and Timeline wait one press deeper, in a second view of this same menu. A saved view
+    // or a `?view=graph` / `?view=timeline` link still opens them directly; while one is on, the trigger names it and
+    // this row reads as the active one.
+    {
+      key: 'more-views', label: 'More views', icon: 'more', current: Boolean(currentView.more),
+      children: VIEW_MODES.filter((m) => m.more).map(modeRow),
+    },
     // ⛔ NO Save view IN GRAPH MODE, nor in a mode the table marks `saveable: false` (Tasks): graph has
     // nothing of its own to store, so a "saved" graph view would reopen as a plain Graph click -- a silent
     // trap (competitive audit UX #18, 2026-09-22).
@@ -2495,12 +2510,7 @@ export default function NotebookTab() {
     // Notebook simplify, Task 3: Research Home's "Reviews that write themselves", from the list too. Each runs the ONE
     // drafting door (lib/reviewDraftRun.js); absent while review drafts are off, so no row opens nothing.
     // Go-live wave 1 (C2): the review-drafts walkthrough points at the three rows (literal anchors).
-    reviewsOn && {
-      key: 'reviews',
-      group: 'Reviews',
-      heading: true,
-      items: reviewRows({ anchored: true }),
-    },
+    reviewsOn && draftReviewRow({ render: (p, c) => <button {...p} data-tour="review-drafts-open">{c}</button> }),
   ].filter(Boolean)
   // On a phone "+ New", Today and AI give way to the floating "+" (S12) and the row, so ⋯ carries them there (CSS shows
   // `phoneOnlyItem` rows at <=640px only): every toolbar action stays reachable at every width.
@@ -2524,14 +2534,7 @@ export default function NotebookTab() {
       key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote, className: phoneOnly,
       render: (p, c) => <button {...p} data-tour="new-note-voice-phone">{c}</button>,
     },
-    reviewsOn && {
-      key: 'reviews',
-      group: 'Reviews',
-      heading: true,
-      className: phoneOnly,
-      render: (p, c) => <div {...p} data-tour="review-drafts-phone">{c}</div>,
-      items: reviewRows({ anchored: false }),
-    },
+    reviewsOn && draftReviewRow({ className: phoneOnly, render: (p, c) => <button {...p} data-tour="review-drafts-phone">{c}</button> }),
     // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
     // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
     // Simplify pass 2 (A9): "Trade journal tools", so it is not read as a sibling of "My tools" below.
@@ -3042,9 +3045,10 @@ export default function NotebookTab() {
               </button>
               {viewMenu.open && (
                 <div {...viewMenu.menuProps} aria-label="View">
-                  <MenuRows menu={viewMenu} items={viewMenuItems} />
-                  {/* Notebook simplify, Task 2: the saved views left the folders panel and live here. */}
-                  <SavedViewsMenuGroup
+                  <MenuRows menu={viewMenu} items={viewMenuItems} label="View" />
+                  {/* Notebook simplify, Task 2: the saved views left the folders panel and live here. Not in the
+                      "More views" second view (pass 2, C1): that view holds only Back, Graph and Timeline. */}
+                  {!viewMenu.sub && <SavedViewsMenuGroup
                     menu={viewMenu}
                     views={savedViews}
                     activeViewId={activeView?.id ?? null}
@@ -3053,7 +3057,7 @@ export default function NotebookTab() {
                     onDeleteView={onDeleteViewRequest}
                     onAddStarterViews={savedViewsLoading || savedViewsError ? null : addStarterThesisViews}
                     loadFailed={Boolean(savedViewsError)}
-                  />
+                  />}
                 </div>
               )}
             </div>
@@ -3163,7 +3167,7 @@ export default function NotebookTab() {
               </button>
               {newMenu.open && (
                 <div {...newMenu.menuProps} aria-label="Start a note">
-                  <MenuRows menu={newMenu} items={newMenuItems} />
+                  <MenuRows menu={newMenu} items={newMenuItems} label="Start a note" />
                 </div>
               )}
             </div>
@@ -3175,7 +3179,7 @@ export default function NotebookTab() {
               </button>
               {moreMenu.open && (
                 <div {...moreMenu.menuProps} aria-label="More notebook actions">
-                  <MenuRows menu={moreMenu} items={moreMenuItems} />
+                  <MenuRows menu={moreMenu} items={moreMenuItems} label="More notebook actions" />
                 </div>
               )}
             </div>

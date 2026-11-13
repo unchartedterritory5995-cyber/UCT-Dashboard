@@ -27,6 +27,8 @@ import NoteMenuActions from './NoteMenuActions'
 import NoteExportControls from './NoteExportControls'
 import { EXPORT_FORMATS } from './export/exportFormats'
 import { BUILTIN_NOTE_KINDS } from '../../lib/noteKinds'
+import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
+import { expectSecondView } from '../../lib/testing/menuSecondView.testkit'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -257,7 +259,10 @@ describe('"Aa" (More formatting)', () => {
     selectAll(editor)
     fireEvent.click(within(open()).getByRole('menuitem', { name: 'Font' }))
     let menu = screen.getByRole('menu', { name: 'More formatting' })
-    await waitFor(() => expect(document.activeElement).toBe(within(menu).getByRole('menuitem', { name: 'Back' })))
+    // Simplify pass 2: the second view is the engine's now (MenuRows `children`): focus goes to its first CHOICE, and
+    // "Back" is named for the menu it goes back to.
+    await waitFor(() => expect(document.activeElement).toBe(within(menu).getAllByRole('menuitemradio')[0]))
+    expect(within(menu).getByRole('menuitem', { name: 'Back to More formatting' })).toBeTruthy()
     fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Georgia' }))
     expect(editor.getAttributes('textStyle').fontFamily).toBe('Georgia, serif')
     expect(screen.queryByRole('menu', { name: 'More formatting' })).toBeNull()
@@ -270,8 +275,16 @@ describe('"Aa" (More formatting)', () => {
     fireEvent.click(within(open()).getByRole('menuitem', { name: 'Size' }))
     menu = screen.getByRole('menu', { name: 'More formatting' })
     expect(within(menu).getByRole('menuitemradio', { name: '24' })).toHaveAttribute('aria-checked', 'true')
-    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Back' }))
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Back to More formatting' }))
     expect(within(screen.getByRole('menu', { name: 'More formatting' })).getByRole('menuitem', { name: 'Size' })).toBeTruthy()
+  }, 60000)
+
+  // Simplify pass 2 (Review focus 5): the shared second-view contract, on the editor's own "Aa".
+  it('Font meets the shared second-view contract: Back, Left and Escape return to Font; a second Escape closes', async () => {
+    await mount()
+    await expectSecondView({
+      openMenu: open, parentRowName: 'Font', childRowNames: FONT_OPTIONS.map((o) => o.label), trigger: aa,
+    })
   }, 60000)
 
   it('Attach a file presses the same file input as the row\'s Attach a file', async () => {

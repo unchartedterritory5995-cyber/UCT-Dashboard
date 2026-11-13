@@ -17,6 +17,11 @@ export function useMenuButton() {
   const menuRef = useRef(null)
   // Which item an ArrowDown / ArrowUp on the trigger asked for; read once, when the menu opens.
   const wantLast = useRef(false)
+  // Simplify pass 2 (C1-C3): the open SECOND VIEW, the key of the row whose `children` replace the menu's rows (MenuRows),
+  // or null. Lifted from the "Aa" menu's Font and Size lists (NoteFormatMenu.jsx), which now run this one. `subFrom` is
+  // the row to put focus back on when the view closes.
+  const [sub, setSub] = useState(null)
+  const subFrom = useRef(null)
 
   // Final fix (C3): the room from the open menu's top to the foot of the window, as `--menu-room` on the menu. On a
   // phone the menu's height is held to it, less the floating "+" (NewNoteMenu.module.css), and the rows scroll inside
@@ -46,6 +51,19 @@ export function useMenuButton() {
     return () => document.removeEventListener('pointerdown', away)
   }, [open])
 
+  // A closed menu always reopens on its first view.
+  useEffect(() => { if (!open) { setSub(null); subFrom.current = null } }, [open])
+  // A second view takes focus to its first child (after "Back"; "Back" itself when every child is disabled). Closing it
+  // puts focus back on the row that opened it.
+  useEffect(() => {
+    const el = menuRef.current
+    if (!el) return
+    if (sub) { const rows = rowsOf(el); (rows[1] || rows[0])?.focus() }
+    else if (subFrom.current) el.querySelector(`[data-menu-sub="${subFrom.current}"]`)?.focus()
+  }, [sub])
+  const openSub = (key) => { subFrom.current = key; setSub(key) }
+  const back = () => setSub(null)
+
   const close = () => { setOpen(false); triggerRef.current?.focus() }
   // ArrowDown / ArrowUp on the trigger open the menu on its first / last item (the menu button pattern);
   // on an already-open menu they just move focus into it.
@@ -69,7 +87,10 @@ export function useMenuButton() {
   const onMenuKey = (e) => {
     const list = rowsOf(menuRef.current)
     const i = list.indexOf(document.activeElement)
-    if (e.key === 'Escape') { e.preventDefault(); close() }
+    // In a second view Escape and Left go back to the first view; Right on a row that opens one opens it.
+    if (sub && (e.key === 'Escape' || e.key === 'ArrowLeft')) { e.preventDefault(); e.stopPropagation(); back() }
+    else if (e.key === 'ArrowRight' && document.activeElement?.dataset?.menuSub) { e.preventDefault(); e.stopPropagation(); document.activeElement.click() }
+    else if (e.key === 'Escape') { e.preventDefault(); close() }
     else if (e.key === 'ArrowDown') { e.preventDefault(); list[(i + 1) % list.length]?.focus() }
     else if (e.key === 'ArrowUp') { e.preventDefault(); list[(i - 1 + list.length) % list.length]?.focus() }
     // An open menu keeps Left/Right/Home/End to itself, in every form. The list's triggers sit in a
@@ -90,6 +111,9 @@ export function useMenuButton() {
   return {
     open,
     run,
+    sub,
+    openSub,
+    back,
     triggerProps: {
       ref: triggerRef,
       'aria-haspopup': 'menu',
@@ -101,6 +125,7 @@ export function useMenuButton() {
   }
 }
 const ROW = '[role="menuitem"], [role="menuitemradio"]'
+const icon = (name) => <UIcon name={name} size={14} gold={false} />
 // Tier 1b fix round 1 (review Important 4): a row with NO BOX (the list's phone-only ⋯ rows on a desktop) is not a
 // stop -- focusing it is a no-op that left the menu open with focus nowhere useful. Where NOTHING has a box (a test
 // environment with no layout) every row counts: the same rule as lib/useToolbarRoving.js.
@@ -112,16 +137,42 @@ function rowsOf(menuEl) {
   return shown.length ? shown : all
 }
 
-/** The rows of a `useMenuButton` menu. `items`: {key, label, icon?, run, checked?, separator?, className?, disabled?}. A row whose
- *  `checked` is a boolean is a `menuitemradio` (the View menu's modes); `separator: true` draws a rule.
+/** The rows of a `useMenuButton` menu. `items`: {key, label, icon?, run, checked?, current?, separator?, className?,
+ *  disabled?, children?, childLabel?}. A row whose `checked` is a boolean is a `menuitemradio` (the View menu's modes);
+ *  `current` marks a plain row as holding the mode in use (aria-current); `separator: true` draws a rule.
  *  Notebook simplify, Task 3: `{key, group, items, heading?, className?}` is a named role="group" of rows (the View
  *  menu's "Show as" under List, the New menu's "Reviews"); `heading: true` also draws its name, set apart by a rule.
  *  Its rows are still the menu's rows, so the menu's Up and Down reach them.
  *  Go-live wave 1: `render(rowProps, content)` lets the caller draw a row (or a group's box) itself, from the props and
  *  content MenuRows would have used. It exists for walkthrough anchors: a `data-tour` is a LITERAL attribute in the
  *  file its tour step names (onboarding/tourAnchors.test.js reads it by AST and refuses an expression), so the caller
- *  writes `<button {...rowProps} data-tour="...">{content}</button>` in its own file. */
-export function MenuRows({ menu, items }) {
+ *  writes `<button {...rowProps} data-tour="...">{content}</button>` in its own file.
+ *  Simplify pass 2 (C1-C3): a row with `children` (Items) opens a SECOND VIEW: pressing it (Enter, a click or Right)
+ *  replaces the rows with "Back" (named "Back to {label}", `label` being the menu's own name) and the children, in a
+ *  group named `childLabel` (default: the row's label), inside the SAME role="menu" element -- no nested popup, so the
+ *  menu's height cap and keyboard stay as they are. Back, Escape or Left return to the first view with focus on that
+ *  row; Escape there closes the menu. The "Aa" menu's Font and Size lists were the first; they run on this now. */
+export function MenuRows({ menu, items, label = '' }) {
+  const parent = menu.sub && findSub(items, menu.sub)
+  if (!parent) return rowsFor(menu, items)
+  return (
+    <>
+      <button type="button" role="menuitem" className={styles.item} aria-label={`Back to ${label}`} onClick={menu.back}>
+        {icon('chevronLeft')} Back
+      </button>
+      <div role="separator" className={styles.separator} />
+      <div role="group" aria-label={parent.childLabel || parent.label} className={styles.subGroup}>{rowsFor(menu, parent.children)}</div>
+    </>
+  )
+}
+function findSub(items, key) {
+  for (const it of items) {
+    const hit = it.key === key && it.children ? it : it.items && findSub(it.items, key)
+    if (hit) return hit
+  }
+  return null
+}
+function rowsFor(menu, items) {
   return items.map((it) => {
     if (it.separator) return <div key={it.key} role="separator" className={styles.separator} />
     if (it.group) {
@@ -131,23 +182,33 @@ export function MenuRows({ menu, items }) {
       const groupContent = (
         <>
           {it.heading && <div className={styles.groupLabel} aria-hidden="true">{it.group}</div>}
-          <MenuRows menu={menu} items={it.items} />
+          {rowsFor(menu, it.items)}
         </>
       )
       if (it.render) return <Fragment key={it.key}>{it.render(groupProps, groupContent)}</Fragment>
       return <div key={it.key} {...groupProps}>{groupContent}</div>
     }
     const radio = typeof it.checked === 'boolean'
+    const sub = Boolean(it.children)
     const rowProps = {
       type: 'button',
       role: radio ? 'menuitemradio' : 'menuitem',
       'aria-checked': radio ? it.checked : undefined,
-      className: `${styles.item} ${it.checked ? styles.itemChecked : ''} ${it.className || ''}`,
-      onClick: menu.run(it.run),
+      // `current`: the row holds the mode in use without being a radio (the View menu's "More views" while Graph is on).
+      className: `${styles.item} ${it.checked || it.current ? styles.itemChecked : ''} ${it.className || ''}`,
+      'aria-current': it.current || undefined,
+      onClick: sub ? () => menu.openSub(it.key) : menu.run(it.run),
       // Go-live wave 1 (D4): a row whose door is busy (a review drafting) cannot be pressed again meanwhile.
       disabled: it.disabled || undefined,
+      'aria-haspopup': sub ? 'menu' : undefined,
+      'data-menu-sub': sub ? it.key : undefined,
     }
-    const content = <>{it.icon && <UIcon name={it.icon} size={14} gold={false} />} {it.label}</>
+    const content = (
+      <>
+        {it.icon && icon(it.icon)} {sub ? <span className={styles.subLabel}>{it.label}</span> : it.label}
+        {sub && icon('chevronRight')}
+      </>
+    )
     if (it.render) return <Fragment key={it.key}>{it.render(rowProps, content)}</Fragment>
     return <button key={it.key} {...rowProps}>{content}</button>
   })

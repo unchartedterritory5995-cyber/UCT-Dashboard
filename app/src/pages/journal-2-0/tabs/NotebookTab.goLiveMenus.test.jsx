@@ -1,5 +1,5 @@
 // Go-live wave 1, the notes list's menus:
-//   C1/C2  the New menu's Voice note and Reviews rows carry the walkthroughs' anchors; on a phone ⋯ carries both (the
+//   C1/C2  the New menu's Voice note and "Draft a review" rows (pass 2: the reviews are its second view) carry the walkthroughs' anchors; on a phone ⋯ carries both (the
 //          "+ New" group is not drawn there), with their own anchors;
 //   D2     "Ask your Notebook" in ⋯ is a TOUCH-tier row (the toolbar's "AI" is desktop-only);
 //   D3     a failed saved-views read says so in the View menu's Saved views place;
@@ -27,6 +27,7 @@ import { AUTH, installFetch, Providers } from '../a11y/fixtures'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
 import { parseRules, declarations } from '../a11y/cssAudit'
 import NotebookTab from './NotebookTab'
+import { expectSecondView } from '../lib/testing/menuSecondView.testkit'
 import styles from './NotebookTab.module.css'
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
@@ -41,33 +42,63 @@ async function renderTab(routes = [], route = '/journal/notebook?view=all') {
 const bar = () => screen.getByRole('toolbar', { name: 'Notes list tools' })
 const openNew = () => { fireEvent.click(within(bar()).getByRole('button', { name: 'More ways to start a note' })); return screen.getByRole('menu', { name: 'Start a note' }) }
 const openMore = () => { fireEvent.click(within(bar()).getByRole('button', { name: 'More notebook actions' })); return screen.getByRole('menu', { name: 'More notebook actions' }) }
+// Simplify pass 2 (C2): the reviews are the second view of "Draft a review", in the same menu.
+const openReviews = (menu) => { fireEvent.click(within(menu).getByRole('menuitem', { name: 'Draft a review' })); return menu }
+const REVIEWS = ["Today's recap", "This week's review", "This month's review"]
 
 describe('C1/C2: the walkthrough anchors on the New menu, and the phone rows in ⋯', () => {
   beforeEach(() => latchNotebookFlags({ notebook_voice_notes_enabled: true, notebook_review_drafts_enabled: true }))
 
-  it('the New menu: Voice note and the three Reviews rows carry their anchors', async () => {
+  it('the New menu: Voice note, then "Draft a review" (its own anchor) whose second view holds the reviews', async () => {
     await renderTab()
     const menu = openNew()
     expect(within(menu).getByRole('menuitem', { name: 'Voice note' })).toHaveAttribute('data-tour', 'new-note-voice')
+    // one row for the three, last in the menu; no "Reviews" heading any more
+    const names = within(menu).getAllByRole('menuitem').map((el) => el.textContent.trim())
+    expect(names.at(-1)).toBe('Draft a review')
+    expect(within(menu).queryByRole('group', { name: 'Reviews' })).toBeNull()
+    for (const name of REVIEWS) expect(within(menu).queryByRole('menuitem', { name })).toBeNull()
+    expect(within(menu).getByRole('menuitem', { name: 'Draft a review' })).toHaveAttribute('data-tour', 'review-drafts-open')
+    openReviews(menu)
     expect(within(menu).getByRole('menuitem', { name: "Today's recap" })).toHaveAttribute('data-tour', 'review-drafts-daily')
     expect(within(menu).getByRole('menuitem', { name: "This week's review" })).toHaveAttribute('data-tour', 'review-drafts-weekly')
-    expect(within(menu).getByRole('menuitem', { name: "This month's review" })).toHaveAttribute('data-tour', 'review-drafts-monthly')
+    expect(within(menu).getByRole('menuitem', { name: "This month's review" })).not.toHaveAttribute('data-tour')
   })
 
-  it('⋯: a phone-only Voice note row and a phone-only Reviews group, each with its own anchor, under Import', async () => {
+  it('the New menu\'s "Draft a review" meets the shared second-view contract (Review focus 5)', async () => {
+    await renderTab()
+    await expectSecondView({
+      openMenu: openNew, parentRowName: 'Draft a review', childRowNames: REVIEWS,
+      trigger: () => within(bar()).getByRole('button', { name: 'More ways to start a note' }),
+    })
+  })
+
+  it('⋯: a phone-only Voice note row and a phone-only "Draft a review" row, each with its own anchor, under Import', async () => {
     await renderTab()
     const menu = openMore()
     const voice = within(menu).getByRole('menuitem', { name: 'Voice note' })
     expect(voice).toHaveAttribute('data-tour', 'new-note-voice-phone')
     expect(voice.className).toContain(styles.phoneOnlyItem)
-    const reviews = within(menu).getByRole('group', { name: 'Reviews' })
+    expect(within(menu).queryByRole('group', { name: 'Reviews' })).toBeNull()
+    const reviews = within(menu).getByRole('menuitem', { name: 'Draft a review' })
     expect(reviews).toHaveAttribute('data-tour', 'review-drafts-phone')
     expect(reviews.className).toContain(styles.phoneOnlyItem)
-    // the group's rows carry no anchor (each anchor is written once, on the New menu's rows)
-    for (const row of within(reviews).getAllByRole('menuitem')) expect(row).not.toHaveAttribute('data-tour')
-    // high in the menu: right after Import
+    // high in the menu: right after Import, then Draft a review
     const names = within(menu).getAllByRole('menuitem').map((el) => el.textContent.trim())
     expect(names.indexOf('Voice note')).toBe(names.indexOf('Import') + 1)
+    expect(names.indexOf('Draft a review')).toBe(names.indexOf('Voice note') + 1)
+    // its second view carries the same reviews (and their anchors, written once: the two menus are never open together)
+    openReviews(menu)
+    expect(within(menu).getByRole('menuitem', { name: "Today's recap" })).toHaveAttribute('data-tour', 'review-drafts-daily')
+    expect(document.querySelectorAll('[data-tour="review-drafts-daily"]')).toHaveLength(1)
+  })
+
+  it('⋯\'s "Draft a review" meets the shared second-view contract (Review focus 5)', async () => {
+    await renderTab()
+    await expectSecondView({
+      openMenu: openMore, parentRowName: 'Draft a review', childRowNames: REVIEWS,
+      trigger: () => within(bar()).getByRole('button', { name: 'More notebook actions' }),
+    })
   })
 
   // Final fix (C5): the phone row says "Today's note", the words of the toolbar button and the first run.
@@ -79,11 +110,11 @@ describe('C1/C2: the walkthrough anchors on the New menu, and the phone rows in 
     expect(within(menu).queryByRole('menuitem', { name: 'Today' })).toBeNull()
   })
 
-  it('switches off: no voice row and no Reviews group in either menu', async () => {
+  it('switches off: no voice row and no "Draft a review" row in either menu', async () => {
     __resetNotebookFlags()
     latchNotebookFlags({})
     await renderTab()
-    expect(within(openMore()).queryByRole('group', { name: 'Reviews' })).toBeNull()
+    expect(within(openMore()).queryByRole('menuitem', { name: 'Draft a review' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Voice note' })).toBeNull()
   })
 })
@@ -186,38 +217,39 @@ describe('D4: drafting a review from the New menu', () => {
     // Fix round 1 (review 4a): fake timers from the start, so the 8 s auto-dismiss is really reached below.
     vi.useFakeTimers({ shouldAdvanceTime: true })
     await renderTab()
-    fireEvent.click(within(openNew()).getByRole('menuitem', { name: "Today's recap" }))
+    fireEvent.click(within(openReviews(openNew())).getByRole('menuitem', { name: "Today's recap" }))
     expect(await screen.findByText("Drafting today's recap…")).toBeInTheDocument()
     await waitFor(() => expect(draft.calls).toEqual([{ period: 'daily', accountId: 'acct-9' }]))
-    // pressed again meanwhile: every Reviews row is disabled, and nothing new starts
-    const menu = openNew()
-    for (const name of ["Today's recap", "This week's review", "This month's review"]) {
+    // pressed again meanwhile: every review row is disabled, and nothing new starts
+    const menu = openReviews(openNew())
+    for (const name of REVIEWS) {
       expect(within(menu).getByRole('menuitem', { name })).toBeDisabled()
     }
     fireEvent.click(within(menu).getByRole('menuitem', { name: "This week's review" }))
     expect(draft.calls).toHaveLength(1)
-    // Fix round 1 (review 4b): the disabled rows are not stops. Down from Import (the last enabled row) wraps to the
-    // first row instead of sticking on a disabled one, and End lands on Import.
-    const importRow = within(menu).getByRole('menuitem', { name: 'Import' })
-    importRow.focus()
-    fireEvent.keyDown(importRow, { key: 'ArrowDown' })
-    expect(document.activeElement).toBe(within(menu).getAllByRole('menuitem')[0])
+    // Fix round 1 (review 4b): the disabled rows are not stops. With every review disabled, focus waits on Back (pass 2:
+    // the reviews are a second view), and Down and End stay there instead of sticking on a disabled row.
+    const backRow = within(menu).getByRole('menuitem', { name: 'Back to Start a note' })
+    await waitFor(() => expect(document.activeElement).toBe(backRow))
+    fireEvent.keyDown(backRow, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(backRow)
     fireEvent.keyDown(document.activeElement, { key: 'End' })
-    expect(document.activeElement).toBe(importRow)
+    expect(document.activeElement).toBe(backRow)
+    fireEvent.keyDown(menu, { key: 'Escape' })
     fireEvent.keyDown(menu, { key: 'Escape' })
     // the busy line does not time out on its own while the draft runs: well past the 8 s other notices get
     await act(async () => { await vi.advanceTimersByTimeAsync(9000) })
     expect(screen.getByText("Drafting today's recap…")).toBeInTheDocument()
     await act(async () => { draft.release() })
     await waitFor(() => expect(screen.queryByText("Drafting today's recap…")).toBeNull())
-    expect(within(openNew()).getByRole('menuitem', { name: "Today's recap" })).not.toBeDisabled()
+    expect(within(openReviews(openNew())).getByRole('menuitem', { name: "Today's recap" })).not.toBeDisabled()
   })
 
   it('CONTROL: the sentence a landed draft says (not busy) does leave after 8 s, so the advance above is real', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     draft.notice = 'Saved in your Daily folder.'
     await renderTab()
-    fireEvent.click(within(openNew()).getByRole('menuitem', { name: "Today's recap" }))
+    fireEvent.click(within(openReviews(openNew())).getByRole('menuitem', { name: "Today's recap" }))
     await screen.findByText("Drafting today's recap…")
     await waitFor(() => expect(draft.release).toBeTypeOf('function'))
     await act(async () => { draft.release() })

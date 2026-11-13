@@ -3,16 +3,17 @@
 // ⛔ Every sentence the member reads is asserted as RENDERED TEXT (the host below renders
 // `onMessage` into the DOM the way the editor's chrome line does), never as a spy call alone.
 // ⛔ Every assertion on `fetch` reads `fetch.mock.calls` OUTSIDE any mock callback.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import NoteExportControls, { UNSENT_BEFORE_EXPORT } from './NoteExportControls'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import NoteExportControls, { UNSENT_BEFORE_EXPORT, exportMenuModule } from './NoteExportControls'
 import { exportNoteAsPng } from '../../lib/exportNote'
 import { EXPORT_FORMATS } from './export/exportFormats'
 import { featureCalls, telemetryBodies } from '../../lib/testing/telemetryFetch'
 import { printNote } from '../../lib/exportNote'
 import NoteMoreMenu from './NoteMoreMenu'
 import { NOTEBOOK_DOORS, openNotebookDoor } from '../../lib/notebookDoors'
+import { expectSecondView } from '../../lib/testing/menuSecondView.testkit'
 
 vi.mock('../../lib/exportNote', () => ({
   exportNoteAsPng: vi.fn(async () => ({ ok: true })),
@@ -54,6 +55,9 @@ beforeEach(() => {
   global.fetch = vi.fn()
 })
 afterEach(() => { vi.restoreAllMocks() })
+// Simplify pass 2: the menu is a chunk of its own (export/NoteExportMenu.jsx), held once fetched. Every case below
+// presses Export with it in hand, as a member does after the editor's idle fetch; the cold press has its own cases.
+beforeAll(async () => { await exportMenuModule.warm() })
 
 const trigger = () => screen.getByRole('button', { name: /^export/i })
 // Notebook simplify, Task 4: PNG and Print are the Export menu's first two items, above the four formats.
@@ -422,10 +426,61 @@ describe('NoteExportControls: the palette door opens the Export menu (lane KEYS3
     expect(took).toBe(true)
     expect(panel.hidden).toBe(false)
     const items = await screen.findAllByRole('menuitem')
-    // Notebook simplify, Task 4: PNG and Print first, then the formats; focus is on the first item, where pressing
-    // Export puts it.
-    expect(items).toHaveLength(SCREEN_ITEMS.length + EXPORT_FORMATS.length)
-    await waitFor(() => expect(document.activeElement).toBe(items[0]))
+    // Notebook simplify, Task 4: PNG and Print first, then the formats; focus is on the first FORMAT, where pressing
+    // Export puts it. Simplify pass 2 (C3): in the panel they are its second view, so "Back" comes first.
+    expect(items.map((i) => i.getAttribute('aria-label')))
+      .toEqual(['Back to More note actions', ...SCREEN_ITEMS, ...EXPORT_FORMATS.map((f) => f.menuLabel)])
+    await waitFor(() => expect(document.activeElement).toBe(items[1]))
+  })
+
+  // Simplify pass 2 (C3): one "Export" row in the panel; its formats are a second view of the panel, held to the same
+  // contract as the menu engine's second views by the same kit (Review focus 5).
+  const morePanel = () => document.querySelector('[role="group"][aria-label="More note actions"]')
+  const openPanel = () => { fireEvent.click(screen.getByRole('button', { name: 'More note actions' })); return morePanel() }
+  const FORMAT_NAMES = [...SCREEN_ITEMS, ...EXPORT_FORMATS.map((f) => f.menuLabel)]
+
+  it('C3: the panel shows ONE Export row; its formats swap in for the panel content, in today\'s order', async () => {
+    render(<InMore />)
+    const panel = openPanel()
+    expect(within(panel).queryAllByRole('menuitem')).toHaveLength(0)
+    fireEvent.click(within(panel).getByRole('button', { name: /^Export/ }))
+    // the panel's other rows are hidden (kept, not unmounted), and the formats are drawn INSIDE the panel
+    expect(within(panel).getByRole('button', { name: 'History', hidden: true }).closest('[hidden]')).not.toBeNull()
+    const menu = within(panel).getByRole('menu', { name: 'Export this note as' })
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.getAttribute('aria-label')))
+      .toEqual(['Back to More note actions', ...FORMAT_NAMES])
+    await waitFor(() => expect(document.activeElement).toBe(within(menu).getByRole('menuitem', { name: 'PNG' })))
+  })
+
+  it('C3: Export meets the shared second-view contract (Back, Left, Escape; a second Escape closes the panel)', async () => {
+    render(<InMore />)
+    await expectSecondView({
+      openMenu: openPanel, parentRowName: 'Export', childRowNames: FORMAT_NAMES,
+      trigger: () => screen.getByRole('button', { name: 'More note actions' }),
+    })
+  })
+
+  it('C3: a format picked from the panel still downloads, and focus comes back to Export', async () => {
+    global.fetch.mockResolvedValueOnce(fileResponse('attachment; filename="Plan.json"'))
+    render(<InMore />)
+    const panel = openPanel()
+    fireEvent.click(within(panel).getByRole('button', { name: /^Export/ }))
+    fireEvent.click(within(panel).getByRole('menuitem', { name: 'JSON' }))
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('downloaded'))
+    expect(global.fetch.mock.calls[0][0]).toContain('format=json')
+    expect(within(panel).queryByRole('menu')).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(within(panel).getByRole('button', { name: /^Export/ })))
+  })
+
+  it('C3: a closed panel reopens on its first view', () => {
+    render(<InMore />)
+    const panel = openPanel()
+    fireEvent.click(within(panel).getByRole('button', { name: /^Export/ }))
+    fireEvent.mouseDown(document.body)
+    expect(panel.hidden).toBe(true)
+    openPanel()
+    expect(within(panel).queryByRole('menu')).toBeNull()
+    expect(within(panel).getByRole('button', { name: 'History' })).toBeTruthy()
   })
 
   it('outside a More panel the door still opens the menu (the controls alone)', async () => {
@@ -442,5 +497,27 @@ describe('NoteExportControls: the palette door opens the Export menu (lane KEYS3
     expect(took).toBe(false)
     expect(screen.queryAllByRole('menuitem')).toHaveLength(0)
     expect(document.querySelector('[role="group"][aria-label="More note actions"]').hidden).toBe(true)
+  })
+})
+
+// Simplify pass 2 (first-open bytes): the menu's rows, keys and outside press are a chunk of their own, fetched on idle
+// into a module slot (lib/heldModule.js). A press before it lands opens the menu when it lands; a fetch that fails says
+// so on the chrome line and opens nothing.
+describe('NoteExportControls: the menu is a held chunk', () => {
+  afterEach(async () => { exportMenuModule.resetForTests(); await exportMenuModule.warm() })
+
+  it('a cold press opens the menu once the chunk is in hand, focus on the first format', async () => {
+    exportMenuModule.resetForTests()
+    render(<Host />)
+    fireEvent.click(trigger())
+    const items = await screen.findAllByRole('menuitem')
+    expect(items[0]).toHaveAttribute('aria-label', 'PNG')
+    await waitFor(() => expect(document.activeElement).toBe(items[0]))
+  })
+
+  it('CONTROL: with the chunk in hand the press opens it in the same commit (no wait)', () => {
+    render(<Host />)
+    fireEvent.click(trigger())
+    expect(screen.getByRole('menu', { name: 'Export this note as' })).toBeTruthy()
   })
 })

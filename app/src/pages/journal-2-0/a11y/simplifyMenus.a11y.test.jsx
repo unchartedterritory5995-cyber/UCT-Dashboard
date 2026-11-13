@@ -12,6 +12,9 @@
 //   * editor-find-stand-in  -- the find stand-in after a failed fetch: the field, "Find could not be loaded.", Try
 //                              again and Close;
 //   * notebook-ai-panel-failed -- the AI section's "Ask could not be loaded." with Try again and Close.
+// Simplify pass 2 (C1-C3): the second views, drawn OPEN:
+//   * menu-second-view      -- the menu engine's second view (the View menu's "More views": Back, Graph, Timeline);
+//   * note-more-export-view -- the note's More panel with Export's formats swapped in (Back and the six formats).
 // Each recipe proves its state rendered before axe runs.
 import { describe, beforeEach, afterEach, expect } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
@@ -26,6 +29,8 @@ import HomeNotes from '../components/notebook/TodayHomeNotes'
 import todayStyles from '../components/notebook/TodayHome.module.css'
 import { editorToolLoaders, findBarModule, FindBarSlot, FIND_UNAVAILABLE } from '../components/notebook/EditorToolSlots'
 import NotebookAiPanelSlot, { aiPanelLoaders, aiPanelModule, ASK_UNAVAILABLE } from '../components/notebook/NotebookAiPanelSlot'
+import NoteMoreMenu from '../components/notebook/NoteMoreMenu'
+import NoteExportControls, { exportMenuModule } from '../components/notebook/NoteExportControls'
 
 const VIEWS = [
   { id: 'v1', name: 'Active theses', viewType: 'list' },
@@ -43,6 +48,23 @@ function ViewMenu() {
             { key: 'table', label: 'Table', checked: false, run: () => {} }]} />
           <SavedViewsMenuGroup menu={menu} views={VIEWS} activeViewId="v1" onSelectView={() => {}}
             onRenameView={() => {}} onDeleteView={() => {}} />
+        </div>
+      )}
+    </main>
+  )
+}
+
+function MoreViewsMenu() {
+  const menu = useMenuButton()
+  return (
+    <main>
+      <button {...menu.triggerProps} type="button" className="btn btn-secondary btn-sm">View: Graph</button>
+      {menu.open && (
+        <div {...menu.menuProps} aria-label="View">
+          <MenuRows menu={menu} label="View" items={[{ key: 'list', label: 'List', icon: 'rows', checked: false, run: () => {} },
+            { key: 'more-views', label: 'More views', icon: 'more', current: true, children: [
+              { key: 'graph', label: 'Graph', icon: 'graph', checked: true, run: () => {} },
+              { key: 'timeline', label: 'Timeline', icon: 'clock', checked: false, run: () => {} }] }]} />
         </div>
       )}
     </main>
@@ -77,6 +99,34 @@ describe('the simplification\'s own menus and panel, open', () => {
     fireEvent.click(screen.getByRole('button', { name: MORE_FORMATTING }))
     fireEvent.click(within(screen.getByRole('menu', { name: MORE_FORMATTING })).getByRole('menuitem', { name: 'Font' }))
     expect(within(screen.getByRole('menu', { name: MORE_FORMATTING })).getAllByRole('menuitemradio').length).toBeGreaterThan(1)
+    return { root: container }
+  })
+
+  axeSurface('menu-second-view', async () => {
+    const { container } = render(<MoreViewsMenu />)
+    fireEvent.click(screen.getByRole('button', { name: 'View: Graph' }))
+    const menu = screen.getByRole('menu', { name: 'View' })
+    expect(within(menu).getByRole('menuitem', { name: 'More views' })).toHaveAttribute('aria-current', 'true')
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'More views' }))
+    expect(within(menu).getByRole('menuitem', { name: 'Back to View' })).toBeTruthy()
+    expect(within(within(menu).getByRole('group', { name: 'More views' })).getAllByRole('menuitemradio')).toHaveLength(2)
+    return { root: container }
+  })
+
+  axeSurface('note-more-export-view', async () => {
+    await exportMenuModule.warm()
+    const { container } = render(
+      <main>
+        <NoteMoreMenu buttonClassName="btn">
+          <button type="button" className="btn">History</button>
+          <NoteExportControls noteId="n1" title="Plan" columnRef={{ current: null }} onMessage={() => {}} />
+        </NoteMoreMenu>
+      </main>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Export/ }))
+    const menu = screen.getByRole('menu', { name: 'Export this note as' })
+    expect(within(menu).getAllByRole('menuitem')).toHaveLength(7)   // Back and the six formats
     return { root: container }
   })
 
