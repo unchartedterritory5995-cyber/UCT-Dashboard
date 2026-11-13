@@ -136,7 +136,22 @@ export function keptCharts(words, host) {
 const ADDITIVE = /\b(?:new|another|more|additional|extra|as well|too|also|in addition|besides?|alongside|on top of (?:those|these|them|my)|next to (?:them|those|these|my (?:charts?|other)))\b/i
 // ⛔ ADD NEVER REPLACES (hotfix 2026-11-13, AUDIT): an ADD verb asks for more charts — it never changes one already there,
 // whatever position the words give (only replace words — replace / instead / swap out / change … to — permit that)
-const ADD_VERB = /\b(?:add|adds|added|adding|include|includes|included|including)\b/i
+const ADD_VERB = /\b(?:add|adds|added|adding|include|includes|included|including)\b/gi
+// an ADD whose object is CHARTS — tickers, or chart / panel / cell, in its own clause ("add AAPL and MSFT", "add two charts", "I want
+// AAPL added") — never an indicator or a drawing ("…, then add rsi to all of them": a step's own change to the charts it made)
+const CLAUSE_END = /[.;,!?]|\bthen\b|\band (?:make|put|set|change|switch|draw|turn|give)\b/i
+export function addsCharts(words) {
+  const t = String(words || '')
+  for (const m of t.matchAll(ADD_VERB)) {
+    const after = t.slice(m.index + m[0].length)
+    const end = after.search(CLAUSE_END)
+    // the object comes BEFORE only a passive "added" / "included" ("I want AAPL added"); otherwise it follows the verb
+    const before = /^(?:added|included)$/i.test(m[0]) ? t.slice(Math.max(0, m.index - 40), m.index).split(CLAUSE_END).pop().split(/\band\b(?=[^]*$)/i).pop() : ''
+    const clause = `${before} ${end < 0 ? after : after.slice(0, end)}`
+    if (/\b(?:charts?|panels?|cells?)\b/i.test(clause) || tickersIn(clause).length) return true
+  }
+  return false
+}
 const ADD_REST = /\badd(?:ing)?\b[^.;!?]*\b(?:other|others|remaining|rest)\b|\b(?:as|for|in|into) the (?:other|remaining|empty|new)\b/i
 const REPLACE = /\b(?:replace|replacing|replaced|instead|swap(?:ping)? out|get rid of|switch (?:out|over)|change (?:the |my |that |this |both |all )?(?:\w+ )?(?:chart|charts|one|ones|symbol|ticker)s?\b(?!\s+layout)|(?:change|switch|turn|flip) (?:the |my |that |this )?(?:\w+ )?(?:chart |one )?(?:to|into) \$?[A-Za-z]{1,5}\b)/i
 const REMOVAL = /\b(?:remove|removing|delete|deleting|close|closing|get rid|replace|replacing|clear|clean(?:ing)? up|tidy|drop|dropping|only|just|fewer|less|reduce|down to|instead|swap(?:ping)? out|single|one chart)\b/i
@@ -149,7 +164,7 @@ const named = (words, e, host) => {
   for (const pm of String(words || '').matchAll(POS)) if (matchPosition([{ position: e.position }], normPos(pm[1])).length) return true
   return false
 }
-export const isAdditive = (words) => (ADDITIVE.test(words) || ADD_REST.test(words) || ADD_VERB.test(words)) && !REPLACE.test(words)
+export const isAdditive = (words) => (ADDITIVE.test(words) || ADD_REST.test(words) || addsCharts(words)) && !REPLACE.test(words)
 // "just add …" / "only add …" limit what is ADDED — never a permission to remove
 const removalWords = (w) => String(w || '').replace(/\b(?:just|only)\s+(?=(?:add|adds|added|adding|put|include|includes|included|including)\b)/gi, ' ')
 export function requestedPanels(words) {
@@ -182,7 +197,7 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
     // ADDITIVE: exempt only a chart the words address by its position
     if (isAdditive(w)) {
       // a chart addressed by position is exempt for "too / as well" — never for an ADD verb (add = new charts)
-      const bad = effects.filter(e => ADD_VERB.test(w) || !named(w, e, host))
+      const bad = effects.filter(e => addsCharts(w) || !named(w, e, host))
       if (bad.length) return `I didn’t change anything: you asked for more charts, but this would have changed the ones you have (${listOf([...new Set(bad.map(said))])}). I only replace a chart when you say which one — ask to add them as new charts, or say which chart to replace.`
     }
     // REMOVAL: never at once without the words for it
