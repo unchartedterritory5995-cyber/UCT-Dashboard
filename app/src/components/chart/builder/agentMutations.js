@@ -42,6 +42,9 @@ import { isInstanceTombstone } from '../instanceShape'
 import { STUDIO_PREVIEW_DEF_ID } from './studio/chartPreview'
 import { instancesOf, instanceFingerprint } from './agentSeams'
 import { canon, same, changeRecord, holds, revertRecord, setAt, clone } from '../engine/settingsRecord'
+// ⭐ Agent Charts family (Volume Profile, 2026-11-12, owner-approved): the carved-out row's own writer + field table (see the end of this file)
+import { listAllIndicators, applyRowPatch } from '../indicatorRegistry'
+import { CARVED_OUT_ROWS } from '../indicatorCatalog'
 
 export const MUTATION_CONTRACT = 'uct.indicators.mutation/1'
 /** ⭐ I-1…I-8 (2026-10-27, ADDITIVE — the first four ops are unchanged): presentation and
@@ -1194,3 +1197,89 @@ export function planAcrossCharts(charts, request) {
 }
 
 export { inputSpecOf }
+
+// ─── ⭐ VOLUME PROFILE — the carved-out canvas overlay (Agent Charts family, 2026-11-12, owner-approved, ADDITIVE) ───────────
+//
+// `volumeProfile` is `nativeRegistry.CARVED_OUT_INDICATOR_KEYS`' one member: NO definition, NO instance, and none is ever made
+// here. Its settings slice `cs.indicators.volumeProfile` IS its existence (chartDefaults' ⛔ comment), and StockChart's canvas
+// effect reads exactly that slice.
+//
+// ⛔ NO SECOND WRITER. The write is Chart Settings → Indicators' own row writer, `indicatorRegistry.applyRowPatch`, over the
+// carved-out row `listAllIndicators` lists (the modal's `setRow`): the row's toggle patches `{enabled}` — the same shape the
+// library's `toggledRow` makes for a carved-out row — and its Bins / Color / Point of control fields patch `{[key]: value}`.
+// ⛔ THE BOUNDS ARE THE ROW'S OWN (`CARVED_OUT_ROWS` fields: bins 8–50, step 1). A value outside them is REFUSED, never
+// clamped. A colour is what the canvas can paint: hex (#rgb / #rrggbb / #rrggbbaa, the colour picker's) or rgb()/rgba() (the
+// defaults); a theme token is not (a 2D context cannot resolve one).
+// ⛔ ONE LEAF: the write may change only `indicators.volumeProfile.*` — anything else is `writer-refused`.
+export const VOLUME_PROFILE_KEY = 'volumeProfile'
+export const VOLUME_PROFILE_REASONS = Object.freeze({ BAD_VALUE: 'bad-value', NO_CHANGE: 'no-change', WRITER_REFUSED: 'writer-refused' })
+const vpCatalogRow = () => CARVED_OUT_ROWS.find((r) => r.id === VOLUME_PROFILE_KEY)
+const VP_HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i
+const VP_FN = /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+)\s*)?\)$/i
+/** The row's own fields (`{key, label, type, min?, max?, step?}`), as Chart Settings renders them. */
+export function volumeProfileFields() {
+  return vpCatalogRow().fields.map((f) => ({ ...f }))
+}
+/** The Volume Profile as the chart reads it: `{enabled, bins, color, pocColor}` (the stored slice over the shipped defaults). */
+export function volumeProfileOf(cs) {
+  const vp = (mergeChartSettings(cs || null)?.indicators || {})[VOLUME_PROFILE_KEY] || {}
+  return { enabled: vp.enabled === true, bins: vp.bins, color: vp.color, pocColor: vp.pocColor }
+}
+/** Validate a patch against the row's own fields. `{ok:true, patch}` | `{ok:false, reason:'bad-value', key, why, field?}`. */
+export function checkVolumeProfilePatch(patch) {
+  if (!isObj(patch)) return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key: null, why: 'nothing to change' }
+  const fields = new Map(volumeProfileFields().map((f) => [f.key, f]))
+  const out = {}
+  for (const [key, value] of Object.entries(patch)) {
+    if (key === 'enabled') {
+      if (typeof value !== 'boolean') return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key, why: 'it is on or off' }
+      out.enabled = value
+      continue
+    }
+    const f = fields.get(key)
+    if (!f) return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key, why: 'Volume Profile has no such setting' }
+    if (f.type === 'number') {
+      const n = typeof value === 'number' ? value : NaN
+      const whole = f.step === 1
+      if (!Number.isFinite(n) || n < f.min || n > f.max || (whole && !Number.isInteger(n))) {
+        return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key, field: { ...f }, why: `${f.label} is a ${whole ? 'whole number' : 'number'} from ${f.min} to ${f.max}` }
+      }
+      out[key] = n
+    } else if (f.type === 'color') {
+      const s = typeof value === 'string' ? value.trim() : ''
+      if (!(VP_HEX.test(s) || VP_FN.test(s))) return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key, field: { ...f }, why: `${f.label} needs a hex colour such as #2962ff` }
+      out[key] = VP_HEX.test(s) ? s.toLowerCase() : s
+    } else {
+      return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key, why: 'Volume Profile has no such setting' }
+    }
+  }
+  if (!Object.keys(out).length) return { ok: false, reason: VOLUME_PROFILE_REASONS.BAD_VALUE, key: null, why: 'nothing to change' }
+  return { ok: true, patch: out }
+}
+/**
+ * Write a Volume Profile patch through the settings row's own writer.
+ * `{ok:true, cs, before, after, changed}` | `{ok:false, reason, …}` — `no-change` when it already reads that way (nothing written).
+ */
+export function writeVolumeProfile(cs, patch, registry) {
+  const chk = checkVolumeProfilePatch(patch)
+  if (!chk.ok) return chk
+  const before = volumeProfileOf(cs)
+  const changed = Object.keys(chk.patch).filter((k) => before[k] !== chk.patch[k])
+  if (!changed.length) return { ok: false, reason: VOLUME_PROFILE_REASONS.NO_CHANGE, before }
+  const row = listAllIndicators(cs, registry).find((r) => r && r.id === VOLUME_PROFILE_KEY && r.engineOwned === false && r.path && r.path.kind === 'indicator')
+  if (!row) return { ok: false, reason: VOLUME_PROFILE_REASONS.WRITER_REFUSED }
+  const want = Object.fromEntries(changed.map((k) => [k, chk.patch[k]]))
+  const next = applyRowPatch(row, want, cs, registry)
+  if (!next || next === cs) return { ok: false, reason: VOLUME_PROFILE_REASONS.WRITER_REFUSED }
+  // ONE LEAF: everything outside `indicators.volumeProfile` is byte-identical, and the slice reads what was asked
+  const outside = (s) => JSON.stringify({ ...s, preset: null, indicators: { ...((s && s.indicators) || {}), [VOLUME_PROFILE_KEY]: null } })
+  const after = volumeProfileOf(next)
+  if (outside(cs) !== outside(next) || changed.some((k) => after[k] !== want[k])) return { ok: false, reason: VOLUME_PROFILE_REASONS.WRITER_REFUSED }
+  return { ok: true, cs: next, before, after, changed }
+}
+/** Read-back: does the persisted blob's Volume Profile read every value of `want`? */
+export function confirmVolumeProfile(persisted, want) {
+  if (!isObj(want)) return false
+  const now = volumeProfileOf(persisted)
+  return Object.entries(want).every(([k, v]) => now[k] === v)
+}

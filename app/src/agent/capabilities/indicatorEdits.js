@@ -206,6 +206,10 @@ export function settingsPhrase(defId, values) {
   }).join(', ')
 }
 const NOT_ADDABLE = /^(volume ?profile|vpvr|vp|ma|moving average|classic|overlay)$/i
+// Charts family (2026-11-12): Volume Profile is still NOT an Indicator Library add (no definition — the carved-out key), but
+// the Agent now turns it on through its own action, so an indicator.add of it says THAT rather than "Chart Settings"
+const VOLUME_PROFILE_WORDS = /^(volume ?profile|vpvr|vp)$/i
+export const VP_NOT_AN_ADD = 'Volume Profile isn’t added from the Indicator Library — it is the chart’s own overlay. Say “turn on Volume Profile” and I’ll switch it on.'
 
 // ── sentences for every refusal the interface returns (§15.4) ──
 export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
@@ -748,7 +752,7 @@ export function registerIndicatorEditCapabilities() {
     // ⭐ F5: the same add on several charts is proposed once and run once PER CHART (useAgent fan-out)
     fanOut: true,
     summary: 'Add ONE indicator to ONE chart — exactly what the Indicator Library\'s Add to Chart does. Built-in indicators or the member\'s own saved ones; Undo removes it again.',
-    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. '
+    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) are NOT added this way — say they live in Chart Settings. Volume Profile is volumeProfile.set, never this. '
       + 'inputs = null for the indicator\'s defaults, else [{key, value}] with ONLY keys from that row\'s `settings` ("a 20 EMA" → movingAverage, [{key:"period",value:20},{key:"maType",value:"ema"}]; "RSI 7" → rsi, [{key:"period",value:7}]). '
       + 'Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn\'t available; never guess a key. '
       + 'A moving average named by its LENGTH only ("the 9 and 20", "a 50 ma"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member\'s default — say which you used); any other length: ask EMA or SMA.',
@@ -795,6 +799,7 @@ export function registerIndicatorEditCapabilities() {
       return args
     },
     check(st, { defId, inputs }) {
+      if (VOLUME_PROFILE_WORDS.test(String(defId || '').trim())) return VP_NOT_AN_ADD
       if (NOT_ADDABLE.test(String(defId || '').trim())) return refusalSentence({ reason: REASONS.UNSUPPORTED_DEFINITION })
       const ins = inputsOfArgs(inputs)
       if (!ins.ok) return refusalSentence({ reason: REASONS.BAD_INPUT, detail: { why: ins.why } })
