@@ -136,8 +136,9 @@ import {
   withObjectTransparency, isPassCondition,
 } from './objectProgram.js'
 import { wholeTransparency, unpackColor } from '../colorInt.js'
-import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR } from '../runtime/colours.js'
+import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR, fromGradient, packedToObjectHex } from '../runtime/colours.js'
 import { THEME_NAMES } from '../objectTheme.js'
+import { POINT_SIZE_ANCHORS } from '../objectPointSizes.js'
 import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -19248,6 +19249,130 @@ function objectBlockRunsOf(trees, hits, makeResolverRaw) {
   return out
 }
 
+/* ─── ⭐⭐ ENGINE 52 — THE STATIC READER'S VALUES, BEYOND WORDS ─────────────────
+ *
+ * `buildObjectProgram`'s static reader (`staticEnumValue`) answers a value fixed
+ * before bar 0 as `{s}` (string), `{b}` (bool), `{w}` (a constant's word) and, since
+ * engine 52, `{n}` (number), `{hex}` (an object colour, alpha included) and `{arr}`
+ * (a list of those, only what `str.split` makes). These are its pure operations. */
+/** The input kinds whose default is a drawing's value (C16), by the key it answers. */
+const STATIC_INPUT_KIND = Object.freeze({
+  'input.int': 'n', 'input.float': 'n', 'input.bool': 'b', 'input.color': 'hex',
+  // v4's `input(…, type = input.integer)` (the v4 name of the int input type)
+  'input.integer': 'n',
+})
+const STATIC_STR_FNS = new Set(['str.lower', 'str.upper', 'str.replace', 'str.replace_all', 'str.split',
+  'str.contains', 'str.startswith', 'str.endswith', 'str.tostring', 'str.length'])
+const STATIC_NUM_OPS = new Set(['+', '-', '*', '/', '<', '>', '<=', '>='])
+/** One key per static value, so `==` compares a value with its own kind only. */
+const staticKey = (v) => ('s' in v ? `s:${v.s}` : 'w' in v ? `w:${v.w}` : 'n' in v ? `n:${v.n}`
+  : 'hex' in v ? `hex:${String(v.hex).toUpperCase()}` : 'arr' in v ? 'arr' : 'obj' in v ? 'obj' : `b:${v.b}`)
+function staticBinary(op, l, r, truncate = null) {
+  if ('s' in l && 's' in r) return op === '+' ? { s: l.s + r.s } : null
+  if (!('n' in l) || !('n' in r)) return null
+  const a = l.n
+  const b = r.n
+  switch (op) {
+    case '+': return { n: a + b }
+    case '-': return { n: a - b }
+    case '*': return { n: a * b }
+    // ⭐ Division: whether Pine truncates is the caller's to say, by the engine's ONE rule
+    // (`constIntDivisionTruncates` + `pineConstIntValue`, F1, witnessed `vw-int-div-assign`):
+    // before v6 exactly when BOTH operands are `const int`, never from v6. `null` (not
+    // settled) folds only an exact quotient, where both readings agree.
+    case '/': {
+      if (b === 0) return null
+      if (truncate === true) return { n: Math.trunc(a / b) }
+      if (truncate === false) return { n: a / b }
+      return Number.isInteger(a / b) ? { n: a / b } : null
+    }
+    case '<': return { b: a < b }
+    case '>': return { b: a > b }
+    case '<=': return { b: a <= b }
+    case '>=': return { b: a >= b }
+    default: return null
+  }
+}
+/** A string one occurrence of which can overlap the next (a prefix that is also a suffix). */
+const selfOverlaps = (t) => { for (let k = 1; k < t.length; k += 1) if (t.slice(0, k) === t.slice(t.length - k)) return true; return false }
+function staticBuiltin(name, v) {
+  const S = (i) => (v[i] && 's' in v[i] ? v[i].s : null)
+  const N = (i) => (v[i] && 'n' in v[i] ? v[i].n : null)
+  const H = (i) => (v[i] && 'hex' in v[i] ? v[i].hex : null)
+  switch (name) {
+    case 'color.new': {
+      if (v.length !== 2 || H(0) === null || N(1) === null) return null
+      const hex = withObjectTransparency(H(0), N(1))
+      return hex ? { hex } : null
+    }
+    case 'color.rgb': {
+      if (v.length < 3 || v.length > 4) return null
+      const ch = [N(0), N(1), N(2)]
+      if (ch.some((c) => c === null || c < 0 || c > 255)) return null
+      const base = `#${ch.map((c) => Math.round(c).toString(16).padStart(2, '0').toUpperCase()).join('')}`
+      if (v.length === 3) return { hex: base }
+      if (N(3) === null) return null
+      const hex = withObjectTransparency(base, N(3))
+      return hex ? { hex } : null
+    }
+    case 'color.from_gradient': {
+      if (v.length !== 5 || [0, 1, 2].some((i) => N(i) === null) || H(3) === null || H(4) === null) return null
+      const a = objectHexToPacked(H(3))
+      const b = objectHexToPacked(H(4))
+      if (a === null || b === null) return null
+      const hex = packedToObjectHex(fromGradient(N(0), N(1), N(2), a, b))
+      return hex ? { hex } : null
+    }
+    case 'str.lower': return v.length === 1 && S(0) !== null ? { s: S(0).toLowerCase() } : null
+    case 'str.upper': return v.length === 1 && S(0) !== null ? { s: S(0).toUpperCase() } : null
+    case 'str.length': return v.length === 1 && S(0) !== null ? { n: S(0).length } : null
+    case 'str.contains': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).includes(S(1)) } : null
+    case 'str.startswith': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).startsWith(S(1)) } : null
+    case 'str.endswith': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).endsWith(S(1)) } : null
+    case 'str.replace_all':
+      return v.length === 3 && [0, 1, 2].every((i) => S(i) !== null) && S(1) !== '' && !selfOverlaps(S(1)) ? { s: S(0).split(S(1)).join(S(2)) } : null
+    case 'str.replace': {
+      // Pine: the `occurrence`-th (0-based, default 0) occurrence of `target`
+      // ⛔ a target that can overlap itself (`aa` in `aaa`): which occurrences Pine counts is
+      // not stated, so it is not folded
+      if (v.length < 3 || v.length > 4 || ![0, 1, 2].every((i) => S(i) !== null) || S(1) === '' || selfOverlaps(S(1))) return null
+      const nth = v.length === 4 ? N(3) : 0
+      if (nth === null || !Number.isInteger(nth) || nth < 0) return null
+      let at = -1
+      for (let k = 0; k <= nth; k += 1) { at = S(0).indexOf(S(1), at + 1); if (at < 0) return { s: S(0) } }
+      return { s: S(0).slice(0, at) + S(2) + S(0).slice(at + S(1).length) }
+    }
+    case 'str.split': {
+      if (v.length !== 2 || S(0) === null || S(1) === null || S(1) === '') return null
+      const parts = S(0).split(S(1))
+      // ⛔ an empty piece (two separators together, one at an end) is not pinned: not folded
+      return parts.some((p) => p === '') ? null : { arr: parts.map((s) => ({ s })) }
+    }
+    case 'str.tostring':
+      // ⛔ only what needs no number format: a string, or a whole number
+      if (v.length !== 1) return null
+      if (S(0) !== null) return { s: S(0) }
+      return N(0) !== null && Number.isInteger(N(0)) ? { s: String(N(0)) } : null
+    case 'array.get': {
+      const arr = v[0] && v[0].arr
+      const i = N(1)
+      return arr && v.length === 2 && Number.isInteger(i) && i >= 0 && i < arr.length ? arr[i] : null
+    }
+    case 'array.size': return v.length === 1 && v[0] && v[0].arr ? { n: v[0].arr.length } : null
+    case 'math.max': return v.length >= 2 && v.every((x) => 'n' in x) ? { n: Math.max(...v.map((x) => x.n)) } : null
+    case 'math.min': return v.length >= 2 && v.every((x) => 'n' in x) ? { n: Math.min(...v.map((x) => x.n)) } : null
+    case 'math.abs': return v.length === 1 && N(0) !== null ? { n: Math.abs(N(0)) } : null
+    default: return null
+  }
+}
+/** The int sizes the reference equates with a `size.*` word, per family (0 is `size.auto`). */
+const POINT_SIZE_ANCHOR_SET = Object.freeze({
+  label: new Set([0, ...Object.values(POINT_SIZE_ANCHORS.label)]),
+  boxTable: new Set([0, ...Object.values(POINT_SIZE_ANCHORS.boxTable)]),
+})
+/** ⛔ A helper body run before bar 0 stops after this many loop passes in all. */
+const STATIC_HELPER_MAX_PASSES = 1000
+
 function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatement,
   objectOpts = {}) {
   // ⭐ C22 — every Resolver this pass builds knows the op `convertList` is
@@ -21044,6 +21169,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     const known = colorNodeOfBase(node, scope, depth)
     if (known || !node || depth > 12) return known
+    // ⭐⭐ Engine 52 — a colour fixed before bar 0 that the readers above did not follow
+    // (a `var` transparency, a switch over a string input, a helper over inputs, a field
+    // of the script's own type): the static reader's colour (`staticPropValue`), C44's
+    // transparency by the one formula. Asked here, so an ARM of a per-bar choice
+    // (`stDir < 0 ? theme.bull : theme.bear`) is read the same way as a whole colour.
+    {
+      const st = staticPropValue(node, scope)
+      if (st && 'hex' in st) return { c: 'lit', hex: st.hex }
+    }
     // ⛔ R36 — THIS READ RESOLVES NOTHING AND MINTS NOTHING. The transparency is
     // read off the `input.int` / `input.float` call's own literal default
     // (`inputNumberDefault`, plain name bindings only) and handed to the static
@@ -21076,6 +21210,26 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   }
   const colorNodeOfBase = (node, scope, depth = 0) => {
     if (!node || depth > 12) return null
+    // ⭐⭐ Engine 52 — a `bound` node (a default reassigned in an `if`, folded to a choice
+    // of bindings: `color c = color.white` / `if …` / `c := …`) is followed through its
+    // `expr` binding, exactly as the text reader follows one (`textNodeOf`), so a cell's
+    // colour is read where its text already is (uncharted-volume-v2's ATRx cell).
+    // ⛔ Only the `expr` kind, the text reader's own rule.
+    if (node.type === 'bound' && node.binding && node.binding.kind === 'expr' && node.binding.node) {
+      const env = node.binding.env || scope
+      const via = colorNodeOf(node.binding.node, env, depth + 1)
+      if (via) return via
+      // a choice inside the binding reads its TEST in the binding's own scope (a block
+      // local: `absMult <= 7 ? color.white : …`), as the text reader reads one (`envAt`)
+      const b = node.binding.node
+      if (b.type === 'ternary' && !b.noElse && env !== scopeEnv) {
+        let cond = null
+        try { cond = internTree(canonicalOf(b.test, null, env)) } catch { cond = null }
+        const then = cond ? colorNodeOf(b.yes, env, depth + 1) : null
+        const other = then ? colorNodeOf(b.no, env, depth + 1) : null
+        if (cond && then && other) return { c: 'if', cond, then, else: other }
+      }
+    }
     // ⭐⭐ C37 — `chart.fg_color` / `chart.bg_color` ARE THE CHART'S OWN COLOURS:
     // carried as a REFERENCE (the Pine name itself) and resolved where the
     // drawing is painted, against the chart it is painted on
@@ -21732,14 +21886,291 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     return out
   })()
+  /** ⭐⭐ Engine 52 — the script's own `type` declarations, by name: their fields in
+   *  declaration order (`type ThemePalette` / `color frame` …). The static reader reads
+   *  `T.new(…)` over values fixed before bar 0 as a value with those fields (`{obj}`),
+   *  and `x.field` as the field's value (multicator-table's `theme.frame`).
+   *  ⛔ A field declared with a default is read only when the call gives it. */
+  const scriptTypes = (() => {
+    const out = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (h.length < 2 || h[0].kind !== 'ident' || h[0].value !== 'type' || h[1].kind !== 'ident') continue
+      // the field lines: statements under the name, or (as the grouper folds an enum's
+      // member lines) the header's own later lines, one field per line
+      const lines = []
+      for (let i = 2; i < h.length; i += 1) {
+        if (h[i].line !== h[i - 1].line || i === 2) lines.push([])
+        lines[lines.length - 1].push(h[i])
+      }
+      if (h.length > 2 && h[2].line === h[1].line) continue
+      const fields = []
+      for (const mh of [...lines, ...(st.sub || []).map((m) => m.header || [])]) {
+        const eq = mh.findIndex((t) => isPunct(t, '='))
+        const end = eq < 0 ? mh.length : eq
+        const nameTok = mh[end - 1]
+        if (!nameTok || nameTok.kind !== 'ident' || end < 2) { fields.length = 0; break }
+        fields.push(nameTok.value)
+      }
+      if (fields.length) out.set(h[1].value, fields)
+    }
+    return out
+  })()
   const enumMemberOf = (name) => {
     const dot = typeof name === 'string' ? name.indexOf('.') : -1
     if (dot <= 0) return null
     const members = scriptEnums.get(name.slice(0, dot))
     return members && members.has(name.slice(dot + 1)) ? { s: `\u0000enum:${name}` } : null
   }
+  /** ⭐⭐ Engine 52 — the script's own multi-line helpers (`f(a, b) =>` with a body of
+   *  statements), by name: their parameter names and body, for `staticHelperBody`.
+   *  ⛔ A parameter with a default is not read (the call may omit it). */
+  const staticFnDefs = (() => {
+    const out = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (!(st.sub || []).length || h.length < 4 || h[0].kind !== 'ident' || !isPunct(h[1], '(')) continue
+      const arrow = h.findIndex((t) => isPunct(t, '=>'))
+      if (arrow !== h.length - 1 || !isPunct(h[arrow - 1], ')')) continue
+      const params = []
+      let piece = []
+      let ok = true
+      for (const t of [...h.slice(2, arrow - 1), { kind: 'punct', value: ',' }]) {
+        if (isPunct(t, ',')) {
+          if (!piece.length) { if (params.length || h.slice(2, arrow - 1).length) ok = false; break }
+          if (piece.some((p) => isPunct(p, '=')) || piece[piece.length - 1].kind !== 'ident') { ok = false; break }
+          params.push(piece[piece.length - 1].value)
+          piece = []
+        } else piece.push(t)
+      }
+      if (ok && !out.has(h[0].value)) out.set(h[0].value, { params, body: st.sub })
+      else out.set(h[0].value, null)
+    }
+    for (const [k, v] of [...out]) if (!v) out.delete(k)
+    return out
+  })()
+  /** ⭐⭐ Engine 52 — RUN a helper's body on values fixed before bar 0: `x = e` /
+   *  `T x = e` (a local), `x := e` / `x += e`, `for i = a to b [by s]` (bounded:
+   *  `STATIC_HELPER_MAX_PASSES` passes in all), `if c` / `else`, and a last bare
+   *  expression, its value. Every expression is the static reader's, with the
+   *  helper's locals and arguments as values (`frame.vals`); a name outside them
+   *  resolves in the script's scope like any other. Anything else — a statement
+   *  this list does not hold, a value it cannot read — answers null: not folded. */
+  const staticHelperBody = (def, argVals, depth) => {
+    if (depth > 24) return null
+    const vals = new Map(def.params.map((p, i) => [p, argVals[i]]))
+    const frame = { vals }
+    let passes = 0
+    let last = null
+    const ev = (toks) => {
+      if (!toks.length) return null
+      let n = null
+      try { n = parseWholeExpression(toks) } catch { n = null }
+      return n ? staticEnumValue(n, scopeEnv, frame, depth + 1) : null
+    }
+    const TYPE_WORDS = new Set(['int', 'float', 'bool', 'string', 'color', 'var', 'varip'])
+    const run = (list) => {
+      let prevIf = null // the last `if`'s outcome, for an `else` after it
+      for (const st of list) {
+        const h = st.header || []
+        if (!h.length || h[0].kind !== 'ident') return false
+        const sub = st.sub || []
+        if (h[0].value === 'for') {
+          const eq = h.findIndex((t) => isPunct(t, '='))
+          const to = h.findIndex((t) => t.kind === 'ident' && t.value === 'to')
+          const by = h.findIndex((t) => t.kind === 'ident' && t.value === 'by')
+          if (eq !== 2 || h[1].kind !== 'ident' || to < 0 || !sub.length) return false
+          const a = ev(h.slice(eq + 1, to))
+          const b = ev(h.slice(to + 1, by < 0 ? h.length : by))
+          const s = by < 0 ? { n: a && b && b.n < a.n ? -1 : 1 } : ev(h.slice(by + 1))
+          if (!a || !b || !s || !('n' in a) || !('n' in b) || !('n' in s) || !s.n) return false
+          if (!Number.isInteger(a.n) || !Number.isInteger(b.n) || !Number.isInteger(s.n)) return false
+          // ⭐ v6 re-evaluates the `to` bound before every pass (v6 migration guide, "Dynamic
+          // `for` loop boundaries"); earlier versions evaluate it once. A body that MOVES the
+          // bound would answer differently in the two, so it is not folded.
+          const toToks = h.slice(to + 1, by < 0 ? h.length : by)
+          for (let i = a.n; s.n > 0 ? i <= b.n : i >= b.n; i += s.n) {
+            passes += 1
+            if (passes > STATIC_HELPER_MAX_PASSES) return false
+            vals.set(h[1].value, { n: i })
+            if (!run(sub)) return false
+            const again = ev(toToks)
+            if (!again || !('n' in again) || again.n !== b.n) return false
+          }
+          prevIf = null
+          last = null
+          continue
+        }
+        if (h[0].value === 'if' || (h[0].value === 'else' && h[1] && h[1].value === 'if')) {
+          if (h[0].value === 'else' && prevIf === null) return false
+          const c = h[0].value === 'else' && prevIf ? { b: false } : ev(h.slice(h[0].value === 'if' ? 1 : 2))
+          if (!c || typeof c.b !== 'boolean') return false
+          if (h[0].value === 'else' && prevIf) { last = null; continue }
+          if (c.b && !run(sub)) return false
+          prevIf = c.b
+          last = null
+          continue
+        }
+        if (h[0].value === 'else' && h.length === 1) {
+          if (prevIf === null) return false
+          if (!prevIf && !run(sub)) return false
+          prevIf = null
+          last = null
+          continue
+        }
+        prevIf = null
+        if (sub.length) return false
+        const at = h.findIndex((t) => isPunct(t, '=') || isPunct(t, ':=') || isPunct(t, '+='))
+        if (at > 0) {
+          let k = 0
+          while (k < at - 1 && h[k].kind === 'ident' && TYPE_WORDS.has(h[k].value)) k += 1
+          if (k !== at - 1 || h[k].kind !== 'ident') return false
+          const name = h[k].value
+          const v = ev(h.slice(at + 1))
+          if (!v) return false
+          if (isPunct(h[at], '=')) vals.set(name, v)
+          else {
+            if (!vals.has(name)) return false
+            if (isPunct(h[at], ':=')) vals.set(name, v)
+            else { const sum = staticBinary('+', vals.get(name), v); if (!sum) return false; vals.set(name, sum) }
+          }
+          last = null
+          continue
+        }
+        last = ev(h)
+        if (!last) return false
+      }
+      return true
+    }
+    return run(def.body) ? last : null
+  }
+  /** ⛔⛔ Engine 52 (re-review of #1164, B1) — AN ALLOWLIST, NOT AN ENUMERATION OF ESCAPES.
+   *  The static reader answers an object (`{obj}`) or a list (`{arr}`) through a name only
+   *  when EVERY occurrence of that name in the script is one of:
+   *    (a) its single `=` declaration;
+   *    (b) a pure read `name.f1…fn` whose last field is declared PRIMITIVE (int, float, bool,
+   *        string, color) in the script's types and by no type as anything else, and that is
+   *        not followed by an assignment, `(` or `[` (a method form `name.m(` is a call);
+   *    (c) a list read by the builtin `array.get(name, …)` / `array.size(name)`, or the
+   *        method forms `name.get(…)` / `name.size()` ONLY when the script declares no
+   *        function or method of its own named `get` / `size`.
+   *  Anything else is an escape: a sub-chain that yields an object (`inner = outer.inner`,
+   *  `f(outer.inner)` — Pine objects are references), a pass, an alias, a reassignment, a
+   *  field assignment at any depth, any method call. ⚰️ The enumeration this replaces
+   *  missed a user method named `get`, an alias through a field read, and a field passed as
+   *  an argument (re-review N7-N10), and elliot-wave-detector-pro's `confirmedCtx` before
+   *  that. */
+  /** The script CALLS `table.merge_cells` (or the method form `t.merge_cells(`): read off the
+   *  token stream, where comments are already gone, never off the raw source text. */
+  const scriptMergesCells = (() => {
+    const seen = (list) => (list || []).some((st) => (st.header || []).some((t, i, h) => t && t.kind === 'ident'
+      && /(^|\.)merge_cells$/.test(String(t.value)) && h[i + 1] && isPunct(h[i + 1], '(')) || seen(st.sub))
+    return seen(stmts)
+  })()
+  const staticReadOnlyRoots = (() => {
+    const PRIM = new Set(['int', 'float', 'bool', 'string', 'color'])
+    const QUAL = new Set(['series', 'simple', 'const', 'varip', 'var'])
+    // field name → the kinds it is declared as across the script's types
+    const fieldKinds = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (h.length < 2 || h[0].kind !== 'ident' || h[0].value !== 'type' || h[1].kind !== 'ident') continue
+      const lines = []
+      for (let i = 2; i < h.length; i += 1) {
+        if (h[i].line !== h[i - 1].line || i === 2) lines.push([])
+        lines[lines.length - 1].push(h[i])
+      }
+      for (const mh of [...lines, ...(st.sub || []).map((m) => m.header || [])]) {
+        const eq = mh.findIndex((t) => isPunct(t, '='))
+        const end = eq < 0 ? mh.length : eq
+        const nameTok = mh[end - 1]
+        if (!nameTok || nameTok.kind !== 'ident') continue
+        const typeToks = mh.slice(0, end - 1).filter((t) => !(t.kind === 'ident' && QUAL.has(t.value)))
+        const prim = typeToks.length === 1 && typeToks[0].kind === 'ident' && PRIM.has(typeToks[0].value)
+        const set = fieldKinds.get(nameTok.value) || new Set()
+        set.add(prim ? 'prim' : 'object')
+        fieldKinds.set(nameTok.value, set)
+      }
+    }
+    const primField = (f) => { const k = fieldKinds.get(f); return !!k && k.size === 1 && k.has('prim') }
+    // a function or method of the script's own named get / size (a bare `get(` / `size(`)
+    let userGetSize = false
+    const ASSIGN = new Set([':=', '+=', '-=', '*=', '/=', '%=', '='])
+    const READS = new Set(['array.get', 'array.size'])
+    const occ = []
+    const walk = (list) => {
+      for (const st of list || []) {
+        const h = st.header || []
+        for (let i = 0; i < h.length; i += 1) {
+          const t = h[i]
+          if (!t || t.kind !== 'ident') continue
+          if ((t.value === 'get' || t.value === 'size') && h[i + 1] && isPunct(h[i + 1], '(')) userGetSize = true
+          occ.push({ v: String(t.value), next: h[i + 1], prev: h[i - 1], prev2: h[i - 2] })
+        }
+        if ((st.sub || []).length) walk(st.sub)
+      }
+    }
+    walk(stmts)
+    const bad = new Set()
+    const decls = new Map()
+    for (const { v, next, prev, prev2 } of occ) {
+      const dot = v.indexOf('.')
+      const root = dot > 0 ? v.slice(0, dot) : v
+      const nextIs = (x) => next && next.kind === 'punct' && next.value === x
+      const assigned = next && next.kind === 'punct' && ASSIGN.has(next.value)
+      if (dot > 0) {
+        const chain = v.slice(dot + 1).split('.')
+        const last = chain[chain.length - 1]
+        if (nextIs('(')) {
+          if (!((last === 'get' || last === 'size') && chain.length === 1 && !userGetSize)) bad.add(root)
+          continue
+        }
+        if (assigned || nextIs('[') || !primField(last)) bad.add(root)
+        continue
+      }
+      if (assigned) {
+        decls.set(root, (decls.get(root) || 0) + 1)
+        if (decls.get(root) > 1 || next.value !== '=') bad.add(root)
+        continue
+      }
+      if (prev && isPunct(prev, '(') && prev2 && prev2.kind === 'ident' && READS.has(prev2.value)) continue
+      bad.add(root)
+    }
+    return { escapes: (name) => bad.has(name) }
+  })()
+  /** ⭐ Does Pine truncate this `/`? The engine's one rule (F1): before v6, exactly when BOTH
+   *  operands are `const int` (`pineConstIntValue`, which follows bindings and the script's
+   *  declaration words: a `var`, `simple`, `float`, `input.*` is not `const int`). A helper's
+   *  own local or parameter is not a binding that rule can follow, so a quotient over one is
+   *  left unsettled (`null`: only an exact quotient folds). */
+  const staticTruncates = (node, scope, frame) => {
+    let version = null
+    try { version = activePaletteVersion() } catch { version = null }
+    if (!constIntDivisionTruncates(version)) return false
+    const names = []
+    const walk = (n, d = 0) => {
+      if (!n || typeof n !== 'object' || d > 32) return
+      if (n.type === 'name') names.push(n.name)
+      for (const k of ['left', 'right', 'arg', 'test', 'yes', 'no']) walk(n[k], d + 1)
+      for (const a of n.args || []) walk(a && a.value !== undefined ? a.value : a, d + 1)
+    }
+    walk(node)
+    if (frame && (frame.vals || frame.params) && names.some((x) => (frame.vals && frame.vals.has(x)) || (frame.params && frame.params.includes(x)))) return null
+    const lookup = (name) => (scope && typeof scope.get === 'function' ? scope.get(name) : undefined)
+    const ctx = { version, declWords: DECL_WORDS_SINK }
+    return pineConstIntValue(node.left, lookup, ctx) !== null && pineConstIntValue(node.right, lookup, ctx) !== null
+  }
   const staticEnumValue = (node, scope, frame = null, depth = 0) => {
+    const v = staticEnumValueRaw(node, scope, frame, depth)
+    // ⛔ an object or a list read through a NAME something else can change is not its seed
+    if (v && ('obj' in v || 'arr' in v) && node && node.type === 'name'
+      && !(frame && frame.vals && frame.vals.has(node.name)) && staticReadOnlyRoots.escapes(node.name)) return null
+    return v
+  }
+  const staticEnumValueRaw = (node, scope, frame = null, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 24) return null
+    // ⭐ Engine 52 — a helper body's own locals and arguments (`staticHelperBody`)
+    if (frame && frame.vals && node.type === 'name' && frame.vals.has(node.name)) return frame.vals.get(node.name)
     const look = (name) => {
       if (frame && frame.locals && frame.locals.has(name)) return { b: frame.locals.get(name), local: true }
       const b = scope && typeof scope.get === 'function' ? scope.get(name) : null
@@ -21748,6 +22179,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (node.type === 'string') return { s: String(node.value) }
     // the parser reads `true` / `false` as the numbers 1 / 0; the token keeps the word
     if (node.type === 'number' && node.tok && (node.tok.value === 'true' || node.tok.value === 'false')) return { b: node.tok.value === 'true' }
+    // ⭐⭐ ENGINE 52 — the same reader, for a NUMBER and a COLOUR fixed before bar 0
+    // (`staticPropValue` below: a colour, a width, a point size, a row count).
+    if (node.type === 'number') return Number.isFinite(Number(node.value)) ? { n: Number(node.value) } : null
+    if (node.type === 'colour') return /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(String(node.value)) ? { hex: String(node.value) } : null
     if (node.type === 'name') {
       if (node.name === 'true' || node.name === 'false') return { b: node.name === 'true' }
       if (frame && Array.isArray(frame.params)) {
@@ -21767,10 +22202,27 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (bv && bv.kind === 'switch') return staticSwitch(bv, null, depth + 1)
         if (bv) return staticEnumValue(bv, scope, null, depth + 1)
         const w = objectEnumValue(node.name)
-        return w === undefined ? null : { w: String(w) }
+        if (w !== undefined) return { w: String(w) }
+        // ⭐ Engine 52 — a Pine colour constant (`color.blue`, the palette's own hex)
+        if (isColourName(node)) { const h = colourHexOf(node); return h ? { hex: String(h) } : null }
+        // ⭐ Engine 52 — `x.field` of a value of the script's own type (`scriptTypes`)
+        const dot = node.name.lastIndexOf('.')
+        if (dot > 0) {
+          const head = staticEnumValue({ ...node, name: node.name.slice(0, dot) }, scope, frame, depth + 1)
+          const f = node.name.slice(dot + 1)
+          return head && head.obj && Object.hasOwn(head.obj, f) ? head.obj[f] || null : null
+        }
+        return null
       }
       const { b, local } = hit
       const sub = local ? frame : null
+      // ⛔⛔ Engine 52 — A NAME THE SCRIPT REASSIGNS IS NOT ITS DECLARATION. The scope can
+      // hold the declaration's binding for a name a later `:=` (in a loop, a block, a
+      // helper) moves (C28: artemis's `knnVal = 0.0`, written in the kNN loop): reading the
+      // declaration drew `◈ NEUTRAL` where TradingView draws `▼ BEAR`. Measured once numbers
+      // became readable here; a local of a helper frame is the frame's own.
+      if (!local && objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function'
+        && objectOpts.mutableNames.has(node.name)) return null
       if (b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution) {
         return staticEnumValue(b.node, b.env || scope, sub, depth + 1)
       }
@@ -21796,20 +22248,72 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       }
       if (node.name === 'input.string' || node.name === 'input') {
         const typed = args.find((a) => a && a.name === 'type')
-        if (typed && !(typed.value && typed.value.type === 'name' && typed.value.name === 'input.string')) return null
+        const typedAs = typed && typed.value && typed.value.type === 'name' ? typed.value.name : null
+        if (typed && typedAs !== 'input.string' && !STATIC_INPUT_KIND[typedAs]) return null
         const named = args.find((a) => a && a.name === 'defval')
         const first = args.find((a) => a && !a.name)
         const dv = named ? named.value : first ? first.value : null
         if (!dv) return null
-        if (dv.type === 'string') return { s: String(dv.value) }
+        if (dv.type === 'string') return typedAs && typedAs !== 'input.string' ? null : { s: String(dv.value) }
         // a default NAMED (`input.string(bcenter, …)` with `bcenter = position.bottom_center`)
-        return dv.type === 'name' ? staticEnumValue(dv, scope, frame, depth + 1) : null
+        if (dv.type === 'name' && (!typedAs || typedAs === 'input.string')) return staticEnumValue(dv, scope, frame, depth + 1)
+        // ⭐ Engine 52 — v4's generic `input(<number | bool | colour>)`: its default, of its own kind
+        const v = staticEnumValue(dv, scope, frame, depth + 1)
+        const want = typedAs ? STATIC_INPUT_KIND[typedAs] : null
+        return v && ('n' in v || 'b' in v || 'hex' in v) && (!want || want in v) ? v : null
+      }
+      // ⭐ Engine 52 — `input.int` / `input.float` / `input.bool` / `input.color`: no knob
+      // reads a drawing's input (C16), so its default is its value (the name rule `isKnob`
+      // above still leaves a member's knob to the per-bar reader).
+      if (STATIC_INPUT_KIND[node.name]) {
+        const named = args.find((a) => a && a.name === 'defval')
+        const first = args.find((a) => a && !a.name)
+        const dv = named ? named.value : first ? first.value : null
+        const v = dv ? staticEnumValue(dv, scope, frame, depth + 1) : null
+        return v && STATIC_INPUT_KIND[node.name] in v ? v : null
+      }
+      // ⭐⭐ Engine 52 — `T.new(…)` of the script's own type: its fields, by position or name
+      if (typeof node.name === 'string' && node.name.endsWith('.new') && scriptTypes.has(node.name.slice(0, -4))) {
+        const fields = scriptTypes.get(node.name.slice(0, -4))
+        const obj = {}
+        let pos = 0
+        for (const a of args) {
+          if (!a) return null
+          const f = a.name ? a.name : fields[pos++]
+          if (!f || !fields.includes(f) || Object.hasOwn(obj, f)) return null
+          obj[f] = staticEnumValue(a.value, scope, frame, depth + 1)
+        }
+        return { obj }
+      }
+      // ⭐⭐ Engine 52 — a colour built from values fixed before bar 0. C44: `color.new`'s and
+      // `color.rgb`'s `t` is 0 = opaque … 100 = invisible, float accepted, `color.rgb`'s
+      // defaulting to 0; the paint is the ONE formula the object runtime uses
+      // (`withObjectTransparency`). C46: `color.from_gradient` is the runtime's own
+      // measured blend (`fromGradient`), clamped; what it does not pin answers null.
+      if (node.name === 'color.new' || node.name === 'color.rgb' || node.name === 'color.from_gradient'
+        || STATIC_STR_FNS.has(node.name) || node.name === 'array.get' || node.name === 'array.size'
+        || node.name === 'math.max' || node.name === 'math.min' || node.name === 'math.abs') {
+        if (args.some((a) => !a || a.name)) return null
+        const vals = args.map((a) => staticEnumValue(a.value, scope, frame, depth + 1))
+        if (vals.some((v) => !v)) return null
+        return staticBuiltin(node.name, vals)
       }
       const hit = look(node.name)
       const declared = hit ? hit.b : null
+      // ⭐⭐ Engine 52 — a helper whose BODY is statements (`locNsze(x) => y = str.split(…)`,
+      // a bounded `for` joining its pieces, then `out`): run on the values fixed before bar
+      // 0 (`staticHelperBody`), which reads only its own locals and its arguments.
       const fn = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane
         ? declared.objectLane : declared
-      if (!fn || fn.kind !== 'fn' || !fn.value || !Array.isArray(fn.params)) return null
+      if (!fn || fn.kind !== 'fn' || !fn.value || !Array.isArray(fn.params) || (fn.value.kind !== 'switch' && !(fn.value.kind === 'expr' && fn.value.node))) {
+        // ⛔ only the script's OWN helper of that name (a local of the same name wins)
+        const def = !(hit && hit.local) ? staticFnDefs.get(node.name) : null
+        if (def && !args.some((a) => !a || a.name) && args.length === def.params.length) {
+          const vals = args.map((a) => staticEnumValue(a.value, scope, frame, depth + 1))
+          if (vals.every(Boolean)) return staticHelperBody(def, vals, depth + 1)
+        }
+        return null
+      }
       // a parameter typed by one of the script's own enums (`parse_position(PanelPosition p)`)
       // reaches this binding as two names, the type and the parameter: the type is dropped
       const params = fn.params.filter((q, i) => !(scriptEnums.has(q) && i + 1 < fn.params.length && !scriptEnums.has(fn.params[i + 1])))
@@ -21829,9 +22333,19 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const v = staticEnumValue(node.arg, scope, frame, depth + 1)
       return v && typeof v.b === 'boolean' ? { b: !v.b } : null
     }
+    if (node.type === 'unary' && (node.op === '-' || node.op === '+')) {
+      const v = staticEnumValue(node.arg, scope, frame, depth + 1)
+      return v && 'n' in v ? { n: node.op === '-' ? -v.n : v.n } : null
+    }
     if (node.type === 'binary') {
       const l = staticEnumValue(node.left, scope, frame, depth + 1)
       if (!l) return null
+      // ⭐ Engine 52 — arithmetic and order over numbers, `+` over strings
+      if (STATIC_NUM_OPS.has(node.op)) {
+        const r = staticEnumValue(node.right, scope, frame, depth + 1)
+        if (!r) return null
+        return staticBinary(node.op, l, r, node.op === '/' ? staticTruncates(node, scope, frame) : null)
+      }
       if (node.op === 'and' || node.op === 'or') {
         if (typeof l.b !== 'boolean') return null
         if (node.op === 'and' && !l.b) return { b: false }
@@ -21842,8 +22356,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (node.op === '==' || node.op === '!=') {
         const r = staticEnumValue(node.right, scope, frame, depth + 1)
         if (!r) return null
-        const key = (v) => ('s' in v ? `s:${v.s}` : 'w' in v ? `w:${v.w}` : `b:${v.b}`)
-        const eq = key(l) === key(r)
+        const eq = staticKey(l) === staticKey(r)
         return { b: node.op === '==' ? eq : !eq }
       }
     }
@@ -21855,7 +22368,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const env = sw.env || scopeEnv
     const subj = staticEnumValue(sw.subject, env, frame, depth + 1)
     // a string subject (a string input, an enum member) or `true` (a switch with no subject)
-    const kindOf = (v) => (v && 's' in v ? 's' : v && typeof v.b === 'boolean' ? 'b' : null)
+    // ⭐ Engine 52 — or a number (`switch lineWidthInput` / `1 => …`)
+    const kindOf = (v) => (v && 's' in v ? 's' : v && typeof v.b === 'boolean' ? 'b' : v && 'n' in v ? 'n' : null)
     const kind = kindOf(subj)
     if (!kind) return null
     for (const arm of sw.arms) {
@@ -21950,12 +22464,19 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     return false
   }
 
-  const enumNodeOf = (node, scope) => {
+  /** ⭐ Engine 52 — the static reader for a non-enum slot (a colour, a number, a text). */
+  const staticPropValue = (node, scope) => {
+    try { return staticEnumValue(node, scope) } catch { return null }
+  }
+  const enumNodeOf = (node, scope, slot = null) => {
     // ⭐ Engine 51 — a word fixed before bar 0 is that word (`staticEnumValue`).
     {
       let st = null
       try { st = staticEnumValue(node, scope) } catch { st = null }
       if (st && 'w' in st) return { t: 'lit', s: st.w }
+      // ⛔ Engine 52 — a STRING folded before bar 0 (`str.lower` / `str.split` / a join loop
+      // over an input) that SPELLS a constant's word is NOT that word: no capture shows that
+      // spelling in an enum slot (C47, `vendorHarness.c47PositionSize`), so it is not served.
       let ho = null
       try { ho = hoistEnumChoice(node, scope) } catch { ho = null }
       if (ho) return ho
@@ -22258,7 +22779,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const t = fitTextNest(textNodeOf(node, scopeEnv), node.tok ? locate(node.tok) : null)
         || rtTextOf(node, null, null)
       if (t && holdsUnwitnessed(t)) return { v: 'text', node: t, unwitnessed: true }
-      return t ? { v: 'text', node: t } : null
+      if (t) return { v: 'text', node: t }
+      // ⭐ Engine 52 — a text fixed before bar 0 (`str.*` over inputs and literals)
+      const st = staticPropValue(node, scopeEnv)
+      return st && 's' in st ? { v: 'text', node: { t: 'lit', s: st.s } } : null
     }
     if (slot && isColourSlot(slot)) {
       const c = colorNodeOf(node, scopeEnv)
@@ -22305,12 +22829,32 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `size` in typographic points (`text_size = 11`, `input.int(12)`). This chart's
       // renderers size text by the six `size.*` words only, so a point size is withheld
       // by name (`ENUM_DROPS.points`), never drawn at a word's size.
-      if ((slot === 'text_size' || slot === 'size') && pointSizeNode(node, scopeEnv)) {
-        diagnostics.textSizePoints = (diagnostics.textSizePoints || 0) + 1
-        enumNaDrop = 'points'
-        return null
+      // ⭐⭐ Engine 52 — SERVED: a point size fixed before bar 0 is carried as that
+      // number (`{v:'const'}`), both renderers size it (`objectCanvas.js::textSizePx`),
+      // and the runtime lane carries the int too (`objectStore.js`). Only a number this
+      // door cannot read before bar 0 is still withheld by name.
+      if (slot === 'text_size' || slot === 'size') {
+        const pt = staticPropValue(node, scopeEnv)
+        if (pt && 'n' in pt) {
+          // ⛔ Engine 52 (review M5) — only a size the reference EQUATES with a word is served
+          // (`POINT_SIZE_ANCHORS`: labels 0/7/10/12/18/24, boxes and cells 0/8/10/14/20/36);
+          // any other int's pixels are unwitnessed, so it is withheld by name.
+          const anchors = POINT_SIZE_ANCHOR_SET[slot === 'size' ? 'label' : 'boxTable']
+          if (Number.isFinite(pt.n) && anchors.has(pt.n)) {
+            diagnostics.textSizePointsServed = (diagnostics.textSizePointsServed || 0) + 1
+            return { v: 'const', value: pt.n }
+          }
+          enumNaDrop = 'pointsUnwitnessed'
+          diagnostics.textSizePointsUnwitnessed = (diagnostics.textSizePointsUnwitnessed || 0) + 1
+          return null
+        }
+        if (pointSizeNode(node, scopeEnv)) {
+          diagnostics.textSizePoints = (diagnostics.textSizePoints || 0) + 1
+          enumNaDrop = 'points'
+          return null
+        }
       }
-      const e = enumNodeOf(node, scopeEnv)
+      const e = enumNodeOf(node, scopeEnv, slot)
       if (e) return { v: 'text', node: e }
       // ⛔⛔ HONESTY-SWEEP item 1 — an `na` this walk reached is not an unreadable
       // word: the drawing that holds it is WITHHELD by name (`enumNaDrop`, read by
@@ -22387,7 +22931,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const at = historyReadRef(node)
       if (at !== undefined) return at
     }
-    return resolveTree(node)
+    const tr = resolveTree(node)
+    if (tr || !slot) return tr
+    // ⭐ Engine 52 — a number fixed before bar 0 that the columnar reader refused
+    const st = staticPropValue(node, scopeEnv)
+    return st && 'n' in st ? { v: 'const', value: st.n } : null
   }
 
   /** ⭐⭐ C9 (2026-09-29) — `x[e]` WITH A PER-BAR `e`, AS A COORDINATE.
@@ -22457,6 +23005,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  not a result. Named here so it reads as the approximation it is.
    *  ⏭ ROUTED: distributing a call over a ternary ARGUMENT (`f(c ? a : b)` →
    *  `c ? f(a) : f(b)`) is what would resolve it, and it is its own capability. */
+  /** ⭐ Engine 52 — a property whose unreadable value WITHHELD its drawing, by name
+   *  and line (`withheldPropNames`); `dropProp` (drawn at the default) has no caller. */
+  const withheldProp = (family, k, node) => {
+    const at = node && node.tok ? locate(node.tok) : null
+    const entry = `${family}.${k}@${at ? at.line : '?'}`
+    diagnostics.withheldPropNames = diagnostics.withheldPropNames || []
+    if (!diagnostics.withheldPropNames.includes(entry)) diagnostics.withheldPropNames.push(entry)
+  }
   const dropProp = (family, k, node) => {
     diagnostics.droppedProps = (diagnostics.droppedProps || 0) + 1
     const at = node && node.tok ? locate(node.tok) : null
@@ -24360,8 +24916,24 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
             bad = true
             break
           }
-          dropProp(op.family, k, node)
-          continue
+          // ⭐ Engine 52 (review B3) — a table's `columns` / `rows` paint nothing: the layout
+          // sizes by its cells (`objectCanvas.js::layoutTables`). The runtime reads them only to
+          // bound a merge (`objectRuntime.js`, TradingView's out-of-range error), so an
+          // unreadable count is IGNORED unless the script merges cells, where it withholds.
+          if (op.family === 'table' && (k === 'columns' || k === 'rows') && !scriptMergesCells) {
+            diagnostics.inertTableCounts = (diagnostics.inertTableCounts || 0) + 1
+            continue
+          }
+          // ⛔⛔ ENGINE 52 — A PROPERTY THIS DOOR CANNOT READ WITHHOLDS ITS DRAWING BY NAME
+          // (`ENUM_DROPS.value`, `pine:prop-unreadable`). It used to be dropped, so the
+          // renderer drew its default in its place: a label in the default colour, a line
+          // at the default width, a table with no frame colour. Never a default.
+          withheldProp(op.family, k, node)
+          noteCreateDrop(op, k, { guard: ENUM_DROPS.value.guard, message: ENUM_DROPS.value.sentence })
+          noteWithheld(op, op.family, 'value')
+          enumNa = 'value'
+          bad = true
+          break
         }
         props[k] = v
       }
@@ -24504,12 +25076,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           // as "the value is empty", which is a different and worse claim than
           // "we could not import this row".
           if (k === 'text') { badCell = true; break }
-          dropProp('cell', k, node)
-          continue
+          // ⛔⛔ ENGINE 52 — a cell's colour, tooltip or width this door cannot read
+          // withholds the cell by name (`ENUM_DROPS.value`), never drawn at the default.
+          withheldProp('cell', k, node)
+          noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: ${ENUM_DROPS.value.guard} ${k}: ${ENUM_DROPS.value.sentence.slice(0, 200)}`)
+          noteWithheld(op, 'table', 'value')
+          badCell = ENUM_DROPS.value.drop
+          break
         }
         props[k] = v
       }
-      if (typeof badCell === 'string' && badCell.startsWith('enum:')) { dropped(badCell); continue }
+      if (typeof badCell === 'string') { dropped(badCell); continue }
       if (badCell) { dropped('cell:text'); continue }
       if (rtHeldProp()) { dropped('runtime:prop'); continue }
       ops.push(withUnwitnessedMarked({ k: 'cell', target, col, row, when, ...lastBarOnly, props }))
@@ -24533,7 +25110,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // read withholds its TABLE by name (`contentLost`): the cell would otherwise stay at
       // the size an earlier write gave it, which is not what TradingView shows.
       if (!v && enumNaDrop) { contentLost.push(target); noteWithheld(op, 'table', enumNaDrop); dropped(ENUM_DROPS[enumNaDrop].drop); continue }
-      if (!v) { dropProp('cell', op.prop, node); dropped(`cellpatch:${op.prop}`); continue }
+      // ⛔⛔ ENGINE 52 — and a patch whose value is unreadable WITHHOLDS ITS TABLE
+      // (`contentLost`), the size patch's rule (M3): dropping the patch alone left the
+      // cell in the colour an earlier write gave it, which TradingView does not show.
+      if (!v) { withheldProp('cell', op.prop, node); contentLost.push(target); noteWithheld(op, 'table', 'value'); dropped(ENUM_DROPS.value.drop); continue }
       ops.push(withUnwitnessedMarked({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } }))
     } else if (op.k === 'clear') {
       const target = targetRef(op.target)
