@@ -29,6 +29,12 @@
   min-height: 1.4em;
 }
 .headActions { display: flex; gap: 8px; align-items: center; }
+/* Simplify pass 2 (B4): the header's one button keeps its room while the read is in flight (an invisible copy of the
+   longest single label), so the header never wraps or moves when the answer lands. */
+.actionHold { visibility: hidden; pointer-events: none; }
+/* I3 + B4: today's note in Trash -- the sentence and its two buttons, in the header. */
+.trashed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); font-size: var(--text-sm); }
+.trashed .error { flex-basis: 100%; }
 
 .grid {
   display: grid;

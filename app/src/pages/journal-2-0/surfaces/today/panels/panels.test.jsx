@@ -319,14 +319,14 @@ describe('TodayNotePanel', () => {
 
   // Fix round 1 (review finding 7): a NEW day's note lands in the Daily folder the server makes.
   // Today navigates away, so the sentence is queued for the Notebook to say when it opens.
-  it('a NEW day’s note queues "Saved in your Daily folder." for the Notebook; an existing one does not', async () => {
+  it('a NEW day’s note queues "Saved with your daily notes." for the Notebook; an existing one does not', async () => {
     sessionStorage.clear()
     openDailyNoteSpy.mockResolvedValue({ note: { id: 'n42' }, created: true, templateMissing: false })
     mount(<TodayNotePanel />)
     fireEvent.click(screen.getByRole('button', { name: "Open today's note" }))
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1))
     const { takeQueuedNotebookNotice } = await import('../../../lib/dailyNote')
-    expect(takeQueuedNotebookNotice({ noteId: 'n42' })).toBe('Saved in your Daily folder.')
+    expect(takeQueuedNotebookNotice({ noteId: 'n42' })).toBe('Saved with your daily notes.')
     expect(takeQueuedNotebookNotice({ noteId: 'n42' })).toBeNull()   // said once
     openDailyNoteSpy.mockResolvedValue({ note: { id: 'n42' }, created: false, templateMissing: false })
     fireEvent.click(screen.getByRole('button', { name: "Open today's note" }))

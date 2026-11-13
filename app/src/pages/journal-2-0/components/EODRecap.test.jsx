@@ -100,7 +100,7 @@ describe('EODRecap — "Draft in today’s note" (wave 13 lane 13F, flag on)', (
 // Fix round 1 (review finding 7): the Compass recap card made the day's note and the Daily folder
 // in silence. A NEW note queues the sentence for the Notebook (the card navigates away).
 describe('EODRecap: the Daily folder is said (fix round 1)', () => {
-  it('a draft that MADE the day’s note queues "Saved in your Daily folder."', async () => {
+  it('a draft that MADE the day’s note queues "Saved with your daily notes."', async () => {
     sessionStorage.clear()
     vi.resetModules()
     vi.doMock('../lib/reviewDrafts', () => ({
@@ -119,7 +119,7 @@ describe('EODRecap: the Daily folder is said (fix round 1)', () => {
     render(<MemoryRouter><EODRecapFresh recap={SAMPLE} onFeedback={() => {}} onRegenerate={() => {}} onForget={() => {}} /></MemoryRouter>)
     await user.click(screen.getByRole('button', { name: /draft in today/i }))
     await waitFor(() => expect(navigateSpy).toHaveBeenCalled())
-    expect(takeQueuedNotebookNotice({ noteId: 'daily1' })).toBe('Saved in your Daily folder.')
+    expect(takeQueuedNotebookNotice({ noteId: 'daily1' })).toBe('Saved with your daily notes.')
     vi.doUnmock('../lib/reviewDrafts')
     vi.doUnmock('react-router-dom')
   })

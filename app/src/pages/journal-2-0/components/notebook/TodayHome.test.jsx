@@ -1,5 +1,8 @@
-// Audit 2026-11-05, S15 (M1) + S18: the Today home. One read, the cards in the session's order, a teaching empty
-// state on every card, a section that failed said in place, the recap after 16:05 ET, and nothing that shifts.
+// Audit 2026-11-05, S15 (M1) + S18: the Today home. One read, the cards in the session's order, a section that failed
+// said in place, the recap after 16:05 ET, and nothing that shifts.
+// Simplify pass 2 (B1 to B5): the read is make=0 always (it never makes today's note); a card with nothing to show is
+// not drawn; the two first-run asks are compact; one quiet line when nothing else is drawn; the header's one button is
+// today's note (Start / Open / the Trash pair).
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,9 +17,10 @@ const runNoteBatch = vi.fn()
 vi.mock('../../lib/noteBatch', () => ({ runNoteBatch: (...a) => runNoteBatch(...a) }))
 
 import TodayHome, {
-  CARD_ORDER, FRESH_ACTION, RECAP_ACTION, RECAP_WRITTEN, RESTORE_ACTION, SKELETON_ORDER, TODAY_URL, TRASHED_NOTE,
-  cardOrder, headerLine, msUntilET,
+  CARD_ORDER, FRESH_ACTION, NAMES_ASK_LINE, NOTE_ACTION, NOTHING_YET, OPEN_ACTION, RECAP_ACTION, RECAP_WRITTEN,
+  RESTORE_ACTION, SKELETON_ORDER, START_ACTION, TODAY_URL, TRASHED_NOTE, cardOrder, headerLine, msUntilET,
 } from './TodayHome'
+import { TODAY_READ_URL } from '../../lib/todayHome'
 import { CAPTURE_OPEN_EVENT } from '../../lib/captureBus'
 import { NAMES_ASK } from './EmptyNamesAsk'
 import { FIRST_PLAN } from './FirstPlanAsk'
@@ -77,9 +81,18 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); __resetNotebookFlags() })
 
 const renderToday = (props = {}) => render(
-  <MemoryRouter><TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} {...props} /></MemoryRouter>)
+  <MemoryRouter><TodayHome onOpenNote={vi.fn()} onOpenToday={vi.fn()} {...props} /></MemoryRouter>)
 const cards = () => [...document.querySelectorAll('[data-today-card]')].map((c) => c.getAttribute('data-today-card'))
-const todayReads = () => S.calls.filter((c) => c.url === TODAY_URL)
+const todayReads = () => S.calls.filter((c) => c.url === TODAY_READ_URL)
+/** Every section empty: no plan lines, no setups, no names, nothing from yesterday, nothing on this day. */
+const EMPTY = () => ({
+  names: { count: 0, rows: [], more: 0, earningsUnknown: false, buzzKnown: false, reportingToday: [] },
+  setups: { count: 0, nearCount: 0, rows: [], more: 0 },
+  openFromYesterday: { count: 0, items: [], more: 0, priorDaily: null },
+  onThisDay: { count: 0, items: [] },
+  todayNote: { id: null, missing: true, trashed: false, created: false, items: [], itemCount: 0, openCount: 0 },
+})
+const header = () => document.querySelector('[data-today-home] header')
 
 describe('one read, the M1 layout', () => {
   it('draws the greeting line, the five cards in pre-market order, from ONE request', async () => {
@@ -93,9 +106,8 @@ describe('one read, the M1 layout', () => {
     expect(document.querySelector('[data-today-line]').textContent).toMatch(
       /^Good (morning|afternoon|evening) · Thursday, Nov 5 · Pre-market · Green regime · 61% above the 50-day · 1 h 12 m to the open$/)
     expect(screen.getByText('Started from “Daily prep”')).toBeInTheDocument()
-    // Final fix (C5): the same words as the notes list's button.
-    expect(screen.getByRole('button', { name: '+ New' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'All notes' })).toBeInTheDocument()
+    // B4: the header's one button is today's note.
+    expect(within(header()).getAllByRole('button').map((b) => b.textContent)).toEqual([OPEN_ACTION])
     const setups = screen.getByTestId('today-setups')
     expect(within(setups).getByText('1.2% away')).toBeInTheDocument()
     expect(within(setups).getByText('below stop')).toBeInTheDocument()
@@ -132,7 +144,7 @@ describe('one read, the M1 layout', () => {
   it('A1: a member with a name is greeted by first name, as the first part of the date line', async () => {
     render(
       <AuthContext.Provider value={{ user: { display_name: 'Pat Smith' } }}>
-        <MemoryRouter><TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} /></MemoryRouter>
+        <MemoryRouter><TodayHome onOpenNote={vi.fn()} onOpenToday={vi.fn()} /></MemoryRouter>
       </AuthContext.Provider>)
     await screen.findByTestId('today-plan')
     expect(screen.getByRole('heading', { level: 2, name: 'Daily brief' })).toBeInTheDocument()
@@ -163,82 +175,157 @@ describe('the session orders the cards', () => {
   })
 })
 
-describe('never empty (M7)', () => {
-  it('no names asks for them; no setups asks for the first plan; empty lists say what fills them', async () => {
-    S.today = payload({
-      names: { count: 0, rows: [], more: 0, earningsUnknown: false, buzzKnown: false, reportingToday: [] },
-      setups: { count: 0, nearCount: 0, rows: [], more: 0 },
-      openFromYesterday: { count: 0, items: [], more: 0, priorDaily: null },
-      onThisDay: { count: 0, items: [] },
-      todayNote: { ...NOTE, items: [], itemCount: 0, openCount: 0 },
-    })
+describe('B1: the read never makes today’s note; the header button says which it is', () => {
+  it('(a) mounting issues exactly ONE today read, with make=0, and no POST', async () => {
     renderToday()
     await screen.findByTestId('today-plan')
-    expect(within(screen.getByTestId('today-names')).getByText(NAMES_ASK)).toBeInTheDocument()
-    expect(within(screen.getByTestId('today-setups')).getByText(FIRST_PLAN.title)).toBeInTheDocument()
-    expect(within(screen.getByTestId('today-yesterday')).getByText(/Nothing left open/)).toBeInTheDocument()
-    expect(within(screen.getByTestId('today-on-this-day')).getByText(/Nothing written on this date/)).toBeInTheDocument()
-    expect(within(screen.getByTestId('today-plan')).getByText(/Nothing on today’s plan yet/)).toBeInTheDocument()
+    await new Promise((r) => setTimeout(r, 30))
+    const reads = S.calls.filter((c) => c.url.startsWith(TODAY_URL))
+    expect(reads.map((c) => c.url)).toEqual([`${TODAY_URL}?make=0`])
+    expect(S.calls.filter((c) => c.method !== 'GET' && c.url !== '/api/j2/telemetry')).toEqual([])
   })
 
-  it('a section the plan does not include is its neutral empty line; one that failed offers a retry (M7)', async () => {
+  it('(b) no note yet: "Start today’s note" calls the create path once (with the plan seed) and makes nothing itself', async () => {
+    S.today = payload({ todayNote: EMPTY().todayNote })
+    let done
+    const onOpenToday = vi.fn(() => new Promise((r) => { done = r }))
+    renderToday({ onOpenToday })
+    const start = await within(header()).findByRole('button', { name: START_ACTION })
+    expect(screen.queryByTestId('today-plan')).toBeNull()                 // no plan lines: no plan card (B2)
+    fireEvent.click(start)
+    fireEvent.click(start)                                                  // a second press while the first runs
+    expect(onOpenToday).toHaveBeenCalledTimes(1)
+    expect(onOpenToday).toHaveBeenCalledWith({ seedToday: true })
+    expect(start).toBeDisabled()
+    await act(async () => { done() })
+    expect(start).not.toBeDisabled()
+    expect(S.calls.some((c) => c.method === 'POST' && c.url.startsWith('/api/j2/notes'))).toBe(false)
+  })
+
+  it('(c) a note today: "Open today’s note" opens it', async () => {
+    const onOpenNote = vi.fn()
+    const onOpenToday = vi.fn()
+    renderToday({ onOpenNote, onOpenToday })
+    fireEvent.click(await within(header()).findByRole('button', { name: OPEN_ACTION }))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n-today', title: NOTE.title })
+    expect(onOpenToday).not.toHaveBeenCalled()
+    expect(within(header()).queryByRole('button', { name: START_ACTION })).toBeNull()
+  })
+
+  it('I3: a trashed day note puts Restore and Start a fresh one in the header, and makes nothing by itself', async () => {
+    S.today = payload({ todayNote: { id: 'n-old', trashed: true, missing: false, created: false, items: [] } })
+    const onOpenToday = vi.fn()
+    renderToday({ dailyTemplateId: 'tpl1', onOpenToday })
+    expect(await within(header()).findByText(TRASHED_NOTE)).toBeInTheDocument()
+    expect(within(header()).queryByRole('button', { name: START_ACTION })).toBeNull()
+    expect(within(header()).queryByRole('button', { name: OPEN_ACTION })).toBeNull()
+    expect(screen.queryByTestId('today-plan')).toBeNull()
+    expect(S.calls.some((c) => c.method === 'POST' && c.url.startsWith('/api/j2/notes'))).toBe(false)
+    runNoteBatch.mockResolvedValue({ results: [{ id: 'n-old', status: 'changed' }] })
+    fireEvent.click(within(header()).getByRole('button', { name: RESTORE_ACTION }))
+    await waitFor(() => expect(runNoteBatch).toHaveBeenCalledWith({ ids: ['n-old'], op: 'restore' }))
+    fireEvent.click(await within(header()).findByRole('button', { name: FRESH_ACTION }))
+    await waitFor(() => expect(S.calls.some((c) => c.url === '/api/j2/notes/daily' && c.method === 'POST')).toBe(true))
+    const post = S.calls.find((c) => c.url === '/api/j2/notes/daily')
+    expect(JSON.parse(post.body)).toMatchObject({ templateId: 'tpl1', seedToday: true })
+    expect(onOpenToday).not.toHaveBeenCalled()
+  })
+
+  it('today’s note section unread: the list button’s own words, which open or make it on the press', async () => {
+    S.today = payload({ todayNote: null, reasons: { todayNote: 'error' } })
+    const onOpenToday = vi.fn()
+    renderToday({ onOpenToday })
+    fireEvent.click(await within(header()).findByRole('button', { name: NOTE_ACTION }))
+    expect(onOpenToday).toHaveBeenCalledTimes(1)
+    const plan = document.querySelector('[data-today-card="plan"]')
+    expect(within(plan).getByRole('button', { name: 'Try again' })).toBeTruthy()
+  })
+
+  it('while the read is in flight the button’s room is held by an invisible copy, never a live button', async () => {
+    S.hold = new Promise(() => {})
+    renderToday()
+    await waitFor(() => expect(document.querySelector('[data-today-skeleton]')).not.toBeNull())
+    expect(within(header()).queryAllByRole('button')).toEqual([])
+    expect(header().querySelector('[data-today-actions] [aria-hidden="true"]').textContent).toBe(START_ACTION)
+  })
+})
+
+describe('B2 to B5: only what it has', () => {
+  it('(d) an empty section’s card is not drawn, and its teaching sentence is not on the page', async () => {
+    S.today = payload({
+      openFromYesterday: { count: 0, items: [], more: 0, priorDaily: null },
+      onThisDay: { count: 0, items: [] },
+      todayNote: { ...NOTE, items: [{ index: 0, text: 'Check the market', checked: true }], itemCount: 1, openCount: 0 },
+    })
+    renderToday()
+    await screen.findByTestId('today-setups')
+    for (const title of ['Open from yesterday', 'On this day', "Today's plan"]) {
+      expect(screen.queryByRole('heading', { name: title })).toBeNull()
+    }
+    expect(cards()).toEqual(['setups', 'names'])                          // the session's order, empty ones skipped
+    expect(document.body.textContent).not.toMatch(/shows here tomorrow|comes back here next year|Nothing on today/)
+    expect(screen.queryByText(NOTHING_YET)).toBeNull()                    // setups and names have content
+    expect(within(header()).getByRole('button', { name: OPEN_ACTION })).toBeTruthy()
+  })
+
+  it('CONTROL: the same cards draw when they have rows, in the session’s order', async () => {
+    renderToday()
+    await screen.findByTestId('today-plan')
+    expect(cards()).toEqual(CARD_ORDER.premarket)
+  })
+
+  it('(e) every section empty: the one quiet line and the two compact asks, and no heading without content', async () => {
+    S.today = payload(EMPTY())
+    renderToday()
+    expect(await screen.findByText(NOTHING_YET)).toBeInTheDocument()
+    expect(cards()).toEqual(['setups', 'names'])
+    const h3s = [...document.querySelectorAll('[data-today-home] h3')]
+    expect(h3s).toHaveLength(2)
+    for (const h3 of h3s) expect(h3.closest('[data-today-card]').querySelector('input')).not.toBeNull()
+    expect(within(header()).getByRole('button', { name: START_ACTION })).toBeTruthy()
+  })
+
+  it('(f) the compact asks: a heading, one sentence and the field; no ordered list, no suggestions', async () => {
+    S.today = payload(EMPTY())
+    renderToday()
+    await screen.findByText(NOTHING_YET)
+    for (const id of ['setups', 'names']) {
+      const card = document.querySelector(`[data-today-card="${id}"]`)
+      expect(card.querySelectorAll('h3')).toHaveLength(1)
+      expect(card.querySelector('ol')).toBeNull()
+      expect(within(card).queryByRole('group', { name: 'Suggestions' })).toBeNull()
+      const lines = [...card.querySelectorAll('p')].filter((p) => p.textContent.trim())
+      expect(lines).toHaveLength(1)
+      expect(lines[0].textContent.trim().split(/[.!?](\s|$)/).filter((x) => x && x.trim())).toHaveLength(1)
+      expect(card.querySelectorAll('input')).toHaveLength(1)
+    }
+    expect(within(document.querySelector('[data-today-card="names"]')).getByText(NAMES_ASK_LINE)).toBeTruthy()
+    expect(screen.queryByText(NAMES_ASK)).toBeNull()
+    expect(screen.queryByText(FIRST_PLAN.title)).toBeNull()
+    expect(screen.getByText(FIRST_PLAN.line)).toBeInTheDocument()
+  })
+
+  it('a member with names but nothing else: no quiet line (the names card has content), and the setups ask stays', async () => {
+    S.today = payload({ ...EMPTY(), names: payload().names })
+    renderToday()
+    await screen.findByTestId('today-names')
+    expect(screen.queryByText(NOTHING_YET)).toBeNull()
+    expect(screen.getByText(FIRST_PLAN.line)).toBeInTheDocument()
+  })
+
+  it('a section the plan does not include is not drawn; one that failed offers a retry (M7)', async () => {
     S.today = payload({ names: null, setups: null, market: null, reasons: { names: 'error', setups: 'plan', market: 'plan' } })
     renderToday()
     await screen.findByTestId('today-plan')
-    expect(screen.getByText('No setups to show.')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Setups near entry' })).toBeNull()
+    expect(screen.queryByText('No setups to show.')).toBeNull()
     expect(screen.queryByText(/paid plan/i)).toBeNull()
     expect(screen.queryByText(NAMES_ASK)).toBeNull()                       // never the ask to a member who has names
+    expect(screen.getByRole('heading', { name: 'Your names' })).toBeInTheDocument()
     const reads = todayReads().length
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(todayReads().length).toBe(reads + 1))
     expect(screen.getByTestId('today-on-this-day')).toBeInTheDocument()
-  })
-
-  it('I3: a trashed day note offers Restore and Start a fresh one, and makes nothing by itself', async () => {
-    S.today = payload({ todayNote: { id: 'n-old', trashed: true, missing: false, created: false, items: [] } })
-    renderToday({ dailyTemplateId: 'tpl1' })
-    expect(await screen.findByText(TRASHED_NOTE)).toBeInTheDocument()
-    expect(S.calls.some((c) => c.method === 'POST' && c.url.startsWith('/api/j2/notes'))).toBe(false)
-    runNoteBatch.mockResolvedValue({ results: [{ id: 'n-old', status: 'changed' }] })
-    fireEvent.click(screen.getByRole('button', { name: RESTORE_ACTION }))
-    await waitFor(() => expect(runNoteBatch).toHaveBeenCalledWith({ ids: ['n-old'], op: 'restore' }))
-    fireEvent.click(await screen.findByRole('button', { name: FRESH_ACTION }))
-    await waitFor(() => expect(S.calls.some((c) => c.url === '/api/j2/notes/daily' && c.method === 'POST')).toBe(true))
-    const post = S.calls.find((c) => c.url === '/api/j2/notes/daily')
-    expect(JSON.parse(post.body)).toMatchObject({ templateId: 'tpl1', seedToday: true })
-  })
-
-  it('I9: with the first run due Today asks with make=0 and says the plan comes with the setup', async () => {
-    S.today = payload({ todayNote: { id: null, missing: true, trashed: false, created: false, items: [] } })
-    const { rerender } = renderToday({ todayRead: 'hold' })
-    await screen.findByText('Today’s plan is written when you set up your Notebook.')
-    expect(S.calls.map((c) => c.url)).toContain(`${TODAY_URL}?make=0`)
-    expect(S.calls.map((c) => c.url)).not.toContain(TODAY_URL)
-    S.today = payload()
-    rerender(<MemoryRouter><TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} todayRead="make" /></MemoryRouter>)
-    await waitFor(() => expect(S.calls.map((c) => c.url)).toContain(TODAY_URL))
-  })
-
-  it('R1-B: an established member makes exactly ONE request, with make=1 -- waiting first reads nothing', async () => {
-    const { rerender } = renderToday({ todayRead: 'wait' })
-    await new Promise((r) => setTimeout(r, 30))
-    expect(todayReads()).toHaveLength(0)
-    expect(document.querySelectorAll('[data-today-skeleton]').length).toBe(SKELETON_ORDER.length)   // skeletons up
-    rerender(<MemoryRouter><TodayHome onOpenNote={vi.fn()} onCreateNote={vi.fn()} onSelectAllNotes={vi.fn()} todayRead="make" /></MemoryRouter>)
-    await screen.findByTestId('today-plan')
-    await new Promise((r) => setTimeout(r, 30))
-    const reads = S.calls.filter((c) => c.url.startsWith(TODAY_URL))
-    expect(reads.map((c) => c.url)).toEqual([TODAY_URL])
-    expect(screen.queryByText('Today’s plan is written when you set up your Notebook.')).toBeNull()
-  })
-
-  it("a note this read MADE says where it went (Tier 0's notice) and tells the Notebook once", async () => {
-    S.today = payload({ todayNote: { ...NOTE, created: true } })
-    const onNoteMade = vi.fn()
-    renderToday({ onNoteMade })
-    await screen.findByText(DAILY_FOLDER_NOTICE)
-    await waitFor(() => expect(onNoteMade).toHaveBeenCalledTimes(1))
-    expect(onNoteMade.mock.calls[0][0].id).toBe('n-today')
   })
 })
 
@@ -291,18 +378,17 @@ describe('the evening loop (S18)', () => {
 })
 
 // Notebook simplify, Task 5: the Today home is the Daily brief, an optional page (the Notebook opens on the notes
-// list). It no longer offers "Open the Notebook on" or a Research home link; its "All notes" button stays.
+// list). It no longer offers "Open the Notebook on" or a Research home link. Simplify pass 2 (B4): nor Quick capture,
+// All notes or + New (the palette, the panel and the list have them).
 describe('the Daily brief', () => {
-  it('offers no landing choice and no Research home link; All notes stays', async () => {
-    const onSelectAllNotes = vi.fn()
-    renderToday({ onSelectAllNotes, onOpenResearchHome: vi.fn() })
+  it('offers no landing choice, no Research home link, and no Quick capture / All notes / + New', async () => {
+    renderToday({ onOpenResearchHome: vi.fn() })
     await screen.findByTestId('today-plan')
     expect(screen.queryByLabelText('Open the Notebook on')).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()
     expect(screen.queryByRole('button', { name: /Research home/ })).toBeNull()
     expect(S.calls.some((c) => c.method === 'POST' && c.url === '/api/auth/preferences')).toBe(false)
-    fireEvent.click(screen.getByRole('button', { name: 'All notes' }))
-    expect(onSelectAllNotes).toHaveBeenCalledTimes(1)
+    for (const name of ['Quick capture', 'All notes', '+ New']) expect(screen.queryByRole('button', { name })).toBeNull()
   })
 
   it('below the cards: "Reporting soon" and "Passed setups", folded, reading nothing until opened', async () => {
@@ -384,14 +470,14 @@ describe('fix round 1 minors', () => {
     expect(Math.round(msUntilET(0, 0, at3pm) / 60_000)).toBe(9 * 60)
   })
 
-  it('M3: Quick capture opens the Notebook’s one capture dialog', async () => {
-    renderToday()
-    await screen.findByTestId('today-plan')
+  it('M3 + B4: the brief opens no capture dialog of its own (Quick capture lives in the command palette)', async () => {
     const seen = vi.fn()
     window.addEventListener(CAPTURE_OPEN_EVENT, seen)
-    fireEvent.click(screen.getByRole('button', { name: 'Quick capture' }))
+    renderToday()
+    await screen.findByTestId('today-plan')
+    for (const b of within(header()).getAllByRole('button')) fireEvent.click(b)
     window.removeEventListener(CAPTURE_OPEN_EVENT, seen)
-    expect(seen).toHaveBeenCalledTimes(1)
+    expect(seen).not.toHaveBeenCalled()
   })
 
   it('M4: the greeting is an h2 under the Journal’s h1, and each card an h3', async () => {
@@ -400,6 +486,18 @@ describe('fix round 1 minors', () => {
     expect(document.querySelector('[data-today-home] h1')).toBeNull()
     expect(document.querySelector('[data-today-home] header h2')).toBeTruthy()
     expect(within(screen.getByTestId('today-plan')).getByRole('heading', { level: 3, name: "Today's plan" })).toBeInTheDocument()
+  })
+
+  it('simplify pass 2: the visible "Daily brief" heading takes the ref it is handed and is a programmatic focus target', async () => {
+    const headingRef = { current: null }
+    renderToday({ headingRef })
+    await screen.findByTestId('today-plan')
+    const h = screen.getByRole('heading', { level: 2, name: 'Daily brief' })
+    expect(headingRef.current).toBe(h)
+    expect(h.getAttribute('tabindex')).toBe('-1')
+    expect(h.hasAttribute('data-focus-fallback')).toBe(true)
+    act(() => { headingRef.current.focus() })
+    expect(document.activeElement).toBe(h)
   })
 
   it('M5: a row is named with its facts', async () => {

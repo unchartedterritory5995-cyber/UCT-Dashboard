@@ -281,7 +281,7 @@ describe('InsightsHub — Reviews section (wave 13 lane 13F)', () => {
 
   // Fix round 1 (review finding 7): today's recap that MADE the day's note queues the Daily-folder
   // sentence for the Notebook (this door navigates away).
-  it("Draft today's recap that made the note queues \"Saved in your Daily folder.\"", async () => {
+  it("Draft today's recap that made the note queues \"Saved with your daily notes.\"", async () => {
     reviewDraftsFlagOn = true
     sessionStorage.clear()
     const { draftDailyReview } = await import('../../lib/reviewDrafts')
@@ -291,7 +291,7 @@ describe('InsightsHub — Reviews section (wave 13 lane 13F)', () => {
     fireEvent.click(screen.getByRole('button', { name: /today.s recap/i }))
     const { takeQueuedNotebookNotice } = await import('../../lib/dailyNote')
     await waitFor(() => expect(sessionStorage.getItem('uct.nb.pendingNotice')).toBeTruthy())
-    expect(takeQueuedNotebookNotice({ noteId: 'd1' })).toBe('Saved in your Daily folder.')
+    expect(takeQueuedNotebookNotice({ noteId: 'd1' })).toBe('Saved with your daily notes.')
   })
 
   it('a refusal the door wrote for the member is shown in its own words, not the generic line', async () => {

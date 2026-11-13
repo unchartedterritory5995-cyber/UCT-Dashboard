@@ -9,7 +9,8 @@ import { __resetMyNamesQueue } from '../lib/myNames'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 
 vi.mock('../components/notebook/FirstRunGate', () => ({ FirstRunInlineSlot: () => null }))
-import TodayHome, { TODAY_URL } from '../components/notebook/TodayHome'
+import TodayHome from '../components/notebook/TodayHome'
+import { TODAY_READ_URL as TODAY_URL } from '../lib/todayHome'
 
 const TODAY = {
   day: '2026-11-05',
@@ -37,7 +38,7 @@ afterEach(() => { vi.unstubAllGlobals(); __resetNotebookFlags() })
 describe('the Today home -- axe', () => {
   axeSurface('today-home', async () => {
     latchNotebookFlags({ notebook_earnings_prep_enabled: true, notebook_passed_setups_enabled: true })
-    render(<MemoryRouter><main><TodayHome onOpenNote={() => {}} onCreateNote={() => {}} onSelectAllNotes={() => {}} /></main></MemoryRouter>)
+    render(<MemoryRouter><main><TodayHome onOpenNote={() => {}} onOpenToday={() => {}} /></main></MemoryRouter>)
     expect(await screen.findByTestId('today-plan')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Reporting soon/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Passed setups/ })).toBeInTheDocument()

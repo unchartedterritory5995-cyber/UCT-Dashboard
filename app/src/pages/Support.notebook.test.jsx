@@ -342,6 +342,10 @@ describe('the copy contract', () => {
     const tpl = await read('How do templates and the daily note work?')
     expect(tpl).toContain('to start a note from a template: a thesis, a daily note and more.')
     expect(tpl).not.toMatch(/\blayout/i)
+    // Simplify pass 2 (B2): the teaching sentences the Daily brief's empty cards carried are in Help now.
+    const start = await read('How do I get started with the Notebook?')
+    expect(start).toContain("A checklist line you don't tick today, or a task due today, shows there tomorrow")
+    expect(start).toContain('what you write today comes back there next year.')
   })
 
 })

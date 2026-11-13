@@ -568,7 +568,8 @@ export const FAQS = [
       <strong>+ New</strong> for a blank note, or the arrow beside it to start from a template such as
       a thesis. What you write saves as you type. Folders and tags are on the left, and{' '}
       <strong>Daily brief</strong>, under All notes, shows today&apos;s plan, the setups near your entry
-      and the notes that need a review.<TourLink /></>,
+      and the notes that need a review. A checklist line you don&apos;t tick today, or a task due today,
+      shows there tomorrow, and what you write today comes back there next year.<TourLink /></>,
   },
   {
     id: 'notebook-templates-daily-note',

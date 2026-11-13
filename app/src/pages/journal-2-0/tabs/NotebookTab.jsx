@@ -83,8 +83,8 @@ import FollowupOfferSlot from '../components/notebook/FollowupOfferSlot'
 import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 import FirstRunGate from '../components/notebook/FirstRunGate'
-import { TODAY_VIEW, todayLandingOn } from '../lib/todayHome'
-import { FIRST_RUN_MARKS, firstRunIsDue, setFirstRunPending, useFirstRunShowing } from '../lib/firstRun'
+import { TODAY_READ_URL, TODAY_VIEW, todayLandingOn } from '../lib/todayHome'
+import { FIRST_RUN_MARKS, firstRunIsDue, setFirstRunPending } from '../lib/firstRun'
 import { starterPacksEnabled } from '../lib/starterPacksFlag'
 import { TIPS_PREF, seenTips } from '../lib/notebookTips'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
@@ -145,11 +145,15 @@ function SavedViewsMenuGroup(props) {
 // Fix round 1: the zero-notes "Add a sample notebook" door, fetched when the empty state draws (it renders nothing until
 // it lands, and nothing at all for a member it is not for).
 
+// `fallback`: undefined draws the loading line; an element (or null) is drawn as is; a component gets the view's props
+// (the Daily brief's, so its focus landing exists while its chunk is on the way).
 function lazyView(load, label, fallback) {
   const Chunk = lazyChunk(load)
+  const loading = <div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div>
   function LazyNotebookView(props) {
+    const Fallback = typeof fallback === 'function' ? fallback : null
     return (
-      <Suspense fallback={fallback === undefined ? <div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div> : fallback}>
+      <Suspense fallback={Fallback ? <Fallback {...props} loading={loading} /> : fallback === undefined ? loading : fallback}>
         <Chunk {...props} />
       </Suspense>
     )
@@ -211,7 +215,24 @@ const loadTodayHome = () => {
   }
   return todayHomeImport
 }
-const TodayHome = lazyView(loadTodayHome, 'today')
+// Simplify pass 2: the brief draws the page's one "Daily brief" heading and takes the pane's focus ref for it. Until its
+// chunk lands, the pane's own hidden heading of the same words holds that ref, so a focus call in that window still
+// lands on a heading (deleteFocusFallback.test.jsx); if it holds focus as the brief replaces it, focus moves on to the
+// brief's heading rather than falling to <body>.
+function TodayHomeLoading({ headingRef, loading }) {
+  // An unmount cleanup runs before React detaches the heading's ref, so the ref still names this heading here.
+  useLayoutEffect(() => () => {
+    const el = headingRef?.current
+    if (el && el === document.activeElement) queueMicrotask(() => headingRef.current?.focus())
+  }, [headingRef])
+  return (
+    <>
+      <h2 ref={headingRef} tabIndex={-1} className={styles.paneHeading} data-focus-fallback="">Daily brief</h2>
+      {loading}
+    </>
+  )
+}
+const TodayHome = lazyView(loadTodayHome, 'today', TodayHomeLoading)
 // Go-live wave 1, fix round 1 (first-open bytes): the zero-notes sample door, through `lazyView` with a null fallback
 // (nothing flashes while the chunk lands).
 const SampleNotebookDoor = lazyView(() => import('../components/notebook/onboarding/SampleNotebookDoor'), 'sample notebook', null)
@@ -928,7 +949,8 @@ export default function NotebookTab() {
   // (`?view=board`, `?view=tasks`, ...), `home` (Research home's old address; Research home itself was deleted in go-live
   // wave 1) or one this build does not know. ⚰️ It used to open the member's LANDING ("Open the Notebook on": Today, Research home or All notes,
   // default Today), and opening Today MADE the day's note as a side effect of opening the Notebook. Now nothing is made
-  // until the member opens the Daily brief (`?view=today`, its own read) or presses "Today's note".
+  // until the member presses "Today's note" (or the Daily brief's "Start today's note": simplify pass 2, B1 -- the
+  // brief itself only reads).
   // ⛔ A2R-03 (a11y second review, 2026-10-01): every VIEW_MODES id is a list address -- `?view=graph` once rendered
   // Research Home, so a keyboard walk never found the graph canvas. With no home behind the list that cannot recur.
   const viewParam = searchParams.get('view')
@@ -943,18 +965,15 @@ export default function NotebookTab() {
   })
   // The Daily brief (the Today home): `?view=today`, nothing else.
   const isToday = !noteId && !hasActiveFilters && !isTrashView && viewParam === TODAY_VIEW
-  // I9 + fix round 2 (R1-B): what the Today home reads. `hold` (make=0, never make the day's note) only while the
-  // 60-second first run IS due or on screen -- Build makes the note, with the names the member typed. `wait` (no read
-  // at all; the skeletons stay up) while that cannot be decided yet: the preferences have not answered, or the notes
-  // count has not and the tips do not record the first run. A member whose tips record it can never get it again,
-  // so their read starts at once, as `make` -- one request, never a make=0 read and then a make=1 read.
-  const firstRunShowing = useFirstRunShowing()
+  // The 60-second first run's state, for the shell's walkthrough gate below: due, or not decided yet (the preferences
+  // have not answered, or the notes count has not and the tips do not record the first run).
+  // Simplify pass 2 (B1): ⚰️ this also decided what the Daily brief read (`make` / `hold` / `wait`); the brief reads
+  // with make=0 in every state now (TodayHome.jsx), so nothing here decides whether a page load makes the note.
   const tipsRaw = notebookPrefs?.[TIPS_PREF]
   const firstRunSeen = seenTips(tipsRaw).has(FIRST_RUN_MARKS.shown)
   const firstRunOn = starterPacksEnabled()
   const firstRunUndecided = firstRunOn && (Boolean(prefsLoading) || (!notesKnown && !firstRunSeen))
   const firstRunDue = firstRunOn && firstRunIsDue({ enabled: true, prefsReady: !prefsReadFailed, tipsRaw, notesKnown, hasAnyNotes })
-  const todayRead = firstRunShowing || firstRunDue ? 'hold' : firstRunUndecided ? 'wait' : 'make'
   // Final fix (C5): the shell's walkthrough gate holds a walkthrough while the first run is due here or undecided.
   const firstRunPending = firstRunDue || firstRunUndecided
   useLayoutEffect(() => { setFirstRunPending(firstRunPending) }, [firstRunPending])
@@ -2227,12 +2246,21 @@ export default function NotebookTab() {
   const { prefs, setPrefMerged } = usePreferences()
   const dailyTemplateId = prefs?.[DAILY_TEMPLATE_PREF] || ''
   const openingTodayRef = useRef(false)
-  const openToday = async () => {
+  const { mutate: mutateSwrKey } = useSWRConfig()   // the cache this tree reads from (the brief's read is in it)
+  // Simplify pass 2 (B1): also the Daily brief's "Start today's note", which asks for `seedToday` (today's plan from the
+  // held figures, what the brief's read used to write into a note it made). Any other caller -- a click handler handed
+  // an event, the shortcut, the phone row -- gets the plain door, as before.
+  const openToday = async (opts) => {
     if (openingTodayRef.current) return
     openingTodayRef.current = true
     setActionError('')
     try {
-      const { note, created, templateMissing } = await openDailyNote({ templateId: dailyTemplateId })
+      const { note, created, templateMissing } = await openDailyNote({
+        templateId: dailyTemplateId, seedToday: opts?.seedToday === true,
+      })
+      // The Daily brief's answer is now out of date (it may say "Start today's note"): read it again, so a return to
+      // the brief says "Open today's note" and shows the plan.
+      mutateSwrKey(TODAY_READ_URL)
       if (created) {
         addNoteToTree(note)
         refreshAll()
@@ -2786,7 +2814,9 @@ export default function NotebookTab() {
         {/* Wave 8 (8A, A4): what the pane shows, as a heading -- the landing
             place for the skip link and for focus when a delete leaves no row
             after it. Visually hidden until it takes focus. */}
-        {!noteId && (
+        {/* Simplify pass 2: the Daily brief draws its own visible "Daily brief" heading and takes this ref for it, so the
+            page has ONE heading of that name and every focus call below lands on the visible one. */}
+        {!noteId && !isToday && (
           <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading} data-focus-fallback="">{paneHeading}</h2>
         )}
         {/* Finish program, lane FE2 round 2: this confirm and its error line sit ABOVE the
@@ -2957,10 +2987,8 @@ export default function NotebookTab() {
           {repairNotice}
           <TodayHome
             onOpenNote={openNote}
-            onCreateNote={() => createNote()}
-            onSelectAllNotes={selectAllNotes}
-            onNoteMade={(note) => { if (note) addNoteToTree(note); refreshAll(); refreshSidebarCounts() }}
-            todayRead={todayRead}
+            onOpenToday={openToday}
+            headingRef={paneHeadingRef}
             dailyTemplateId={dailyTemplateId}
             onNotice={(message) => setBulkNotice({ message, tone: 'info' })}
           />
