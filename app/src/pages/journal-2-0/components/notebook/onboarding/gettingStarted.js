@@ -67,6 +67,8 @@ export const CHECKLIST_COPY = Object.freeze({
   template: 'Start a note from a template',
   sample: 'Open the sample notebook',
   sampleAdding: 'Adding the sample…',
+  // Final fix (A4): beside the one step the "n of N done" line does not count (the optional sample).
+  optional: 'Optional',
   tour: (title) => `Take the ${title} tour`,
 })
 

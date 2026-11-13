@@ -14,7 +14,7 @@
 //     costs the member the list, never Research Home. (Declared locally, not imported:
 //     NotebookTab.lazyViews.test.js's D-I2 rail can only see a boundary declared in the
 //     same file as the <Suspense> it wraps.)
-import { Component, Suspense } from 'react'
+import { Component, Suspense, useLayoutEffect, useSyncExternalStore } from 'react'
 import usePreferences from '../../../../hooks/usePreferences'
 import { reportError } from '../../../../lib/errorBeacon'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
@@ -42,6 +42,34 @@ class ChecklistCatch extends Component {
   }
 }
 
+// Final fix (C4): whether a get-started card is up (drawn, or its chunk on the way), for the empty list's standalone
+// "Add a sample notebook" (SampleNotebookDoor.jsx): while the card is up with its sample step not yet done, that step
+// is the door and the button is not drawn. Marked by `CardUp` inside the boundary, so a card whose chunk could not
+// load (the boundary renders nothing), a hidden or closed card, or no card at all lets the button draw again. A
+// layout effect: a door already loaded reads the answer before the frame is painted, never a button that flashes.
+let cardsUp = 0
+const cardListeners = new Set()
+const emitCards = () => cardListeners.forEach((fn) => fn())
+const subscribeCards = (fn) => {
+  cardListeners.add(fn)
+  return () => cardListeners.delete(fn)
+}
+function CardUp() {
+  useLayoutEffect(() => {
+    cardsUp += 1
+    emitCards()
+    return () => {
+      cardsUp -= 1
+      emitCards()
+    }
+  }, [])
+  return null
+}
+/** Whether a get-started card is up right now. */
+export function useGettingStartedCardUp() {
+  return useSyncExternalStore(subscribeCards, () => cardsUp > 0, () => false)
+}
+
 /** Build a gate over `load` (a rail hands in a loader that fails; the app uses the list). */
 export function makeChecklistGate(load, waitMs = RETRY_WAIT_MS) {
   const GettingStartedListLeaf = lazyLeaf(load, waitMs)
@@ -53,6 +81,7 @@ export function makeChecklistGate(load, waitMs = RETRY_WAIT_MS) {
     if (props.hasAnyNotes || !enabled || loading || checklistClosed(prefs?.[CHECKLIST_PREF])) return null
     return (
       <ChecklistCatch>
+        <CardUp />
         <Suspense fallback={null}>
           <GettingStartedListLeaf {...props} />
         </Suspense>

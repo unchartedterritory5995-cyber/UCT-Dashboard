@@ -107,8 +107,12 @@ describe('when it shows', () => {
     expect(await screen.findByRole('heading', { name: 'Get started' })).toBeInTheDocument()
     expect(screen.getByText('0 of 3 done')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Write your first note' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Start a note from a template' })).toHaveAttribute('href', '/journal/notebook?view=all')
+    // Final fix (C2): the template step opens the New note sheet (`#templates`), never the bare list it is drawn on.
+    expect(screen.getByRole('link', { name: 'Start a note from a template' })).toHaveAttribute('href', '/journal/notebook?view=all#templates')
     expect(screen.getByRole('button', { name: 'Open the sample notebook' })).toBeInTheDocument()
+    // Final fix (A4): four steps over "0 of 3 done": the uncounted one says it is optional, and only that one.
+    expect(screen.getByRole('button', { name: 'Open the sample notebook' }).closest('li')).toHaveTextContent('Optional')
+    expect(screen.getAllByText('Optional')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Take the Notebook basics tour' })).toBeInTheDocument()
     // The dark capability's tour is not offered.
     expect(screen.queryByText(/Formulas/)).toBeNull()

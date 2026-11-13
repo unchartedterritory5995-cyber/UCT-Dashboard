@@ -38,6 +38,7 @@ import useRovingTabIndex from '../../../../hooks/useRovingTabIndex'
 import usePreferences from '../../../../hooks/usePreferences'
 import useNotebookHome from '../../hooks/useNotebookHome'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { NOTEBOOK_TEMPLATES_TO } from '../../lib/notebookDoors'
 import { startTour } from './onboarding/learnTours'
 import {
   CHECKLIST_PREF, CHECKLIST_STATES, CHECKLIST_COPY, checklistClosed, checklistEnabled,
@@ -49,9 +50,9 @@ import {
 import PoliteStatus from './PoliteStatus'
 import styles from './GettingStartedList.module.css'
 
-/** Where "Start a note from a template" goes: All notes, which offers the template
- *  picker inline for an empty notebook and a Templates button otherwise. */
-const TEMPLATES_HREF = '/journal/notebook?view=all'
+// Where "Start a note from a template" goes: the New note sheet (`#templates` on the notes list, the command
+// palette's door, lib/notebookDoors.js). Final fix (C2): it was the bare notes list, written when this card was on
+// the old front page; the card is drawn in that list's own empty state now, so the bare link went nowhere.
 
 export default function GettingStartedList({ hasAnyNotes = false, onCreateNote = null, onAddSample = null }) {
   const enabled = checklistEnabled(notebookFlag)
@@ -159,7 +160,7 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
 
   const action = (item) => {
     if (item.kind === 'template') {
-      return <Link className={styles.action} to={TEMPLATES_HREF} {...itemProps(item.id)}>{item.label}</Link>
+      return <Link className={styles.action} to={NOTEBOOK_TEMPLATES_TO} {...itemProps(item.id)}>{item.label}</Link>
     }
     let onClick = null
     let label = item.label
@@ -209,6 +210,8 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
                 <span className="sr-only"> {CHECKLIST_COPY.doneLabel}</span>
               </span>
             ) : action(item)}
+            {/* Final fix (A4): the sample step is shown, never counted (S5 B3), so it says so beside the count. */}
+            {item.optional && !item.done ? <span className={styles.optional}>{CHECKLIST_COPY.optional}</span> : null}
           </li>
         ))}
       </ol>

@@ -1,8 +1,8 @@
 // app/src/pages/journal-2-0/a11y/emptyNotebookList.a11y.test.jsx
 //
 // Go-live wave 1 (D7): the notes list with ZERO notes, through 8A's axe harness, like its neighbours. Since Notebook
-// simplify Task 5 this is a member's first screen: the empty line, Import notes, "Add a sample notebook"
-// (SampleNotebookDoor) and the get-started list (GettingStartedChecklist), above the template picker. Real children,
+// simplify Task 5 this is a member's first screen: the empty line, Import notes and the get-started list
+// (GettingStartedChecklist, whose sample step is the sample door; final fix C4), above the template picker. Real children,
 // only the network faked (fixtures.jsx). The recipe proves each of those rendered before axe runs, so an empty or wrong
 // screen cannot pass as a clean one.
 import { describe, beforeEach, afterEach, expect } from 'vitest'
@@ -37,9 +37,12 @@ describe('the empty notes list (zero notes): sample door and get-started list', 
   axeSurface('tab-list-empty', async () => {
     render(<Providers auth={AUTH} route="/journal/notebook?view=all"><NotebookTab /></Providers>)
     await screen.findByText('Your notebook is empty.')
-    await screen.findByRole('button', { name: 'Add a sample notebook' })
     expect(screen.getByRole('button', { name: /Import notes/ })).toBeInTheDocument()
     await screen.findByRole('heading', { name: 'Get started' })
+    // Final fix (C4): with the card up, its "Open the sample notebook" step is the sample door; the standalone
+    // "Add a sample notebook" is not drawn beside it.
+    await screen.findByRole('button', { name: 'Open the sample notebook' })
     await settle()
+    expect(screen.queryByRole('button', { name: 'Add a sample notebook' })).toBeNull()
   }, { level: 'page' })
 })
