@@ -1198,6 +1198,15 @@ def main():
     # This pod OWNS the consumer + flow.db and serves the flow routers.
     os.environ.setdefault("WORKER_SERVES_FLOW", "1")
     log.info("[startup] flow-worker: consumer + flow routers only (no bars prewarm)")
+    # ⛔ WAL GUARD (2026-11-13, api/flow_db_guard.py): one connection held for the process life,
+    # so SQLite never deletes flow.db-wal under a live writer. Opened after FlowDB() has made the
+    # schema, before anything else touches the file.
+    try:
+        from api.flow_db import FlowDB as _FlowDB
+        from api import flow_db_guard
+        flow_db_guard.open_anchor(_FlowDB().db_path)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[flow-db-guard] anchor setup failed: %s", e)
     _start_consumer()
     _start_recent_cache_warmer()  # keep /recent snapshot cache hot (cold-load fix)
     _start_rest_side_heal()  # recover sides for big blank whales via REST NBBO (dark)
@@ -1216,6 +1225,11 @@ def main():
     # consumer stop() within Railway's 30s drain instead of a SIGKILL.
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info",
                 timeout_graceful_shutdown=5)
+    # Graceful shutdown is done (consumer stopped, OPRA slot released). Leave WITHOUT interpreter
+    # teardown: closing the SQLite connections here could checkpoint-and-delete flow.db-wal while
+    # the next container already writes to it (flow_db_guard).
+    from api import flow_db_guard
+    flow_db_guard.exit_now(0)
 
 
 if __name__ == "__main__":

@@ -32,6 +32,8 @@ import { registerDrawingExtras } from './capabilities/drawingExtras'
 import { registerIndicatorControlCapabilities } from './capabilities/indicatorControls'
 import { registerIndicatorTemplateCapabilities } from './capabilities/indicatorTemplates'
 import { registerDefinitionCapabilities } from './capabilities/definitions'
+// the chart's UCT Intelligence INDICATOR (its library row + panel layers) — not indicator authoring
+import { registerUctIntelligenceCapabilities } from './capabilities/uctIntelligence'
 import { registerBreadthCapabilities } from './capabilities/breadth'
 import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
 import { registerGuideCapabilities } from './capabilities/guide'
@@ -89,6 +91,7 @@ export function registerBuiltins() {
   registerIndicatorControlCapabilities()
   registerIndicatorTemplateCapabilities()
   registerDefinitionCapabilities()
+  registerUctIntelligenceCapabilities()     // uctIntelligence.set: add / remove the UCT Intelligence indicator, its layers on / off
   registerAboutCapabilities()
   registerGuideCapabilities()
   registerScreenerPageCapabilities()

@@ -78,6 +78,8 @@ const RENDERED = Object.freeze([
   // 2026-11-12: Scale to rating (`rsScaleToRating.test.js`)
   'scaleToRating',
   'maLength', 'maType', 'maColor',
+  // 2026-11-13: the second average (`rsSecondAverage.test.js`)
+  'showAverage2', 'maLength2', 'maType2', 'ma2Color',
   'color', 'lineWidth',
   'lookback', 'dotColor', 'dotBeforePriceColor', 'dotRedColor',
   'showRanksTable', 'ratingBands',
@@ -212,8 +214,8 @@ describe('2 · the inputs', () => {
 })
 
 describe('3 · the plots', () => {
-  it('six plots: the line, its hidden condition column, the gated average, three circle glyphs; nothing else', () => {
-    expect(SLIM.plots.map((p) => p.key)).toEqual(['rsLine', 'rsAbove', 'rsMa', 'dotNH', 'dotNHred', 'dotNHbeforePx'])
+  it('seven plots: the line, its hidden condition column, the gated average, the derived second average, three circle glyphs; nothing else', () => {
+    expect(SLIM.plots.map((p) => p.key)).toEqual(['rsLine', 'rsAbove', 'rsMa', 'rsMa2', 'dotNH', 'dotNHred', 'dotNHbeforePx'])
     const line = plot(SLIM, 'rsLine')
     // registered, the `$color` / `$lineWidth` refs are substituted and recorded in `$refs`
     expect(line).toMatchObject({ style: 'line', color: RS_INFO, width: 1, role: 'primary', precision: 4, legend: { decimals: 4 },
@@ -316,9 +318,10 @@ describe('4 · the readout', () => {
   const rows = (inputs = {}) => readoutRows(SLIM, PAYLOAD, { inputs })
 
   it('the glance list, in reading order; every glance row but History and Scale opens a card', () => {
-    expect(SLIM.readout.filter(isGlanceRow).map((r) => r.key)).toEqual(['benchmarkName', 'ratingSummary', 'scale', 'phase', 'rsHigh', 'checks', 'shortHistory'])
+    expect(SLIM.readout.filter(isGlanceRow).map((r) => r.key)).toEqual(['benchmarkName', 'ratingSummary', 'scale', 'phase', 'phase2', 'rsHigh', 'checks', 'shortHistory'])
     for (const r of SLIM.readout.filter(isGlanceRow)) {
-      if (r.key !== 'shortHistory' && r.key !== 'scale') expect(r.card, r.key).toBeTruthy()
+      // History, Scale and (2026-11-13) the second average's row print their sentence with no card
+      if (r.key !== 'shortHistory' && r.key !== 'scale' && r.key !== 'phase2') expect(r.card, r.key).toBeTruthy()
       expect(r.label.length, r.key).toBeLessThanOrEqual(12)
     }
     // the chip rows: the resolved benchmark and the IBD-style rating, ungated by any headline choice
@@ -386,13 +389,16 @@ describe('5 · the shared fixture, and the real binder', () => {
   const c = JSON.parse(readFileSync(join(FIX, 'rs_events_default.json'), 'utf8'))
 
   it('every plot names a column the fixture carries, and columnsFromWire + alignColumns land them on the bars by time', () => {
-    for (const p of SLIM.plots) expect(c.expected, p.key).toHaveProperty(p.key)
+    // 2026-11-13: the second average is derived on the client, never a wire column
+    const SENT = SLIM.plots.filter((p) => !p.derive)
+    expect(SLIM.plots.filter((p) => p.derive).map((p) => p.key)).toEqual(['rsMa2'])
+    for (const p of SENT) expect(c.expected, p.key).toHaveProperty(p.key)
     expect(columnKeys(SLIM)).toEqual(SLIM.plots.map((p) => p.key))
     const times = c.bars.map((b) => b.t)
-    const wire = { rev: 5, times, columns: Object.fromEntries(SLIM.plots.map((p) => [p.key, c.expected[p.key]])) }
+    const wire = { rev: 5, times, columns: Object.fromEntries(SENT.map((p) => [p.key, c.expected[p.key]])) }
     const parsed = columnsFromWire(wire, SLIM)
     const aligned = alignColumns(parsed, c.bars, (t) => t)
-    for (const p of SLIM.plots) {
+    for (const p of SENT) {
       expect(aligned[p.key].length, p.key).toBe(c.bars.length)
       aligned[p.key].forEach((v, i) => {
         const want = c.expected[p.key][i]
@@ -479,7 +485,7 @@ describe('6 · the settings dialog on the slim definition', () => {
     expect(heads).toEqual(['Simple', 'Average', 'New highs', 'Rating'])
     // CORE holds every rendered input that is not the Style tab's (colours, the line width) or the gated box
     const style = styleInputKeys(SLIM)
-    expect([...style].sort()).toEqual(['color', 'dotBeforePriceColor', 'dotColor', 'dotRedColor', 'lineWidth', 'maColor'])
+    expect([...style].sort()).toEqual(['color', 'dotBeforePriceColor', 'dotColor', 'dotRedColor', 'lineWidth', 'ma2Color', 'maColor'])
     // (the gated boxes: Your symbol, and since 2026-11-12 the picked sector and theme)
     const GATED = ['customBenchmark', 'sectorBenchmark', 'themeBenchmark']
     for (const k of RENDERED.filter((k) => !GATED.includes(k) && !style.has(k))) {

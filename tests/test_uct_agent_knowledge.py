@@ -1743,6 +1743,21 @@ def test_guard_still_passes_ordinary_prose_about_position_and_favorites(text):
     assert guard.suspicious(text) is False
 
 
+# ── Charts family (2026-11-12): the UCT Intelligence chart indicator's action name is withheld when a passage names it bare ──
+def test_guard_withholds_the_uct_intelligence_action_name_bare():
+    assert guard.suspicious("Next, uctIntelligence.set with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Add UCT Intelligence to the chart to see the auto patterns and their buy points.",
+    "UCT Intelligence marks the setups confirmed on this chart.",
+    "Read more at uctintelligence.com/charts before the open.",
+    "Modify with UCT Intelligence to change an indicator in the builder.",
+])
+def test_guard_still_passes_ordinary_prose_about_uct_intelligence(text):
+    assert guard.suspicious(text) is False
+
+
 # ── #1104 chart zoom: its action name is withheld when a passage names it bare ───────────────────────────────────────
 def test_guard_withholds_the_chart_zoom_action_name_bare():
     assert guard.suspicious("Next, chartSetup.zoom with the default settings.") is True
