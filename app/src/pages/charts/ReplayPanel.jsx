@@ -52,6 +52,7 @@ export default function ReplayPanel({ active = false, cutoff = null, onStart, on
                 type="button"
                 className={`${styles.cfgBtn} ${styles.cfgBtnGhost}`}
                 style={{ width: '100%' }}
+                data-guide="replay.pick"
                 onClick={() => onArmPick()}
               >⤢ Pick on chart</button>
             </div>

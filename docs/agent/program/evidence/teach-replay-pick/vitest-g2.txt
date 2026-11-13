@@ -1,0 +1,5 @@
+# node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+teach probe: 433/499 rows reach a walkthrough {"VERIFIED":{"rows":295,"reached":295},"ASSIGNED / NOT REACHED":{"rows":60,"reached":39},"NO WALKTHROUGH":{"rows":46,"reached":1},"NO ASSIGNED WALKTHROUGH":{"rows":75,"reached":75},"ROUTED / BROWSER FAILED":{"rows":23,"reached":23}}
+ Test Files  15 passed (15)
+      Tests  621 passed | 8 skipped (629)
+# exit=0 end 01:00:06

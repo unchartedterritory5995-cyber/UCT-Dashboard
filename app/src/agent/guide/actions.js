@@ -126,6 +126,9 @@ export const COMPARE_ACTIONS = [
 // ── small paths on panels the registry's walkthroughs already reach ──
 const TF_ARROW = { target: 'chart.timeframeMore', name: 'the arrow', text: 'Click this arrow to open every timeframe.', waitFor: 'chart.timeframeMenu' }
 const REPLAY = [TOOLS_MENU, { target: 'workspace.tools.replay', name: 'Replay Mode', text: 'Click Replay Mode.', waitFor: 'replay.panel' }]
+// the replay date picked by clicking a bar, not typed: a cut-off with the chart or a click, replay with a click, or a replay
+// date picked on the chart. “replay from October 15” names none of these and stays the date-box walkthrough.
+const REPLAY_PICK = /\bcut ?-?offs?\b.*\b(charts?|bars?|candles?|click\w*)\b|\b(charts?|bars?|candles?|click\w*)\b.*\bcut ?-?offs?\b|\breplay\w*\b.*\b(click\w*|tap\w*)\b|\b(click\w*|tap\w*)\b.*\breplay\w*\b|\b(pick|choose|select|set|mark)\w*\b.*\breplay\w*\b.*\b(on|from|off) (the |a )?(charts?|bars?|candles?)\b/
 const THEMES = [GEAR, { target: 'chartSettings.themes', name: 'UCT Chart Themes', text: 'Click UCT Chart Themes.', waitFor: 'chartThemes.scope' }]
 export const PANEL_ACTIONS = [
   { id: 'infoRow', label: 'The header’s info row', re: /\binfo row\b/, steps: [GEAR, { target: 'chartSettings.tab.header', name: 'the Header tab', text: 'Open Header.', waitFor: { id: 'chartSettings.tab.header', on: true } }, { target: [{ within: 'chartSettings', label: 'Info Row' }, 'chartSettings.tab.header'], name: 'Info Row', text: 'Info Row chooses the fields under the title, such as Market Cap, and their colours.', altText: 'It’s on this tab: scroll down for Info Row.' }] },
@@ -133,6 +136,11 @@ export const PANEL_ACTIONS = [
   { id: 'tfRemove', label: 'Deleting a custom timeframe', re: /\b(delete|remove)\b.*\b(custom )?(time ?frames?|intervals?)\b/, steps: [TF_ARROW, { target: ['timeframe.remove', { within: 'chart.timeframeMenu', aria: 'Interval count' }], name: 'the ✕', text: 'Click this ✕ to delete that custom timeframe.', altText: 'You have no custom timeframes yet. Add one here first; each one gets a ✕ in this list.' }] },
   { id: 'tfStar', label: 'Starring a timeframe', re: /\b(star|favou?rite)\w*\b.*\b(time ?frames?|intervals?)\b|\b(time ?frames?|intervals?)\b.*\b(star|favou?rite)\w*\b/, steps: [TF_ARROW, { target: 'timeframe.star', name: 'the star', text: 'Click a star to put that timeframe on the chart’s buttons. Click it again to take it off.' }] },
   { id: 'replayExit', label: 'Leaving replay', re: /\b(exit|leave|stop|end|quit|get out of)\b.*\breplay\w*\b/, steps: [...REPLAY, { target: ['replay.exit', 'replay.panel'], name: 'Exit replay', text: 'Click Exit replay to go back to the live chart.', altText: 'Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.' }] },
+  // ReplayPanel “Pick on chart” arms the chart (StockChart replayPick); a click on a bar reopens the panel with that date
+  { id: 'replayPick', label: 'Picking the replay date on the chart', re: REPLAY_PICK, steps: [...REPLAY,
+    { target: 'replay.pick', name: 'Pick on chart', text: 'Click Pick on chart. This panel closes and the chart waits for your click.', waitFor: { not: 'replay.panel' }, retreat: false },
+    { target: 'chart.plot', name: 'the chart', text: 'Click the bar to replay to: every bar after it will be hidden. Replay Mode opens again with that date in it.', waitFor: 'replay.panel', retreat: false },
+    { target: 'replay.start', name: 'Start replay', text: 'That’s the date you clicked. Click Start replay (it says Update while a replay is running).', off: 'Start replay stays greyed out until the date is valid.' }] },
   { id: 'themeAllWidgets', label: 'A theme on all widgets', re: /\bthemes?\b.*\ball (the )?widgets\b|\ball (the )?widgets\b.*\bthemes?\b/, steps: [...THEMES, { target: 'chartThemes.scope.allwidgets', name: 'All widgets', text: 'Click All widgets, then pick a theme. It applies to every widget in the layout.' }] },
   { id: 'themeAllCharts', label: 'A theme on all charts', re: /\bthemes?\b.*\b(all|every)( my| the)? charts?\b|\b(all|every)( my| the)? charts?\b.*\bthemes?\b/, steps: [...THEMES, { target: 'chartThemes.scope.all', name: 'All charts', text: 'Click All charts, then pick a theme. It applies to every chart in the layout.' }] },
 ]
