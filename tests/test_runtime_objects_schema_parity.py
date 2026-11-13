@@ -19,7 +19,8 @@ FIXTURE = json.loads((ROOT / "tests" / "fixtures" / "runtime_objects_schema.json
 
 def doc(case):
     return {
-        "compute": {"kind": case["kind"], "runtimeObjects": case["runtimeObjects"]},
+        "compute": {"kind": case["kind"], "runtimeObjects": case["runtimeObjects"],
+                    **({"runtimeColours": case["runtimeColours"]} if "runtimeColours" in case else {})},
         "plots": [{"key": k, "style": "line", "color": "#2962FF"} for k in case["plots"]],
     }
 

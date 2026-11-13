@@ -46,7 +46,8 @@ import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/run
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
-import { documentBytes, reduceIfOversized, DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
+import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
+import { storedBytesOf } from './storedBytes'
 import { declaredCalcBarsOf } from '../../engine/runtime/objectStore'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation, pineLineWidth } from '../builderInputs'
@@ -812,6 +813,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   const runHalf = hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, routeHostPartial })
   if (runHalf && runHalf.runtimeObjects) {
     definition.compute = { ...definition.compute, runtimeObjects: runHalf.runtimeObjects }
+    // the document's own script, by hash: what the bind and the store check the run half against
+    definition.meta = { ...(definition.meta || {}), [RUN_HALF_SOURCE_STAMP]: runtimeSourceHash(source) }
     // Registered once a document that may need it exists (as a runtime document does).
     ensureRuntimeLane()
   }
@@ -975,22 +978,38 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     ...(blockRunKeys.length ? { blockRuns: { keys: blockRunKeys } } : {}),
   }
 
+  // ⛔⛔ ENGINE 53 — THE STORE'S CAP, ON THE FINISHED DOCUMENT AS THE STORE WILL COUNT IT
+  // (`storedBytes.js`: the save's engine stamp and graph form, the store's own serialisation).
+  // A run half re-embeds the whole script; over the cap it is taken out again, so a document
+  // the door mints is one the store will save.
+  let runHalfOut = runHalf
+  let docOut = definition
+  let notesOut = notes
+  if (runHalf && runHalf.runtimeObjects) {
+    const bytes = storedBytesOf(definition)
+    if (bytes > DOCUMENT_BYTE_BUDGET) {
+      docOut = withoutRunHalf(definition)
+      notesOut = notes.map(withoutRunHalfSentence)
+      runHalfOut = { declined: { code: 'run-half:size', why: `with the run half the document is ${bytes} bytes as `
+        + `the store counts it, past its ${DOCUMENT_BYTE_BUDGET}-byte cap` } }
+    }
+  }
   return {
     ok: true,
-    definition,
+    definition: docOut,
     reason: null,
     guard: null,
     translation: t,
     rows,
-    notes,
+    notes: notesOut,
     // ⚠️ NOT A NOTE YET — a tag needs the BAR COUNT, which only the chart knows.
     // The pane finishes the sentence with `parse.js::requirementNote` once the
     // series has loaded; the producer still owns the wording.
     requirementTags,
     // ⭐ ENGINE 53 — the run half, minted (how many host plots its column rail compares) or
     // declined (by code, for the census); absent for a script whose drawings are complete.
-    ...(runHalf && runHalf.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalf.runtimeObjects.outputs).length } } : {}),
-    ...(runHalf && runHalf.declined ? { runHalfDeclined: runHalf.declined } : {}),
+    ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
+    ...(runHalfOut && runHalfOut.declined ? { runHalfDeclined: runHalfOut.declined } : {}),
   }
 }
 
@@ -1071,18 +1090,31 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
     }
     outputs[keyAt(i)] = run
   }
-  const runtimeObjects = { source, outputs, ...runtimeVersionStamp(probe.outputs) }
-  const candidate = { ...definition, compute: { ...definition.compute, runtimeObjects } }
-  // ⛔ THE STORE'S CAP, AS THE SAVE DOOR WILL COUNT IT (the graph form when the inlined one
-  // would not fit, `graphDocument.reduceIfOversized`).
-  const bytes = documentBytes(candidate) <= DOCUMENT_BYTE_BUDGET ? documentBytes(candidate)
-    : documentBytes(reduceIfOversized(candidate))
-  if (bytes > DOCUMENT_BYTE_BUDGET) {
-    return declined('run-half:size', `with the run half the document is ${bytes} bytes, past the store's `
-      + `${DOCUMENT_BYTE_BUDGET}-byte cap`)
-  }
-  return { runtimeObjects }
+  // ⛔ The store's 64 KiB cap is asked of the FINISHED document, as the store will count it
+  // (`storedBytes.js`), at the end of `memberPaneDefinition` (`runHalfOverCap`).
+  return { runtimeObjects: { source, outputs, ...runtimeVersionStamp(probe.outputs) } }
 }
+
+/** ⭐ ENGINE 53 — the document with its run half taken out again: the compute key, the
+ *  source stamp and the drawing note's sentence, so it is byte for byte the document the
+ *  door writes when it never asks (`routeHostPartial: false`). */
+function withoutRunHalf(definition) {
+  const compute = { ...definition.compute }
+  delete compute.runtimeObjects
+  const meta = { ...(definition.meta || {}) }
+  delete meta[RUN_HALF_SOURCE_STAMP]
+  if (Array.isArray(meta.disclosures)) meta.disclosures = meta.disclosures.map(withoutRunHalfSentence)
+  return { ...definition, compute, meta }
+}
+const withoutRunHalfSentence = (n) => (n && typeof n.note === 'string' && n.note.endsWith(` ${RUN_HALF_DRAWING_SENTENCE}`)
+  ? { ...n, note: n.note.slice(0, -(RUN_HALF_DRAWING_SENTENCE.length + 1)) } : n)
+
+/** ⭐ ENGINE 53 — the meta key a run-half document names its own script by (the sha256 of the
+ *  Pine source, UTF-8): the bind runs `runtimeObjects.source` only when it hashes to this
+ *  (`nativeRegistry.js::withRunHalf`), and the store saves the document only when this, the
+ *  run half's source and the row's own script are one script (`runtime_definitions.
+ *  run_half_source_refusal`). */
+export const RUN_HALF_SOURCE_STAMP = 'pineSourceSha256'
 
 /** ⭐⭐ DIV-4 — THE COLUMN KEY a runtime-read paint colour lands in (`k` = its place
  *  in `compute.runtimeColours.at`). A name no host row takes (`keyAt` mints

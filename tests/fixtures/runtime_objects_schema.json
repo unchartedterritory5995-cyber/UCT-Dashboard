@@ -28,6 +28,12 @@
   {"name": "a zero front end", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "runtimeFrontend": 0}, "paths": ["compute.runtimeObjects.runtimeFrontend"]},
   {"name": "a fractional IR", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "runtimeIr": 1.5}, "paths": ["compute.runtimeObjects.runtimeIr"]},
   {"name": "a signature that is not strings", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {}, "runtimeOutputSignature": [1]}, "paths": ["compute.runtimeObjects.runtimeOutputSignature"]},
+  {"name": "beside run-read colours of the SAME script", "kind": "ast", "plots": ["value"],
+   "runtimeColours": {"source": "x", "at": [{"line": 3, "column": 1, "node": {}, "kind": "colour"}], "keys": ["rtcolour1"]},
+   "runtimeObjects": {"source": "x", "outputs": {}}, "paths": []},
+  {"name": "beside run-read colours of ANOTHER script", "kind": "ast", "plots": ["value"],
+   "runtimeColours": {"source": "y", "at": [{"line": 3, "column": 1, "node": {}, "kind": "colour"}], "keys": ["rtcolour1"]},
+   "runtimeObjects": {"source": "x", "outputs": {}}, "paths": ["compute.runtimeObjects.source"]},
   {"name": "an index past the signature", "kind": "ast", "plots": ["value"], "runtimeObjects": {"source": "x", "outputs": {"value": 3}, "runtimeOutputSignature": ["plot"]}, "paths": ["compute.runtimeObjects.outputs.value"]}
  ]
 }

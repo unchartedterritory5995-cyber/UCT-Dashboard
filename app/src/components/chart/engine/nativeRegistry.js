@@ -165,7 +165,7 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 // ⭐ U2b — the live forming-bar tail of a server definition (`plots[].liveTail`):
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
-import { runtimeKillOf, runtimeNotGradedOf } from './runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from './runtimeKill'
 import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
@@ -3345,6 +3345,18 @@ function hostObjectFamilies(program) {
   return out
 }
 
+/** ⭐ ENGINE 53 — the meta key a run-half document names its own script by (the value
+ *  `memberPaneDefinition::RUN_HALF_SOURCE_STAMP` writes; restated here only as a key to read:
+ *  this module must not import the builder). */
+const RUN_HALF_SOURCE_STAMP_KEY = 'pineSourceSha256'
+const _runHalfHashes = new WeakMap()
+/** sha256 of the run half's source, once per `compute.runtimeObjects` object. */
+function runHalfSourceHashOf(ro) {
+  let h = _runHalfHashes.get(ro)
+  if (h === undefined) { h = runtimeSourceHash(ro.source); _runHalfHashes.set(ro, h) }
+  return h
+}
+
 /** ⭐ ENGINE 53 — ONE frozen runtime document per `compute.runtimeObjects` object, so the
  *  run's own memo (`runtimeColumnsFor`, keyed by the document's identity and content per
  *  bars array) hits on the next paint. It is the runtime lane's own shape (`kind: 'runtime'`,
@@ -3411,6 +3423,15 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
     return refused('run-half:malformed')
   }
+  // ⛔⛔ THE RUN HALF RUNS THE DOCUMENT'S OWN SCRIPT, OR NOTHING. The member door stamps the
+  // script it translated (`meta.pineSourceSha256`, `memberPaneDefinition::RUN_HALF_SOURCE_STAMP`)
+  // and the store saves a run half only when that stamp, `runtimeObjects.source` and the row's
+  // own script are one script (`runtime_definitions.run_half_source_refusal`). A document whose
+  // run half names another script would have that script's (empty or foreign) drawings replace
+  // this one's host picture.
+  const own = def.meta && typeof def.meta[RUN_HALF_SOURCE_STAMP_KEY] === 'string'
+    ? def.meta[RUN_HALF_SOURCE_STAMP_KEY].toLowerCase() : null
+  if (!own || runHalfSourceHashOf(ro) !== own) return refused('run-half:source-unbound')
   const stamp = servedRunStamp(def)
   if (!runtimePaneBuilt()) return refused('pane:not-built')
   if (!runtimePanePermitted()) return refused('pane:not-permitted')

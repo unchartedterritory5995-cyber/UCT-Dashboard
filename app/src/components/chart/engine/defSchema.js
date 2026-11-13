@@ -3920,6 +3920,13 @@ export function runtimeObjectsErrors(compute, plotKeys) {
   const extra = Object.keys(ro).filter((k) => !RUNTIME_OBJECTS_FIELDS.includes(k))
   if (extra.length) errors.push(`${at}: unknown field(s) ${list(extra.map(fmt))}`)
   if (!isNonEmptyString(ro.source)) errors.push(`${at}.source: expected the script the run runs, a non-empty string, got ${fmt(ro.source)}`)
+  // ⛔ ONE DOCUMENT, ONE SCRIPT: beside run-read colours (`compute.runtimeColours`) the two
+  // runs read the same source, or the served stamp and the bind could each answer for a
+  // different script.
+  const rc = compute.runtimeColours
+  if (isPlainObject(rc) && rc.source !== undefined && rc.source !== ro.source) {
+    errors.push(`${at}.source: is not the script compute.runtimeColours.source reads; one document runs one script`)
+  }
   if (!isPlainObject(ro.outputs)) {
     errors.push(`${at}.outputs: expected an object mapping a plot key to a run output index, got ${fmt(ro.outputs)}`)
   } else {

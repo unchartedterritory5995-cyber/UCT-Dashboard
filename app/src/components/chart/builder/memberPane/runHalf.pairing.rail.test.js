@@ -17,7 +17,7 @@ import { pairRunRows } from './runRowPairing'
 
 // ⭐ the run's probe, wrapped: with the switch on, the DRAWING build reports one plot more
 // than the script has (a pairing that cannot be known). Off, it is the real probe.
-const extra = vi.hoisted(() => ({ on: false }))
+const extra = vi.hoisted(() => ({ on: false, mode: 'plot' }))
 vi.mock('../../engine/runtime/runtimeColumns', async (orig) => {
   const real = await orig()
   return {
@@ -25,6 +25,8 @@ vi.mock('../../engine/runtime/runtimeColumns', async (orig) => {
     probeRuntimeProgram: (source, opts = {}) => {
       const p = real.probeRuntimeProgram(source, opts)
       if (!extra.on || !opts.objectsInRun || !p.ok) return p
+      if (extra.mode === 'requests') return { ...p, requests: 1 }
+      if (extra.mode === 'naTests') return { ...p, naTests: 1 }
       return { ...p, outputs: [...p.outputs, { call: 'plot' }] }
     },
   }
@@ -79,13 +81,29 @@ describe('⛔ the run half\'s door declines a run whose outputs do not pair', ()
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
     vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
   })
-  afterEach(() => { extra.on = false; vi.unstubAllEnvs() })
+  afterEach(() => { extra.on = false; extra.mode = 'plot'; vi.unstubAllEnvs() })
 
   it('one plot more on the run: declined runtime:output-map, nothing minted', () => {
     extra.on = true
     const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm' })
     expect(d.ok, d.reason).toBe(true)
     expect(d.runHalfDeclined && d.runHalfDeclined.code).toBe('runtime:output-map')
+    expect(d.definition.compute.runtimeObjects).toBeUndefined()
+  })
+
+  it('X2: a run that reads another symbol or timeframe is declined runtime:request', () => {
+    extra.on = true
+    extra.mode = 'requests'
+    const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm' })
+    expect(d.runHalfDeclined && d.runHalfDeclined.code).toBe('runtime:request')
+    expect(d.definition.compute.runtimeObjects).toBeUndefined()
+  })
+
+  it('X3: a run with an unsettled na test is declined runtime:na-test', () => {
+    extra.on = true
+    extra.mode = 'naTests'
+    const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm' })
+    expect(d.runHalfDeclined && d.runHalfDeclined.code).toBe('runtime:na-test')
     expect(d.definition.compute.runtimeObjects).toBeUndefined()
   })
 

@@ -594,6 +594,11 @@ def _check_runtime_objects(definition: Mapping, plot_keys: set, out: list) -> No
         _err(out, path, code, f"{path}: unknown field(s) {', '.join(map(repr, extra))}", fp)
     if not _is_str(ro.get("source")) or not ro.get("source"):
         _err(out, f"{path}.source", code, f"{path}.source: expected the script the run runs, a non-empty string", fp)
+    # one document, one script: beside run-read colours both runs read the same source
+    rc = compute.get("runtimeColours")
+    if isinstance(rc, Mapping) and "source" in rc and rc.get("source") != ro.get("source"):
+        _err(out, f"{path}.source", code,
+             f"{path}.source: is not the script compute.runtimeColours.source reads; one document runs one script", fp)
     outputs = ro.get("outputs")
     if not isinstance(outputs, Mapping):
         _err(out, f"{path}.outputs", code,

@@ -31,6 +31,9 @@ import {
 } from '../../engine/runtimeKill'
 import { resetObjectRenderDrops } from '../../engine/objectRenderNotice'
 import AttachedPineDisclosures from '../../pane/AttachedPineDisclosures'
+import { RUN_HALF_SOURCE_STAMP } from './memberPaneDefinition'
+import { storedBytesOf } from './storedBytes'
+import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
 
 const LF = String.fromCharCode(10)
 const SRC = ['//@version=5', 'indicator("run half", overlay = true)', 'len = input.int(5, "len")',
@@ -145,6 +148,157 @@ describe('⭐⭐ the door mints a run half for a host-partial script', () => {
     expect(d.ok, d.reason).toBe(true)
     expect(d.runHalfDeclined && d.runHalfDeclined.code).toBe('run-half:size')
     expect(d.definition.compute.runtimeObjects).toBeUndefined()
+  })
+
+  it('⛔ at the border the door counts the FINISHED document as the store will (never mint, then fail to save)', () => {
+    const withPad = (n) => `${SRC}${LF}// ${'x'.repeat(n)}${LF}`
+    const id = 'u_member-pane-rhborder'
+    // the largest comment for which the run half is still minted
+    let lo = 0
+    let hi = 66000
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1
+      if (door(withPad(mid), { id }).runHalf) lo = mid; else hi = mid
+    }
+    const minted = door(withPad(lo), { id })
+    expect(minted.runHalf).toBeTruthy()
+    const bytes = storedBytesOf(minted.definition)
+    expect(bytes).toBeLessThanOrEqual(DOCUMENT_BYTE_BUDGET)
+    expect(bytes, 'a borderline document, not a small one').toBeGreaterThan(DOCUMENT_BYTE_BUDGET - 64)
+    const over = door(withPad(hi), { id })
+    expect(over.runHalfDeclined && over.runHalfDeclined.code).toBe('run-half:size')
+    expect(JSON.stringify(over.definition)).toBe(JSON.stringify(door(withPad(hi), { id, routeHostPartial: false }).definition))
+    expect(over.notes).toEqual(door(withPad(hi), { id, routeHostPartial: false }).notes)
+  })
+})
+
+describe('⛔⛔ the run half runs the document\'s OWN script (review 1)', () => {
+  const FOREIGN = CLEAN
+  it('the door stamps the script it translated', () => {
+    const d = door()
+    expect(d.definition.meta[RUN_HALF_SOURCE_STAMP]).toBe(runtimeSourceHash(SRC))
+    const declined = door(SRC, { routeHostPartial: false })
+    expect(declined.definition.meta[RUN_HALF_SOURCE_STAMP]).toBeUndefined()
+  })
+
+  it('FORGED: another script\'s run half on this document is refused at the bind, nothing drawn from it', () => {
+    const minted = door().definition
+    const forged = JSON.parse(JSON.stringify(minted))
+    forged.id = `${minted.id}f`
+    forged.compute.runtimeObjects = { source: FOREIGN, outputs: {} }
+    const def = install(forged)
+    const cols = bind(def)
+    expect(runHalfOf(cols)).toEqual({ state: 'refused', code: 'run-half:source-unbound' })
+    expect(runtimeObjectsOf(cols)).toBe(null)
+  })
+
+  it('⛔ no stamp, or a stamp naming another script: refused; CONTROL: the honest document is served', () => {
+    const minted = door().definition
+    const noStamp = JSON.parse(JSON.stringify(minted))
+    noStamp.id = `${minted.id}n`
+    delete noStamp.meta[RUN_HALF_SOURCE_STAMP]
+    expect(runHalfOf(bind(install(noStamp))).code).toBe('run-half:source-unbound')
+    const wrong = JSON.parse(JSON.stringify(minted))
+    wrong.id = `${minted.id}w`
+    wrong.meta[RUN_HALF_SOURCE_STAMP] = runtimeSourceHash(FOREIGN)
+    expect(runHalfOf(bind(install(wrong))).code).toBe('run-half:source-unbound')
+    expect(runHalfOf(bind(install(minted))).state).toBe('served')
+  })
+
+  it('⛔ the schema refuses a run half beside run-read colours of another script', () => {
+    const minted = JSON.parse(JSON.stringify(door().definition))
+    minted.compute.runtimeColours = { source: FOREIGN, at: [{ line: 3, column: 1, node: {}, kind: 'colour' }], keys: ['rtcolour1'] }
+    const v = validateDefinition(minted)
+    expect(v.ok).toBe(false)
+    expect(v.errors.some((e) => e.startsWith('compute.runtimeObjects.source'))).toBe(true)
+  })
+})
+
+describe('⛔ the door\'s other gates (review 2: X2, X3, X4, X8)', () => {
+  it('X4: a windowed script (calc_bars_count) is declined', () => {
+    const w = SRC.replace('indicator("run half", overlay = true)', 'indicator("run half", overlay = true, calc_bars_count = 100)')
+    const d = door(w)
+    expect(d.ok, d.reason).toBe(true)
+    expect(assessObjectLoss(d.translation).verdict).toBe('partial')
+    expect(d.runHalfDeclined && d.runHalfDeclined.code).toBe('runtime:calc-bars-count')
+    expect(d.definition.compute.runtimeObjects).toBeUndefined()
+  })
+
+  it('X8: a hidden row is never mapped into the column rail', () => {
+    const h = SRC.replace('plot(m * 2, "m2")', 'plot(m * 2, "m2")\nplot(m * 3, "anchor", display = display.none)')
+    const d = door(h)
+    expect(d.runHalf, JSON.stringify(d.runHalfDeclined)).toEqual({ minted: true, columns: 2 })
+    const hiddenKeys = d.definition.plots.filter((p) => p.hidden).map((p) => p.key)
+    expect(hiddenKeys.length).toBeGreaterThan(0)
+    for (const k of hiddenKeys) expect(Object.keys(d.definition.compute.runtimeObjects.outputs)).not.toContain(k)
+  })
+})
+
+describe('⛔ the bind\'s other gates (review 2: X5, X7)', () => {
+  /** a lane answering with the host's own columns (so only the gate under test can refuse) */
+  const hostEcho = (hostCols, tamper = null) => () => {
+    const out = { value: Float64Array.from(hostCols.value), out2: Float64Array.from(hostCols.out2) }
+    if (tamper) tamper(out)
+    Object.defineProperty(out, RUNTIME_OBJECTS_KEY, { value: { status: 'ok', live: [], withheld: {} }, enumerable: false })
+    return out
+  }
+
+  it('X5: the script\'s own runtime.error, reached on these bars, refuses the run half before the run is asked', () => {
+    const stops = SRC.replace('plot(m, "m")', 'plot(m, "m")\nif bar_index == 250\n    runtime.error("stop here")')
+    const d = door(stops)
+    expect(d.runHalf, JSON.stringify(d.runHalfDeclined)).toBeTruthy()
+    const def = install(d.definition)
+    const host = bind(install(door(SRC).definition))
+    let asked = 0
+    registry.registerRuntimeLane((...a) => { asked += 1; return hostEcho(host)(...a) })
+    expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'runtime:runtime.error' })
+    expect(asked, 'the run is not asked once the host has stopped').toBe(0)
+  })
+
+  it('X7: na against a number is a disagreement, in either direction', () => {
+    const def = install(door().definition)
+    const host = bind(install(door(SRC, { routeHostPartial: false }).definition))
+    const i = host.value.findIndex((x) => Number.isFinite(x))
+    registry.registerRuntimeLane(hostEcho(host))
+    expect(runHalfOf(bind(def)).state, 'CONTROL: the host\'s own columns agree').toBe('served')
+    registry.registerRuntimeLane(hostEcho(host, (o) => { o.value[i + 5] = NaN }))
+    expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: registry.RUN_HALF_COLUMN_RAIL })
+    const j = host.out2.findIndex((x) => Number.isNaN(x))
+    expect(j, 'the host has a warm-up bar').toBeGreaterThanOrEqual(0)
+    registry.registerRuntimeLane(hostEcho(host, (o) => { o.out2[j] = 1 }))
+    expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: registry.RUN_HALF_COLUMN_RAIL })
+  })
+})
+
+describe('⛔ a refused run half over a host picture with no drawings still says why (review 3)', () => {
+  // the original fixture: the host program loses EVERY drawing (`definition.objects` is null)
+  const SRC0 = SRC.replace(`${LF}    line.new(bar_index - 1, low, bar_index, high)`, '')
+  it('the member reads the refusal sentence, and a layer the run drew before is emptied', () => {
+    const d = door(SRC0)
+    expect(d.runHalf, JSON.stringify(d.runHalfDeclined)).toBeTruthy()
+    expect(d.definition.objects).toBeFalsy()
+    const def = install(d.definition)
+    const fakeChart = createFakeChart()
+    const binder = createBinder({ chart: fakeChart.chart, LWC: fakeChart.LWC })
+    const cs = addInstance(mergeChartSettings({}), def.id, registry)
+    const instances = (cs.indicatorInstances || []).filter((x) => x.defId === def.id)
+    const states = []
+    const sync = () => binder.sync({
+      enabled: true, cs, instances, registry, bars: BARS, tf: 'D', symbol: CTX.symbol, newestBarIsForming: false,
+      historyFromListing: true, adjustTime: (t) => t, applyData: (series, data) => series.setData(data), plan: { fresh: true },
+      resolvePlacement: () => ({ paneIndex: 0, scaleId: def.id, scaleOptions: {} }),
+      createObjectLayer: () => ({ set: (state) => { states.push(state) }, clear: () => { states.push(null) } }),
+    })
+    sync()
+    expect(states[states.length - 1] && states[states.length - 1].labels.length).toBe(5)
+    setRuntimeAllowList([])
+    sync()
+    expect(states[states.length - 1]).toBe(null)
+    render(<AttachedPineDisclosures settings={cs} registry={registry} />)
+    const t = screen.queryByTestId('pine-attached-disclosures')?.textContent || ''
+    expect(t).toContain(runHalfRefusedSentence('pane:not-graded'))
+    expect(t).not.toMatch(GUARD_TOKEN)
+    binder.teardown()
   })
 })
 

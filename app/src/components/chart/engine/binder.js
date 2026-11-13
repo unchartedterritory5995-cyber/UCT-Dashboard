@@ -1250,7 +1250,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
         continue
       }
       const program = def && def.objects
-      if (!program) continue
+      if (!program) {
+        // ⭐ ENGINE 53 — a refused run half over a host picture with NO drawings (the host
+        // program lost all of them, or a lost removal withheld it) still says why the complete
+        // picture is not shown; a layer the run drew before is emptied, never left standing.
+        if (runHalfWhy) {
+          alive.add(inst.instanceId)
+          const was = objectLayers.get(inst.instanceId)
+          if (was) attempt(() => was.set(null, ''))
+          publishDrops(inst.instanceId, null, { why: { [RUN_HALF_WHY_KEY]: runHalfWhy } })
+        }
+        continue
+      }
       alive.add(inst.instanceId)
       if (typeof make !== 'function') { markersCleared(); continue }
       let layer = objectLayers.get(inst.instanceId)

@@ -756,6 +756,7 @@ const RUN_HALF_WHY = Object.freeze({
   'run-half:column-rail': 'running it bar by bar gives one of its plots a different value from the one drawn '
     + 'here, so its drawings are not taken from that run',
   'run-half:family-withheld': 'running it bar by bar holds back a kind of drawing this chart already draws',
+  'run-half:source-unbound': "the drawings it carries were not made from this indicator's own script",
   'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is not loaded',
   'runtime:load-failed': 'the part of the app that runs scripts bar by bar could not be loaded in this tab',
   'runtime:request': 'the script reads another symbol or timeframe, which this chart cannot hand that run',

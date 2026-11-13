@@ -704,3 +704,55 @@ def _stamp_run_read_ast(row: dict, definition: dict) -> dict:
     d["meta"] = meta
     out["definition"] = d
     return out
+
+
+#: ENGINE 53 -- the meta key a run-half document names its own script by (sha256 of the Pine
+#: source, UTF-8): `memberPaneDefinition.RUN_HALF_SOURCE_STAMP` on the client.
+RUN_HALF_SOURCE_STAMP = "pineSourceSha256"
+
+
+def run_half_source_refusal(definition: Any, pine_source: Optional[str]) -> Optional[str]:
+    """ENGINE 53 -- why this save may not carry its run half, or ``None``.
+
+    A run half (``compute.runtimeObjects``) is drawn only from the document's OWN script: its
+    ``source``, the document's stamp (``meta.pineSourceSha256``) and the script saved beside it
+    (the row's ``pine_source``) must be one script. A save that carries no script cannot bind
+    one, and is refused too. Every document without a run half answers ``None``."""
+    if not isinstance(definition, dict):
+        return None
+    compute = definition.get("compute")
+    if not isinstance(compute, dict) or "runtimeObjects" not in compute:
+        return None
+    ro = compute.get("runtimeObjects")
+    src = ro.get("source") if isinstance(ro, dict) else None
+    if not isinstance(src, str) or not src:
+        return "compute.runtimeObjects: a run half names the script it runs (source)"
+    if not isinstance(pine_source, str) or not pine_source:
+        return ("compute.runtimeObjects: a run half runs this indicator's own script, and this save "
+                "carries no script to bind it to; save it from the script, or without its run half")
+    own = source_hash(pine_source)
+    if source_hash(src) != own:
+        return ("compute.runtimeObjects.source: the run half names a different script from the one "
+                "saved with this indicator, so it is not saved")
+    meta = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    stamp = meta.get(RUN_HALF_SOURCE_STAMP)
+    if not isinstance(stamp, str) or stamp.lower() != own:
+        return (f"meta.{RUN_HALF_SOURCE_STAMP}: the document does not name the script saved with it, "
+                "so its run half is not saved")
+    return None
+
+
+def without_run_half(definition: Any) -> Any:
+    """ENGINE 53 -- ``definition`` with no run half (a copy when one was present; never
+    mutates): ``compute.runtimeObjects`` and its source stamp removed."""
+    if not isinstance(definition, dict):
+        return definition
+    compute = definition.get("compute")
+    if not isinstance(compute, dict) or "runtimeObjects" not in compute:
+        return definition
+    out = dict(definition)
+    out["compute"] = {k: v for k, v in compute.items() if k != "runtimeObjects"}
+    meta = definition.get("meta")
+    if isinstance(meta, dict) and RUN_HALF_SOURCE_STAMP in meta:
+        out["meta"] = {k: v for k, v in meta.items() if k != RUN_HALF_SOURCE_STAMP}
+    return out

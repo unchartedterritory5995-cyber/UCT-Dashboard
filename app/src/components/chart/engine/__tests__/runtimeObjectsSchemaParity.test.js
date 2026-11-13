@@ -23,7 +23,8 @@ const pathOf = (e) => String(e).split(': ')[0]
 describe('compute.runtimeObjects — one rule set, both sides', () => {
   for (const c of FIXTURE.cases) {
     it(`${c.name} → ${c.paths.length ? c.paths.join(', ') : 'valid'}`, () => {
-      const errs = runtimeObjectsErrors({ kind: c.kind, runtimeObjects: c.runtimeObjects }, new Set(c.plots))
+      const errs = runtimeObjectsErrors({ kind: c.kind, runtimeObjects: c.runtimeObjects,
+        ...(c.runtimeColours ? { runtimeColours: c.runtimeColours } : {}) }, new Set(c.plots))
       expect([...new Set(errs.map(pathOf))].sort()).toEqual([...c.paths].sort())
     })
   }
