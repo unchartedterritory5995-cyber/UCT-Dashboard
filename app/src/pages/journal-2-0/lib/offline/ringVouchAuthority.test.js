@@ -195,6 +195,40 @@ describe('the ring vouched — now what? is asked in exactly one place', () => {
   })
 })
 
+/**
+ * ⭐ Follow-up D, fix round 1 (review 3d): the identical sites' helpers choose NO plan and never
+ * write the landed ring. Identical content proves the server HAS the words, never that this browser
+ * wrote the revision; a ring write there would hand guard 2 a false "ours". Read from the BODIES,
+ * so a renamed call or a new line inside either helper is seen.
+ */
+const NEVER_IN_THE_IDENTICAL_HELPERS = /\b(ringVouchedPlan|rebaseEntry|mergeAppends|classifyServerChange|appendedServerNodes|missingServerNodes|putMeta|landedKeyFor|withLanded|recordLandedRevision)\s*\(/
+export function functionBody(src, name) {
+  const code = stripNonCode(src).replace(/\r\n/g, '\n')
+  const at = code.search(new RegExp(`function\\s+${name}\\s*\\(`))
+  if (at < 0) return null
+  const open = code.indexOf('{', code.indexOf(')', at))
+  let depth = 0
+  for (let i = open; i < code.length; i += 1) {
+    if (code[i] === '{') depth += 1
+    else if (code[i] === '}') { depth -= 1; if (depth === 0) return code.slice(at, i + 1) }
+  }
+  return null
+}
+
+describe('the identical sites settle without a plan and without the ring', () => {
+  const drain = readFileSync(join(OFFLINE, 'outboxDrain.js'), 'utf8')
+  it.each(['settleIfServerHolds', 'supersedeIdentical'])('%s calls no plan function and never writes meta', (name) => {
+    const body = functionBody(drain, name)
+    expect(body, `${name} is defined in the drain`).toBeTruthy()
+    expect(body.length).toBeGreaterThan(80)
+    expect(body.match(NEVER_IN_THE_IDENTICAL_HELPERS)?.[0] ?? null).toBe(null)
+  })
+  it('CONTROL — a planted ring write is seen', () => {
+    const planted = 'async function supersedeIdentical(db) { const x = 1; await putMeta(db, landedKeyFor(n), []) }'
+    expect(functionBody(planted, 'supersedeIdentical').match(NEVER_IN_THE_IDENTICAL_HELPERS)?.[0]).toMatch(/putMeta/)
+  })
+})
+
 describe('the rail can fail', () => {
   const THIRD_SITE = `
     async function drain() {
