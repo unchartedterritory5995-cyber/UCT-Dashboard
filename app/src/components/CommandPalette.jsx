@@ -22,7 +22,7 @@ import { notebookFlag } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { checklistEnabled } from '../pages/journal-2-0/components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_SEARCH_HASH } from '../pages/journal-2-0/lib/notebookSearchDoor'
 import {
-  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO,
+  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO, NOTEBOOK_TODAY_TO,
   noteOpenAt, openNotebookDoor,
 } from '../pages/journal-2-0/lib/notebookDoors'
 import { SETUPS_BOARD_PATH, setupsBoardEnabled } from '../pages/journal-2-0/lib/setupsBoardLink'
@@ -106,6 +106,11 @@ const NOTEBOOK_COMMANDS = [
   { id: 'nb-all-notes', kind: 'command', label: 'All notes', icon: 'library',
     to: NOTEBOOK_LIST_TO, keywords: [],
     match: phraseStart('all notes', 'notes list') },
+  // Follow-up B, item 1b: the Daily brief itself (`?view=today`), from anywhere. Before this its only doors were the
+  // Notebook's folders panel (three presses on a phone) and the prep entry below. Six characters, like its neighbours.
+  { id: 'nb-daily-brief', kind: 'command', label: 'Daily brief', icon: 'calendar',
+    to: NOTEBOOK_TODAY_TO, keywords: [],
+    match: phraseStart('daily brief', "today's brief", 'today brief') },
   // Q15: "Reporting soon" on the Daily brief (`?view=today#prep` unfolds it), focus on the first name's prep button.
   { id: 'nb-earnings-prep', kind: 'command', label: 'Earnings prep: reporting soon', icon: 'document',
     to: NOTEBOOK_PREP_TO, keywords: [],

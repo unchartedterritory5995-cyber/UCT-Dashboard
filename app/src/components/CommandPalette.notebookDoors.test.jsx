@@ -16,7 +16,8 @@ import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import CommandPalette from './CommandPalette'
 import {
-  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO, onNotebookDoor,
+  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO, NOTEBOOK_TODAY_TO,
+  onNotebookDoor,
 } from '../pages/journal-2-0/lib/notebookDoors'
 import { EARNINGS_PREP_FLAG } from '../pages/journal-2-0/lib/earningsPrepShared'
 import { latchNotebookFlags, __resetNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
@@ -231,6 +232,25 @@ describe('palette: All notes (Q11)', () => {
     renderPalette('/journal/notebook')
     await openAndType('all n')
     expect(option('All notes')).toBeNull()
+  })
+})
+
+// Follow-up B, item 1b: the Daily brief from anywhere (the Journal's Today tab links to it as well).
+describe('palette: Daily brief', () => {
+  it('from anywhere in the app, choosing it lands on the Daily brief', async () => {
+    renderPalette('/journal')
+    await openAndType('daily brief')
+    fireEvent.click(await screen.findByRole('option', { name: 'Daily brief' }))
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe(NOTEBOOK_TODAY_TO))
+    expect(NOTEBOOK_TODAY_TO).toBe('/journal/notebook?view=today')
+  })
+
+  it('"today\'s brief" finds it too; five characters or fewer never offer it ("daily" stays a plain query)', async () => {
+    renderPalette('/dashboard')
+    const box = await openAndType('daily')
+    expect(option('Daily brief')).toBeNull()
+    fireEvent.change(box, { target: { value: "today's" } })
+    expect(await screen.findByRole('option', { name: 'Daily brief' })).toBeTruthy()
   })
 })
 
