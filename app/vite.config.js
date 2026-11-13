@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
+// The chart library's data layer does (series x time points) of work on every series.setData,
+// so a flip of a 30-series chart was mostly that. Three exact edits, applied to the bundle only;
+// the why, the measurements and the proof are in the module and its test.
+import { patchChartLibrary } from './scripts/chartLibraryPatch.mjs'
 
 /** Pre-launch metadata swap.
  *
@@ -153,7 +157,7 @@ function stripManifestProse() {
 }
 
 export default defineConfig({
-  plugins: [react(), comingSoonMeta(), stripManifestProse()],
+  plugins: [react(), comingSoonMeta(), stripManifestProse(), patchChartLibrary()],
   // ⛔⛔ ONE `build` KEY. There were TWO top-level `build` keys from 2026-09-12 (`d261d0731`
   // added the engine floor below as a second `build: { target }` block) until 2026-09-20,
   // fixed independently on master and on wave 7 (the two fixes met in the wave-7 merge). In an
