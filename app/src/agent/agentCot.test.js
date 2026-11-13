@@ -231,6 +231,18 @@ describe('served vs dark', () => {
     }
   })
 
+  it('served: the v2 fill for a message nothing recognised never carries the words-only cot group', async () => {
+    wire([KIND])
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    const full = manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+    for (const q of ['flip to AMD', 'lose the gridlines', 'any articles on RIVN lately', 'show me the leaders', 'both', 'hmm']) {
+      for (const route of [routeManifest, routeManifestV2]) {
+        expect(route(full, q, OPTS()).manifest.map(c => c.name), `${route.name}: ${q}`).not.toContain(CAPABILITY)
+      }
+    }
+  })
+
   it('end to end: a natural-language ask routes to cot.positioning, makes ONE read, and the answer carries the report date and the delay', async () => {
     wire([KIND])
     await loadAgentConfig()

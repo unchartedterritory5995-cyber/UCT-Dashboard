@@ -1892,6 +1892,220 @@
       "flags": {}
     },
     {
+      "id": "cot-current",
+      "category": "periodic",
+      "kind": "cot.positioning",
+      "purpose": "answer",
+      "question": "Where are large speculators positioned in gold this week?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "cot.positioning",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-10-27T00:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": 259200,
+        "stale": false,
+        "source": "cftc-cot",
+        "coverage": {
+          "requested": 1,
+          "answered": 1
+        },
+        "data": {
+          "series": [
+            {
+              "symbol": "GC",
+              "name": "Gold",
+              "first_date": "2016-11-01",
+              "report_date": "2026-10-27",
+              "weeks": 2,
+              "missing_weeks": 0,
+              "stale": false,
+              "rows": [
+                {
+                  "date": "2026-10-27",
+                  "large_spec_net": 1,
+                  "commercial_net": -1,
+                  "small_spec_net": 0,
+                  "open_interest": 10
+                }
+              ]
+            }
+          ],
+          "not_covered": [],
+          "no_history": [],
+          "covered": null,
+          "report_date": "2026-10-27",
+          "expected_report_date": "2026-10-27",
+          "delay_days": 3
+        },
+        "notes": [
+          "weekly data: CFTC Commitments of Traders (legacy futures-only report), net positions per trader group",
+          "positions are as of the Tuesday report date; CFTC publishes them the following Friday, so they are about three days old when released"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-10-26",
+          "Oct 26",
+          "October 26",
+          "8:00"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "tuesday report date",
+          "following friday",
+          "weekly"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "cot-stale",
+      "category": "periodic-stale",
+      "kind": "cot.positioning",
+      "purpose": "answer",
+      "question": "What is the latest COT positioning in gold?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "cot.positioning",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-10-20T00:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": 259200,
+        "stale": true,
+        "source": "cftc-cot",
+        "coverage": {
+          "requested": 1,
+          "answered": 1
+        },
+        "data": {
+          "series": [
+            {
+              "symbol": "GC",
+              "name": "Gold",
+              "first_date": "2016-11-01",
+              "report_date": "2026-10-20",
+              "weeks": 2,
+              "missing_weeks": 0,
+              "stale": true,
+              "rows": [
+                {
+                  "date": "2026-10-20",
+                  "large_spec_net": 1,
+                  "commercial_net": -1,
+                  "small_spec_net": 0,
+                  "open_interest": 10
+                }
+              ]
+            }
+          ],
+          "not_covered": [],
+          "no_history": [],
+          "covered": null,
+          "report_date": "2026-10-20",
+          "expected_report_date": "2026-10-27",
+          "delay_days": 3
+        },
+        "notes": [
+          "weekly data: CFTC Commitments of Traders (legacy futures-only report), net positions per trader group",
+          "positions are as of the Tuesday report date; CFTC publishes them the following Friday, so they are about three days old when released",
+          "the newest stored report is 2026-10-20; the report expected by now is 2026-10-27, so this is not the latest week"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-10-19",
+          "Oct 19",
+          "October 19",
+          "8:00"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not the latest week"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "cot-not-covered",
+      "category": "partial",
+      "kind": "cot.positioning",
+      "purpose": "answer",
+      "question": "How are traders positioned in lithium right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "cot.positioning",
+        "params_echo": {},
+        "status": "partial",
+        "freshness": "periodic",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": 259200,
+        "stale": false,
+        "source": "cftc-cot",
+        "coverage": {
+          "requested": 1,
+          "answered": 0
+        },
+        "data": {
+          "series": [],
+          "not_covered": [
+            "lithium"
+          ],
+          "no_history": [],
+          "covered": [
+            {
+              "symbol": "GC",
+              "name": "Gold",
+              "group": "Metals"
+            }
+          ],
+          "expected_report_date": "2026-10-27",
+          "delay_days": 3
+        },
+        "notes": [
+          "weekly data: CFTC Commitments of Traders (legacy futures-only report), net positions per trader group",
+          "positions are as of the Tuesday report date; CFTC publishes them the following Friday, so they are about three days old when released",
+          "not covered by UCT's COT data: lithium",
+          "no market in this request has stored COT data"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not covered",
+          "lithium"
+        ],
+        "as_of_null_reason_required": true
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
       "id": "br-intraday",
       "category": "periodic",
       "kind": "breadth.current",

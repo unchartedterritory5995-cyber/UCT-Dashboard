@@ -13,7 +13,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from api.services.uct_agent.marketdata import envelope as env                    # noqa: E402
-from api.services.uct_agent.marketdata import (breadth as br, earnings as ern,    # noqa: E402
+from api.services.uct_agent.marketdata import (breadth as br, cot as ct, earnings as ern,    # noqa: E402
                                               news_company as nc, quotes as q, ratings as rt,
                                               statements as stm, themes as th)
 
@@ -267,6 +267,32 @@ add("t-closed", "What were the best themes this week?",
       coverage={"evaluated": 1, "answered": 1, "dropped": 0, "not_computable": 0}),
     category="periodic", disclose=["last completed session"])
 add("t-warming", "What themes are hot now?", U("themes", th.NOTE_WARMING), category="unavailable")
+
+# ── cot.positioning (Phase 2 COT research): the as_of is the Tuesday REPORT date; the Friday publish delay is disclosed ──
+cdata = lambda report, stale: {"series": [{"symbol": "GC", "name": "Gold", "first_date": "2016-11-01",  # noqa: E731
+                                           "report_date": report, "weeks": 2, "missing_weeks": 0, "stale": stale,
+                                           "rows": [{"date": report, "large_spec_net": 1, "commercial_net": -1,
+                                                     "small_spec_net": 0, "open_interest": 10}]}],
+                               "not_covered": [], "no_history": [], "covered": None, "report_date": report,
+                               "expected_report_date": "2026-10-27", "delay_days": 3}
+add("cot-current", "Where are large speculators positioned in gold this week?",
+    E("cot.positioning", status="ok", freshness="periodic", as_of="2026-10-27T00:00:00Z", source="cftc-cot",
+      data=cdata("2026-10-27", False), delay_s=ct.DELAY_S, notes=[ct.NOTE_WEEKLY, ct.NOTE_DELAY],
+      coverage={"requested": 1, "answered": 1}),
+    category="periodic", disclose=["tuesday report date", "following friday", "weekly"])
+add("cot-stale", "What is the latest COT positioning in gold?",
+    E("cot.positioning", status="ok", freshness="periodic", as_of="2026-10-20T00:00:00Z", source="cftc-cot",
+      stale=True, data=cdata("2026-10-20", True), delay_s=ct.DELAY_S,
+      notes=[ct.NOTE_WEEKLY, ct.NOTE_DELAY, ct.NOTE_STALE.format(got="2026-10-20", want="2026-10-27")],
+      coverage={"requested": 1, "answered": 1}),
+    category="periodic-stale", disclose=["not the latest week"])
+add("cot-not-covered", "How are traders positioned in lithium right now?",
+    E("cot.positioning", status="partial", freshness="periodic", as_of=None, source="cftc-cot",
+      data={"series": [], "not_covered": ["lithium"], "no_history": [], "covered": [{"symbol": "GC", "name": "Gold",
+            "group": "Metals"}], "expected_report_date": "2026-10-27", "delay_days": 3}, delay_s=ct.DELAY_S,
+      notes=[ct.NOTE_WEEKLY, ct.NOTE_DELAY, ct.NOTE_NOT_COVERED.format(words="lithium"),
+             "no market in this request has stored COT data"], coverage={"requested": 1, "answered": 0}),
+    category="partial", disclose=["not covered", "lithium"])
 
 # ── breadth / ratings (model-isolated: answer only) ───────────────────────────────────────────────────
 bdata = lambda **k: {"universe": "us", "metric": "pct_above_50sma", "value": 61.4, "status": "intraday",  # noqa: E731

@@ -194,7 +194,7 @@ export async function answerCot(args = {}) {
   const group = GROUP_KEYS.includes(args.group) ? args.group : null
   const turnId = currentTurnId()
   if (!turnId) return { text: `I couldn't read UCT's COT data: ${NO_TURN}.` }
-  const envl = await readData(KIND, { symbols: markets, weeks: weeksFor(years, changeWeeks) }, { purpose: 'answer', turnId })
+  const envl = await readData('cot.positioning', { symbols: markets, weeks: weeksFor(years, changeWeeks) }, { purpose: 'answer', turnId })
   return answerFromCot(envl, { group, years, changeWeeks })
 }
 
