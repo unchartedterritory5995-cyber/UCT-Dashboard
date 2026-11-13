@@ -86,3 +86,19 @@ def test_stale_cache_fallback_is_counted(monkeypatch, caplog):
         ti.prewarm_all("D")
     msg = [r.getMessage() for r in caplog.records if "prewarm pass" in r.getMessage()][0]
     assert "1 Massive fallbacks" in msg
+
+
+def test_theme_list_loaded_once_per_pass(monkeypatch):
+    from api.services import theme_db
+    loads = []
+    monkeypatch.setattr(theme_db, "get_all_themes",
+                        lambda: loads.append(1) or {"themes": [{"id": "T1", "name": "AI"}]})
+    monkeypatch.setattr(theme_db, "get_theme_holdings", lambda tid: [{"sym": "NVDA"}])
+    monkeypatch.setattr(ti, "all_theme_slugs", lambda: ["a", "b", "c"])
+    monkeypatch.setattr(ti, "get_theme_index",
+                        lambda slug, tf="D": {"bars": ti._merged_db_syms("T1", {"name": "AI"})})
+    ti.prewarm_all("D")
+    assert len(loads) == 1
+    assert ti._pass_themes is None
+    ti._merged_db_syms("T1", {"name": "AI"})      # outside a pass: fresh read
+    assert len(loads) == 2

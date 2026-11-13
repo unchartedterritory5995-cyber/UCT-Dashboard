@@ -70,6 +70,22 @@ _pass_lock = threading.Lock()
 # One line per pass says where its time went (reads vs memo hits vs Massive fallbacks for
 # names whose cached bars are stale): the 15-min re-warm rebuilds every theme in RTH.
 _pass_stats: "dict | None" = None
+# theme_db.get_all_themes() loads every theme + the whole merged membership table; it ran once
+# PER THEME (110x a pass), holding the GIL in Python dict-building. A pass loads it once.
+_pass_themes: "list | None" = None
+
+
+def _all_db_themes() -> list:
+    global _pass_themes
+    from api.services import theme_db
+    if _pass_stats is None:                      # not in a pass: always fresh
+        return theme_db.get_all_themes().get("themes", [])
+    themes = _pass_themes
+    if themes is None:
+        themes = theme_db.get_all_themes().get("themes", [])
+        _pass_themes = themes
+        _bump("theme_list_loads")
+    return themes
 
 
 def _bump(key: str, n: float = 1) -> None:
@@ -178,7 +194,7 @@ def _merged_db_syms(etf_key: str, td: dict) -> list[str]:
     from api.services import theme_db
     tid = None
     want = _slugify(td.get("name") or "")
-    for t in theme_db.get_all_themes().get("themes", []):
+    for t in _all_db_themes():
         if (t["id"] == etf_key or (t.get("etf_ticker") or "") == etf_key
                 or _slugify(t.get("name") or "") == want):
             tid = t["id"]
@@ -483,7 +499,7 @@ def prewarm_all(tf: str = "D") -> int:
     """Compute + cache every theme's index for `tf`. Returns how many warmed.
     Sequential (each call already uses its own bounded worker pool); exception per
     theme is swallowed so one bad basket never aborts the sweep."""
-    global _pass_memo, _pass_stats
+    global _pass_memo, _pass_stats, _pass_themes
     n = 0
     t0 = time.perf_counter()
     slugs_total = 0
@@ -499,7 +515,7 @@ def prewarm_all(tf: str = "D") -> int:
             except Exception:
                 pass
     finally:
-        st, _pass_stats, _pass_memo = (_pass_stats or {}), None, None
+        st, _pass_stats, _pass_memo, _pass_themes = (_pass_stats or {}), None, None, None
         try:
             _log.info("[theme_index] prewarm pass: %d/%d themes, %d bars reads, %d memo hits, "
                       "%d Massive fallbacks (%.1fs), %.1fs total",
