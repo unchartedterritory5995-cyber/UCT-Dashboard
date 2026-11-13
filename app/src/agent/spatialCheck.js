@@ -460,6 +460,12 @@ function negNamesAChart(phrase, charts) {
   const words = phrase.toUpperCase().split(/[^A-Z0-9.]+/).filter(Boolean)
   return charts.some(c => c?.symbol && words.includes(String(c.symbol).toUpperCase()))
 }
+// (calc-TF AUDIT ask 5) "every chart except NVDA's" / "… except NVDA's chart": EXCEPT's phrase class has no apostrophe (the #988
+// equivalence rail holds it as it is), so a BARE ticker possessive was never placed — it fell to the unplaced scan and the ask
+// OFFERED the very chart the member excluded. Read here, on the words as said, only when NOTHING follows the possessive but
+// "chart" / "one" and the clause's end (a neighbour or relation — "SPY's neighbour" — stays unplaced, as before).
+const EXCEPT_TICKER_POSS = /\b(?:except(?:\s+for)?|apart\s+from|other\s+than|excluding|but\s+not|save\s+for|minus)\s+((?:the\s+)?[A-Za-z]{1,5}['’]s(?:\s+(?:chart|one))?)(?=\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\b|\s*[,.;!?]|\s*$)/gi
+const tickerPossMatches = (text) => [...String(text || '').matchAll(EXCEPT_TICKER_POSS)]
 /** The charts an exclusion in the words names (by symbol, position, order, or "this one" = the click). */
 export function excludedCharts(text, charts = [], sel = null) {
   const out = new Set()
@@ -470,7 +476,7 @@ export function excludedCharts(text, charts = [], sel = null) {
   const add = out.add.bind(out)
   out.add = (x) => { adds++; return add(x) }
   const negs = [...exceptForm(text).matchAll(NEG_EXCEPT)].filter(m => negNamesAChart(m[1].trim(), charts))
-  for (const m of [...exceptMatches(text), ...negs, ...sepButMatches(text)]) {
+  for (const m of [...exceptMatches(text), ...negs, ...sepButMatches(text), ...tickerPossMatches(text)]) {
     const a0 = adds
     try { readException(m) } finally { if (adds > a0) placed.push(normPhrase(m[1])) }
   }
@@ -517,6 +523,13 @@ export function excludedCharts(text, charts = [], sel = null) {
       return
     }
     if (/^(?:the\s+)?(?:this(?:\s+(?:one|chart))?|it|the\s+(?:selected|clicked)\s+(?:one|chart))$/i.test(phrase)) { if (sel) out.add(sel); return }
+    // (calc-TF AUDIT ask 5) a BARE ticker possessive — "except NVDA's", "except NVDA's chart / one" — is that ticker's chart
+    // (nothing follows that could re-aim it: no neighbour, no relation). A ticker the board does not show still places nothing here.
+    const tp = /^(?:the\s+)?([A-Za-z]{1,5})['’]s(?:\s+(?:chart|one))?$/.exec(phrase)
+    if (tp) {
+      const t = namedAnchor(`${tp[1]} chart`, charts)
+      if (t) { out.add(t.ref); return }
+    }
     const a = namedAnchor(/\b(?:chart|one)$/i.test(phrase) ? phrase : `${phrase} chart`, charts) || namedAnchor(phrase, charts)
     if (a) { out.add(a.ref); return }
     // (#988, AUDIT control) a position that fits SEVERAL charts ("not the left one" on a 2×2): every chart it fits is excluded —
