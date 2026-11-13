@@ -182,6 +182,10 @@ _LAST_SYNC_MARKER = ".last_sync_ts"
 _LAST_BASE_DAY_MARKER = ".last_base_day"
 
 
+R2_READ_TIMEOUT_S = int(os.environ.get("DATA_SYNC_READ_TIMEOUT_S", "300"))
+SNAPSHOT_DOWNLOAD_ATTEMPTS = int(os.environ.get("DATA_SYNC_DOWNLOAD_ATTEMPTS", "3"))
+
+
 def _client():
     """Lazy-construct the boto3 S3 client. Returns None if credentials missing."""
     endpoint = os.environ.get("DATA_SYNC_ENDPOINT_URL")
@@ -190,12 +194,18 @@ def _client():
     if not (endpoint and access_key and secret_key):
         return None
     import boto3
+    from botocore.config import Config
+    # ⛔ 2026-11-13: botocore's default 60 s read timeout killed a 5 GB snapshot download on bars-api
+    # after one stall ("Read timeout on endpoint URL"), and that boot then served from an empty store.
+    # A long read timeout plus adaptive retries keeps multi-GB transfers alive through a slow patch.
     return boto3.client(
         "s3",
         endpoint_url=endpoint,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
         region_name=os.environ.get("DATA_SYNC_REGION", "auto"),
+        config=Config(connect_timeout=30, read_timeout=R2_READ_TIMEOUT_S,
+                      retries={"max_attempts": 8, "mode": "adaptive"}),
     )
 
 
@@ -943,6 +953,18 @@ def _swap_in_bars_db(src_db: str, dst: str, bs) -> bool:
     return True
 
 
+def _stream_object_to(client, bucket: str, key: str, path: str) -> None:
+    """Stream an R2 object to DISK in 8 MB chunks (never resp.read() into memory: a ~5 GB base read
+    whole into RAM spiked the web pod toward OOM on 2026-08-31). Raises on any failure."""
+    body = client.get_object(Bucket=bucket, Key=key)["Body"]
+    with open(path, "wb") as fh:
+        while True:
+            chunk = body.read(8 * 1024 * 1024)
+            if not chunk:
+                break
+            fh.write(chunk)
+
+
 def download_snapshot(ts: str) -> bool:
     """Download snapshot <ts> to _DATA_DIR, replacing existing bars.db + bars_cache/.
 
@@ -961,20 +983,21 @@ def download_snapshot(ts: str) -> bool:
     key = f"{_SNAPSHOT_PREFIX}{ts}.tar.gz"
     tmpdir = tempfile.mkdtemp(prefix="data_sync_")
     _tar_path = os.path.join(tmpdir, "_snapshot.tar.gz")
+    last_err = None
+    for attempt in range(1, SNAPSHOT_DOWNLOAD_ATTEMPTS + 1):
+        try:
+            _stream_object_to(client, bucket, key, _tar_path)
+            last_err = None
+            break
+        except Exception as e:  # noqa: BLE001 -- retried below, then reported
+            last_err = e
+            logger.warning(f"[data_sync] download attempt {attempt}/{SNAPSHOT_DOWNLOAD_ATTEMPTS} "
+                           f"failed for {key}: {e}")
+            if attempt < SNAPSHOT_DOWNLOAD_ATTEMPTS and not os.environ.get("PYTEST_CURRENT_TEST"):
+                time.sleep(min(60, 10 * attempt))
     try:
-        resp = client.get_object(Bucket=bucket, Key=key)
-        # Stream the (multi-GB) tarball to DISK, not resp.read() into memory. A
-        # ~5 GB compressed base read whole into RAM spikes the single web pod toward
-        # OOM (it reached ~10 GB on 2026-08-31, and web-side bar warming has OOM'd
-        # the whole site before). 8 MB chunks keep the memory footprint flat, which
-        # is what makes a force_resync safe to run on the live/booting web pod.
-        body = resp["Body"]
-        with open(_tar_path, "wb") as _fh:
-            while True:
-                _chunk = body.read(8 * 1024 * 1024)
-                if not _chunk:
-                    break
-                _fh.write(_chunk)
+        if last_err is not None:
+            raise last_err
     except Exception as e:
         logger.warning(f"[data_sync] download failed for {key}: {e}")
         shutil.rmtree(tmpdir, ignore_errors=True)
