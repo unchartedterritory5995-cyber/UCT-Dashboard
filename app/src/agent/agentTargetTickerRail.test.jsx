@@ -11,7 +11,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup, screen } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { setupPanel, bareSettings } from './testing/panelHarness'
-import { targetTickers } from './deixis'
+import { targetTickers, targetTickerConflict } from './deixis'
+import { getCapability, getTargetKind } from './capabilities'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -112,6 +113,30 @@ describe('VALUE-SHAPED carve-out: a ticker that is the VALUE of a symbol change 
   }, 60000)
 })
 
+// ── VALUE-SHAPED + a second change (these reach the model plan, where the target-ticker screen runs) ─────────────────────────
+const VALUE2_DEICTIC = [(T) => `change this chart to ${T} and make it weekly`, (T) => `switch to ${T} and make it weekly`, (T) => `put ${T} on this chart and make it weekly`,
+  (T) => `replace SPY with ${T} and make it weekly`, (T) => `show ${T} instead and make it weekly`, (T) => `change SPY to ${T} and make it weekly`]
+const VALUE2_NAMED = [(T) => `change the SPY chart to ${T} and make it weekly`, (T) => `replace SPY with ${T} and make it weekly`, (T) => `switch the left chart to ${T} and make it weekly`]
+const VALUE2_CASES = TICKERS.flatMap(T => [
+  ...VALUE2_DEICTIC.map(say => [say(T), 'one chart', ['SPY'], null, T]),
+  ...VALUE2_DEICTIC.map(say => [say(T), 'SPY clicked', ['SPY', 'NVDA'], 'w0', T]),
+  ...VALUE2_NAMED.map(say => [say(T), 'three charts, the target named', ['SPY', 'NVDA', 'QQQ'], null, T]),
+])
+describe('VALUE-SHAPED + a second change: the symbol is a VALUE of the plan, never a target — both changes run', () => {
+  it.each(VALUE2_CASES)('"%s" (%s) → the SPY chart shows the new ticker, weekly', async (t, ctx, syms, sel, T) => {
+    const m = mount(syms, sel)
+    const others = syms.map((_, i) => `w${i}`).filter(id => id !== 'w0')
+    const before = snapshot(m.board, others)
+    p.st.envelopes.push((body) => p.env('apply', [{ action: 'chart.setSymbol', target: spyRef(body), args: { symbol: T } },
+      { action: 'chart.setTimeframe', target: spyRef(body), args: { timeframe: 'W' } }]))
+    await m.say(t)
+    expect(asked(), transcript()).toBe(false)
+    expect(symOf(m.board, 'w0'), transcript()).toBe(T)
+    expect(m.board.state.widgets.find(w => w.id === 'w0').opts.tf, transcript()).toBe('W')
+    expect(snapshot(m.board, others)).toEqual(before)
+  }, 60000)
+})
+
 // ── KNOWN, UNCHANGED (master): "instead of SPY" is read as an EXCLUSION of SPY (spatialCheck NEG_EXCEPT), so "show AMD instead of
 // SPY" on several charts asks which of the others is meant. Safe (nothing written) and not this ruling's to change — recorded here.
 describe('KNOWN: "show T instead of SPY" on several charts asks (master behaviour, unchanged)', () => {
@@ -137,6 +162,22 @@ describe('DEICTIC words with no target ticker keep the click rule', () => {
       expect(stored(m.board, 'w0'), transcript()).not.toBe(spy0)
       expect(stored(m.board, 'w1')).toBe(nvda0)
     }, 60000)
+})
+
+// the screen itself, on the plan as the model would send it (several value phrasings never reach the model in the panel: the
+// instant path changes the symbol first) — the VALUE carve-out decides these
+describe('targetTickerConflict: a ticker that is a VALUE of the plan is never a target', () => {
+  const plan = (T) => [{ action: 'chart.setSymbol', target: 'w0', args: { symbol: T } }, { action: 'chart.setTimeframe', target: 'w0', args: { timeframe: 'W' } }]
+  const CASES = TICKERS.flatMap(T => [`switch to ${T} and make it weekly`, `put ${T} on this chart and make it weekly`, `change this chart to ${T}, weekly`, `switch to ${T}`]
+    .flatMap(t => [[t, ['SPY'], null, T], [t, ['SPY', 'NVDA'], 'w0', T]]))
+  it.each(CASES)('"%s" on %j (click %s): no conflict', (t, syms, sel, T) => {
+    const m = mount(syms, sel)
+    expect(targetTickerConflict({ host: m.h, ops: plan(T), text: t, getTargetKind, getCapability })).toBeNull()
+  })
+  it.each(TICKERS)('the same words with a plan that does NOT set %s (a timeframe only): asked', (T) => {
+    const m = mount(['SPY'])
+    expect(targetTickerConflict({ host: m.h, ops: plan(T).slice(1), text: `put ${T} on this chart and make it weekly`, getTargetKind, getCapability })?.ask).toBeTruthy()
+  })
 })
 
 describe('targetTickers: where a ticker stands for the chart being changed', () => {
