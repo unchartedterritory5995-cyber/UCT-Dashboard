@@ -38,8 +38,9 @@ from api.services.auth_db import get_connection
 #: The folder a member's daily notes go in when they have none yet (simplify pass 2, A3: was "Daily", which sat
 #: right under the panel row "Daily brief").
 DAILY_FOLDER_NAME = "Daily notes"
-#: Root folder names an existing member's daily notes already live in. Found FIRST, so a member who has one keeps
-#: every daily note in it, and a member who somehow has both names never gets their days split.
+#: Root folder names an existing member's daily notes already live in. Found before `DAILY_FOLDER_NAME` when the
+#: member's most recent day does not already say which folder is theirs (final fix I2, `_daily_folder_id`), so a
+#: member with both names never gets their days split.
 LEGACY_DAILY_FOLDER_NAMES = ("Daily",)
 _WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -65,11 +66,26 @@ def daily_title(day: date) -> str:
 
 
 def _daily_folder_id(user_id: str, conn: sqlite3.Connection) -> str:
-    """The member's root daily folder, made on first use. In order: a root folder named any legacy name (any casing
-    they gave it; the oldest first), else one named `DAILY_FOLDER_NAME`, else a new `DAILY_FOLDER_NAME`. No rename,
-    no migration. Inside the caller's transaction: no commit here."""
+    """The member's root daily folder, made on first use. In order:
+    1. the root folder holding the member's most recent LIVE daily note (latest day), when that folder's name is one
+       of the candidate names (legacy or new, any casing) -- final fix I2: a member whose days are in "Daily notes"
+       keeps them there when a root "Daily" appears later (a vault import, their own folder), and the mirror;
+    2. else a root folder named any legacy name (any casing they gave it; the oldest first);
+    3. else one named `DAILY_FOLDER_NAME`, else a new `DAILY_FOLDER_NAME`.
+    A most recent day in a folder the member renamed (or moved deeper) is not a daily folder any more: the name order
+    decides. No rename, no migration. Inside the caller's transaction: no commit here."""
     from api.services.journal_two import notes as notes_service
 
+    candidates = {n.casefold() for n in (*LEGACY_DAILY_FOLDER_NAMES, DAILY_FOLDER_NAME)}
+    latest = conn.execute(
+        "SELECT f.id, f.name FROM j2_notes n JOIN j2_note_folders f ON f.id = n.folder_id AND f.user_id = n.user_id"
+        " WHERE n.user_id = ? AND n.daily_date IS NOT NULL AND n.deleted_at IS NULL"
+        " AND (f.parent_id IS NULL OR f.parent_id = '')"
+        " ORDER BY n.daily_date DESC LIMIT 1",
+        (user_id,),
+    ).fetchone()
+    if latest and str(latest["name"]).casefold() in candidates:
+        return latest["id"]
     for name in (*LEGACY_DAILY_FOLDER_NAMES, DAILY_FOLDER_NAME):
         row = conn.execute(
             "SELECT id FROM j2_note_folders WHERE user_id = ?"
@@ -80,6 +96,22 @@ def _daily_folder_id(user_id: str, conn: sqlite3.Connection) -> str:
         if row:
             return row["id"]
     return notes_service.create_folder(user_id, DAILY_FOLDER_NAME, conn=conn)["id"]
+
+
+def daily_note_exists(user_id: str, raw_date: Any) -> bool:
+    """Final fix I3: is there a LIVE daily note for this member and day (archived counts: it still opens)? A plain
+    read on its own connection, outside any write transaction, so the POST door can skip building the plan seed for
+    a note it would only open. A bad day raises DailyNoteError, as the door itself would. A note made by another tab
+    between this read and the door is still answered by the door (the seed is then dropped, as for any existing
+    note)."""
+    from api.services.journal_two import notes as notes_service
+
+    iso = parse_day(raw_date).isoformat()
+    conn = get_connection()
+    try:
+        return notes_service.find_daily_note_id(user_id, iso, conn) is not None
+    finally:
+        conn.close()
 
 
 def _answer(user_id: str, note_id: str, conn: sqlite3.Connection, *, created: bool, missing: bool) -> dict[str, Any]:

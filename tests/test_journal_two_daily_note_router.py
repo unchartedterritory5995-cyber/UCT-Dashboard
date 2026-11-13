@@ -294,6 +294,130 @@ def test_A3_a_member_with_both_names_gets_notes_in_daily_never_split(app, client
     assert len(_folders(client)) == 2, "nothing was made, nothing was renamed"
 
 
+def _move_to(client, note_id, folder_id):
+    r = client.put(f"/api/j2/notes/{note_id}", json={"folderId": folder_id})
+    assert r.status_code == 200, r.text
+
+
+def test_I2_days_in_daily_notes_stay_there_when_a_root_daily_folder_appears_later(app, client):
+    # Final fix I2: a new member starts on "Daily notes"; a root "Daily" made later (a vault import, or their own) must
+    # not take every later day away from the folder their days already live in.
+    _login_as(app, "u1")
+    first = _today(client, "2026-09-24").json()["note"]
+    home = [f for f in _folders(client) if f["name"] == DAILY][0]["id"]
+    assert first["folderId"] == home
+    client.post("/api/j2/note-folders", json={"name": LEGACY})
+    nxt = _today(client, "2026-09-25").json()["note"]
+    assert nxt["folderId"] == home, "the next day joined the days already in 'Daily notes'"
+    assert len(_folders(client)) == 2, "nothing was made, nothing was renamed"
+
+
+def test_I2_the_mirror_days_in_daily_stay_there_when_daily_notes_appears_later(app, client):
+    _login_as(app, "u1")
+    legacy = client.post("/api/j2/note-folders", json={"name": LEGACY}).json()["folder"]["id"]
+    assert _today(client, "2026-09-24").json()["note"]["folderId"] == legacy
+    client.post("/api/j2/note-folders", json={"name": DAILY})
+    assert _today(client, "2026-09-25").json()["note"]["folderId"] == legacy
+
+
+def test_I2_the_most_recent_days_folder_wins_in_any_casing(app, client):
+    # The candidate names match case-insensitively, as the name lookup does ("Daily Notes" from Roam is adopted).
+    _login_as(app, "u1")
+    roam = client.post("/api/j2/note-folders", json={"name": "DAILY NOTES"}).json()["folder"]["id"]
+    assert _today(client, "2026-09-24").json()["note"]["folderId"] == roam
+    client.post("/api/j2/note-folders", json={"name": LEGACY})
+    assert _today(client, "2026-09-25").json()["note"]["folderId"] == roam
+
+
+def test_I2_a_most_recent_day_in_a_renamed_folder_falls_back_to_the_name_order(app, client):
+    # The member renamed the folder their days live in ("Journal"): that folder is theirs to name, not the daily
+    # folder any more, so the next day follows the usual order (a root "Daily", else "Daily notes", else a new one).
+    _login_as(app, "u1")
+    first = _today(client, "2026-09-24").json()["note"]
+    r = client.put(f"/api/j2/note-folders/{first['folderId']}", json={"name": "Journal"})
+    assert r.status_code == 200, r.text
+    legacy = client.post("/api/j2/note-folders", json={"name": LEGACY}).json()["folder"]["id"]
+    assert _today(client, "2026-09-25").json()["note"]["folderId"] == legacy
+
+
+def test_I2_a_trashed_most_recent_day_does_not_choose_the_folder(app, client):
+    # Only a LIVE daily note counts: the most recent day trashed, the next live one's folder is used.
+    _login_as(app, "u1")
+    legacy = client.post("/api/j2/note-folders", json={"name": LEGACY}).json()["folder"]["id"]
+    a = _today(client, "2026-09-24").json()["note"]
+    newer = client.post("/api/j2/note-folders", json={"name": DAILY}).json()["folder"]["id"]
+    b = _today(client, "2026-09-25").json()["note"]
+    _move_to(client, b["id"], newer)
+    assert client.delete(f"/api/j2/notes/{b['id']}").status_code == 200
+    assert a["folderId"] == legacy
+    assert _today(client, "2026-09-26").json()["note"]["folderId"] == legacy
+
+
+def test_I2_a_most_recent_day_moved_into_daily_notes_takes_the_next_day_with_it(app, client):
+    # CONTROL for the trashed case above: the same moved note, live, is the most recent day and its folder wins over
+    # the legacy name (so the trashed case can tell "live only" from "never looks at the notes").
+    _login_as(app, "u1")
+    client.post("/api/j2/note-folders", json={"name": LEGACY})
+    _today(client, "2026-09-24")
+    newer = client.post("/api/j2/note-folders", json={"name": DAILY}).json()["folder"]["id"]
+    b = _today(client, "2026-09-25").json()["note"]
+    _move_to(client, b["id"], newer)
+    assert _today(client, "2026-09-26").json()["note"]["folderId"] == newer
+
+
+# ── I3 (final fix): the plan seed is built only for a note this press MAKES, and a failed build never blocks it ──
+
+def _spy_seed(monkeypatch, *, raises=False, lines=("Check your names: NVDA",)):
+    from api.services.journal_two import notebook_today
+    calls = []
+
+    def fake(user_id, *, paid, now=None):
+        calls.append(user_id)
+        if raises:
+            raise RuntimeError("the seed's reads failed")
+        return [{"type": "taskList", "content": [
+            {"type": "taskItem", "attrs": {"checked": False},
+             "content": [{"type": "paragraph", "content": [{"type": "text", "text": t}]}]} for t in lines]}]
+
+    monkeypatch.setattr(notebook_today, "plan_seed_for", fake)
+    return calls
+
+
+def test_I3_an_existing_note_opens_without_building_the_seed(app, client, monkeypatch):
+    _login_as(app, "u1")
+    made = _today(client).json()["note"]
+    calls = _spy_seed(monkeypatch)
+    again = _today(client, seedToday=True)
+    assert again.status_code == 200, again.text
+    assert again.json()["created"] is False and again.json()["note"]["id"] == made["id"]
+    assert calls == [], "the seed was built for a note that already existed"
+
+
+def test_I3_a_seed_build_that_raises_still_makes_the_note_without_plan_lines(app, client, monkeypatch):
+    _login_as(app, "u1")
+    calls = _spy_seed(monkeypatch, raises=True)
+    r = _today(client, seedToday=True)
+    assert r.status_code == 200, r.text
+    assert r.json()["created"] is True and calls == ["u1"]
+    assert "Check your names" not in str(r.json()["note"]["bodyJson"])
+
+
+def test_I3_with_no_note_the_seed_is_built_once_and_its_lines_land(app, client, monkeypatch):
+    _login_as(app, "u1")
+    calls = _spy_seed(monkeypatch)
+    r = _today(client, seedToday=True)
+    assert r.status_code == 200, r.text
+    assert r.json()["created"] is True and calls == ["u1"]
+    assert "Check your names: NVDA" in str(r.json()["note"]["bodyJson"])
+
+
+def test_I3_a_bad_date_with_the_seed_is_still_a_400(app, client, monkeypatch):
+    _login_as(app, "u1")
+    calls = _spy_seed(monkeypatch)
+    assert _today(client, date="2026-02-30", seedToday=True).status_code == 400
+    assert calls == []
+
+
 def test_A3_a_daily_folder_inside_another_folder_is_not_the_daily_folder(app, client):
     _login_as(app, "u1")
     parent = client.post("/api/j2/note-folders", json={"name": "Trading"}).json()["folder"]["id"]
