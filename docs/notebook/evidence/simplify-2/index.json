@@ -132,7 +132,28 @@
     },
     "before_words": "Opening the Daily brief made today's note and its folder on the first visit of the day.",
     "before": "B1-1280-before.png",
-    "before_from": "docs/notebook/evidence/fin-walk/13f1b01f5e/c2/shots/c2-1280-layout-Daily-brief.png"
+    "before_from": "docs/notebook/evidence/fin-walk/13f1b01f5e/c2/shots/c2-1280-layout-Daily-brief.png",
+    "after_from": "held c2 sandbox, tip 4f3d94089f (pass 2 final fix, part 2)",
+    "after_start": "B1-1280-after-start.png",
+    "after_start_shows": "Right after pressing Start today's note (the member watches NVDA): still on the Daily brief (?view=today), the plan card with its lines, the button now Open today's note and holding focus, the polite status Today's note started.",
+    "after_start_facts": {
+      "url": "/journal/notebook?view=today",
+      "notes_after": 1,
+      "header_buttons": [
+        "Open today's note"
+      ],
+      "focus": "Open today's note",
+      "status": "Today's note started.",
+      "cards": [
+        "setups",
+        "names",
+        "plan"
+      ],
+      "plan_lines": [
+        "Check the market: Yellow regime, 61% above the 50-day (open)",
+        "Check your names: NVDA (open)"
+      ]
+    }
   },
   "B2-1280": {
     "after": "B2-1280-after.png",
@@ -165,25 +186,31 @@
   },
   "B4-1280": {
     "after": "B4-1280-after.png",
-    "after_shows": "The header's one button: 'Start today's note' (Quick capture, All notes and + New are gone from it).",
+    "after_shows": "The header's one button: 'Start today's note' (Quick capture, All notes and + New are gone from it); after a press it becomes 'Open today's note' on the same brief (B1-1280-after-start.png).",
     "after_facts": {
       "header_buttons": [
         "Start today's note"
+      ],
+      "header_buttons_after_start": [
+        "Open today's note"
       ]
     },
     "before_words": "The header had three buttons: Quick capture, All notes and + New.",
     "before": "B4-1280-before.png",
-    "before_from": "docs/notebook/evidence/fin-walk/13f1b01f5e/c2/shots/c2-1280-layout-Daily-brief.png"
+    "before_from": "docs/notebook/evidence/fin-walk/13f1b01f5e/c2/shots/c2-1280-layout-Daily-brief.png",
+    "after_from": "held c2 sandbox, tip 4f3d94089f (pass 2 final fix, part 2)"
   },
   "B5-1280": {
     "after": "B5-1280-after.png",
-    "after_shows": "Nothing to show yet: one quiet line above the two compact asks.",
+    "after_shows": "Nothing to show yet: one quiet line ('Nothing for today yet. Today\u2019s plan, the setups near your entry and your names will show here.') above the two compact asks.",
     "after_facts": {
-      "nothing_yet_line": 1
+      "nothing_yet_line": 1,
+      "line": "Nothing for today yet. Today\u2019s plan, the setups near your entry and your names will show here."
     },
     "before_words": "A member with nothing saw a grid of empty cards and their sentences.",
     "before": "B5-1280-before.png",
-    "before_from": "docs/notebook/evidence/fin-walk/13f1b01f5e/c2/shots/c2-1280-layout-Daily-brief.png"
+    "before_from": "docs/notebook/evidence/fin-walk/13f1b01f5e/c2/shots/c2-1280-layout-Daily-brief.png",
+    "after_from": "held c2 sandbox, tip 4f3d94089f (pass 2 final fix, part 2)"
   },
   "C1-1280": {
     "after": "C1-1280-after.png",

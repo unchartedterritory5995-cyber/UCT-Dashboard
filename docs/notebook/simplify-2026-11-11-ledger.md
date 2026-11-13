@@ -567,3 +567,19 @@ Strings these changes invalidate (Part 2 updates them; `tools/` and the walker p
 - No walker or Python test reads "Today's plan written", the recap card's old "Open today’s note →", the Help export sentences, the Views card or the "Note type" mapping (grep `tools/notebook_*.py`, `tests/test_notebook_*`).
 
 First-open bytes: 2,259,277 B of 2,260,793 B (PASS, 1,516 B of room; 2,258,225 B at the base, so +1,052 B). The fix first measured 2,259,841 B; the payback is commit "keep first open inside the budget's room" (see the report).
+
+## Pass 2, final fix, part 2 (2026-11-13): walkers, a targeted re-walk, the record, base `46436f6d6f`
+
+Report: `.superpowers/sdd/2026-11-12-notebook-simplify-2/final-fix-2-report.md`. Walk record: `docs/notebook/fin-walk.md` section 10.4, `docs/notebook/evidence/fin-walk/4f3d94089f-rewalk/`, door audit `docs/notebook/evidence/door-audit-20261113T160915Z/` (rows 41 and 46). Screenshots: `docs/notebook/evidence/simplify-2/` B1, B4, B5 after-shots replaced and `B1-1280-after-start.png` added (`index.json`, `shots-facts.json`).
+
+Product (R1, from the re-review of part 1): the Compass tab's recap card (`components/EODRecap.jsx`) and Insights' "Draft today's recap" (`components/insights/InsightsHub.jsx`) send the member's daily template and `seedToday` to `draftDailyReview`, like the Notebook's recap doors (the seed applies to today only). Undo: drop `templateId` and `seedToday` from those two calls (and the `usePreferences` read above each). Tests: `EODRecap.test.jsx`, `InsightsHub.test.jsx` (one case each; each argument removed is red). First-open bytes unchanged.
+
+Instruments re-pointed (none deleted, skipped or turned into INFO):
+- `discover.daily-brief`: Start stays on the brief (I4): the made note is read from `GET /api/j2/notes/today?make=0`; the row asserts `?view=today`, "Open today's note" with focus, the status "Today's note started." (`STARTED_STATUS`), the plan card's lines, ONE note after a double press, "Daily notes". New rows: Open today's note opens it; the list's Today's note on an existing note opens it at once and makes nothing.
+- `discover.recap-template` (new door, I1): the recap door on a day with no note, with a daily template chosen in the template sheet.
+- `discover.note-second-views`: the cold press's "Export…" + `aria-busy`, ArrowRight on the Export row (reached by Tab), and the failed-load alert with its Reload (`EXPORT_UNAVAILABLE` + `RELOAD_TO_RECOVER`, read from the product).
+- `discover.insert-palette`: "Show all widgets" (read from WidgetPalette.jsx) at 1280, and at 390 through "+" > "Chart or block".
+- `blocks.prep-pack`: the fourth gap state (`FINAL_WORDS` and the Captured line once nothing will fill it) through one pure read, `prep_gap_read`; pytest `tests/test_notebook_fin_walk_prep_gap.py`.
+- Door table: no row presses the brief's Start; no string changed.
+
+Results: re-walk at `4f3d94089f` (product `b4312c0ea7`): every final-fix row PASS; the only rows not PASS are three new rows' first contact (INSTRUMENT, re-pointed, PASS on the next run) and the resurfacing rows that need the `child` step's state (INSTRUMENT, attach state). Door audit rows 41 and 46 unchanged. First-open bytes 2,259,277 B of 2,260,793 B (PASS).
