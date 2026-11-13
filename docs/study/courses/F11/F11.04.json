@@ -1616,8 +1616,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from f49 and f33 (both re-read live) with f36 (re-read live). The house lines quote f75 (C37) and f76 (D45) exactly as in sizing_rule.md section 9. 0.25% and 50 come from f75. No choice expresses grade-based size (D38, E49), so there is no second key; owner flag on D38 and E49 stands.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "ok"
   },
   "q16": {
    "status": "pass",

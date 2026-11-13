@@ -181,6 +181,14 @@
    "title": "The house sizing rule, section 5: Portfolio layer (the owner quoted, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#5-portfolio-layer",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -585,6 +593,24 @@
    "source": "s20",
    "quote": "New trims rules are what I like for hard rule can say trim 1/3 at 3R but I rarely actually do that and mostly wait for 5R.",
    "claim": "The owner's words on the first trim: a third at 3R is the hard rule, though he mostly waits for 5R."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -808,12 +834,12 @@
     "Pyramiding"
    ],
    "answer": "Scaling out",
-   "why": "Scaling out. You close a trade in pieces instead of all at once, so the shares you keep can ride the move further. Pyramiding goes the other way: it adds shares. Stopping out is your stop being hit, not a planned sale. Our ladder scales out in thirds: a third at 3R, a third at 5R, and the last third trails.",
+   "why": "Scaling out. You close a trade in pieces instead of all at once, so the shares you keep can ride the move further. Pyramiding goes the other way: it adds shares. Stopping out is your stop being hit, not a planned sale. When we sell the first piece is a judgment, usually day 3 or later, and the rest rides a trail.",
    "lesson_line": "Scaling out: sell some, let the rest ride.",
    "facts": [
     "f21",
     "f31",
-    "h04",
+    "r01",
     "f29",
     "f25",
     "f49"
@@ -831,7 +857,7 @@
      "fixed before (term case)"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings2"
   },
   {
    "key": "q07",
@@ -901,30 +927,30 @@
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "Our plan marks where to take some off. Where is the first trim, and how much?",
+   "q": "How does our plan decide the first sell?",
    "choices": [
-    "A third at 3R",
-    "Half at 2R",
-    "Half on a double",
-    "Some once up 20%"
+    "A judgment, usually from day 3 on",
+    "A fixed third at 3R every time",
+    "Half of it, once the stock doubles",
+    "Some once up 20% to 25%"
    ],
-   "answer": "A third at 3R",
-   "why": "A third at 3R. One R is your entry minus your stop, so 3R sits three of those above the entry. That is our hard rule for the first trim, and the stop moves up to breakeven there. Ideally the first trim sits anywhere from 3R to 6R, but the hard rule is 3R. The level is set in R from your own stop, not in percent.",
-   "lesson_line": "First trim: a third at 3R. Know that price before you buy.",
+   "answer": "A judgment, usually from day 3 on",
+   "why": "A judgment, usually from day 3 on. The first sell depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. R is only the measuring stick: your entry minus your stop.",
+   "lesson_line": "First sell: a judgment, usually day 3 or later. R is the ruler, not the trigger.",
    "facts": [
-    "h02",
-    "h03",
-    "h04",
+    "r01",
+    "r02",
+    "r03",
     "f17",
     "f07",
     "f14"
    ],
    "wrong": {
-    "Half at 2R": "Wrong size and wrong level. 2R is inside the window where the stop can go to breakeven. But the first trim waits for 3R, and it's a third.",
-    "Half on a double": "That's Hirsch's rule for a stock that doubles. Ours is set in R from your own stop: a third at 3R.",
-    "Some once up 20%": "That echoes IBD's profit-taking zone, a 20% to 25% gain. Ours is a set size, a third, measured in R from your stop."
+    "A fixed third at 3R every time": "That was the old rule. The first sell is a judgment, not a fixed third at 3R.",
+    "Half of it, once the stock doubles": "That's Hirsch's rule for a stock that doubles. Ours is a judgment, not a set rule like that.",
+    "Some once up 20% to 25%": "That echoes IBD's profit-taking zone. Ours ignores a set percent and follows how the trade is working."
    },
-   "simple": "A third at 3R. Our hard rule takes a third off when the gain is three times your risk.",
+   "simple": "A judgment call, usually from day 3 on, because it depends on the trade and not on one fixed price.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -933,7 +959,7 @@
      "fixed before (rewritten 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings2"
   },
   {
    "key": "q10",
@@ -1118,11 +1144,12 @@
     }
    },
    "suffix": "shares",
-   "why": "50 shares. At $60, each share is worth twice the $30 you paid. So half the shares bring back your whole cost. That is Hirsch's rule: sell half on a double and let the rest ride. It is his rule, not ours. We sell a third at 3R, a third at 5R, and trail the last third.",
+   "why": "50 shares. At $60, each share is worth twice the $30 you paid. So half the shares bring back your whole cost. That is Hirsch's rule: sell half on a double and let the rest ride. It is his rule, not ours. Our first sell is a judgment, usually on day 3 or later.",
    "lesson_line": "Half on a double gets your cost back. The rest rides on the gain.",
    "facts": [
     "f14",
-    "h04"
+    "r01",
+    "r02"
    ],
    "simple": "50 shares. At $60 each share is worth twice what you paid, so selling half gets your cost back.",
    "tier": "extended",
@@ -1133,7 +1160,7 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings2"
   },
   {
    "key": "q16",
@@ -1628,7 +1655,7 @@
    "rung": 4,
    "format": "numeric",
    "house": true,
-   "q": "Entry $50, stop $47.50. Where is 3R, our first trim?",
+   "q": "Entry $50, stop $47.50. Where is the 3R price?",
    "answer": 57.5,
    "calc": {
     "fn": "arith",
@@ -1639,14 +1666,14 @@
     }
    },
    "prefix": "$",
-   "why": "$57.50. One R is the distance from the $50 entry to the $47.50 stop. Three of those above the entry is 3R, our first trim. A third comes off there, and the stop goes to breakeven.",
-   "lesson_line": "Know the 3R price before you buy. That's where the first third comes off.",
+   "why": "$57.50. One R is the distance from the $50 entry to the $47.50 stop. Three of those above the entry is 3R. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later.",
+   "lesson_line": "Know the 3R price before you buy. It is a mark on the trade, not a sell order.",
    "facts": [
-    "h02",
-    "h03",
+    "r01",
+    "r02",
     "f17"
    ],
-   "simple": "$57.50. Three times the gap between your $50 entry and $47.50 stop, added to the entry, is the first trim.",
+   "simple": "$57.50. Three times the gap between your $50 entry and $47.50 stop, added to the entry, is the 3R price.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1655,7 +1682,7 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings2"
   },
   {
    "key": "q30",
@@ -1734,29 +1761,28 @@
    "rung": 6,
    "format": "scenario",
    "house": true,
-   "story": "You bought at $20 with the stop at $19. Your first trim sits at $23, 3R. Today the stock opens at $24.10 on news.",
-   "q": "What do you do with the first third?",
+   "story": "You bought at $20 with the stop at $19. By noon on the same day, the stock trades at $23, 3R, on news.",
+   "q": "What do you do about the first sell?",
    "choices": [
-    "Sell it right at the open",
-    "Wait for a pullback",
-    "Hold all, it's running",
-    "Sell all at the open"
+    "Hold; he rarely sells on day 1",
+    "Sell a third now, it is at 3R",
+    "Sell it all, a gain is a gain",
+    "Sell half now and lift the stop"
    ],
-   "answer": "Sell it right at the open",
-   "why": "Sell it right at the open. The stock opened at $24.10, above the $23 trim level. Our rule: if a stock opens above a trim level, take that trim at the open. Waiting for $23 is not part of the rule. The stop on the other two thirds moves to breakeven, $20.",
-   "lesson_line": "When the stock opens above a trim level, take that trim at the open.",
+   "answer": "Hold; he rarely sells on day 1",
+   "why": "Hold. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. The 3R price is a mark, not an order to sell. Selling into a 3, 5 or 7 day push is often best. Meanwhile the stop stays where it is.",
+   "lesson_line": "Rarely sell on day 1. The first sell usually waits until day 3 or later.",
    "facts": [
-    "h06",
-    "h02",
-    "h03",
-    "h04"
+    "r01",
+    "r02",
+    "r03"
    ],
    "wrong": {
-    "Wait for a pullback": "The level is already behind you. Our rule takes the trim at the open, not on a pullback.",
-    "Hold all, it's running": "The plan sells a third at 3R. The stock gapping past that level doesn't cancel the trim.",
-    "Sell all at the open": "That's the whole position for a one-third rule. Two thirds stay on: one for 5R, one for the trail."
+    "Sell a third now, it is at 3R": "That was the old fixed rule. The first sell is a judgment, and he rarely sells on day 1.",
+    "Sell it all, a gain is a gain": "That cuts a winner short. Selling into a 3, 5 or 7 day push is often best.",
+    "Sell half now and lift the stop": "Day 1 is too early to sell by rule. He usually waits until day 3 at the earliest."
    },
-   "simple": "Sell the first third at the open. The stock opened above the 3R trim, so our rule takes it there.",
+   "simple": "Hold, because he very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1765,7 +1791,7 @@
      "fixed before (facts)"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings2"
   },
   {
    "key": "q33",
@@ -1791,7 +1817,7 @@
     "h13"
    ],
    "wrong": {
-    "Hold until the stop or 3R": "That's the plan for a trade that moves. After 10 trading days under 1R, the time stop ends it.",
+    "Hold until the stop or 3R": "That is for a trade that moves. After 10 trading days under 1R, the time stop ends it.",
     "Widen the stop and wait": "The stop never moves down or wider. And waiting is the problem here, not the fix.",
     "Move the stop up to breakeven": "Our breakeven move comes at 2R to 5R, and this trade is under 1R. The time stop sells it instead."
    },
@@ -1849,13 +1875,13 @@
     "Sell it all and rebuy bigger"
    ],
    "answer": "Add nothing, manage the trade",
-   "why": "Add nothing. The whole size went on at $30 with one stop, and we never add. Manage the trade instead. The first third comes off at 3R, where the stop moves up to breakeven. More shares bought higher would only raise what a reversal costs.",
+   "why": "Add nothing. The whole size went on at $30 with one stop, and we never add. Manage the trade instead. The first sell is a judgment, and he usually waits until day 3 at the earliest. More shares bought higher would only raise what a reversal costs.",
    "lesson_line": "Full size at one price. An add is not our trade.",
    "facts": [
     "h11",
     "h12",
-    "h02",
-    "h03",
+    "r01",
+    "r02",
     "f24",
     "f02"
    ],
@@ -1875,7 +1901,7 @@
      "rests on the owner's rulebook (A5, B19)"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings2"
   },
   {
    "key": "q37",
@@ -1883,15 +1909,15 @@
    "rung": 9,
    "format": "scenario",
    "house": true,
-   "story": "You bought 300 shares at $40, stop $38, in one order. It runs: $46, then $50, then on for weeks above its rising 10-day average.",
-   "q": "In order, what does our plan do?",
+   "story": "You bought 300 shares at $40, stop $38, in one order. By day 5 it has run to $46, 3R, and it sits well above its rising 10-day average.",
+   "q": "What does our plan do now?",
    "choices": [
-    "100 at $46, 100 at $50, trail 100",
-    "All 300 at $46, the first trim",
-    "150 at $46, 150 at $50, trail none",
-    "Trail all 300 from the very start"
+    "Sell some at $46, trail the rest",
+    "Sell all 300 at $46, one target",
+    "Hold all 300 and never sell a share",
+    "Add 100 more shares at $46"
    ],
-   "answer": "100 at $46, 100 at $50, trail 100",
+   "answer": "Sell some at $46, trail the rest",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1900,24 +1926,23 @@
      "stop": 38
     }
    },
-   "why": "100 at $46, 100 at $50, trail 100. On a $40 entry with a $38 stop, $46 is 3R. A third comes off there and the stop goes to breakeven, $40. $50 is 5R: another third. The last 100 ride the rising 10-day and sell on a close below it.",
-   "lesson_line": "Entry, stop, a third at 3R, a third at 5R, trail the rest. That's the whole ladder.",
+   "why": "Sell some at $46, trail the rest. On a $40 entry with a $38 stop, $46 is 3R, a mark on the trade and not an order. Selling into a 3, 5 or 7 day push is often best, and this is day 5. The rest rides the rising 10-day and sells on a close below it.",
+   "lesson_line": "Entry, stop, then a first sell on judgment, often into a 3, 5 or 7 day push. Trail the rest.",
    "facts": [
-    "h02",
-    "h03",
-    "h04",
+    "r01",
+    "r02",
+    "r03",
     "h05",
-    "h06",
     "h11"
    ],
    "wrong": {
-    "All 300 at $46, the first trim": "3R is a trim, not the exit. Only a third comes off there. Two thirds stay on for 5R and the trail.",
-    "150 at $46, 150 at $50, trail none": "Halves leave nothing to trail. The rule is thirds, and the last third rides the average.",
-    "Trail all 300 from the very start": "That banks nothing into strength. We take a third at 3R and a third at 5R, then trail what's left."
+    "Sell all 300 at $46, one target": "That banks everything at one price. We sell some into strength and trail the rest.",
+    "Hold all 300 and never sell a share": "That banks nothing into a 5 day push. We sell some into strength and trail the rest.",
+    "Add 100 more shares at $46": "We never add. The whole size goes on at one price with one stop."
    },
-   "simple": "Sell 100 at $46, sell 100 at $50, then trail the last 100 under the 10-day average.",
+   "simple": "Sell some at $46 and trail the rest, because a 5 day push is a good place for a first sell.",
    "deeper": {
-    "example": "Count it in R. The first 100 sell at 3R and the next 100 at 5R. The last 100 has no target: it rides the 10-day until a close below it. And if the stock opens above a trim level, that trim is taken at the open."
+    "example": "Count it in R. $46 is 3R. It is a mark, not a sell order. The first sell is a judgment into a 3, 5 or 7 day push, or at about 5 to 10R. The rest has no target: it rides the 10-day until a close below it."
    },
    "tier": "expert",
    "risk": {
@@ -1927,7 +1952,7 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings2"
   }
  ],
  "conflicts": [
@@ -1996,7 +2021,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: scaling out (f21 + f31). Lengths 10-14, no tell. Pyramiding note f29, averaging down f25; 'Stopping out' is a stop being hit (f49), and a stop sells the whole position, so no second answer. Ladder line rests on h04."
+   "notes": "ok"
   },
   "q07": {
    "status": "pass",
@@ -2014,7 +2039,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: a third at 3R (h02, B19 hard rule). Hirsch (f14) and IBD (f07) lures are real web views, each named as theirs; 2R note rests on h03. Before this check, q27's key choice ('At the first trim, 3R', rung 2) and q28's sentence ('At 3R we sell a ___', same rung) each handed q09 its key, because only the key contains '3R'. Both fixed here (q27 rekeyed to B19's window, q28 cut). Residual: q29 and q32 stems name 3R as the first trim, but they sit at higher rungs. 'One R is your entry minus your stop' has no quote in this unit (only f17 and the calcs); R is assumed from earlier units."
+   "notes": "ok"
   },
   "q10": {
    "status": "cut",
@@ -2048,9 +2073,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "ok"
   },
   "q16": {
    "status": "pass",
@@ -2145,9 +2170,9 @@
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "ok"
   },
   "q30": {
    "status": "pass",
@@ -2165,14 +2190,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: take the trim at the open (h06, F63 verbatim). Key is the shortest choice. Story gives $23 as 3R ($20 + 3 x $1), and the why states only story numbers. Lesson-level gap stands: F63 is in no walk-through (the resolver's proposed w5 is for the integrator). 'Hold all of it' is not defensible: B19's 'mostly waits for 5R' is his practice, and F63 is the rule.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "ok"
   },
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer: sell, under 1R after 10 trading days (h07, C33 verbatim); story now says 11 trading days. Breakeven note rests on h03, widen note on h13. Same lesson-level gap as q32: the time stop is in no walk-through, and the key is the only choice naming a rule."
+   "fixed": true,
+   "notes": "Keep is right (time stop). Softened the distractor note that called hold-until-3R the plan for a moving trade."
   },
   "q34": {
    "status": "pass",
@@ -2182,15 +2206,15 @@
   },
   "q36": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "ok"
   },
   "q37": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "ok"
   }
  }
 }

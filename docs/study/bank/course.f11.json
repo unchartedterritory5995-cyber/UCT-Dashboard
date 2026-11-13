@@ -3247,7 +3247,7 @@
   "difficulty": 3,
   "id": "si_6d3b7e92a915",
   "lesson_origin": "session",
-  "lesson_text": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 10-day average, and we sell on a close below it. We swing trade: days to a few weeks. Our first trim is a third at 3R, then another third at 5R. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order. The entry chart times the buy. The trail sets the clock.",
+  "lesson_text": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 10-day average, and we sell on a close below it. We swing trade: days to a few weeks. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order. The entry chart times the buy. The trail sets the clock.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -3258,7 +3258,7 @@
    ],
    "kind": "mcq",
    "q": "What does the plan say to do?",
-   "story": "You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, your first trim, and well above your stop.",
+   "story": "You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, and well above your stop.",
    "subject": "F11.02#q17"
   },
   "reveal_json": {
@@ -3303,25 +3303,18 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (updated 2026-08-11)",
-      "quote": "they may use a longer period (like a daily chart) for the trade setup but refer to an hourly chart when planning and executing entry and exit points.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -3350,21 +3343,28 @@
       "quote": "Swing traders, on the other hand, hold their positions for days or weeks. This exposes them to the risk of potential gaps at the market open due to news that occurred during non-trading hours.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: What Is Swing Trading and How Does It Work? (updated 2026-08-11)",
+      "quote": "they may use a longer period (like a daily chart) for the trade setup but refer to an hourly chart when planning and executing entry and exit points.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
      }
     ],
-    "summary": "The Kicker's other entry is the day-one 30-minute opening-range break. The owner's Kicker entry: over the prior day's high, or the day-one 30-minute range break. The Kicker trails under each higher low, or under the 10-day average. Our rule E52: trail under the 10-day or 21-day average and sell on a close below it. Our rule C35: we swing trade, holding days to a few weeks, longer for a winner that keeps working. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. A swing trader may find the setup on the daily chart and time the entry on an hourly chart. Our rule D41: every position has a real stop order with the broker. Our rule B20: on a gap against the stop, the low of the first 30-minute bar becomes the new stop. Our rule B20's ceiling: if the first 30 minutes take the loss past 2R, get out. Holding overnight exposes a swing trader to gaps at the open."
+    "summary": "The Kicker's other entry is the day-one 30-minute opening-range break. The owner's Kicker entry: over the prior day's high, or the day-one 30-minute range break. The Kicker trails under each higher low, or under the 10-day average. Our rule E52: trail under the 10-day or 21-day average and sell on a close below it. Our rule C35: we swing trade, holding days to a few weeks, longer for a winner that keeps working. The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Our rule D41: every position has a real stop order with the broker. Our rule B20: on a gap against the stop, the low of the first 30-minute bar becomes the new stop. Our rule B20's ceiling: if the first 30 minutes take the loss past 2R, get out. Holding overnight exposes a swing trader to gaps at the open. A swing trader may find the setup on the daily chart and time the entry on an hourly chart."
    },
    "facts": {
-    "given": "What does the plan say to do? You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, your first trim, and well above your stop. Hold it; trail on the daily chart Sell it, it was an intraday entry Sell half of it before the close Hold it; trail on the 30-minute chart"
+    "given": "What does the plan say to do? You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, and well above your stop. Hold it; trail on the daily chart Sell it, it was an intraday entry Sell half of it before the close Hold it; trail on the 30-minute chart"
    },
    "lesson_line": "The entry chart times the buy. The trail sets the clock.",
    "simple": "Hold it, because the 30-minute break only timed the buy, and the plan trails the trade on the daily chart.",
    "tier": "extended",
    "unit": "F11.02",
-   "why": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 10-day average, and we sell on a close below it. We swing trade: days to a few weeks. Our first trim is a third at 3R, then another third at 5R. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order.",
+   "why": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 10-day average, and we sell on a close below it. We swing trade: days to a few weeks. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order.",
    "wrong": {
     "Hold it; trail on the 30-minute chart": "The 30-minute bar only timed the buy. Our Kicker trails under each higher low or the 10-day average, a daily-chart trail.",
-    "Sell half of it before the close": "Our first trim is a third at 3R. Nothing in the plan sells at the close.",
+    "Sell half of it before the close": "He very rarely sells on day 1 of the buy. Nothing in the plan sells at the close.",
     "Sell it, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart."
    }
   },
@@ -4353,7 +4353,7 @@
   "difficulty": 1,
   "id": "si_c5d893a73a99",
   "lesson_origin": "session",
-  "lesson_text": "True. Our hard rule is to trim a third at 3R, then another third at 5R. R is your risk per share: the entry minus the stop. So 3R is a price, not a date. Same entry and same stop give the same trim price, however long you hold. It does not mean every style gets the same trim: change the stop and 3R moves with it. Trims are measured from the stop, not from the calendar.",
+  "lesson_text": "True. R is your risk per share: the entry minus the stop. So 3R is a price, not a date. Same entry and same stop give the same 3R price, however long you hold. When you sell is a judgment, and he usually waits until day 3 at the earliest. Change the stop and 3R moves with it. R marks are measured from the stop, not from the calendar.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -4361,28 +4361,21 @@
     "False"
    ],
    "kind": "tf",
-   "q": "On our plan, two trades with the same entry and stop get the same 3R trim, even if one is held longer.",
+   "q": "Two trades share the same entry and stop. Their 3R price is the same, even if one is held longer.",
    "subject": "F11.03#q05"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The catch is the stop, not the clock. Longer holds often use wider stops, and a wider stop pushes 3R farther from the entry. This question fixes the entry and the stop, so the trim price matches. Change the stop and the trim price moves with it."
+    "trap": "The catch is the stop, not the clock. Longer holds often use wider stops, and a wider stop pushes 3R farther from the entry. This question fixes the entry and the stop, so the 3R price matches. Change the stop and the price moves with it."
    },
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -4413,16 +4406,16 @@
       "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/trading-basics-4-transcript.pdf"
      }
     ],
-    "summary": "After the first third at 3R, we sell another third at 5R and trail the last third. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Each of our setups comes with its own entry and stop. R is your risk per share: the entry minus the stop. A longer-term trader judges exits on a longer timeframe, not intraday levels; know your timeframe for every trade. A longer-term trader riding a trend might trail a stop 10% below the high."
+    "summary": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R. Each of our setups comes with its own entry and stop. R is your risk per share: the entry minus the stop. A longer-term trader judges exits on a longer timeframe, not intraday levels; know your timeframe for every trade. A longer-term trader riding a trend might trail a stop 10% below the high."
    },
    "facts": {
-    "given": "On our plan, two trades with the same entry and stop get the same 3R trim, even if one is held longer."
+    "given": "Two trades share the same entry and stop. Their 3R price is the same, even if one is held longer."
    },
-   "lesson_line": "Trims are measured from the stop, not from the calendar.",
-   "simple": "True, because the 3R trim is measured from the entry and the stop, not from how long you hold.",
+   "lesson_line": "R marks are measured from the stop, not from the calendar.",
+   "simple": "True, because the 3R price comes from the entry and the stop, not from how long you hold.",
    "tier": "core",
    "unit": "F11.03",
-   "why": "True. Our hard rule is to trim a third at 3R, then another third at 5R. R is your risk per share: the entry minus the stop. So 3R is a price, not a date. Same entry and same stop give the same trim price, however long you hold. It does not mean every style gets the same trim: change the stop and 3R moves with it."
+   "why": "True. R is your risk per share: the entry minus the stop. So 3R is a price, not a date. Same entry and same stop give the same 3R price, however long you hold. When you sell is a judgment, and he usually waits until day 3 at the earliest. Change the stop and 3R moves with it."
   },
   "review_status": "draft",
   "skill_id": "styles.method_by_style",
@@ -4914,23 +4907,30 @@
   "difficulty": 2,
   "id": "si_d54a8df31bd1",
   "lesson_origin": "session",
-  "lesson_text": "$42.40. Our first trim is a third of the position at 3R. R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry. Then a second third goes at 5R, and the last third is trailed. 3R is three times your risk per share, added to the entry.",
+  "lesson_text": "$42.40. R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later. 3R is three times your risk per share, added to the entry.",
   "module": "F11",
   "prompt_json": {
    "kind": "fill_numeric",
    "prefix": "$",
-   "q": "A Go Signal: you buy at $40.00, the prior close, with your stop at $39.20. Where is our first trim, 3R?",
+   "q": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R?",
    "subject": "F11.03#q11"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -4940,13 +4940,6 @@
       "url": "repo:docs/study/TRADE_PLANS.md#the-go-signal"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
       "accessed": "2026-11-12",
       "name": "Van Tharp Institute: Tharp Think Trading Concepts",
       "quote": "You buy a stock at $50 and decide to sell it if it drops to $40. What’s your initial risk? Your initial risk is $10 per share, so in this case, 1R is equal to $10.",
@@ -4954,7 +4947,7 @@
       "url": "https://vantharp.com/tharp-think-trading-concepts/"
      }
     ],
-    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Go Signal plan: buy the prior close when it trades that session (else the close); stop at the session's low. After the first third at 3R, we sell another third at 5R and trail the last third. R is your risk per share: the entry minus the stop."
+    "summary": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Go Signal plan: buy the prior close when it trades that session (else the close); stop at the session's low. R is your risk per share: the entry minus the stop."
    },
    "facts": {
     "calc": {
@@ -4966,13 +4959,13 @@
      "fn": "arith",
      "result": 42.4
     },
-    "given": "A Go Signal: you buy at $40.00, the prior close, with your stop at $39.20. Where is our first trim, 3R?"
+    "given": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R?"
    },
    "lesson_line": "3R is three times your risk per share, added to the entry.",
    "simple": "$42.40, because you add three times your risk per share, the entry minus the stop, to the $40.00 entry.",
    "tier": "extended",
    "unit": "F11.03",
-   "why": "$42.40. Our first trim is a third of the position at 3R. R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry. Then a second third goes at 5R, and the last third is trailed."
+   "why": "$42.40. R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later."
   },
   "review_status": "draft",
   "skill_id": "styles.method_by_style",

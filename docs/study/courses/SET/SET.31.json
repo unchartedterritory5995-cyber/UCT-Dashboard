@@ -1197,6 +1197,12 @@
    "source": "h2",
    "quote": "The first sell is not always R-based.",
    "claim": "D-013: the first sell is not always R-based."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
   }
  ],
  "walkthroughs": [
@@ -2590,14 +2596,13 @@
     "The swing low as the target"
    ],
    "answer": "The 9 EMA, which acts as a magnet",
-   "why": "The 9 EMA. Our rule names the 9-day average as a parabolic short's target, and Bracco calls the trade complete once it is tested. The first sell is not always R-based, and here the level sets the exit. On MSTR the 9 EMA was 0.14R away and the stock never gave more than 0.77R before chopping. That is a trade the 9 EMA target handles and a fixed 3R test cannot.",
+   "why": "The 9 EMA. Our rule names the 9-day average as a parabolic short's target, and Bracco calls the trade complete once it is tested. A fixed multiple of R is not the exit here, because the level sets the exit. On MSTR the 9 EMA was 0.14R away and the stock never gave more than 0.77R before chopping. That is a trade the 9 EMA target handles and a fixed 3R test cannot.",
    "lesson_line": "The target is a level, not a multiple. When the level is close, the trade is small.",
    "facts": [
     "c44",
     "h05",
     "b23",
-    "b14",
-    "r04"
+    "b14"
    ],
    "wrong": {
     "The 50-day as the target": "Bracco's target is the 9 EMA, not the 50-day.",
@@ -2614,7 +2619,7 @@
      "MSTR figures come from our own scan"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q38",
@@ -4081,8 +4086,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "agrees with ruling"
+   "fixed": false,
+   "notes": "keep; 9 EMA target or 3R as arithmetic/stat; short entry on a break not a close, outside D-003"
   },
   "q05": {
    "status": "pass",
@@ -4283,14 +4288,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "agrees with ruling"
+   "notes": "D-013 is about selling a long; a short's cover rule is the 9 EMA level, so the first-sell claim and r05 cite do not fit a short; reworded without it"
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep; 9 EMA target or 3R as arithmetic/stat; short entry on a break not a close, outside D-003"
   },
   "q39": {
    "status": "cut",
@@ -4338,8 +4342,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "agrees with ruling"
+   "fixed": false,
+   "notes": "keep; 9 EMA target or 3R as arithmetic/stat; short entry on a break not a close, outside D-003"
   },
   "q47": {
    "status": "pass",
@@ -4456,8 +4460,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (E57 h08, c04, c05, D47 h05). Three repairs: (1) the story's '15.4% gap' hands out q19's numeric answer (15.4) in a stem; d03 grounds '15% gap'. (2) The why's first sentence drops the word stop ('Market at the VWAP break, a few cents over the day's high'). (3) The lesson_line adds 'Write it before the open', a rule (D39) not cited and not in the why."
+   "fixed": false,
+   "notes": "keep; 9 EMA target or 3R as arithmetic/stat; short entry on a break not a close, outside D-003"
   },
   "q66": {
    "status": "pass",
@@ -4481,8 +4485,8 @@
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "agrees with ruling"
+   "fixed": false,
+   "notes": "keep; 9 EMA target or 3R as arithmetic/stat; short entry on a break not a close, outside D-003"
   },
   "q70": {
    "status": "pass",

@@ -4585,47 +4585,47 @@
  },
  {
   "answer_json": {
-   "answer": "At 3R and 5R"
+   "answer": "A judgment, usually from day 3 on"
   },
   "difficulty": 1,
   "id": "si_32cabc8978c5",
   "lesson_origin": "session",
-  "lesson_text": "At 3R and 5R. The stop sets R. Our hard rule takes a third off at 3R, another third at 5R, and the last third trails. In practice the first trim often waits for 5R. The trims are measured in R from the stop, not in percent gains. Our trims are 3R and 5R. The stop sets R, and R sets the trims.",
+  "lesson_text": "A judgment, usually from day 3 on. The stop sets R, and R is the measuring stick. The first sell depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 and usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. R is the measuring stick. The first sell is a judgment, usually day 3 or later.",
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "At 3R and 5R",
-    "At 10% and 20%",
-    "At 1R and 2R",
-    "At 2R and 3R"
+    "A judgment, usually from day 3 on",
+    "A fixed 10% gain, set in percent",
+    "A fixed third at 3R every time",
+    "Always on the day you buy"
    ],
    "kind": "mcq",
-   "q": "In our plan, where do the trims sit?",
+   "q": "How does our plan set the first sell?",
    "subject": "F9.03#q10"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "This replaces the setup plans' \"take some off at 2R and 3R\" in what the courses teach as ours",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -4635,20 +4635,20 @@
       "url": "https://vantharpinstitute.com/glossary/r-multiple"
      }
     ],
-    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. Our trims at 3R and 5R replace the old setup plans' targets at 2R and 3R. An R-multiple is a trade's result divided by its initial risk."
+    "summary": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. An R-multiple is a trade's result divided by its initial risk."
    },
    "facts": {
-    "given": "In our plan, where do the trims sit? At 3R and 5R At 1R and 2R At 10% and 20% At 2R and 3R"
+    "given": "How does our plan set the first sell? A judgment, usually from day 3 on A fixed third at 3R every time A fixed 10% gain, set in percent Always on the day you buy"
    },
-   "lesson_line": "Our trims are 3R and 5R. The stop sets R, and R sets the trims.",
-   "simple": "Our trims are at 3R and 5R: a third comes off at each, then the last third trails.",
+   "lesson_line": "R is the measuring stick. The first sell is a judgment, usually day 3 or later.",
+   "simple": "A judgment call, usually from day 3 on, because it depends on the trade and not on one fixed price.",
    "tier": "core",
    "unit": "F9.03",
-   "why": "At 3R and 5R. The stop sets R. Our hard rule takes a third off at 3R, another third at 5R, and the last third trails. In practice the first trim often waits for 5R. The trims are measured in R from the stop, not in percent gains.",
+   "why": "A judgment, usually from day 3 on. The stop sets R, and R is the measuring stick. The first sell depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 and usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "wrong": {
-    "At 10% and 20%": "Fixed percents ignore the stop. Our trims are measured in R from the stop.",
-    "At 1R and 2R": "Smaller than our plan uses. The first trim waits for 3R.",
-    "At 2R and 3R": "Those were the old setup plans' targets. Our rulebook replaced them: a third off at 3R, another third at 5R."
+    "A fixed 10% gain, set in percent": "A fixed percent ignores the stop and the trade. The first sell is a judgment.",
+    "A fixed third at 3R every time": "That was the old rule. The first sell is a judgment, not a fixed third at 3R.",
+    "Always on the day you buy": "He very rarely sells on day 1 of the buy. He usually waits until day 3 at the earliest."
    }
   },
   "review_status": "draft",
@@ -4757,7 +4757,7 @@
   "difficulty": 2,
   "id": "si_766c0d18962e",
   "lesson_origin": "session",
-  "lesson_text": "$50. R is the $40 to $38 distance per share. Add five of those to the entry and the trade is up 5R. That's where our rule takes the second third off. The first third comes off at 3R. Trim price is the entry plus R times the multiple.",
+  "lesson_text": "$50. R is the $40 to $38 distance per share. Add five of those to the entry and the trade is up 5R. Selling at about 5 to 10R is often best for the first sell, so this is a price worth knowing. A target price is the entry plus R times the multiple.",
   "module": "F9",
   "prompt_json": {
    "kind": "fill_numeric",
@@ -4769,18 +4769,11 @@
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -4797,7 +4790,7 @@
       "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
      }
     ],
-    "summary": "After the first third at 3R, we sell another third at 5R and trail the last third. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Initial risk is the distance from entry to stop when you open the trade. Risk per share is entry minus stop."
+    "summary": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Initial risk is the distance from entry to stop when you open the trade. Risk per share is entry minus stop."
    },
    "facts": {
     "calc": {
@@ -4811,11 +4804,11 @@
     },
     "given": "Our plan has the entry at $40 and the stop at $38. At what price is the trade up 5R?"
    },
-   "lesson_line": "Trim price is the entry plus R times the multiple.",
+   "lesson_line": "A target price is the entry plus R times the multiple.",
    "simple": "5R is $50, because you add five times the $40 to $38 gap to your $40 entry.",
    "tier": "core",
    "unit": "F9.03",
-   "why": "$50. R is the $40 to $38 distance per share. Add five of those to the entry and the trade is up 5R. That's where our rule takes the second third off. The first third comes off at 3R."
+   "why": "$50. R is the $40 to $38 distance per share. Add five of those to the entry and the trade is up 5R. Selling at about 5 to 10R is often best for the first sell, so this is a price worth knowing."
   },
   "review_status": "draft",
   "skill_id": "risk.expectancy",
@@ -10653,12 +10646,12 @@
  },
  {
   "answer_json": {
-   "answer": "True"
+   "answer": "False"
   },
   "difficulty": 1,
   "id": "si_ad6298da44d0",
   "lesson_origin": "session",
-  "lesson_text": "True. Our hard rule for the first trim is a third of the position at 3R. Another third goes at 5R, and the last third trails. The first trim can sit anywhere from 3R to 6R, and in practice the owner mostly waits for 5R. Plan those prices before you buy. A third at 3R, a third at 5R. Plan the prices before you buy.",
+  "lesson_text": "False. The first sell is a judgment, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Plan the price marks before you buy. The first sell is a judgment, not a fixed third. Mark the R prices before you buy.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -10666,25 +10659,32 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Our plan says how much to sell at the first trim: a third of the position at 3R.",
+   "q": "Our plan fixes the first sell at a third of the position, sold at 3R every time.",
    "subject": "F9.06#q07"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -10694,16 +10694,16 @@
       "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies"
      }
     ],
-    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. Plan your exit before you enter."
+    "summary": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Plan your exit before you enter."
    },
    "facts": {
-    "given": "Our plan says how much to sell at the first trim: a third of the position at 3R."
+    "given": "Our plan fixes the first sell at a third of the position, sold at 3R every time."
    },
-   "lesson_line": "A third at 3R, a third at 5R. Plan the prices before you buy.",
-   "simple": "True, because our hard rule for the first trim is a third of the position once the trade is up 3R.",
+   "lesson_line": "The first sell is a judgment, not a fixed third. Mark the R prices before you buy.",
+   "simple": "False, because the first sell is a judgment call, and he usually waits until day 3 at the earliest.",
    "tier": "core",
    "unit": "F9.06",
-   "why": "True. Our hard rule for the first trim is a third of the position at 3R. Another third goes at 5R, and the last third trails. The first trim can sit anywhere from 3R to 6R, and in practice the owner mostly waits for 5R. Plan those prices before you buy."
+   "why": "False. The first sell is a judgment, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Plan the price marks before you buy."
   },
   "review_status": "draft",
   "skill_id": "risk.partials",
@@ -11018,7 +11018,7 @@
   "difficulty": 2,
   "id": "si_ebda0d538c7c",
   "lesson_origin": "session",
-  "lesson_text": "$600. The 200 you sold at $23 made $3 a share, which is $600. The 400 left went out at breakeven, $20, for nothing. That's our plan: a third off at 3R, and the stop on the rest moves up to breakeven. The trim banked the gain, and the breakeven stop kept it, as long as it filled at $20. A third off at 3R, stop to breakeven: the gain is banked, and the rest comes out even if it fills.",
+  "lesson_text": "$600. The 200 you sold at $23 made $3 a share, which is $600. The 400 left went out at breakeven, $20, for nothing. The sale banked the gain, and the breakeven stop kept it, as long as it filled at $20. Sell part, stop to breakeven: the gain is banked, and the rest comes out even if it fills.",
   "module": "F9",
   "prompt_json": {
    "kind": "fill_numeric",
@@ -11035,13 +11035,6 @@
       "quote": "your total risk is $2 per share multiplied by 100 shares. In other words, you’ll only be risking $200 of your $5000 investment.",
       "tier": 2,
       "url": "https://vantharpinstitute.com/tharp-think-trading-concepts/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -11065,7 +11058,7 @@
       "url": "https://www.schwab.com/learn/story/how-traders-can-take-advantage-volatile-markets"
      }
     ],
-    "summary": "Total risk is risk per share times the shares you hold: $2 times 100 shares is $200. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. A stop price is a trigger for a market order, not a guaranteed fill price. Into a sharp move up, sell part and let the rest ride."
+    "summary": "Total risk is risk per share times the shares you hold: $2 times 100 shares is $200. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. A stop price is a trigger for a market order, not a guaranteed fill price. Into a sharp move up, sell part and let the rest ride."
    },
    "facts": {
     "calc": {
@@ -11082,11 +11075,11 @@
     },
     "given": "You buy 600 at $20, stop $19. At 3R, $23, you sell 200 and move the stop to $20. The rest stops out there. What did the trade make?"
    },
-   "lesson_line": "A third off at 3R, stop to breakeven: the gain is banked, and the rest comes out even if it fills.",
+   "lesson_line": "Sell part, stop to breakeven: the gain is banked, and the rest comes out even if it fills.",
    "simple": "$600, because the 200 shares sold at $23 made $3 each, and the rest came out even at $20.",
    "tier": "extended",
    "unit": "F9.06",
-   "why": "$600. The 200 you sold at $23 made $3 a share, which is $600. The 400 left went out at breakeven, $20, for nothing. That's our plan: a third off at 3R, and the stop on the rest moves up to breakeven. The trim banked the gain, and the breakeven stop kept it, as long as it filled at $20."
+   "why": "$600. The 200 you sold at $23 made $3 a share, which is $600. The 400 left went out at breakeven, $20, for nothing. The sale banked the gain, and the breakeven stop kept it, as long as it filled at $20."
   },
   "review_status": "draft",
   "skill_id": "risk.partials",

@@ -898,6 +898,24 @@
    "source": "h2",
    "quote": "Every setup buys as price trades through its trigger, during the day.",
    "claim": "Owner: every setup buys as price trades through its trigger, never at the close."
+  },
+  {
+   "id": "r21",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Owner: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r22",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest.",
+   "claim": "Owner: very rarely sells on day 1, usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r23",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1194,16 +1212,16 @@
     "A bigger share size on each buy"
    ],
    "answer": "A trail on the winning trades",
-   "why": "A trail on the winners. Our research says a fixed stop with no trims is a loser on average unless the winners are trailed. Also, 88.2% were stopped within 60 days. We sell a third at 3R and a third at 5R, then trail the last third. That is our answer to the problem, not a tested result.",
+   "why": "A trail on the winners. Our research says a fixed stop with no trims is a loser on average unless the winners are trailed. Also, 88.2% were stopped within 60 days. We choose the first sell by judgment, rarely on day 1, and trail the rest. That is our answer to the problem, not a tested result.",
    "lesson_line": "Sell partials into strength and trail the rest. A fixed stop alone loses on average.",
    "facts": [
     "d17",
     "d07",
-    "h05",
-    "h20",
     "h21",
     "c08",
-    "c35"
+    "c35",
+    "r21",
+    "r22"
    ],
    "house": true,
    "wrong": {
@@ -1223,7 +1241,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q09",
@@ -1480,12 +1498,12 @@
     },
     "round": 2
    },
-   "why": "21.43. One R is the fill minus the stop. Add three of those to the fill, 20.71. We take a third off at 3R. JBLU got there the next day.",
+   "why": "21.43. One R is the fill minus the stop. Add three of those to the fill, 20.71. We use 3R as a measuring stick, not a sell order. JBLU got there the next day.",
    "lesson_line": "A small stop makes 3R a small move. Know the number before the open.",
    "facts": [
-    "h05",
     "d01",
-    "d01b"
+    "d01b",
+    "r21"
    ],
    "house": true,
    "prefix": "$",
@@ -1497,7 +1515,7 @@
      "a computed key"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q17",
@@ -1945,11 +1963,11 @@
    "criterion": "id.breakeven",
    "q": "On an inside-day trade the stop moves to breakeven between 2R and 5R.",
    "answer": "True",
-   "why": "True. We move the stop to breakeven at 2R to 5R, ideally. The first trim, a third at 3R, comes inside that range.",
-   "lesson_line": "Breakeven somewhere between 2R and 5R. The first third comes off at 3R.",
+   "why": "True. We move the stop to breakeven at 2R to 5R, ideally. Where the first sell lands is a judgment call, not a fixed 3R.",
+   "lesson_line": "Breakeven somewhere between 2R and 5R. The first sell is a judgment call.",
    "facts": [
     "c17",
-    "h05"
+    "r21"
    ],
    "house": true,
    "simple": "True, because we move the stop to breakeven somewhere between 2R and 5R.",
@@ -1961,7 +1979,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q30",
@@ -2195,16 +2213,16 @@
    "rung": 5,
    "format": "tf",
    "criterion": "id.trim_2",
-   "q": "By default, the second third of an inside-day winner comes off at 4R.",
+   "q": "Our first sell is always a fixed third at 3R.",
    "answer": "False",
-   "why": "False. After the first third at 3R, the default is another third at 5R, then trail the last third. It is adjustable, but 4R is not the default.",
-   "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
+   "why": "False. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest.",
+   "lesson_line": "The first sell is a judgment call, usually day 3 at the earliest.",
    "facts": [
-    "c20",
-    "h20"
+    "r21",
+    "r22"
    ],
    "house": true,
-   "simple": "False, because the default second third comes off at 5R, not 4R.",
+   "simple": "False, because the first sell is a judgment call, not a fixed third at 3R.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2213,7 +2231,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q37",
@@ -2921,25 +2939,25 @@
     "No; ours is Bulkowski's target"
    ],
    "answer": "No; ours is trims and a trail",
-   "why": "No. Crabel took profits at the close of the first trading day, or on the first profitable close. That is not our exit. Ours is a third at 3R, a third at 5R and a trail on the last third.",
-   "lesson_line": "Same bar, different trade. Ours holds for the trims and the trail.",
+   "why": "No. Crabel took profits at the close of the first trading day, or on the first profitable close. That is not our exit. We very rarely sell on day 1. Our first sell is a judgment call, usually day 3 at the earliest, and the rest trails.",
+   "lesson_line": "Same bar, different trade. Ours holds past day 1 and trails the rest.",
    "facts": [
     "sc06",
     "c49",
-    "h05",
-    "h20",
     "sc02",
-    "h15"
+    "h15",
+    "r21",
+    "r22"
    ],
    "house": true,
    "wrong": {
     "Yes; same bar, same exit": "The bar is the same. The exit is not: ours is trims and a trail.",
-    "No; ours is Bulkowski's target": "Bulkowski's target of twice the pattern height is not ours either. Ours is a third at 3R, a third at 5R and a trail.",
+    "No; ours is Bulkowski's target": "Bulkowski's target of twice the pattern height is not ours either. Ours is a judged first sell and a trail.",
     "Yes, on the first profitable close": "That was Crabel's other exit. It is not ours either. Ours is trims and a trail."
    },
-   "simple": "No. Crabel usually sold at the first close, but we sell thirds at 3R and 5R and trail the rest.",
+   "simple": "No. Crabel usually sold at the first close, but we rarely sell on day 1 and trail the rest.",
    "deeper": {
-    "counter": "StockCharts says a narrow-range trade should start working right away, and Crabel took profits quickly. Our trade runs longer. We sell a third at 3R, a third at 5R and trail the rest. A trade still under 1R after 10 trading days is sold."
+    "counter": "StockCharts says a narrow-range trade should start working right away, and Crabel took profits quickly. Our trade runs longer. We choose the first sell by judgment, usually day 3 at the earliest, and trail the rest. A trade still under 1R after 10 trading days is sold."
    },
    "tier": "extended",
    "risk": {
@@ -2948,7 +2966,7 @@
      "rests on the rulebook's trim and trail rules"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q57",
@@ -2958,34 +2976,35 @@
    "criterion": "id.stop",
    "q": "Write the plan.",
    "choices": [
-    "Buy 55.02, stop 54.28, a third at 3R",
+    "Buy 55.02, stop 54.28, first sell day 3+",
     "Buy 55.02, stop 52.00, and hold it all",
     "Wait for the close; mother-low stop",
-    "Buy 55.02, stop 54.28, no trims"
+    "Buy 55.02, stop 54.28, sell half day 1"
    ],
-   "answer": "Buy 55.02, stop 54.28, a third at 3R",
-   "why": "Buy the open at market, 55.02. Stop a few cents under the inside low, 54.28. A third comes off at 3R, which took two days. Then another third at 5R, and trail the last third.",
-   "lesson_line": "Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
+   "answer": "Buy 55.02, stop 54.28, first sell day 3+",
+   "why": "Buy the open at market, 55.02. Stop a few cents under the inside low, 54.28. The first sell is a judgment call. We very rarely sell on day 1 and usually wait until day 3 at the earliest, often into a 3, 5 or 7 day push. Then the rest trails.",
+   "lesson_line": "Entry, stop, first sell, trail. Write it before the open; execute it without a debate.",
    "facts": [
     "d04",
     "c14",
     "h22",
-    "h05",
-    "h20",
     "h21",
     "d17",
-    "r15"
+    "r15",
+    "r21",
+    "r22",
+    "r23"
    ],
    "house": true,
    "wrong": {
-    "Buy 55.02, stop 52.00, and hold it all": "The stop belongs a few cents under the inside day's low, 54.28. And a third comes off at 3R.",
+    "Buy 55.02, stop 52.00, and hold it all": "The stop belongs a few cents under the inside day's low, 54.28. And the plan needs a first sell and a trail.",
     "Wait for the close; mother-low stop": "We buy as price trades through the high, never at the close. The mother low is the named mistake.",
-    "Buy 55.02, stop 54.28, no trims": "The stop is right, but a fixed stop with no trims is a loser on average unless the winners are trailed. A third comes off at 3R."
+    "Buy 55.02, stop 54.28, sell half day 1": "The stop is right, but we very rarely sell on day 1. We usually wait until day 3 at the earliest."
    },
    "story": "NVDA, January 2024: an inside day four days after a breakout, on light volume. The next session opens a hair over the high.",
-   "simple": "Buy at market, put the stop just under the inside low, and sell a third at 3R.",
+   "simple": "Buy at market, put the stop just under the inside low, and wait until day 3 to make the first sell.",
    "deeper": {
-    "example": "Walk the plan in R. The inside low sets one R at 55.02 minus 54.28. Three R takes the first third, five R the second, and the last third trails the 10-day or the 21-day. Written before the open, the plan leaves nothing to argue about when the stock moves."
+    "example": "Walk the plan in R. The inside low sets one R at 55.02 minus 54.28. R is the measuring stick, not the sell signal. The first sell waits for day 3 at the earliest, then the rest trails the 10-day or the 21-day. Written before the open, the plan leaves nothing to argue about when the stock moves."
    },
    "tier": "expert",
    "risk": {
@@ -2995,7 +3014,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q58",
@@ -3469,7 +3488,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches d17 verbatim in the dossier (line 1004: a loser on average unless the winners are trailed). 88.2% in the why is d07. Trims are excluded by the stem's premise and are not a choice, so no second answer. The trap note honestly says the trail was never tested. q38 and q56 also mention a trail, but as house rules, not as this research finding."
+   "notes": "Key (trail) stands; why now a judged first sell, rarely day 1; B19 citations dropped; r21/r22 quotes verbatim."
   },
   "q09": {
    "status": "pass",
@@ -3516,9 +3535,9 @@
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "3R arithmetic only; why calls 3R a measuring stick; h05 dropped."
   },
   "q17": {
    "status": "pass",
@@ -3576,10 +3595,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q26": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "F63 (h25) decides it, and the B19 hard rule (h05) gives a third at 3R. The owner 'mostly waits for 5R', but F63 is explicit, and declined rule 73 shows the 3R trim is forced, so 'raise the stop; no trim' is not defensible."
+   "notes": "cut in rulings2: see the resolver's notes"
   },
   "q27": {
    "status": "pass",
@@ -3597,7 +3616,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per c17/h05; the first-trim line is accurate."
+   "notes": "Breakeven 2R-5R stands; first sell called a judgment call, no fixed 3R."
   },
   "q30": {
    "status": "pass",
@@ -3633,14 +3652,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "101,129 buys and 26.7%, 18.2%, 88.2% verified in dossier line 1002; 30.7% and 76,719 verified in d07c. Key is not the longest; 18.2% distractor is correctly the 5R share.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Keep: 3R only as a test measuring stick."
   },
   "q36": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Re-keyed TF: always a fixed third at 3R = False; cites r21/r22."
   },
   "q37": {
    "status": "pass",
@@ -3762,13 +3780,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "sc06 quote is verbatim (usually at the close of the first trading day or on the first profitable close). c49 lists Crabel's and Bulkowski's exits as not ours. h05, h20 and h15 carry the house exit. Only one 'No' choice is right."
+   "notes": "Key stands; why/wrong/deeper now judged first sell, rarely day 1; contrast with Crabel good."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edited by writer, agrees with ruling"
+   "fixed": false,
+   "notes": "Re-keyed to first sell day 3+; day-1 sell is a wrong choice; buy through the high ok (D-003); quotes verbatim."
   },
   "q58": {
    "status": "pass",
@@ -3798,7 +3816,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c04, h10, d19, d04, tl04 support Take it; two Take, two Pass; chart is NVDA at 2024-01-12 where price is over a rising 50 and 200-day with 50 over 200. Notes true."
+   "notes": "Keep: take-or-pass on lines; 3R only an outcome measure."
   },
   "q63": {
    "status": "pass",

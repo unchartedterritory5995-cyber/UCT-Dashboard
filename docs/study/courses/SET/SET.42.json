@@ -813,6 +813,24 @@
    "source": "h2",
    "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
    "claim": "Owner: indexes and leveraged ETFs may be bought under the 200-day on a reversal extension or parabolic long."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Owner: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r12",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest.",
+   "claim": "Owner: very rarely sells on day 1, usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r13",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1283,12 +1301,12 @@
     },
     "round": 2
    },
-   "why": "24.01. One R is the fill minus the stop. Add three of those to the fill and you get 24.01. The first third comes off there. This is PENN's buy.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "24.01. One R is the fill minus the stop. Add three of those to the fill and you get 24.01. That is a measuring stick, not a sell order. This is PENN's buy.",
+   "lesson_line": "Know your 3R before the open. It measures the move; it is not a sell order.",
    "facts": [
     "c28",
-    "h05",
-    "d01"
+    "d01",
+    "r11"
    ],
    "prefix": "$",
    "house": true,
@@ -1301,7 +1319,7 @@
      "the 3R trim is the owner's hard rule (B19)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q15",
@@ -1680,13 +1698,13 @@
    "rung": 4,
    "format": "tf",
    "criterion": "w4b.breakeven",
-   "q": "Our stop moves to breakeven at 1R, well before the first trim.",
+   "q": "Our stop moves to breakeven at 1R, well before the first sell.",
    "answer": "False",
-   "why": "False. The stop moves to breakeven between 2R and 5R, at the first trim by default. The first trim is a third at 3R. Moving it at 1R falls below that range.",
-   "lesson_line": "Breakeven between 2R and 5R, at the first trim.",
+   "why": "False. The stop moves to breakeven between 2R and 5R, ideally. Moving it at 1R falls below that range.",
+   "lesson_line": "Breakeven between 2R and 5R.",
    "facts": [
     "c27",
-    "h05"
+    "r11"
    ],
    "house": true,
    "simple": "False. Breakeven comes between 2R and 5R, not at 1R.",
@@ -1697,7 +1715,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q27",
@@ -2775,31 +2793,32 @@
    "q": "Write the plan.",
    "story": "NUS, April 2013: 78 sessions off a December low, a February higher low, and a 19-day pause above a turning 50-day.",
    "choices": [
-    "Buy 49.99, stop 49.05, a third at 3R",
+    "Buy 49.99, stop 49.05, first sell day 3+",
     "Buy 49.99, stop 45.00, hold it all",
     "Wait for a Stage 2 breakout instead",
     "Buy 49.99, stop 49.05, add on each dip"
    ],
-   "answer": "Buy 49.99, stop 49.05, a third at 3R",
-   "why": "Buy at market, 49.99, once price trades over the pause high. Stop 49.05, 1.9% away. A third comes off at 3R. One price, one stop, no adding.",
-   "lesson_line": "Entry, stop, trim, trail. Write it before the open.",
+   "answer": "Buy 49.99, stop 49.05, first sell day 3+",
+   "why": "Buy at market, 49.99, once price trades over the pause high. Stop 49.05, 1.9% away. The first sell is a judgment call, usually day 3 at the earliest. One price, one stop, no adding.",
+   "lesson_line": "Entry, stop, first sell, trail. Write it before the open.",
    "facts": [
     "d03",
     "d04",
     "c19",
     "h22",
-    "c28",
-    "c26"
+    "c26",
+    "r11",
+    "r12"
    ],
    "wrong": {
-    "Buy 49.99, stop 45.00, hold it all": "The stop here sat 1.9% away; 45.00 is far wider. And a third comes off at 3R.",
+    "Buy 49.99, stop 45.00, hold it all": "The stop here sat 1.9% away; 45.00 is far wider. And the plan needs a first sell and a trail.",
     "Wait for a Stage 2 breakout instead": "That is a different trade. This is the 4B-, the short-term play.",
     "Buy 49.99, stop 49.05, add on each dip": "The entry and stop are right, but adding on dips breaks the plan: one price, one stop, no adding along the way."
    },
    "house": true,
-   "simple": "Buy at market over the pause high with the stop at 49.05, and sell a third at 3R.",
+   "simple": "Buy at market over the pause high with the stop at 49.05, and wait until day 3 to make the first sell.",
    "deeper": {
-    "example": "NUS had a December low, a February higher low, three months of flat 150- and 200-day lines, then a 19-day pause above a turning 50-day. The buy was 49.99 with the stop at 49.05, 1.9% away. Write the plan before the open: entry, stop, a third at 3R."
+    "example": "NUS had a December low, a February higher low, three months of flat 150- and 200-day lines, then a 19-day pause above a turning 50-day. The buy was 49.99 with the stop at 49.05, 1.9% away. Write the plan before the open: entry, stop, first sell."
    },
    "tier": "expert",
    "risk": {
@@ -2810,7 +2829,7 @@
      "stop width rests on held decision D-005"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q56",
@@ -2881,8 +2900,7 @@
     "d25",
     "h01",
     "h03",
-    "h05",
-    "h20"
+    "r13"
    ],
    "wrong": {
     "Broken; the setup does not work": "Four stops in five fits our test, where only 22.2% of hits reached 3R. That is the base rate, not a broken setup.",
@@ -2892,7 +2910,7 @@
    "house": true,
    "simple": "That is normal: in our test only 22.2% of hits reached 3R, so four stops in five is ordinary.",
    "deeper": {
-    "counter": "The hit rate alone says little. Winners are trimmed at 3R and 5R, and each loss is held to the stop. Judge the setup over many trades, not five."
+    "counter": "The hit rate alone says little. Winners are sold into strength, and each loss is held to the stop. Judge the setup over many trades, not five."
    },
    "tier": "expert",
    "risk": {
@@ -2904,7 +2922,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q58",
@@ -3707,9 +3725,9 @@
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "3R arithmetic; measuring stick wording."
   },
   "q15": {
    "status": "pass",
@@ -3782,13 +3800,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "notes": "False stands; removed third-at-3R text."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: the 2 to 4 session pause (15.7% to 3R, d27, the splits inside Version H). Every number is in d27; 5 to 10 is best at 3R (25.9%). No second answer, no length tell, choices in natural order. Leaks nothing another item asks (q10's why is scan-free)."
+   "notes": "Keep: pause test result, 3R as measure."
   },
   "q28": {
    "status": "pass",
@@ -3864,11 +3882,10 @@
    "notes": "500 / 0.63 = 793.65, rounded down 793. 793 x 22.12 is about 35% of 50,000, under the 40% cap, so the cap does not change the key."
   },
   "q40": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Decided cold: take a third at the open (F63 h25, c30; B19 a third at 3R, c28). 3R is given in the story. Half, all and wait are each refuted by a cited rule. The owner's 'mostly waits for 5R' does not apply: F63 is explicit for an open past a trim level.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in rulings2: see the resolver's notes"
   },
   "q41": {
    "status": "pass",
@@ -3958,7 +3975,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "Re-keyed to first sell day 3+; D-003 ok (buy over pause high)."
   },
   "q56": {
    "status": "pass",
@@ -3970,7 +3987,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "Key stands (3R/5R as hit-rate measures); deeper no longer says trimmed at 3R and 5R."
   },
   "q58": {
    "status": "cut",
@@ -3994,7 +4011,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: C, the only one failing no named gate (A c38, B h10, D c23). Every choice echoes its own story line, so no differential tell; lengths balanced. The why admits C still has gates to clear. Minor: criterion tag w4b.market_reading does not match the item; metadata only."
+   "notes": "Keep: gate screen, 3R of room is a measure."
   },
   "q62": {
    "status": "cut",
@@ -4079,8 +4096,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Risk 1.50, room 2.00 = 1.33R, under 3R (c10, m06); 200-day below entry so it is not overhead; 150-day is not the no-long line (h10). Yes/No split two and two.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Keep: room-to-run, 3R measure."
   },
   "q83": {
    "status": "pass",

@@ -220,6 +220,14 @@
    "url": "https://vantharp.com/tharp-think-trading-concepts/",
    "accessed": "2026-11-12",
    "why_reliable": "Van Tharp's own institute, the source of the R-multiple idea; the same page and quote F9.03 already cites; re-fetched by the checker 2026-11-12, the 1R sentence is on the page."
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -690,6 +698,18 @@
    "source": "s26",
    "quote": "Journal every trade the same day and review the week every weekend, ideally.",
    "claim": "Our rule: journal every trade the same day and review the week every weekend, ideally."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
   }
  ],
  "walkthroughs": [
@@ -873,21 +893,20 @@
    "rung": 2,
    "format": "tf",
    "house": true,
-   "q": "On our plan, two trades with the same entry and stop get the same 3R trim, even if one is held longer.",
+   "q": "Two trades share the same entry and stop. Their 3R price is the same, even if one is held longer.",
    "answer": "True",
-   "why": "True. Our hard rule is to trim a third at 3R, then another third at 5R. R is your risk per share: the entry minus the stop. So 3R is a price, not a date. Same entry and same stop give the same trim price, however long you hold. It does not mean every style gets the same trim: change the stop and 3R moves with it.",
-   "lesson_line": "Trims are measured from the stop, not from the calendar.",
+   "why": "True. R is your risk per share: the entry minus the stop. So 3R is a price, not a date. Same entry and same stop give the same 3R price, however long you hold. When you sell is a judgment, and he usually waits until day 3 at the earliest. Change the stop and 3R moves with it.",
+   "lesson_line": "R marks are measured from the stop, not from the calendar.",
    "facts": [
-    "h14",
-    "h02",
+    "r01",
     "h01",
     "f52",
     "f21",
     "f41"
    ],
-   "simple": "True, because the 3R trim is measured from the entry and the stop, not from how long you hold.",
+   "simple": "True, because the 3R price comes from the entry and the stop, not from how long you hold.",
    "deeper": {
-    "trap": "The catch is the stop, not the clock. Longer holds often use wider stops, and a wider stop pushes 3R farther from the entry. This question fixes the entry and the stop, so the trim price matches. Change the stop and the trim price moves with it."
+    "trap": "The catch is the stop, not the clock. Longer holds often use wider stops, and a wider stop pushes 3R farther from the entry. This question fixes the entry and the stop, so the 3R price matches. Change the stop and the price moves with it."
    },
    "tier": "core",
    "risk": {
@@ -897,7 +916,7 @@
      "fixed before (rewritten from 2R to 3R)"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q06",
@@ -1092,7 +1111,7 @@
    "rung": 5,
    "format": "numeric",
    "house": true,
-   "q": "A Go Signal: you buy at $40.00, the prior close, with your stop at $39.20. Where is our first trim, 3R?",
+   "q": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R?",
    "answer": 42.4,
    "calc": {
     "fn": "arith",
@@ -1103,12 +1122,12 @@
     }
    },
    "prefix": "$",
-   "why": "$42.40. Our first trim is a third of the position at 3R. R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry. Then a second third goes at 5R, and the last third is trailed.",
+   "why": "$42.40. R is your risk per share: the $40.00 entry minus the $39.20 stop. 3R adds three times that distance to the entry. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later.",
    "lesson_line": "3R is three times your risk per share, added to the entry.",
    "facts": [
-    "h02",
+    "r01",
+    "r02",
     "h08",
-    "h14",
     "f52"
    ],
    "simple": "$42.40, because you add three times your risk per share, the entry minus the stop, to the $40.00 entry.",
@@ -1121,7 +1140,7 @@
      "fixed before (2R target moved to 3R trim)"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q12",
@@ -1655,7 +1674,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True is right: 3R is measured from entry and stop (f52 Van Tharp, page re-fetched 2026-11-12, the 1R sentence is there; h02, h14). The stem fixes entry and stop, so the stop-moves-3R trap is closed. No number outside the quotes. It does not answer q11: it gives no price, and q11 still needs the arithmetic."
+   "notes": "ok"
   },
   "q06": {
    "status": "pass",
@@ -1691,7 +1710,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "$42.40 = 40 + 3 x 0.80, calc rounds to 42.4. R defined by f52, the 3R first third by h02, 5R and trail by h14. The stem no longer names the session low, so it no longer answers q06. Naming the prior close as the entry rules out one q06 distractor but not its key."
+   "notes": "ok"
   },
   "q12": {
    "status": "pass",

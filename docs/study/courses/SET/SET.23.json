@@ -845,6 +845,30 @@
    "source": "h2",
    "quote": "If there is a gap past it you can potentially buy it intraday on a morning flush/pullback and curl back up",
    "claim": "D-022: past a gap, buy intraday on a morning flush or pullback that curls back up."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "I usually wait until day 3 at the earliest.",
+   "claim": "D-013: the first sell usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day.",
+   "claim": "D-013: a day-1 sell on the buy day is very rare."
   }
  ],
  "walkthroughs": [
@@ -1417,13 +1441,12 @@
    "criterion": "kk.after_entry_stop",
    "q": "A bearish engulfing candle after your Kicker buy is not a sell signal.",
    "answer": "True",
-   "why": "True. After entry we do not sell early on a next-day gap back, a bearish engulfing candle or a close back under the red day's high. The stop is the exit for a failed trade. A close under the red high on the Kicker day is a warning for the grade, not an exit. Planned trims at 3R and 5R, and the trail on the last third, are part of the plan, not early exits.",
+   "why": "True. After entry we do not sell early on a next-day gap back, a bearish engulfing candle or a close back under the red day's high. The stop is the exit for a failed trade. A close under the red high on the Kicker day is a warning for the grade, not an exit. Selling into strength is a judgment made on the plan, not a reaction to one candle.",
    "lesson_line": "A candle is not an exit. The stop is.",
    "facts": [
     "k_after",
     "h02",
     "k_warn",
-    "h20",
     "dPGRn",
     "dPGR"
    ],
@@ -1440,7 +1463,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q16",
@@ -1514,27 +1537,28 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "kk.trim_1",
-   "q": "How much comes off at the first trim, 3R?",
+   "q": "What is the earliest day we usually make the first sell?",
    "choices": [
-    "A third",
-    "Half",
-    "All of it",
-    "A quarter"
+    "Day 3 at the earliest",
+    "Day 1, the buy day",
+    "Day 2, the next morning",
+    "Only at the time stop on day 10"
    ],
-   "answer": "A third",
-   "why": "A third. The hard rule is a third off at 3R. After that comes another third at 5R and a trail on the last third, and that part is adjustable.",
-   "lesson_line": "A third comes off at 3R. That is the hard rule.",
+   "answer": "Day 3 at the earliest",
+   "why": "Day 3 at the earliest. We very rarely sell on day 1 of the buy. The first sell is a judgment, often into a push of 3, 5 or 7 days.",
+   "lesson_line": "We rarely sell on day 1. The first sell usually waits until day 3.",
    "facts": [
-    "h05",
-    "h20"
+    "r04",
+    "r05",
+    "r03"
    ],
    "wrong": {
-    "Half": "The hard rule is a third, not half.",
-    "All of it": "The hard rule trims a third at 3R, not the whole position.",
-    "A quarter": "The hard rule is a third at 3R."
+    "Day 1, the buy day": "We very rarely sell on day 1 of the buy.",
+    "Day 2, the next morning": "We usually wait until day 3 at the earliest.",
+    "Only at the time stop on day 10": "The time stop sells a slow trade. A working trade gets its first sell sooner, often on day 3 or later."
    },
    "house": true,
-   "simple": "A third comes off at 3R. That is our hard rule for the first trim.",
+   "simple": "We rarely sell on day 1. We usually wait until day 3 at the earliest.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1542,7 +1566,7 @@
      "rests on the owner's rulebook (B19, E51: a third at 3R is the hard rule)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q19",
@@ -1586,11 +1610,11 @@
     },
     "round": 2
    },
-   "why": "52.20. One R is the fill minus the stop, the risk on each share. Add three of those to the fill: 48.60 + 3 x (48.60 minus 47.40) = 52.20. The first third comes off there.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "52.20. One R is the fill minus the stop, the risk on each share. Add three of those to the fill: 48.60 + 3 x (48.60 minus 47.40) = 52.20. 3R is a yardstick for the trade, not a fixed sell.",
+   "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
-    "h05",
-    "h03"
+    "h03",
+    "r02"
    ],
    "house": true,
    "prefix": "$",
@@ -1603,7 +1627,7 @@
      "rests on the owner's rulebook (a third off at 3R)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q21",
@@ -2330,29 +2354,29 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "kk.trim_1",
-   "q": "What do you do at 23.40?",
+   "q": "What do you do at 23.40 on the buy day?",
    "choices": [
+    "Hold it all, no sell on day 1",
     "Sell a third, stop to breakeven",
     "Sell it all, bank the 3R gain",
-    "Sell half, keep the same stop",
-    "Hold all, nudge the stop up"
+    "Sell half, keep the same stop"
    ],
-   "story": "You bought at 22.17 with the stop at 21.76. The Kicker reaches 23.40, which is 3R.",
-   "answer": "Sell a third, stop to breakeven",
-   "why": "Sell a third and move the stop to breakeven. 23.40 is 3R, three times the risk above the fill. The first trim is a third at 3R, and our plan lifts the stop on the rest to breakeven at that first trim.",
-   "lesson_line": "At 3R sell a third and lift the stop to breakeven.",
+   "story": "You bought at 22.17 with the stop at 21.76. On the buy day itself the Kicker reaches 23.40, which is 3R.",
+   "answer": "Hold it all, no sell on day 1",
+   "why": "Hold it all. We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest. 3R this early is not a reason to sell.",
+   "lesson_line": "3R on day 1 is not a sell signal. Wait for the push.",
    "facts": [
-    "h05",
-    "tp2",
-    "h20"
+    "r04",
+    "r05",
+    "r02"
    ],
    "wrong": {
-    "Sell it all, bank the 3R gain": "Trims are thirds, and the last third is trailed.",
-    "Sell half, keep the same stop": "The hard rule is a third, and the stop moves up at the first trim.",
-    "Hold all, nudge the stop up": "The first third comes off at 3R."
+    "Sell it all, bank the 3R gain": "We do not sell it all on day 1. The first sell is a judgment.",
+    "Sell half, keep the same stop": "We very rarely sell on day 1 of the buy.",
+    "Sell a third, stop to breakeven": "A fixed third at 3R is not our rule. We very rarely sell on day 1."
    },
    "house": true,
-   "simple": "Sell a third and move the stop to breakeven, because 23.40 is 3R and the hard rule trims a third there.",
+   "simple": "Hold it all. We very rarely sell on day 1, and we usually wait until day 3 at the earliest.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2361,7 +2385,7 @@
      "fixed before (variety rewrite)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q40",
@@ -2457,17 +2481,16 @@
    ],
    "story": "The Kicker works. Two days later it pushes over the Kicker day's high on strong volume.",
    "answer": "No, we buy once, at one price",
-   "why": "No. We buy once: one entry at one price with one stop. Adding on the next push is a named mistake, whatever the gain. Profit is taken by the plan: a third at 3R, another third at 5R, then trail the last third.",
+   "why": "No. We buy once: one entry at one price with one stop. Adding on the next push is a named mistake, whatever the gain. Profit is taken by judgment, often into a push of several days, and the rest trails.",
    "lesson_line": "One entry, one stop, no adds.",
    "facts": [
     "k_one",
     "m_adds",
-    "h05",
-    "h20"
+    "r03"
    ],
    "wrong": {
     "Yes, with the same stop in place": "No adds on the next push, with any stop.",
-    "No, sell it all while it is strong": "The plan sells a third at 3R and another third at 5R, then trails the last third. It does not sell it all on a push.",
+    "No, sell it all while it is strong": "The plan sells a piece into strength and trails the rest. It does not sell it all on a push.",
     "Yes, once it is up at least 1R": "No adds at any gain."
    },
    "house": true,
@@ -2479,7 +2502,7 @@
      "rests on the owner's buy-once rule (A5)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q43",
@@ -2522,11 +2545,10 @@
     "The 5-day"
    ],
    "answer": "The 10-day",
-   "why": "The 10-day. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it. The trail rides the last third, after the trims at 3R and 5R. The 50-day, 200-day and 5-day are not the defaults.",
+   "why": "The 10-day. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it. The trail rides what is left after the first sells. The 50-day, 200-day and 5-day are not the defaults.",
    "lesson_line": "Fast mover, 10-day. Steadier name, 21-day. Sell on a close below.",
    "facts": [
     "h21",
-    "h20",
     "h10"
    ],
    "wrong": {
@@ -2544,7 +2566,7 @@
      "rests on the owner's rulebook (E52) and a held decision (D-024)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q45",
@@ -3284,25 +3306,24 @@
     "Banked all of it before the fade",
     "Locked in a loss on the whole trade"
    ],
-   "story": "You bought a Kicker at 68.80 with the stop at 67.36. It hit 3R on day 1 and 5R within two weeks, then fell back to your stop at breakeven.",
+   "story": "You bought a Kicker at 68.80 with the stop at 67.36. You sold a third on day 3 and another third near 5R, then it fell back to your stop at breakeven.",
    "answer": "Banked two thirds before the fade",
-   "why": "They banked two thirds. A third came off at 3R and a third at 5R, and the last third was left to the stop at breakeven. ATRO reached 13.8R in two weeks on the scan's fixed stop, then gave most of it back. The trims kept the win.",
-   "lesson_line": "Take the thirds as they come. The stop will find the rest.",
+   "why": "They banked two thirds. A third came off on day 3 and a third near 5R, and the last third was left to the stop at breakeven. ATRO reached 13.8R in two weeks on the scan's fixed stop, then gave most of it back. The first sells kept the win.",
+   "lesson_line": "Sell into strength in pieces. The stop will find the rest.",
    "facts": [
     "dATRO",
     "dATROn",
-    "h05",
-    "h20"
+    "r03"
    ],
    "wrong": {
-    "Nothing; the stop took it all back": "The thirds at 3R and 5R were already sold.",
-    "Banked all of it before the fade": "Only two thirds were sold; the last third came out at the breakeven stop.",
+    "Nothing; the stop took it all back": "Two thirds were already sold on the way up.",
+    "Banked all of it before the fade": "Only two thirds were sold. The last third came out at the breakeven stop.",
     "Locked in a loss on the whole trade": "Two thirds were sold at a profit, and the stop was lifted to breakeven."
    },
    "house": true,
-   "simple": "Two thirds were sold at 3R and 5R, so they were banked before the stock gave most of it back.",
+   "simple": "Two thirds were sold on the way up, so they were banked before the stock gave most of it back.",
    "deeper": {
-    "example": "Count the thirds. A third at 3R and a third at 5R is two thirds sold at a profit. The last third sat behind a stop at breakeven, so it could not turn the trade into a loss. ATRO ran 13.8R in two weeks on the scan's fixed stop, then gave most of it back."
+    "example": "Count the thirds. A third on day 3 and a third near 5R is two thirds sold at a profit. The last third sat behind a stop at breakeven, so it could not turn the trade into a loss. ATRO ran 13.8R in two weeks on the scan's fixed stop, then gave most of it back."
    },
    "tier": "expert",
    "risk": {
@@ -3312,7 +3333,7 @@
      "fixed before (the checker reworded the story)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q64",
@@ -4083,17 +4104,18 @@
     "Sell a third now, breakeven"
    ],
    "answer": "Not yet; breakeven comes later",
-   "why": "Not yet. We move the stop to breakeven at 2R to 5R, ideally, so at 1R the original stop at 21.76 stays. In our plans the move comes with the first trim, a third off at 3R, which sits inside that window. A stop only moves up, never down or wider.",
+   "why": "Not yet. We move the stop to breakeven at 2R to 5R, ideally, so at 1R the original stop at 21.76 stays. A stop only moves up, never down or wider.",
    "lesson_line": "Breakeven comes between 2R and 5R. At 1R the first stop still stands.",
    "facts": [
     "h05",
     "tp2",
-    "h02"
+    "h02",
+    "r05"
    ],
    "wrong": {
     "No; a stop never moves": "A stop can move up, never down or wider. It goes to breakeven later.",
     "Yes, breakeven at 1R is fine": "The window is 2R to 5R. 1R is under it.",
-    "Sell a third now, breakeven": "The first trim is a third at 3R, not at 1R."
+    "Sell a third now, breakeven": "Selling at 1R is far too early. The first sell is a judgment, usually on day 3 or later."
    },
    "house": true,
    "simple": "Not yet, since the breakeven move comes later than 1R. At 1R the stop stays put.",
@@ -4105,7 +4127,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q86",
@@ -4123,11 +4145,10 @@
     "10"
    ],
    "answer": "5",
-   "why": "5. We move the stop to breakeven at 2R to 5R, ideally. The window starts at 2R and ends at 5R. In our plans the move comes at the first trim, a third off at 3R, which sits inside the window.",
+   "why": "5. We move the stop to breakeven at 2R to 5R, ideally. The window starts at 2R and ends at 5R.",
    "lesson_line": "Breakeven window: 2R to 5R.",
    "facts": [
-    "h05",
-    "tp2"
+    "h05"
    ],
    "house": true,
    "simple": "The ideal window runs from 2R to 5R, so the blank is 5.",
@@ -4139,7 +4160,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q87",
@@ -4158,11 +4179,10 @@
     },
     "round": 2
    },
-   "why": "42.30. One R is the fill minus the stop. Add five of those to the fill: 36.80 + 5 x (36.80 minus 35.70) = 42.30. After the first third at 3R, another third comes off at 5R, then we trail the last third. The split is a default and adjustable.",
-   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "why": "42.30. One R is the fill minus the stop. Add five of those to the fill: 36.80 + 5 x (36.80 minus 35.70) = 42.30. 5R is a yardstick. Selling at about 5 to 10R is often best.",
+   "lesson_line": "Know your 5R before the open. A strong trade often runs past it.",
    "facts": [
-    "h20",
-    "h05"
+    "r03"
    ],
    "house": true,
    "prefix": "$",
@@ -4175,7 +4195,7 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q88",
@@ -4451,7 +4471,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "k_after and h02 support True. Trims and trail caveat is grounded in h20. PGR example matches dPGR and dPGRn."
+   "notes": "ok"
   },
   "q16": {
    "status": "pass",
@@ -4470,7 +4490,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A third at 3R is the hard rule (h05). Notes consistent. Overlap with q39 is a rung repeat, not a leak."
+   "notes": "re-keyed to day 3 earliest"
   },
   "q19": {
    "status": "pass",
@@ -4482,7 +4502,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "48.60 + 3 x 1.20 = 52.20 recomputed. Third at 3R is B19, the hard rule."
+   "notes": "ok"
   },
   "q21": {
    "status": "pass",
@@ -4599,14 +4619,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "23.40 = 22.17 + 3 x 0.41, so 3R is correct. Key supported by h05 and tp2.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "hold on day 1; D-013"
   },
   "q40": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h25/F63). But the story's 'takes the first third off at 3R' gives away q18's key ('A third', the first trim at 3R). Reworded so the story names the 3R trim without its size."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in rulings2: see the resolver's notes"
   },
   "q41": {
    "status": "pass",
@@ -4618,7 +4637,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches k_one/m_adds; trim line matches h05/h20. Two Yes, two No; key not longest."
+   "notes": "ok"
   },
   "q43": {
    "status": "pass",
@@ -4630,7 +4649,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E52 verbatim; the stem says 'in our rulebook' and 'fast mover', so the pending D-024 does not touch the key. 200-day note grounded in h10."
+   "notes": "ok"
   },
   "q45": {
    "status": "cut",
@@ -4747,7 +4766,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Hypothetical 'you' story consistent with dATRO (3R day 1, 13.8R in two weeks). Two thirds banked follows h05/h20."
+   "notes": "thirds on day 3 and near 5R; ok"
   },
   "q64": {
    "status": "pass",
@@ -4878,27 +4897,26 @@
   "q85": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "B19: breakeven ideally at 2R to 5R, so at 1R the original stop stands. Wrong note for 'Yes, 1R is the rule' is accurate. 21.76 is the story's stop.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "wrong text leaned on day 1 though story gives no day; re-worded"
   },
   "q86": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B19 verbatim: 2R to 5R. 3 and 6 in the bank are real confusions (first trim levels) but neither ends the stated window."
+   "notes": "ok"
   },
   "q87": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "36.80 + 5 x 1.10 = 42.30 recomputed. E51: another third at 5R, adjustable."
+   "notes": "ok"
   },
   "q88": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Key right (h20/E51). But the story ('bought at 22.17, stop 21.76, sold a third at 23.40 and lifted the stop to breakeven') is q39's exact case and states q39's key ('Sell a third, stop to breakeven'); it also hints q85. The prices also carry computed 3R/5R levels with no calc. Story now names the levels only."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in rulings2: see the resolver's notes"
   },
   "q89": {
    "status": "pass",

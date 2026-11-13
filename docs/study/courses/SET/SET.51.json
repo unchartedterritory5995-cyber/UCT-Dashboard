@@ -790,6 +790,24 @@
    "source": "h2",
    "quote": "3.5% is good.",
    "claim": "3.5% is a good stop distance."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "He rarely sells on day 1 and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1359,26 +1377,27 @@
    "rung": 3,
    "format": "fill",
    "criterion": "mr.trim_1",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "One way we take a first sell is a ___ of the position at 3R.",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "We very rarely make a first sell on day ___ of the buy.",
    "bank": [
-    "third",
-    "half",
-    "quarter",
-    "tenth"
+    "1",
+    "3",
+    "5",
+    "7"
    ],
-   "answer": "third",
-   "why": "third. One way we sell is a third of the position at 3R. The first sell is not always R-based. We may also sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R. If a stock opens past 3R, take that trim at the open.",
-   "lesson_line": "One first sell is a third at 3R. A strong push may sell by days.",
+   "answer": "1",
+   "why": "1. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "lesson_line": "We rarely sell on day 1. The first sell is a judgment.",
    "facts": [
-    "h05",
-    "h25",
+    "r05",
+    "r06",
+    "r07",
     "r02"
    ],
    "house": true,
-   "simple": "A third, because one way we sell is one third of the position at 3R.",
+   "simple": "Day 1, because we very rarely sell on the first day and usually wait until day 3.",
    "deeper": {
-    "trap": "The trap is thinking 3R is the only first sell. It is one taught way. A strong push can also be sold on day 3, 5 or 7, which may be 10, 12 or 20R. A day that opens past 3R takes the third at the open."
+    "trap": "The trap is a fixed rule such as a third at 3R. The first sell is a judgment. A 3, 5 or 7 day push can run to 10, 12 or 20R."
    },
    "tier": "core",
    "risk": {
@@ -1388,7 +1407,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q16",
@@ -1711,13 +1730,12 @@
     },
     "round": 2
    },
-   "why": "29.04. One R is the fill minus the stop, 26.76 minus 26.00. Add three of those to the fill. One way we sell is a third at 3R. This is the EQT trade from 2011, where 3R printed the day after the turn.",
-   "lesson_line": "Know your 3R before the open. One way we sell a third is there.",
+   "why": "29.04. One R is the fill minus the stop, 26.76 minus 26.00. Add three of those to the fill. 3R is a measuring stick, not an automatic sale. This is the EQT trade from 2011, where 3R printed the day after the turn.",
+   "lesson_line": "Know your 3R before the open. The first sell is a judgment.",
    "facts": [
-    "h05",
     "dEQT",
     "dEQ2",
-    "r02"
+    "r05"
    ],
    "house": true,
    "prefix": "$",
@@ -1731,7 +1749,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q26",
@@ -2014,30 +2032,29 @@
    "criterion": "mr.trim_gap_open",
    "q": "What do you do at the open?",
    "choices": [
-    "Take the 3R trim at the open",
+    "Make the planned sell at the open",
     "Wait for a dip back to 44.50",
     "Move the stop up and hold it all",
     "Sell the whole position at the open"
    ],
-   "answer": "Take the 3R trim at the open",
-   "why": "Take the first third at the open. With the buy at 40.00 and the stop at 38.50, 3R is 44.50, and the stock opens at 45.10, past it. Your plan sells a third at 3R. A trim level the day opens past is taken at the open, not waited for. The rest stays on: another third at 5R, then the last third on the trail.",
-   "lesson_line": "Opens past a trim level, trim at the open.",
+   "answer": "Make the planned sell at the open",
+   "why": "Make the planned sell at the open. With the buy at 40.00 and the stop at 38.50, 3R is 44.50, and the stock opens at 45.10, past it. A sell level the day opens past is taken at the open, not waited for. The first sell is a judgment, usually day 3 or later. The rest stays on.",
+   "lesson_line": "Opens past a sell level, sell at the open.",
    "facts": [
     "h25",
-    "h05",
-    "h20",
-    "r02"
+    "r05",
+    "r06"
    ],
    "wrong": {
-    "Move the stop up and hold it all": "Your plan sells a third at 3R. A trim level the day opens past is taken at the open.",
-    "Wait for a dip back to 44.50": "A trim level the day opens past is taken at the open, not waited for.",
-    "Sell the whole position at the open": "The plan takes a third at 3R, another at 5R, and trails the last third. A gap past 3R takes one third, not all."
+    "Move the stop up and hold it all": "You planned to sell at 44.50. A sell level the day opens past is taken at the open.",
+    "Wait for a dip back to 44.50": "A sell level the day opens past is taken at the open, not waited for.",
+    "Sell the whole position at the open": "The plan sells part of the position at the planned level, not all of it."
    },
-   "story": "You bought at 40.00 with the stop at 38.50. So 3R is 44.50, where your plan sells a third. Next morning the stock opens at 45.10.",
+   "story": "You bought at 40.00 with the stop at 38.50. Three days in, you plan your first sell at 3R, 44.50. The stock opens at 45.10.",
    "house": true,
-   "simple": "Sell a third at the open, because the stock opened past the 3R price of 44.50.",
+   "simple": "Make the planned sell at the open, because the stock opened past your 44.50 level.",
    "deeper": {
-    "trap": "A gap past 3R tempts two mistakes. One is to wait for the stock to dip back so the trim fills at the planned 44.50. The other is to sell everything because the gap feels too good to keep. The plan does neither. The third comes off at the open, then another third at 5R and a trail on the last."
+    "trap": "A gap past your sell level tempts two mistakes. One is to wait for the stock to dip back so the sell fills at the planned 44.50. The other is to sell everything because the gap feels too good to keep. The plan does neither. The planned sell comes off at the open and the rest stays on."
    },
    "tier": "extended",
    "risk": {
@@ -2047,7 +2064,7 @@
      "the setup's first trim is held (D-013, Option 2 at the 20-day)"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q34",
@@ -2101,8 +2118,8 @@
     "Come off; the trim paid"
    ],
    "answer": "Move up to breakeven",
-   "why": "Move up to breakeven. Our rule moves the stop to breakeven at 2R to 5R, ideally, and the first trim at 3R sits inside that window. It is a may, not a must. What the stop can never do is move down or wider. Every position also keeps a real stop order with the broker.",
-   "lesson_line": "After the first trim the stop may go to breakeven. Never down.",
+   "why": "Move up to breakeven. Our rule moves the stop to breakeven at 2R to 5R, ideally. It is a may, not a must. What the stop can never do is move down or wider. Every position also keeps a real stop order with the broker.",
+   "lesson_line": "After the first sell the stop may go to breakeven. Never down.",
    "facts": [
     "h05",
     "h02",
@@ -2113,9 +2130,9 @@
     "Widen it to the 20-day": "That is wider. The stop only moves up.",
     "Come off; the trim paid": "Every position keeps a real stop order with the broker. A trim does not remove the stop."
    },
-   "story": "You took the first third at 3R. The rest still has the original stop under the flush low.",
+   "story": "You made your first sell, a third of the position. The rest still has the original stop under the flush low.",
    "house": true,
-   "simple": "It can move up to breakeven, because after 3R that is allowed, and a stop only ever moves up.",
+   "simple": "It can move up to breakeven, because after the first sell that is allowed, and a stop only ever moves up.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2257,26 +2274,26 @@
    "q": "Which exit plan is NOT ours?",
    "choices": [
     "All out on a move above the 5-day",
-    "A third off at 3R, another at 5R",
+    "Sell into a 3, 5 or 7 day push",
     "Trail the last third under the 10-day",
     "Breakeven stop between 2R and 5R"
    ],
    "answer": "All out on a move above the 5-day",
-   "why": "All out above the 5-day. That is Connors' exit as StockCharts describes it: he exits longs on a move above the 5-day SMA. He also does not advocate stops. Ours sells in parts: thirds at set R levels, or a sale into a 3 to 7 day push, with the last part on the 10-day or 21-day trail. Every position keeps a real stop order with the broker, moved to breakeven at 2R to 5R, ideally.",
+   "why": "All out above the 5-day. That is Connors' exit as StockCharts describes it: he exits longs on a move above the 5-day SMA. He also does not advocate stops. Ours sells in parts, often into a 3 to 7 day push, with the last part on the 10-day or 21-day trail. Every position keeps a real stop order with the broker, moved to breakeven at 2R to 5R, ideally.",
    "lesson_line": "We sell in parts and trail. Connors exits it all at the 5-day.",
    "facts": [
     "sc5",
     "sc4",
     "h18",
     "h05",
-    "h20",
     "h21",
-    "r02"
+    "r02",
+    "r07"
    ],
    "wrong": {
     "Trail the last third under the 10-day": "That is ours: the default trail for a fast mover is the 10-day, sold on a close below it.",
     "Breakeven stop between 2R and 5R": "That is ours: the stop moves to breakeven at 2R to 5R, ideally.",
-    "A third off at 3R, another at 5R": "That is ours: one taught way is a third at 3R, then another third at 5R."
+    "Sell into a 3, 5 or 7 day push": "That is ours: the first sell is a judgment, and a 3, 5 or 7 day push is often the best time."
    },
    "house": true,
    "simple": "All out at the 5-day is not ours, because we sell in parts and trail the last part.",
@@ -2288,7 +2305,7 @@
      "the setup's trims are held (D-013): an Option 2 ruling could change which plans are ours"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q41",
@@ -2301,20 +2318,20 @@
     "A retest of the 20 EMA",
     "The 200-day average",
     "The prior all-time high",
-    "A fixed 3R, like our plan"
+    "A fixed 3R on every trade"
    ],
    "answer": "A retest of the 20 EMA",
-   "why": "A retest of the 20 EMA. That is Kell's rule. His stop goes just below the low of the Reversal Extension bar. His first profit target is the retest of the 20 EMA. It is not our usual plan: our first sell is a third at 3R, or a sale into a 3 to 7 day push.",
+   "why": "A retest of the 20 EMA. That is Kell's rule. His stop goes just below the low of the Reversal Extension bar. His first profit target is the retest of the 20 EMA. It is not how we set our first sell: ours is a judgment, often into a 3 to 7 day push.",
    "lesson_line": "Know the other rules, then trade ours.",
    "facts": [
     "ke2",
-    "h05",
-    "r02"
+    "r05",
+    "r07"
    ],
    "wrong": {
     "The 200-day average": "Kell names the retest of the 20 EMA, not the 200-day.",
     "The prior all-time high": "Kell names the retest of the 20 EMA.",
-    "A fixed 3R, like our plan": "3R is one way we take a first sell, not Kell's. Kell's first target is the retest of the 20 EMA."
+    "A fixed 3R on every trade": "Kell names the retest of the 20 EMA. Our own first sell is a judgment, not a fixed 3R either."
    },
    "house": true,
    "simple": "Kell's first target is a retest of the 20 EMA, which is not how we set our first sell.",
@@ -2327,7 +2344,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q42",
@@ -3242,7 +3259,7 @@
     },
     "round": 2
    },
-   "why": "120.38. One R is the fill minus the stop, 109.13 minus 106.88. Add five of them to the fill. In the R-based plan the second third comes off at 5R, after the first third at 3R. On KRYS, 5R printed two sessions after the turn day.",
+   "why": "120.38. One R is the fill minus the stop, 109.13 minus 106.88. Add five of them to the fill. In an R-based plan, a later sell can sit at 5R. On KRYS, 5R printed two sessions after the turn day.",
    "lesson_line": "One R is the fill minus the stop. 5R is five of them above the fill.",
    "facts": [
     "h20",
@@ -3265,7 +3282,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q65",
@@ -3275,11 +3292,11 @@
    "criterion": "mr.trim_2",
    "q": "In our R-based thirds plan, the last third is sold at 5R.",
    "answer": "False",
-   "why": "False. In the R-based plan, the first third comes off at 3R and another third at 5R. The last third is trailed, not sold at a set level.",
-   "lesson_line": "Two thirds come off by 5R. The last third trails.",
+   "why": "False. In the R-based thirds plan, the first two thirds are sold on judgment, such as into a push or at set R levels. The last third is trailed, not sold at a set level.",
+   "lesson_line": "The first sells are judgments. The last third trails.",
    "facts": [
     "h20",
-    "h05",
+    "r05",
     "r02"
    ],
    "house": true,
@@ -3293,7 +3310,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q66",
@@ -3522,7 +3539,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "notes": "BLANK UNCHANGED: sentence still keyed \"a third of the position at 3R\" while why/simple said the third day; re-keyed the blank to day 1 being the rare first-sell day"
   },
   "q16": {
    "status": "pass",
@@ -3583,8 +3600,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q26": {
    "status": "pass",
@@ -3633,20 +3650,20 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q35": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "notes": "story and why stated the first third at 3R as given; softened to the first sell"
   },
   "q36": {
    "status": "pass",
@@ -3656,9 +3673,9 @@
   },
   "q37": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q38": {
    "status": "pass",
@@ -3675,14 +3692,14 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q42": {
    "status": "pass",
@@ -3810,8 +3827,8 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q63": {
    "status": "pass",
@@ -3840,14 +3857,14 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "notes": "why still said first two thirds come off at 3R and 5R as the plan; made them judgment"
   },
   "q66": {
    "status": "cut",

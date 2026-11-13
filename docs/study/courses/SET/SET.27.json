@@ -879,6 +879,24 @@
    "source": "h2",
    "quote": "It is often time-based: sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R.",
    "claim": "Owner: the first sell is often time-based, into a 3, 5 or 7 day push, which can be 10, 12 or 20R."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Owner: the first sell is a judgment that depends on a variety of factors, not a fixed third at 3R."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "Owner: he very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1639,16 +1657,16 @@
    "rung": 3,
    "format": "tf",
    "criterion": "ss.trim_1",
-   "q": "On a Slingshot winner the first trim is half at 3R, and the rest rides the trail.",
+   "q": "On a Slingshot winner we usually sell the first part on day 1 of the buy.",
    "answer": "False",
-   "why": "False. The first trim is a third at 3R, not half. The third at 3R is the hard rule.",
-   "lesson_line": "The first trim is a third at 3R, not half.",
+   "why": "False. We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R.",
+   "lesson_line": "Rarely sell on day 1. Day 3 at the earliest.",
    "facts": [
-    "h05",
-    "c33"
+    "r05",
+    "r04"
    ],
    "house": true,
-   "simple": "False. We take a third off at 3R, not half.",
+   "simple": "False. We rarely sell on day 1 and usually wait until day 3 at the earliest.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1658,7 +1676,7 @@
      "fixed before: statement rewritten 2026-11-10"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q21",
@@ -1835,7 +1853,7 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "ss.trim_1",
-   "q": "You bought the trigger close at 20.46 with the stop at 19.96. One R is the risk per share. Where is 3R?",
+   "q": "You bought at 20.46 with the stop at 19.96. One R is the risk per share. Where is 3R?",
    "answer": 21.96,
    "calc": {
     "fn": "arith",
@@ -1846,12 +1864,12 @@
     },
     "round": 2
    },
-   "why": "21.96. One R is the fill minus the stop, 20.46 minus 19.96. Add three of those to the fill to get 3R. RELY, an earnings-gap Slingshot, ran on to 13.7R, stair-stepping up the 10-day.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "21.96. One R is the fill minus the stop, 20.46 minus 19.96. Add three of those to the fill to get 3R. RELY, an earnings-gap Slingshot, ran on to 13.7R, stair-stepping up the 10-day. 3R is a mark, not a sell order.",
+   "lesson_line": "Know your 3R before the open. It is a mark, not a sell order.",
    "facts": [
-    "h05",
     "d03",
-    "d04"
+    "d04",
+    "r04"
    ],
    "house": true,
    "prefix": "$",
@@ -1864,7 +1882,7 @@
      "the 3R trim is the owner's rule (B19)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q27",
@@ -1910,30 +1928,31 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "ss.trigger_decisive",
-   "q": "Buy at the close, or pass?",
+   "q": "How do you grade this trigger day?",
    "choices": [
-    "Pass; a gap and a weak close",
-    "Buy; close is over the line",
-    "Buy; 3% gap shows strength",
-    "Pass; four closes, too long"
+    "Weak: a gap up and a mid-range close",
+    "Strong: it finished over the line today",
+    "Strong: the 3% gap shows real strength",
+    "Weak: four closes under is too long"
    ],
-   "answer": "Pass; a gap and a weak close",
-   "why": "Pass. A decisive trigger opens less than 2% over the prior close and closes in the top 30% of its range. This day gapped 3% and closed at 0.54, so it fails both. Buying a trigger day that gaps up 2% or more is a named mistake.",
+   "answer": "Weak: a gap up and a mid-range close",
+   "why": "Weak. A decisive trigger day opens less than 2% over the prior close and closes in the top 30% of its range. This day gapped 3% and closed at 0.54, so it fails both. Buying a trigger day that gaps up 2% or more is a named mistake. We buy as price trades through the line, so a gap is a chase.",
    "lesson_line": "A gap up into a mid-range close is news, not resumption. Let it set up again.",
    "facts": [
     "c04",
     "c19",
     "c11",
-    "d20"
+    "d20",
+    "r01"
    ],
    "wrong": {
-    "Buy; close is over the line": "Over the line is one test. The gap and the mid-range close fail the other two.",
-    "Buy; 3% gap shows strength": "A gap up on the trigger day is a chase. Buying a trigger day that gaps up 2% or more is a named mistake.",
-    "Pass; four closes, too long": "Three closes is the minimum, and this pullback is four tight closes. The gap and the mid-range close are the problem."
+    "Strong: it finished over the line today": "Over the line is one test. The gap and the mid-range close fail the other two.",
+    "Strong: the 3% gap shows real strength": "A gap up on the trigger day is a chase. Buying a trigger day that gaps up 2% or more is a named mistake.",
+    "Weak: four closes under is too long": "Three closes is the minimum, and this pullback is four tight closes. The gap and the mid-range close are the problem."
    },
    "house": true,
-   "story": "The pullback is four tight closes, 6% deep. Today opens 3% up on news and closes over the line at 0.54 of its range, the middle of the bar.",
-   "simple": "Pass. A decisive trigger day opens less than 2% up and closes near its high, and this one did neither.",
+   "story": "The pullback is four tight closes, 6% deep. Today opens 3% up on news, trades over the line, and closes at 0.54 of its range, the middle of the bar.",
+   "simple": "Weak. A decisive trigger day opens less than 2% up and closes near its high, and this one did neither.",
    "deeper": {
     "trap": "A gap up feels like strength. Here it opens 3% up and closes at 0.54 of its range, well under the card's top-30% line, so the trigger is not decisive."
    },
@@ -1945,7 +1964,7 @@
      "fixed before: wrong note corrected by the checker"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q29",
@@ -2247,14 +2266,14 @@
     "No trail; sell the rest at 5R"
    ],
    "answer": "10-day if fast, 21-day if steadier",
-   "why": "The 10-day average for a fast mover, the 21-day for a steadier one, and sell on a close below it. The trail rides the last third after the earlier sells. Those can be R-based thirds, or sells into a push of a few days. Scot1and trails on the 4-day line itself, a close under the EMA 4. That is his exit, not ours. A touch is not a close below.",
+   "why": "The 10-day average for a fast mover, the 21-day for a steadier one, and sell on a close below it. The trail rides what is left after the first sells. Those sells are a judgment, often into a push of 3, 5 or 7 days. Scot1and trails on the 4-day line itself, a close under the EMA 4. That is his exit, not ours. A touch is not a close below.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "h21",
     "c40",
     "o07",
     "v01",
-    "r03"
+    "r06"
    ],
    "wrong": {
     "The 4-day line, close below it": "That is Scot1and's own trail, a close under the EMA 4. Our default is the 10-day or the 21-day.",
@@ -2271,7 +2290,7 @@
      "held decision D-013 on Scot1and's own exits"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q38",
@@ -2460,16 +2479,16 @@
    "rung": 6,
    "format": "tf",
    "criterion": "ss.trim_gap_open",
-   "q": "A Slingshot that gaps open past 3R has its first third sold at the close, not at the open.",
+   "q": "A Slingshot that gaps open past 3R must have a third sold at the open.",
    "answer": "False",
-   "why": "False. If a stock opens above a trim level, take that trim at the open. A gap past 3R means the first third is sold at the opening price. The same holds for the second trim at 5R.",
-   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "why": "False. The first sell is a judgment, not a fixed third at 3R. A gap past 3R can be a good moment to sell into strength, but nothing forces it.",
+   "lesson_line": "A gap past 3R does not force a sale. The first sell is a judgment.",
    "facts": [
-    "h25",
-    "c31"
+    "r04",
+    "r06"
    ],
    "house": true,
-   "simple": "False, because a stock that opens above a trim level has that trim sold at the open, not held to the close.",
+   "simple": "False, because the first sell is a judgment, and a gap past 3R does not force a sale.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2478,7 +2497,7 @@
      "fixed before (variety rewrite)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q44",
@@ -2727,14 +2746,14 @@
    "criterion": "ss.trigger",
    "q": "Buy now?",
    "choices": [
-    "No; wait for a close over the line",
-    "Yes; first red day is the entry",
-    "Yes; buy half now, half later",
-    "No; wait for a gap up on volume"
+    "No; wait for a break back over the line",
+    "Yes; the first red day is the entry",
+    "Yes; buy half now and half later",
+    "No; wait for a gap up on big volume"
    ],
-   "answer": "No; wait for a close over the line",
-   "why": "No. Buying the first red day of the pullback instead of waiting for the close back over the line is a named mistake. Scot1and: the resumption of the momentum is triggered by the break of the 4EMA of the highs, and then we enter. Day one of a pullback is a small red bar under the line. Momentum has not resumed.",
-   "lesson_line": "Feeling it coming is not a trigger. The close back over the line is.",
+   "answer": "No; wait for a break back over the line",
+   "why": "No. Buying the first red day of the pullback instead of waiting for the break back over the line is a named mistake. Scot1and: the resumption of the momentum is triggered by the break of the 4EMA of the highs, and then we enter. We buy as price trades through its trigger, during the day. Day one of a pullback is a small red bar under the line. Momentum has not resumed.",
+   "lesson_line": "Feeling it coming is not a trigger. The break back over the line is.",
    "facts": [
     "c20",
     "o04",
@@ -2742,18 +2761,19 @@
     "v01",
     "c19",
     "c05",
-    "h31"
+    "h31",
+    "r01"
    ],
    "wrong": {
-    "Yes; first red day is the entry": "The first red day is the start of the pullback, not its end. Momentum has not resumed.",
-    "Yes; buy half now, half later": "We buy full size at one price with one stop, with no adding. And momentum has not resumed.",
-    "No; wait for a gap up on volume": "Buying a trigger day that gaps up 2% or more is a named mistake, and no volume surge is needed. Ordinary volume is the picture. The trigger is the close back over the line."
+    "Yes; the first red day is the entry": "The first red day is the start of the pullback, not its end. Momentum has not resumed.",
+    "Yes; buy half now and half later": "We buy full size at one price with one stop, with no adding. And momentum has not resumed.",
+    "No; wait for a gap up on big volume": "Buying a trigger day that gaps up 2% or more is a named mistake, and no volume surge is needed. Ordinary volume is the picture. The trigger is the break back over the line."
    },
    "house": true,
    "story": "The drive was an earnings gap. Day one of the pullback is a small red bar closing under the 4-day line. You feel it coming.",
-   "simple": "No, because the first red day only starts the pullback, and the buy comes on the close back over the line.",
+   "simple": "No, because the first red day only starts the pullback, and the buy comes as price breaks back over the line.",
    "deeper": {
-    "trap": "Buying the first red day is a guess at the low. Our card buys the confirmed turn instead: the first close back over the line. By then momentum has resumed."
+    "trap": "Buying the first red day is a guess at the low. Our card buys the confirmed turn instead: the first break back over the line. By then momentum has resumed."
    },
    "tier": "extended",
    "risk": {
@@ -2763,7 +2783,7 @@
      "four facts agree"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q52",
@@ -2794,7 +2814,7 @@
     "Hold until it falls to its breakeven": "Breakeven is a floor, not the exit for a winner. The last third trails the 10-day or the 21-day, and a close below it is the exit."
    },
    "house": true,
-   "story": "You bought the trigger close at 66.08, stop 64.04. You trimmed at 3R and 5R. Two months on the stock is 50% higher and still above its 10-day.",
+   "story": "You bought at 66.08, stop 64.04. You sold two thirds on the way up. Two months on the stock is 50% higher and still above its 10-day.",
    "simple": "Keep holding the last third. It is sold on a close under its trail, not after a set time.",
    "deeper": {
     "example": "GRMN, trigger 2007-06-11: a five-close rest in a rising leader, bought at 66.08 with the stop at 64.04. It was the steadiest trend of the ten examples, 50% higher in two months, with a best of 20.5R. A trend like that is the case for holding while it keeps working."
@@ -2807,7 +2827,7 @@
      "fixed before (variety rewrite)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q53",
@@ -3017,7 +3037,7 @@
    "rung": 8,
    "format": "numeric",
    "criterion": "ss.trim_1",
-   "q": "You bought the trigger close at 13.94, stop 13.42. It trades to 15.50. How many R is that?",
+   "q": "You bought at 13.94, stop 13.42. It trades to 15.50. How many R is that?",
    "answer": 3.0,
    "calc": {
     "fn": "r_multiple",
@@ -3028,18 +3048,18 @@
     },
     "round": 1
    },
-   "why": "3R. One R is the fill minus the stop. Divide the gain, the price minus the fill, by one R. That is where the first third comes off; FRO got there in 7 sessions.",
-   "lesson_line": "Count in R, not dollars. 3R is the first trim.",
+   "why": "3R. One R is the fill minus the stop. Divide the gain, the price minus the fill, by one R. FRO got there in 7 sessions. 3R is a mark to judge a sell by, not a sell order.",
+   "lesson_line": "Count in R, not dollars. 3R is a mark to judge by.",
    "facts": [
-    "h05",
     "d10",
-    "d11"
+    "d11",
+    "r04"
    ],
    "house": true,
    "suffix": "R",
    "simple": "Divide the gain by the risk per share, the buy price minus the stop, and you get 3R.",
    "deeper": {
-    "trap": "Judging a gain by its percent. The same percent gain is more R when the stop is close and fewer R when it is wide. Count in R, because the trim rules are written in R."
+    "trap": "Judging a gain by its percent. The same percent gain is more R when the stop is close and fewer R when it is wide. Count in R, because we measure every trade in R."
    },
    "tier": "expert",
    "risk": {
@@ -3049,7 +3069,7 @@
      "the 3R trim is the owner's rule (B19)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q60",
@@ -3263,34 +3283,33 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "ss.stop",
-   "q": "You buy as it trades over the line, on an R-based plan. Entry, stop and first trim?",
+   "q": "You buy as it trades over the line. Entry, stop and first sell?",
    "choices": [
-    "62.40; stop 60.82; a third at 3R",
+    "62.40; stop 60.82; no sale before day 3",
     "62.40; stop 58.30; out at 2R",
     "62.40; stop at the gap low; hold to 5R",
     "62.40; stop 60.82; all out at 3R"
    ],
-   "answer": "62.40; stop 60.82; a third at 3R",
-   "why": "Market as it trades over the line, 62.40. The stop goes a few cents under the day's low, 60.82. A third comes off at 3R, another third at 5R, and the last third trails. That is one taught plan. A sell into a push of a few days is equally ours.",
-   "lesson_line": "Entry, stop, trim, trail. Write it before the trigger fires; execute it without a debate.",
+   "answer": "62.40; stop 60.82; no sale before day 3",
+   "why": "Market as it trades over the line, 62.40. The stop goes a few cents under the day's low, 60.82. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The last part rides the trail.",
+   "lesson_line": "Entry, stop, first sell, trail. Write it before the trigger fires; execute it without a debate.",
    "facts": [
     "r01",
     "r02",
     "h24",
-    "h05",
-    "h20",
-    "r03"
+    "r05",
+    "r04"
    ],
    "wrong": {
-    "62.40; stop 58.30; out at 2R": "That stop is nowhere near the day's low. And the R-based plan puts the first trim at 3R, not 2R.",
+    "62.40; stop 58.30; out at 2R": "That stop is nowhere near the day's low, and selling it all at 2R gives up the runner.",
     "62.40; stop at the gap low; hold to 5R": "The gap low is a different level. The stop goes a few cents under the day's low, not at the gap low.",
-    "62.40; stop 60.82; all out at 3R": "Entry and stop are right, the exit is not. The plan takes a third at 3R, another third at 5R, and trails the last third."
+    "62.40; stop 60.82; all out at 3R": "Entry and stop are right, the exit is not. The first sell is a judgment, and selling everything at 3R gives up the trail."
    },
    "house": true,
    "story": "A stock gapped up 9%, then rested three small red candles. Today it trades back over its line, and you buy at 62.40. The day's low so far is 60.85.",
-   "simple": "Buy at 62.40 as price trades over the line, stop a few cents under the day's low at 60.82, and a third off at 3R.",
+   "simple": "Buy at 62.40 as price trades over the line, put the stop at 60.82, and make no sale before day 3.",
    "deeper": {
-    "trap": "Write the whole plan before the trigger fires: entry, stop, first trim, trail. The stop sets the size, so the distance to the stop decides how many shares you can buy. Then carry the plan out without a debate."
+    "trap": "Write the whole plan before the trigger fires: entry, stop, first sell, trail. The stop sets the size, so the distance to the stop decides how many shares you can buy. Then carry the plan out without a debate."
    },
    "tier": "expert",
    "risk": {
@@ -3300,7 +3319,7 @@
      "rests on rulebook E51, E57 and F62"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q64",
@@ -3474,21 +3493,20 @@
     "Nothing; await the 21-day"
    ],
    "answer": "Another 30; trail the last 30",
-   "why": "Another 30, a third of the position. The first third came off at 3R, the second comes off at 5R, and you trail the last third. The trail is the 10-day for a fast mover or the 21-day for a steadier one.",
-   "lesson_line": "A third at 3R, a third at 5R, then trail the rest.",
+   "why": "Another 30, a third of the 90 shares. A third is already sold, so a second third comes off and the last third trails. The trail is the 10-day for a fast mover or the 21-day for a steadier one.",
+   "lesson_line": "Sell the second third, then trail the rest.",
    "facts": [
-    "c34",
-    "h20",
+    "c40",
     "h21",
-    "c40"
+    "r04"
    ],
    "wrong": {
     "Another 45; trail 15": "A third of 90 is 30, not 45. The last third, 30 shares, trails.",
-    "The last 60, all of it": "The plan keeps the last third on the trail, not out at 5R.",
-    "Nothing; await the 21-day": "The trail starts after both trims. At 5R the second third comes off."
+    "The last 60, all of it": "The plan keeps the last third on the trail, not all sold now.",
+    "Nothing; await the 21-day": "The trail starts after both sells. You decided to sell a second third now."
    },
    "house": true,
-   "story": "You bought 90 shares of a Slingshot at the trigger close. You sold a third at 3R. Today the stock reaches 5R.",
+   "story": "You bought 90 shares of a Slingshot at the trigger. You sold a third into a push. Today you sell a second third.",
    "simple": "Sell another 30 shares, a third of the 90, and trail the last 30 shares.",
    "tier": "extended",
    "risk": {
@@ -3497,7 +3515,7 @@
      "rests on rulebook E51, adjustable"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q70",
@@ -3699,7 +3717,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False: the first trim is a third at 3R (h05, c33). Statement is wrong on two counts (half, and the rest does not ride the trail at once), both point to False. Its why restates the core trim rule that q63 also uses; accepted as lesson reinforcement, not a giveaway."
+   "notes": "agrees with rulings"
   },
   "q21": {
    "status": "pass",
@@ -3735,7 +3753,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 20.46 + 3 x 0.50 = 21.96. d03 and d04 support the RELY line (13.7R)."
+   "notes": "agrees with rulings"
   },
   "q27": {
    "status": "pass",
@@ -3748,8 +3766,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass is right: the 3% open fails the under-2% open test and 0.54 fails the top-30% close (c04, c19). Four closes is inside the card's range. Numbers come from the story and c04. Overlaps q16/q39 by teaching the same rule, but no stem gives another key away.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "regraded as trigger-day grade, no close entry; ok"
   },
   "q29": {
    "status": "pass",
@@ -3791,7 +3808,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SRPT numbers match d12/d13; open 121.51 is above the stop so no gap rule. 'near the planned 1R' is soft but fair. Overlaps q67's 'stop doing its job' idea; kept as a different ask."
+   "notes": "keep; 3R printed later is a measuring stick"
   },
   "q36": {
    "status": "pass",
@@ -3802,8 +3819,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
+   "fixed": false,
+   "notes": "agrees with rulings"
   },
   "q38": {
    "status": "pass",
@@ -3837,9 +3854,9 @@
   },
   "q43": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "False is right; no forced sale at gap"
   },
   "q44": {
    "status": "cut",
@@ -3887,15 +3904,14 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c20 named mistake, o05). But the wrong note for 'Yes; buy half now, half on the turn' says 'We buy full size at one price with one stop, with no adding', and none of the cited facts carries that; h31 (A5) does. Add h31 to facts.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "re-keyed to break back over line, ok (D-003)"
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E52 trail plus C35 (hold while it keeps working); 50% in two months from d08; story names no ticker. Breakeven distractor is wrong because the trail sits far above breakeven."
+   "notes": "agrees with rulings"
   },
   "q53": {
    "status": "pass",
@@ -3906,8 +3922,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
+   "fixed": false,
+   "notes": "keep: says trigger is the entry, never the close; table flagged"
   },
   "q55": {
    "status": "cut",
@@ -3929,9 +3945,9 @@
   },
   "q59": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "agrees with rulings"
   },
   "q60": {
    "status": "cut",
@@ -3966,8 +3982,8 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "entry and stop agree with D-003; first trim keyed 3R so the stem must say it is the R-based plan (D-013), and 'hard rule' wording removed"
+   "fixed": false,
+   "notes": "no sale before day 3 matches ruling; distractors clearly wrong"
   },
   "q64": {
    "status": "pass",
@@ -3999,8 +4015,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "One third of 90 is 30 (calc from the stem); E51 gives the 5R trim and the trail; distractor notes are correct.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with rulings"
   },
   "q70": {
    "status": "pass",

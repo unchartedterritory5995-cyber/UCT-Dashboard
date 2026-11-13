@@ -154,6 +154,14 @@
    "title": "Study: the trade plan for every setup, Trail column (Kicker row: the owner's rulings 2026-11-02; Oops Reversal, Slingshot and Launchpad rows say the same higher-low trail)",
    "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -642,6 +650,24 @@
    "source": "s16",
    "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
    "claim": "Our rule: once a trade is up 2R to 5R, the stop ideally moves to breakeven."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1066,7 +1092,7 @@
    "rung": 5,
    "format": "numeric",
    "house": true,
-   "q": "Entry $40, stop $38. Our first trim is a third at 3R. What price is that?",
+   "q": "Entry $40, stop $38. What price is 3R, three times your risk above the entry?",
    "answer": 46,
    "calc": {
     "fn": "arith",
@@ -1078,17 +1104,18 @@
     }
    },
    "prefix": "$",
-   "why": "$46. Your risk per share is the distance from the $40 entry down to the $38 stop. We call that distance R. 3R is three times it, added above the $40 entry. Under our rule a third of the position comes off there. The next third comes off at 5R, and the last third is trailed.",
-   "lesson_line": "Stop first. The trims are multiples of that risk: 3R, then 5R.",
+   "why": "$46. Your risk per share is the distance from the $40 entry down to the $38 stop. We call that distance R. 3R is three times it, added above the $40 entry. It is a measuring mark, not an order to sell. He rarely sells on day 1 and usually waits until day 3 at the earliest.",
+   "lesson_line": "Stop first. R is the stop distance, and 3R is three times it above the entry.",
    "facts": [
-    "h1",
-    "h2",
     "f45",
-    "f73"
+    "f73",
+    "r01",
+    "r02",
+    "r03"
    ],
-   "simple": "Our first trim is at $46, because 3R means three times your risk, added above the entry.",
+   "simple": "$46, because 3R means three times your risk, added above the entry.",
    "deeper": {
-    "trap": "3R is the hard rule for the first trim, not the only good price. Our rulebook says the ideal first trim runs from 3R to 6R, and in practice the owner mostly waits for 5R. Either way, each trim level is a multiple of the risk the stop sets."
+    "trap": "3R is a mark on the ruler, not a sell order. Our first sell is a judgment, often into a 3, 5 or 7 day push. Either way, each level is a multiple of the risk the stop sets."
    },
    "tier": "extended",
    "risk": {
@@ -1099,7 +1126,7 @@
      "rewritten before to the 2026-11-09 rulebook"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings2"
   },
   {
    "key": "q12",
@@ -1526,22 +1553,24 @@
     "Tighten the stop on all shares"
    ],
    "answer": "Sell partials, trail the rest",
-   "why": "Sell partials, trail the rest. Our rule is a third at 3R, another third at 5R, then trail the last third. In the owner's words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run.",
+   "why": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. He rarely sells on day 1 and usually waits until day 3 at the earliest. In the owner's words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run.",
    "lesson_line": "One target for every share caps your best winners. Trim into strength and trail the rest.",
    "facts": [
     "h3",
-    "h2",
     "f74",
-    "f34"
+    "f34",
+    "r01",
+    "r02",
+    "r03"
    ],
    "wrong": {
     "One bigger target for all shares": "Then nothing gets banked if it stalls short of that price. We take some off along the way.",
-    "No targets, hold every share": "That banks nothing into strength. We take a third at 3R and 5R and let the rest run.",
+    "No targets, hold every share": "That banks nothing into strength. We sell some into a push and let the rest run.",
     "Tighten the stop on all shares": "That still exits everything at once. We trim into strength and trail the rest under the rising moving averages."
    },
    "simple": "Sell part of the position and trail a stop on the rest, so you bank gains and still ride a long run.",
    "deeper": {
-    "trap": "After missing a run, a bigger single target feels like the fix. It still sells everything at one price, and it banks nothing if the stock stalls short of it. Selling in thirds and trailing the rest handles both cases."
+    "trap": "After missing a run, a bigger single target feels like the fix. It still sells everything at one price, and it banks nothing if the stock stalls short of it. Selling part into strength and trailing the rest handles both cases."
    },
    "tier": "expert",
    "risk": {
@@ -1551,7 +1580,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings2"
   }
  ],
  "conflicts": [
@@ -1653,7 +1682,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 40 + 3 x (40 - 38) = 46; matches. 3R first third (h1, B19), 5R second third and trail (h2, E51) match the rulebook. Deeper trap quotes B19's 3R to 6R and 'mostly waits for 5R' (h1). 'We call that distance R' is naming, not a fact claim. Its why previews q23 (rung 9); accepted as teach-then-test."
+   "notes": "ok"
   },
   "q12": {
    "status": "pass",
@@ -1727,7 +1756,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only simple changed: 'Sell part of the position and trail a stop on the rest, so you bank gains and still ride a long run.' Consistent with A11, h2 and h3. Under 22 words."
+   "notes": "ok"
   }
  }
 }

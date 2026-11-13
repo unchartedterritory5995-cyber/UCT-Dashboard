@@ -162,6 +162,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -554,6 +562,24 @@
    "source": "s18",
    "quote": "On the way down: under 6% down, the normal cap (A7); 6% down, max position 10%; 8% down, 8%; 10% down, 5%; 15% down, no new trades (B13).",
    "claim": "The further the account falls below its peak, the smaller the cap on each new position, down to no new trades."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -875,28 +901,28 @@
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "In our plan, where do the trims sit?",
+   "q": "How does our plan set the first sell?",
    "choices": [
-    "At 3R and 5R",
-    "At 1R and 2R",
-    "At 10% and 20%",
-    "At 2R and 3R"
+    "A judgment, usually from day 3 on",
+    "A fixed third at 3R every time",
+    "A fixed 10% gain, set in percent",
+    "Always on the day you buy"
    ],
-   "answer": "At 3R and 5R",
-   "why": "At 3R and 5R. The stop sets R. Our hard rule takes a third off at 3R, another third at 5R, and the last third trails. In practice the first trim often waits for 5R. The trims are measured in R from the stop, not in percent gains.",
-   "lesson_line": "Our trims are 3R and 5R. The stop sets R, and R sets the trims.",
+   "answer": "A judgment, usually from day 3 on",
+   "why": "A judgment, usually from day 3 on. The stop sets R, and R is the measuring stick. The first sell depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 and usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "lesson_line": "R is the measuring stick. The first sell is a judgment, usually day 3 or later.",
    "facts": [
-    "h01",
-    "h02",
-    "h05",
+    "r01",
+    "r02",
+    "r03",
     "f17"
    ],
    "wrong": {
-    "At 1R and 2R": "Smaller than our plan uses. The first trim waits for 3R.",
-    "At 10% and 20%": "Fixed percents ignore the stop. Our trims are measured in R from the stop.",
-    "At 2R and 3R": "Those were the old setup plans' targets. Our rulebook replaced them: a third off at 3R, another third at 5R."
+    "A fixed third at 3R every time": "That was the old rule. The first sell is a judgment, not a fixed third at 3R.",
+    "A fixed 10% gain, set in percent": "A fixed percent ignores the stop and the trade. The first sell is a judgment.",
+    "Always on the day you buy": "He very rarely sells on day 1 of the buy. He usually waits until day 3 at the earliest."
    },
-   "simple": "Our trims are at 3R and 5R: a third comes off at each, then the last third trails.",
+   "simple": "A judgment call, usually from day 3 on, because it depends on the trade and not on one fixed price.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -905,7 +931,7 @@
      "rewritten 2026-11-09 to the rulebook"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q11",
@@ -960,11 +986,10 @@
     }
    },
    "prefix": "$",
-   "why": "$50. R is the $40 to $38 distance per share. Add five of those to the entry and the trade is up 5R. That's where our rule takes the second third off. The first third comes off at 3R.",
-   "lesson_line": "Trim price is the entry plus R times the multiple.",
+   "why": "$50. R is the $40 to $38 distance per share. Add five of those to the entry and the trade is up 5R. Selling at about 5 to 10R is often best for the first sell, so this is a price worth knowing.",
+   "lesson_line": "A target price is the entry plus R times the multiple.",
    "facts": [
-    "h02",
-    "h01",
+    "r03",
     "f20",
     "f48"
    ],
@@ -978,7 +1003,7 @@
      "rewritten 2026-11-09 to the rulebook"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q13",
@@ -1719,9 +1744,9 @@
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "ok"
   },
   "q04": {
    "status": "pass",
@@ -1764,19 +1789,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key 3R and 5R = h01 (B19) + h02 (E51). 'At 2R and 3R' rests on h05 (B19 replaced it). No tell; 3R appears in two choices. q12's why reveals the trims but sits at a later rung."
+   "notes": "ok"
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 0.3*3 - 0.7*1 = 0.2. Numbers come from the stem and calc. No longer answered by q14 or q17."
+   "notes": "ok"
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "40 + 5*2 = 50. Stem no longer names a 5R trim, so it does not point at q10's key. The 5% stop vs A13's about 3% is a habit, not a rule, and is already an owner flag."
+   "notes": "ok"
   },
   "q13": {
    "status": "pass",
@@ -1792,9 +1817,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "ok"
   },
   "q16": {
    "status": "pass",
@@ -1872,9 +1897,9 @@
   },
   "q28": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "ok"
   },
   "q29": {
    "status": "pass",

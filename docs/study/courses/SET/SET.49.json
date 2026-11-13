@@ -1045,6 +1045,36 @@
    "source": "h2",
    "quote": "It is often time-based: sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R.",
    "claim": "The first sell is often time-based: into a 3, 5 or 7 day push."
+  },
+  {
+   "id": "r10",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Owner: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r12",
+   "source": "h2",
+   "quote": "I usually wait until day 3 at the earliest.",
+   "claim": "Owner: he usually waits until day 3 at the earliest to sell."
+  },
+  {
+   "id": "r13",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day.",
+   "claim": "Owner: he very rarely sells on day 1 of the buy day."
+  },
+  {
+   "id": "r14",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Owner: every setup buys as price trades through its trigger, during the day."
   }
  ],
  "walkthroughs": [
@@ -1887,7 +1917,7 @@
    "rung": 5,
    "format": "numeric",
    "criterion": "cap.trim_2",
-   "q": "Entry 38.49, stop 38.26. Where is 5R, where we sell the second third?",
+   "q": "Entry 38.49, stop 38.26. Where is 5R?",
    "answer": 39.64,
    "calc": {
     "fn": "arith",
@@ -1898,11 +1928,10 @@
     },
     "round": 2
    },
-   "why": "39.64. One R is the risk per share, 38.49 minus 38.26. Add five of those to the entry of 38.49 and you reach 39.64. After the first third at 3R, we sell another third at 5R, then trail the last third.",
+   "why": "39.64. One R is the risk per share, 38.49 minus 38.26. Add five of those to the entry of 38.49 and you reach 39.64. 5R is a mark to measure by. Selling at about 5 to 10R is often best.",
    "lesson_line": "5R is five risk units above the entry.",
    "facts": [
-    "h20",
-    "c21",
+    "r11",
     "d02"
    ],
    "house": true,
@@ -1918,7 +1947,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q26",
@@ -2517,28 +2546,27 @@
    "criterion": "cap.trim_gap_open",
    "q": "What do you do at the open?",
    "choices": [
-    "Take the trims right at the open",
+    "Sell part into the gap at the open",
     "Wait for a pullback to the 20 EMA",
     "Hold everything and let it run",
     "Add more at 26.00 on the gap"
    ],
    "story": "You bought at 22.13 with a stop at 21.72. 5R is 24.18. The next day opens at 26.00.",
-   "answer": "Take the trims right at the open",
-   "why": "Take the trims at the open. If a stock opens above a trim level, that trim is taken at the open. Here the open of 26.00 is past the 5R line of 24.18, so it is past 3R as well. MP did this, then closed at 21.94, through its stop.",
-   "lesson_line": "If it opens past a trim level, sell the trim at the open.",
+   "answer": "Sell part into the gap at the open",
+   "why": "Sell part into the gap at the open. The open of 26.00 is far past the 5R line of 24.18, in the 5 to 10R zone where selling is often best. How much to sell is a judgment. MP opened there, then closed at 21.94, through its stop.",
+   "lesson_line": "A gap far past 5R is a chance to sell into strength.",
    "facts": [
-    "h25",
     "d19",
-    "c20",
-    "c24"
+    "r11",
+    "r10"
    ],
    "house": true,
    "wrong": {
-    "Wait for a pullback to the 20 EMA": "A trim level the day opens past is taken at the open.",
+    "Wait for a pullback to the 20 EMA": "A pullback may never come. A big gap is a chance to sell.",
     "Hold everything and let it run": "Holding it all gave back the gain. MP closed through its stop.",
     "Add more at 26.00 on the gap": "We never add. The full size goes in at one price with one stop."
    },
-   "simple": "Sell the trims at the open, because when a stock opens past a trim level we take it right there.",
+   "simple": "Sell part into the gap at the open, because the open is far past 5R and a gap is a good time to sell.",
    "deeper": {
     "trap": "The open looked like a big win: 26.00 against a 5R line of 24.18. MP then closed at 21.94, through its stop. A trim level the day opens past is taken at the open, before the day can take it back. Waiting to see if it runs is how the gain is lost."
    },
@@ -2552,7 +2580,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q42",
@@ -2560,30 +2588,29 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "cap.trim_1",
-   "q": "One R-based way to take profits: what do we sell at 3R and again at 5R?",
+   "q": "What sets the first sell of a winner?",
    "choices": [
-    "A third of the shares each time",
-    "Half of the position each time",
-    "All of it at 3R and stay flat",
-    "Nothing until the 10-day breaks"
+    "A judgment, often a 3 to 7 day push",
+    "A fixed third of the shares at 3R",
+    "A judgment, best made on the buy day",
+    "A fixed half of the shares at 5R"
    ],
-   "answer": "A third of the shares each time",
-   "why": "A third of the shares each time. This is one taught way to take profits: a third at 3R, another third at 5R, then trail the last third. The steps are adjustable. The first sell is not always R-based. We also sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R. It is not half at each level.",
-   "lesson_line": "One way to take profits: a third at 3R, a third at 5R, trail the rest. A day-based first sell works too.",
+   "answer": "A judgment, often a 3 to 7 day push",
+   "why": "A judgment. The first sell depends on a variety of factors, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "lesson_line": "The first sell is a judgment, often into a 3 to 7 day push.",
    "facts": [
-    "h20",
-    "c20",
-    "c21",
-    "r03",
-    "r04"
+    "r10",
+    "r11",
+    "r12",
+    "r13"
    ],
    "house": true,
    "wrong": {
-    "Half of the position each time": "The rule is a third at each level.",
-    "All of it at 3R and stay flat": "We take a third at 3R and keep the rest working.",
-    "Nothing until the 10-day breaks": "This plan trims at 3R and 5R first, then trails the rest."
+    "A fixed third of the shares at 3R": "That was an older rule. It is not fixed. The first sell is a judgment.",
+    "A judgment, best made on the buy day": "Day 1 is the day we very rarely sell. We usually wait until day 3 at the earliest.",
+    "A fixed half of the shares at 5R": "Nothing is fixed. The first sell is part of the position, chosen by judgment."
    },
-   "simple": "A third each time. This is one way to take profits: a third at 3R, a third at 5R, then trail the rest.",
+   "simple": "A judgment call, often a sale into a push on day 3 or later, not a fixed third at 3R.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2592,7 +2619,7 @@
      "trim at the averages held under D-013"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q43",
@@ -3223,14 +3250,13 @@
    "lesson_line": "Tight stops mean short targets. 3R is about a 5% bounce.",
    "facts": [
     "d30",
-    "h05",
     "d03"
    ],
    "house": true,
    "wrong": {
     "About 1.7%": "That is one R, not three.",
     "About 17%": "That is far past 3R. Three times 1.7% is about 5%.",
-    "About 9%": "That is about 5R, the second trim, not 3R."
+    "About 9%": "That is about 5R, not 3R."
    },
    "simple": "About 5%. Three times a 1.7% stop is about 5%, so the first target is close.",
    "deeper": {
@@ -3294,14 +3320,14 @@
     "3R was counted after the stop hit"
    ],
    "answer": "Fixed stop, so fades come back",
-   "why": "Because the scan's stop never moves. Of 2,220 reclaims, 52.3% reached 3R before the stop, yet 81% were stopped at some point in 60 sessions. The fade after the bounce usually comes back to a fixed stop. That is why our plan sells a third at 3R and moves the stop to breakeven at 2R. The scan did not test that plan.",
-   "lesson_line": "Bounces fade. Trim, then protect the rest.",
+   "why": "Because the scan's stop never moves. Of 2,220 reclaims, 52.3% reached 3R before the stop, yet 81% were stopped at some point in 60 sessions. The fade after the bounce usually comes back to a fixed stop. That is why our plan sells into strength and moves the stop up, to breakeven from 2R. The scan did not test that plan.",
+   "lesson_line": "Bounces fade. Sell into strength, then protect the rest.",
    "facts": [
     "d28",
     "d29",
     "c22",
     "d30",
-    "c20"
+    "r10"
    ],
    "house": true,
    "wrong": {
@@ -3311,7 +3337,7 @@
    },
    "simple": "Many bounces hit 3R and then faded back to a stop that never moved, so both numbers are true.",
    "deeper": {
-    "example": "Picture a bounce that reaches 3R, then fades. In the scan the stop never moved, so the fade came back and hit it. That one trade counts in both numbers: it reached 3R and it was stopped. With our plan, a third is sold at 3R and the stop sits at breakeven from 2R. The same path then keeps a gain. The scan itself did not test this plan."
+    "example": "Picture a bounce that reaches 3R, then fades. In the scan the stop never moved, so the fade came back and hit it. That one trade counts in both numbers: it reached 3R and it was stopped. With our plan, part is sold into strength and the stop moves up to breakeven. The same path then keeps a gain. The scan itself did not test this plan."
    },
    "tier": "expert",
    "risk": {
@@ -3325,7 +3351,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q62",
@@ -3333,37 +3359,33 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "cap.stop",
-   "q": "Write the plan: entry, stop, first trim.",
+   "q": "Write the plan: entry and stop.",
    "choices": [
-    "Market 38.49; stop 38.26; a third at 3R",
-    "Limit 39.23; stop 38.31; all at 5R",
-    "Market 38.31; stop 37.00; hold a month",
-    "Market 38.49; stop 38.26; a third at 2R"
+    "Market 38.49; stop 38.26",
+    "Limit 39.23; stop 38.31",
+    "Market 38.31; stop 37.00",
+    "Market 38.49; stop 38.31"
    ],
    "story": "After a three-day flush the low is 38.48. A leader trades down to 38.31, then back above 38.48 and closes higher. You buy the reclaim at 38.49.",
-   "answer": "Market 38.49; stop 38.26; a third at 3R",
-   "why": "Market 38.49; stop 38.26; a third at 3R. Entries are market orders, so you buy at the reclaim, 38.49. The stop goes a few cents under the undercut low of 38.31, the low of the session you bought in. This plan sells its first third at 3R. 2R is where the stop moves to breakeven, not a trim.",
-   "lesson_line": "Write the plan before the buy.",
+   "answer": "Market 38.49; stop 38.26",
+   "why": "Market 38.49; stop 38.26. Entries are market orders, so you buy as price reclaims, at 38.49. The stop goes a few cents under the undercut low of 38.31, the low of the session you bought in. The first sell is a judgment and is not part of this order.",
+   "lesson_line": "Write the entry and stop before the buy.",
    "facts": [
     "d02",
     "h22",
     "h24",
     "c18",
-    "c20",
-    "c22",
-    "h05",
-    "r03",
-    "r04"
+    "r14"
    ],
    "house": true,
    "wrong": {
-    "Limit 39.23; stop 38.31; all at 5R": "A stop exactly on the low is not a few cents under it, and we sell a third at 3R.",
-    "Market 38.31; stop 37.00; hold a month": "38.31 is the undercut price, not the reclaim, and a month is not this trade.",
-    "Market 38.49; stop 38.26; a third at 2R": "2R is where the stop moves to breakeven. This plan sells its first third at 3R."
+    "Limit 39.23; stop 38.31": "We buy as price trades through the trigger, never at the close, and a stop on the low is too tight.",
+    "Market 38.31; stop 37.00": "38.31 is the undercut price, not the reclaim, and a stop at 37.00 is far too wide.",
+    "Market 38.49; stop 38.31": "A stop exactly on the low is not a few cents under it."
    },
-   "simple": "Buy at market on the reclaim, put the stop a few cents under the undercut low, and sell a third at 3R.",
+   "simple": "Buy at market on the reclaim and put the stop a few cents under the undercut low.",
    "deeper": {
-    "trap": "Two details catch people. The stop goes a few cents under the undercut low of 38.31, not exactly on it. And 2R is the breakeven point, not the first sale. A third at 3R is one taught first sell, and this plan uses it."
+    "trap": "Two details catch people. The stop goes a few cents under the undercut low of 38.31, not exactly on it. And the buy is as price trades through the trigger, never at the close."
    },
    "tier": "expert",
    "risk": {
@@ -3376,7 +3398,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q63",
@@ -4184,9 +4206,9 @@
   },
   "q25": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "5R arithmetic; judgment cited."
   },
   "q27": {
    "status": "pass",
@@ -4251,15 +4273,15 @@
   },
   "q41": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key (sell part into a gap far past 5R) is defensible; remove the mechanical trim-level rule from why/wrong/facts."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "3R framed as one way; day-based noted; depends_on restored (writer emptied it)"
+   "notes": "Re-key is right, but the right answer was the only hedged choice (odd one out). Make a distractor also say judgment."
   },
   "q43": {
    "status": "pass",
@@ -4333,8 +4355,8 @@
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc 3*1.7 = 5.1, rounds to 5; 5R about 9% matches d30. Distractors are 1R, 5R and a decimal slip."
+   "fixed": true,
+   "notes": "Percent arithmetic fine; drop h05 and the 'second trim' wording."
   },
   "q63": {
    "status": "pass",
@@ -4401,13 +4423,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d28/d29/d30 support key and all three notes; the 'after the stop' misreading is ruled out directly by d28's 'before the stop'. Lengths 28-33."
+   "notes": "Why/lesson_line/deeper now say sells into strength; scan point intact."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "D-013: do not teach 3R as the only/hard first sell."
+   "fixed": false,
+   "notes": "Entry and stop only; limit at the close wrong citing r14; stop on the low wrong."
   },
   "q64": {
    "status": "pass",

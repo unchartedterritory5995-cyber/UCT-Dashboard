@@ -888,6 +888,24 @@
    "source": "h2",
    "quote": "a flag is a flag imo and i think the slight variations are not as important.",
    "claim": "A flag is a flag; the slight variations matter little."
+  },
+  {
+   "id": "r55",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "First sell is a judgment, not a fixed third at 3R (D-013)"
+  },
+  {
+   "id": "r56",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3 to 7 day push or at about 5 to 10R is often best (D-013)"
+  },
+  {
+   "id": "r57",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "Very rarely sells on day 1; usually waits until day 3 at the earliest (D-013)"
   }
  ],
  "walkthroughs": [
@@ -1601,14 +1619,14 @@
     },
     "round": 2
    },
-   "why": "154.05. One R is the fill minus the stop. Three of those added to the fill give 154.05. The hard rule takes a third off there.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "154.05. One R is the fill minus the stop. Three of those added to the fill give 154.05. 3R is a yardstick, not a fixed sale point.",
+   "lesson_line": "Know your 3R before the open. It is a yardstick, and the first sell is a judgment.",
    "facts": [
-    "h05"
+    "r55"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "The first third comes off at 154.05, which is the fill plus three times the stop distance.",
+   "simple": "3R sits at 154.05, which is the fill plus three times the stop distance.",
    "tier": "core",
    "risk": {
     "score": 7,
@@ -1618,7 +1636,7 @@
      "rests on the owner's rulebook B19"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q20",
@@ -1626,7 +1644,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "e20.trail",
-   "q": "The last third of a 20 EMA pullback winner trails which line, by our default?",
+   "q": "What is left of a 20 EMA pullback winner trails which line, by our default?",
    "choices": [
     "The 10-day or the 21-day line",
     "The 50-day or 200-day line",
@@ -1634,17 +1652,17 @@
     "No trail; sell it all at 5R"
    ],
    "answer": "The 10-day or the 21-day line",
-   "why": "The 10-day line for a fast mover, the 21-day line for a steadier one, sold on a close below it. Kullamagi also waits for the first close below the 10-day. The last third rides this trail after the thirds at 3R and 5R.",
+   "why": "The 10-day line for a fast mover, the 21-day line for a steadier one, sold on a close below it. Kullamagi also waits for the first close below the 10-day. What is left rides this trail after the first sells, which are a judgment.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "h21",
     "q04",
-    "h20"
+    "r55"
    ],
    "wrong": {
     "The 50-day or 200-day line": "Our default trail is the 10-day or the 21-day line, not these.",
     "The prior day's low, daily": "Our default trails an average and sells on a close below it, not a daily low.",
-    "No trail; sell it all at 5R": "5R is where the second third comes off, not the exit. The last third rides the trail."
+    "No trail; sell it all at 5R": "5R is not a fixed exit. What is left rides the trail."
    },
    "house": true,
    "simple": "We trail the 10-day line for fast movers or the 21-day line for steadier ones, and sell on a close below it.",
@@ -1657,7 +1675,7 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q21",
@@ -2110,10 +2128,10 @@
    "wrong": {
     "A close under the 20 EMA": "A close under a line cannot sit with the broker as an order. Every position keeps a real stop order.",
     "Lower, to give it more room": "A stop only moves up, never down or wider.",
-    "Remove it; the trade is free": "Every position keeps a real stop order with the broker. Taking a third off does not remove it."
+    "Remove it; the trade is free": "Every position keeps a real stop order with the broker. Selling some does not remove it."
    },
    "house": true,
-   "story": "Your 20 EMA pullback buy reaches 3R on day three and you sell a third.",
+   "story": "Your 20 EMA pullback buy reaches 3R on day three.",
    "simple": "The stop may move up to the entry price, because breakeven comes at 2R to 5R and the stop never moves down.",
    "tier": "extended",
    "risk": {
@@ -2123,7 +2141,7 @@
      "rests on the owner's rulebook B19, where breakeven is 'ideally' 2R to 5R"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q34",
@@ -2207,16 +2225,16 @@
    "rung": 5,
    "format": "tf",
    "criterion": "e20.trim_2",
-   "q": "After a third comes off at 3R, the rest of the position is sold at 5R.",
+   "q": "On a 20 EMA pullback our hard rule sells the first third at 3R.",
    "answer": "False",
-   "why": "False. As written, after the first third at 3R comes another third at 5R, and then the last third is trailed. The position is not sold at 5R. The rulebook calls this plan adjustable.",
-   "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
+   "why": "False. The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest.",
+   "lesson_line": "The first sell is a judgment, not a fixed third at 3R.",
    "facts": [
-    "h20",
-    "h05"
+    "r55",
+    "r57"
    ],
    "house": true,
-   "simple": "False, because the plan sells a third at 3R, another third at 5R, and trails the last third.",
+   "simple": "False. The first sell is a judgment, usually no earlier than day 3, not a fixed third at 3R.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2225,7 +2243,7 @@
      "the levels are adjustable"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q37",
@@ -2489,15 +2507,15 @@
    "rung": 6,
    "format": "tf",
    "criterion": "e20.trim_gap_open",
-   "q": "A stock opens at 5.4R, past your 5R trim level. You take that trim at the open.",
+   "q": "A stock opens at 5.4R, past the 5R level you planned to sell at. You take that sale at the open.",
    "answer": "True",
-   "why": "True. If a stock opens above a trim level, 3R or 5R, take that trim at the open.",
-   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "why": "True. If a stock opens above a level you planned to sell at, take that sale at the open.",
+   "lesson_line": "A gap through a planned sell level is the sale. Take it at the open.",
    "facts": [
     "h25"
    ],
    "house": true,
-   "simple": "True, because a stock that opens past a trim level gets that trim taken right at the open.",
+   "simple": "True, because a stock that opens past a sell level you planned gets sold right at the open.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2506,7 +2524,7 @@
      "rests on the owner's rulebook F63"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q45",
@@ -3185,36 +3203,36 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "e20.trigger_fallback",
-   "q": "Write the plan: entry, stop, first trim.",
+   "q": "Write the plan: entry, stop, earliest sell.",
    "choices": [
-    "Market 100.39; stop 99.07; trim 3R",
+    "Market 100.39; stop 99.07; sell day 3+",
     "Limit on the 20 EMA; stop 95.00; hold",
-    "Market at the close; stop 50-day; 2R",
+    "Market at the close; stop 50-day; day 1",
     "Market 100.38; stop 99.10; all out at 5R"
    ],
-   "answer": "Market 100.39; stop 99.07; trim 3R",
-   "why": "Market at 100.39, as price trades a cent over the hold candle's high of 100.38. The stop goes a few cents under the hold low of 99.10, which is 99.07. A third comes off at 3R. GE reached 3R in 5 sessions.",
-   "lesson_line": "Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
+   "answer": "Market 100.39; stop 99.07; sell day 3+",
+   "why": "Market at 100.39, as price trades a cent over the hold candle's high of 100.38. The stop goes a few cents under the hold low of 99.10, which is 99.07. The first sell is a judgment, usually day 3 at the earliest. GE reached 3R in 5 sessions.",
+   "lesson_line": "Entry, stop, first sell, trail. Write it before the open; execute it without a debate.",
    "facts": [
     "d01",
     "d02",
     "c09",
     "c12",
-    "h05",
     "h22",
-    "h20",
-    "h24"
+    "h24",
+    "r55",
+    "r57"
    ],
    "wrong": {
     "Limit on the 20 EMA; stop 95.00; hold": "A limit on the line buys before a hold, and a stop at 95.00 is nowhere near the hold candle's low.",
-    "Market at the close; stop 50-day; 2R": "The trigger is the trade over the hold candle's high, not the close, and the 50-day is not a stop.",
-    "Market 100.38; stop 99.10; all out at 5R": "The buy is a cent over the hold high, not at it. The stop sits a few cents under the low, not on it. And the plan sells a third at 3R and another at 5R, not everything at 5R."
+    "Market 100.38; stop 99.10; all out at 5R": "The buy is a cent over the hold high, not at it. The stop sits a few cents under the low, not on it. And the first sell is a judgment, not an all-out sale at 5R.",
+    "Market at the close; stop 50-day; day 1": "The trigger is the trade over the hold candle's high, not the close, and the 50-day is not a stop. He very rarely sells on day 1."
    },
    "house": true,
    "story": "GE, January 2024. A session holds the rising 20 EMA and closes above it. Its low is 99.10 and its high is 100.38.",
-   "simple": "Buy at market a cent over the hold high, stop a few cents under its low, take a third off at 3R.",
+   "simple": "Buy at market a cent over the hold high, stop a few cents under its low, and sell no earlier than day 3.",
    "deeper": {
-    "example": "GE, January 2024: the low kissed the line to the cent, a 1.3% stop, and the stock reached 3R in 5 sessions. The stop may move up to breakeven somewhere from 2R to 5R, and another third comes off at 5R."
+    "example": "GE, January 2024: the low kissed the line to the cent, a 1.3% stop, and the stock reached 3R in 5 sessions. The stop may move up to breakeven as the trade works. The first sell is a judgment."
    },
    "tier": "expert",
    "risk": {
@@ -3225,7 +3243,7 @@
      "one worked example"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q63",
@@ -3683,14 +3701,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 147.30 + 3 x 2.25 = 154.05. B19 hard rule a third at 3R verbatim."
+   "notes": "edit ok, agrees with D-013"
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E52 verbatim; E51 for the thirds; Kullamagi q04 found. Key not longest; wrong notes true.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "edit ok, agrees with D-013"
   },
   "q21": {
    "status": "pass",
@@ -3768,8 +3785,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "B19 verbatim (breakeven 2R to 5R, ideally; so 3R fits); h02 stop only moves up. Distractors a little naive but not silly enough to cut."
+   "fixed": true,
+   "notes": "edit ok; softened \"taking a third off\" in a wrong note"
   },
   "q34": {
    "status": "pass",
@@ -3787,7 +3804,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key h20 (E51)."
+   "notes": "edit ok, agrees with D-013"
   },
   "q37": {
    "status": "pass",
@@ -3836,7 +3853,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "F63 verbatim; 5.4R is past the 5R level, so the trim is taken at the open."
+   "notes": "edit ok; gap-open rule kept for a planned sell level, not overruled by D-013"
   },
   "q45": {
    "status": "pass",
@@ -3946,7 +3963,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "kept; entry/stop agree with D-003. First trim 3R is the house plan; D-013 not tagged here."
+   "notes": "edit ok, agrees with D-013"
   },
   "q63": {
    "status": "pass",
@@ -3959,13 +3976,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit verified against rulings, quotes word for word"
+   "notes": "keep"
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches d01/d02. Chart not viewable by me; resolver flag stands (confirm 20 EMA and 50-day draw). Note q62's old story described this chart (see q62 fix)."
+   "notes": "keep: chart reading"
   },
   "q66": {
    "status": "pass",

@@ -256,6 +256,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -846,6 +854,24 @@
    "source": "s30",
    "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
    "claim": "Our rule E52: trail fast movers under the 10-day average and steadier ones under the 21-day, selling on a close below it."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1315,7 +1341,7 @@
    "rung": 5,
    "format": "scenario",
    "house": true,
-   "story": "1. Bought at $25.40 with the stop at $24.60, just under the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to sell a third.",
+   "story": "1. Bought at $25.40 with the stop at $24.60, just under the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to review the trade.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1332,14 +1358,14 @@
     "f20",
     "f73",
     "h02",
-    "h04",
+    "r01",
     "h11",
     "h21"
    ],
    "wrong": {
     "Line 1": "Line 1 is fine. Just under the day's low is our default stop.",
     "Line 2": "Line 2 is fine. That's only where the price is. The stop hasn't been hit, so nothing changes.",
-    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
+    "Line 4": "Line 4 is fine. An alert is only a mark to watch. The first sell is a judgment."
    },
    "simple": "Line 3, because moving the stop lower to give it room only lets the loss grow past the plan.",
    "tier": "extended",
@@ -1350,7 +1376,7 @@
      "story Line 1 reworded here, and rewritten before (2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q13",
@@ -1435,7 +1461,7 @@
    "rung": 6,
    "format": "scenario",
    "house": true,
-   "story": "1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. Trim: a third off at 3R.",
+   "story": "1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. First sell: a judgment, not on day 1.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1452,14 +1478,15 @@
     "f12",
     "f50",
     "f59",
-    "h04",
+    "r01",
+    "r02",
     "h18",
     "h19"
    ],
    "wrong": {
     "Line 1": "Line 1 is fine. A named setup with a clear entry.",
     "Line 3": "Line 3 is fine. Under the flag's low is where the idea fails.",
-    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
+    "Line 4": "Line 4 is fine. The first sell is a judgment, and he very rarely sells on day 1."
    },
    "simple": "Line 2, because the size should come from your risk and the stop distance, not from how much cash you have.",
    "tier": "extended",
@@ -1471,14 +1498,14 @@
      "rewritten before (2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q16",
    "skill": "process.mistakes",
    "rung": 6,
    "format": "scenario",
-   "story": "1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: a third off at 3R, the stop to breakeven.",
+   "story": "1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: sell some into a 3, 5 or 7 day push, then the stop to breakeven.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1495,13 +1522,13 @@
     "f17",
     "f59",
     "h06",
-    "h04",
+    "r03",
     "h07"
    ],
    "wrong": {
     "Line 1": "Line 1 is fine. A base breakout with a set entry.",
     "Line 2": "Line 2 is fine. Under the base's last low is where the idea fails.",
-    "Line 4": "Line 4 is fine. A third at 3R with the stop to breakeven is our first trim."
+    "Line 4": "Line 4 is fine. Selling some into a 3, 5 or 7 day push, then the stop to breakeven, fits our plan."
    },
    "house": true,
    "simple": "Line 3, because buying more as it slips toward the stop is adding to a loser, and we never add.",
@@ -1513,7 +1540,7 @@
      "rewritten before (2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q17",
@@ -1684,7 +1711,7 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. At 3R I sold a third and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average.",
+   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. On day 4 I sold a third into strength and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1701,7 +1728,7 @@
     "f45",
     "h02",
     "h03",
-    "h04",
+    "r02",
     "h07",
     "h05",
     "h11",
@@ -1709,12 +1736,12 @@
    ],
    "wrong": {
     "Line 1": "Line 1 is fine. Under the prior day's low is our default stop.",
-    "Line 2": "Line 2 is fine. A third off at 3R and the stop to breakeven is our first trim.",
+    "Line 2": "Line 2 is fine. Selling some into strength, usually on day 3 or later, with the stop to breakeven fits our plan.",
     "Line 4": "Line 4 is fine. Trailing a rising average is how we hold winners."
    },
    "simple": "Line 3, because once the stop is raised to breakeven it only moves up, and lowering it puts the loss back.",
    "deeper": {
-    "trap": "The dip feels like a reason to give the trade room. But the breakeven stop is there so this trade does not turn into a loser, and $62.50 has not touched it. Lowering it to $60.90 trades that protection for hope. If the breakeven stop is hit, the rest ends near flat, with a third already sold at 3R. Our rules let you buy again only if the setup triggers again, as a new trade."
+    "trap": "The dip feels like a reason to give the trade room. But the breakeven stop is there so this trade does not turn into a loser, and $62.50 has not touched it. Lowering it to $60.90 trades that protection for hope. If the breakeven stop is hit, the rest ends near flat, with a third already sold into strength. Our rules let you buy again only if the setup triggers again, as a new trade."
    },
    "tier": "expert",
    "risk": {
@@ -1724,7 +1751,7 @@
      "rewritten before (2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q22",
@@ -1833,7 +1860,7 @@
     "Line 4"
    ],
    "answer": "Line 2",
-   "why": "Line 2. Holding full size into the report was the choice that broke the plan. Our rule holds through a report only when the trade is up 5R, and by 3R a third is already sold. A stop can't catch an earnings gap. This one opened 11% lower, far under a stop 2% away.",
+   "why": "Line 2. Holding full size into the report was the choice that broke the plan. Our rule holds through a report only when the trade is up 5R. A stop can't catch an earnings gap. This one opened 11% lower, far under a stop 2% away.",
    "lesson_line": "Judge the choice, not the result. The mistake was made the night before the gap.",
    "facts": [
     "f35",
@@ -1841,8 +1868,7 @@
     "f09",
     "f30",
     "f46",
-    "h09",
-    "h04"
+    "h09"
    ],
    "wrong": {
     "Line 1": "Line 1 is fine. Four weeks gave the trade time to work before the report.",
@@ -1851,7 +1877,7 @@
    },
    "simple": "Line 2, because holding full size into earnings bet that the stop would work, and a gap can skip right past it.",
    "deeper": {
-    "trap": "Line 3 looks like the mistake because that is where the money was lost. But Line 3 is what the market did. Judge the choice, not the result. Had the report been good, holding full size would still have broken our rules. We hold through a report only when up 5R, and a third is sold at 3R."
+    "trap": "Line 3 looks like the mistake because that is where the money was lost. But Line 3 is what the market did. Judge the choice, not the result. Had the report been good, holding full size would still have broken our rules. We hold through a report only when up 5R."
    },
    "tier": "expert",
    "risk": {
@@ -1862,7 +1888,7 @@
      "fixed before (verify notes); story Line 4 reworded here"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q25",
@@ -2042,9 +2068,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "ok"
   },
   "q13": {
    "status": "pass",
@@ -2062,13 +2088,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer Line 2 (f34, f58). 'at most 40%' matches A5/A7/A8 (h18, h19). Prices from the story; sentences split under 22 words."
+   "notes": "ok"
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Facts now match the text (f68 gone). Key Line 3 per h06, f61, f42; Line 4 note grounded by h04/h07."
+   "notes": "ok"
   },
   "q17": {
    "status": "pass",
@@ -2097,8 +2123,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Deeper no longer claims the trade can't lose. $62.50 above the $62.30 breakeven stop (story). B21 line grounded by h22."
+   "fixed": true,
+   "notes": "deeper still said 'a third already sold at 3R'; now 'sold into strength' (D-013)."
   },
   "q22": {
    "status": "pass",
@@ -2114,9 +2140,9 @@
   },
   "q24": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "ok"
   },
   "q25": {
    "status": "pass",

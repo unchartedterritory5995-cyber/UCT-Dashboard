@@ -1119,6 +1119,24 @@
    "source": "h2",
    "quote": "Never move the stop up to make a trade fit.",
    "claim": "Owner: never move the stop up to make a trade fit."
+  },
+  {
+   "id": "r70",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Owner: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r71",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "Owner: he very rarely sells on day 1 and usually waits until day 3."
+  },
+  {
+   "id": "r72",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1640,11 +1658,10 @@
     },
     "round": 2
    },
-   "why": "169.51. One R is the buy minus the stop. Three R is the buy of 161.59 plus three of those. The first third comes off there. HWM got there in 7 days.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "169.51. One R is the buy minus the stop. Three R is the buy of 161.59 plus three of those. That is a yardstick, not a fixed sale. HWM got there in 7 days.",
+   "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
-    "hB19",
-    "a26",
+    "r70",
     "dHWM"
    ],
    "house": true,
@@ -1658,7 +1675,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q16",
@@ -1853,13 +1870,12 @@
    "criterion": "qk.breakout_trail",
    "q": "Kullamagi trails the rest of the position with the 10- or 20-day average.",
    "answer": "True",
-   "why": "True. Kullamagi trails the rest with the 10- or the 20-day moving average. Ours is nearly the same line: a close under the 10-day for fast movers, or under the 21-day for steadier ones. In our plan the rest is the last third, after the trims at 3R and 5R.",
-   "lesson_line": "Trail the last third under the 10-day or 21-day.",
+   "why": "True. Kullamagi trails the rest with the 10- or the 20-day moving average. Ours is nearly the same line: a close under the 10-day for fast movers, or under the 21-day for steadier ones. In our plan the rest is what is left after the first sells.",
+   "lesson_line": "Trail what is left under the 10-day or 21-day.",
    "facts": [
     "K6",
     "a27",
-    "hE52",
-    "hE51"
+    "hE52"
    ],
    "house": true,
    "simple": "Yes. He trails the rest with the 10- or 20-day average, and we use a close under the 10-day or 21-day.",
@@ -1870,7 +1886,7 @@
      "Rests on the owner's rulebook (E52, the trail)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q83",
@@ -2586,7 +2602,7 @@
     "Yes; you should have trimmed at 2R"
    ],
    "answer": "No; late base, and the stop worked",
-   "why": "No. NVDA was a late base, far along its yearly advance, which is Kell's late-in-the-cycle case. The base fits 10 to 40 sessions, the buy at 144.43 had its stop at 141.91 (1.7%), and the stop did its job on day 7. It reached 2.12R but never 3R, where the first trim is a third.",
+   "why": "No. NVDA was a late base, far along its yearly advance, which is Kell's late-in-the-cycle case. The base fits 10 to 40 sessions, the buy at 144.43 had its stop at 141.91 (1.7%), and the stop did its job on day 7. It reached 2.12R but never 3R, and no rule sold it earlier.",
    "lesson_line": "A stop-out with the rules followed is a planned loss.",
    "facts": [
     "dNVDA",
@@ -2595,19 +2611,19 @@
     "b12",
     "hA4",
     "a9",
-    "hB19",
-    "dNVDAr"
+    "dNVDAr",
+    "r70"
    ],
    "wrong": {
     "Yes; you should have held through": "The stop is the exit. Holding through it breaks the rule.",
     "No; but a late base should be skipped": "A late stock is graded down and sold into strength sooner. The card does not skip it.",
-    "Yes; you should have trimmed at 2R": "The first trim is a third at 3R. The trade reached 2.12R and never got there."
+    "Yes; you should have trimmed at 2R": "No rule sells at 2R. The first sell is a judgment, not a fixed third at 3R."
    },
    "house": true,
    "story": "NVDA, 2024. A 23-session base after a 32% run breaks out, and the stock is far along its yearly advance. You buy at 144.43 with the stop at 141.91. It reaches 2.12R, then is stopped on day 7.",
    "simple": "No, because it was a late base and the stop did its job, so no rule was broken.",
    "deeper": {
-    "counter": "Breakeven is the other lens. Moving the stop to breakeven at 2R to 5R is the ideal, and NVDA passed 2R, so that stop would have ended it at breakeven. But ideally is not a hard rule. The hard rules are the stop and a third off at 3R, and both were followed."
+    "counter": "Selling earlier looks smart in hindsight. NVDA passed 2R, but no rule sells at 2R. The first sell is a judgment. The hard rule that mattered was the stop, and it was followed."
    },
    "tier": "expert",
    "risk": {
@@ -2618,7 +2634,7 @@
      "a number-heavy walk"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q50",
@@ -4523,7 +4539,7 @@
    "rung": 5,
    "format": "numeric",
    "criterion": "qk.breakout_trim_2",
-   "q": "Bought at 52.35 with the stop at 51.21. Where is 5R, the second trim?",
+   "q": "Bought at 52.35 with the stop at 51.21. Where is 5R?",
    "answer": 58.05,
    "calc": {
     "fn": "arith",
@@ -4534,11 +4550,10 @@
     },
     "round": 2
    },
-   "why": "58.05. One R is the buy minus the stop, 52.35 minus 51.21. Five R above the buy is 58.05. Another third comes off there, after the first third at 3R. The ladder is adjustable.",
-   "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
+   "why": "58.05. One R is the buy minus the stop, 52.35 minus 51.21. Five R above the buy is 58.05. That is a yardstick, and a first sell at about 5 to 10R is often best.",
+   "lesson_line": "5R is a yardstick. A first sell near 5 to 10R is often best.",
    "facts": [
-    "hE51",
-    "aT2"
+    "r72"
    ],
    "house": true,
    "prefix": "$",
@@ -4551,7 +4566,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q105",
@@ -4559,31 +4574,30 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "qk.breakout_trim_2",
-   "q": "How many shares do you sell?",
+   "q": "You sell a second third. How many shares do you sell?",
    "choices": [
-    "Another 300; trail the final 300",
-    "All 600 now, because 5R is plenty",
-    "Nothing; wait for 10R before trimming",
-    "Sell 200, a third of what is left"
+    "300, leaving 300 to trail",
+    "600, leaving none",
+    "200, a third of what is left",
+    "450, half the position"
    ],
-   "answer": "Another 300; trail the final 300",
-   "why": "Another 300, then trail the final 300. You bought 900 shares and sold a third at 3R, so 600 are left. At 5R the plan sells another third, 300 here, and trails the last third. The levels can be adjusted, but the shape is a third, a third, then a trail.",
-   "lesson_line": "At 5R, sell the second third.",
+   "answer": "300, leaving 300 to trail",
+   "why": "300, leaving 300 to trail. A third of 900 is 300. You sold 300 already, so 600 were left. Selling another 300 leaves 300 on the trail.",
+   "lesson_line": "A third, another third, then trail the rest.",
    "facts": [
-    "hE51",
-    "aT2",
-    "a27"
+    "a27",
+    "hE52"
    ],
    "wrong": {
-    "All 600 now, because 5R is plenty": "Our plan sells a third at 5R and trails the rest, so winners can run.",
-    "Nothing; wait for 10R before trimming": "The second trim comes at 5R. Waiting longer skips it.",
-    "Sell 200, a third of what is left": "That leaves more than a third to trail. The plan sells another third, 300 here, and trails the last third."
+    "600, leaving none": "That sells everything. Our plan trails the last third so winners can run.",
+    "200, a third of what is left": "That leaves more than a third to trail. A third of 900 is 300.",
+    "450, half the position": "Half is not thirds. A third of 900 is 300."
    },
    "house": true,
-   "story": "You bought 900 shares and sold a third at 3R. The stock now reaches 5R.",
-   "simple": "Sell another 300 shares, a third of the position, and trail the last 300.",
+   "story": "You bought 900 shares and sold a third on the way up. Now you sell a second third and trail the rest.",
+   "simple": "Sell 300 shares, a third of the position, and trail the last 300.",
    "deeper": {
-    "example": "Walk it through. 900 shares. A third, 300, goes at 3R, leaving 600. Another 300 goes at 5R, leaving 300. That last 300 trails: a close under the 10-day for a fast mover, or under the 21-day for a steadier one, is the sale."
+    "example": "Walk it through. 900 shares. A third, 300, goes first, leaving 600. Another 300 goes next, leaving 300. That last 300 trails: a close under the 10-day for a fast mover, or under the 21-day for a steadier one, is the sale."
    },
    "tier": "extended",
    "risk": {
@@ -4592,7 +4606,7 @@
      "rests on the owner's rulebook (E51, adjustable)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q106",
@@ -4601,7 +4615,7 @@
    "format": "fill",
    "criterion": "qk.breakout_trim_gap_open",
    "q": "Tap the word that fits the blank.",
-   "sentence": "If a stock gaps above a trim level (3R or 5R), take that trim at the ___.",
+   "sentence": "If a stock gaps above a planned trim level, take that trim at the ___.",
    "bank": [
     "open",
     "close",
@@ -4610,12 +4624,11 @@
     "next dip"
    ],
    "answer": "open",
-   "why": "Open. A stock that gaps above a trim level (3R or 5R) is already past it. You take that trim at the open, not at a pullback or a later dip.",
+   "why": "Open. A stock that gaps above a planned trim level is already past it. You take that trim at the open, not at a pullback or a later dip.",
    "lesson_line": "Gap above a trim level: take it at the open.",
    "facts": [
     "hF63",
-    "aGap",
-    "hE51"
+    "aGap"
    ],
    "house": true,
    "simple": "If a stock gaps above a trim level, you sell that trim at the open, not later.",
@@ -4626,7 +4639,7 @@
      "rests on the owner's rulebook (F63)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q107",
@@ -4634,29 +4647,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "qk.breakout_trim_gap_open",
-   "q": "When do you take the first third?",
+   "q": "What fits the owner's plan at the open?",
    "choices": [
-    "At once; it is already past 46.00",
-    "Wait for a dip back down to 46.00",
-    "Hold until 5R, since it gapped up",
-    "Sell the whole position at the open"
+    "Weigh selling some into the push",
+    "Sell a third; 3R is a fixed rule",
+    "Sell the whole position at the open",
+    "Add shares because it gapped up"
    ],
-   "answer": "At once; it is already past 46.00",
-   "why": "At the open. The stock opened at 47.50, above the 46.00 trim level, so you take that trim at the open. The first trim is a third at 3R. The rest stays on for the next trim and the trail.",
-   "lesson_line": "Opens past the level: take the trim now.",
+   "answer": "Weigh selling some into the push",
+   "why": "Weigh selling some into the push. The first sell is a judgment, not a fixed third at 3R. Selling into a 3, 5 or 7 day push is often best. This is day five.",
+   "lesson_line": "A gap up is a push. Weigh the first sell, do not sell by a fixed rule.",
    "facts": [
-    "hF63",
-    "hB19",
-    "hE51"
+    "r70",
+    "r72",
+    "hA5"
    ],
    "wrong": {
-    "Wait for a dip back down to 46.00": "Waiting risks giving the gain back. The level is already passed.",
-    "Hold until 5R, since it gapped up": "The first trim is a third at 3R, and the gap only means you take it sooner.",
-    "Sell the whole position at the open": "The first trim is only a third at 3R. The rest stays on for the next trim and the trail."
+    "Sell the whole position at the open": "The plan sells in parts and trails the rest. It does not exit on a gap.",
+    "Sell a third; 3R is a fixed rule": "3R is no fixed sell point. The first sell is a judgment.",
+    "Add shares because it gapped up": "No adds. The plan is one entry at one price with one stop."
    },
    "house": true,
-   "story": "You bought at 40.00 with the stop at 38.00, so 3R is 46.00. The next morning the stock opens at 47.50.",
-   "simple": "The stock opened above the trim level, so you sell the first third right at the open.",
+   "story": "You bought at 40.00 with the stop at 38.00, so 3R is 46.00. On the fifth day of the trade the stock opens at 47.50.",
+   "simple": "Weigh selling some into the push, because the first sell is a judgment and not a fixed third at 3R.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -4664,7 +4677,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q108",
@@ -4713,12 +4726,12 @@
    "criterion": "qk.breakout_time_stop",
    "q": "A trade up 1.5R after ten trading days still has to be sold by the time stop.",
    "answer": "False",
-   "why": "False. The time stop sells a trade still under 1R after 10 trading days. At 1.5R the trade is working, so it stays. The stop still protects it, and the trims at 3R and 5R still apply.",
+   "why": "False. The time stop sells a trade still under 1R after 10 trading days. At 1.5R the trade is working, so it stays. The stop still protects it, and the first sell stays a judgment.",
    "lesson_line": "The time stop is for trades stuck under 1R.",
    "facts": [
     "hC33",
     "aTS",
-    "hE51"
+    "r70"
    ],
    "house": true,
    "simple": "False, because the time stop only sells a trade that is still under 1R after 10 trading days.",
@@ -4729,7 +4742,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q110",
@@ -5446,9 +5459,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "3R arithmetic; softened."
   },
   "q16": {
    "status": "pass",
@@ -5485,7 +5498,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "notes": "Trail; first-sells wording softened."
   },
   "q83": {
    "status": "cut",
@@ -5563,7 +5576,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found."
+   "notes": "Keep."
   },
   "q37": {
    "status": "pass",
@@ -5594,7 +5607,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "notes": "Keep; 3R is a measure."
   },
   "q44": {
    "status": "pass",
@@ -5606,7 +5619,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found."
+   "notes": "Reworded away from 2R trim and third at 3R; ok."
   },
   "q50": {
    "status": "pass",
@@ -5648,8 +5661,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Chart base is HWM 12 sessions, 17% deep, within card; two Take two Pass, key not longest.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Keep."
   },
   "q57": {
    "status": "pass",
@@ -5659,9 +5671,9 @@
   },
   "q58": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Base-rate 3R; keep."
   },
   "q59": {
    "status": "pass",
@@ -5928,27 +5940,27 @@
   },
   "q104": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "5R arithmetic; reframed as yardstick, cites r72."
   },
   "q105": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found."
+   "notes": "Share arithmetic with no 3R/5R trigger; ok."
   },
   "q106": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found."
+   "fixed": true,
+   "notes": "Sentence still teaches a gap past 3R as a trim level; under D-013 3R is not a fixed sell level, and sibling q107 now says weigh it. Make the level a planned one."
   },
   "q107": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R=46.00 from story; opens 47.50 so trim at open (hF63). Key not longest."
+   "notes": "Re-keyed to weigh the first sell; ok."
   },
   "q108": {
    "status": "pass",
@@ -5959,9 +5971,9 @@
   },
   "q109": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Time stop; softened."
   },
   "q110": {
    "status": "pass",

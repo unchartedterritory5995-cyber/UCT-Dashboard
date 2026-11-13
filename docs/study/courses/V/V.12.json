@@ -3587,7 +3587,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: the story states anger, so F67 (f192, angry: no new trades that day) makes 'Step away for the rest of the day' the only answer; 'Pass, wait' and 'half size' are still new trades that day. Schwab f47 and Investopedia f75 agree with stepping away. B15 (f190) is taught correctly (no daily loss limit), so the key does not lean on Schwab's rejected circuit breaker. Key 33 vs longest 34; two trade, two non-trade. 3R from the story. Owner confirmation of F67's scope is already flagged."
+   "notes": "Revenge-trading key; 3R is losses measuring stick; keep."
   },
   "q14": {
    "status": "pass",

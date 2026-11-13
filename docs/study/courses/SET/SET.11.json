@@ -993,6 +993,24 @@
    "source": "h2",
    "quote": "Never move the stop up to make a trade fit.",
    "claim": "D-005: never move the stop up to make a trade fit."
+  },
+  {
+   "id": "r10",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "First sell is a judgment, not a fixed third at 3R (D-013)"
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3 to 7 day push or at about 5 to 10R is often best (D-013)"
+  },
+  {
+   "id": "r12",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "Very rarely sells on day 1; usually waits until day 3 at the earliest (D-013)"
   }
  ],
  "walkthroughs": [
@@ -1206,7 +1224,7 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "lp.trail",
-   "q": "Which average trails a launchpad's last third by default?",
+   "q": "Which average does a launchpad's trail follow by default?",
    "choices": [
     "The 21-day",
     "The 10-day",
@@ -1214,20 +1232,20 @@
     "The 200-day"
    ],
    "answer": "The 21-day",
-   "why": "The 21-day, the steadier trail. Trail the last third on a close under the 21-day EMA. Launchpads come out of long bases and tend to trend along the 21-day. Use the 10-day only if the stock is a fast mover. The rulebook agrees: the 10-day for fast movers, the 21-day for steadier ones. After the first third at 3R and another at 5R, the last third rides the trail.",
+   "why": "The 21-day, the steadier trail. Trail what is left on a close under the 21-day EMA. Launchpads come out of long bases and tend to trend along the 21-day. Use the 10-day only if the stock is a fast mover. The rulebook agrees: the 10-day for fast movers, the 21-day for steadier ones. How much is left depends on the first sell, which is a judgment.",
    "lesson_line": "A pad trends along the 21-day. Trail it there and sell the close below.",
    "facts": [
     "c19",
     "c20",
     "h21",
-    "h20",
-    "h10"
+    "h10",
+    "r10"
    ],
    "house": true,
    "wrong": {
     "The 10-day": "The 10-day is for a fast mover. A pad out of a long base tends to trend along the 21-day.",
-    "The 50-day": "That is not the trail. The last third trails the 21-day and sells on a close below it.",
-    "The 200-day": "The 200-day is the line new longs must stay above, not a trail. The last third trails the 21-day."
+    "The 50-day": "That is not the trail. What is left trails the 21-day and sells on a close below it.",
+    "The 200-day": "The 200-day is the line new longs must stay above, not a trail. What is left trails the 21-day."
    },
    "simple": "The 21-day is the default trail, because a launchpad out of a long base tends to trend along it.",
    "deeper": {
@@ -1240,7 +1258,7 @@
      "rests on the owner's rulebook (E52 trail)"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q06",
@@ -1708,11 +1726,11 @@
     },
     "round": 2
    },
-   "why": "38.26. One R is the fill minus the stop, so 3R is three of those above the fill. A third off at 3R is the hard rule. In practice we mostly wait for 5R. KBH reached 3R in 7 sessions.",
-   "lesson_line": "Know your 3R in advance. A third comes off there under the hard rule.",
+   "why": "38.26. One R is the fill minus the stop, so 3R is three of those above the fill. 3R is a yardstick, not a fixed sale point, because the first sell is a judgment. KBH reached 3R in 7 sessions.",
+   "lesson_line": "Know your 3R in advance. It is a yardstick, and the first sell is a judgment.",
    "facts": [
-    "h05",
-    "d01"
+    "d01",
+    "r10"
    ],
    "house": true,
    "prefix": "$",
@@ -1725,7 +1743,7 @@
      "+2 rests on the owner's rulebook (B19: the hard rule is a third at 3R, in practice he mostly waits for 5R)"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q20",
@@ -2206,11 +2224,11 @@
    "criterion": "lp.breakeven",
    "q": "On a launchpad the stop moves to the entry once 2R has traded.",
    "answer": "True",
-   "why": "True. Stop to the entry once 2R has traded. The rulebook says breakeven at 2R to 5R, ideally, and our launchpad plan takes the low end. The first third then comes off at 3R.",
-   "lesson_line": "At 2R the stop moves to the entry. The first third comes off at 3R.",
+   "why": "True. Stop to the entry once 2R has traded. The rulebook says breakeven at 2R to 5R, ideally, and our launchpad plan takes the low end. The first sell is a judgment, usually no earlier than day 3.",
+   "lesson_line": "At 2R the stop moves to the entry. The first sell is a judgment.",
    "facts": [
     "c52",
-    "h05"
+    "r12"
    ],
    "house": true,
    "simple": "True. Our launchpad plan moves the stop to the entry at 2R, the low end of the rulebook's 2R to 5R.",
@@ -2222,7 +2240,7 @@
      "the card pins the low end, which the owner may want confirmed"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q34",
@@ -2427,16 +2445,16 @@
    "rung": 5,
    "format": "tf",
    "criterion": "lp.trim_gap_open",
-   "q": "If an untrimmed launchpad long opens above 3R, the first third is sold at the open.",
-   "answer": "True",
-   "why": "True. If a stock opens above a trim level, take that trim at the open. On a launchpad long the first trim is a third at 3R. A day that opens past 3R sells that third at the open. It does not wait for a later price.",
-   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "q": "If a launchpad long opens above 3R, the first third must be sold at the open.",
+   "answer": "False",
+   "why": "False. The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest.",
+   "lesson_line": "A gap past 3R forces no sale. The first sell is a judgment.",
    "facts": [
-    "h25",
-    "h05"
+    "r10",
+    "r12"
    ],
    "house": true,
-   "simple": "If the day opens past 3R, we take the first third off at the open instead of waiting.",
+   "simple": "False. The first sell is a judgment, not an automatic third at 3R, even when the day opens past it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2444,7 +2462,7 @@
      "rests on the owner's rulebook (F63, B19)"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q41",
@@ -3030,17 +3048,17 @@
     },
     "round": 1
    },
-   "why": "5R. Each R is the fill minus the stop, so 5R is five of those above the fill, 102.69. After the first third at 3R, the plan takes another third at 5R and trails the last third. The plan is adjustable, not fixed. BABA, from this same fill, reached 3R in 3 sessions.",
-   "lesson_line": "Count in R, not dollars. 5R is the second trim.",
+   "why": "5R. Each R is the fill minus the stop, so 5R is five of those above the fill, 102.69. Selling at about 5 to 10R is often best, but the sell is a judgment. BABA, from this same fill, reached 3R in 3 sessions.",
+   "lesson_line": "Count in R, not dollars. About 5R to 10R is often a good place to sell.",
    "facts": [
-    "h20",
-    "d03"
+    "d03",
+    "r11"
    ],
    "house": true,
    "suffix": "R",
-   "simple": "The stock is 5R up, five times the distance from fill to stop, which is where the plan takes the second third off.",
+   "simple": "The stock is 5R up, five times the distance from fill to stop, a spot where selling is often best.",
    "deeper": {
-    "trap": "R is counted from the fill, not from the stop. Counting from the stop counts the risk itself as gain, so it reads one R too high. A dollar gain misleads too: it means nothing until you divide it by the risk per share. The 5R trim is the plan's second third, and we mark it adjustable."
+    "trap": "R is counted from the fill, not from the stop. Counting from the stop counts the risk itself as gain, so it reads one R too high. A dollar gain misleads too: it means nothing until you divide it by the risk per share. Five R is a yardstick, not an automatic sale."
    },
    "tier": "extended",
    "risk": {
@@ -3050,7 +3068,7 @@
      "+2 rests on the owner's rulebook (E51 plan, marked adjustable)"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q57",
@@ -3159,7 +3177,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "lp.trail",
-   "q": "What happens to the last third?",
+   "q": "What happens to the rest of the position?",
    "choices": [
     "Sold on that close under the 21-day",
     "Held; the stop is at breakeven",
@@ -3167,20 +3185,21 @@
     "Sold after two closes under the 21-day"
    ],
    "answer": "Sold on that close under the 21-day",
-   "why": "Sold. The last third trails the 21-day, the steadier trail, and comes off on a close below it. This stock is a steady mover, so the 21-day is the line, and today's close under it is the exit. The 10-day is only for a fast mover. Breakeven is a floor, not the exit.",
-   "lesson_line": "Two thirds banked, the last third on the trail. The close below the line is the exit.",
+   "why": "Sold. What is left trails the 21-day, the steadier trail, and comes off on a close below it. This stock is a steady mover, so the 21-day is the line, and today's close under it is the exit. The 10-day is only for a fast mover. Breakeven is a floor, not the exit.",
+   "lesson_line": "Part is banked, the rest is on the trail. The close below the line is the exit.",
    "facts": [
     "c19",
-    "h21"
+    "h21",
+    "r10"
    ],
    "house": true,
    "wrong": {
-    "Held; the stop is at breakeven": "Breakeven is the stop's floor, not the plan. The trail is the exit for the last third.",
+    "Held; the stop is at breakeven": "Breakeven is the stop's floor, not the plan. The trail is the exit for what is left.",
     "Held until a close under the 50-day": "The trail for a steadier mover is the 21-day, not the 50-day.",
     "Sold after two closes under the 21-day": "The rule sells on a close below the 21-day. One close is the signal, not two."
    },
-   "story": "Two thirds are banked at 3R and 5R. Today the steady mover closes under the 21-day for the first time since the launch.",
-   "simple": "Sell it, because the last third rides the 21-day and one close below that line is the exit.",
+   "story": "You have sold part of the position into strength. Today the steady mover closes under the 21-day for the first time since the launch.",
+   "simple": "Sell it, because what is left rides the 21-day and one close below that line is the exit.",
    "tier": "expert",
    "risk": {
     "score": 2,
@@ -3188,7 +3207,7 @@
      "rests on the owner's rulebook (E52 trail)"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q61",
@@ -3350,39 +3369,40 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "lp.stop",
-   "q": "Write the plan: entry, stop, first trim.",
+   "q": "Write the plan: entry, stop, earliest sell.",
    "choices": [
-    "Through the trigger; day-low stop; 3R",
-    "Limit below price; day-low stop; 3R",
-    "Next open; 200-day stop; 2R",
-    "At the close; day-low stop; 3R"
+    "Through the trigger; day-low stop; day 3",
+    "Limit below price; day-low stop; day 3",
+    "Next open; 200-day stop; day 1",
+    "At the close; day-low stop; day 3"
    ],
-   "answer": "Through the trigger; day-low stop; 3R",
-   "why": "Buy as price trades through the trigger during the day, with the stop a few cents under that day's low and a third off at 3R. We do not buy at the close. Entries are market orders, so a limit below the market is not the plan.",
-   "lesson_line": "Entry, stop, trim, trail. Know them before you buy and execute without a debate.",
+   "answer": "Through the trigger; day-low stop; day 3",
+   "why": "Buy as price trades through the trigger during the day, with the stop a few cents under that day's low. The first sell is a judgment, usually day 3 at the earliest. We never buy at the close. Entries are market orders, so a limit below the market is not the plan.",
+   "lesson_line": "Entry, stop, first sell, trail. Know them before you buy and execute without a debate.",
    "facts": [
     "d03",
     "d04",
     "c17",
     "h22",
-    "h05",
     "c52",
     "h24",
     "h03",
     "c41",
     "r04",
-    "r05"
+    "r05",
+    "r10",
+    "r12"
    ],
    "house": true,
    "wrong": {
-    "Next open; 200-day stop; 2R": "The buy comes as price trades through the trigger, not at the next open. At 2R the stop only moves up to the entry.",
-    "Limit below price; day-low stop; 3R": "Entries are market orders as price trades through the trigger, so a limit below the market is not the plan.",
-    "At the close; day-low stop; 3R": "We rarely buy at the close. The buy comes as price trades through the trigger during the day."
+    "Next open; 200-day stop; day 1": "The buy comes as price trades through the trigger, not at the next open. He very rarely sells on day 1.",
+    "Limit below price; day-low stop; day 3": "Entries are market orders as price trades through the trigger, so a limit below the market is not the plan.",
+    "At the close; day-low stop; day 3": "We never buy at the close. The buy comes as price trades through the trigger during the day."
    },
    "story": "BABA, January 2025: weeks of closes under the bundle, the 200-day 1% away. On 2025-01-24 it launches, up 3.5% and above all four.",
-   "simple": "Buy as price trades through the trigger, put the stop a few cents under the day's low, and sell a third at 3R.",
+   "simple": "Buy as price trades through the trigger, put the stop a few cents under the day's low, and sell no earlier than day 3.",
    "deeper": {
-    "trap": "The trap is the entry and the stop. Buying at the close is not our way, and a stop far under the bundle or the base sits outside what we accept. Sizing from it gives a tiny position or a stop pulled in to fit. The primary stop is a few cents under the day's low."
+    "trap": "The trap is the entry and the stop. Buying at the close is never our way, and a stop far under the bundle or the base sits outside what we accept. Sizing from it gives a tiny position or a stop pulled in to fit. The primary stop is a few cents under the day's low."
    },
    "tier": "expert",
    "risk": {
@@ -3393,7 +3413,7 @@
      "fixed before (resolver)"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q66",
@@ -3592,7 +3612,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded."
+   "notes": "edit ok, agrees with D-013"
   },
   "q06": {
    "status": "pass",
@@ -3671,13 +3691,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found."
+   "notes": "keep: scan stat, 5R only a measuring stick"
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "35.26 + 3 x (35.26 - 34.26) = 38.26, matches calc. Hard rule of a third at 3R and 'mostly waits for 5R' are B19 verbatim; KBH 3R in 7 sessions is d01. No tell, sentences short."
+   "notes": "edit ok, agrees with D-013"
   },
   "q20": {
    "status": "cut",
@@ -3762,8 +3782,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. B19 range includes 2R; the card pins the low end. Owner flag stands."
+   "fixed": true,
+   "notes": "edit ok; dropped old B19 h05 citation since its quote teaches the 3R third"
   },
   "q34": {
    "status": "cut",
@@ -3806,7 +3826,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "F63 plus the B19 hard rule (a third at 3R) support True. 'Untrimmed' closes the gap. No tell."
+   "notes": "re-keyed to False; correct per D-013"
   },
   "q41": {
    "status": "cut",
@@ -3904,7 +3924,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold, matched key; quotes verified in card, dossier and sizing_rule; no tell or second answer found."
+   "notes": "edit ok, agrees with D-013"
   },
   "q57": {
    "status": "pass",
@@ -3923,14 +3943,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h15/c21/d06 support the key; DDOG numbers match d05. Wrong notes grounded. Key repeats 'over 1R' from the story but the 3R and any-profit distractors make it a real test.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep: time stop 1R, 3R only a yardstick"
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h21/c19 support the key (one close, 21-day for a steady mover). Distractors rule-based. Balanced."
+   "notes": "edit ok, agrees with D-013"
   },
   "q61": {
    "status": "pass",
@@ -3959,8 +3978,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit right: through the trigger; at-the-close distractor clearly wrong per D-003 | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "D-003 and D-013 both met; day 3 earliest; r04 cited"
   },
   "q66": {
    "status": "pass",

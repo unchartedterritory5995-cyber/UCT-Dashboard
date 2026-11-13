@@ -1103,6 +1103,24 @@
    "source": "h2",
    "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
    "claim": "D-009: indexes and leveraged ETFs may be bought under their 200-day on a parabolic long."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "D-013: he very rarely sells on day 1 and usually waits until day 3."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "D-013: selling into a 3, 5 or 7 day push, or about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -2493,17 +2511,17 @@
    "rung": 5,
    "format": "tf",
    "criterion": "pl.trim_gap_open",
-   "q": "If the stock opens above a trim level, the trim must be taken at the open.",
+   "q": "If the stock opens above a level where you planned to sell, take that sell at the open.",
    "answer": "True",
-   "why": "True. If a stock opens above a trim level (3R, 5R), take that trim at the open. The hard rule for the first trim is a third at 3R. This is about trim levels; a gap through the stop follows the gap rule instead.",
-   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "why": "True. If a stock opens above a level where you planned to sell, take that sell at the open. Do not wait for the close to decide. This is about planned sell levels. A gap through the stop follows the gap rule instead.",
+   "lesson_line": "A gap through your planned sell level is the sell. Take it at the open.",
    "facts": [
     "h25",
-    "h05",
-    "h06"
+    "h06",
+    "r03"
    ],
    "house": true,
-   "simple": "True. When a stock opens past a trim level, we take that trim at the open.",
+   "simple": "True. When a stock opens past a level where we planned to sell, we sell at the open.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2511,7 +2529,7 @@
      "rests on the owner's rulebook (F63)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q38",
@@ -3731,7 +3749,7 @@
    },
    "simple": "3R is 44.50, a little below the 9 EMA at 45.10.",
    "deeper": {
-    "example": "From the fill at 40.00 the levels run in order: 2R, then 3R at 44.50, then the 9 EMA at 45.10. Mark all three on the chart once you are filled, so each one already has a plan."
+    "example": "From the fill at 40.00 the levels run in order: 2R, then 3R at 44.50, then the 9 EMA at 45.10. Mark all three on the chart once you are filled, so you know which one price meets first."
    },
    "tier": "expert",
    "risk": {
@@ -3838,19 +3856,21 @@
    "skill": "setup.parabolic_long",
    "rung": 4,
    "format": "mcq",
-   "q": "What does our hard rule say about the first trim?",
+   "q": "How do we decide the first sell on a winner?",
    "choices": [
-    "Sell a third of the shares at 3R",
-    "Sell half of the shares at 2R",
-    "Sell a quarter of the shares at 1R",
-    "Sell two thirds of the shares at 3R"
+    "A judgment; day 3 or later is usual",
+    "Always a third of the shares at 3R",
+    "Half of the shares at 2R, always",
+    "Sell it all on day 1 of the buy"
    ],
-   "answer": "Sell a third of the shares at 3R",
-   "why": "A third at 3R. The hard rule for the first trim is a third at 3R. Ideally the first trim comes anywhere from 3R to 6R.",
-   "lesson_line": "The first trim is a third at 3R. That is the hard rule.",
-   "simple": "The first trim is a third of the shares at 3R.",
+   "answer": "A judgment; day 3 or later is usual",
+   "why": "A judgment. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "lesson_line": "The first sell is a judgment, usually day 3 or later, into a push.",
+   "simple": "It is a judgment, usually on day 3 or later, into a push.",
    "facts": [
-    "h05"
+    "r03",
+    "r04",
+    "r05"
    ],
    "house": true,
    "tier": "extended",
@@ -3861,11 +3881,11 @@
     ]
    },
    "wrong": {
-    "Sell half of the shares at 2R": "Two R is where the stop can move to breakeven, not where the first trim sits. The first trim is a third at 3R.",
-    "Sell a quarter of the shares at 1R": "The hard rule is a third at 3R, not a quarter at 1R.",
-    "Sell two thirds of the shares at 3R": "The hard rule sells a third at 3R, not two thirds."
+    "Always a third of the shares at 3R": "The first sell is a judgment, not a fixed third at 3R.",
+    "Half of the shares at 2R, always": "Two R is where the stop can move to breakeven, not a fixed place to sell half.",
+    "Sell it all on day 1 of the buy": "We very rarely sell on day 1 of the buy, and selling all of it is not a first sell."
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   }
  ],
  "conflicts": [
@@ -4100,14 +4120,14 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "agrees with ruling"
+   "fixed": false,
+   "notes": "keep; 3R only a yardstick/arithmetic; entries at reclaim, not close"
   },
   "q37": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "re-keyed to planned sell level; no fixed 3R"
   },
   "q38": {
    "status": "pass",
@@ -4125,7 +4145,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c23/d05/d06; story is a single theme, no market state given, c24 caveat in why."
+   "notes": "keep; 3R only a yardstick/arithmetic; entries at reclaim, not close"
   },
   "q41": {
    "status": "pass",
@@ -4168,8 +4188,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (52-48.7)/(52-50.9)=3.0 checked; h06 and h07 decide; sibling q27 is the inside-2R side.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep; 3R only a yardstick/arithmetic; entries at reclaim, not close"
   },
   "q48": {
    "status": "pass",
@@ -4216,9 +4235,9 @@
   },
   "q55": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "keep (3R yardstick). NOTE: 3-8% stop wording conflicts with D-005 (past 5% mostly wait), outside this chunk's D-013 scope"
   },
   "q56": {
    "status": "pass",
@@ -4274,8 +4293,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "BABA is a stock far under its 200-day; D-009 bars it. Plan skill stays, but say so honestly"
+   "fixed": false,
+   "notes": "keep; 3R only a yardstick/arithmetic; entries at reclaim, not close"
   },
   "q65": {
    "status": "pass",
@@ -4293,7 +4312,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "agrees with ruling"
+   "notes": "arithmetic keep is right; deeper said each mark 'already has a plan', which implies a 3R sell plan; softened"
   },
   "q68": {
    "status": "cut",
@@ -4334,8 +4353,8 @@
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "h05 verbatim: the hard rule is a third at 3R. Wrong choices differ from the key and are not rulebook options. Fits the card's 9 EMA exit (trim, then exit the rest); D-013 stays an owner flag."
+   "fixed": true,
+   "notes": "re-key right; wrong text 'never all of it' overclaims (a trailing exit can sell all)"
   }
  }
 }

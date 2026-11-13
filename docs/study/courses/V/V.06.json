@@ -444,6 +444,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h5",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -1448,6 +1456,30 @@
    "source": "h4",
    "quote": "The stop is the exit. It only moves up, never down or wider.",
    "claim": "Our stop only moves up, never down or wider."
+  },
+  {
+   "id": "r01",
+   "source": "h5",
+   "quote": "I very rarely sell on the day 1 of the buy day.",
+   "claim": "The owner very rarely sells on day 1 of the buy day."
+  },
+  {
+   "id": "r02",
+   "source": "h5",
+   "quote": "I usually wait until day 3 at the earliest.",
+   "claim": "The owner usually waits until day 3 at the earliest for the first sell."
+  },
+  {
+   "id": "r03",
+   "source": "h5",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r04",
+   "source": "h5",
+   "quote": "SO 3-5-7 day or 5-10 R is often best.",
+   "claim": "A 3, 5 or 7 day push, or about 5 to 10R, is often the best first sell."
   }
  ],
  "walkthroughs": [
@@ -1825,28 +1857,30 @@
    "rung": 3,
    "format": "mcq",
    "term": "R-multiple",
-   "q": "Our plan sells in thirds. What happens to the last third?",
+   "q": "Our plan sells in parts. What happens to the last part?",
    "choices": [
-    "It trails after the second trim",
-    "It sells with the second trim",
+    "It trails after the earlier sells",
+    "It sells together with the first sell",
     "It sells at a set percent gain",
     "It sells at a 2R profit target"
    ],
-   "answer": "It trails after the second trim",
-   "why": "It trails after the second trim. Our rulebook sells a third at 3R, the hard rule, then another third at 5R. The last third then trails. Our default trail sells on a close below the 10-day average for fast movers, or the 21-day for steadier ones. The levels are adjustable.",
-   "lesson_line": "A third at 3R, a third at 5R, then trail the last third.",
+   "answer": "It trails after the earlier sells",
+   "why": "It trails after the earlier sells. The first sell is a judgment: the owner very rarely sells on day 1 and usually waits until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 10-day average, or the 21-day for steadier movers.",
+   "lesson_line": "The first sell is a judgment, not a fixed third. Then trail what is left.",
    "facts": [
-    "h01",
-    "h09",
+    "r01",
+    "r02",
+    "r03",
+    "r04",
     "h4e52"
    ],
    "wrong": {
-    "It sells with the second trim": "The second third comes off at 5R. The last third stays on and trails.",
-    "It sells at a set percent gain": "Our plan does not sell the last third at a set percent. It trails.",
-    "It sells at a 2R profit target": "Our plan has no 2R target. The thirds come off at 3R and 5R, and the last third trails."
+    "It sells at a set percent gain": "Our plan does not sell the last part at a set percent. It trails.",
+    "It sells at a 2R profit target": "Our plan has no fixed 2R target. The first sell is a judgment, and the last part trails.",
+    "It sells together with the first sell": "Selling it all at once ends the trade. The last part stays on and trails."
    },
    "house": true,
-   "simple": "The last third trails, because we sell a third at 3R, a third at 5R, then trail what is left.",
+   "simple": "The last part trails, because the first sell is a judgment and what is left rides the trail.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -1856,7 +1890,7 @@
      "fixed before (was 2R and 3R)"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q11",
@@ -4145,9 +4179,9 @@
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Plain R arithmetic; keep."
   },
   "q08": {
    "status": "cut",
@@ -4159,14 +4193,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc r_multiple 60/55/45 = -3. -1R, -15R, -0.33R are real slips with correct notes. Deeper's 12R matches f24 verbatim. No overlap with q08 (holding, not a gap)."
+   "notes": "Plain R loss arithmetic; keep."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Re-keyed to judgment first sell then trail; ruling quotes cited."
   },
   "q11": {
    "status": "pass",
@@ -4176,9 +4209,9 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Expectancy arithmetic with 3R as average win; keep."
   },
   "q13": {
    "status": "pass",

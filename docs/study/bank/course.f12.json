@@ -375,7 +375,7 @@
   "difficulty": 1,
   "id": "si_8750f2217c23",
   "lesson_origin": "session",
-  "lesson_text": "Where to take some profit off. Our rule sells the first third at 3R and another third at 5R, then trails the last third. R is the risk you took on the trade, set by your first stop. Trim is not the Stop, where you get out if you're wrong. It is not the Trail, which moves the stop up behind a winner. Entry, Stop, Trim, Trail. Trim is where you sell some into strength.",
+  "lesson_text": "Where to take some profit off. R is the risk you took on the trade, set by your first stop. The first sell is a judgment, not a fixed level, and he usually waits until day 3 at the earliest. Trim is not the Stop, where you get out if you're wrong. It is not the Trail, which moves the stop up behind a winner. Entry, Stop, Trim, Trail. Trim is where you sell some into strength.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -399,18 +399,18 @@
       "url": "repo:docs/study/OWNER_PRINCIPLES.md#b-teaching"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -441,7 +441,7 @@
       "url": "https://vantharpinstitute.com/glossary/r-value"
      }
     ],
-    "summary": "We lay out each trade we teach as Entry, Stop, Trim, Trail and the advance. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. One of our Trail lines (the Kicker's): the stop goes under each higher low, or under the 10-day average. The plan covers managing the open trade: moving the stop, taking partial profits, getting out. Size is worked out from the entry-to-stop distance, so the stop has to come first. R is the risk you took on a trade, set by your first stop."
+    "summary": "We lay out each trade we teach as Entry, Stop, Trim, Trail and the advance. The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. One of our Trail lines (the Kicker's): the stop goes under each higher low, or under the 10-day average. The plan covers managing the open trade: moving the stop, taking partial profits, getting out. Size is worked out from the entry-to-stop distance, so the stop has to come first. R is the risk you took on a trade, set by your first stop."
    },
    "facts": {
     "given": "Our trade plans include Entry, Stop, Trim and Trail lines. What does the Trim line tell you? Where to take some profit off Where you get out if you're wrong How the stop follows it higher How many shares to buy at entry"
@@ -450,7 +450,7 @@
    "simple": "Trim is where you sell part of a winner to lock in some of the profit.",
    "tier": "core",
    "unit": "F12.01",
-   "why": "Where to take some profit off. Our rule sells the first third at 3R and another third at 5R, then trails the last third. R is the risk you took on the trade, set by your first stop. Trim is not the Stop, where you get out if you're wrong. It is not the Trail, which moves the stop up behind a winner.",
+   "why": "Where to take some profit off. R is the risk you took on the trade, set by your first stop. The first sell is a judgment, not a fixed level, and he usually waits until day 3 at the earliest. Trim is not the Stop, where you get out if you're wrong. It is not the Trail, which moves the stop up behind a winner.",
    "wrong": {
     "How many shares to buy at entry": "That's your size, worked out from the stop. Trim is about selling some, not buying.",
     "How the stop follows it higher": "That's the Trail line, like moving the stop up under each higher low.",
@@ -10530,18 +10530,18 @@
   "difficulty": 2,
   "id": "si_932d89f2aae2",
   "lesson_origin": "session",
-  "lesson_text": "It cleared its 52-week high. That is a price level on the chart. On the SYY page, the chart's levels sat under technical analysis: 30.50, 31.50 and 32 were longer term technical levels. The market being up is the big picture. The earnings beat is the catalyst, filed under intraday fundamentals. Selling a third at 3R is how you handled the position, not a chart level. Chart levels go under technical analysis. The news and your exits each get their own box.",
+  "lesson_text": "It cleared its 52-week high. That is a price level on the chart. On the SYY page, the chart's levels sat under technical analysis: 30.50, 31.50 and 32 were longer term technical levels. The market being up is the big picture. The earnings beat is the catalyst, filed under intraday fundamentals. Selling part into strength is how you handled the position, not a chart level. Chart levels go under technical analysis. The news and your exits each get their own box.",
   "module": "F12",
   "prompt_json": {
    "choices": [
     "It beat earnings estimates",
-    "You sold a third at 3R",
+    "You sold part into strength",
     "The market was up that day",
     "It cleared its 52-week high"
    ],
    "kind": "mcq",
    "q": "Which detail goes under technical analysis?",
-   "story": "You're writing up today's best trade. The market was up that day. The stock beat earnings, gapped up and cleared its 52-week high. You sold a third at 3R.",
+   "story": "You're writing up today's best trade. The market was up that day. The stock beat earnings, gapped up and cleared its 52-week high. You sold part of it into strength.",
    "subject": "F12.06#q09"
   },
   "reveal_json": {
@@ -10588,29 +10588,22 @@
       "quote": "The Big Picture: First Know What Is Moving the Market",
       "tier": 2,
       "url": "https://ptgmedia.pearsoncmg.com/images/9780132937641/samplepages/0132937646.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "In the SYY entry, the chart's price levels are written under technical analysis. The book's PlayBook sections: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review. In the SYY entry, the earnings and revenue beat is written under intraday fundamentals. Intraday fundamentals means the news behind a stock and the clues it gives about how the stock may move. SMB's longer trades start with a stock with fresh news, a catalyst, and then technicals that line up. The big picture section comes first: know what is moving the market. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+    "summary": "In the SYY entry, the chart's price levels are written under technical analysis. The book's PlayBook sections: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review. In the SYY entry, the earnings and revenue beat is written under intraday fundamentals. Intraday fundamentals means the news behind a stock and the clues it gives about how the stock may move. SMB's longer trades start with a stock with fresh news, a catalyst, and then technicals that line up. The big picture section comes first: know what is moving the market."
    },
    "facts": {
-    "given": "Which detail goes under technical analysis? You're writing up today's best trade. The market was up that day. The stock beat earnings, gapped up and cleared its 52-week high. You sold a third at 3R. It cleared its 52-week high It beat earnings estimates You sold a third at 3R The market was up that day"
+    "given": "Which detail goes under technical analysis? You're writing up today's best trade. The market was up that day. The stock beat earnings, gapped up and cleared its 52-week high. You sold part of it into strength. It cleared its 52-week high It beat earnings estimates You sold part into strength The market was up that day"
    },
    "lesson_line": "Chart levels go under technical analysis. The news and your exits each get their own box.",
    "simple": "Clearing its 52-week high goes there, because it is a price level on the chart.",
    "tier": "core",
    "unit": "F12.06",
-   "why": "It cleared its 52-week high. That is a price level on the chart. On the SYY page, the chart's levels sat under technical analysis: 30.50, 31.50 and 32 were longer term technical levels. The market being up is the big picture. The earnings beat is the catalyst, filed under intraday fundamentals. Selling a third at 3R is how you handled the position, not a chart level.",
+   "why": "It cleared its 52-week high. That is a price level on the chart. On the SYY page, the chart's levels sat under technical analysis: 30.50, 31.50 and 32 were longer term technical levels. The market being up is the big picture. The earnings beat is the catalyst, filed under intraday fundamentals. Selling part into strength is how you handled the position, not a chart level.",
    "wrong": {
     "It beat earnings estimates": "That's the catalyst. Bellafiore files news like that under intraday fundamentals.",
     "The market was up that day": "That's the big picture, the first section: what is moving the whole market. Technical analysis holds the stock's own chart levels.",
-    "You sold a third at 3R": "That's how you handled the position, not a chart level. Technical analysis holds the stock's chart levels."
+    "You sold part into strength": "That's how you handled the position, not a chart level. Technical analysis holds the stock's chart levels."
    }
   },
   "review_status": "draft",
@@ -10689,36 +10682,36 @@
   "difficulty": 2,
   "id": "si_4273ac05d702",
   "lesson_origin": "session",
-  "lesson_text": "$22.10. R is your risk per share, from the $20.00 entry down to the $19.30 stop. Three times that risk, added to the entry, gives $22.10. Our hard rule takes a third off there. The next third comes off at 5R, and the last third is trailed. Write the trim prices on the page in dollars, not just as 3R and 5R.",
+  "lesson_text": "$22.10. R is your risk per share, from the $20.00 entry down to the $19.30 stop. Three times that risk, added to the entry, gives $22.10. It is a mark on the page, not an order to sell. The first sell is a judgment, usually day 3 or later. Write the 3R price on the page in dollars. Then judge the first sell as the trade runs.",
   "module": "F12",
   "prompt_json": {
    "kind": "fill_numeric",
    "prefix": "$",
-   "q": "Your Kicker page: entry $20.00, stop $19.30. Our first trim is a third at 3R. At what price is it?",
+   "q": "Your Kicker page: entry $20.00, stop $19.30. What is the 3R price?",
    "subject": "F12.06#q11"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Don't read 3R as a fixed percent or a fixed dollar gain. R is your own risk per share, entry minus stop. So the trim price moves with your stop. A tighter stop brings the trim closer, and a wider one pushes it further away."
+    "trap": "Don't read 3R as a fixed percent or a fixed dollar gain. R is your own risk per share, entry minus stop. So the 3R price moves with your stop. A tighter stop brings it closer, and a wider one pushes it further away."
    },
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third."
+    "summary": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
    },
    "facts": {
     "calc": {
@@ -10730,13 +10723,13 @@
      "fn": "arith",
      "result": 22.1
     },
-    "given": "Your Kicker page: entry $20.00, stop $19.30. Our first trim is a third at 3R. At what price is it?"
+    "given": "Your Kicker page: entry $20.00, stop $19.30. What is the 3R price?"
    },
-   "lesson_line": "Write the trim prices on the page in dollars, not just as 3R and 5R.",
-   "simple": "The first trim is at $22.10, because three times the risk from $20.00 to $19.30 is added to the entry.",
+   "lesson_line": "Write the 3R price on the page in dollars. Then judge the first sell as the trade runs.",
+   "simple": "The 3R price is $22.10, because three times the risk from $20.00 to $19.30 is added to the entry.",
    "tier": "extended",
    "unit": "F12.06",
-   "why": "$22.10. R is your risk per share, from the $20.00 entry down to the $19.30 stop. Three times that risk, added to the entry, gives $22.10. Our hard rule takes a third off there. The next third comes off at 5R, and the last third is trailed."
+   "why": "$22.10. R is your risk per share, from the $20.00 entry down to the $19.30 stop. Three times that risk, added to the entry, gives $22.10. It is a mark on the page, not an order to sell. The first sell is a judgment, usually day 3 or later."
   },
   "review_status": "draft",
   "skill_id": "process.playbook",
@@ -12677,7 +12670,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Bought at $25.40 with the stop at $24.60, just under the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to sell a third.",
+   "story": "1. Bought at $25.40 with the stop at $24.60, just under the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to review the trade.",
    "subject": "F12.07#q12"
   },
   "reveal_json": {
@@ -12719,11 +12712,11 @@
       "url": "repo:docs/study/sizing_rule.md#2-stop-first"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -12740,10 +12733,10 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Pulling a stop is usually a way to avoid admitting you were wrong, and the stock can keep falling. A plan should not change every time a trade goes against you. Our default stop is the low of the day or the prior day's low. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule. Our rule F62: the default stop sits a few cents under the day's low, not exactly on it."
+    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Pulling a stop is usually a way to avoid admitting you were wrong, and the stock can keep falling. A plan should not change every time a trade goes against you. Our default stop is the low of the day or the prior day's low. The owner's ruling: the first sell is a judgment, not a fixed third at 3R. Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule. Our rule F62: the default stop sits a few cents under the day's low, not exactly on it."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Bought at $25.40 with the stop at $24.60, just under the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to sell a third. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Bought at $25.40 with the stop at $24.60, just under the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to review the trade. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "A stop can move up behind a winner. It never moves down to rescue a loser.",
    "simple": "Line 3, because moving the stop lower to give it room only lets the loss grow past the plan.",
@@ -12753,7 +12746,7 @@
    "wrong": {
     "Line 1": "Line 1 is fine. Just under the day's low is our default stop.",
     "Line 2": "Line 2 is fine. That's only where the price is. The stop hasn't been hit, so nothing changes.",
-    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
+    "Line 4": "Line 4 is fine. An alert is only a mark to watch. The first sell is a judgment."
    }
   },
   "review_status": "draft",
@@ -12958,7 +12951,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. Trim: a third off at 3R.",
+   "story": "1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. First sell: a judgment, not on day 1.",
    "subject": "F12.07#q15"
   },
   "reveal_json": {
@@ -13000,11 +12993,18 @@
       "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -13021,10 +13021,10 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Position size is the dollars you will risk divided by the risk per share. Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small. A common guide: risk up to 1% to 2% of the account per trade, and hold up to 5% to 10% in one position. No single position should be big enough to decide the whole account's future. The stop goes where the trade idea is proven wrong. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our rule A5: the size is the smaller of the risk-based size and the position cap. Our rule A7: one position is capped at 40% of the account."
+    "summary": "Position size is the dollars you will risk divided by the risk per share. Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small. A common guide: risk up to 1% to 2% of the account per trade, and hold up to 5% to 10% in one position. No single position should be big enough to decide the whole account's future. The stop goes where the trade idea is proven wrong. The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Our rule A5: the size is the smaller of the risk-based size and the position cap. Our rule A7: one position is capped at 40% of the account."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. Trim: a third off at 3R. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. First sell: a judgment, not on day 1. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "What you can afford is not the test. Your risk and the stop set the size.",
    "simple": "Line 2, because the size should come from your risk and the stop distance, not from how much cash you have.",
@@ -13034,7 +13034,7 @@
    "wrong": {
     "Line 1": "Line 1 is fine. A named setup with a clear entry.",
     "Line 3": "Line 3 is fine. Under the flag's low is where the idea fails.",
-    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
+    "Line 4": "Line 4 is fine. The first sell is a judgment, and he very rarely sells on day 1."
    }
   },
   "review_status": "draft",
@@ -13062,7 +13062,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: a third off at 3R, the stop to breakeven.",
+   "story": "1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: sell some into a 3, 5 or 7 day push, then the stop to breakeven.",
    "subject": "F12.07#q16"
   },
   "reveal_json": {
@@ -13104,11 +13104,11 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -13118,10 +13118,10 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Never add to a losing trade. The problem with averaging down: a dip and the start of a much bigger fall look the same at the time. Buying more of a losing position to get even is an emotional trading mistake. The stop goes where the trade idea is proven wrong. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
+    "summary": "Never add to a losing trade. The problem with averaging down: a dip and the start of a much bigger fall look the same at the time. Buying more of a losing position to get even is an emotional trading mistake. The stop goes where the trade idea is proven wrong. Our rule: the whole position goes on at one price with one stop, and we never add to it. The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: a third off at 3R, the stop to breakeven. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: sell some into a 3, 5 or 7 day push, then the stop to breakeven. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "Never add to a losing trade. Our size is on at one price.",
    "simple": "Line 3, because buying more as it slips toward the stop is adding to a loser, and we never add.",
@@ -13131,7 +13131,7 @@
    "wrong": {
     "Line 1": "Line 1 is fine. A base breakout with a set entry.",
     "Line 2": "Line 2 is fine. Under the base's last low is where the idea fails.",
-    "Line 4": "Line 4 is fine. A third at 3R with the stop to breakeven is our first trim."
+    "Line 4": "Line 4 is fine. Selling some into a 3, 5 or 7 day push, then the stop to breakeven, fits our plan."
    }
   },
   "review_status": "draft",
@@ -13534,12 +13534,12 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. At 3R I sold a third and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average.",
+   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. On day 4 I sold a third into strength and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average.",
    "subject": "F12.07#q21"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The dip feels like a reason to give the trade room. But the breakeven stop is there so this trade does not turn into a loser, and $62.50 has not touched it. Lowering it to $60.90 trades that protection for hope. If the breakeven stop is hit, the rest ends near flat, with a third already sold at 3R. Our rules let you buy again only if the setup triggers again, as a new trade."
+    "trap": "The dip feels like a reason to give the trade room. But the breakeven stop is there so this trade does not turn into a loser, and $62.50 has not touched it. Lowering it to $60.90 trades that protection for hope. If the breakeven stop is hit, the rest ends near flat, with a third already sold into strength. Our rules let you buy again only if the setup triggers again, as a new trade."
    },
    "depth": {
     "sources": [
@@ -13579,11 +13579,11 @@
       "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -13614,10 +13614,10 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Raising the stop to breakeven once the first target hits is a common move. Our default stop is the low of the day or the prior day's low. Our rule: hold winners by selling some into strength and trailing the rest under the rising moving averages. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. Our trail: under each higher low, or under the 10-day average. Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule. Our rule B21: after a stop-out, buy again only if the setup triggers again, as a new trade."
+    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Raising the stop to breakeven once the first target hits is a common move. Our default stop is the low of the day or the prior day's low. Our rule: hold winners by selling some into strength and trailing the rest under the rising moving averages. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. Our trail: under each higher low, or under the 10-day average. Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule. Our rule B21: after a stop-out, buy again only if the setup triggers again, as a new trade."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. At 3R I sold a third and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. On day 4 I sold a third into strength and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "A raised stop only moves up. Lowering it again hands back the protection you earned.",
    "simple": "Line 3, because once the stop is raised to breakeven it only moves up, and lowering it puts the loss back.",
@@ -13626,7 +13626,7 @@
    "why": "Line 3. Moving the stop back down undoes Line 2 and puts the loss back on the table. That's moving the goal posts. Our stop only moves up, never down or wider. The dip to $62.50 hasn't even reached the $62.30 breakeven stop.",
    "wrong": {
     "Line 1": "Line 1 is fine. Under the prior day's low is our default stop.",
-    "Line 2": "Line 2 is fine. A third off at 3R and the stop to breakeven is our first trim.",
+    "Line 2": "Line 2 is fine. Selling some into strength, usually on day 3 or later, with the stop to breakeven fits our plan.",
     "Line 4": "Line 4 is fine. Trailing a rising average is how we hold winners."
    }
   },
@@ -13879,7 +13879,7 @@
   "difficulty": 3,
   "id": "si_98843d6c011c",
   "lesson_origin": "session",
-  "lesson_text": "Line 2. Holding full size into the report was the choice that broke the plan. Our rule holds through a report only when the trade is up 5R, and by 3R a third is already sold. A stop can't catch an earnings gap. This one opened 11% lower, far under a stop 2% away. Judge the choice, not the result. The mistake was made the night before the gap.",
+  "lesson_text": "Line 2. Holding full size into the report was the choice that broke the plan. Our rule holds through a report only when the trade is up 5R. A stop can't catch an earnings gap. This one opened 11% lower, far under a stop 2% away. Judge the choice, not the result. The mistake was made the night before the gap.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -13895,7 +13895,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Line 3 looks like the mistake because that is where the money was lost. But Line 3 is what the market did. Judge the choice, not the result. Had the report been good, holding full size would still have broken our rules. We hold through a report only when up 5R, and a third is sold at 3R."
+    "trap": "Line 3 looks like the mistake because that is where the money was lost. But Line 3 is what the market did. Judge the choice, not the result. Had the report been good, holding full size would still have broken our rules. We hold through a report only when up 5R."
    },
    "depth": {
     "sources": [
@@ -13940,16 +13940,9 @@
       "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Before earnings, some traders cut their position in half to reduce gap risk. Earnings can surprise you, so it may be best to avoid trading around them. Disappointing earnings after the close can drop a stock fast before the next open. A gap between sessions can jump past a stop, so the fill can be far from the stop price. When a stock gaps past the stop, it sells at the next available price, not at the stop. Our rule B22: no new buys in the 3 days before a report, and we hold through a report only when the trade is up 5R. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+    "summary": "Before earnings, some traders cut their position in half to reduce gap risk. Earnings can surprise you, so it may be best to avoid trading around them. Disappointing earnings after the close can drop a stock fast before the next open. A gap between sessions can jump past a stop, so the fill can be far from the stop price. When a stock gaps past the stop, it sells at the next available price, not at the stop. Our rule B22: no new buys in the 3 days before a report, and we hold through a report only when the trade is up 5R."
    },
    "facts": {
     "given": "Which line breaks the plan? 1. Bought a flag breakout; earnings were four weeks out. 2. Report night, I kept full size with the stop 2% under. 3. It opened 11% lower the next morning, far under my stop. 4. Got out that morning and logged what went wrong. Line 1 Line 2 Line 3 Line 4"
@@ -13958,7 +13951,7 @@
    "simple": "Line 2, because holding full size into earnings bet that the stop would work, and a gap can skip right past it.",
    "tier": "expert",
    "unit": "F12.07",
-   "why": "Line 2. Holding full size into the report was the choice that broke the plan. Our rule holds through a report only when the trade is up 5R, and by 3R a third is already sold. A stop can't catch an earnings gap. This one opened 11% lower, far under a stop 2% away.",
+   "why": "Line 2. Holding full size into the report was the choice that broke the plan. Our rule holds through a report only when the trade is up 5R. A stop can't catch an earnings gap. This one opened 11% lower, far under a stop 2% away.",
    "wrong": {
     "Line 1": "Line 1 is fine. Four weeks gave the trade time to work before the report.",
     "Line 3": "Line 3 is what the market did, not a choice you made. The gap only shows the risk Line 2 took on.",

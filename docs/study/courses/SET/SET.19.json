@@ -855,6 +855,18 @@
    "source": "h2",
    "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
    "claim": "D-005: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest.",
+   "claim": "D-013: he very rarely sells on day 1 and usually waits until day 3 at the earliest."
   }
  ],
  "walkthroughs": [
@@ -1586,25 +1598,24 @@
    "rung": 3,
    "format": "fill",
    "criterion": "peg.trim_1",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "At 3R we sell a ___ of the position.",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "We usually wait until day ___ at the earliest for a first sell.",
    "bank": [
-    "third",
-    "tenth",
-    "quarter",
-    "half",
-    "fifth"
+    "3",
+    "1",
+    "2",
+    "4",
+    "5"
    ],
-   "answer": "third",
-   "why": "Third. The hard rule for the first trim is a third at 3R. Another third comes off at 5R. The last third trails the 10-day or 21-day.",
-   "lesson_line": "A third at 3R, a third at 5R.",
+   "answer": "3",
+   "why": "3. We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R.",
+   "lesson_line": "First sell: day 3 at the earliest, by judgment.",
    "facts": [
-    "h05",
-    "h20",
-    "h21"
+    "r02",
+    "r03"
    ],
    "house": true,
-   "simple": "At 3R we sell a third, then another third at 5R, and trail the last third.",
+   "simple": "We wait until day 3 at the earliest for a first sell, and it is a judgment call.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1612,7 +1623,7 @@
      "rests on the owner's rulebook B19 and E51"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q23",
@@ -2197,30 +2208,28 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "peg.trim_gap_open",
-   "q": "How do you take the first trim?",
-   "story": "You bought at 40.00 with the stop at 39.00, so 3R is 43.00. This morning the stock opens at 43.60.",
+   "q": "How do you handle the first sell?",
+   "story": "You bought at 40.00 with the stop at 39.00, so 3R is 43.00. It is day 2 of the hold, and the stock opens at 43.60.",
    "choices": [
-    "Sell a third at the open",
-    "Wait for a dip back to 43.00",
+    "Hold it all; judge it from day 3",
+    "Sell a third at the open, 43.60",
     "Sell a third at the close",
     "Sell half, since it gapped up"
    ],
-   "answer": "Sell a third at the open",
-   "why": "Sell a third at the open. If a stock opens above a trim level, take that trim at the open. Here 3R is 43.00 and the stock opens at 43.60, so the first third comes off at the open. The next third waits for 5R, and the last third trails the 10-day or 21-day.",
-   "lesson_line": "A trim level passed at the open is taken at the open.",
+   "answer": "Hold it all; judge it from day 3",
+   "why": "Hold it all. We very rarely sell on day 1 and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R. Here the open of 43.60 is past 3R at 43.00, but it is only day 2.",
+   "lesson_line": "Past 3R on day 2 is not a sell signal. Day 3 at the earliest.",
    "facts": [
-    "h25",
-    "h05",
-    "h20",
-    "h21"
+    "r02",
+    "r03"
    ],
    "wrong": {
-    "Wait for a dip back to 43.00": "Waiting for a dip is not the rule. If a stock opens above a trim level, take that trim at the open.",
-    "Sell a third at the close": "The rule takes a trim level the day opens past at the open, not later in the day.",
-    "Sell half, since it gapped up": "The plan trims a third at 3R and another third at 5R, not half."
+    "Sell a third at the close": "Selling at the close on day 2 is still early. We usually wait until day 3 at the earliest.",
+    "Sell half, since it gapped up": "Half is still a fixed early sell. We wait until day 3 at the earliest and judge the push.",
+    "Sell a third at the open, 43.60": "A fixed third at 3R is not our rule. The first sell is a judgment, and we usually wait until day 3."
    },
    "house": true,
-   "simple": "The price already opened past 3R, so you sell the first third at the open.",
+   "simple": "Hold. The first sell is a judgment, and we usually wait until day 3 at the earliest, even past 43.00.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2228,7 +2237,7 @@
      "rests on the owner's rulebook (F63 and the 3R trim)"
     ]
    },
-   "batch": "polish"
+   "batch": "rulings2"
   },
   {
    "key": "q40",
@@ -2320,15 +2329,15 @@
    "format": "scenario",
    "criterion": "peg.next_earnings",
    "q": "Hold or sell?",
-   "story": "You are up 3.5R on a PEG after taking your third at 3R. The next report is in two sessions.",
+   "story": "You are up 3.5R on a PEG, bought two weeks ago. The next report is in two sessions.",
    "choices": [
-    "Sell the rest before the report",
+    "Sell it before the report",
     "Hold; last report was a winner",
     "Sell half now, hold the rest",
     "Hold; the stop protects you"
    ],
-   "answer": "Sell the rest before the report",
-   "why": "Sell before the report. We hold through the next report only when the trade is up 5R. At 3.5R it is under that line, so what is still held comes off first. A stop does not cover a gap through it, which is the risk of a report. Holding through the next report under 5R is a named mistake.",
+   "answer": "Sell it before the report",
+   "why": "Sell before the report. We hold through the next report only when the trade is up 5R. At 3.5R it is under that line, so it comes off first. A stop does not cover a gap through it, which is the risk of a report. Holding through the next report under 5R is a named mistake.",
    "lesson_line": "Under 5R going into a report, sell first.",
    "facts": [
     "c26",
@@ -2350,7 +2359,7 @@
      "rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q43",
@@ -2376,7 +2385,7 @@
    ],
    "wrong": {
     "Hold; the stop has not been hit yet": "The time stop exists for exactly this trade.",
-    "Move the stop to breakeven and wait": "Breakeven comes between 2R and 5R, at the first trim by default. This trade is at 0.4R.",
+    "Move the stop to breakeven and wait": "Breakeven comes between 2R and 5R. This trade is at 0.4R.",
     "Sell half and keep half running": "The time stop sells the trade. Half held is still a trade under 1R after 10 days."
    },
    "house": true,
@@ -2388,7 +2397,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q44",
@@ -3055,12 +3064,11 @@
     "Holding winners into reports"
    ],
    "answer": "Small losses and a few big runs",
-   "why": "Small losses and a few big runs. In that scan 31.0% reached 3R and 20.0% reached 5R before the stop. The measured edge comes from the few big runs, so the trims are not pulled earlier. It is a scan of past bars, not a promise.",
+   "why": "Small losses and a few big runs. In that scan 31.0% reached 3R and 20.0% reached 5R before the stop. The measured edge comes from the few big runs, so we do not sell them too early. It is a scan of past bars, not a promise.",
    "lesson_line": "Most buys stop short of 3R. The few big runs pay for them.",
    "facts": [
     "d22",
     "c46",
-    "h20",
     "c47",
     "h02",
     "h04",
@@ -3069,12 +3077,12 @@
    "wrong": {
     "A wider stop that rarely hits": "Our stops stay tight. A stop only moves up, never wider.",
     "A filter lifting wins to 80%": "The plan does not need a high win rate. It pays on the few big runs.",
-    "Holding winners into reports": "Holding into a report needs 5R. The plan trims instead."
+    "Holding winners into reports": "Holding into a report needs 5R. The plan sells into strength instead."
    },
    "house": true,
    "simple": "Most buys never reach 3R, but the few that run far pay for the losses, so the plan can still work.",
    "deeper": {
-    "trap": "Do not read 31.0% as a win rate. It is only the share that reached 3R before the stop, and 20.0% reached 5R. Most trades never reach 3R. The plan pays on the few runs, so we do not pull the trims earlier."
+    "trap": "Do not read 31.0% as a win rate. It is only the share that reached 3R before the stop, and 20.0% reached 5R. Most trades never reach 3R. The plan pays on the few runs, so we do not sell them too early."
    },
    "tier": "expert",
    "risk": {
@@ -3084,7 +3092,7 @@
      "fixed before: the worth-trading promise was removed"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q62",
@@ -3570,7 +3578,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "48.93+3*0.73=51.12 verified; R defined in stem; facts h05, d05."
+   "notes": "keep: 3R price arithmetic only, no sell keyed"
   },
   "q17": {
    "status": "pass",
@@ -3600,7 +3608,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Third at 3R is h05; bank fine; no second reading."
+   "notes": "edit: was 'a third at 3R'; now day 3 at the earliest for a first sell (D-013)"
   },
   "q23": {
    "status": "pass",
@@ -3684,8 +3692,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key checked cold: entry 40.00, stop 39.00, R = 1.00, 3R = 43.00; open 43.60 is past 3R, so F63 (h25, sizing_rule.md line 226) says trim at the open, and h05 makes the first trim a third. New q text is fine, no tell, no second defensible answer, lengths balanced. Only defect: 'simple' was two sentences against the one-sentence rule. Rewritten as one sentence, 15 words, same facts."
+   "fixed": false,
+   "notes": "edit: was sell a third at the open past 3R; now hold it all on day 2, the first sell is a judgment from day 3 (D-013); B"
   },
   "q40": {
    "status": "pass",
@@ -3703,14 +3711,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c26/h08/c45: hold through a report only if up 5R; 3.5R is under it, so sell. Two sells and two holds. 3.5R and 3R in the story, 5R in h08.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "edit: story no longer presupposes a third taken at 3R; the 5R hold-through rule is unchanged"
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h15/c27: under 1R after 10 trading days is sold. 0.4R in the story; breakeven wrong note is c24. Two sells, two holds. q38 is cut so nothing answers it."
+   "notes": "edit: time stop kept; the breakeven wrong note no longer says 'at the first trim by default'"
   },
   "q44": {
    "status": "pass",
@@ -3745,8 +3752,8 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The why says the scan 'scored a fixed stop with no trims, no breakeven move, no trail and no time stop'. No cited fact quote contains that method claim (d22, c47 give only the percentages). Remove the sentence; the key and numbers are otherwise grounded (d20v, d21, d22)."
+   "fixed": false,
+   "notes": "keep: stop-out and base-rate question, no fixed trim keyed"
   },
   "q51": {
    "status": "pass",
@@ -3802,8 +3809,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c46 and the story's numbers (d22, c47). Distractors contradict h02, h08 or invent an 80% win rate. Caveat 'not a promise' is present. Criterion tag peg.earnings_season does not fit the content (cosmetic).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "edit: base-rate answer kept; why/deeper no longer say the trims are not pulled earlier; 5R-third fact dropped"
   },
   "q63": {
    "status": "pass",

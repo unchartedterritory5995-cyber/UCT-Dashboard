@@ -828,6 +828,36 @@
    "source": "h2",
    "quote": "The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
    "claim": "Owner: the pattern's low and a line minus a cushion are acceptable alternatives."
+  },
+  {
+   "id": "r10",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Owner: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r12",
+   "source": "h2",
+   "quote": "I usually wait until day 3 at the earliest.",
+   "claim": "Owner: he usually waits until day 3 at the earliest to sell."
+  },
+  {
+   "id": "r13",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day.",
+   "claim": "Owner: he very rarely sells on day 1 of the buy day."
+  },
+  {
+   "id": "r14",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Owner: every setup buys as price trades through its trigger, during the day."
   }
  ],
  "walkthroughs": [
@@ -1469,10 +1499,10 @@
    "criterion": "av.trim_1",
    "q": "Bought at 17.70 with the stop at 17.50. Where is 3R?",
    "answer": 18.3,
-   "why": "18.30. One R is the fill minus the stop, 17.70 minus 17.50. Add three of those to the fill. Our hard rule takes a third at 3R. NOW reached 3R in five sessions.",
-   "lesson_line": "Know 3R before the open. The first third comes off there.",
+   "why": "18.30. One R is the fill minus the stop, 17.70 minus 17.50. Add three of those to the fill. 3R is a mark to measure by, not an automatic sale. NOW reached 3R in five sessions.",
+   "lesson_line": "Know 3R before the open. It is a mark to measure by.",
    "facts": [
-    "h05",
+    "r10",
     "d03",
     "d04"
    ],
@@ -1499,7 +1529,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "rulings2"
   },
   {
    "key": "q20",
@@ -1655,11 +1685,11 @@
    "criterion": "av.trail",
    "q": "On the 10-day trail, a winner is sold the moment price touches the 10-day during the day.",
    "answer": "False",
-   "why": "False. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. The sale comes on a close below that average, not on a touch during the day. This trail is for the last third, after the trims at 3R and 5R.",
+   "why": "False. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. The sale comes on a close below that average, not on a touch during the day. This trail is for what is left after the first sells.",
    "lesson_line": "Trail the rising average. Sell the close below it.",
    "facts": [
     "h21",
-    "h20"
+    "r10"
    ],
    "house": true,
    "simple": "False. On the trail you sell when the price closes below the average, not when it only touches it.",
@@ -1670,7 +1700,7 @@
      "rests on the owner's rulebook (E51, E52)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "rulings2"
   },
   {
    "key": "q25",
@@ -2169,28 +2199,28 @@
    "format": "scenario",
    "criterion": "av.trim_gap_open",
    "q": "What do you do at the open?",
-   "story": "Your AVWAP long closed Thursday at 2.7R. Friday it gaps open at 3.3R.",
+   "story": "Your AVWAP long was bought Monday and has pushed up all week. It closed Thursday at 2.7R. Friday, day 5, it gaps open at 3.3R.",
    "choices": [
-    "Sell a third at the open",
-    "Wait for the close to decide",
-    "Sell it all at the open",
-    "Raise the stop and hold all"
+    "Sell some into the gap at the open",
+    "Wait for the close to make the call",
+    "Sell it all at the open today",
+    "Raise the stop and hold it all"
    ],
-   "answer": "Sell a third at the open",
-   "why": "Sell a third at the open. Our rule: if a stock opens above a trim level, take that trim at the open. The first trim, by our hard rule, is a third at 3R. It opened at 3.3R, past 3R, so the trim is taken at the open price. The other two thirds wait for 5R and the trail.",
-   "lesson_line": "A gap through a trim level is the trim. Take it.",
+   "answer": "Sell some into the gap at the open",
+   "why": "Sell some into the gap at the open. Friday is day 5 of a push, inside the 3 to 7 day window where the first sell is often best. The gap hands you a better price. How much to sell is a judgment, not a fixed third.",
+   "lesson_line": "A gap into a multi-day push is a good time for the first sell.",
    "facts": [
-    "h25",
-    "h05",
-    "h20"
+    "r10",
+    "r11",
+    "r12"
    ],
    "wrong": {
-    "Raise the stop and hold all": "The stop can rise too, but the trim is the rule at the open.",
-    "Wait for the close to decide": "The level is already passed. Our rule takes the trim at the open.",
-    "Sell it all at the open": "A third at 3R. Another third waits for 5R, and the last third rides the trail."
+    "Wait for the close to make the call": "A gap can fade by the close. A gap into a push is a good time for the first sell.",
+    "Sell it all at the open today": "The first sell is part of the position. The rest keeps working on the trail.",
+    "Raise the stop and hold it all": "The stop can rise too, but a gap into a push is a good time for the first sell."
    },
    "house": true,
-   "simple": "Sell a third at the open, because a gap past the 3R trim level fills that trim right away.",
+   "simple": "Sell some into the gap at the open, because day 5 of a strong push is a good time for a first sell.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2198,7 +2228,7 @@
      "rests on the owner's rulebook, F63 and B19 (+2)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "rulings2"
   },
   {
    "key": "q39",
@@ -2821,8 +2851,8 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "av.trail",
-   "q": "What protects the last third?",
-   "story": "Your reclaim reached 5R and you took both trims. Then the market breaks hard and the stock starts to slide.",
+   "q": "What protects the rest of the position?",
+   "story": "Your reclaim pushed to 5R and you made your sells into the strength. Then the market breaks hard and the stock starts to slide.",
    "choices": [
     "The 10-day or 21-day trail",
     "The original stop under the low",
@@ -2830,24 +2860,23 @@
     "The 50-day, sold on a touch"
    ],
    "answer": "The 10-day or 21-day trail",
-   "why": "The trail. Our plan takes a third at 3R and another at 5R, then trails the last third. The default trail is the 10-day average for fast movers or the 21-day for steadier ones. It sells on a close below that average. Our rule moves the stop to breakeven at 2R to 5R, ideally. Either way, the plan for the last third is the trail, not the first stop.",
-   "lesson_line": "Two thirds banked; a trail decides the rest.",
+   "why": "The trail. After the first sells, the rest rides a trail. The default trail is the 10-day average for fast movers or the 21-day for steadier ones. It sells on a close below that average. The first stop is only the starting point.",
+   "lesson_line": "Sell into strength; a trail decides the rest.",
    "facts": [
     "c29",
-    "h20",
     "h21",
-    "h05",
-    "c13"
+    "c13",
+    "r10"
    ],
    "wrong": {
-    "The original stop under the low": "Our rule moves the stop to breakeven at 2R to 5R, ideally. The last third rides the trail, not the first stop.",
+    "The original stop under the low": "The stop can rise, but the plan for the rest is the trail, not the first stop.",
     "A close back under the AVWAP": "After the buy, a close under the AVWAP is not an exit by itself. The trail decides the last third.",
     "The 50-day, sold on a touch": "Our default trail is the 10-day or the 21-day. And it sells on a close below, not a touch."
    },
    "house": true,
-   "simple": "The 10-day or 21-day trail, because the last third is sold on a close below that average.",
+   "simple": "The 10-day or 21-day trail, because the rest is sold on a close below that average.",
    "deeper": {
-    "example": "Our card keeps O, January 2020, as the chart for this lesson: it reached 5R, then fell by half. Two thirds banked at 3R and 5R are safe whatever comes next. Only the last third still rides, and a close below the trailing average ends it."
+    "example": "Our card keeps O, January 2020, as the chart for this lesson: it reached 5R, then fell by half. Whatever you sold on the way up is safe whatever comes next. Only what is left still rides, and a close below the trailing average ends it."
    },
    "tier": "extended",
    "risk": {
@@ -2857,7 +2886,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "rulings2"
   },
   {
    "key": "q57",
@@ -2867,12 +2896,12 @@
    "criterion": "av.trim_2",
    "q": "Bought at 52.67, stop 51.99. You sell a third at 56.07. How many R did that third bank?",
    "answer": 5.0,
-   "why": "5R. One R is the fill minus the stop, 52.67 minus 51.99. The gain is 56.07 minus 52.67. Divide the gain by one R to get 5R. That is the second trim: a third at 3R, another third at 5R, then trail the last third. EPC reached 3R in six sessions and ran to 18.9R.",
-   "lesson_line": "Count every exit in R. The second third is 5R.",
+   "why": "5R. One R is the fill minus the stop, 52.67 minus 51.99. The gain is 56.07 minus 52.67. Divide the gain by one R to get 5R. When and how much to sell is a judgment. EPC reached 3R in six sessions and ran to 18.9R.",
+   "lesson_line": "Count every exit in R. This sale banked 5R.",
    "facts": [
-    "h20",
     "d01",
-    "d02"
+    "d02",
+    "r10"
    ],
    "house": true,
    "calc": {
@@ -2887,7 +2916,7 @@
    "suffix": "R",
    "simple": "5R, because the gain on that third is five times the gap between the fill and the stop.",
    "deeper": {
-    "trap": "A common slip divides the gain by the fill price. That gives a percent gain, not an R count. Our trims are counted in R: the gain divided by the fill minus the stop."
+    "trap": "A common slip divides the gain by the fill price. That gives a percent gain, not an R count. Our sales are counted in R: the gain divided by the fill minus the stop."
    },
    "tier": "extended",
    "risk": {
@@ -2898,7 +2927,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "rulings2"
   },
   {
    "key": "q58",
@@ -3120,33 +3149,32 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "av.stop",
-   "q": "Write the plan: entry, stop, first trim.",
+   "q": "Write the plan: entry and stop.",
    "story": "A stock sits above a rising 200-day. After weeks under a flat AVWAP, it closes 0.5 ATR over it. The day's high is 36.40 and its low 35.80. Next session it trades over that high, at 36.41.",
    "choices": [
-    "Market at 36.41; stop 35.77; third at 3R",
-    "Market 36.41; stop 35.77; all out at 3R",
+    "Market at 36.41; stop 35.77",
+    "Market at 36.41; stop 35.80",
     "Market at the close; stop at the line",
-    "Market 36.41; stop 35.80; third at 3R"
+    "Limit at 36.00; stop 35.77"
    ],
-   "answer": "Market at 36.41; stop 35.77; third at 3R",
-   "why": "Market at 36.41, stop at 35.77, a third at 3R. Entries are market orders, so the trade over the reclaim day's high is the fill. The stop sits a few cents under the reclaim day's low of 35.80, not exactly on it. The hard rule for the first trim is a third at 3R.",
-   "lesson_line": "Entry, stop, trim, trail. Write it before the open.",
+   "answer": "Market at 36.41; stop 35.77",
+   "why": "Market at 36.41, stop at 35.77. Entries are market orders, so the trade over the reclaim day's high is the fill. The stop sits a few cents under the reclaim day's low of 35.80, not exactly on it. The first sell is a judgment and is not part of this order.",
+   "lesson_line": "Entry and stop first. Write them before the open.",
    "facts": [
     "h22",
     "h24",
-    "h05",
-    "h20",
-    "c15"
+    "c15",
+    "r14"
    ],
    "wrong": {
-    "Market 36.41; stop 35.77; all out at 3R": "At 3R the hard rule takes a third, not all. Another third goes at 5R, then the rest trails.",
-    "Market at the close; stop at the line": "The line is not the stop. Ours sits a few cents under the reclaim day's low.",
-    "Market 36.41; stop 35.80; third at 3R": "35.80 is the low itself. The stop sits a few cents under the day's low, not exactly on it."
+    "Market at the close; stop at the line": "We buy as price trades through the trigger, never at the close. And the line is not the stop.",
+    "Market at 36.41; stop 35.80": "35.80 is the low itself. The stop sits a few cents under the day's low, not exactly on it.",
+    "Limit at 36.00; stop 35.77": "Entries are market orders. A limit under the trigger may never fill."
    },
    "house": true,
-   "simple": "Buy at market at 36.41, put the stop just under the 35.80 low at 35.77, and sell a third at 3R.",
+   "simple": "Buy at market at 36.41 and put the stop just under the 35.80 low at 35.77.",
    "deeper": {
-    "trap": "The near-miss is a stop right on the low at 35.80. Our rule puts it a few cents under the day's low, not exactly on it, so it goes at 35.77. The other trap is selling it all at 3R. The hard rule takes a third there, another third at 5R, and trails the rest."
+    "trap": "The near-miss is a stop right on the low at 35.80. Our rule puts it a few cents under the day's low, not exactly on it, so it goes at 35.77. The other trap is a limit order below the trigger, which may never fill."
    },
    "tier": "expert",
    "risk": {
@@ -3156,7 +3184,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q65",
@@ -3378,14 +3406,14 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (E51 h20, E52 h21; the trail plans the last third). Defect in the why: 'Our rule moves the stop to breakeven at 2R to 5R, ideally, so the first stop is not the exit here' draws a firm conclusion from an 'ideally' (B19); if the stop was not moved, the first stop still stands with the broker. Reworded so the why says the trail is the plan for the last third without claiming the stop has moved."
+   "fixed": false,
+   "notes": "Trail answer kept; no fixed thirds."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(56.07 - 52.67) / (52.67 - 51.99) = 3.40 / 0.68 = 5.0R, calc matches; EPC numbers from d01, d02. Pass."
+   "notes": "R arithmetic; why no longer teaches a fixed third."
   },
   "q63": {
    "status": "cut",
@@ -3397,7 +3425,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "Entry and stop only; close entry wrong citing r14; limit near miss ok."
   },
   "q67": {
    "status": "cut",
@@ -3409,7 +3437,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "17.70 + 3 x 0.20 = 18.30, calc matches. Deeper's 2R slip checked (17.50 + 0.60 = 18.10, 0.40 over the fill = 2R). Pass."
+   "notes": "3R arithmetic only; no fixed sell."
   },
   "q25": {
    "status": "pass",
@@ -3450,8 +3478,8 @@
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key F63 (h25) + B19 hard rule a third at 3R (h05) + E51 (h20); choices balanced."
+   "fixed": true,
+   "notes": "Re-key to day-5 push is right; drop the mechanical 'trim level' rule from why/wrong."
   },
   "q48": {
    "status": "pass",
@@ -3467,15 +3495,15 @@
   },
   "q60": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "Scan stat, 3R as measuring stick."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "Scan stat on 3R as measuring stick; volume not a requirement."
   },
   "q53": {
    "status": "pass",
@@ -3504,9 +3532,9 @@
   },
   "q62": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "D-001 is about shorts; this is long A+ sizing and the new-trader 0.25% line is separate."
   },
   "q65": {
    "status": "pass",
@@ -3679,7 +3707,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False per E52 (h21): sell on a close below, not an intraday touch. Stem no longer names the last third, so it no longer states q56's key; the why's last-third line comes only after the answer. 'The moment' is an absolute in a False item, but it is the tested content (touch vs close). Pass."
+   "notes": "Trail close rule; first sells no longer fixed."
   },
   "q33": {
    "status": "pass",

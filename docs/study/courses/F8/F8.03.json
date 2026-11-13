@@ -217,6 +217,14 @@
    "title": "What is a trading plan? (Fidelity Learning Center, Smart Money)",
    "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -567,6 +575,12 @@
    "source": "s27",
    "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
    "claim": "Our rule: a late buy keeps the same stop, so the gap to the stop grows and you buy fewer shares for the same risk."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
   }
  ],
  "walkthroughs": [
@@ -1229,32 +1243,31 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "Your swing trade just reached 3R. It's still above its rising moving averages. You want to sell it all.",
-   "q": "What does our hard rule say?",
+   "story": "Your swing trade is up 3R. It's still above its rising moving averages. You want to sell it all.",
+   "q": "What does our approach say?",
    "choices": [
-    "Sell a third, trail the rest",
+    "Sell some by judgment, trail the rest",
     "Sell it all, a profit is a profit",
-    "Hold it all, skip the trim",
-    "Sell half, let the rest ride"
+    "Hold it all, skip any partial sale",
+    "Sell it all once it hits 5R"
    ],
-   "answer": "Sell a third, trail the rest",
-   "why": "Sell a third, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. The hard rule for the first trim is a third at 3R. The rest stays on and follows the trail. Selling it all here cuts a winner: Hirsch says selling too soon can hurt almost as much as losing trades.",
+   "answer": "Sell some by judgment, trail the rest",
+   "why": "Sell some by judgment, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. The first sell is a judgment, not a fixed third at 3R. Selling it all here cuts a winner: Hirsch says selling too soon can hurt almost as much as losing trades.",
    "lesson_line": "Pay yourself into strength, then let the trail decide when the rest is done.",
    "facts": [
     "h01",
-    "h02",
+    "r01",
     "f26",
-    "f57",
     "f56"
    ],
    "wrong": {
     "Sell it all, a profit is a profit": "That cuts the winner. Selling too soon can hurt almost as much as a losing trade.",
-    "Hold it all, skip the trim": "Our hard rule takes a third off at 3R. Skipping it leaves the whole gain riding on one exit.",
-    "Sell half, let the rest ride": "Half is Hirsch's way on a double. Our hard rule takes a third at 3R, and the rest follows the trail."
+    "Hold it all, skip any partial sale": "That leaves the whole gain riding on one exit. Some is sold into strength.",
+    "Sell it all once it hits 5R": "That sells the whole position at one mark. We sell some into strength and trail the rest."
    },
-   "simple": "Sell a third and trail the rest, because our hard rule takes a third off at 3R.",
+   "simple": "Sell some by judgment and trail the rest, because the first sell is a call and not a fixed third at 3R.",
    "deeper": {
-    "trap": "The trap is the urge to bank it all at the first big number. 3R feels like a win to protect. But the stock is still above its rising averages, so nothing in the plan says the trend is over. A third off pays you. The trail decides when the rest is done, not your nerves."
+    "trap": "The trap is the urge to bank it all at the first big number. 3R feels like a win to protect. But the stock is still above its rising averages, so nothing in the plan says the trend is over. A partial sale pays you. The trail decides when the rest is done, not your nerves."
    },
    "tier": "expert",
    "risk": {
@@ -1265,7 +1278,7 @@
      "key and story rewritten by the resolver (wave9) so the story no longer hands over the answer"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q20",
@@ -1618,8 +1631,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right: B19's hard rule is a third at 3R, and A11/h01 trail the rest. No second answer, no length tell, f26 and f57 quotes confirmed live on Fidelity. One defect: the simple line says our rule 'lets the rest ride', which is the exact wording of the wrong choice 'Sell half, let the rest ride'. A learner then reads our rule and the wrong choice as the same. It also says more than the rule, since E51 takes another third at 5R. The simple now uses the key's own words."
+   "fixed": false,
+   "notes": "ok"
   },
   "q20": {
    "status": "cut",

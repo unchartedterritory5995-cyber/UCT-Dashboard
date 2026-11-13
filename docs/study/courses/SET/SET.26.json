@@ -756,6 +756,24 @@
    "source": "h2",
    "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
    "claim": "Owner: only indexes and leveraged ETFs may be bought under the 200-day, on a reversal extension or a parabolic long."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Owner: the first sell is a judgment that depends on a variety of factors, not a fixed third at 3R."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "Owner: he very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r09",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1544,11 +1562,11 @@
    "criterion": "ur.trim_1",
    "q": "Bought at 135.38 with the stop at 133.69. One R is the fill minus the stop. Where is 3R?",
    "answer": 140.45,
-   "why": "140.45. One R is the fill minus the stop. Add three of those to the fill: 135.38 + 3 x (135.38 - 133.69) = 140.45. The first third comes off there. The hard rule is a third at 3R.",
-   "lesson_line": "Know your 3R before the open. A third comes off there.",
+   "why": "140.45. One R is the fill minus the stop. Add three of those to the fill: 135.38 + 3 x (135.38 - 133.69) = 140.45. That is a mark to measure by. The first sell is a judgment, not a fixed third at 3R.",
+   "lesson_line": "Know your 3R before the open. It is a mark, not a sell order.",
    "facts": [
-    "h05",
-    "d08"
+    "d08",
+    "r07"
    ],
    "house": true,
    "calc": {
@@ -1561,7 +1579,7 @@
     "round": 2
    },
    "prefix": "$",
-   "simple": "3R is the fill plus three times the distance to the stop, and the first third comes off there.",
+   "simple": "3R is the fill plus three times the distance to the stop. It is a mark to measure by, not a sell order.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1570,7 +1588,7 @@
      "the 3R trim is the owner's rule B19"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q24",
@@ -1641,23 +1659,23 @@
    "format": "fill",
    "criterion": "ur.trim_1",
    "q": "Tap the word that fits the blank.",
-   "sentence": "Our hard rule takes a third off at ___R, another third at 5R, then trails the rest.",
+   "sentence": "We very rarely sell on day 1 of the buy. We usually wait until day ___ at the earliest.",
    "bank": [
+    "1",
     "2",
     "3",
-    "4",
-    "6",
-    "10"
+    "5",
+    "7"
    ],
    "answer": "3",
-   "why": "3. The hard rule is a third at 3R. After that comes another third at 5R, then the last third trails. The rest of the plan is adjustable.",
-   "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
+   "why": "3. We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R.",
+   "lesson_line": "Rarely sell on day 1. Wait until day 3 at the earliest.",
    "facts": [
-    "h05",
-    "h20"
+    "r08",
+    "r07"
    ],
    "house": true,
-   "simple": "A third comes off at 3R, another third at 5R, and the last third trails.",
+   "simple": "We rarely sell on day 1 and usually wait until day 3 at the earliest.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1665,7 +1683,7 @@
      "rests on the owner's rulebook (the trims)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q27",
@@ -1751,11 +1769,11 @@
    "criterion": "ur.trim_2",
    "q": "Bought at 61.40, stop 59.97. The stock trades to 68.55. How many R is that?",
    "answer": 5.0,
-   "why": "5R. One R is the fill minus the stop, 61.40 minus 59.97. The move from 61.40 to 68.55 is 5 of those. That is where the second third comes off, after the first third at 3R. ZS reached 3R in 2 days.",
-   "lesson_line": "Count in R, not dollars. 5R is the second trim.",
+   "why": "5R. One R is the fill minus the stop, 61.40 minus 59.97. The move from 61.40 to 68.55 is 5 of those. ZS reached 3R in 2 days. Selling at about 5 to 10R, or into a 3, 5 or 7 day push, is often best.",
+   "lesson_line": "Count in R, not dollars. 5R is a good time to judge a sell.",
    "facts": [
-    "h20",
-    "d09"
+    "d09",
+    "r09"
    ],
    "house": true,
    "calc": {
@@ -1778,7 +1796,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q30",
@@ -1823,7 +1841,7 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "ur.trail",
-   "q": "By default, what trails the last third of a fast mover?",
+   "q": "By default, what trails the rest of a fast mover?",
    "choices": [
     "A close under the 10-day average",
     "A close under the 200-day average",
@@ -1831,19 +1849,18 @@
     "A trade under the undercut low"
    ],
    "answer": "A close under the 10-day average",
-   "why": "A close under the 10-day average. By default we trail with the 10-day for fast movers and the 21-day for steadier ones. We sell on a close below it. The trail covers the last third, after the trims at 3R and 5R. A trade under the line during the day is not the signal; the close is.",
+   "why": "A close under the 10-day average. By default we trail with the 10-day for fast movers and the 21-day for steadier ones. We sell on a close below it. The trail covers what is left after the first sells. A trade under the line during the day is not the signal; the close is.",
    "lesson_line": "Fast mover, 10-day. Steadier, 21-day. Sell on a close under.",
    "facts": [
-    "h21",
-    "h20"
+    "h21"
    ],
    "wrong": {
-    "A trade under the undercut low": "That is the first stop, before any trim. The trail is for the last third, after the trims at 3R and 5R.",
+    "A trade under the undercut low": "That is the first stop, before any sell. The trail is for what is left after the first sells.",
     "A close under the 200-day average": "Our trail is the 10-day for fast movers and the 21-day for steadier ones, not the 200-day.",
     "A new low close in the past 5 days": "A short-term low is not our trail. We use the 10-day or the 21-day average."
    },
    "house": true,
-   "simple": "Fast movers trail the last third on a close under the 10-day average, while steadier ones use the 21-day.",
+   "simple": "Fast movers trail what is left on a close under the 10-day average, while steadier ones use the 21-day.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1851,7 +1868,7 @@
      "rests on the owner's rulebook (the default trail, adjustable)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q32",
@@ -1938,27 +1955,26 @@
    "criterion": "ur.trim_gap_open",
    "q": "What do you do at the open?",
    "choices": [
-    "Take the first third at the open",
+    "Sell a first part into the gap",
     "Wait for 113.77 on the way back down",
-    "Hold everything and trail the stock up",
+    "Hold everything and sell nothing today",
     "Sell the whole position at the open"
    ],
-   "answer": "Take the first third at the open",
-   "why": "Take the first third at the open. If a stock opens above a trim level, take that trim at the open. The 3R level is 113.77 and the stock opens at 115.20, past it. The open is still under the 5R level, so only the first third comes off.",
-   "lesson_line": "A gap past a trim level: take it at the open.",
+   "answer": "Sell a first part into the gap",
+   "why": "Sell a first part into the gap. The first sell is a judgment, and selling into a push of 3, 5 or 7 days is often best. After a three-day push the stock opens at 115.20, past the 3R level of 113.77. A first sale there is sound.",
+   "lesson_line": "A gap past 3R is a push. Judge a first sell into it.",
    "facts": [
-    "h25",
-    "h05",
-    "h20"
+    "r07",
+    "r09"
    ],
    "wrong": {
-    "Wait for 113.77 on the way back down": "A trim level the day opens past is taken at the open, not later.",
-    "Hold everything and trail the stock up": "The trail is for the last third, after the trims.",
-    "Sell the whole position at the open": "The plan is a third at 3R, a third at 5R, then the trail."
+    "Wait for 113.77 on the way back down": "A pullback to 113.77 may never come. A gap past the level is the moment to judge a first sell.",
+    "Sell the whole position at the open": "The first sell is a part, and the rest keeps running on the trail.",
+    "Hold everything and sell nothing today": "Selling into a push is often best, so a gap past 3R is a good time to take a first sell."
    },
    "house": true,
-   "story": "You bought at 109.63 with the stop at 108.25. Your 3R level is 113.77. Three days later the stock opens at 115.20.",
-   "simple": "Take the first third off at the open, because the stock opened past the 3R level of 113.77.",
+   "story": "You bought at 109.63 with the stop at 108.25. Your 3R level is 113.77. The stock pushes up for three days, then opens at 115.20.",
+   "simple": "Sell a first part into the gap, because the stock opened past the 3R level of 113.77.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1966,7 +1982,7 @@
      "rests on the owner's rulebook (the gap-open trim)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q35",
@@ -1999,7 +2015,7 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "ur.breakeven",
-   "q": "By default, where does the stop go once the first third comes off?",
+   "q": "By default, where does the stop go once the first sell is made?",
    "choices": [
     "Up to breakeven, our entry",
     "Up to the old undercut low",
@@ -2007,20 +2023,20 @@
     "It stays at the original stop"
    ],
    "answer": "Up to breakeven, our entry",
-   "why": "Up to breakeven. Our card moves the stop to breakeven once the trade has made 2R to 5R, at the first trim by default. The first trim is a third at 3R.",
-   "lesson_line": "First third off, stop to breakeven.",
+   "why": "Up to breakeven. Our card moves the stop to breakeven once the trade has made 2R to 5R, at the first sell by default. The first sell is a judgment, not a fixed third at 3R.",
+   "lesson_line": "First sell made, stop to breakeven.",
    "facts": [
     "c19",
-    "h05",
-    "h02"
+    "h02",
+    "r07"
    ],
    "wrong": {
     "Down a bit, to give it room": "The stop only moves up, never down or wider.",
-    "Up to the old undercut low": "The stop started a few cents under the undercut low. The default move is up to breakeven at the first trim.",
-    "It stays at the original stop": "The default is breakeven at the first trim, so the stop does not stay put."
+    "Up to the old undercut low": "The stop started a few cents under the undercut low. The default move is up to breakeven at the first sell.",
+    "It stays at the original stop": "The default is breakeven at the first sell, so the stop does not stay put."
    },
    "house": true,
-   "simple": "Move the stop up to your entry price once the first third comes off.",
+   "simple": "Move the stop up to your entry price once the first sell is made.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2028,7 +2044,7 @@
      "rests on the owner's rulebook (breakeven timing)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q37",
@@ -3180,8 +3196,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "agrees with D-003; wrong note said 'very rarely' but the rule is never at the close"
+   "fixed": false,
+   "notes": "already agrees with D-003"
   },
   "q07": {
    "status": "pass",
@@ -3285,7 +3301,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1R = 1.69; 135.38 + 5.07 = 140.45; numbers match d08."
+   "notes": "agrees with rulings"
   },
   "q24": {
    "status": "pass",
@@ -3303,7 +3319,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows from cited quotes; no tell or second answer found."
+   "notes": "agrees with rulings"
   },
   "q27": {
    "status": "pass",
@@ -3319,9 +3335,9 @@
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "agrees with rulings"
   },
   "q30": {
    "status": "pass",
@@ -3332,8 +3348,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key follows from cited quotes; no tell or second answer found."
+   "fixed": true,
+   "notes": "trail line still right; softened last third wording to the rest"
   },
   "q32": {
    "status": "pass",
@@ -3350,8 +3366,8 @@
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key follows from cited quotes; no tell or second answer found."
+   "fixed": true,
+   "notes": "story made the push explicit so holding all is clearly weaker; why updated"
   },
   "q35": {
    "status": "pass",
@@ -3362,8 +3378,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key follows from cited quotes; no tell or second answer found."
+   "fixed": true,
+   "notes": "stale 'first trim' in one wrong note"
   },
   "q37": {
    "status": "pass",
@@ -3453,8 +3469,8 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why said the scan used 'a fixed stop with no trims', which no cited quote holds (only d27's claim), and d28's best-case quote is about Table C, not this base-rate scan. Rewrote the why from d27, d30 and c18 only."
+   "fixed": false,
+   "notes": "3R only a measuring stick"
   },
   "q52": {
    "status": "pass",
@@ -3495,14 +3511,14 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "PASS (depends_on restored: writer file blanked it). agrees with the rulings"
+   "fixed": false,
+   "notes": "measuring stick, open is trigger"
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows d06 (shelf above a rising 50-day). Residual: lone Take against three non-takes, softened by the rising/falling 50-day pair. NTAP's 200-day state in Oct 2004 is in no cited fact (B26 hard rule); the owner may want it verified."
+   "notes": "measuring stick"
   },
   "q60": {
    "status": "pass",

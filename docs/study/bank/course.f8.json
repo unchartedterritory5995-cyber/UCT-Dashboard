@@ -5275,28 +5275,28 @@
  },
  {
   "answer_json": {
-   "answer": "Sell a third, trail the rest"
+   "answer": "Sell some by judgment, trail the rest"
   },
   "difficulty": 3,
   "id": "si_7a715244d663",
   "lesson_origin": "session",
-  "lesson_text": "Sell a third, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. The hard rule for the first trim is a third at 3R. The rest stays on and follows the trail. Selling it all here cuts a winner: Hirsch says selling too soon can hurt almost as much as losing trades. Pay yourself into strength, then let the trail decide when the rest is done.",
+  "lesson_text": "Sell some by judgment, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. The first sell is a judgment, not a fixed third at 3R. Selling it all here cuts a winner: Hirsch says selling too soon can hurt almost as much as losing trades. Pay yourself into strength, then let the trail decide when the rest is done.",
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Sell half, let the rest ride",
-    "Sell a third, trail the rest",
+    "Sell it all once it hits 5R",
+    "Sell some by judgment, trail the rest",
     "Sell it all, a profit is a profit",
-    "Hold it all, skip the trim"
+    "Hold it all, skip any partial sale"
    ],
    "kind": "mcq",
-   "q": "What does our hard rule say?",
-   "story": "Your swing trade just reached 3R. It's still above its rising moving averages. You want to sell it all.",
+   "q": "What does our approach say?",
+   "story": "Your swing trade is up 3R. It's still above its rising moving averages. You want to sell it all.",
    "subject": "F8.03#q19"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is the urge to bank it all at the first big number. 3R feels like a win to protect. But the stock is still above its rising averages, so nothing in the plan says the trend is over. A third off pays you. The trail decides when the rest is done, not your nerves."
+    "trap": "The trap is the urge to bank it all at the first big number. 3R feels like a win to protect. But the stock is still above its rising averages, so nothing in the plan says the trend is over. A partial sale pays you. The trail decides when the rest is done, not your nerves."
    },
    "depth": {
     "sources": [
@@ -5308,23 +5308,16 @@
       "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
       "name": "Fidelity Investments: Techniques for Managing Positions (Jeffrey A. Hirsch, adapted from the Stock Trader's Almanac, Wiley)",
       "quote": "Selling too soon can be almost as detrimental to long-term returns as money-losing trades. This is why it can be important to harvest gains and then set trailing stop losses.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/trading/managing-positions"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Techniques for Managing Positions (Jeffrey A. Hirsch, adapted from the Stock Trader's Almanac, Wiley)",
-      "quote": "one of the simplest, oldest methods, and most effective ways to help lock in profits and let your winners ride, especially with lower-priced, smaller-cap stocks, is to sell half on a double.",
       "tier": 2,
       "url": "https://www.fidelity.com/learning-center/trading-investing/trading/managing-positions"
      },
@@ -5336,19 +5329,19 @@
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
      }
     ],
-    "summary": "Our rule: hold winners by selling partials into strength and trailing the rising moving averages. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Selling too soon can hurt returns almost as much as losing trades; take some gains, then trail a stop. In Hirsch's view, selling half on a double is one of the simplest ways to lock in profits and still let the winner ride. A trailing stop moves up behind the price as the trade goes your way."
+    "summary": "Our rule: hold winners by selling partials into strength and trailing the rising moving averages. The owner's ruling: the first sell is a judgment, not a fixed third at 3R. Selling too soon can hurt returns almost as much as losing trades; take some gains, then trail a stop. A trailing stop moves up behind the price as the trade goes your way."
    },
    "facts": {
-    "given": "What does our hard rule say? Your swing trade just reached 3R. It's still above its rising moving averages. You want to sell it all. Sell a third, trail the rest Sell it all, a profit is a profit Hold it all, skip the trim Sell half, let the rest ride"
+    "given": "What does our approach say? Your swing trade is up 3R. It's still above its rising moving averages. You want to sell it all. Sell some by judgment, trail the rest Sell it all, a profit is a profit Hold it all, skip any partial sale Sell it all once it hits 5R"
    },
    "lesson_line": "Pay yourself into strength, then let the trail decide when the rest is done.",
-   "simple": "Sell a third and trail the rest, because our hard rule takes a third off at 3R.",
+   "simple": "Sell some by judgment and trail the rest, because the first sell is a call and not a fixed third at 3R.",
    "tier": "expert",
    "unit": "F8.03",
-   "why": "Sell a third, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. The hard rule for the first trim is a third at 3R. The rest stays on and follows the trail. Selling it all here cuts a winner: Hirsch says selling too soon can hurt almost as much as losing trades.",
+   "why": "Sell some by judgment, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. The first sell is a judgment, not a fixed third at 3R. Selling it all here cuts a winner: Hirsch says selling too soon can hurt almost as much as losing trades.",
    "wrong": {
-    "Hold it all, skip the trim": "Our hard rule takes a third off at 3R. Skipping it leaves the whole gain riding on one exit.",
-    "Sell half, let the rest ride": "Half is Hirsch's way on a double. Our hard rule takes a third at 3R, and the rest follows the trail.",
+    "Hold it all, skip any partial sale": "That leaves the whole gain riding on one exit. Some is sold into strength.",
+    "Sell it all once it hits 5R": "That sells the whole position at one mark. We sell some into strength and trail the rest.",
     "Sell it all, a profit is a profit": "That cuts the winner. Selling too soon can hurt almost as much as a losing trade."
    }
   },

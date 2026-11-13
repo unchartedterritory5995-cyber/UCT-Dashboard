@@ -80,6 +80,14 @@
    "title": "Red to Green dossier, sections 12 and 13: examples, failures and near-misses from our data",
    "url": "repo:docs/study/setups/research/43-red-to-green.md#12-examples-from-our-data",
    "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -718,6 +726,24 @@
    "source": "h1",
    "quote": "Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down.",
    "claim": "D38: A and B setups at normal size; A+ sized up; B- or lower sized down."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "He rarely sells on day 1 and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1274,11 +1300,11 @@
     },
     "round": 2
    },
-   "why": "115.47. One R is the fill minus the stop. Add three of them to the fill. Our hard rule takes the first third off at 3R. Ideally the first trim comes anywhere from 3R to 6R.",
-   "lesson_line": "Know your 3R before the open.",
+   "why": "115.47. One R is the fill minus the stop. Add three of them to the fill. 3R is a measuring stick, not an automatic sale. The first sell is a judgment, not a fixed third at 3R.",
+   "lesson_line": "Know your 3R before the open. The first sell is a judgment.",
    "facts": [
-    "h05",
-    "dTP"
+    "dTP",
+    "r01"
    ],
    "house": true,
    "prefix": "$",
@@ -1292,7 +1318,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q17",
@@ -1863,31 +1889,31 @@
    "criterion": "rg.trim_gap_open",
    "q": "What do you do at the open?",
    "choices": [
-    "Take the 3R trim at the open",
-    "Wait for 5R before you sell any",
+    "Make the planned sell at the open",
+    "Wait for a dip to the 3R price",
     "Add more at the open price",
     "Sell all of it at the open"
    ],
-   "answer": "Take the 3R trim at the open",
-   "why": "Take the 3R trim at the open. The stock opens at 117.00, past 3R and short of 5R. Our rule: if a stock opens above a trim level, take that trim at the open. Our hard rule for the first trim is a third at 3R. Another third comes off at 5R.",
-   "lesson_line": "Opens past a trim level, trim at the open.",
+   "answer": "Make the planned sell at the open",
+   "why": "Make the planned sell at the open. The stock opens at 117.00, past 3R and short of 5R. If a stock opens above a sell level, take that sell at the open. The first sell is a judgment, usually day 3 or later. The rest stays on.",
+   "lesson_line": "Opens past a sell level, sell at the open.",
    "facts": [
     "h25",
-    "h05",
     "dTP",
-    "h20",
-    "h30"
+    "h30",
+    "r01",
+    "r02"
    ],
    "wrong": {
-    "Wait for 5R before you sell any": "Our hard rule takes a third at 3R, and a trim level the stock opens past is taken at the open.",
     "Add more at the open price": "The full size goes in at one price. No adding.",
-    "Sell all of it at the open": "Only a third comes off at 3R. Another third goes at 5R, then the last third trails."
+    "Sell all of it at the open": "The plan sells part at its level, and the rest stays on.",
+    "Wait for a dip to the 3R price": "A sell level the day opens past is taken at the open, not waited for."
    },
-   "story": "You bought at 111.93 with the stop at 110.75. The next morning the stock opens at 117.00, past 3R but under 5R.",
+   "story": "You bought at 111.93 with the stop at 110.75. On day 3 you plan your first sell at 3R. The stock opens at 117.00, past 3R but under 5R.",
    "house": true,
-   "simple": "Take the 3R trim at the open, because the stock opened past the 3R level, and our rule takes that trim at the open.",
+   "simple": "Make the planned sell at the open, because the stock opened past your 3R level.",
    "deeper": {
-    "trap": "The trap is waiting for the stock to trade back to the 3R price before you trim. It opened past that level. Our rule takes the trim at the open, at the price you have, not the price you planned."
+    "trap": "The trap is waiting for the stock to trade back to the 3R price before you sell. It opened past that level. Our rule takes the sell at the open, at the price you have, not the price you planned."
    },
    "tier": "extended",
    "risk": {
@@ -1897,7 +1923,7 @@
      "the owner says he mostly waits for 5R in practice, so the wrong answer is close to his habit (+2)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q34",
@@ -3252,16 +3278,16 @@
    "format": "scenario",
    "criterion": "rg.breakeven",
    "q": "Where does the stop on the rest go?",
-   "story": "You bought the red to green at 96.36 with the stop at 94.67. The stock hits 3R and you sell a third.",
+   "story": "You bought the red to green at 96.36 with the stop at 94.67. The stock runs and you make your first sell, a third.",
    "choices": [
     "Up to your fill price, breakeven",
     "Stay put under the dip's low",
-    "Up to the 3R price you sold at",
+    "Up to the price you sold at",
     "Just under the 10-day average"
    ],
    "answer": "Up to your fill price, breakeven",
-   "why": "Up to your fill price, 96.36, which is breakeven. Our rule moves the stop to breakeven between 2R and 5R, at the first trim by default. The first trim is a third at 3R, so the stop goes to the fill now. It does not jump to the 3R price, and the 10-day trail is only for the last third.",
-   "lesson_line": "First trim at 3R, and the stop moves up to breakeven.",
+   "why": "Up to your fill price, 96.36, which is breakeven. Our rule moves the stop to breakeven between 2R and 5R, at the first sell by default. You have just made the first sell, so the stop goes to the fill now. It does not jump to the 3R price, and the 10-day trail is only for the last third.",
+   "lesson_line": "At the first sell, the stop moves up to breakeven.",
    "facts": [
     "cBE",
     "h05",
@@ -3269,11 +3295,11 @@
    ],
    "wrong": {
     "Stay put under the dip's low": "At the first trim the stop moves up to breakeven by default.",
-    "Up to the 3R price you sold at": "That locks in a profit target as a stop. Breakeven is the fill price.",
-    "Just under the 10-day average": "The 10-day is the trail for the last third, not the breakeven move."
+    "Just under the 10-day average": "The 10-day is the trail for the last third, not the breakeven move.",
+    "Up to the price you sold at": "That locks in a profit target as a stop. Breakeven is the fill price."
    },
    "house": true,
-   "simple": "Up to your fill price of 96.36, because the stop moves to breakeven at the first trim.",
+   "simple": "Up to your fill price of 96.36, because the stop moves to breakeven at the first sell.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3281,7 +3307,7 @@
      "rests on the owner's rulebook (B19, E52)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q70",
@@ -3325,11 +3351,10 @@
     },
     "round": 2
    },
-   "why": "117.83. One R is the fill minus the stop. Add five of them to the fill. After the first third at 3R, our plan takes another third at 5R, then trails the last third. The rule says those levels can be adjusted.",
-   "lesson_line": "Write your 5R price down. The second third comes off there.",
+   "why": "117.83. One R is the fill minus the stop. Add five of them to the fill. In a thirds plan, another third can come off at 5R, then the last third trails. These levels are adjustable.",
+   "lesson_line": "Write your 5R price down. It is a level to measure from.",
    "facts": [
-    "h20",
-    "h05"
+    "h20"
    ],
    "house": true,
    "prefix": "$",
@@ -3342,7 +3367,7 @@
      "rests on the owner's rulebook, E51 (+2)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q72",
@@ -3351,7 +3376,7 @@
    "format": "scenario",
    "criterion": "rg.trim_2",
    "q": "Next step at 5R?",
-   "story": "You sold a third at 3R and moved the stop to breakeven. The winner now trades at 5R, and two thirds are still open.",
+   "story": "You made your first sell, a third, and moved the stop to breakeven. The winner now trades at 5R, and two thirds are still open.",
    "choices": [
     "Sell a third more, trail the last",
     "Sell all the rest and bank the 5R",
@@ -3359,8 +3384,8 @@
     "Add a third more at the new high"
    ],
    "answer": "Sell a third more, trail the last",
-   "why": "Sell another third and trail the last. Our plan takes a third at 3R, another third at 5R, then trails the last third, which is adjustable. The trail is a close under the 10-day average for fast movers, the 21-day for steadier ones. No adding: the full size went in at one price.",
-   "lesson_line": "Thirds at 3R and 5R, then trail what is left.",
+   "why": "Sell another third and trail the last. In this plan a third comes off at 5R after the first sell, then the last third trails, which is adjustable. The trail is a close under the 10-day average for fast movers, the 21-day for steadier ones. No adding: the full size went in at one price.",
+   "lesson_line": "After the first sell, a third at 5R, then trail what is left.",
    "facts": [
     "h20",
     "cTrail",
@@ -3380,7 +3405,7 @@
      "rests on the owner's rulebook (B19, E51, E52)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q73",
@@ -3658,9 +3683,9 @@
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q17": {
    "status": "pass",
@@ -3763,7 +3788,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: take the 3R trim at the open (h25 F63 + h05 hard rule a third at 3R). 117.00 sits between 3R 115.47 and 5R 117.83 (q16, q71 calcs); the story says so in words and prints neither answer. The declined item 73 ('a big position may wait for 5R... no forced first trim at 3R', NO) also backs the key. The owner flag on 'mostly waits for 5R' stands."
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q34": {
    "status": "pass",
@@ -3800,8 +3825,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: no, volume grades, it does not gate (cVol). Two Yes and two No, lengths 31-33. ANF example numbers match dAN and dAN1.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q40": {
    "status": "pass",
@@ -3864,7 +3888,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2.9% checks: (188.24-182.94)/182.94 = 2.90%; gap -1.4% matches dossier PLTR row. Pass keyed on cSupport/dPL1. The close choice's note does not rule on D-003 (it fails for no setup either way). Gate vs B-minus grade (gL, D38 sizes B- down, not out) stays the filed owner flag; no 'smaller size' choice is offered, so Pass is the only defensible choice."
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q50": {
    "status": "pass",
@@ -4003,9 +4027,8 @@
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Lesson_line no longer promises risk-free; key on cBE/h05 (B19).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "story said you sell a third at 3R; softened to first sell; choice \"3R price you sold at\" made generic"
   },
   "q70": {
    "status": "pass",
@@ -4015,15 +4038,15 @@
   },
   "q71": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "agrees with D-013; key and wrongs sound"
   },
   "q72": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "story said you sold a third at 3R; softened to first sell"
   },
   "q73": {
    "status": "pass",

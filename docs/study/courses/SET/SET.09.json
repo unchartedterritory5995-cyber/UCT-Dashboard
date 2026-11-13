@@ -1118,6 +1118,24 @@
    "source": "h2",
    "quote": "The first sell is not always R-based. It is often time-based: sell into a 3, 5 or 7 day push, which can be 10, 12 or 20R.",
    "claim": "D-013: the first sell is often time-based, into a 3, 5 or 7 day push, not only R-based."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1773,14 +1791,13 @@
    "rung": 3,
    "format": "numeric",
    "criterion": "ch.trim_1",
-   "q": "One R is the fill minus the stop. Fill 38.60, stop 37.90. At what price is the 3R level, where we can take a third?",
+   "q": "One R is the fill minus the stop. Fill 38.60, stop 37.90. At what price is the 3R level?",
    "answer": 40.7,
-   "why": "40.70, the 3R level. One R is the fill minus the stop. Add three of those to the fill and you get 40.70. Taking a third at 3R is one way we sell. We also sell into a push of 3, 5 or 7 days. Another third can come off at 5R, and the last third trails.",
-   "lesson_line": "Know your 3R before the open. It is one place a third can come off.",
+   "why": "40.70, the 3R level. One R is the fill minus the stop. Add three of those to the fill and you get 40.70. The first sell is a judgment, not a fixed third at 3R. Often it comes into a 3, 5 or 7 day push, or at about 5 to 10R.",
+   "lesson_line": "Know your 3R before the open. It is a mark on the ruler, not an automatic sell.",
    "facts": [
-    "h05",
-    "h20",
-    "r01"
+    "r02",
+    "r04"
    ],
    "calc": {
     "fn": "arith",
@@ -1793,7 +1810,7 @@
    },
    "house": true,
    "prefix": "$",
-   "simple": "A third comes off at the 3R level, which is the fill plus three times the gap down to the stop.",
+   "simple": "The 3R level is the fill plus three times the gap down to the stop, which is 40.70.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1803,7 +1820,7 @@
      "the stem says hard rule because the owner's practice is to wait longer"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q19",
@@ -2340,10 +2357,9 @@
    "criterion": "ch.breakeven",
    "q": "Bought at 72.40, stop 71.60. On day two it trades 74.40. How many R is that?",
    "answer": 2.5,
-   "why": "2.5R. The gain per share divided by the risk per share, the fill minus the stop, is 2.5. The first trim waits for 3R, and the stop only moves up.",
+   "why": "2.5R. The gain per share divided by the risk per share, the fill minus the stop, is 2.5. The stop only moves up, never down or wider.",
    "lesson_line": "Count in R: the gain per share over the risk per share.",
    "facts": [
-    "h05",
     "h02"
    ],
    "calc": {
@@ -2359,7 +2375,7 @@
    "suffix": "R",
    "simple": "The gain per share divided by the risk per share is 2.5R.",
    "deeper": {
-    "trap": "R is the gain per share divided by the risk per share, not a percent of the fill. At 2.5R the first trim has not come yet, because the hard rule is a third at 3R. The stop still only moves up, never down or wider."
+    "trap": "R is the gain per share divided by the risk per share, not a percent of the fill. The stop still only moves up, never down or wider."
    },
    "tier": "extended",
    "risk": {
@@ -2372,7 +2388,7 @@
    "depends_on": [
     "D-019"
    ],
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q34",
@@ -3216,7 +3232,7 @@
    "format": "scenario",
    "criterion": "ch.trail",
    "q": "What happens to the last third?",
-   "story": "A steady mover: you bought 89.22 with the stop at 86.95. A third came off at 3R and a third at 5R. Weeks later it rolls over and closes under the 21-day.",
+   "story": "A steady mover: you bought 89.22 with the stop at 86.95. You sold a third into each push on the way up. Weeks later it rolls over and closes under the 21-day.",
    "choices": [
     "Held until a close under the pivot",
     "Sold it, as the trail line broke",
@@ -3229,18 +3245,17 @@
     "Bought more on the dip back down": "The plan only sells from here. After 5R the last third trails the average."
    },
    "answer": "Sold it, as the trail line broke",
-   "why": "Sold on that close. After the thirds at 3R and 5R, the last third trails a rising average. That is the 10-day for fast movers and the 21-day for steadier ones. We sell on a close below it. AX reached 5R, then rolled over below the pivot, the case for the 21-day trail.",
-   "lesson_line": "Two thirds banked, one on the trail. The close under the line is the exit.",
+   "why": "Sold on that close. After the earlier sells, the last third trails a rising average. That is the 10-day for fast movers and the 21-day for steadier ones. We sell on a close below it. AX reached 5R, then rolled over below the pivot, the case for the 21-day trail.",
+   "lesson_line": "Part sold into strength, one piece on the trail. The close under the line is the exit.",
    "facts": [
     "h21",
-    "h20",
     "d06",
     "d07"
    ],
    "house": true,
    "simple": "The last third trails the 21-day average, so a close under it is the signal to sell what is left.",
    "deeper": {
-    "example": "AX was bought at 89.22 with a stop at 86.95. It reached 5R in about 7 weeks, then rolled over below the pivot. That is the example for trailing the last third under the 21-day. A faster mover would trail the 10-day instead. The trim levels are adjustable defaults."
+    "example": "AX was bought at 89.22 with a stop at 86.95. It reached 5R in about 7 weeks, then rolled over below the pivot. That is the example for trailing the last third under the 21-day. A faster mover would trail the 10-day instead. The first sell is a judgment."
    },
    "tier": "expert",
    "risk": {
@@ -3253,7 +3268,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q56",
@@ -3264,31 +3279,33 @@
    "q": "Where are the stop and the first trim?",
    "story": "A quiet 7-day handle. Price clears the handle high and you fill at 64.30. The lower of that day's and the prior day's low is 63.78.",
    "choices": [
-    "Just under 63.78; a third at 3R",
+    "Just under 63.78; sell into a push",
     "On 63.78; a third at 2R",
     "Handle-low stop; out at 5R",
     "7% under fill; half at 3R"
    ],
    "wrong": {
-    "On 63.78; a third at 2R": "The stop sits a few cents under the low, not on it, and the first trim is 3R.",
-    "Handle-low stop; out at 5R": "The handle low is the outer limit, not the stop. The first trim is a third at 3R.",
-    "7% under fill; half at 3R": "IBD's 7% to 8% is a reference, not ours. Our stop sits a few cents under the day's low, and the first trim is a third."
+    "On 63.78; a third at 2R": "The stop sits a few cents under the low, not on it, and the first sell is a judgment, not 2R.",
+    "Handle-low stop; out at 5R": "The handle low is the outer limit, not the stop. The first sell is a judgment, into a push.",
+    "7% under fill; half at 3R": "IBD's 7% to 8% is a reference, not ours. Our stop sits a few cents under the day's low, and the first sell is a judgment."
    },
-   "answer": "Just under 63.78; a third at 3R",
-   "why": "The stop goes just under 63.78, the lower of that day's and the prior day's low, by a few cents. The first trim is a third at 3R. The handle low is only the outer limit for the stop, never the stop itself.",
+   "answer": "Just under 63.78; sell into a push",
+   "why": "The stop goes just under 63.78, the lower of that day's and the prior day's low, by a few cents. The first sell is a judgment, day 3 at the earliest, into a push. The handle low is only the outer limit for the stop, never the stop itself.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the open.",
    "facts": [
     "c15",
     "h24",
-    "h05",
     "c16",
     "i30",
-    "h41"
+    "h41",
+    "r02",
+    "r03",
+    "r04"
    ],
    "house": true,
-   "simple": "The stop goes a few cents under the lower low, and the first trim is a third at 3R.",
+   "simple": "The stop goes a few cents under the lower low, and the first sell is a judgment into a push.",
    "deeper": {
-    "example": "The stop is set first, and the trim levels follow from it. If a stock opens above a trim level, take that trim at the open."
+    "example": "The stop is set first, and the sell levels follow from it. If a stock opens above a level where you planned to sell, take that sale at the open."
    },
    "tier": "expert",
    "risk": {
@@ -3302,7 +3319,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q57",
@@ -3543,28 +3560,28 @@
    "choices": [
     "At the cup's measured-move target",
     "Most of it at a 20% to 25% gain",
-    "In R: thirds at 3R and 5R, trail",
+    "Into a 3, 5 or 7 day push, then trail",
     "Sell it all at the old high"
    ],
    "wrong": {
     "At the cup's measured-move target": "Treating the target as a sure thing is a named mistake.",
-    "Most of it at a 20% to 25% gain": "That is IBD's general rule, not ours. Our trims are set in R.",
+    "Most of it at a 20% to 25% gain": "That is IBD's general rule, not ours. Our first sell is a judgment into a push.",
     "Sell it all at the old high": "The old high sits near the pivot. That is where the trade starts, not where it ends."
    },
-   "answer": "In R: thirds at 3R and 5R, trail",
-   "why": "In R: a third at 3R, a third at 5R, then trail the last third. The hard rule is a third at 3R, and the levels are adjustable. IBD takes most profits at 20% to 25%, a fixed percent that is not ours. Bulkowski's measured-move target is no sure thing: only 61% reach it.",
-   "lesson_line": "Sell partials into strength, in R. Targets are guesses; trims are rules.",
+   "answer": "Into a 3, 5 or 7 day push, then trail",
+   "why": "Into a push, then trail. The first sell is a judgment, not a fixed third at 3R. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. IBD takes most profits at 20% to 25%, a fixed percent that is not ours. Bulkowski's measured-move target is no sure thing: only 61% reach it.",
+   "lesson_line": "Sell partials into strength. Targets are guesses; the first sell is a judgment.",
    "facts": [
-    "h05",
-    "h20",
+    "r02",
+    "r04",
     "c32",
     "i35",
     "h21"
    ],
    "house": true,
-   "simple": "We take profits in R, a third at 3R and a third at 5R, then trail the last third.",
+   "simple": "We sell the first piece into a strong push of a few days, then trail the rest.",
    "deeper": {
-    "counter": "IBD says take most profits at 20% to 25%. Bulkowski's measured-move target is a guess, and only 61% of cups reach it. Our trims scale with the risk taken, and R is set by the stop. A third comes off at 3R and another at 5R. The last third trails the 10-day or the 21-day."
+    "counter": "IBD says take most profits at 20% to 25%. Bulkowski's measured-move target is a guess, and only 61% of cups reach it. Our first sell is a judgment, often into a 3, 5 or 7 day push. The last part trails the 10-day or the 21-day."
    },
    "tier": "expert",
    "risk": {
@@ -3574,7 +3591,7 @@
      "the 20% to 25% and 61% figures are web numbers that can change"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q63",
@@ -4375,10 +4392,10 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "ch.trim_gap_open",
-   "q": "What do you do with the first third?",
-   "story": "You bought at 91.29 with the stop at 90.67, so 3R is 93.15. The next morning the stock opens at 94.20.",
+   "q": "What do you do at the open?",
+   "story": "Your plan is to sell part into a strong push after day 3. You bought at 91.29 with the stop at 90.67, so 3R is 93.15. On day 4 the stock opens at 94.20.",
    "choices": [
-    "Sell that third at the open",
+    "Sell part at the open",
     "Wait for a dip to 93.15",
     "Sell two thirds at open",
     "Sell it at the close"
@@ -4386,21 +4403,21 @@
    "wrong": {
     "Wait for a dip to 93.15": "Our rule is to take it at the open, not to bet on a pullback.",
     "Sell it at the close": "The rule says at the open.",
-    "Sell two thirds at open": "The first trim is a third at 3R, not two thirds."
+    "Sell two thirds at open": "Too much at once. Sell part into the gap and keep the rest on the plan."
    },
-   "answer": "Sell that third at the open",
-   "why": "Sell that third at the open. The first trim is a third at 3R, and if a stock opens above a trim level we take that trim at the open. Here 3R was 93.15 and the stock opened at 94.20, above it.",
-   "lesson_line": "A gap over the trim level means you take the trim at the open.",
+   "answer": "Sell part at the open",
+   "why": "Sell part at the open. It is day 4, past the day 3 earliest mark, and the stock gapped above 3R. If a stock opens above a level where you planned to sell, take that sale at the open. Here 3R was 93.15 and the stock opened at 94.20.",
+   "lesson_line": "A gap over your planned sell level means you sell at the open.",
    "facts": [
     "h41",
     "c56",
-    "h05",
-    "h20"
+    "r03",
+    "r04"
    ],
    "house": true,
-   "simple": "When a stock opens above a trim level, we sell that trim at the open and do not wait.",
+   "simple": "When a stock opens above a level where we planned to sell, we sell at the open and do not wait.",
    "deeper": {
-    "trap": "Do not treat 93.15 as a limit order sitting in the market. When a stock gaps over it, the price you can get is the open. Waiting for a fall back to 93.15 is a bet that it comes. The 5R trim, another third, comes later."
+    "trap": "Do not treat 93.15 as a limit order sitting in the market. When a stock gaps over it, the price you can get is the open. Waiting for a fall back to 93.15 is a bet that it comes."
    },
    "tier": "expert",
    "risk": {
@@ -4409,7 +4426,7 @@
      "rests on the owner's rulebook B19 and F63"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q86",
@@ -4830,7 +4847,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "edit right: 3R level only, day-based push also taught; answer unchanged | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "notes": "Question text still says 3R is where we take a third; neutralise."
   },
   "q19": {
    "status": "pass",
@@ -4921,7 +4938,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R = 0.80, gain 2.00, 2.5R. First trim waits for 3R (B19). Keys no action beyond counting."
+   "notes": "2.5R arithmetic; ok."
   },
   "q34": {
    "status": "pass",
@@ -5056,15 +5073,14 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Steady mover trails the 21-day, sell on a close below (h21, h20); AX d06, d07 support. Key no longer repeats '21-day'. Lengths 30-34."
+   "fixed": true,
+   "notes": "Story narrated a third at 3R and a third at 5R as the plan and cites B19 h20; narrate selling into pushes, drop h20."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop a few cents under the low (h24, c15), first trim a third at 3R (h05); each wrong option has at least two errors; handle low is only the outer limit (c16).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Re-keyed; stop rule unchanged."
   },
   "q57": {
    "status": "pass",
@@ -5101,7 +5117,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h05/h20 give thirds at 3R and 5R then trail; IBD 20-25% (i35) and 61% target (c32) correctly marked as not ours."
+   "notes": "Re-keyed to push then trail; IBD and measured-move wrongs retained."
   },
   "q63": {
    "status": "pass",
@@ -5240,9 +5256,8 @@
   "q85": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "3R = 91.29 + 3 x 0.62 = 93.15, correct; open 94.20 is above it, so h41/c56 say take the third at the open. 'Two thirds' refuted by h05/h20. The old skip-and-wait-for-5R choice is gone.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Q still says first third; reword."
   },
   "q86": {
    "status": "cut",

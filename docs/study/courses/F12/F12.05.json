@@ -1776,9 +1776,9 @@
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "ok"
   },
   "q19": {
    "status": "pass",
@@ -1796,7 +1796,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rederived: 45 trades clears f53's more than thirty; f51 negative expectancy; f29 (SMB) drop setups not worth the capital; f44 (Schwab) lean toward what works. The f64 attack (100 to 200 for a clear picture) is answered in the why as 'not proof' and by benching, not dropping. Possible tension with B17 is weak: benching is a judgment on a setup's edge (A1 'your edge'), not a losing-streak size cut."
+   "notes": "ok"
   },
   "q22": {
    "status": "pass",

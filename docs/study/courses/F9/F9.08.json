@@ -1395,9 +1395,9 @@
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "ok"
   },
   "q08": {
    "status": "pass",

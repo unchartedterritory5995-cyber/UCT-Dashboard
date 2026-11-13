@@ -155,6 +155,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -613,6 +621,48 @@
    "source": "s5",
    "quote": "\"canonical\": \"Wedge Pop\", \"family\": \"Momentum & Trend\"",
    "claim": "Our catalog files the Wedge Pop under Momentum & Trend."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day.",
+   "claim": "The owner very rarely sells on day 1 of the buy day."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "I usually wait until day 3 at the earliest.",
+   "claim": "The owner usually waits until day 3 at the earliest for the first sell."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "SO 3-5-7 day or 5-10 R is often best.",
+   "claim": "A 3, 5 or 7 day push, or about 5 to 10R, is often the best first sell."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Every setup buys as price trades through its trigger, during the day, never at the close."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "It is always just the trigger for each trade never the close.",
+   "claim": "The owner buys at the trigger for each trade, never the close."
+  },
+  {
+   "id": "r09",
+   "source": "h2",
+   "quote": "My stop is always LOD or PLOD or range low.",
+   "claim": "The owner's stop is the low of day, the prior day's low or the range low."
   }
  ],
  "walkthroughs": [
@@ -687,17 +737,16 @@
     "The news that moved it"
    ],
    "answer": "The setup's entry price",
-   "why": "The setup's entry price. In our plans, trigger means entry. Each setup's detector returns its own trigger and its own stop for the candle it fires on. The trigger is a price on the chart. It is not the stop, not a profit target, and not the news behind the move. The trims come later, at 3R and 5R, measured off your entry-to-stop risk.",
+   "why": "The setup's entry price. In our plans, trigger means entry. Each setup's detector returns its own trigger and its own stop for the candle it fires on. The trigger is a price on the chart. It is not the stop, not a profit target, and not the news behind the move. Selling comes later, and the first sell is a judgment.",
    "lesson_line": "Trigger means entry. Every setup hands you one, plus a stop.",
    "facts": [
     "h01",
-    "h02",
-    "h03",
-    "r01"
+    "r01",
+    "r05"
    ],
    "wrong": {
     "The setup's stop price": "The stop is the other price each setup gives you. The trigger is where you get in.",
-    "The first target": "Trims come later: a third at 3R and a third at 5R, measured off your entry-to-stop risk.",
+    "The first target": "Selling comes later, and the first sell is a judgment, not a fixed target.",
     "The news that moved it": "News can be why a stock moves. The trigger is a price on the chart."
    },
    "simple": "The trigger is the entry price, the spot where you get in, and each setup gives you one along with a stop.",
@@ -709,7 +758,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q02",
@@ -727,11 +776,12 @@
     "Exit"
    ],
    "answer": "Trim",
-   "why": "Trim. Our plans run Entry, Stop, Trim, Trail: get in, set the stop, take some off at the targets, then trail the rest. The owner's full line ends with Advance. The trims are a third at 3R and another third at 5R, and the last third trails.",
+   "why": "Trim. Our plans run Entry, Stop, Trim, Trail: get in, set the stop, take some off, then trail the rest. The owner's full line ends with Advance. The first sell is a judgment, rarely on day 1, and the last part trails.",
    "lesson_line": "Entry, Stop, Trim, Trail. Every trade plan we teach runs in that order.",
    "facts": [
     "o01",
-    "h03"
+    "r03",
+    "r05"
    ],
    "simple": "Trim comes third because you take some profit off as the trade works, then trail the rest.",
    "tier": "core",
@@ -742,7 +792,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q03",
@@ -791,23 +841,23 @@
    "choices": [
     "The prior close, reclaimed intraday",
     "A gap up the day after a red day",
-    "A close back over a 4-day high average",
-    "A close out of a tight MA cluster"
+    "A move back over a 4-day high average",
+    "A move out of a tight MA cluster"
    ],
    "answer": "The prior close, reclaimed intraday",
-   "why": "The prior close, reclaimed intraday. The stock trades under yesterday's close, then gets back over it during the day. That reclaim is the entry. The plan then sells a third at 3R and a third at 5R and trails under each higher low. It is not the Kicker, which gaps up after a red day.",
+   "why": "The prior close, reclaimed intraday. The stock trades under yesterday's close, then gets back over it during the day. That reclaim is the entry. The plan then sells in parts, the first sell a judgment, and trails under each higher low. It is not the Kicker, which gaps up after a red day.",
    "lesson_line": "Oops: it lost the prior close and took it back the same day.",
    "facts": [
     "h09",
     "h05",
-    "h11",
-    "h14",
+    "r05",
+    "r07",
     "t01"
    ],
    "wrong": {
-    "A close back over a 4-day high average": "That's the Slingshot's entry: the close back over the 4-day average of the highs.",
-    "A close out of a tight MA cluster": "That's the Launchpad.",
-    "A gap up the day after a red day": "That's the Kicker: a red day, then a gap up the next day."
+    "A gap up the day after a red day": "That's the Kicker: a red day, then a gap up the next day.",
+    "A move back over a 4-day high average": "That's the Slingshot's entry: price trading back over the 4-day average of the highs.",
+    "A move out of a tight MA cluster": "That's the Launchpad."
    },
    "simple": "An Oops Reversal is a stock that drops under yesterday's close and then climbs back over it the same day.",
    "tier": "core",
@@ -817,7 +867,7 @@
      "house definition from TRADE_PLANS.md; stable"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q05",
@@ -1051,20 +1101,22 @@
    "bank": [
     "partials",
     "everything",
-    "half",
+    "nothing",
     "losers"
    ],
    "answer": "partials",
-   "why": "Partials. You sell some of the position into strength, not all of it. The rest stays on, with the stop trailing the rising moving averages. Our sizes: a third at 3R, another third at 5R, then trail the last third. Selling everything at the first pop, or half at once, is not our line.",
+   "why": "Partials. You sell some of the position into strength, not all of it. The rest stays on, with the stop trailing the rising moving averages. The first sell is a judgment, rarely on day 1. Selling everything at the first pop is not our line.",
    "lesson_line": "Sell partials into strength. Trail the rest.",
    "facts": [
     "p01",
-    "h03"
+    "r03",
+    "r05"
    ],
    "wrong": {
     "everything": "Selling it all at the first pop ends the trade. The line keeps part of it on and trails it.",
-    "half": "Our first trim is a third at 3R, not half.",
-    "losers": "This line is about winners: take some off into strength and trail the rest."
+    "half": "Half is a set share. The line sells partials, and the size is a judgment.",
+    "losers": "This line is about winners: take some off into strength and trail the rest.",
+    "nothing": "Selling nothing banks no profit. The line sells partials into strength and trails the rest."
    },
    "simple": "Partials, because you sell part of a winner as it rises and keep the rest on with a trailing stop.",
    "tier": "core",
@@ -1074,7 +1126,7 @@
      "rests on the owner's own words and rulebook (E51)"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q12",
@@ -1116,12 +1168,13 @@
     "Cutting size before you buy"
    ],
    "answer": "Taking some shares off",
-   "why": "Taking some shares off. A trim sells part of the position and keeps the rest working. Our plan sells a third at 3R and another third at 5R, then trails the last third. A trim does not sell the whole position.",
+   "why": "Taking some shares off. A trim sells part of the position and keeps the rest working. The first sell is a judgment, rarely on day 1, and the last part trails. A trim does not sell the whole position.",
    "lesson_line": "Trim means some, not all.",
    "facts": [
-    "h03",
     "o01",
-    "p01"
+    "p01",
+    "r03",
+    "r05"
    ],
    "wrong": {
     "Selling the whole position": "That's selling everything. A trim keeps part of the position on.",
@@ -1137,7 +1190,7 @@
      "fixed or rewritten before"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q14",
@@ -1550,16 +1603,18 @@
    "rung": 4,
    "format": "tf",
    "house": true,
-   "q": "Our plan names the size of the first trim, not just the level: a third at 3R.",
-   "answer": "True",
-   "why": "True. The hard rule names both the size and the level: a third at 3R. Another third goes at 5R, and the last third trails. The owner says the first trim can ideally come anywhere from 3R to 6R, and in practice he mostly waits for 5R. The rule we teach is still a third at 3R.",
-   "lesson_line": "A third at 3R, a third at 5R. The plan names the size, not just the level.",
+   "q": "Our plan fixes the first sell at a third of the position at 3R.",
+   "answer": "False",
+   "why": "False. The first sell is a judgment that depends on many factors, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best.",
+   "lesson_line": "The first sell is a judgment, not a fixed third at 3R.",
    "facts": [
-    "h02",
-    "h03"
+    "r03",
+    "r04",
+    "r05",
+    "r06"
    ],
    "term": "Trim",
-   "simple": "True, our plan says how much to sell at the first trim, a third, and it happens at 3R.",
+   "simple": "False, because the first sell is a judgment and not a set third at 3R.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1569,7 +1624,7 @@
      "fixed before (key flipped 2026-11-09)"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q27",
@@ -1702,7 +1757,7 @@
    "rung": 5,
    "format": "numeric",
    "house": true,
-   "q": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. Your stop is $29.00, just under the day's low. Where is our 3R trim?",
+   "q": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. Your stop is $29.00, just under the day's low. Where is the 3R price?",
    "answer": 33,
    "calc": {
     "fn": "arith",
@@ -1713,14 +1768,14 @@
     }
    },
    "prefix": "$",
-   "why": "$33.00. You buy the $30.00 reclaim. The stop sits at $29.00, a few cents under the day's low, where our rulebook puts it. Your risk per share is the gap between the two. 3R is three times that risk, added on top of $30.00. That is where our first third comes off. Count from the entry, never from the stop.",
+   "why": "$33.00. You buy the $30.00 reclaim. The stop sits at $29.00, a few cents under the day's low, where our rulebook puts it. Your risk per share is the gap between the two. 3R is three times that risk, added on top of $30.00. It is a mark to measure with, not an order to sell. Count from the entry, never from the stop.",
    "lesson_line": "3R is three times your entry-to-stop risk, added to the entry.",
    "facts": [
-    "h02",
     "h09",
     "h26",
     "t10",
-    "r01"
+    "r01",
+    "r05"
    ],
    "term": "3R",
    "simple": "$33.00, because 3R adds three times your risk per share, $30.00 down to $29.00, on top of your entry.",
@@ -1732,7 +1787,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q31",
@@ -1976,7 +2031,7 @@
    "format": "scenario",
    "term": "Slingshot",
    "house": true,
-   "story": "You buy a Slingshot on the close. The trigger day's low is $52.10. The day before, the low was $51.40.",
+   "story": "You buy a Slingshot as price trades up through its trigger. The day's low is $52.10. The day before, the low was $51.40.",
    "q": "You want more room than our standard stop. Which stop level does the plan allow?",
    "choices": [
     "$51.40, the day before's low",
@@ -1989,10 +2044,11 @@
    "lesson_line": "Slingshot stop: the trigger day's low, or the day before's low for more room.",
    "facts": [
     "h12",
-    "h11",
     "h63",
     "r01",
-    "r02"
+    "r02",
+    "r07",
+    "r09"
    ],
    "wrong": {
     "$52.10, the trigger day's low": "That's the standard stop, the tighter one.",
@@ -2008,7 +2064,7 @@
      "a house plan rule (TRADE_PLANS.md) the owner reviews next"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q38",
@@ -2022,7 +2078,7 @@
    "choices": [
     "The cleanest decision point",
     "A failed setup: the stop is hit",
-    "The first trim, a third at 3R",
+    "The 3R mark, three times the risk",
     "A new Kicker setup forming"
    ],
    "answer": "The cleanest decision point",
@@ -2031,14 +2087,13 @@
    "facts": [
     "h18",
     "h17",
-    "h02",
-    "h05",
-    "r01"
+    "r01",
+    "r05"
    ],
    "wrong": {
     "A new Kicker setup forming": "A Kicker needs a red day and a gap up. This is a return to an old close.",
-    "The first trim, a third at 3R": "A 3R trim sits above the entry by three times the risk. This is a return to the $64 entry level.",
-    "A failed setup: the stop is hit": "The bar closed up, so our stop is its low, at or under the $64 close. At $64.20 it hasn't been hit."
+    "A failed setup: the stop is hit": "The bar closed up, so our stop is its low, at or under the $64 close. At $64.20 it hasn't been hit.",
+    "The 3R mark, three times the risk": "A 3R mark sits above the entry by three times the risk. This is a return to the $64 entry level."
    },
    "simple": "It is the cleanest place to decide, because it is the first time price has come back to the big-volume close.",
    "tier": "extended",
@@ -2049,7 +2104,7 @@
      "a house plan rule (TRADE_PLANS.md) the owner reviews next"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q39",
@@ -2061,27 +2116,27 @@
    "story": "You bought Gap Support at $82 as the gap held. Since the gap, the best price was $90, which is 3R on this trade. It's heading back up there now.",
    "q": "What does our plan say about $90?",
    "choices": [
-    "Where we first take some off",
+    "Where we look first to take some off",
     "Where our 5R target sits",
     "Where to add a few more shares",
     "Where we sell everything"
    ],
-   "answer": "Where we first take some off",
-   "why": "Where we first take some off. Our Gap Support plan names the post-gap high, here $90, as the first place to take some off. Here $90 is also 3R, where our hard rule sells the first third. The rest keeps working.",
-   "lesson_line": "Gap Support names the post-gap high as a trim spot. Our hard rule's first trim is a third at 3R.",
+   "answer": "Where we look first to take some off",
+   "why": "Where we look first to take some off. Our Gap Support plan names the post-gap high, here $90, as the first place to take some off. Here $90 is also 3R, but that is only a mark. The first sell stays a judgment, rarely on day 1. The rest keeps working.",
+   "lesson_line": "Gap Support names the post-gap high as the first place to look at selling. The sell itself is a judgment.",
    "facts": [
     "h20",
-    "h02",
-    "h03",
     "r01",
-    "h19"
+    "h19",
+    "r03",
+    "r05"
    ],
    "wrong": {
     "Where to add a few more shares": "Adding there isn't in the plan. It's where we take some off.",
     "Where our 5R target sits": "The story puts $90 at 3R. 5R sits higher, at five times the risk.",
     "Where we sell everything": "Trim means some, not all. Keep the rest working."
    },
-   "simple": "It is where we first take some off, because $90 is the post-gap high and also 3R here.",
+   "simple": "It is where we look first to take some off, because $90 is the post-gap high.",
    "tier": "extended",
    "risk": {
     "score": 6,
@@ -2091,7 +2146,7 @@
      "fixed or rewritten before"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q40",
@@ -2194,14 +2249,14 @@
    "term": "3R",
    "house": true,
    "story": "You buy a setup at $60 with its stop at $57. It reaches $69 and keeps going.",
-   "q": "Counting in R, where is it on our plan?",
+   "q": "Counting in R, where is it?",
    "choices": [
-    "At 3R: the first trim",
-    "At 5R: second trim",
+    "At 3R, three times the risk",
+    "At 5R, five times the risk",
     "At 9R: nine dollars",
     "At 4R: from the stop"
    ],
-   "answer": "At 3R: the first trim",
+   "answer": "At 3R, three times the risk",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2211,23 +2266,23 @@
      "stop": 57
     }
    },
-   "why": "At 3R: the first trim. Your risk is the gap from the $60 entry down to the $57 stop. The gain to $69 is three times that risk. At 3R our plan sells the first third. R counts from the entry, not from the stop, and it is never the dollar gain itself.",
+   "why": "At 3R. Your risk is the gap from the $60 entry down to the $57 stop. The gain to $69 is three times that risk. 3R is a mark to measure with, not an order to sell. R counts from the entry, not from the stop, and it is never the dollar gain itself.",
    "lesson_line": "Count in R: the gain divided by your entry-to-stop risk.",
    "facts": [
-    "h02",
-    "h03",
     "t10",
     "r01",
-    "p01"
+    "p01",
+    "r03",
+    "r05"
    ],
    "wrong": {
-    "At 5R: second trim": "5R needs five times the risk. This is three.",
     "At 9R: nine dollars": "That's dollars, not R. Divide the gain by your risk per share.",
-    "At 4R: from the stop": "That counts from the $57 stop. R counts the gain from your $60 entry, in units of your risk."
+    "At 4R: from the stop": "That counts from the $57 stop. R counts the gain from your $60 entry, in units of your risk.",
+    "At 5R, five times the risk": "5R needs five times the risk. This is three."
    },
-   "simple": "At 3R, because the gain from $60 to $69 is three times your risk from $60 to $57, the first trim.",
+   "simple": "At 3R, because the gain from $60 to $69 is three times your risk from $60 to $57.",
    "deeper": {
-    "example": "Same trade, keep going. 5R is five times your risk per share, added to the $60 entry. That is where the second third comes off, and the last third trails under the rising averages."
+    "example": "Same trade, keep going. 5R is five times your risk per share, added to the $60 entry. These are marks to measure with. The first sell is a judgment, rarely on day 1, and the last part trails under the rising averages."
    },
    "tier": "extended",
    "risk": {
@@ -2237,7 +2292,7 @@
      "rests on the owner's rulebook (B19, E51)"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q44",
@@ -2314,7 +2369,7 @@
    "rung": 7,
    "format": "numeric",
    "house": true,
-   "q": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is our 5R target?",
+   "q": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is the 5R price?",
    "answer": 52.5,
    "calc": {
     "fn": "arith",
@@ -2325,13 +2380,12 @@
     }
    },
    "prefix": "$",
-   "why": "$52.50. R is the risk per share from trigger to stop, $45.00 down to $43.50. 5R is five times that, added on top of the $45.00 trigger. It is where our second third comes off, after the first third at 3R. Count from the trigger, not the stop.",
+   "why": "$52.50. R is the risk per share from trigger to stop, $45.00 down to $43.50. 5R is five times that, added on top of the $45.00 trigger. It is a mark to measure a push with, not a fixed sell. Count from the trigger, not the stop.",
    "lesson_line": "5R: five times your risk per share, on top of the entry.",
    "facts": [
-    "h03",
-    "h02",
     "h01",
-    "r01"
+    "r01",
+    "r05"
    ],
    "term": "3R",
    "simple": "$52.50, because 5R is five times your risk from the $45.00 trigger to the $43.50 stop, added to the trigger.",
@@ -2346,7 +2400,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q47",
@@ -2588,7 +2642,6 @@
    "facts": [
     "h21",
     "h19",
-    "h02",
     "h24"
    ],
    "wrong": {
@@ -2807,28 +2860,29 @@
    "format": "scenario",
    "term": "Slingshot",
    "house": true,
-   "story": "Your note reads: 'Slingshot. Entry on the close back over the 4-day average of the highs. Stop under the trigger day's low. First trim: a third at 3R. Trail under the 4-day line.'",
+   "story": "Your note reads: 'Slingshot. Entry as price trades up through the 4-day average of the highs. Stop under the trigger day's low. First sell: day 3 at the earliest. Trail under the 4-day line.'",
    "q": "One line in the note doesn't match our plan. Which?",
    "choices": [
     "Trail under the 4-day line",
-    "Entry on the close back over it",
+    "Entry as it trades up through it",
     "Stop under the trigger day's low",
-    "First trim: a third at 3R"
+    "First sell: day 3 at the earliest"
    ],
    "answer": "Trail under the 4-day line",
-   "why": "Trail under the 4-day line. Our Slingshot trails under the 10-day average, or under each higher low. The 4-day average of the highs is the entry line, not the trail. The entry, the stop and the first trim in the note all match our plan.",
-   "lesson_line": "Slingshot: enter over the 4-day highs line, trail the 10-day or the higher lows.",
+   "why": "Trail under the 4-day line. Our Slingshot trails under the 10-day average, or under each higher low. The 4-day average of the highs is the entry line, not the trail. The entry, the stop and the first sell in the note all match our plan.",
+   "lesson_line": "Slingshot: enter as price trades over the 4-day highs line, trail the 10-day or the higher lows.",
    "facts": [
-    "h11",
     "h12",
     "h13",
-    "h02",
-    "l01"
+    "r03",
+    "r04",
+    "r07",
+    "r08"
    ],
    "wrong": {
-    "Entry on the close back over it": "That's our entry, word for word.",
     "Stop under the trigger day's low": "That's our stop. The day before's low is the wider choice.",
-    "First trim: a third at 3R": "That's our first trim on every setup plan: a third at 3R."
+    "Entry as it trades up through it": "That's our entry: price trading up through the line, not a close.",
+    "First sell: day 3 at the earliest": "That fits how we sell. The owner very rarely sells on day 1, and the first sell is a judgment."
    },
    "simple": "The trail line is wrong, because our Slingshot trails under the 10-day average or each higher low, not the 4-day line.",
    "deeper": {
@@ -2842,7 +2896,7 @@
      "a house plan rule (TRADE_PLANS.md) the owner reviews next"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   },
   {
    "key": "q59",
@@ -2957,15 +3011,14 @@
    "format": "tf",
    "house": true,
    "term": "breakeven",
-   "q": "You sell your first third at 3R. On our plan, the stop on the rest now moves up to breakeven.",
+   "q": "Our rulebook moves the stop on the whole position to breakeven once it is 2R to 5R ahead, ideally.",
    "answer": "True",
-   "why": "True. Our plan moves the stop on what is left up to breakeven at the first trim. Our rulebook puts that move anywhere from 2R to 5R, ideally. The first trim at 3R sits inside that window, so it is the default we teach.",
-   "lesson_line": "First third off at 3R: the stop on the rest goes to breakeven.",
-   "simple": "True, once the first third comes off at 3R, the stop on the shares you still hold moves up to breakeven.",
+   "why": "True. The rulebook says to move the stop to breakeven at 2R to 5R, ideally. That is a move of the stop, not a sale. The first sell is a judgment and often comes later.",
+   "lesson_line": "Stop to breakeven at 2R to 5R ahead, ideally. That moves the stop, not your shares.",
+   "simple": "True, because the rulebook moves the stop to breakeven once the trade is well ahead, and it is not a sale.",
    "facts": [
-    "h28",
     "h24",
-    "h02"
+    "r05"
    ],
    "tier": "core",
    "risk": {
@@ -2975,7 +3028,7 @@
      "a window the owner calls ideal, 2R to 5R"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings2"
   }
  ],
  "conflicts": [
@@ -3016,14 +3069,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h01 ('returns its own trigger (the entry)'). Trims at 3R/5R from h02/h03, R from r01. No tell; choices 22-23 chars.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Trigger-means-entry kept; trim text now judgment."
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Order key kept; thirds wording removed."
   },
   "q03": {
    "status": "pass",
@@ -3035,7 +3087,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches h09 (TRADE_PLANS Oops row). Distractors are the Kicker, Slingshot and Launchpad definitions; the Go Signal (same entry mechanic) is not offered. Answer is not the longest. No giveaway of another question's stem."
+   "notes": "Oops key kept; distractors reworded so none teaches a close entry (D-003)."
   },
   "q05": {
    "status": "pass",
@@ -3075,9 +3127,9 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Partials key kept; bank 'half' replaced by 'nothing'. NOTE: stale wrong['half'] entry persists because apply_upgrade merges wrong; drop it by hand."
   },
   "q12": {
    "status": "pass",
@@ -3089,7 +3141,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h03 and p01 (sell part, keep the rest). Choices 22-27 characters. Every note matches a fact. q21's distractor 'Taking some shares off into strength' repeats this key, but only in q21's feedback, which is reinforcement, not a giveaway in a stem."
+   "notes": "Trim meaning kept; thirds removed."
   },
   "q14": {
    "status": "pass",
@@ -3167,7 +3219,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches h02 (B19) verbatim: a third at 3R is the hard rule, ideally 3R to 6R, and in practice mostly 5R. The key teaches the rulebook."
+   "notes": "Flipped to False per D-013."
   },
   "q27": {
    "status": "pass",
@@ -3191,7 +3243,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stem gives the $29.00 stop, so F62 cannot make a second key. Calc 30 + 3 x 1 = 33. Why and simple carry no ungrounded number. 132 chars."
+   "notes": "Arithmetic kept; 3R is a mark."
   },
   "q31": {
    "status": "pass",
@@ -3234,19 +3286,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h12: the day before's low is the wider choice, $51.40. h63 (A3, 'a few cents under the day's low or the prior day's low') confirmed in sizing_rule.md line 103. r01 and r02 support 'R bigger'. Choices 25-30 characters."
+   "notes": "Stop key kept; story now buys through the trigger (D-003)."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The key matches h18. But the story never says the edge bar closed up. On a down close our stop is the bar's high (h17; q24 teaches this), so the feedback for 'A failed setup: the stop is hit', which assumes a long stopped at the low, rests on a fact the story leaves out. The fix adds 'closed up' to the story, which grounds the long and the stop at the low."
+   "fixed": false,
+   "notes": "Decision-point key kept; 3R distractor reworded."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h20 (the post-gap high is the first place to take some off) and h02 (a third at 3R) agree, because the story sets $90 at 3R. 'No adding' fits rulebook A5. Only one answer holds."
+   "notes": "Softened to where we look first; the 3R sell sentence removed."
   },
   "q40": {
    "status": "cut",
@@ -3270,8 +3322,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (69-60)/(60-57) = 3; 3R is the first trim (h02, B19). The 4R distractor ((69-57)/3) and 9R (dollars) are real mistakes. Consistent with the rulebook.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "3R arithmetic kept; no 'first trim' framing."
   },
   "q44": {
    "status": "pass",
@@ -3289,7 +3340,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 45 + 5 x 1.5 = 52.5 from h03 and r01. The trap's 'one R short' checks out (51.00 vs 52.50, a $1.50 gap, which is 1R). Minor: the term field says '3R' for a 5R item. Metadata only, left as is."
+   "notes": "5R arithmetic kept; a mark, not a sell."
   },
   "q47": {
    "status": "pass",
@@ -3324,9 +3375,9 @@
   },
   "q52": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key fine (tighten a stalled gap stop); drop the old B19 third-at-3R fact h02, which supports nothing here."
   },
   "q53": {
    "status": "pass",
@@ -3361,9 +3412,9 @@
   },
   "q58": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Story and key moved to trade-through entry and day-3 first sell; consistent with D-003 and D-013."
   },
   "q59": {
    "status": "pass",
@@ -3387,7 +3438,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h62 is F62 verbatim (sizing_rule.md line 225), and h63 is A3 verbatim (line 103). True follows. Every number comes from the statement. It still sits beside q10 and q61 ('stop is the day's low'), which the resolver already flagged for the owner."
+   "notes": "Re-keyed to stop move at 2R-5R as a stop move, not a sale; OK."
   }
  }
 }

@@ -786,6 +786,30 @@
    "source": "h2",
    "quote": "Never move the stop up to make a trade fit.",
    "claim": "Owner: never move the stop up to make a trade fit."
+  },
+  {
+   "id": "r10",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Owner: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r12",
+   "source": "h2",
+   "quote": "I usually wait until day 3 at the earliest.",
+   "claim": "Owner: he usually waits until day 3 at the earliest to sell."
+  },
+  {
+   "id": "r13",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day.",
+   "claim": "Owner: he very rarely sells on day 1 of the buy day."
   }
  ],
  "walkthroughs": [
@@ -1418,11 +1442,10 @@
     },
     "round": 2
    },
-   "why": "46.00. One R is the buy minus the stop: 40.00 minus 38.00. Add three of those to the buy. The hard rule takes the first third off at 3R.",
-   "lesson_line": "Know your 3R before you buy. The first third comes off there.",
+   "why": "46.00. One R is the buy minus the stop: 40.00 minus 38.00. Add three of those to the buy. 3R is a mark to measure by, not an automatic sale.",
+   "lesson_line": "Know your 3R before you buy. It is your measuring mark.",
    "facts": [
-    "hB19",
-    "n15",
+    "r10",
     "dHead",
     "dSEDG",
     "dSEDGb",
@@ -1442,7 +1465,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q18",
@@ -2302,9 +2325,7 @@
    "why": "26.6%. One R is 41.89 minus 38.18. Three of those, divided by the 41.89 buy, is 26.6%. Our stop usually sits within about 3% of the buy, and this one is far wider, so 3R sits far away. In our test only 33.4% of events reached 3R before the stop.",
    "lesson_line": "A wide stop pushes 3R far away. Count the percent before you buy.",
    "facts": [
-    "hB19",
     "dHIMSb",
-    "n15",
     "hA13",
     "dBase",
     "dHIMS",
@@ -2312,9 +2333,9 @@
    ],
    "house": true,
    "suffix": "%",
-   "simple": "26.6%. With a stop that wide, the stock must rise more than a quarter just to reach the first trim at 3R.",
+   "simple": "26.6%. With a stop that wide, the stock must rise more than a quarter just to reach 3R.",
    "deeper": {
-    "example": "These are HIMS's numbers from 2025-05-06: an 8.9% stop. Our research note on it says the stop is wide, so size down or skip. A wide stop does not only shrink the size. It also pushes every trim further away."
+    "example": "These are HIMS's numbers from 2025-05-06: an 8.9% stop. Our research note on it says the stop is wide, so size down or skip. A wide stop does not only shrink the size. It also pushes every target further away."
    },
    "tier": "extended",
    "risk": {
@@ -2324,7 +2345,7 @@
      "rests on the owner's rulebook (A13, B19)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q43",
@@ -3171,20 +3192,18 @@
     "Between 6R and 8R"
    ],
    "answer": "Between 2R and 5R",
-   "why": "Between 2R and 5R. Our rule says to move the stop to breakeven at 2R to 5R, ideally. The card's default is the first trim, and the hard rule for that trim is a third at 3R. Breakeven means the stop sits at your entry price. It is a window, not a fixed point.",
-   "lesson_line": "Breakeven comes between 2R and 5R, at the first trim.",
+   "why": "Between 2R and 5R. Our rule says to move the stop to breakeven at 2R to 5R, ideally. Breakeven means the stop sits at your entry price. It is a window, not a fixed point.",
+   "lesson_line": "Breakeven comes between 2R and 5R.",
    "facts": [
-    "hB19",
-    "n23",
-    "hB19b"
+    "hB19"
    ],
    "wrong": {
     "Between 0.5R and 1R": "That is far too early. The window is 2R to 5R.",
     "Between 6R and 8R": "That is past the window. Breakeven comes between 2R and 5R.",
-    "Between 3R and 6R": "That is the window for the first trim. Breakeven comes between 2R and 5R."
+    "Between 3R and 6R": "That window starts and ends too high. Breakeven comes between 2R and 5R."
    },
    "house": true,
-   "simple": "The stop moves up to your entry price somewhere between 2R and 5R, usually when you take the first trim.",
+   "simple": "The stop moves up to your entry price somewhere between 2R and 5R.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3192,7 +3211,7 @@
      "rests on the owner's rulebook (section 9) (B19)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q66",
@@ -3200,30 +3219,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "nf.breakeven",
-   "q": "Where does the stop go by default?",
+   "q": "Where does the stop go now?",
    "choices": [
     "Up to breakeven, at 31.83",
-    "Stays at 30.23 until it hits 5R",
+    "Stays at 30.23 until it hits 8R",
     "Up under the 10-day average",
     "Up to 3R, where you just sold"
    ],
    "answer": "Up to breakeven, at 31.83",
-   "why": "Up to breakeven, 31.83. The stop moves to breakeven between 2R and 5R, at the first trim by default. You just took the first third at 3R, so the stop goes to your entry. It only moves up, never down or wider. The 10-day trail comes later, for the last third.",
-   "lesson_line": "First trim off, stop up to your entry.",
+   "why": "Up to breakeven, 31.83. The stop moves to breakeven between 2R and 5R, and 3R is inside that window. It only moves up, never down or wider. The 10-day trail comes later, for what is left.",
+   "lesson_line": "At 3R the stop moves up to your entry.",
    "facts": [
     "hB19",
-    "n23",
     "hA4",
     "hE52"
    ],
    "wrong": {
-    "Stays at 30.23 until it hits 5R": "Breakeven comes between 2R and 5R, at the first trim by default. Do not wait for 5R.",
-    "Up under the 10-day average": "The 10-day is the trail for the last third. The stop moves to breakeven first.",
-    "Up to 3R, where you just sold": "The stop goes to breakeven, your entry, at the first trim by default. Not up to the trim price."
+    "Up under the 10-day average": "The 10-day is the trail for what is left. The stop moves to breakeven first.",
+    "Up to 3R, where you just sold": "The stop goes to breakeven, your entry. Not up to the price where you sold.",
+    "Stays at 30.23 until it hits 8R": "That is past the window. Breakeven comes between 2R and 5R, so 8R is too late."
    },
    "house": true,
-   "story": "You bought a News Failure long at 31.83 with the stop at 30.23. The stock reaches 3R and you sell the first third.",
-   "simple": "The stop moves up to your 31.83 entry, because the first trim is when breakeven comes by default.",
+   "story": "You bought a News Failure long at 31.83 with the stop at 30.23. The stock reaches 3R and you sell part of the position.",
+   "simple": "The stop moves up to your 31.83 entry, because 3R is inside the window where breakeven comes.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3231,7 +3249,7 @@
      "rests on the owner's rulebook (section 9) (B19, A4)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q67",
@@ -3241,11 +3259,10 @@
    "criterion": "nf.trim_2",
    "q": "Bought at 86.36 with the stop at 81.48. Where is 5R?",
    "answer": 110.76,
-   "why": "110.76. One R is the buy minus the stop: 86.36 minus 81.48. Add five of those to the buy. After the first third at 3R, another third comes off at 5R, then the last third rides the trail.",
-   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "why": "110.76. One R is the buy minus the stop: 86.36 minus 81.48. Add five of those to the buy. 5R is another mark to measure by. Selling into a push, at about 5 to 10R, is often best.",
+   "lesson_line": "Know your 5R before the open. It is a mark to measure by.",
    "facts": [
-    "hE51",
-    "n24",
+    "r11",
     "dAAOIb"
    ],
    "house": true,
@@ -3268,7 +3285,7 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q68",
@@ -3276,20 +3293,20 @@
    "rung": 3,
    "format": "tf",
    "criterion": "nf.trim_2",
-   "q": "The News Failure plan sells half the position at 5R.",
+   "q": "The News Failure plan fixes the first sell at a third of the position at 3R.",
    "answer": "False",
-   "why": "False. We sell, or cover, a third at 5R, not half. The plan is a third at 3R, a third at 5R, then trail the last third.",
-   "lesson_line": "A third at 3R, a third at 5R, the rest on the trail.",
+   "why": "False. The first sell is a judgment that depends on a variety of factors. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "lesson_line": "The first sell is a judgment. Wait for the push.",
    "facts": [
-    "hE51",
-    "n24",
-    "hB19",
-    "hB19b"
+    "r10",
+    "r11",
+    "r12",
+    "r13"
    ],
    "house": true,
-   "simple": "False, because the plan sells a third at 5R, not half, and the last third rides the trail.",
+   "simple": "False. The first sell is a judgment call, usually into a push on day 3 or later.",
    "deeper": {
-    "counter": "The hard rule is a third at 3R, then a third at 5R. Our rulebook also says the first trim is ideally anywhere from 3R to 6R. In practice, we mostly wait for 5R. The courses teach the hard rule."
+    "counter": "A third at 3R is a measuring example, not the rule. The first sell depends on a variety of factors. Waiting until day 3 at the earliest is common, and a 3, 5 or 7 day push, or about 5 to 10R, is often best."
    },
    "tier": "core",
    "risk": {
@@ -3298,7 +3315,7 @@
      "rests on the owner's rulebook (section 9) (E51, B19)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q69",
@@ -3308,28 +3325,27 @@
    "criterion": "nf.trim_gap_open",
    "q": "What do you do at the open?",
    "choices": [
-    "Take the first third off now",
+    "Sell part of it into the gap",
     "Wait for a dip back to the 3R level",
-    "Sell half now and half at 5R",
+    "Sell it all at the open",
     "Hold it all and move the stop up"
    ],
-   "answer": "Take the first third off now",
-   "why": "Take the first third off now, at the open. If a stock opens past a trim level, take that trim at the open. The open at 38.10 is past your 3R level, so the first third comes off there. Do not wait for a dip back. After the trim, the stop can move up to breakeven.",
-   "lesson_line": "Gap past a trim level: take it at the open.",
+   "answer": "Sell part of it into the gap",
+   "why": "Sell part of it into the gap, at the open. Thursday is day 4 of a push, inside the 3 to 7 day window where the first sell is often best. The gap hands you a better price. How much to sell is a judgment.",
+   "lesson_line": "A gap in a multi-day push is a good time for a first sell.",
    "facts": [
-    "hF63",
-    "n25",
-    "hB19",
-    "n23"
+    "r10",
+    "r11",
+    "r12"
    ],
    "wrong": {
-    "Sell half now and half at 5R": "The plan is a third at 3R and another third at 5R, not halves.",
-    "Hold it all and move the stop up": "The stop can follow after the trim. The trim itself comes off at the open.",
-    "Wait for a dip back to the 3R level": "A dip may never come. A trim level the day opens past is taken at the open."
+    "Hold it all and move the stop up": "The stop can follow later. A gap into a push is a good time for the first sell.",
+    "Wait for a dip back to the 3R level": "A dip may never come. A gap into a push is a good time for the first sell.",
+    "Sell it all at the open": "The first sell is part of the position. The rest keeps working."
    },
    "house": true,
-   "story": "You bought a News Failure long at 31.83 with the stop at 30.23. Next morning it opens at 38.10, above your 3R level, and you have sold nothing.",
-   "simple": "Take the first third off right at the open, because the price opened above your 3R level and that trim is due.",
+   "story": "You bought a News Failure long on Monday at 31.83 with the stop at 30.23. It has pushed up for three sessions. Thursday, day 4, it opens at 38.10, above your 3R level, and you have sold nothing.",
+   "simple": "Sell part of it at the open, because a gap on day 4 of a push is a good time for a first sell.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3337,7 +3353,7 @@
      "rests on the owner's rulebook (section 9) (F63, B19)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q70",
@@ -3345,16 +3361,17 @@
    "rung": 6,
    "format": "tf",
    "criterion": "nf.trim_gap_open",
-   "q": "A News Failure short that gaps down past a trim level covers that trim at the open.",
+   "q": "A News Failure short gaps down a long way in a multi-day push. Covering part at the open can be right.",
    "answer": "True",
-   "why": "True. If it opens past a trim level, take that trim at the open. For a short, past means lower, so a gap down through 3R or 5R covers that third at the open.",
-   "lesson_line": "Gap past a trim level: take the trim at the open, long or short.",
+   "why": "True. A big gap down in a multi-day push is a good time for the first cover. How much to cover is a judgment, not a fixed third. For a short, a cover is a buy back.",
+   "lesson_line": "A gap in a push is a good first sell or cover, long or short.",
    "facts": [
-    "n25",
-    "hF63"
+    "r10",
+    "r11",
+    "r12"
    ],
    "house": true,
-   "simple": "True, because a gap past a trim level is taken at the open, and for a short, past means lower.",
+   "simple": "True. A big gap down in a push is a good time for the first cover, and the amount is a judgment call.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3362,7 +3379,7 @@
      "rests on the owner's rulebook (section 9) (F63); short side is a mirror"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q71",
@@ -3562,8 +3579,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Solved first: 40 + 3*(40-38) = 46.00; matches key and calc. hB19/n15 support the 3R first third; SEDG deeper example matches dSEDGb (31.83, 30.23, 5.0%, 10.5R, 3R in 1 day) and dSEDGw. No second answer, no leak to q12/q42/q66/q67."
+   "fixed": true,
+   "notes": "Drop n15 ('Sell a third at 3R') citation; arithmetic otherwise fine."
   },
   "q18": {
    "status": "pass",
@@ -3712,9 +3729,9 @@
   },
   "q42": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Arithmetic fine; drop the third-at-3R facts it does not use."
   },
   "q43": {
    "status": "cut",
@@ -3745,7 +3762,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer n6: market order as price trades back over the prior close. Matches; no 'at the close' choice, so n6's Shapiro close entry gives no second answer. Deeper numbers dSEDGb verbatim (31.83, 30.23, 5.0%, 10.5R, 3R in 1 day)."
+   "notes": "Buy as price trades back over the prior close, market order, intraday; agrees with D-003."
   },
   "q48": {
    "status": "cut",
@@ -3799,13 +3816,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "Scan odds, 3R as measuring stick."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Deeper only: 20.3% (dAAOI), 4% skip (n8), 86.36 (dAAOIb) all grounded. The n6 close entry vs n8/C28 conflict stays an owner flag; the deeper keys the rulebook's C28, which wins over the card."
+   "notes": "Intraday trigger; close explicitly not the buy."
   },
   "q58": {
    "status": "pass",
@@ -3843,7 +3860,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved first: dTopQ 31% (500 events) vs dLongs 32.0% (603 events); even at the rounding edge 31.4% < 32.0%, so False holds. Quotes verified in the dossier (line-wrapped). Why separates the card grade-up (n2) from the test result. Stem mentions the top quarter but does not answer q13 (which needs the undercut)."
+   "notes": "Scan stat."
   },
   "q64": {
    "status": "cut",
@@ -3873,37 +3890,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer B19: breakeven at 2R to 5R. 3R-6R distractor is the first-trim window (hB19b verbatim), a real misconception. Key is not a tell (all 4 same shape)."
+   "notes": "Breakeven window only; first-trim link removed."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer n23: breakeven at the first trim by default, the 31.83 entry. Distractors each wrong by a cited fact (n23, hE52). A4 'only moves up' verbatim."
+   "fixed": true,
+   "notes": "Wrong choice 'until 5R' is the window edge, so arguably defensible; swap to 8R, outside the window."
   },
   "q67": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 86.36 + 5*4.88 = 110.76; trim plan from hE51 and n24; open-past-a-trim rule no longer stated."
+   "notes": "5R arithmetic; 5 to 10R judgment cited."
   },
   "q68": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False by E51/n24 (a third at 5R). Deeper B19b verbatim; 'we mostly wait for 5R' is the owner's practice in our voice. Hard-rule keying is an owner flag already."
+   "notes": "Re-keyed correctly to D-013; quotes verbatim."
   },
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer F63/n25: take the trim at the open. Calc: 3R = 31.83 + 3 x 1.60 = 36.63 < 38.10 open < 5R 39.83, so only the first third is due. Key no longer echoes 'at the open'."
+   "fixed": true,
+   "notes": "Key is right (day 4 gap in a push) but why/wrong still teach the mechanical 'take the trim at a trim level' rule."
   },
   "q70": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Still says a gap 'covers that trim'; re-key to a judgment first cover in a push."
   },
   "q71": {
    "status": "pass",

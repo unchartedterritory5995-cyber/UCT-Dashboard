@@ -117,6 +117,14 @@
    "url": "https://vantharpinstitute.com/glossary/r-value",
    "accessed": "2026-11-12",
    "why_reliable": "The institute of Van K. Tharp, the author who made R-multiples standard in trading books; the same glossary page is used for R in F12.03. Used here only to define R, never alone for a key."
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -473,6 +481,18 @@
    "source": "s13",
    "quote": "A term used to express the initial risk taken in a given position, as defined by one’s initial stop loss.",
    "claim": "R is the risk you took on a trade, set by your first stop."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
   }
  ],
  "walkthroughs": [
@@ -708,12 +728,12 @@
     "How many shares to buy at entry"
    ],
    "answer": "Where to take some profit off",
-   "why": "Where to take some profit off. Our rule sells the first third at 3R and another third at 5R, then trails the last third. R is the risk you took on the trade, set by your first stop. Trim is not the Stop, where you get out if you're wrong. It is not the Trail, which moves the stop up behind a winner.",
+   "why": "Where to take some profit off. R is the risk you took on the trade, set by your first stop. The first sell is a judgment, not a fixed level, and he usually waits until day 3 at the earliest. Trim is not the Stop, where you get out if you're wrong. It is not the Trail, which moves the stop up behind a winner.",
    "lesson_line": "Entry, Stop, Trim, Trail. Trim is where you sell some into strength.",
    "facts": [
     "h1",
-    "h2",
-    "h4",
+    "r01",
+    "r02",
     "h3",
     "f33",
     "f29",
@@ -734,7 +754,7 @@
      "rewritten to the rulebook 2026-11-09"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q08",
@@ -1356,7 +1376,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from h2/h4 (thirds at 3R and 5R) and f33 (partial profits); house flag set. R defined by f49 (quote matches F12.03, F9.03, V.06). Stem's 'include' fits A12's five-part list. Lengths balanced (29-33), wrong notes cite h3 and f29."
+   "notes": "ok"
   },
   "q08": {
    "status": "pass",

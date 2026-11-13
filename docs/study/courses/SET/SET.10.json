@@ -936,6 +936,24 @@
    "source": "h2",
    "quote": "Volume raises the grade; it is not a requirement for the setup to count (except where volume IS the setup, as proposed: HVE and the burst setups).",
    "claim": "D-006: volume raises the grade; it is not needed for the setup to count."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1479,10 +1497,10 @@
     },
     "round": 2
    },
-   "why": "61.53. One R is the fill minus the stop, 57.42 minus 56.05. Three R is three of those added to the fill. R is a distance in dollars, not a fixed percent of price. Our hard rule is to sell a third at 3R. KRMN reached it the next day.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "61.53. One R is the fill minus the stop, 57.42 minus 56.05. Three R is three of those added to the fill. R is a distance in dollars, not a fixed percent of price. The first sell is a judgment, not a fixed third at 3R. KRMN reached 3R the next day.",
+   "lesson_line": "Know your 3R before the open. It is a mark on the ruler, not an automatic sell.",
    "facts": [
-    "h05",
+    "r04",
     "d01"
    ],
    "house": true,
@@ -1496,7 +1514,7 @@
      "rests on the owner's rulebook (B19, a third at 3R)"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q16",
@@ -2123,31 +2141,32 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ipo.trim_gap_open",
-   "q": "What do you do with the first third?",
+   "q": "What do you do at the open?",
    "choices": [
-    "Take the trim at the open",
+    "Sell part at the open",
     "Sell the whole position",
     "Wait for a higher price",
     "Wait for the first half hour"
    ],
-   "answer": "Take the trim at the open",
-   "why": "At the open. If a stock opens above a trim level (3R, 5R), take that trim at the open. 3R is 61.53 and the open at 62.00 is above it. The first trim is a third at 3R, and the rest stays on the plan.",
-   "lesson_line": "A gap past your trim level means take the trim at the open.",
+   "answer": "Sell part at the open",
+   "why": "At the open. If a stock opens above a level where you planned to sell, take that sale at the open. 3R is 61.53 and the open at 62.00 is above it. It is day 4, so the sell is not too early, and the rest stays on the plan.",
+   "lesson_line": "A gap past your planned sell level means you sell at the open.",
    "facts": [
     "h25",
-    "h05",
-    "h06"
+    "h06",
+    "r05",
+    "r06"
    ],
    "wrong": {
-    "Wait for a higher price": "The rule is that a trim level the day opens past is taken at the open.",
-    "Sell the whole position": "We trim a third and keep the rest on the plan.",
-    "Wait for the first half hour": "The 30-minute wait is for a gap down through the stop. A gap up past a trim level is taken at the open."
+    "Wait for a higher price": "A level the day opens past is a sale at the open, not something to wait on.",
+    "Sell the whole position": "We sell part and keep the rest on the plan.",
+    "Wait for the first half hour": "The 30-minute wait is for a gap down through the stop. A gap up past a planned sell level is taken at the open."
    },
    "house": true,
-   "story": "You bought at 57.42 with the stop at 56.05. Next morning the stock opens at 62.00, above 3R at 61.53, your first trim level.",
-   "simple": "Take the trim at the open. The stock gapped past 3R, and the rule is to take that trim at the open.",
+   "story": "You bought at 57.42 with the stop at 56.05. Your plan is to sell part into a strong push. On day 4 the stock opens at 62.00, above 3R at 61.53.",
+   "simple": "Sell part at the open. The stock gapped past our planned sell level, so we sell at the open.",
    "deeper": {
-    "example": "Gaps skip levels. If you wait for a price you have already passed, you may watch the gain shrink with no rule to act on. The plan said 3R, the open is above it, so the plan says act now."
+    "example": "Gaps skip levels. If you wait for a price you have already passed, you may watch the gain shrink with no rule to act on. The plan said sell into the push, the open is above 3R, so the plan says act now."
    },
    "tier": "extended",
    "risk": {
@@ -2157,7 +2176,7 @@
      "computed level, 61.53 is given in the story"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q34",
@@ -2404,27 +2423,27 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "ipo.trim_2",
-   "q": "Under our plan, what comes after the first third at 3R?",
+   "q": "Under our plan, what comes after the first sell?",
    "choices": [
     "Sell it all at 5R and move on",
     "Add a third at 5R if it acts well",
-    "Another third at 5R, then a trail",
+    "Sell more on strength, then trail",
     "Hold the rest with no more trims"
    ],
-   "answer": "Another third at 5R, then a trail",
-   "why": "Another third at 5R, then trail the last third. The first third comes off at 3R. The 5R step is adjustable.",
-   "lesson_line": "Thirds at 3R and 5R, then a trail.",
+   "answer": "Sell more on strength, then trail",
+   "why": "Sell more on strength, then trail the last part. The first sell is a judgment, not a fixed third at 3R. Another sell can come near 5R, and the step is adjustable.",
+   "lesson_line": "Sell into strength, then trail the last part.",
    "facts": [
-    "h20",
-    "h05"
+    "r04",
+    "h21"
    ],
    "wrong": {
-    "Add a third at 5R if it acts well": "A third at 5R comes off, not on. After the first third, the plan is another third off at 5R, then the trail.",
-    "Hold the rest with no more trims": "The plan takes another third off at 5R. Holding the rest with no more trims skips that step.",
+    "Add a third at 5R if it acts well": "Selling comes off, not on. The plan sells more into strength, then trails the last part.",
+    "Hold the rest with no more trims": "The plan can sell more near 5R. Holding the rest with no more trims skips that step.",
     "Sell it all at 5R and move on": "The plan keeps the last third on the trail."
    },
    "house": true,
-   "simple": "Under our plan, after the first third at 3R, take another third at 5R and trail the last third.",
+   "simple": "After the first sell, the plan sells more into strength and then trails the last part.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2432,7 +2451,7 @@
      "rests on the owner's rulebook (E51, B19)"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q42",
@@ -3344,24 +3363,24 @@
     "No; but give it a wider stop"
    ],
    "answer": "No; the usual exit plan applies",
-   "why": "No. Our rulebook has no separate rule for new listings. The stop sits a few cents under the day's low and only moves up. A third comes off at 3R and another at 5R. Then trail the rest.",
+   "why": "No. Our rulebook has no separate rule for new listings. The stop sits a few cents under the day's low and only moves up. The first sell is a judgment, and then you trail the rest.",
    "lesson_line": "A new issue gets the same exit plan as any setup. Entry, stop, trim, trail, advance.",
    "facts": [
     "h40",
     "h32",
-    "h05",
-    "h20",
+    "r04",
+    "r05",
     "h24",
     "h02"
    ],
    "wrong": {
-    "Yes; sell everything at 2R": "The trims are thirds at 3R and 5R, then a trail.",
-    "Yes; take a smaller trim at 1R": "There is no 1R trim. The first third is at 3R.",
+    "Yes; sell everything at 2R": "The first sell is a judgment into a push, then a trail.",
+    "Yes; take a smaller trim at 1R": "There is no 1R trim. The first sell is a judgment, usually day 3 at the earliest.",
     "No; but give it a wider stop": "The stop only moves up, never wider. It sits a few cents under the day's low, as for any setup."
    },
    "house": true,
    "story": "You buy an IPO base breakout. A friend says new issues need a different exit plan from every other setup.",
-   "simple": "No, because a new issue gets the same exit plan: the same stop, thirds at 3R and 5R, then a trail.",
+   "simple": "No, because a new issue gets the same exit plan: the same stop, a first sell by judgment, then a trail.",
    "deeper": {
     "trap": "A friend's view is not a rule. The rulebook says plan every trade as Entry, Stop, Trim, Trail, Advance, and it has no separate rule for new listings."
    },
@@ -3376,7 +3395,7 @@
    "depends_on": [
     "D-034"
    ],
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q66",
@@ -3677,7 +3696,7 @@
     "After the first higher close in a row"
    ],
    "answer": "Between 2R and 5R, at first trim",
-   "why": "Between 2R and 5R, ideally, and at the first trim by default. The first trim is a third at 3R. It does not come before 2R, and it does not wait for the last third to be sold.",
+   "why": "Between 2R and 5R, ideally, and at the first trim by default. It does not come before 2R, and it does not wait for the last part to be sold.",
    "lesson_line": "Breakeven comes between 2R and 5R, at the first trim.",
    "facts": [
     "c49",
@@ -3697,7 +3716,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave1"
+   "batch": "rulings2"
   },
   {
    "key": "q76",
@@ -3997,7 +4016,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "57.42 + 3 x 1.37 = 61.53. Third at 3R is B19. KRMN next-day 3R is d01."
+   "notes": "3R arithmetic; softened."
   },
   "q16": {
    "status": "pass",
@@ -4108,8 +4127,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "3R = 57.42 + 3 x 1.37 = 61.53, open 62.00 is above it; h25 gives take the trim at the open."
+   "fixed": true,
+   "notes": "Q says first third; two retained wrong notes say trim level; reword."
   },
   "q34": {
    "status": "pass",
@@ -4120,9 +4139,9 @@
   },
   "q35": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "Keep; 3R only as base-rate stick."
   },
   "q36": {
    "status": "pass",
@@ -4158,7 +4177,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Stem is not tied to our plan, so 'Hold the rest with no more trims' is defensible for a generic trader (the plan is also called adjustable). Add 'Under our plan'. Key is also the longest choice and the only one with 'trail'; shorten key and even out neighbours."
+   "notes": "Drop B19 h20 citation (third at 3R then third at 5R); cite trail fact instead."
   },
   "q42": {
    "status": "pass",
@@ -4302,8 +4321,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Does it change the plan?' is ambiguous: the IPO base has its own entry rules (no listing week, IPO high trigger), so 'the full plan stands' is false if read broadly. Scope to the exit plan. Also the why/wrong say 'the breakout day's low', but cited h24 only says 'the day's low' (the card also allows the prior day's low). Key also repeated the stem word 'plan'."
+   "fixed": false,
+   "notes": "Exit plan re-keyed; ok."
   },
   "q66": {
    "status": "cut",
@@ -4364,7 +4383,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c49/h05 support key; A no longer the lone range."
+   "notes": "Breakeven kept; 3R removed."
   },
   "q76": {
    "status": "pass",

@@ -681,6 +681,24 @@
    "source": "h2",
    "quote": "Never move the stop up to make a trade fit.",
    "claim": "Owner: never move the stop to make a trade fit."
+  },
+  {
+   "id": "r21",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r22",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r23",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "He rarely sells on day 1 and usually waits until day 3 at the earliest."
   }
  ],
  "walkthroughs": [
@@ -1270,11 +1288,10 @@
     "breakeven"
    ],
    "answer": "1R",
-   "why": "1R. A trade still under 1R after 10 trading days is sold, freeing the money. The time stop does not wait for the stop to be hit. It is not set at breakeven, which starts at 2R, or at the first trim, which is 3R.",
+   "why": "1R. A trade still under 1R after 10 trading days is sold, freeing the money. The time stop does not wait for the stop to be hit. It is not tied to breakeven, which comes later.",
    "lesson_line": "Ten days under 1R: out.",
    "facts": [
-    "h15",
-    "h05"
+    "h15"
    ],
    "house": true,
    "simple": "A trade still under 1R after 10 trading days is sold, which frees up the money.",
@@ -1285,7 +1302,7 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q19",
@@ -1433,10 +1450,10 @@
    "criterion": "go.trim_1",
    "q": "Bought at 336.42 with the stop at 331.63. One R is the gap between them. Where is 3R?",
    "answer": 350.79,
-   "why": "350.79. One R is the fill minus the stop, 336.42 minus 331.63. Three R is the fill plus three of those. The hard rule is a third off at 3R. Ideally the first trim comes anywhere from 3R to 6R.",
-   "lesson_line": "Know your 3R before the open.",
+   "why": "350.79. One R is the fill minus the stop, 336.42 minus 331.63. Three R is the fill plus three of those. It is a marker, not a fixed sell level.",
+   "lesson_line": "Know your 3R before the open. It is a marker, not an automatic sell.",
    "facts": [
-    "h05",
+    "r21",
     "d02"
    ],
    "house": true,
@@ -1459,7 +1476,7 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q25",
@@ -1691,29 +1708,28 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "go.trim_gap_open",
-   "q": "What do you do?",
+   "q": "What is our usual plan?",
    "choices": [
+    "Hold; day 3 is the usual earliest sell",
     "Take a third off at the open",
     "Wait for 25.89 on the way down",
-    "Hold it all and trail it up",
     "Sell it all at the open now"
    ],
-   "answer": "Take a third off at the open",
-   "why": "Take the first third at the open. If a stock opens above a trim level (3R, 5R), take that trim at the open. It opens at 26.40, past the 3R level of 25.89, so the first third comes off at once. The next third waits for 5R, and the last third trails.",
-   "lesson_line": "Gap past a trim level: take it at the open.",
+   "answer": "Hold; day 3 is the usual earliest sell",
+   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. This is day 2, so the gap alone is not the sell.",
+   "lesson_line": "A gap past 3R on day 2 is not an automatic sell. Judge the push from day 3.",
    "facts": [
-    "h25",
-    "h05",
-    "h20"
+    "r21",
+    "r23"
    ],
    "wrong": {
-    "Wait for 25.89 on the way down": "A trim level the day opens past is taken at the open, not on a later dip.",
-    "Hold it all and trail it up": "The trail is for the last third, after the trims.",
-    "Sell it all at the open now": "The plan is a third at 3R, a third at 5R, then the trail."
+    "Wait for 25.89 on the way down": "A level is not the trigger. The first sell is a judgment, usually on day 3 or later.",
+    "Sell it all at the open now": "Selling it all at the open gives up the run. The first sell is a judgment, usually on day 3 or later.",
+    "Take a third off at the open": "A fixed third at 3R is no longer the rule. This is day 2, and the usual first sell waits until day 3."
    },
    "house": true,
-   "story": "You bought at 24.48 with the stop at 24.01. Your 3R level is 25.89. The next morning the stock opens at 26.40.",
-   "simple": "Take a third off at the open, because a stock that opens past a trim level gets that trim at the open.",
+   "story": "You bought at 24.48 with the stop at 24.01, and this is day 2 of the hold. Your 3R level is 25.89. This morning the stock opens at 26.40.",
+   "simple": "Hold. This is day 2, and the first sell is a judgment that usually waits until day 3.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1722,7 +1738,7 @@
      "fixed before: variety rewrite (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q31",
@@ -2160,10 +2176,10 @@
    "criterion": "go.trim_1",
    "q": "Bought at 26.43, stop 25.66. One R is the gap between them. The stock trades to 28.74. How many R is that?",
    "answer": 3.0,
-   "why": "3R. One R is the fill minus the stop, 26.43 minus 25.66. The move from 26.43 to 28.74 is exactly three of those. The hard rule takes a third off at 3R. VIAV got there in 3 days.",
-   "lesson_line": "Count in R. Three R is the first trim.",
+   "why": "3R. One R is the fill minus the stop, 26.43 minus 25.66. The move from 26.43 to 28.74 is exactly three of those. 3R is a marker, not a fixed sell. VIAV got there in 3 days.",
+   "lesson_line": "Count in R. Three R is a marker, not an automatic sell.",
    "facts": [
-    "h05",
+    "r21",
     "d04"
    ],
    "house": true,
@@ -2186,7 +2202,7 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q44",
@@ -3313,7 +3329,7 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "go.trim_2",
-   "q": "Bought at 26.43, stop 25.66. One R is the gap between them. At what price does our plan take the second third?",
+   "q": "Bought at 26.43, stop 25.66. One R is the gap between them. Where is 5R, the low end of the 5 to 10R sell zone?",
    "answer": 30.28,
    "calc": {
     "fn": "arith",
@@ -3325,15 +3341,14 @@
     "round": 2
    },
    "prefix": "$",
-   "why": "30.28. One R is the fill minus the stop, 26.43 minus 25.66. Five R is the fill plus five of those. After the first third at 3R, another third comes off at 5R, then you trail the last third. The trims are adjustable.",
-   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "why": "30.28. One R is the fill minus the stop, 26.43 minus 25.66. Five R is the fill plus five of those. Selling at about 5 to 10R is often best. The first sell is still a judgment.",
+   "lesson_line": "Know your 5R before the open. It starts the zone where selling is often best.",
    "facts": [
-    "h20",
-    "d04",
-    "h05"
+    "r22",
+    "d04"
    ],
    "house": true,
-   "simple": "The second third comes off at 5R, which is the fill plus five times the gap between fill and stop.",
+   "simple": "Five R is the fill plus five times the gap between fill and stop, which gives 30.28.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -3343,7 +3358,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q75",
@@ -3352,7 +3367,7 @@
    "format": "scenario",
    "criterion": "go.trim_2",
    "q": "What comes next?",
-   "story": "You sold the first third of a Go Signal at 3R. Now the stock trades through 5R.",
+   "story": "You sold your first third into a push of several days. Now the stock trades through 5R.",
    "choices": [
     "Sell a third more; trail the rest",
     "Skip the trim and trail it all",
@@ -3360,19 +3375,18 @@
     "Move the stop to breakeven, then hold"
    ],
    "answer": "Sell a third more; trail the rest",
-   "why": "Sell another third and trail the rest. After the first third at 3R, another third comes off at 5R, then you trail the last third. The plan is adjustable.",
-   "lesson_line": "3R for the first third, 5R for the second, then trail.",
+   "why": "Sell another third and trail the rest. After the first sell, another third comes off at 5R by default, then you trail the last third. The plan is adjustable.",
+   "lesson_line": "A first sell, another third at 5R, then trail.",
    "facts": [
-    "h20",
-    "h05"
+    "h20"
    ],
    "wrong": {
     "Skip the trim and trail it all": "The plan takes another third at 5R first, then trails the last third.",
     "Sell the last two thirds now": "The plan trails the last third. It does not sell everything at 5R.",
-    "Move the stop to breakeven, then hold": "Breakeven comes between 2R and 5R. At 5R the plan takes another third."
+    "Move the stop to breakeven, then hold": "Breakeven comes earlier than this. At 5R the plan takes another third."
    },
    "house": true,
-   "simple": "Sell another third at 5R and trail the last third, because that is the plan after the first third at 3R.",
+   "simple": "Sell another third at 5R and trail the last third, because that is the default plan after the first sell.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3381,7 +3395,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q76",
@@ -3601,7 +3615,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C33 (h15) right; why's breakeven 2R and trim 3R supported by h05."
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q19": {
    "status": "cut",
@@ -3637,7 +3651,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 336.42 + 3 x 4.79 = 350.79. h05 supports 3R and 3R-6R."
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q25": {
    "status": "pass",
@@ -3675,7 +3689,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Key from cited quotes; no tell or second answer found."
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q31": {
    "status": "pass",
@@ -3753,7 +3767,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 2.31/0.77 = 3.0R; d04 supports 3 days."
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q44": {
    "status": "cut",
@@ -3942,13 +3956,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 26.43 + 5 x 0.77 = 30.28; E51 (h20)."
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q75": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E51 right: another third at 5R, trail the last third; wrong notes true."
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q76": {
    "status": "pass",

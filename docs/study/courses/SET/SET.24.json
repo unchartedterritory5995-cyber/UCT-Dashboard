@@ -698,6 +698,30 @@
    "source": "h2",
    "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
    "claim": "D-005: past 5%, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "I usually wait until day 3 at the earliest.",
+   "claim": "D-013: the first sell usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day.",
+   "claim": "D-013: a day-1 sell on the buy day is very rare."
   }
  ],
  "walkthroughs": [
@@ -1341,11 +1365,11 @@
     },
     "round": 2
    },
-   "why": "50.87. One R is the fill minus the stop. Add three of those to the fill. This is the RL trade, which reached 3R on day 1.",
-   "lesson_line": "Know your 3R before the open. The hard rule takes the first third there.",
+   "why": "50.87. One R is the fill minus the stop. Add three of those to the fill. This is the RL trade, which reached 3R on day 1. 3R is a yardstick, not a fixed sell.",
+   "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
-    "h05",
-    "dRL"
+    "dRL",
+    "r03"
    ],
    "house": true,
    "prefix": "$",
@@ -1357,7 +1381,7 @@
      "a computed key"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q19",
@@ -2010,11 +2034,11 @@
     },
     "round": 2
    },
-   "why": "45.49. One R is the fill minus the stop. Add five of those to the fill. This is the DINO trade. Another third comes off here, and the last third is trailed.",
+   "why": "45.49. One R is the fill minus the stop. Add five of those to the fill. This is the DINO trade. 5R is a yardstick, and selling at about 5 to 10R is often best.",
    "lesson_line": "Know 3R and 5R before the open.",
    "facts": [
-    "h20",
-    "dDINO"
+    "dDINO",
+    "r04"
    ],
    "house": true,
    "prefix": "$",
@@ -2026,7 +2050,7 @@
      "a computed key"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q37",
@@ -2034,33 +2058,31 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "tb.trim_1",
-   "q": "At 3R, what comes off?",
+   "q": "On day 1 the trade reaches 3R. What now?",
    "choices": [
+    "Hold it all, no sell on day 1",
     "Sell a third, stop to breakeven",
     "Sell it all and take the win",
-    "Sell half, keep the original stop",
-    "Hold all, nudge the stop up"
+    "Sell half, keep the original stop"
    ],
-   "story": "You bought at 49.58 with the stop at 49.15. The 2B reaches 3R.",
-   "answer": "Sell a third, stop to breakeven",
-   "why": "Sell a third and move the stop to breakeven. The hard rule is a third at 3R, then another third at 5R, then trail the last third. Breakeven can come anywhere from 2R to 5R, and by default it comes at the first trim.",
-   "lesson_line": "At 3R sell a third and lift the stop to breakeven.",
+   "story": "You bought at 49.58 with the stop at 49.15. On the buy day itself the 2B reaches 3R.",
+   "answer": "Hold it all, no sell on day 1",
+   "why": "Hold it all. We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest. 3R this early is not a sell signal.",
+   "lesson_line": "3R on day 1 is not a sell signal. Wait for the push.",
    "facts": [
-    "h05",
-    "tp2",
-    "h20",
-    "t_be",
-    "dRL"
+    "dRL",
+    "r05",
+    "r06"
    ],
    "wrong": {
-    "Sell it all and take the win": "Trims are thirds, and the last third is trailed.",
-    "Sell half, keep the original stop": "The hard rule is a third.",
-    "Hold all, nudge the stop up": "The first third comes off at 3R."
+    "Sell it all and take the win": "We do not sell it all on day 1. The first sell is a judgment.",
+    "Sell half, keep the original stop": "We very rarely sell on day 1 of the buy.",
+    "Sell a third, stop to breakeven": "A fixed third at 3R is not our rule. We very rarely sell on day 1."
    },
    "house": true,
-   "simple": "Sell a third at 3R and lift the stop to breakeven on what is left.",
+   "simple": "Hold it all. We very rarely sell on day 1, and we usually wait until day 3 at the earliest.",
    "deeper": {
-    "example": "RL on 2009-07-08 was bought at 49.58 with the stop at 49.15 and reached 3R on day 1. That is the point where a third comes off and the stop moves to breakeven."
+    "example": "RL on 2009-07-08 was bought at 49.58 with the stop at 49.15 and reached 3R on day 1. That is early. We very rarely sell on day 1 and usually wait until day 3 at the earliest."
    },
    "tier": "extended",
    "risk": {
@@ -2070,7 +2092,7 @@
      "+1 the trim levels are marked adjustable"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q38",
@@ -2987,32 +3009,31 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "tb.trim_1",
-   "q": "Why take a third at 3R on this one?",
+   "q": "Why sell part into a push like this?",
    "choices": [
     "It banks part of the gain early",
     "It proves the 2B will keep running",
     "It removes the need for a stop",
     "It tells you to sell the whole trade"
    ],
-   "story": "A 2B reaches 3R on day 2, then goes nowhere for weeks before it runs.",
+   "story": "A 2B reaches 3R on day 2, then goes nowhere for weeks before it runs. You sell a first piece into the push.",
    "answer": "It banks part of the gain early",
-   "why": "It banks part of the gain early. JBL reached 3R on day 2, then sat near +4% after 20 sessions before the gap to 130. That is the case for the trims.",
-   "lesson_line": "A trade that is slow to pay still banked a third at 3R.",
+   "why": "It banks part of the gain early. JBL reached 3R on day 2, then sat near +4% after 20 sessions before the gap to 130. A first sell into a push of a few days is a judgment, and this is the case for it.",
+   "lesson_line": "A trade that is slow to pay still banked a piece into strength.",
    "facts": [
     "dJBLn",
-    "h05",
-    "h20",
-    "tp2"
+    "tp2",
+    "r04"
    ],
    "wrong": {
     "It proves the 2B will keep running": "A trim proves nothing about what comes next.",
-    "It removes the need for a stop": "The stop stays. At the first trim it moves up to breakeven.",
-    "It tells you to sell the whole trade": "The first trim is a third. Another third comes off at 5R and the last third is trailed."
+    "It removes the need for a stop": "The stop stays. After the first sell it moves up to breakeven.",
+    "It tells you to sell the whole trade": "The first sell is a piece. The rest trails."
    },
    "house": true,
-   "simple": "It banks part of the gain early. JBL reached 3R, then sat near +4% for 20 sessions, so a third was already in the bank.",
+   "simple": "It banks part of the gain early. JBL reached 3R, then sat near +4% for 20 sessions, so a piece was already in the bank.",
    "deeper": {
-    "trap": "The trap is hindsight. You do not trim because you know a stall is coming. You trim because the rule says a third at 3R, another at 5R, and a trail on the last third. The stall only shows why having the rule helps."
+    "trap": "The trap is hindsight. You do not sell part because you know a stall is coming. You sell because a push of a few days is often the best place for a first sell. The stall only shows why that helps."
    },
    "tier": "expert",
    "risk": {
@@ -3022,7 +3043,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q61",
@@ -3168,12 +3189,11 @@
     "Add back the thirds sold",
     "Move the stop down for room"
    ],
-   "story": "You sold a third at 3R and a third at 5R. The steadier stock now closes under its 21-day average.",
+   "story": "You have sold two thirds into strength. The steadier stock now closes under its 21-day average.",
    "answer": "Sell it; the trail is broken",
-   "why": "Sell it. The last third is trailed, and for a steadier name the default trail is the 21-day, so a close below it is the exit. For a fast mover the default is the 10-day. The levels are defaults and adjustable.",
+   "why": "Sell it. The last third is trailed, and for a steadier name the default trail is the 21-day, so a close below it is the exit. For a fast mover the default is the 10-day.",
    "lesson_line": "Trail the last third and sell on a close below the average.",
    "facts": [
-    "h20",
     "h21",
     "h02"
    ],
@@ -3192,7 +3212,7 @@
      "+1 the trail is a default and adjustable"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q66",
@@ -3366,10 +3386,10 @@
    "rung": 2,
    "format": "tf",
    "criterion": "tb.breakeven",
-   "q": "Our rule lets the stop move to breakeven at 2R, before the first trim at 3R.",
+   "q": "Our rule lets the stop move to breakeven at 2R, before the first sell.",
    "answer": "True",
-   "why": "True. Our rule moves the stop to breakeven anywhere from 2R to 5R, ideally, and by default at the first trim, a third at 3R. Moving at 2R is allowed. It is not required.",
-   "lesson_line": "Breakeven is allowed from 2R. The default is the first trim.",
+   "why": "True. Our rule moves the stop to breakeven anywhere from 2R to 5R, ideally, and by default at the first sell. Moving at 2R is allowed. It is not required.",
+   "lesson_line": "Breakeven is allowed from 2R. The default is the first sell.",
    "facts": [
     "h05",
     "t_be",
@@ -3385,7 +3405,7 @@
      "+1 the window is worded 'ideally'"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q72",
@@ -3602,7 +3622,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 49.58+3x0.43=50.87 checked. h05 hard rule."
+   "notes": "ok"
   },
   "q19": {
    "status": "pass",
@@ -3710,15 +3730,15 @@
   },
   "q36": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "ok"
   },
   "q37": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "hold on day 1; D-013"
   },
   "q38": {
    "status": "pass",
@@ -3734,11 +3754,10 @@
    "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
   },
   "q40": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Key right per F63/h25. But it answers two other questions: the story's 'Your 3R level is 50.87' is q18's numeric key (49.58/49.15 -> 50.87), and the stem 'the first trim, a third at 3R' is q17's key ('A third'). New numbers come from the question itself; stem no longer names the third. 'the 2B opens' -> 'the stock opens'.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in rulings2: see the resolver's notes"
   },
   "q41": {
    "status": "cut",
@@ -3866,7 +3885,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches dJBLn, h05, h20, tp2. Distractors are real misreadings tied to cited facts."
+   "notes": "ok"
   },
   "q61": {
    "status": "pass",
@@ -3890,8 +3909,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h20, h21 and h02 support key and wrong notes. Minor lone-exit pattern like q38; acceptable.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "ok"
   },
   "q66": {
    "status": "pass",
@@ -3925,9 +3943,9 @@
   },
   "q71": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "ok"
   },
   "q72": {
    "status": "pass",

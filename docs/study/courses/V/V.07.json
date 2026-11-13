@@ -3590,9 +3590,9 @@
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Order-types question; market buy at close is only a wrong distractor; keep."
   },
   "q30": {
    "status": "pass",

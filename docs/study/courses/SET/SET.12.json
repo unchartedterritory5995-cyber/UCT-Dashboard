@@ -744,6 +744,24 @@
    "source": "h2",
    "quote": "The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
    "claim": "D-008: the pattern's low and a line minus a cushion are acceptable alternatives."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "First sell is a judgment, not a fixed third at 3R (D-013)"
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3 to 7 day push or at about 5 to 10R is often best (D-013)"
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "Very rarely sells on day 1; usually waits until day 3 at the earliest (D-013)"
   }
  ],
  "walkthroughs": [
@@ -1352,11 +1370,11 @@
     },
     "round": 2
    },
-   "why": "19.75. One R is the fill minus the stop, here 17.38 minus 16.59. Add three of those to the fill and 3R sits at 19.75. The hard rule is to sell a third at 3R.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "19.75. One R is the fill minus the stop, here 17.38 minus 16.59. Add three of those to the fill and 3R sits at 19.75. 3R is a yardstick, not a fixed sale point.",
+   "lesson_line": "Know your 3R before the open. It is a yardstick, and the first sell is a judgment.",
    "facts": [
-    "h05",
-    "d03"
+    "d03",
+    "r03"
    ],
    "house": true,
    "prefix": "$",
@@ -1369,7 +1387,7 @@
      "+2 rests on the owner's rulebook (B19, the hard rule of a third at 3R)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q19",
@@ -2060,7 +2078,7 @@
     "Between 8R and 10R": "The window ends at 5R, well before this."
    },
    "house": true,
-   "story": "You bought a VCP breakout. Your stop is still under the entry day's low. It hits 3R, and you sell a third.",
+   "story": "You bought a VCP breakout. Your stop is still under the entry day's low. It has run up 3R.",
    "simple": "Between 2R and 5R. That is where our rule ideally moves the stop up to breakeven.",
    "tier": "extended",
    "risk": {
@@ -2070,7 +2088,7 @@
      "the old key said 'by default at the first trim', which no quoted line states"
     ]
    },
-   "batch": "wave2",
+   "batch": "rulings2",
    "order": "fixed"
   },
   {
@@ -2272,12 +2290,12 @@
     "The 21-day"
    ],
    "answer": "The 10-day",
-   "why": "The 10-day for a fast mover. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it. The trail covers only the last third, after the trims at 3R and 5R.",
+   "why": "The 10-day for a fast mover. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it. The trail covers what is left after the first sell, which is a judgment.",
    "lesson_line": "Fast mover: trail the 10-day. Steadier: trail the 21-day.",
    "facts": [
     "h21",
-    "h20",
-    "c17"
+    "c17",
+    "r03"
    ],
    "wrong": {
     "The 50-day": "The default trail is the 10-day for fast movers or the 21-day for steadier ones, not the 50-day.",
@@ -2293,7 +2311,7 @@
      "+2 rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q44",
@@ -3528,7 +3546,7 @@
    "rung": 5,
    "format": "numeric",
    "criterion": "vcp.trim_2",
-   "q": "You bought 900 shares. You sell a third of them at 3R and another third at 5R. How many are left to trail?",
+   "q": "You bought 900 shares. Say you sell a third at 3R and another third at 5R. How many are left to trail?",
    "answer": 300,
    "calc": {
     "fn": "arith",
@@ -3538,11 +3556,10 @@
     },
     "round": 0
    },
-   "why": "300. A third of 900 is 300, sold at 3R. Another third of 900 is 300, sold at 5R. That leaves the last 300, which is trailed. Both thirds are measured on the full 900, not on what is left.",
-   "lesson_line": "Thirds at 3R and 5R, then trail the last third.",
+   "why": "300. A third of 900 is 300, sold at 3R. Another third of 900 is 300, sold at 5R. That leaves the last 300, which is trailed. Both thirds are measured on the full 900, not on what is left. When to sell each part is a judgment, but the arithmetic is fixed.",
+   "lesson_line": "Count each third on the full position. Trail what is left.",
    "facts": [
-    "h20",
-    "h05"
+    "r03"
    ],
    "house": true,
    "suffix": " shares",
@@ -3556,7 +3573,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q79",
@@ -3564,7 +3581,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "vcp.trim_2",
-   "q": "What does the plan do at 5R?",
+   "q": "How many shares do you sell at 5R, and what happens to the rest?",
    "choices": [
     "Sell 400 more; trail the rest",
     "Sell the 800 left to lock in",
@@ -3572,22 +3589,23 @@
     "Sell nothing; trail all 800"
    ],
    "answer": "Sell 400 more; trail the rest",
-   "why": "Sell 400 more. After the first third at 3R, the plan takes another third of the 1,200 at 5R and then trails the last third. The trail is the 10-day average for fast movers or the 21-day for steadier ones. We sell on a close below it. The plan is adjustable, but this is the default.",
-   "lesson_line": "Third at 3R, third at 5R, trail the last third.",
+   "why": "Sell 400 more. A third of the original 1,200 is 400, so 400 go and 400 are left. What is left trails the 10-day average for fast movers or the 21-day for steadier ones. We sell on a close below it. Selling at about 5 to 10R is often best, but when to sell is a judgment.",
+   "lesson_line": "A third is counted on the full position. The last part rides the trail.",
    "facts": [
-    "h20",
-    "h21"
+    "h21",
+    "r03",
+    "r04"
    ],
    "wrong": {
-    "Sell the 800 left to lock in": "The plan sells in thirds and trails the last one.",
-    "Sell 600 more; run the rest": "The plan sells a third of the 1,200, which is 400, not 600. The second third comes off at 5R.",
-    "Sell nothing; trail all 800": "The second third comes off at 5R. Only the last third rides the trail."
+    "Sell the 800 left to lock in": "You chose a third, which is 400. Selling all 800 is not a third.",
+    "Sell 600 more; run the rest": "A third of the 1,200 is 400, not 600.",
+    "Sell nothing; trail all 800": "You chose to sell a third now, so 400 go. Only the last 400 ride the trail."
    },
    "house": true,
-   "story": "You bought 1,200 shares and sold 400 at 3R. Price now touches 5R and the stop is at breakeven.",
+   "story": "You bought 1,200 shares and sold 400 earlier, with the stop at breakeven. Price now touches 5R. You choose to sell another third of the original 1,200.",
    "simple": "Sell another third, 400 shares, at 5R. Then trail the last 400 until they close below the trail.",
    "deeper": {
-    "trap": "The trap is treating 5R as the finish line. In the plan, 5R takes only the second third, 400 shares. The last 400 stay on until they close below the trail average."
+    "trap": "The trap is treating the sale as the finish line. Selling 400 leaves 400, and they stay on until a close below the trail average."
    },
    "tier": "extended",
    "risk": {
@@ -3596,7 +3614,7 @@
      "+2 rests on the owner's rulebook (E51, E52)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q80",
@@ -3613,7 +3631,7 @@
     "stop"
    ],
    "answer": "open",
-   "why": "Open. If a stock opens above a trim level, 3R or 5R, take that trim at the open. The gap does not change the plan, only the timing.",
+   "why": "Open. If a stock opens above a level you planned to sell at, take that sale at the open. The gap does not change the plan, only the timing.",
    "lesson_line": "If it gaps over your trim level, take the trim at the open.",
    "facts": [
     "h42"
@@ -3629,7 +3647,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q81",
@@ -3645,19 +3663,18 @@
     "Sell it all at the open"
    ],
    "answer": "Take the trim at the open",
-   "why": "Take the trim at the open. Your 5R level is 21.40, and the stock opens at 22.10, above it. If a stock opens above a trim level, we take that trim at the open. The second trim is another third, and the last third is trailed.",
+   "why": "Take the trim at the open. Your 5R level is 21.40, and the stock opens at 22.10, above it. If a stock opens above a level you planned to sell at, we take that sale at the open. The rest is trailed.",
    "lesson_line": "When a stock gaps over a trim level, the trim comes off at the open.",
    "facts": [
-    "h42",
-    "h20"
+    "h42"
    ],
    "wrong": {
-    "Wait for it to dip back to 21.40": "The level is passed. The rule takes the trim at the open.",
-    "Skip the trim and raise the stop": "The plan has no skipped trims. The level was passed, so the trim comes off at the open.",
-    "Sell it all at the open": "The plan trims a third and trails the last third. It does not sell everything."
+    "Wait for it to dip back to 21.40": "The level is passed. The rule takes the sale at the open.",
+    "Skip the trim and raise the stop": "The plan has no skipped sales. The level was passed, so the sale comes off at the open.",
+    "Sell it all at the open": "The plan sells part and trails the rest. It does not sell everything."
    },
    "house": true,
-   "story": "Your VCP buy has its 5R level at 21.40. The first third came off at 3R. The stock gaps up and opens at 22.10.",
+   "story": "Your VCP buy has a planned sell at 5R, which is 21.40. An earlier third is already sold. The stock gaps up and opens at 22.10.",
    "simple": "Take the trim at the open. The stock gapped over your 5R level, so you sell that third right away.",
    "deeper": {
     "trap": "The trap is waiting for a dip back to 21.40. The level is already behind you. The rule takes the trim at the open."
@@ -3670,7 +3687,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q82",
@@ -3896,7 +3913,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "edit ok, agrees with D-013"
   },
   "q19": {
    "status": "pass",
@@ -4010,8 +4027,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Second defensible answer: B19 says breakeven at 2R to 5R 'ideally', so at 3R 'leave it where it was' is also inside the window; the writer's own risk note flags the same. Replaced by a question on the window itself, which the rulebook states exactly."
+   "fixed": false,
+   "notes": "edit ok, agrees with D-013"
   },
   "q38": {
    "status": "pass",
@@ -4048,7 +4065,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "edit ok, agrees with D-013"
   },
   "q44": {
    "status": "pass",
@@ -4066,7 +4083,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "keep: scan stat on breakout-day close"
   },
   "q47": {
    "status": "cut",
@@ -4262,26 +4279,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "edit ok, agrees with D-013"
   },
   "q79": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "edit ok, agrees with D-013"
   },
   "q80": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "edit ok, agrees with D-013"
   },
   "q81": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "fixed": true,
+   "notes": "edit ok; softened the thirds wording in a wrong note"
   },
   "q82": {
    "status": "pass",

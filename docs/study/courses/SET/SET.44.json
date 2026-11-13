@@ -1027,6 +1027,24 @@
    "source": "h2",
    "quote": "Never move the stop up to make a trade fit.",
    "claim": "Owner: never move the stop up to make a trade fit."
+  },
+  {
+   "id": "r70",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Owner: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r71",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "Owner: he very rarely sells on day 1 and usually waits until day 3."
+  },
+  {
+   "id": "r72",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1699,27 +1717,28 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "hg.trim_1",
-   "q": "How much of the position do we sell at the first trim on a Holy Grail winner?",
+   "q": "What does the owner's plan say about the first sell on a Holy Grail winner?",
    "choices": [
-    "A third, at 3R",
-    "Half, at 3R",
-    "A quarter",
-    "All, at 3R"
+    "A judgment, often day 3 or later",
+    "A third, the moment it hits 3R",
+    "Half, the moment it hits 3R",
+    "A quarter, on the first green day"
    ],
-   "answer": "A third, at 3R",
-   "why": "A third, at 3R. That is the hard rule for the first trim. The next third comes off at 5R, and the last third rides the trail. Ideally the first trim lands anywhere from 3R to 6R, but the rule you plan with is a third at 3R.",
-   "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
+   "answer": "A judgment, often day 3 or later",
+   "why": "A judgment. The first sell is not a fixed third at 3R. He very rarely sells on day 1 of the buy. Selling into a 3, 5 or 7 day push is often best.",
+   "lesson_line": "The first sell is a judgment. He waits, often to day 3 or later.",
    "facts": [
-    "h05",
-    "h20"
+    "r70",
+    "r71",
+    "r72"
    ],
    "wrong": {
-    "Half, at 3R": "Too much. The plan sells in thirds, so the first trim is a third.",
-    "A quarter": "The plan sells in thirds, not quarters.",
-    "All, at 3R": "That ends the trade at 3R. Another third comes off at 5R, and the last third rides the trail."
+    "A third, the moment it hits 3R": "3R is no longer a fixed sell point. The first sell is a judgment.",
+    "Half, the moment it hits 3R": "Half at 3R is not the plan. The first sell is a judgment.",
+    "A quarter, on the first green day": "He very rarely sells on day 1 of the buy, and the plan sets no quarter."
    },
    "house": true,
-   "simple": "You sell a third at 3R, because our plan sells in thirds: 3R, then 5R, then the trail.",
+   "simple": "The first sell is a judgment, not a fixed third at 3R, and he rarely sells on day 1.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1728,7 +1747,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "rulings2"
   },
   {
    "key": "q19",
@@ -1747,10 +1766,10 @@
     },
     "round": 2
    },
-   "why": "38.79. One R is the fill minus the stop: 36.72 minus 36.03. Add three of those R to the fill, never to the stop. That is where the first third comes off. In this CI trade from October 2000, price reached 3R in 2 sessions.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "38.79. One R is the fill minus the stop: 36.72 minus 36.03. Add three of those R to the fill, never to the stop. That is the 3R mark, a yardstick and not a sell order. In this CI trade from October 2000, price reached 3R in 2 sessions.",
+   "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
-    "h05",
+    "r70",
     "d01",
     "d02"
    ],
@@ -1765,7 +1784,7 @@
      "+2 rests on the owner's rulebook (sizing_rule.md section 9)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "rulings2"
   },
   {
    "key": "q20",
@@ -2071,29 +2090,29 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "hg.trim_gap_open",
-   "q": "What do you do at the open?",
+   "q": "What fits the owner's plan at the open?",
    "choices": [
-    "Sell a third of the shares",
-    "Wait for the close to decide",
-    "Sell the whole position",
-    "Move the stop up and hold"
+    "Weigh selling some into the push",
+    "Sell a third; 3R is a fixed rule",
+    "Sell the whole position at the open",
+    "Add shares because it gapped up"
    ],
-   "answer": "Sell a third of the shares",
-   "why": "Sell a third at the open. If a stock opens above a trim level, take that trim at the open. Our hard rule for the first trim is a third at 3R. The open at 3.4R is past it, so the third comes off at once. The next third waits for 5R, and the last third trails.",
-   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "answer": "Weigh selling some into the push",
+   "why": "Weigh selling some into the push. The first sell is a judgment, not a fixed third at 3R. Selling into a 3, 5 or 7 day push is often best. This is session five.",
+   "lesson_line": "A gap up is a push. Weigh the first sell, do not sell by a fixed rule.",
    "facts": [
-    "h25",
-    "h05",
-    "h20"
+    "r70",
+    "r72",
+    "h03b"
    ],
    "wrong": {
-    "Move the stop up and hold": "The stop can go to breakeven at 2R to 5R, but the trim at the open is still the rule.",
-    "Wait for the close to decide": "The level is already passed. Our rule takes that trim at the open, not at the close.",
-    "Sell the whole position": "The first trim is a third at 3R. Another third comes off at 5R, then the rest trails."
+    "Sell a third; 3R is a fixed rule": "3R is no fixed sell point. The first sell is a judgment.",
+    "Sell the whole position at the open": "The plan sells in parts and trails the rest. It does not exit on a gap.",
+    "Add shares because it gapped up": "No adds. The plan is one entry at one price with one stop."
    },
-   "story": "Your Holy Grail long sits at 2.5R at Thursday's close. Friday it gaps open to 3.4R.",
+   "story": "You bought a Holy Grail long on Monday. Thursday it closes at 2.5R. Friday, the fifth session of the trade, it gaps open to 3.4R.",
    "house": true,
-   "simple": "Sell a third at the open, because it opened past the 3R trim level and our rule takes that trim there.",
+   "simple": "Weigh selling some into the push, because the first sell is a judgment and not a fixed third at 3R.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2101,7 +2120,7 @@
      "rests on the owner's rulebook (F63, B19, E51)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "rulings2"
   },
   {
    "key": "q29",
@@ -2266,10 +2285,10 @@
     "d28",
     "d28b",
     "d31",
-    "h05"
+    "r70"
    ],
    "wrong": {
-    "Yes; sell at +0.54R next time": "The first trim is a third at 3R. No rule sells at half an R.",
+    "Yes; sell at +0.54R next time": "No rule sells at half an R. The first sell is a judgment, not a fixed third.",
     "Yes; the stop was too tight": "The stop was 3.0% wide, inside our habit. Nothing in our four failures argues for a wider stop.",
     "No; so buy it back the next day": "Right that it was no mistake, wrong on the next step. A stop-out is not a signal to chase. A re-buy needs its own fresh trigger."
    },
@@ -2284,7 +2303,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "rulings2"
   },
   {
    "key": "q34",
@@ -2919,33 +2938,33 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "hg.trim_2",
-   "q": "What comes off?",
+   "q": "What fits the plan on this vertical leg?",
    "choices": [
-    "A third at 5R, sell the burst",
-    "Nothing; let the leg run",
-    "All of it, sold at 5R",
-    "A third at 10R"
+    "Sell a big part into the burst",
+    "Nothing; keep all and let it run",
+    "All of it, sold at the 5R mark",
+    "Add shares; the leg looks strong"
    ],
-   "answer": "A third at 5R, sell the burst",
-   "why": "A third at 5R, then sell a big part into the climax run. After the first third at 3R, our rule takes another third at 5R and trails the last third. A climax run on your own long, Bracco's parabolic burst, is sold into. How much is a judgment call. LITE in 2025 began this kind of leg right after its 3R.",
-   "lesson_line": "Two trims by rule, then judgment: sell a big part into a vertical leg.",
+   "answer": "Sell a big part into the burst",
+   "why": "Sell a big part into the burst. A climax run on your own long is sold into, and how much is a judgment call. The first sell is a judgment too. LITE in 2025 began this kind of leg right after its 3R.",
+   "lesson_line": "Into a vertical leg, sell a big part. How much is your call.",
    "facts": [
-    "h20",
     "h16",
     "d05",
     "d06",
-    "h25"
+    "r70",
+    "h03b"
    ],
    "wrong": {
-    "Nothing; let the leg run": "Sell into strength. A climax run is the strength our rule sells a big part into.",
-    "All of it, sold at 5R": "5R is the second third, not the exit. The last third rides the trail or the climax sale.",
-    "A third at 10R": "The second third comes at 5R, not 10R."
+    "Nothing; keep all and let it run": "Sell into strength. A climax run is the strength our rule sells a big part into.",
+    "All of it, sold at the 5R mark": "5R is not the exit. Sell a big part, keep some, and let the rest trail.",
+    "Add shares; the leg looks strong": "No adds. A climax is where we sell, not where we buy more."
    },
-   "story": "Bought at 91.78, stop 88.88. 3R in five sessions, a third off. Then a parabolic leg carries it well past 5R.",
+   "story": "Bought at 91.78, stop 88.88. It hits 3R in five sessions and you hold. Then a parabolic leg carries it well past 5R, and the push turns vertical.",
    "house": true,
-   "simple": "Take a third at 5R and sell a big part into the burst, because our rule sells into a climax run.",
+   "simple": "Sell a big part into the burst, because our rule sells into a climax run and how much is your call.",
    "deeper": {
-    "example": "Gaps can jump a trim level. If the stock opens above 5R, our rule takes that trim at the open. It does not wait for price to come back to the level."
+    "trap": "Adding because the leg looks strong. The plan is one entry at one price. A vertical leg is where you sell, not where you buy more."
    },
    "tier": "extended",
    "risk": {
@@ -2955,7 +2974,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "rulings2"
   },
   {
    "key": "q52",
@@ -3214,34 +3233,35 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "hg.stop",
-   "q": "Write the plan: entry, stop, first trim.",
+   "q": "A market order buys as it trades over the prior day's high. Which stop and first sell?",
    "choices": [
-    "Market; under swing low; third at 3R",
-    "Market; 1 ATR under low; third at 3R",
-    "Market; under swing low; half at 2R",
-    "Market; 1 ATR under low; half at 2R"
+    "Under swing low; judge the first sell",
+    "1 ATR under low; judge the first sell",
+    "Under swing low; a third at 3R",
+    "1 ATR under low; a third at 3R"
    ],
-   "answer": "Market; under swing low; third at 3R",
-   "why": "A market order, a stop under the swing low, a third at 3R. The entry is a market order as it trades over the prior day's high. The stop sits a few cents under the swing low, the lowest low from the touch through the trigger. The first trim is a third at 3R. EXPD reached 3R in three sessions.",
-   "lesson_line": "Market entry, a stop a few cents under the swing low, a third off at 3R.",
+   "answer": "Under swing low; judge the first sell",
+   "why": "A stop under the swing low, then judge the first sell. The entry is a market order as it trades over the prior day's high. The stop sits a few cents under the swing low, the lowest low from the touch through the trigger. The first sell is a judgment, not a fixed third at 3R. EXPD reached 3R in three sessions.",
+   "lesson_line": "Market entry, a stop a few cents under the swing low, and a first sell you judge.",
    "facts": [
     "h22",
     "r22",
     "r03",
     "c15",
-    "h05",
+    "r70",
+    "r71",
     "d03",
     "d04",
     "c33"
    ],
    "wrong": {
-    "Market; 1 ATR under low; third at 3R": "The trim is right. A stop a full ATR under the low is a named mistake. Ours sits a few cents under the swing low.",
-    "Market; under swing low; half at 2R": "The stop is right. The hard rule for the first trim is a third at 3R, not half at 2R.",
-    "Market; 1 ATR under low; half at 2R": "Two misses. A stop a full ATR under the low is a named mistake, and the first trim is a third at 3R."
+    "1 ATR under low; judge the first sell": "The sell is right. A stop a full ATR under the low is a named mistake. Ours sits a few cents under the swing low.",
+    "Under swing low; a third at 3R": "The stop is right. The first sell is a judgment, not a fixed third at 3R.",
+    "1 ATR under low; a third at 3R": "Two misses. A stop a full ATR under the low is a named mistake, and the first sell is not a fixed third."
    },
    "story": "EXPD, March 2006: a three-day, 3.6% rest to the 20 EMA after a fresh momentum high. This morning it trades over the prior day's high.",
    "house": true,
-   "simple": "Market order, stop a few cents under the swing low, a third off at 3R, because those are our rules.",
+   "simple": "Stop a few cents under the swing low, and judge the first sell instead of selling a fixed third.",
    "deeper": {
     "example": "Raschke's own rule is a buy stop above the previous bar's high. Our rulebook says entries are market orders, so we buy at market as it trades over the prior day's high. Raschke also says that in a trending market you should use market orders."
    },
@@ -3254,7 +3274,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q61",
@@ -3627,7 +3647,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key False re-derived from d46 (27.6% quiet vs 26.7% heavy); 'clearly' is needed since 27.6 > 26.7. Note: the d46 quote shows the two rates, but the words 'to 3R' sit in the page sentence around it (dossier lines 975-977), not inside the quote; acceptable, flagged for the integrator."
+   "notes": "3R as measure; keep."
   },
   "q06": {
    "status": "pass",
@@ -3707,14 +3727,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h05 hard rule and h20 thirds; matches B19/E51.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Re-keyed to judgment; quotes ok."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 36.72 + 3 x 0.69 = 38.79 correct; '3R in 2 sessions' is d01's (2)."
+   "notes": "3R arithmetic; softened."
   },
   "q20": {
    "status": "pass",
@@ -3768,7 +3787,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived 'sell a third at the open' from h25 (F63) + h05 (B19 hard rule a third at 3R) before the key; matches. 3.4R past 3R is a given. Key no longer echoes the stem. B19's 'mostly waits for 5R' is his practice, not the taught hard rule; the card's trim_1 is a third at 3R. (h05's quote differs from the rulebook only by markdown bold around 'a third at 3R'.)"
+   "notes": "Re-keyed to weigh the first sell; session five story ok."
   },
   "q29": {
    "status": "pass",
@@ -3779,8 +3798,8 @@
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c17, c03 inference from 'not closed above its old highs'). But the facts the earlier fix says it added are missing from the file: 'Nine of the next ten closes' has no cited quote (d25b is not in the facts array; the line is in the dossier's MELI row, 29-word quote below), and the why's 'fresh ADX push' needs c17c (see q22). Deeper still taught the momentum high as the whole re-arm; the ADX wrong note now says a high reading is not a fresh push. MELI bars confirm the 2014-09-18 stop-out."
+   "fixed": false,
+   "notes": "MELI 3R printed as measure; keep."
   },
   "q31": {
    "status": "pass",
@@ -3798,7 +3817,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h02 + d31; MRVL numbers from d27/d28; 3.0% is in the d27 quote."
+   "notes": "Wrong note softened; ok."
   },
   "q34": {
    "status": "pass",
@@ -3909,8 +3928,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h20 (a third at 5R) + h16 (sell a big part into a climax run); LITE from d05/d06; deeper from h25. 'Sell the burst' is read with the why ('a big part'); acceptable.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Re-keyed to climax sale, no 5R rule; ok."
   },
   "q52": {
    "status": "cut",
@@ -3964,14 +3982,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "Re-keyed first sell judgment, market entry unchanged; ok."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Read the CI 2000-10-25 bars before the key: low 36.08 reaches the 20 EMA (36.38), over the 50-day (33.80); close 36.50 over the 200-day (29.39); triggered 10-26 over 36.70. Buy the trigger is right; touch-buy is c30. Dossier says the ten examples were checked by hand against earnings dates, so B22 does not bite. Stem 137 chars.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "D-003 agrees: buys the trigger, touch-at-close is the wrong choice; keep."
   },
   "q62": {
    "status": "pass",

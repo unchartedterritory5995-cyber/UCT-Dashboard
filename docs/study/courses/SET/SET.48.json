@@ -3780,8 +3780,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "Setup identification; nothing keyed on sell or entry."
   },
   "q36": {
    "status": "pass",
@@ -3985,7 +3985,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key on c34; 27% vs 25% is c38 verbatim and the why no longer calls it an edge. 'The slope is a cue, not a gate' matches the card file (bg.flat_falling_200: gate false, grade_cue true) but that field is not a quoted fact; the integrator may add it as a card fact. Owner flag ('my proposal') stands."
+   "notes": "200-day slope; 3R only in a scan stat."
   },
   "q73": {
    "status": "pass",

@@ -1043,6 +1043,30 @@
    "source": "h2",
    "quote": "Yeah short teachings are fine but only recomended for traders who have made $1 Million.",
    "claim": "Short lessons say shorting is recommended only for traders who have made $1 million."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day.",
+   "claim": "The owner very rarely sells on day 1 of the buy day."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "I usually wait until day 3 at the earliest.",
+   "claim": "The owner usually waits until day 3 at the earliest for the first sell."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "SO 3-5-7 day or 5-10 R is often best.",
+   "claim": "A 3, 5 or 7 day push, or about 5 to 10R, is often the best first sell."
   }
  ],
  "walkthroughs": [
@@ -1674,27 +1698,28 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "od.trim_1",
-   "q": "Your drive is up 2R by noon. By the hard rule, when does the first third come off?",
+   "q": "Your drive is up 2R by noon on the buy day. When does the first sell usually come?",
    "choices": [
-    "At 5R",
-    "At the close",
-    "At 3R",
-    "At 2R"
+    "Right now, at noon on day one",
+    "At the close of the buy day",
+    "Day 3 at the earliest, by judgment",
+    "Whenever the first red candle prints"
    ],
-   "answer": "At 3R",
-   "why": "At 3R. The hard rule is a third at 3R, another third at 5R, and the last third on the trail. Ideally the first trim can come anywhere from 3R to 6R, and in practice the wait is often for 5R, but the hard rule is 3R. Being up 2R by noon changes nothing: the trim is a price, not a time.",
-   "lesson_line": "A third at 3R, a third at 5R, and trail the rest. The R tells you, not the clock.",
+   "answer": "Day 3 at the earliest, by judgment",
+   "why": "Day 3 at the earliest. The first sell is a judgment, not a fixed level. The owner very rarely sells on day 1 of the buy and usually waits until day 3. Being up 2R by noon changes nothing: the sale is not a clock or a price.",
+   "lesson_line": "The first sell is a judgment, usually day 3 or later. Rarely day 1.",
    "facts": [
-    "h05",
-    "h20"
+    "r05",
+    "r06",
+    "r07"
    ],
    "wrong": {
-    "At 2R": "2R is inside the range where the stop may move to breakeven. The first trim is 3R.",
-    "At 5R": "5R is the second third.",
-    "At the close": "There is no time-of-day sale. The trim is a price."
+    "Right now, at noon on day one": "The owner very rarely sells on day 1 of the buy. Being up 2R is no reason to sell.",
+    "At the close of the buy day": "That is still day 1. There is no time-of-day sale, and the owner rarely sells on day 1.",
+    "Whenever the first red candle prints": "A red candle is not a sell signal. The first sell is a judgment, usually day 3 or later."
    },
    "house": true,
-   "simple": "At 3R, because the hard rule takes the first third off at 3R, the second at 5R, and trails the rest.",
+   "simple": "Day 3 at the earliest, because the owner very rarely sells on day one and picks the first sell by judgment.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1702,7 +1727,7 @@
      "rests on the owner's rulebook (B19, E51)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q19",
@@ -1770,18 +1795,18 @@
     },
     "round": 2
    },
-   "why": "607.82. One R is the fill minus the stop. Add three of those to the fill. That is where the hard rule takes the first third. SITM got there at 9:50 the same day.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "607.82. One R is the fill minus the stop. Add three of those to the fill. That is the 3R price, a mark to measure with, not an order to sell. SITM got there at 9:50 the same day.",
+   "lesson_line": "Know your 3R price before the open. It is a mark, and the first sell is a judgment.",
    "facts": [
-    "h05",
-    "h20",
-    "d11"
+    "d11",
+    "r05",
+    "r07"
    ],
    "house": true,
    "prefix": "$",
    "simple": "607.82, because one R is the fill minus the stop, and 3R adds three of those to the fill.",
    "deeper": {
-    "example": "SITM filled at 581.57 with the stop at 572.82. 3R, 607.82, came at 9:50 the same day, so the first third came off that morning. 5R came at the open two sessions later, where the second third comes off. The last third rides the trail."
+    "example": "SITM filled at 581.57 with the stop at 572.82. 3R, 607.82, came at 9:50 the same day, which is day 1, when the owner very rarely sells. 5R came at the open two sessions later, which is day 3. The first sell stays a judgment."
    },
    "tier": "core",
    "risk": {
@@ -1791,7 +1816,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q22",
@@ -2011,7 +2036,7 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "od.trail",
-   "q": "Your last third rides the trail on a fast mover. What takes you out of it?",
+   "q": "Your last shares ride the trail on a fast mover. What takes you out of them?",
    "choices": [
     "A close below the 10-day average",
     "A dip under the 10-day average",
@@ -2019,11 +2044,10 @@
     "A close below the 50-day line"
    ],
    "answer": "A close below the 10-day average",
-   "why": "A close below the 10-day average. After a third at 3R and a third at 5R, the last third rides the trail. The default trail is the 10-day average for fast movers and the 21-day for steadier ones. It sells on a close below the line, not on a touch and not on one red candle.",
-   "lesson_line": "Trail the last third on a close under the 10-day, or the 21-day for a steadier stock.",
+   "why": "A close below the 10-day average. After the first sells, what is left rides the trail. The default trail is the 10-day average for fast movers and the 21-day for steadier ones. It sells on a close below the line, not on a touch and not on one red candle.",
+   "lesson_line": "Trail what is left on a close under the 10-day, or the 21-day for a steadier stock.",
    "facts": [
-    "h21",
-    "h20"
+    "h21"
    ],
    "wrong": {
     "A dip under the 10-day average": "The trail sells on a close below the line, not a touch.",
@@ -2039,7 +2063,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q29",
@@ -2404,29 +2428,30 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "od.trim_1",
-   "q": "What did our rules keep?",
-   "story": "You bought CNC's drive at 72.00, stop 70.16. At 9:35 the next day it prints 3R, 77.52. Two days later it falls back to the old stop.",
+   "q": "What is the honest lesson from CNC?",
+   "story": "You bought CNC's drive at 72.00, stop 70.16. On day 2 at 9:35 it prints 3R, 77.52, and tops there. Two days later it falls back to the old stop.",
    "choices": [
-    "A full-size loss at the old stop",
-    "A third banked, the rest near even",
-    "Nothing kept; it round-tripped",
-    "Two thirds banked, at 3R and 5R"
+    "The first sell is a judgment, not a rule",
+    "A third at 3R is the rule; we missed it",
+    "The stop was too tight for a drive",
+    "Sell everything at the first 3R touch"
    ],
-   "answer": "A third banked, the rest near even",
-   "why": "A third banked, the rest near even. The hard rule takes a third at 3R, here 77.52 the next morning. The stop then moves to breakeven, which the rulebook places at 2R to 5R, ideally; 3R is inside that range. So when CNC fell back two days later, the rest left near the 72.00 entry, not at 70.16. This is our plan laid on the scan's prices, not a simulated trade.",
-   "lesson_line": "The first trim turns a round trip into a win. Take the third at 3R.",
+   "answer": "The first sell is a judgment, not a rule",
+   "why": "The first sell is a judgment, not a rule. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. CNC's 3R came on day 2, and a hold gave the move back. That is the cost of judging, not a broken rule. This is our plan laid on the scan's prices, not a simulated trade.",
+   "lesson_line": "A 3R print on day 2 is not a sell order. The first sell is a judgment.",
    "facts": [
-    "h05",
     "d08",
-    "d09"
+    "r05",
+    "r06",
+    "r07"
    ],
    "wrong": {
-    "A full-size loss at the old stop": "A third was sold at 3R, and the stop moves to breakeven between 2R and 5R, so the rest left near even.",
-    "Nothing kept; it round-tripped": "The third sold at 3R was already banked. That is why we trim.",
-    "Two thirds banked, at 3R and 5R": "The stock never reached 5R. Only the first third came off."
+    "A third at 3R is the rule; we missed it": "There is no fixed third at 3R. The first sell is a judgment, usually day 3 or later.",
+    "The stop was too tight for a drive": "The stop sat under the day's low, where the rule puts it. Nothing about it was too tight.",
+    "Sell everything at the first 3R touch": "Selling it all at one price is not our plan. We sell in parts, by judgment."
    },
    "house": true,
-   "simple": "A third was sold at 3R and the stop moved to breakeven. So the rest left near even, not at a loss.",
+   "simple": "The first sell is a judgment, not a fixed rule, and CNC gave back the move because the hold was a judgment call.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2435,7 +2460,7 @@
      "fixed before (flagged-question fix 2026-11-11)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q40",
@@ -2523,16 +2548,19 @@
    "rung": 6,
    "format": "tf",
    "criterion": "od.trim_2",
-   "q": "After the first third at 3R, the last two thirds ride the trail with no second trim.",
+   "q": "Our plan sells exactly a third at 3R every time, whatever the stock does.",
    "answer": "False",
-   "why": "False. After the first third at 3R, another third comes off at 5R. Then the last third rides the trail. It sells on a close below the 10-day for a fast mover, the 21-day for a steadier one. The rulebook calls the split adjustable, but the default has two trims before the trail.",
-   "lesson_line": "Thirds at 3R and 5R, then the trail. The plan decides before the stock does.",
+   "why": "False. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left trails.",
+   "lesson_line": "No fixed third at 3R. The first sell is a judgment, then the rest trails.",
    "facts": [
-    "h20",
+    "r05",
+    "r06",
+    "r07",
+    "r08",
     "h21"
    ],
    "house": true,
-   "simple": "False. A second third comes off at 5R, and only the last third rides the trail.",
+   "simple": "False, because the first sell is a judgment and not a set third at 3R.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2540,7 +2568,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q43",
@@ -2786,7 +2814,7 @@
     "No; trim a third right away"
    ],
    "answer": "No; full size at one price",
-   "why": "No. The full size goes on at one price with one stop; there is no adding. SMB adds a reason to wait. It does not trust trends in the first 30 minutes, since stocks do not trend on the open. Our card names mistaking a drive for a trend and adding size in the first 30 minutes as a mistake. Up 1R is not a trim level either; the first third comes off at 3R.",
+   "why": "No. The full size goes on at one price with one stop; there is no adding. SMB adds a reason to wait. It does not trust trends in the first 30 minutes, since stocks do not trend on the open. Our card names mistaking a drive for a trend and adding size in the first 30 minutes as a mistake. Up 1R is not a sell point either; the owner very rarely sells on day 1.",
    "lesson_line": "A drive is not yet a trend. Full size at one price, no adding.",
    "facts": [
     "h03b",
@@ -2794,11 +2822,12 @@
     "m10",
     "m13",
     "c30",
-    "h05"
+    "r05",
+    "r06"
    ],
    "wrong": {
     "Yes; add half on the first dip": "Adding to a drive in the first 30 minutes mistakes a drive for a trend.",
-    "No; trim a third right away": "1R is not a trim level. The hard rule takes the first third at 3R.",
+    "No; trim a third right away": "Selling on day 1 is rare. The first sell is a judgment, usually day 3 or later.",
     "Yes; add a third more at 2R": "No adding at all. One price, one stop."
    },
    "house": true,
@@ -2813,7 +2842,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q50",
@@ -2857,15 +2886,15 @@
     "A sign the setup does not work"
    ],
    "answer": "The plan working; a 1R loss",
-   "why": "The plan working: a 1R loss. The stop sat under the day's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 was short of the first trim at 3R. The rulebook allows a breakeven stop from 2R, ideally, but does not require it at 2.1R. A tight stop is not a free stop.",
+   "why": "The plan working: a 1R loss. The stop sat under the day's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 came on day 1, when the owner very rarely sells. A tight stop is not a free stop.",
    "lesson_line": "The stop under the day's low sets the loss at the buy. A stop-out is the plan, not a mistake.",
    "facts": [
     "d18",
     "d19",
     "h24",
     "c04",
-    "h05",
-    "h02"
+    "h02",
+    "r05"
    ],
    "wrong": {
     "A reason to widen the next stop": "The stop only moves up, never down or wider. The stop under the day's low did its job.",
@@ -2875,7 +2904,7 @@
    "house": true,
    "simple": "It was the plan working, because the stop sat where the rule puts it and the loss was the 1R you planned.",
    "deeper": {
-    "trap": "The trap is the 2.1R that came first. It feels like a winner thrown away, so traders widen the next stop or give up on the setup. Neither fixes anything. 2.1R was short of the first trim at 3R. The stop did its job: the loss was the 1R set at the buy."
+    "trap": "The trap is the 2.1R that came first. It feels like a winner thrown away, so traders widen the next stop or give up on the setup. Neither fixes anything. Day 1 is rarely a sell day, and the first sell is a judgment. The stop did its job: the loss was the 1R set at the buy."
    },
    "tier": "expert",
    "risk": {
@@ -2884,7 +2913,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q52",
@@ -3046,8 +3075,8 @@
     "d33",
     "d34",
     "d35",
-    "h05",
-    "h20"
+    "r07",
+    "r08"
    ],
    "wrong": {
     "About one in ten": "Far more fail on the day. 41.5% were stopped on the drive day.",
@@ -3057,7 +3086,7 @@
    "house": true,
    "simple": "About four in ten, because 41.5 percent of the 41 strict drives in our scan were stopped on the drive day.",
    "deeper": {
-    "counter": "Most drives that pass the strict test are stopped. The plan expects that: a small loss at the stop. On the few that run, a third comes off at 3R and 5R. The 41 came on only 21 different days, so many fired on the same mornings. Read them as one sample, not a law."
+    "counter": "Most drives that pass the strict test are stopped. The plan expects that: a small loss at the stop. On the few that run, the first sell is a judgment, often into a 3 to 7 day push. The 41 came on only 21 different days, so many fired on the same mornings. Read them as one sample, not a law."
    },
    "tier": "expert",
    "risk": {
@@ -3071,7 +3100,7 @@
    "depends_on": [
     "D-134"
    ],
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q56",
@@ -3148,35 +3177,36 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "od.plan_rule",
-   "q": "Write the plan: entry, stop, first trim.",
+   "q": "Write the plan: entry, stop, first sell.",
    "story": "LRCX, 2026-09-18: a leader, RS 82, above its 200-day. The first 5-minute bar runs 272.80 to 277.23 on 5.7x volume.",
    "choices": [
     "Limit 275.00; stop 268.00; out at 2R",
     "Market at 9:40 close; stop 272.80; hold",
-    "Market 277.24; stop 272.75; third 3R",
-    "Market 277.24; stop 272.75; all out 3R"
+    "Market 277.24; stop 272.75; sell day 3+",
+    "Market 277.24; stop 272.75; sell day 1"
    ],
-   "answer": "Market 277.24; stop 272.75; third 3R",
-   "why": "Market 277.24, stop 272.75, a third at 3R. The buy is a market order the moment price trades through the first bar's high, 277.23, so 277.24. The stop sits a few cents under the day's low, here the first bar's low of 272.80, so 272.75. The first third comes off at 3R, a second at 5R, and the last third rides the trail. LRCX reached 3R at the next session's open.",
-   "lesson_line": "Entry, stop, trim, trail. Write the plan down, then execute it without a debate.",
+   "answer": "Market 277.24; stop 272.75; sell day 3+",
+   "why": "Market 277.24, stop 272.75, first sell on day 3 or later. The buy is a market order the moment price trades through the first bar's high, 277.23, so 277.24. The stop sits a few cents under the day's low, here the first bar's low of 272.80, so 272.75. The first sell is a judgment, rarely on day 1. LRCX reached 3R at the next session's open and 16.8R at its best.",
+   "lesson_line": "Entry, stop, first sell, trail. Write the plan down, then execute it without a debate.",
    "facts": [
     "h22",
     "h24",
-    "h05",
     "d01",
     "d02",
-    "h20",
-    "h30"
+    "h30",
+    "r05",
+    "r06",
+    "r07"
    ],
    "wrong": {
     "Limit 275.00; stop 268.00; out at 2R": "A limit under the first bar's high never fills on the break. A stop down at 268.00 is nowhere near the day's low.",
     "Market at 9:40 close; stop 272.80; hold": "The trigger is the trade through, not the close, and the stop sits under the low, not on it.",
-    "Market 277.24; stop 272.75; all out 3R": "The first trim is a third, not all of it. Another third comes off at 5R and the last third rides the trail."
+    "Market 277.24; stop 272.75; sell day 1": "The owner very rarely sells on day 1 of the buy. The first sell is a judgment, usually day 3 or later."
    },
    "house": true,
-   "simple": "Buy at market as it trades through 277.23, put the stop just under 272.80, and sell a third at 3R.",
+   "simple": "Buy at market as it trades through 277.23, put the stop just under 272.80, and make the first sell from day three.",
    "deeper": {
-    "trap": "Two plans here share the entry and the stop. The difference is the exit. All out at 3R throws away the part that pays: LRCX went on to 16.8R at its best. The third at 3R is what saves a round trip. The third left on the trail is what catches a run like that."
+    "trap": "Two plans here share the entry and the stop. The difference is the first sell. Selling on day 1 throws away the part that pays: LRCX went on to 16.8R at its best. The first sell waits for the push, usually day 3 or later, and the rest trails."
    },
    "tier": "expert",
    "risk": {
@@ -3186,7 +3216,7 @@
      "computed key (entry and stop derived from the bar)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings2"
   },
   {
    "key": "q59",
@@ -3266,19 +3296,20 @@
    "criterion": "od.swing_exit",
    "q": "SMB's scalp drive has its own exits. We swing trade the drive, so those scalp exits are not ours.",
    "answer": "True",
-   "why": "True. SMB says you are either in a scalp, with all its specific exits, or a Trade2Hold. Its scalp exits are not ours. We swing trade, days to a few weeks. Our first sell may be a third at 3R, or a sale into a 3 to 7 day push. The rest trails.",
+   "why": "True. SMB says you are either in a scalp, with all its specific exits, or a Trade2Hold. Its scalp exits are not ours. We swing trade, days to a few weeks. Our first sell is a judgment: rarely day 1, usually day 3 or later, often into a 3 to 7 day push. The rest trails.",
    "lesson_line": "SMB's scalp exits are not ours. We swing trade, sell in parts and trail the rest.",
    "facts": [
     "m09",
     "c32",
     "h16",
-    "h05",
-    "r03"
+    "r03",
+    "r05",
+    "r06"
    ],
    "house": true,
    "simple": "True, because we swing trade and take profits our own way, not with SMB's scalp exits.",
    "deeper": {
-    "trap": "The trap is taking a scalp's exits on a swing drive. SMB's scalp exits belong to its scalp plan, not ours. Our exits are swing exits: a first sell by R or by days into a push, then a trail on the rest."
+    "trap": "The trap is taking a scalp's exits on a swing drive. SMB's scalp exits belong to its scalp plan, not ours. Our exits are swing exits: a first sell by judgment, often into a 3 to 7 day push, then a trail on the rest."
    },
    "tier": "expert",
    "risk": {
@@ -3288,7 +3319,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q62",
@@ -3603,9 +3634,9 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "3R arithmetic kept; 3R framed as a mark, no sell rule."
   },
   "q23": {
    "status": "pass",
@@ -3671,8 +3702,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: 3R = 72.00 + 3 x 1.84 = 77.52 (story). Third at 3R is the hard rule (h05); 'rest near even' assumes the breakeven move, which B19 calls ideal; no choice offers 'rest lost at the old stop', so no second defensible answer. Owner flag on 'ideally' stands.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "CNC re-keyed to the first sell being a judgment; no 3R sell taught."
   },
   "q41": {
    "status": "pass",
@@ -3720,8 +3750,8 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right, but two problems. (1) The wrong note for 'A sign the setup does not work' says 'four in ten strict drives were stopped on the drive day' (c28), which is q55's key, and q51 comes before q55. (2) The why and a wrong note say 'the stop sat under the first bar's low', which no cited quote holds (d18's quote ends at the stop price; the first-bar-low clause is only in the dossier text outside it), and the story never said where the stop sat, so 'a broken rule; the stop was tight' could not be ruled out from the story. Story now states the stop is under the day's low (the question grounds "
+   "fixed": false,
+   "notes": "1R-loss key kept; 3R trim wording removed."
   },
   "q52": {
    "status": "pass",
@@ -3745,13 +3775,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees"
+   "notes": "Scan statistic kept; 3R/5R as marks; deeper softened."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: market through 277.23 = 277.24 (E57, c02), stop a few cents under 272.80 = 272.75 (F62), a third at 3R (B19, E51). All numbers in d01/d02. Key 36 chars, not longest."
+   "notes": "Market trade-through entry kept (D-003); first sell re-keyed to day 3+."
   },
   "q59": {
    "status": "cut",
@@ -3768,8 +3798,8 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "True kept; first sell stated as judgment, not third at 3R."
   },
   "q62": {
    "status": "pass",
@@ -3863,9 +3893,9 @@
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Re-keyed to D-013: day 3 at the earliest, by judgment; distractors clearly wrong."
   },
   "q19": {
    "status": "pass",
@@ -3908,8 +3938,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from E52 (h21): sell on a close below the 10-day for a fast mover. Stem no longer names the trims, so q42 is not given away. Choices balanced.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Trail key kept; no 3R/5R thirds wording."
   },
   "q29": {
    "status": "pass",
@@ -3932,9 +3961,9 @@
   },
   "q42": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Flipped to False: no fixed third at 3R."
   },
   "q43": {
    "status": "pass",
@@ -3947,7 +3976,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (h03b/A5). m08, m10, m13 verified on smbtraining.com and attributed to SMB. 1R not a trim level (h05)."
+   "notes": "No-adding key kept; day-1 sell now rare per D-013."
   },
   "q56": {
    "status": "cut",
@@ -3962,10 +3991,10 @@
    "notes": "Own answer True from c18 and B26 (h10). 132 chars. Both clauses true."
   },
   "q63": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer from F63 (h25): a trim level the day opens past is taken at the open. LRCX example matches d02 (3R at 09-21 9:30, 5R at 11:40)."
+   "notes": "cut in rulings2: see the resolver's notes"
   },
   "q66": {
    "status": "pass",

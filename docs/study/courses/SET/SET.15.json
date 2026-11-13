@@ -801,6 +801,24 @@
    "source": "h2",
    "quote": "How deep an undercut may go and how fast it must reclaim is a judgment call, not a fixed number.",
    "claim": "Undercut depth is a judgment call, not a fixed number."
+  },
+  {
+   "id": "r54",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r55",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r56",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1306,24 +1324,24 @@
     },
     "round": 2
    },
-   "why": "103.53. One R is the fill minus the stop, 96.51 minus 94.17. Add three of those to the fill. That is the price where the first third comes off, since the hard rule is a third at 3R.",
-   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "why": "103.53. One R is the fill minus the stop, 96.51 minus 94.17. Add three of those to the fill. 3R is a measuring stick, not an order to sell. The first sell is a judgment.",
+   "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
-    "h05",
-    "d06"
+    "d06",
+    "r54"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "3R is the fill plus three times the gap down to the stop, which is 103.53 here.",
+   "simple": "3R is the fill plus three times the gap down to the stop, which is 103.53 here. It is a measuring stick.",
    "tier": "core",
    "risk": {
-    "score": 4,
+    "score": 3,
     "reasons": [
      "computed key (3R price)",
-     "rests on the owner's rulebook (B19, a third at 3R)"
+     "the first sell is the owner's D-013 judgment, not a fixed 3R sale"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q16",
@@ -2358,38 +2376,37 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "xbk.trim_gap_open",
-   "q": "When do you take the first third?",
+   "q": "What do you do about the first sell?",
    "choices": [
-    "At the open, right away",
-    "At the close, not before",
-    "When it reaches the 5R level",
-    "When it pulls back to 3R"
+    "Judge it; there is no fixed sell",
+    "Sell a third at the open, by rule",
+    "Wait for the close, then sell a third",
+    "Sell at 5R, by rule, not before"
    ],
-   "answer": "At the open, right away",
-   "why": "At the open. If a stock opens above a trim level, take that trim at the open. Here 3R is 129.03 and the stock opens at 130.00, so the first third comes off at the open. The 5R trim is a separate, later step.",
-   "lesson_line": "A gap past your trim level means trim at the open.",
+   "answer": "Judge it; there is no fixed sell",
+   "why": "Judge it. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. A gap past 3R is a reason to look closely, not an order to sell.",
+   "lesson_line": "A gap past 3R is not a sell order. Judge the first sell.",
    "facts": [
-    "h25",
-    "h05",
-    "h20"
+    "r54",
+    "r55",
+    "r56"
    ],
    "wrong": {
-    "At the close, not before": "The rule says take the trim at the open, not later in the day.",
-    "When it reaches the 5R level": "The first third comes off at 3R, and the stock is already past it. The 5R trim is a later step.",
-    "When it pulls back to 3R": "The rule says take the trim at the open, not wait for a pullback."
+    "Sell a third at the open, by rule": "The first sell is a judgment, not a fixed third at 3R.",
+    "Wait for the close, then sell a third": "A close does not make it a rule. The first sell is a judgment, not a fixed third.",
+    "Sell at 5R, by rule, not before": "Selling at about 5 to 10R is often best, but it is a judgment, not a fixed level."
    },
    "house": true,
    "story": "You bought at 116.55 with the stop at 112.39. Next morning the stock opens at 130.00, above 3R at 129.03.",
-   "simple": "At the open. The stock opened above your 3R level, so you take the first third right then.",
+   "simple": "Judge it. A gap past 3R is not an automatic sell, and we rarely sell this early.",
    "tier": "extended",
    "risk": {
-    "score": 2,
+    "score": 3,
     "reasons": [
-     "rests on the owner's rulebook (F63)",
-     "the 3R level is a computed price"
+     "rests on the owner's ruling D-013 (the first sell is a judgment)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q45",
@@ -3687,11 +3704,10 @@
     "From the first higher close"
    ],
    "answer": "From 2R, any time up to 5R",
-   "why": "From 2R. The rule allows moving the stop to breakeven anywhere from 2R to 5R. By default we do it at the first trim, the third that comes off at 3R.",
+   "why": "From 2R. The rule allows moving the stop to breakeven anywhere from 2R to 5R. It does not start sooner.",
    "lesson_line": "Breakeven comes between 2R and 5R, not before.",
    "facts": [
-    "x39",
-    "h05"
+    "x39"
    ],
    "wrong": {
     "From 1R, once it moves up": "Too soon. The rule starts at 2R.",
@@ -3699,15 +3715,15 @@
     "From the first higher close": "A close is not a measure of R. The move is set in R, from 2R."
    },
    "house": true,
-   "simple": "Breakeven is allowed from 2R up to 5R, and by default we do it at the first trim.",
+   "simple": "Breakeven is allowed from 2R up to 5R, and not before 2R.",
    "tier": "core",
    "risk": {
     "score": 2,
     "reasons": [
-     "rests on the owner's rulebook (B19)"
+     "the breakeven range comes from the card"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q80",
@@ -3726,23 +3742,22 @@
     "round": 0
    },
    "suffix": "shares",
-   "why": "40 shares. A third of 120 is 40. Two trims sell two thirds, so one third is left. By our default plan the trims come at 3R and 5R, and the last third trails.",
-   "lesson_line": "Thirds: one at 3R, one at 5R, and the last rides the trail.",
+   "why": "40 shares. A third of 120 is 40. Two trims sell two thirds, so one third is left. When each sell comes is a judgment, but the sum is the same.",
+   "lesson_line": "Two thirds sold leaves one third to trail.",
    "facts": [
-    "h20",
-    "h05"
+    "r54"
    ],
    "house": true,
    "simple": "Two thirds are sold, so one third of 120, which is 40 shares, is left to trail.",
    "tier": "extended",
    "risk": {
-    "score": 4,
+    "score": 3,
     "reasons": [
      "computed key",
-     "rests on the owner's rulebook (E51, marked adjustable)"
+     "when each sell comes is the owner's D-013 judgment"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q81",
@@ -3751,36 +3766,36 @@
    "format": "fill",
    "criterion": "xbk.trim_2",
    "q": "Tap the word that fits the blank.",
-   "sentence": "By our default plan, after the first third at 3R, another third comes off at ___, then you trail the rest.",
+   "sentence": "We very rarely sell on day 1 of the buy and usually wait until day ___ at the earliest.",
    "bank": [
-    "5R",
-    "2R",
-    "4R",
-    "8R"
+    "3",
+    "1",
+    "5",
+    "7"
    ],
-   "answer": "5R",
-   "why": "5R. By our default plan, after the first third at 3R another third comes off at 5R, then you trail the last third. 2R is where breakeven may start, not a trim, and the plan is adjustable.",
-   "lesson_line": "3R for the first third, 5R for the second, then trail.",
+   "answer": "3",
+   "why": "Day 3. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R.",
+   "lesson_line": "Rarely sell on day 1. Day 3 at the earliest.",
    "facts": [
-    "h20",
-    "h05"
+    "r55",
+    "r56",
+    "r54"
    ],
    "house": true,
-   "simple": "The second third comes off at 5R, and the last third rides the trail.",
+   "simple": "We rarely sell on day 1 and usually wait until day 3 at the earliest.",
    "tier": "core",
    "risk": {
-    "score": 5,
+    "score": 3,
     "reasons": [
-     "one cited fact only (h20)",
-     "rests on the owner's rulebook (E51, marked adjustable)"
+     "rests on the owner's ruling D-013 (day 3 at the earliest)"
     ]
    },
    "wrong": {
-    "2R": "2R is where the stop may first go to breakeven, not where a third comes off.",
-    "4R": "That is not our default. The second third comes off at 5R, and the plan is adjustable.",
-    "8R": "That is far later than our default second third at 5R."
+    "1": "We very rarely sell on day 1 of the buy.",
+    "5": "Day 5 is inside the push we sell into, but we do not wait that long at the earliest.",
+    "7": "Day 7 is inside the push we sell into, but it is not the earliest day."
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q82",
@@ -4023,7 +4038,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "96.51+3*(96.51-94.17)=103.53, recomputed; both inputs are in the question, calc fn arith exists. Matches B19 hard rule (a third at 3R)."
+   "notes": "3R arithmetic kept, text no longer says a third sells at 3R"
   },
   "q16": {
    "status": "pass",
@@ -4163,7 +4178,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found. Scan numbers are d24 only and change with the data; the 82.6/28.9 overlap inference is valid."
+   "notes": "3R only a measuring stick"
   },
   "q39": {
    "status": "pass",
@@ -4175,8 +4190,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "no sell keyed"
   },
   "q41": {
    "status": "pass",
@@ -4201,7 +4215,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "re-keyed to judgment, ok"
   },
   "q45": {
    "status": "pass",
@@ -4319,7 +4333,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "3R only a stick, no close buy"
   },
   "q64": {
    "status": "pass",
@@ -4416,19 +4430,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "breakeven range only"
   },
   "q80": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "120 - 2*(120/3) = 40, recomputed; calc matches. 3R and 5R default from h20/h05 (adjustable) and consistent with B19. Does not give away or repeat any other question."
+   "notes": "arithmetic only"
   },
   "q81": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "fixed": true,
+   "notes": "upgrade key 10R had wrong choice 8R that is inside the 5-10R range (not clearly wrong); re-keyed to day 3 at the earliest, a clean quote"
   },
   "q82": {
    "status": "pass",

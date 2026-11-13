@@ -805,6 +805,30 @@
    "source": "h2",
    "quote": "The R-based thirds stay one taught way to take profits, but a question must not teach 3R as the only correct first sell; a day-based first sell on a strong push is equally ours.",
    "claim": "D-013: R thirds are one taught way, not the only first sell."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "I usually wait until day 3 at the earliest.",
+   "claim": "D-013: the first sell usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r09",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day.",
+   "claim": "D-013: a day-1 sell on the buy day is very rare."
   }
  ],
  "walkthroughs": [
@@ -1345,11 +1369,11 @@
     },
     "round": 2
    },
-   "why": "26.27. One R is the fill minus the stop. Add three of those to the fill. The first trim is a third at 3R. AKAM ran to 30.4R from these levels.",
-   "lesson_line": "Know your 3R before the close. The first third comes off there.",
+   "why": "26.27. One R is the fill minus the stop. Add three of those to the fill. 3R is a yardstick for the trade, not a fixed sell. AKAM ran to 30.4R from these levels.",
+   "lesson_line": "Know your 3R before the close. It is a yardstick, not a sell order.",
    "facts": [
-    "h05",
-    "e11"
+    "e11",
+    "r06"
    ],
    "house": true,
    "prefix": "$",
@@ -1362,7 +1386,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q18",
@@ -1559,26 +1583,27 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.inv_failed_gap",
-   "q": "Buy the close?",
+   "q": "Is this test a buy?",
    "story": "The test day undercut the gap-up low by 4% and ended the day 3% below it.",
    "choices": [
     "Pass; the day did not hold the line",
-    "Buy the close; undercuts are fine",
-    "Buy half at the close, to be safe",
-    "Buy the close, stop at gap fill"
+    "Buy it; an undercut is just a shakeout",
+    "Buy half size now, to be safe",
+    "Buy it, with the stop at the gap fill"
    ],
    "answer": "Pass; the day did not hold the line",
-   "why": "No buy. The test day ended 3% under the gap-up low, so the line did not hold and there was no reclaim. A close under the gap-up low with no reclaim is a failed gap.",
+   "why": "No buy. The test day ended 3% under the gap-up low, so the line did not hold and there was no reclaim. That is a failed gap. We also never buy at the close. We buy as price trades through the trigger.",
    "lesson_line": "A close under the line is not a hold.",
    "facts": [
     "g27",
     "g01",
-    "g13"
+    "g13",
+    "r01"
    ],
    "wrong": {
-    "Buy the close; undercuts are fine": "An undercut alone can be fine. This day also ended under the line, and that close with no reclaim is a failed gap.",
-    "Buy half at the close, to be safe": "Half size on a failed test is still a failed test.",
-    "Buy the close, stop at gap fill": "Our stop is not under the gap-fill spot. That stop is a median 6% away."
+    "Buy it; an undercut is just a shakeout": "An undercut alone can be fine. This day also ended under the line, and that close with no reclaim is a failed gap.",
+    "Buy half size now, to be safe": "Half size on a failed test is still a failed test.",
+    "Buy it, with the stop at the gap fill": "Our stop is not under the gap-fill spot. That stop is a median 6% away."
    },
    "house": true,
    "simple": "Do not buy, because the day ended under the gap-up low, so the line did not hold.",
@@ -1592,7 +1617,7 @@
    "depends_on": [
     "D-094"
    ],
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q25",
@@ -2719,15 +2744,15 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "gs.post_gap_high_trim",
-   "q": "On the R plan, where does the first third come off?",
+   "q": "Which level does price reach first on the way up?",
    "story": "LLY, 2021. A news gap. The test is bought at 231.13 with the stop at 228.43. The post-gap high is 239.37.",
    "choices": [
-    "A third at 3R, at 239.23",
-    "A third at 239.37",
-    "A third at 5R, not yet",
-    "A third on a 240 close"
+    "3R, 239.23, comes first",
+    "The post-gap high, 239.37, comes first",
+    "5R, 244.63, comes first",
+    "Both are the same price"
    ],
-   "answer": "A third at 3R, at 239.23",
+   "answer": "3R, 239.23, comes first",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2737,26 +2762,23 @@
     },
     "round": 2
    },
-   "why": "A third at 3R, 239.23. On the R plan, one R is the fill minus the stop, 231.13 minus 228.43. Three of those above the fill is 239.23. The post-gap high, 239.37, sits above 3R, so it comes second. A day-based first sell on a strong push is also ours.",
-   "lesson_line": "On the R plan, the first third comes off at 3R.",
+   "why": "3R, 239.23. One R is the fill minus the stop, 231.13 minus 228.43. Three of those above the fill is 239.23. The post-gap high, 239.37, is a little higher, so price reaches 3R first. Where the first sell comes is a judgment.",
+   "lesson_line": "3R is a yardstick. The first sell is a judgment.",
    "facts": [
-    "h05",
-    "h20",
-    "g20",
     "e30",
     "e31",
-    "r04",
-    "r05"
+    "r07",
+    "r06"
    ],
    "wrong": {
-    "A third at 239.37": "The first third comes off at 3R, and 239.23 comes before 239.37.",
-    "A third at 5R, not yet": "The first third comes off before 5R. The 5R third is the second one.",
-    "A third on a 240 close": "There is no rule to wait for 240."
+    "The post-gap high, 239.37, comes first": "239.23 is below 239.37, so price reaches 3R first.",
+    "5R, 244.63, comes first": "5R is a long way above the post-gap high, so it comes last.",
+    "Both are the same price": "The two levels are different prices. 3R is the lower one."
    },
    "house": true,
-   "simple": "On the R plan, sell the first third at 3R, 239.23. The post-gap high, 239.37, is above 3R, so it comes second.",
+   "simple": "3R is 239.23. The post-gap high, 239.37, is a little above it, so price reaches 3R first.",
    "deeper": {
-    "trap": "The two levels sit close together, so it is easy to pick the high. On the R plan a third comes off at 3R, and 3R is reached first. We also sell into a 3, 5 or 7 day push, but this question asks for the R plan."
+    "trap": "The two levels sit close together, so it is easy to pick the high. 3R is the lower of the two, so price reaches it first. Where to sell first is a judgment, often into a 3, 5 or 7 day push."
    },
    "tier": "expert",
    "risk": {
@@ -2766,7 +2788,7 @@
      "computed key"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q56",
@@ -3365,12 +3387,11 @@
    "criterion": "gs.trim_2",
    "q": "Bought at 27.15 with the stop at 26.89. Where is 5R?",
    "answer": 28.45,
-   "why": "28.45. One R is the fill minus the stop, 27.15 minus 26.89. Five of those above the fill is 28.45. After the first third at 3R, another third comes off at 5R, then the last third trails. GPN ran to 24.9R from these levels.",
-   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "why": "28.45. One R is the fill minus the stop, 27.15 minus 26.89. Five of those above the fill is 28.45. 5R is a yardstick. A strong trade often runs well past it. GPN ran to 24.9R from these levels.",
+   "lesson_line": "Know your 5R before the open. A strong trade often runs past it.",
    "facts": [
-    "g53",
-    "h20",
-    "e02"
+    "e02",
+    "r07"
    ],
    "house": true,
    "calc": {
@@ -3391,7 +3412,7 @@
      "computed key"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q73",
@@ -3399,27 +3420,28 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "gs.trim_2",
-   "q": "By default, how much of the position comes off at 5R?",
+   "q": "When do we usually make the first sell?",
    "choices": [
-    "A third of the position",
-    "Half of the whole position",
-    "A quarter of the position",
-    "Nothing; the trail takes it"
+    "Day 3 at the earliest, often later",
+    "On the buy day, into strength",
+    "The next morning, at the open",
+    "At the first close above the buy"
    ],
-   "answer": "A third of the position",
-   "why": "A third of the position. By default the plan is a third at 3R, then another third at 5R, then the last third trails.",
-   "lesson_line": "Thirds: one at 3R, one at 5R, the rest on the trail.",
+   "answer": "Day 3 at the earliest, often later",
+   "why": "Day 3 at the earliest. We very rarely sell on day 1 of the buy. We usually wait for a push of 3, 5 or 7 days, and the first sell is a judgment.",
+   "lesson_line": "The first sell usually waits until day 3 at the earliest.",
    "facts": [
-    "g53",
-    "h20"
+    "r08",
+    "r09",
+    "r07"
    ],
    "wrong": {
-    "Half of the whole position": "Half is not the plan. The plan is a third at 3R, a third at 5R, then the trail.",
-    "A quarter of the position": "A quarter is not in the plan. The second trim is a third.",
-    "Nothing; the trail takes it": "The trail starts after both trims, on the last third."
+    "On the buy day, into strength": "We very rarely sell on day 1 of the buy.",
+    "The next morning, at the open": "A sell the next morning is early. We usually wait until day 3 at the earliest.",
+    "At the first close above the buy": "The first sell does not key off a close above the buy. It is a judgment, usually on day 3 or later."
    },
    "house": true,
-   "simple": "A third comes off at 5R. The default plan is a third at 3R, a third at 5R, then the last third trails.",
+   "simple": "We usually wait until day 3 at the earliest, often into a push of several days.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3427,7 +3449,7 @@
      "rests on the owner's trim rule (E51, B19)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q74",
@@ -3437,27 +3459,25 @@
    "criterion": "gs.trim_gap_open",
    "q": "What do you do this morning?",
    "choices": [
-    "Sell the next third at the open",
-    "Wait for a dip back to 27.05",
-    "Sell everything left at the open",
-    "Hold it all and trail the rest"
+    "Sell a first piece at the open",
+    "Wait for a dip, then sell",
+    "Sell it all at the open",
+    "Hold it all, no first sell yet"
    ],
-   "answer": "Sell the next third at the open",
-   "why": "Sell the next third at the open. The stock opens at 28.20, above the 5R level of 27.05, so that trim comes off at the open. Do not wait for a dip. The last third stays on the trail.",
-   "lesson_line": "Gap past a trim level: take it at the open.",
+   "answer": "Sell a first piece at the open",
+   "why": "Sell a first piece at the open. Five days of push and about 8R is a good place for the first sell. Do not wait for a dip, because it may never come. The rest stays on the trail.",
+   "lesson_line": "A big gap after a multi-day push is a good first sell.",
    "facts": [
-    "h35",
-    "g54",
-    "h20"
+    "r07"
    ],
    "wrong": {
-    "Wait for a dip back to 27.05": "A dip may never come. A trim level the day opens past is taken at the open.",
-    "Sell everything left at the open": "The plan keeps the last third on the trail.",
-    "Hold it all and trail the rest": "The 5R third comes off first. Only the last third trails."
+    "Sell it all at the open": "The plan keeps some on the trail.",
+    "Hold it all, no first sell yet": "A push of five days and about 8R is often the best place for the first sell.",
+    "Wait for a dip, then sell": "A dip may never come. A gap this far up after a five-day push is a good place for the first sell."
    },
    "house": true,
-   "story": "You bought at 25.10 with the stop at 24.71. The first third came off at 3R. Your 5R level is 27.05. Today the stock opens at 28.20.",
-   "simple": "Sell the next third at the open. A trim level the day opens past is taken at the open, and the last third trails.",
+   "story": "You bought at 25.10 with the stop at 24.71, five days ago. Nothing is sold yet. Today it opens at 28.20, about 8R up after a five-day push.",
+   "simple": "Sell a first piece at the open. A gap after a five-day push is a good place for the first sell, and the rest trails.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3466,7 +3486,7 @@
      "levels given in the story"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings2"
   },
   {
    "key": "q75",
@@ -3905,7 +3925,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R plan framing, day-based first sell noted; quotes verbatim"
+   "notes": "which level first; arithmetic ok"
   },
   "q01": {
    "status": "pass",
@@ -3975,9 +3995,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "3R arithmetic kept; yardstick not sell"
   },
   "q19": {
    "status": "pass",
@@ -4007,8 +4027,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Close 3% under the line with no reclaim is a failed gap (g27) under any D-094 allowance. Lone Pass against three Buys is a mild shape tell, kept because a second Pass would be a second right answer; owner-flagged. Wrong notes rest on g27/g13.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "D-003 re-keyed; pass still right"
   },
   "q27": {
    "status": "pass",
@@ -4033,7 +4052,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the q text changed. Key matches h15 and g22 (still under 1R after 10 trading days, sell). 0.3R comes from the story. Small tell: the right choice repeats the story's '10 trading days', but the question text makes the time stop obvious anyway. Distractors are grounded (g19 for breakeven)."
+   "notes": "time stop, 3R only in story"
   },
   "q31": {
    "status": "pass",
@@ -4241,21 +4260,21 @@
   },
   "q72": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "5R arithmetic ok"
   },
   "q73": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Third at 5R per g53/h20; hedged 'by default' for E51 adjustable."
+   "notes": "first sell day 3 at earliest; quotes verbatim"
   },
   "q74": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "5R = 25.10+5*0.39 = 27.05; opens 28.20 above it; h35/g54 take at the open. Choices fine."
+   "fixed": true,
+   "notes": "orphan 27.05 in a choice no longer explained by the story; re-worded"
   },
   "q75": {
    "status": "pass",
@@ -4279,13 +4298,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "e26 verified in dossier (28.9% to 3R, 20.4% to 5R). False since 28.9% is under half. Owner flag on unreviewed data stands. Criterion tag gs.line_is_gap_up_low does not fit a base-rate item; owner may retag."
+   "notes": "scan base rate, 3R only a measuring stick"
   },
   "q81": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B22: hold through a report only if up 5R; 3 is the days-before number, a fair trap. Single fact, no other question states it."
+   "notes": "earnings hold bar, not first sell"
   },
   "q82": {
    "status": "cut",

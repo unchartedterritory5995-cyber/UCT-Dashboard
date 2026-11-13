@@ -1103,6 +1103,24 @@
    "source": "h2",
    "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
    "claim": "Past 5%, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r54",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r55",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r56",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1790,36 +1808,38 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "wd.trim_1",
-   "q": "Where does the first cover come on a Wedge Drop short, by our hard rule?",
+   "q": "When does the first cover usually come on a Wedge Drop short?",
    "choices": [
-    "A third at 3R",
-    "Half at 2R",
-    "All of it at 5R",
-    "A third at 1R"
+    "Day 3 at the earliest, or later",
+    "Day 1, to lock in a quick gain",
+    "At exactly 3R, whatever the day",
+    "Never; hold it all to the end"
    ],
-   "answer": "A third at 3R",
-   "why": "A third at 3R. That is our hard rule for the first cover. Ideally it comes anywhere from 3R to 6R, and in practice we mostly wait for 5R. The next third comes at 5R, then the last third rides the trail. The stop can move to breakeven between 2R and 5R.",
-   "lesson_line": "A third at 3R, a third at 5R, trail the rest. Same on a short.",
+   "answer": "Day 3 at the earliest, or later",
+   "why": "Day 3 at the earliest, and often later. The first cover is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. A short is a long setup reversed, so the same holds.",
+   "lesson_line": "Rarely cover on day 1. Day 3 at the earliest, often into a longer move.",
    "facts": [
-    "h05",
-    "h18",
-    "h14"
+    "r54",
+    "r55",
+    "r56",
+    "h16"
    ],
    "house": true,
    "wrong": {
-    "Half at 2R": "Too early and too much. Breakeven can move at 2R, but the cover waits for 3R.",
-    "All of it at 5R": "5R is the second third, not the exit. The last third rides the trail.",
-    "A third at 1R": "Too early. 1R is the line the time stop checks, not a cover level."
+    "Day 1, to lock in a quick gain": "We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest.",
+    "At exactly 3R, whatever the day": "The first sell is a judgment, not a fixed third at 3R.",
+    "Never; hold it all to the end": "We do cover. The first cover is a judgment, often into a 3, 5 or 7 day move."
    },
-   "simple": "We cover the first third of the short at 3R, then another third at 5R, and trail the rest.",
+   "simple": "We rarely cover on day 1. We usually wait until day 3 at the earliest, often into a longer move.",
    "tier": "core",
    "risk": {
-    "score": 2,
+    "score": 3,
     "reasons": [
-     "+2 rests on the owner's rulebook (B19 and E51, adjustable)"
+     "rests on the owner's ruling D-013 (the first sell is a judgment)",
+     "the short side mirrors the long side (D47)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q20",
@@ -1955,23 +1975,24 @@
     },
     "round": 2
    },
-   "why": "43.17. One R is the stop minus the fill, 46.89 - 45.96. Three of those below the fill is 3R, and that is 43.17. That is where the first third is covered. PCG reached 3R on day 10.",
-   "lesson_line": "Know your 3R before the open. The first third is covered there.",
+   "why": "43.17. One R is the stop minus the fill, 46.89 - 45.96. Three of those below the fill is 3R, and that is 43.17. It is a measuring stick, not a cover order. PCG reached 3R on day 10.",
+   "lesson_line": "Know your 3R before the open. It is a yardstick, not a cover order.",
    "facts": [
-    "h05",
-    "d03"
+    "d03",
+    "r54"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "3R is the fill minus three times the stop distance, so 43.17. The first third of the short is covered there.",
+   "simple": "3R is the fill minus three times the stop distance, so 43.17. It is a measuring stick, not a cover order.",
    "tier": "core",
    "risk": {
-    "score": 2,
+    "score": 3,
     "reasons": [
-     "+2 a computed key"
+     "a computed key",
+     "the first cover is the owner's D-013 judgment, not a fixed 3R cover"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q24",
@@ -2112,24 +2133,25 @@
     },
     "round": 1
    },
-   "why": "5R. One R is the stop minus the fill, 80.77 - 78.94. The gain is the fill minus the price, 78.94 - 69.79. The gain divided by one R is 5.0. That is where the second third is covered. EXP reached 3R in three sessions on the way.",
-   "lesson_line": "Count a short in R too. 5R is the second cover.",
+   "why": "5R. One R is the stop minus the fill, 80.77 - 78.94. The gain is the fill minus the price, 78.94 - 69.79. The gain divided by one R is 5.0. That is a measure, not a fixed cover price. EXP reached 3R in three sessions on the way.",
+   "lesson_line": "Count a short in R too. The gain divided by one R is the R.",
    "facts": [
-    "h18",
     "d09",
-    "d10"
+    "d10",
+    "r54"
    ],
    "house": true,
    "suffix": "R",
-   "simple": "The fall from the fill is five times the stop distance, so it is 5R, where the second third is covered.",
+   "simple": "The fall from the fill is five times the stop distance, so it is 5R.",
    "tier": "core",
    "risk": {
-    "score": 2,
+    "score": 3,
     "reasons": [
-     "+2 a computed key"
+     "a computed key",
+     "when to cover is the owner's D-013 judgment"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q28",
@@ -2290,10 +2312,9 @@
     "At 1R, once it has paid a bit"
    ],
    "answer": "Between 2R and 5R, at first cover",
-   "why": "Between 2R and 5R, ideally, and by default at the first cover. The first cover is a third at 3R, so that is the natural moment. A stop may move in your favour. It is never moved wider.",
+   "why": "Between 2R and 5R, and by default at the first cover. A stop may move in your favour. It is never moved wider.",
    "lesson_line": "Breakeven comes between 2R and 5R, by default at the first cover.",
    "facts": [
-    "h05",
     "c53"
    ],
    "house": true,
@@ -2302,15 +2323,15 @@
     "Never; a short's stop stays where set": "A stop may move in your favour. Only a wider stop is banned.",
     "At 1R, once it has paid a bit": "Too early. Our rule starts at 2R."
    },
-   "simple": "The stop moves to breakeven somewhere between 2R and 5R, and by default when we cover the first third.",
+   "simple": "The stop moves to breakeven somewhere between 2R and 5R, and by default at the first cover.",
    "tier": "extended",
    "risk": {
     "score": 2,
     "reasons": [
-     "+2 rests on the owner's rulebook (B19)"
+     "the breakeven range comes from the card"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q33",
@@ -2391,37 +2412,38 @@
    "format": "scenario",
    "criterion": "wd.trim_gap_open",
    "story": "Your short sits at 2.7R at Thursday's close. Friday it gaps down and opens at 3.5R.",
-   "q": "What do you do at the open?",
+   "q": "What do you do about the first cover?",
    "choices": [
+    "Judge it; 3R is not a cover order",
     "Cover a third at the open",
-    "Wait for the close to decide",
     "Cover the whole position now",
     "Add more; the gap confirms it"
    ],
-   "answer": "Cover a third at the open",
-   "why": "Cover a third at the open. If a stock opens past a cover level, we take that cover at the open. A 3.5R open is past the 3R level, so the first third comes off right there. The rest waits for 5R and the trail. A gap in your favour is not a place to add. It is full size at one price.",
-   "lesson_line": "A gap through a cover level is the cover. Take it at the open.",
+   "answer": "Judge it; 3R is not a cover order",
+   "why": "Judge it. The first cover is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. A 3.5R open is a reason to look hard, not an order to cover. A gap in your favour is not a place to add. It is full size at one price.",
+   "lesson_line": "A gap past 3R is not a cover order. Judge the first cover.",
    "facts": [
-    "h23",
-    "c54",
-    "h05",
+    "r54",
+    "r55",
+    "h16",
     "h26"
    ],
    "house": true,
    "wrong": {
-    "Add more; the gap confirms it": "Full size at one price. A gap in your favour is a place to take, not to add.",
-    "Wait for the close to decide": "The rule is to take the cover at the open once it opens past the level, not to wait for the close.",
-    "Cover the whole position now": "A third at 3R. The rest waits for 5R and the trail."
+    "Add more; the gap confirms it": "Full size at one price. A gap in your favour is not a place to add.",
+    "Cover the whole position now": "Nothing says a gap means covering it all. The first cover is a judgment.",
+    "Cover a third at the open": "The first cover is a judgment, not a fixed third at 3R."
    },
-   "simple": "Cover a third at the open. The gap passed the 3R level, so we take that cover right away.",
+   "simple": "Judge it. A gap past 3R is not an automatic cover, and we rarely act on day 1.",
    "tier": "extended",
    "risk": {
-    "score": 2,
+    "score": 3,
     "reasons": [
-     "+2 rests on the owner's rulebook (F63, mirrored for a short)"
+     "rests on the owner's ruling D-013 (the first sell is a judgment)",
+     "the short side mirrors the long side (D47)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q36",
@@ -2660,7 +2682,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "wd.crossback_hold",
-   "story": "You are short; 3R came and you covered a third. Now the stock rallies into its falling 10 and 20-day EMAs and stalls under them.",
+   "story": "You are short and have already covered a third. Now the stock rallies into its falling 10 and 20-day EMAs and stalls under them.",
    "q": "What is that?",
    "choices": [
     "A crossback; hold, trail decides",
@@ -2696,7 +2718,7 @@
      "tied to a held decision (D-002)"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q43",
@@ -3382,30 +3404,31 @@
    "story": "GS, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it closes under both averages at 131.23 on 1.2x volume. The day's high is 134.76.",
    "q": "Write the plan: entry, stop, first cover.",
    "choices": [
-    "Market 131.23; stop 134.79; third at 3R",
-    "Limit 132.50; stop 134.79; half at 2R",
-    "Market 131.23; stop 133.00; all at 5R",
-    "Limit 132.50; stop 133.00; third at 3R"
+    "Market 131.23; stop 134.79; cover day 3+",
+    "Market 131.23; stop 134.79; cover day 1",
+    "Limit 132.50; stop 134.79; cover day 3+",
+    "Market 131.23; stop 133.00; cover day 3+"
    ],
-   "answer": "Market 131.23; stop 134.79; third at 3R",
-   "why": "Market at 131.23, stop 134.79, a third at 3R. The entry is a market order on the close. The stop is a few cents over the day's high of 134.76, and it is 2.7% from the fill, inside the 3%. The first third is covered at 3R. GS got there on day 4.",
+   "answer": "Market 131.23; stop 134.79; cover day 3+",
+   "why": "Market at 131.23, stop 134.79, first cover on day 3 or later. The entry is a market order on the close. The stop is a few cents over the day's high of 134.76, 2.7% from the fill, inside the 3%. We very rarely sell on day 1 and usually wait until day 3 at the earliest. GS reached 3R on day 4.",
    "lesson_line": "Entry, stop, cover, trail. Write it before the close; execute it without a debate.",
    "facts": [
     "h20",
     "h22",
-    "h05",
     "d07",
     "d08",
     "c47",
-    "c16"
+    "c16",
+    "r54",
+    "r55"
    ],
    "house": true,
    "wrong": {
-    "Limit 132.50; stop 134.79; half at 2R": "Entries are market orders, and the first cover is a third at 3R, not half at 2R.",
-    "Market 131.23; stop 133.00; all at 5R": "A stop at 133.00 sits inside the day's range, under the high of 134.76. All out at 5R skips the third at 3R.",
-    "Limit 132.50; stop 133.00; third at 3R": "Entries are market orders, and a limit above the close may never fill. A stop at 133.00 sits inside the day's range."
+    "Market 131.23; stop 134.79; cover day 1": "We very rarely sell on day 1 of the buy. The first cover is a judgment, usually day 3 or later.",
+    "Limit 132.50; stop 134.79; cover day 3+": "Entries are market orders, and a limit above the close may never fill.",
+    "Market 131.23; stop 133.00; cover day 3+": "A stop at 133.00 sits inside the day's range, under the high of 134.76."
    },
-   "simple": "Enter at market, put the stop a few cents over the day's high, and cover a third at 3R.",
+   "simple": "Enter at market, put the stop a few cents over the day's high, and make the first cover on day 3 or later.",
    "deeper": {
     "example": "GS, 2011-08-02: the bounce died at the falling 50-day, then a four-day stall, then the close at 131.23. The stop at 134.79 was 2.7% away. 3R came on day 4. At best it reached 13.2R, a high-water mark on a fixed stop, not a result to bank."
    },
@@ -3413,11 +3436,11 @@
    "risk": {
     "score": 3,
     "reasons": [
-     "+2 rests on the owner's rulebook and a held decision (D-008, where the stop goes)",
-     "+1 fixed before"
+     "rests on the owner's rulebook and the D-013 first-sell judgment",
+     "the short entry on the close is not covered by D-003"
     ]
    },
-   "batch": "rulings"
+   "batch": "rulings2"
   },
   {
    "key": "q61",
@@ -3912,7 +3935,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Third at 3R by h05 and h18, 'hard rule' in the stem settles the owner's 'mostly waits for 5R'. Wrong notes true."
+   "notes": "agrees with D-013; keep/edit judged correct"
   },
   "q20": {
    "status": "pass",
@@ -3934,9 +3957,9 @@
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "agrees with D-013; keep/edit judged correct"
   },
   "q24": {
    "status": "pass",
@@ -3958,9 +3981,9 @@
   },
   "q27": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "agrees with D-013; keep/edit judged correct"
   },
   "q28": {
    "status": "pass",
@@ -3988,9 +4011,9 @@
   },
   "q32": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "agrees with D-013; keep/edit judged correct"
   },
   "q33": {
    "status": "cut",
@@ -4008,7 +4031,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "F63 and the hard rule of a third at 3R: a 3.5R open is past the level, take a third. Key is slightly the shortest choice, not a real tell."
+   "notes": "agrees with D-013; keep/edit judged correct"
   },
   "q36": {
    "status": "pass",
@@ -4051,7 +4074,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "agrees with D-013; keep/edit judged correct"
   },
   "q43": {
    "status": "pass",
@@ -4126,8 +4149,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(93.53-90.85)/90.85 = 2.95%, about 3%; h04/c16 'more than about 3%' skips only past the line; d13 and d20 show trades at the limit were taken.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with D-013; keep/edit judged correct"
   },
   "q55": {
    "status": "pass",
@@ -4164,7 +4186,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "kept; stop over the day's high mirrors D-008, 2.7% in band. Note: entry on the close is the Wedge Drop's close-based trigger, D-003 is about long buys; flag for owner."
+   "notes": "agrees with D-013; keep/edit judged correct"
   },
   "q61": {
    "status": "pass",
@@ -4182,7 +4204,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Close under the 200-day (d19, -3.9%); stem limits it to the 200-day test alone, two Yes and two No. Needs the importer to draw the 200-day SMA; 3.9% under is readable but check the render (owner flag)."
+   "notes": "agrees with D-013; keep/edit judged correct"
   },
   "q64": {
    "status": "pass",

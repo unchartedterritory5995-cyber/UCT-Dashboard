@@ -965,6 +965,24 @@
    "source": "h2",
    "quote": "This replaces the proposed one-ADR rule.",
    "claim": "Owner: the one-ADR stop rule is replaced."
+  },
+  {
+   "id": "r21",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r22",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r23",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "He rarely sells on day 1 and usually waits until day 3 at the earliest."
   }
  ],
  "walkthroughs": [
@@ -1182,19 +1200,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B19 hard rule: a third at 3R; breakeven at the first trim by default (c44); owner practice of waiting for 5R is not offered as a choice here."
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h20 verbatim, 'By default' covers 'adjustable'. All bank words are plain numbers; none is silly. q60 and q30 come later in rung order and rely on this, so no pre-answering."
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: 1R = 238.91-237.09 = 1.82; 3R = 238.91 + 5.46 = 244.37. calc matches."
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q25": {
    "status": "pass",
@@ -1230,8 +1248,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h25 verbatim: a stock that opens above a trim level gets that trim at the open. 5.6R is past 5R; 4.2R and the third sold at 3R are in the story. c39 supports 'often gap through'. Key is not the longest.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q31": {
    "status": "pass",
@@ -1384,7 +1401,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided 'Hold to 3R; then sell a third' before the key: B19 (h05) hard rule a third at 3R, c24 names selling it all at 1R to 2R as a day-trade mistake, C35 (h16) swing trade. All quotes verified. Choices are balanced, no second defensible answer (breakeven at 2R to 5R does not conflict with any choice). Minor: the deeper line's 'when the day-trade urge is strongest' is framing with no quote, not a number or key. The key overlaps q22's trim fact, but only after answering, as an explanation would."
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q56": {
    "status": "pass",
@@ -1414,8 +1431,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h20, h05, h21 and c38 verbatim; 19.8R is d01. Key is the default ladder and the choices are balanced (31 to 32). 'It likely left well before the old stop' is hedged and follows h21. Wrong notes true.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   },
   "q61": {
    "status": "cut",
@@ -1493,8 +1509,8 @@
   "q70": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Decided before the key: 1R = 50.00 - 49.40 = 0.60, 3R = 51.80 (story right); at the first trim the card's default (c44, status settled on the card, house rule B19) puts the stop at breakeven, and c55 (verified on card line 624, 'R at which the stop moves to the entry') makes breakeven the entry, 50.00. Key matches. B19 'breakeven at 2R to 5R' holds at 3R, and no choice offers 'leave it at 49.40', so the rulebook's 'ideally' leaves no second answer. Break found: the choice 'Up 1R, to lock in a profit' is a second defensible answer, because raising the stop 1R from 49.40 (+0.60) lands exactly on"
+   "fixed": false,
+   "notes": "agrees with D-013/D-003; quotes verbatim"
   }
  },
  "questions": [
@@ -2173,31 +2189,29 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "pvt.trim_1",
-   "q": "Your pivot long reaches 3R the same afternoon. What is our plan?",
+   "q": "Your pivot long reaches 3R the same afternoon, on day one of the buy. What is our plan?",
    "choices": [
+    "Hold; first sell comes later",
     "Sell a third; stop to breakeven",
     "Sell half; stop to breakeven",
-    "Sell it all and bank the day",
-    "Hold it all; stop to the pivot high"
+    "Sell it all and bank the day"
    ],
-   "answer": "Sell a third; stop to breakeven",
-   "why": "Sell a third and move the stop to breakeven. The hard rule is a third at 3R, and breakeven comes at the first trim by default. Then another third at 5R and trail the last third. It is not a half and not all of it. Breakeven is the entry price, not the pivot high.",
-   "lesson_line": "A third at 3R, the stop to breakeven. Then let the rest work.",
+   "answer": "Hold; first sell comes later",
+   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. The stop may go to breakeven between 2R and 5R.",
+   "lesson_line": "No fixed third at 3R. Day one is rarely a sell day, so wait for the push.",
    "facts": [
-    "h05",
+    "r21",
+    "r23",
     "c44",
-    "c37",
-    "h20",
-    "c24",
     "h16"
    ],
    "wrong": {
-    "Sell half; stop to breakeven": "The hard rule is a third at 3R, not a half. The second third comes at 5R.",
-    "Sell it all and bank the day": "The hard rule is a third at 3R. We swing trade, so the rest rides to 5R and then the trail.",
-    "Hold it all; stop to the pivot high": "Breakeven is the entry, not the pivot high. The first third still comes off at 3R."
+    "Sell half; stop to breakeven": "Not half, and not on day 1. The first sell is a judgment, usually on day 3 or later.",
+    "Sell it all and bank the day": "We swing trade, days to a few weeks, so we do not bank the day. The first sell usually waits until day 3.",
+    "Sell a third; stop to breakeven": "A fixed third at 3R is no longer the rule. Day 1 is the day the owner very rarely sells."
    },
    "house": true,
-   "simple": "Sell a third and move the stop to breakeven, because the hard rule trims a third at 3R.",
+   "simple": "Hold. The first sell is a judgment, and the owner rarely sells on day one.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2206,7 +2220,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q23",
@@ -2215,23 +2229,23 @@
    "format": "fill",
    "criterion": "pvt.trim_2",
    "q": "Tap the word that fits the blank.",
-   "sentence": "By default, after the first third at 3R, the next third comes off at ___.",
+   "sentence": "Selling into a 3, 5 or 7 day push, or at about 5 to ___, is often best.",
    "bank": [
-    "5R",
-    "4R",
     "10R",
+    "3R",
     "2R",
-    "6R"
+    "1R",
+    "4R"
    ],
-   "answer": "5R",
-   "why": "5R. After the first third at 3R, another third comes off at 5R. Then we trail the last third. The ladder is adjustable, but this is the default.",
-   "lesson_line": "3R, 5R, then the trail. That is the default ladder.",
+   "answer": "10R",
+   "why": "10R. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. The first sell is a judgment, not a fixed third at 3R.",
+   "lesson_line": "The first sell is a judgment: a 3 to 7 day push, or about 5 to 10R.",
    "facts": [
-    "h20",
-    "h05"
+    "r22",
+    "r21"
    ],
    "house": true,
-   "simple": "The next third comes off at 5R, after the first third at 3R.",
+   "simple": "The first sell is often at about 5 to 10R, so the blank is 10R.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2239,7 +2253,7 @@
      "rests on the owner's rulebook (E51), which says the ladder is adjustable"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q24",
@@ -2249,10 +2263,10 @@
    "criterion": "pvt.trim_1",
    "q": "Bought 238.91 with the stop at 237.09. Where is 3R?",
    "answer": 244.37,
-   "why": "244.37. One R is the fill minus the stop, the gap between 238.91 and 237.09. Add three of those gaps to the fill and you reach 244.37. That is where the first third comes off. PSX got there the next session.",
-   "lesson_line": "Know the 3R price before the fill.",
+   "why": "244.37. One R is the fill minus the stop, the gap between 238.91 and 237.09. Add three of those gaps to the fill and you reach 244.37. It is a marker, not a fixed sell level. PSX got there the next session.",
+   "lesson_line": "Know the 3R price before the fill. It is a marker, not an automatic sell.",
    "facts": [
-    "h05",
+    "r21",
     "d03",
     "d04"
    ],
@@ -2276,7 +2290,7 @@
      "+2 rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q25",
@@ -2448,8 +2462,8 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "pvt.trim_gap_open",
-   "story": "Your pivot long has a third sold at 3R. It finished yesterday at 4.2R. This morning it gaps open at 5.6R.",
-   "q": "Where is the 5R trim taken?",
+   "story": "You sold a first piece into the push on day 3. Your plan has the next sell at 5R. It finished yesterday at 4.2R, and this morning it gaps open at 5.6R.",
+   "q": "Where is the 5R sell taken?",
    "choices": [
     "At the open; 5R is already past",
     "At 5R exactly, by limit order",
@@ -2462,7 +2476,8 @@
    "facts": [
     "h25",
     "c39",
-    "h20"
+    "h20",
+    "r23"
    ],
    "wrong": {
     "At 5R exactly, by limit order": "5R is already behind you. The rule is to take the trim at the open, not to aim at a level the stock has passed.",
@@ -2478,7 +2493,7 @@
      "rests on the owner's rulebook (F63)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q31",
@@ -3432,32 +3447,31 @@
    "story": "Your pivot long reaches 2R by 15:00 on the first day.",
    "q": "What is our plan?",
    "choices": [
-    "Hold to 3R; then sell a third",
+    "Hold; first sell day 3 at the earliest",
     "Sell it all at 2R as a day trade",
     "Sell half now, trail the rest",
     "Hold it all; skip every trim"
    ],
-   "answer": "Hold to 3R; then sell a third",
-   "why": "Hold to the ladder: a third at 3R, another third at 5R, then trail the last third. Selling it all at 1R to 2R as a day trade is a named mistake. We swing trade, days to a few weeks. The originator's quick 2025 exits are an option, not ours.",
+   "answer": "Hold; first sell day 3 at the earliest",
+   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. Selling it all at 1R to 2R as a day trade is a named mistake. We swing trade, days to a few weeks. The originator's quick 2025 exits are an option, not ours.",
    "lesson_line": "The pivot is a swing entry with a tight stop. Let it become a swing.",
    "facts": [
     "c24",
     "h16",
-    "h05",
-    "h20",
+    "r21",
+    "r23",
     "c52",
-    "c37",
-    "c38"
+    "c37"
    ],
    "wrong": {
     "Sell it all at 2R as a day trade": "That is the named day-trade mistake. We swing trade, and a winner can be held longer while it keeps working.",
-    "Sell half now, trail the rest": "The first trim is a third at 3R, not a half at 2R.",
-    "Hold it all; skip every trim": "The hard rule is a third at 3R, then a third at 5R. The trims are what keep the result."
+    "Sell half now, trail the rest": "Not half, and not on day 1. The first sell is a judgment, usually on day 3 or later.",
+    "Hold it all; skip every trim": "Holding it all forever is not the plan. The first sell is a judgment into the push, usually on day 3 or later."
    },
    "house": true,
-   "simple": "Hold for the ladder, because we swing trade and the first trim is a third at 3R, not everything at 2R.",
+   "simple": "Hold. We swing trade, so day one is rarely a sell day, and the first sell is a judgment.",
    "deeper": {
-    "counter": "2R by 15:00 on day one is when the day-trade urge is strongest. But with a tight stop 3R and 5R come fast. DELL reached 3R the same afternoon and 5R the next morning. DK reached 3R in 6 bars. The trims are what keep the result."
+    "counter": "2R by 15:00 on day one is when the day-trade urge is strongest. But with a tight stop 3R and 5R come fast. DELL reached 3R the same afternoon and 5R the next morning. DK reached 3R in 6 bars. Even so, the first sell waits for the push."
    },
    "tier": "expert",
    "risk": {
@@ -3466,7 +3480,7 @@
      "+2 rests on the owner's rulebook (B19, E51)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q56",
@@ -3644,32 +3658,32 @@
    "format": "scenario",
    "criterion": "pvt.trim_2",
    "story": "You bought a pivot at 66.83, stop 66.05. It runs to 19.8R over the next weeks, then reverses and falls back through 66.05.",
-   "q": "Under our default ladder, which trims came off on the way up?",
+   "q": "Which plan keeps the most gain when it reverses?",
    "choices": [
-    "A third at 3R and a third at 5R",
+    "Sell into strength, trail the rest",
     "Half at 2R, rest at the stop",
     "All of it, sold at first 3R",
-    "Half at 5R, the rest at 10R"
+    "Nothing sold; wait for the stop"
    ],
-   "answer": "A third at 3R and a third at 5R",
-   "why": "A third at 3R and a third at 5R. The last third trails and sells on a close under the 10-day or 21-day. It likely left well before the old stop. Most scan trades touched the fixed stop at some point, usually after the targets. The trims keep the result.",
-   "lesson_line": "Sell partials into strength. The trims are what you keep when the move gives it back.",
+   "answer": "Sell into strength, trail the rest",
+   "why": "Sell into strength, then trail the rest. The first sell is a judgment, often into a 3, 5 or 7 day push or at about 5 to 10R. The last part trails and sells on a close under the 10-day or 21-day. It likely left well before the old stop. Most scan trades touched the fixed stop at some point, usually after the targets. What was sold into strength kept the result.",
+   "lesson_line": "Sell partials into strength. What you sold is what you keep when the move gives it back.",
    "facts": [
     "c38",
-    "h05",
-    "h20",
+    "r21",
+    "r22",
     "h21",
     "d01"
    ],
    "wrong": {
-    "Half at 2R, rest at the stop": "2R is not a trim level. The default ladder is a third at 3R and a third at 5R, then a trail.",
-    "All of it, sold at first 3R": "The hard rule is a third at 3R, not all of it. The rest keeps working.",
-    "Half at 5R, the rest at 10R": "The ladder is thirds, not halves. After the third at 3R comes a third at 5R, then the trail."
+    "Half at 2R, rest at the stop": "2R is too early to sell. The first sell is a judgment into the push, and the rest trails.",
+    "All of it, sold at first 3R": "Selling everything at 3R gives up the run. The first sell is a judgment, and the rest trails.",
+    "Nothing sold; wait for the stop": "A stop hit after a 19.8R run hands the gain back. Sell part into the push."
    },
    "house": true,
-   "simple": "We take a third at 3R and a third at 5R, then trail the last third, so the reversal does not hand back the gain.",
+   "simple": "Sell part into strength and trail the last part, so the reversal does not hand back the gain.",
    "deeper": {
-    "counter": "The scan shows why: 90% of its trades touched the fixed stop at some point in 20 sessions, usually after the targets. Judge a pivot trade by what the trims banked, not by where the price ended."
+    "counter": "The scan shows why: 90% of its trades touched the fixed stop at some point in 20 sessions, usually after the targets. Judge a pivot trade by what was sold into strength, not by where the price ended."
    },
    "tier": "expert",
    "risk": {
@@ -3678,7 +3692,7 @@
      "rests on the owner's rulebook ladder (B19, E51)"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings2"
   },
   {
    "key": "q61",
@@ -4050,7 +4064,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "pvt.breakeven",
-   "story": "A pivot long was bought at 50.00 with the stop at 49.40. It reaches 51.80, its 3R price. You sell the first third.",
+   "story": "A pivot long was bought at 50.00 with the stop at 49.40. On day 3 it reaches 51.80, its 3R price, and you sell the first third.",
    "q": "Where does the stop go now, by our default?",
    "choices": [
     "The entry price, 50.00",
@@ -4062,10 +4076,10 @@
    "why": "The entry price, 50.00. Breakeven means the stop moves to the entry. Our rule moves it there between 2R and 5R, at the first trim by default. The stop only moves up.",
    "lesson_line": "At the first trim, the stop moves up to the entry price.",
    "facts": [
-    "h05",
     "c44",
     "c55",
-    "h02"
+    "h02",
+    "r23"
    ],
    "wrong": {
     "The 3R price, 51.80": "That is where the first third sold. Breakeven is the entry price, not the trim price.",
@@ -4081,7 +4095,7 @@
      "+2 rests on the owner's rulebook (B19, A4)"
     ]
    },
-   "batch": "polish"
+   "batch": "rulings2"
   }
  ]
 }

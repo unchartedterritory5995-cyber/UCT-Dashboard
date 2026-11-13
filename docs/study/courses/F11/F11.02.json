@@ -194,6 +194,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -688,6 +696,18 @@
    "source": "s23",
    "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
    "claim": "Our rule E52: trail under the 10-day or 21-day average and sell on a close below it."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
   }
  ],
  "walkthroughs": [
@@ -1337,7 +1357,7 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, your first trim, and well above your stop.",
+   "story": "You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, and well above your stop.",
    "q": "What does the plan say to do?",
    "choices": [
     "Hold it; trail on the daily chart",
@@ -1346,7 +1366,7 @@
     "Hold it; trail on the 30-minute chart"
    ],
    "answer": "Hold it; trail on the daily chart",
-   "why": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 10-day average, and we sell on a close below it. We swing trade: days to a few weeks. Our first trim is a third at 3R, then another third at 5R. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order.",
+   "why": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 10-day average, and we sell on a close below it. We swing trade: days to a few weeks. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order.",
    "lesson_line": "The entry chart times the buy. The trail sets the clock.",
    "facts": [
     "h2",
@@ -1354,17 +1374,17 @@
     "h3",
     "h15",
     "h14",
-    "h5",
-    "h8",
-    "f36",
+    "r01",
+    "r02",
     "h11",
     "h12",
     "h13",
-    "f42"
+    "f42",
+    "f36"
    ],
    "wrong": {
     "Sell it, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart.",
-    "Sell half of it before the close": "Our first trim is a third at 3R. Nothing in the plan sells at the close.",
+    "Sell half of it before the close": "He very rarely sells on day 1 of the buy. Nothing in the plan sells at the close.",
     "Hold it; trail on the 30-minute chart": "The 30-minute bar only timed the buy. Our Kicker trails under each higher low or the 10-day average, a daily-chart trail."
    },
    "simple": "Hold it, because the 30-minute break only timed the buy, and the plan trails the trade on the daily chart.",
@@ -1379,7 +1399,7 @@
      "fixed before (rewritten to the rulebook 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q18",
@@ -1721,7 +1741,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Hold, trail daily: re-derived from h3, h15, h14, h5 and h8. All house quotes matched in TRADE_PLANS.md and sizing_rule.md section 9 (B19, B20, C35, D41, E51, E52). Two Hold choices against two Sell, so no tell. The deeper section states B20 correctly."
+   "notes": "ok"
   },
   "q18": {
    "status": "pass",

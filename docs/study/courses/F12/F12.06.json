@@ -131,6 +131,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h9",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -547,6 +555,18 @@
    "source": "h4",
    "quote": "Max position 40% of the account",
    "claim": "Our rule: the largest position is 40% of the account."
+  },
+  {
+   "id": "r01",
+   "source": "h9",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "h9",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
   }
  ],
  "walkthroughs": [
@@ -868,16 +888,16 @@
    "skill": "process.playbook",
    "rung": 4,
    "format": "scenario",
-   "story": "You're writing up today's best trade. The market was up that day. The stock beat earnings, gapped up and cleared its 52-week high. You sold a third at 3R.",
+   "story": "You're writing up today's best trade. The market was up that day. The stock beat earnings, gapped up and cleared its 52-week high. You sold part of it into strength.",
    "q": "Which detail goes under technical analysis?",
    "choices": [
     "It cleared its 52-week high",
     "It beat earnings estimates",
-    "You sold a third at 3R",
+    "You sold part into strength",
     "The market was up that day"
    ],
    "answer": "It cleared its 52-week high",
-   "why": "It cleared its 52-week high. That is a price level on the chart. On the SYY page, the chart's levels sat under technical analysis: 30.50, 31.50 and 32 were longer term technical levels. The market being up is the big picture. The earnings beat is the catalyst, filed under intraday fundamentals. Selling a third at 3R is how you handled the position, not a chart level.",
+   "why": "It cleared its 52-week high. That is a price level on the chart. On the SYY page, the chart's levels sat under technical analysis: 30.50, 31.50 and 32 were longer term technical levels. The market being up is the big picture. The earnings beat is the catalyst, filed under intraday fundamentals. Selling part into strength is how you handled the position, not a chart level.",
    "lesson_line": "Chart levels go under technical analysis. The news and your exits each get their own box.",
    "facts": [
     "f25",
@@ -885,13 +905,12 @@
     "f24",
     "f30",
     "f31",
-    "f16",
-    "h02"
+    "f16"
    ],
    "wrong": {
     "It beat earnings estimates": "That's the catalyst. Bellafiore files news like that under intraday fundamentals.",
-    "You sold a third at 3R": "That's how you handled the position, not a chart level. Technical analysis holds the stock's chart levels.",
-    "The market was up that day": "That's the big picture, the first section: what is moving the whole market. Technical analysis holds the stock's own chart levels."
+    "The market was up that day": "That's the big picture, the first section: what is moving the whole market. Technical analysis holds the stock's own chart levels.",
+    "You sold part into strength": "That's how you handled the position, not a chart level. Technical analysis holds the stock's chart levels."
    },
    "simple": "Clearing its 52-week high goes there, because it is a price level on the chart.",
    "tier": "core",
@@ -941,7 +960,7 @@
    "rung": 5,
    "format": "numeric",
    "house": true,
-   "q": "Your Kicker page: entry $20.00, stop $19.30. Our first trim is a third at 3R. At what price is it?",
+   "q": "Your Kicker page: entry $20.00, stop $19.30. What is the 3R price?",
    "answer": 22.1,
    "calc": {
     "fn": "arith",
@@ -952,15 +971,15 @@
     }
    },
    "prefix": "$",
-   "why": "$22.10. R is your risk per share, from the $20.00 entry down to the $19.30 stop. Three times that risk, added to the entry, gives $22.10. Our hard rule takes a third off there. The next third comes off at 5R, and the last third is trailed.",
-   "lesson_line": "Write the trim prices on the page in dollars, not just as 3R and 5R.",
+   "why": "$22.10. R is your risk per share, from the $20.00 entry down to the $19.30 stop. Three times that risk, added to the entry, gives $22.10. It is a mark on the page, not an order to sell. The first sell is a judgment, usually day 3 or later.",
+   "lesson_line": "Write the 3R price on the page in dollars. Then judge the first sell as the trade runs.",
    "facts": [
-    "h02",
-    "h03"
+    "r01",
+    "r02"
    ],
-   "simple": "The first trim is at $22.10, because three times the risk from $20.00 to $19.30 is added to the entry.",
+   "simple": "The 3R price is $22.10, because three times the risk from $20.00 to $19.30 is added to the entry.",
    "deeper": {
-    "trap": "Don't read 3R as a fixed percent or a fixed dollar gain. R is your own risk per share, entry minus stop. So the trim price moves with your stop. A tighter stop brings the trim closer, and a wider one pushes it further away."
+    "trap": "Don't read 3R as a fixed percent or a fixed dollar gain. R is your own risk per share, entry minus stop. So the 3R price moves with your stop. A tighter stop brings it closer, and a wider one pushes it further away."
    },
    "tier": "extended",
    "risk": {
@@ -971,7 +990,7 @@
      "fixed before (re-keyed from 2R to 3R on 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q12",
@@ -1405,8 +1424,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f25 (levels under technical analysis). Every choice now comes from the story, so no reverse tell. 52 and 3R are in the question; 3R rests on h02. Market note reveals q07's key only after q07 (rung 3 before rung 4)."
+   "fixed": true,
+   "notes": "Story and distractor said 'sold a third at 3R', a fixed first sell; reworded to 'sold part into strength'; h02 dropped."
   },
   "q10": {
    "status": "pass",
@@ -1418,7 +1437,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 20 + 3 x 0.70 = 22.10 checks. New trap text follows from the calc (R = entry minus stop); no frequency claim left. Note: no cited quote defines R; the calc carries it."
+   "notes": "ok"
   },
   "q12": {
    "status": "pass",

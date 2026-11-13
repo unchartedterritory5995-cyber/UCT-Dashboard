@@ -816,6 +816,24 @@
    "source": "h2",
    "quote": "Never move the stop up to make a trade fit.",
    "claim": "D-005: never move the stop up to make a trade fit."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r04",
+   "source": "h2",
+   "quote": "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest.",
+   "claim": "D-013: he very rarely sells on day 1 and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1473,11 +1491,11 @@
     },
     "round": 2
    },
-   "why": "58.53. R is the risk per share, the buy minus the stop. 3R is the buy plus three times that risk, which gives 58.53. The hard rule is to sell a third at 3R, so know the price before the buy.",
-   "lesson_line": "Sell a third at 3R. Know the price before the buy.",
+   "why": "58.53. R is the risk per share, the buy minus the stop. 3R is the buy plus three times that risk, which gives 58.53. 3R is a measuring mark, so know the price before the buy.",
+   "lesson_line": "3R is a measuring mark. Know its price before the buy.",
    "facts": [
-    "h05",
-    "d04"
+    "d04",
+    "r03"
    ],
    "house": true,
    "simple": "58.53. The risk is the buy minus the stop, and 3R is the buy plus three times that risk.",
@@ -1490,7 +1508,7 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q20",
@@ -1772,15 +1790,15 @@
     },
     "round": 2
    },
-   "why": "5.0R. R is the buy minus the stop, and the gain here is 5 times that. Another third comes off at 5R, after the first third at 3R. Then the last third is trailed. The rulebook calls this plan adjustable.",
-   "lesson_line": "3R a third, 5R a third, trail the rest.",
+   "why": "5.0R. R is the buy minus the stop, and the gain here is 5 times that. About 5 to 10R is often a good place to sell. The first sell is a judgment, not a fixed level.",
+   "lesson_line": "Count the gain in R. Around 5R to 10R is often where we sell.",
    "facts": [
-    "h20",
-    "h05",
-    "d07"
+    "d07",
+    "r05",
+    "r03"
    ],
    "house": true,
-   "simple": "5.0R. The gain is five times the risk, so another third comes off here.",
+   "simple": "5.0R. The gain is five times the risk, and 5R is around where we often start selling.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -1790,7 +1808,7 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q28",
@@ -2004,29 +2022,27 @@
    "format": "scenario",
    "criterion": "hve.trim_gap_open",
    "q": "What do you do?",
-   "story": "Your High Volume Edge long closed at 2.7R. The next morning it gaps open at 3.5R.",
+   "story": "You bought your High Volume Edge long yesterday, and it closed at 2.7R. This morning, day 2, it gaps open at 3.5R.",
    "choices": [
-    "Sell a third at the open",
-    "Wait and see the close",
-    "Sell the whole position",
-    "Raise the stop and hold"
+    "Hold it all; day 3 is the earliest",
+    "Sell a third at the open, 3.5R",
+    "Sell the whole position at the open",
+    "Sell half at the open, bank the gap"
    ],
-   "answer": "Sell a third at the open",
-   "why": "Sell a third at the open. If a stock opens above a trim level (3R, 5R), take that trim at the open. The hard rule for the first trim is a third at 3R, and this stock opens at 3.5R. Another third comes at 5R, then trail the last third.",
-   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "answer": "Hold it all; day 3 is the earliest",
+   "why": "Hold it all. We very rarely sell on day 1 of a buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R. A gap to 3.5R on day 2 does not change that.",
+   "lesson_line": "A gap through 3R on day 2 is not a sell. Day 3 at the earliest.",
    "facts": [
-    "h25",
-    "h05",
-    "h20",
-    "c21"
+    "r03",
+    "r04"
    ],
    "wrong": {
-    "Wait and see the close": "The trim level is already passed. The rule is to take the trim at the open.",
-    "Sell the whole position": "The first trim is a third at 3R. Another third comes at 5R, then trail the last third.",
-    "Raise the stop and hold": "Breakeven comes with the first trim, but the trim itself is still due at the open."
+    "Sell a third at the open, 3.5R": "A fixed third at 3R is not our rule. The first sell is a judgment, usually from day 3 on.",
+    "Sell the whole position at the open": "Selling everything this early misses the multi-week trend. We sell part and trail the rest.",
+    "Sell half at the open, bank the gap": "Half is still an early fixed sell. We usually wait until day 3 at the earliest."
    },
    "house": true,
-   "simple": "Sell a third right at the open, because the stock has opened past the 3R trim level.",
+   "simple": "Hold. The first sell is a judgment, and we usually wait until day 3 at the earliest, even after a gap to 3.5R.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2034,7 +2050,7 @@
      "rests on the owner's rulebook (F63 trim at the open)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q35",
@@ -2632,11 +2648,10 @@
     "Skipping the day-2 trigger"
    ],
    "answer": "Stop to breakeven at 2R",
-   "why": "Stop to breakeven at 2R. Our rule allows the move anywhere from 2R to 5R, and by default it comes at the first trim. NKTR reached 2.3R, then four sessions after the buy its low of 322.50 took the 323.98 stop. With the stop at breakeven from 2R, that stop-out is a scratch. Left for the first trim, it is a planned loss.",
+   "why": "Stop to breakeven at 2R. Our rule allows the move anywhere from 2R to 5R. NKTR reached 2.3R, then four sessions after the buy its low of 322.50 took the 323.98 stop. With the stop at breakeven from 2R, that stop-out is a scratch. Left where it was, it is a planned loss.",
    "lesson_line": "A 2R gain given back is a scratch once the stop sits at breakeven.",
    "facts": [
     "h05",
-    "c21",
     "d20",
     "d21",
     "c04",
@@ -2644,7 +2659,7 @@
    ],
    "wrong": {
     "A stop under 320 for room": "Our stop sits a few cents under the day-2 low, and it only moves up, never wider.",
-    "Selling it all at 2R": "Our first trim is a third at 3R, not everything at 2R.",
+    "Selling it all at 2R": "Selling it all at 2R gives up the run. The first sell is a judgment, usually from day 3 on.",
     "Skipping the day-2 trigger": "The trigger was valid. The breakeven move is the tool."
    },
    "house": true,
@@ -2659,7 +2674,7 @@
      "rests on the owner's rulebook (B19); the card gives two timings for the breakeven move"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q50",
@@ -2715,17 +2730,17 @@
    "q": "By our rules, what kept this a win?",
    "story": "You bought on day 2. 5R comes in two sessions; the peak is day 17. By day 30 it has round-tripped under the HVC.",
    "choices": [
-    "Thirds sold at 3R and 5R",
-    "Holding all of it to the end",
-    "A stop sitting at the HVC",
-    "Selling it all on day 17"
+    "Part sold into the push, rest trailed",
+    "Holding all of it to the very end",
+    "A stop sitting right at the HVC",
+    "Selling it all on the day-17 peak"
    ],
-   "answer": "Thirds sold at 3R and 5R",
-   "why": "Thirds sold at 3R and 5R. INOD hit 5R in two sessions, peaked at +47% on day 17, then round-tripped under the HVC by day 30. A third sold at 3R and another at 5R banked the move before the slide. The last third is trailed.",
-   "lesson_line": "Trims bank the move. The trail decides the rest.",
+   "answer": "Part sold into the push, rest trailed",
+   "why": "Part sold into the push, and the rest trailed. INOD hit 5R in two sessions, peaked at +47% on day 17, then round-tripped under the HVC by day 30. Selling part into strength banked the move before the slide.",
+   "lesson_line": "Sell part into strength. The trail decides the rest.",
    "facts": [
-    "h05",
-    "h20",
+    "r05",
+    "r03",
     "d07",
     "d08",
     "d09",
@@ -2733,14 +2748,14 @@
     "c19"
    ],
    "wrong": {
-    "Holding all of it to the end": "Holding it all rides the round trip back under the HVC.",
-    "A stop sitting at the HVC": "The HVC is never the stop. The trims did the work.",
-    "Selling it all on day 17": "Nobody can pick the peak in advance, and our plan trims in thirds. Day 17 only looks like the exit afterwards."
+    "Holding all of it to the very end": "Holding it all rides the round trip back under the HVC.",
+    "A stop sitting right at the HVC": "The HVC is never the stop. Selling part into strength did the work.",
+    "Selling it all on the day-17 peak": "Nobody can pick the peak in advance, and we sell part and trail the rest. Day 17 only looks like the exit afterwards."
    },
    "house": true,
-   "simple": "Thirds sold at 3R and 5R. They took profit while the move ran, before it round-tripped under the HVC.",
+   "simple": "Part sold into strength banked gains before the slide, and the rest was trailed.",
    "deeper": {
-    "trap": "The trap is hindsight: day 17 only looks like the exit afterwards. The rule does not guess the peak. It sells a third at 3R, another at 5R and trails the last third, so the plan banks gains on the way and keeps a share for the run. INOD is the card's clearest picture of why the last third is trailed."
+    "trap": "The trap is hindsight: day 17 only looks like the exit afterwards. We do not guess the peak. We sell part into strength on judgment and trail the rest, so the plan banks gains on the way and keeps a share for the run. INOD is the card's clearest picture of why the last part is trailed."
    },
    "tier": "expert",
    "risk": {
@@ -2750,7 +2765,7 @@
      "+1 fixed before (the story fill was corrected)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q52",
@@ -3040,20 +3055,21 @@
    "rung": 8,
    "format": "tf",
    "criterion": "hve.trim_1",
-   "q": "On a tight day-2 stop, 3R is often a few percent over the buy. The first trim is still a third at 3R.",
-   "answer": "True",
-   "why": "True. Because the stop is small, 3R is often only 3% to 7% over the buy. It was reached the next session in most winners. The hard rule for the first trim is still a third at 3R. Ideally it can come anywhere from 3R to 6R.",
-   "lesson_line": "Read the percent, keep the rule: a third at 3R.",
+   "q": "On a tight day-2 stop, 3R is only a few percent over the buy. That makes 3R a good fixed place to sell a third.",
+   "answer": "False",
+   "why": "False. A tight stop puts 3R only 3% to 7% over the buy, and most winners got there the next session. But the first sell is a judgment, not a fixed third at 3R. We usually wait until day 3 at the earliest.",
+   "lesson_line": "3R is a mark, not a sell order. Read the percent, then judge.",
    "facts": [
     "d34",
-    "h05",
     "d13",
-    "d16"
+    "d16",
+    "r03",
+    "r04"
    ],
    "house": true,
-   "simple": "True. A tight stop puts 3R only a few percent over the buy, but the first trim is still a third at 3R.",
+   "simple": "False. 3R is only a few percent over the buy, but the first sell is still a judgment call.",
    "deeper": {
-    "counter": "A small percent does not make the target smaller in R. Three times the risk is still 3R, whether the stop is 1.0% or 3.5% wide. Read the percent so you know what the move looks like, and keep the rule."
+    "counter": "A small percent does not make the target smaller in R. Three times the risk is still 3R, whether the stop is 1.0% or 3.5% wide. Read the percent so you know what the move looks like, then judge the first sell."
    },
    "tier": "expert",
    "risk": {
@@ -3062,7 +3078,7 @@
      "rests on the owner's rulebook (B19 first trim)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q60",
@@ -3179,34 +3195,33 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "hve.trigger",
-   "q": "Write the plan: entry, stop, first trim.",
+   "q": "Write the plan: entry and stop.",
    "story": "A quiet stock trades record volume, up 41%, and closes near its high at 32.50. Day 2 dips under that close to a low of 31.80, then trades back through it. You keep two cents of room on a stop.",
    "choices": [
-    "32.51, stop 31.78, a third at 3R",
-    "32.51, stop 32.48, a third at 3R",
-    "32.51, stop 31.78, all out at 3R",
-    "Wait for 34, stop 31.78, a third at 3R"
+    "32.51, stop 31.78",
+    "32.51, stop 32.48",
+    "Wait for 34, stop 31.78",
+    "Buy at the close, 32.50, stop 31.78"
    ],
-   "answer": "32.51, stop 31.78, a third at 3R",
-   "why": "32.51, stop 31.78, a third at 3R. The buy is a market order a cent over the HVC. The stop is two cents under the day-2 low of 31.80, never the HVC. The first trim is a third at 3R.",
-   "lesson_line": "Entry, stop, trim before the buy. Then let the plan work.",
+   "answer": "32.51, stop 31.78",
+   "why": "32.51, stop 31.78. The buy is a market order a cent over the HVC. The stop is two cents under the day-2 low of 31.80, never the HVC. The first sell is a judgment made later.",
+   "lesson_line": "Entry and stop before the buy. Then let the plan work.",
    "facts": [
     "c14",
     "c04",
-    "h05",
-    "h20",
     "c15",
-    "h22"
+    "h22",
+    "r03"
    ],
    "wrong": {
-    "32.51, stop 32.48, a third at 3R": "The HVC is never the stop. It sits under the day-2 low, not under the HVC.",
-    "32.51, stop 31.78, all out at 3R": "Entry and stop are right, but the hard rule is a third at 3R, not everything. The rest waits for 5R and the trail.",
-    "Wait for 34, stop 31.78, a third at 3R": "The trigger is the trade back over the HVC, not a higher price. 34 would also be past the 4% chase limit."
+    "32.51, stop 32.48": "The HVC is never the stop. It sits under the day-2 low, not under the HVC.",
+    "Wait for 34, stop 31.78": "The trigger is the trade back over the HVC, not a higher price. 34 would also be past the 4% chase limit.",
+    "Buy at the close, 32.50, stop 31.78": "We buy as price trades back over the HVC, never at the close."
    },
    "house": true,
-   "simple": "Buy a cent over the HVC at 32.51, stop two cents under the day-2 low at 31.78, sell a third at 3R.",
+   "simple": "Buy a cent over the HVC at 32.51 and put the stop two cents under the day-2 low at 31.78.",
    "deeper": {
-    "example": "The plan is written before the buy: entry 32.51, stop 31.78, a third at 3R. The same plan applies on the trade that fails, because the stop is the exit."
+    "example": "The plan is written before the buy: entry 32.51, stop 31.78. The same plan applies on the trade that fails, because the stop is the exit."
    },
    "tier": "expert",
    "risk": {
@@ -3217,7 +3232,7 @@
      "+1 fixed before (the HVC was added to the story)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings2"
   },
   {
    "key": "q64",
@@ -3554,9 +3569,9 @@
   },
   "q19": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "edit: 3R price arithmetic kept; no longer says the hard rule is a third at 3R; B19 citation swapped for the ruling"
   },
   "q20": {
    "status": "pass",
@@ -3602,9 +3617,9 @@
   },
   "q27": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "edit: R-multiple arithmetic kept; was 'another third at 5R after the first at 3R'; now about 5 to 10R is often where we "
   },
   "q28": {
    "status": "pass",
@@ -3647,8 +3662,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h25 trim at the open; 3.5R is past the 3R trim. Key does not repeat the stem now.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "edit: was sell a third at the open past 3R; now hold on day 2, first sell day 3 at the earliest (D-013); the 'raise the "
   },
   "q35": {
    "status": "pass",
@@ -3741,7 +3755,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d21 grounds breakeven at 2R inside B19; stem says inside our rules. Owner flag stands."
+   "notes": "edit: breakeven at 2R kept; why no longer says 'by default at the first trim' and the 'selling it all' note no longer sa"
   },
   "q50": {
    "status": "pass",
@@ -3753,7 +3767,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows h05/h20. INOD figures are in d08. The hindsight choice is a real trap. D-024 (trail line) stays open."
+   "notes": "edit: was thirds sold at 3R and 5R; now part sold into the push and the rest trailed (D-013)"
   },
   "q52": {
    "status": "pass",
@@ -3800,9 +3814,9 @@
   },
   "q59": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "edit: was True (first trim is still a third at 3R); now False, 3R is a mark and the first sell is a judgment (D-013)"
   },
   "q60": {
    "status": "pass",
@@ -3826,7 +3840,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Entry 32.51, stop 31.78 (31.80 minus 0.02), a third at 3R; 4% over 32.50 is 33.80 so 34 is a chase. Each distractor breaks one rule and each note cites one. Key is the centre of the cluster, a minor tell, accepted."
+   "notes": "edit: dropped the 'third at 3R' from every choice; plan is entry and stop; a 'buy at the close' choice is added as a wro"
   },
   "q64": {
    "status": "pass",
@@ -3850,7 +3864,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers check: HVC 45.00, day 2 high 44.70, so no trigger (c22). Key, 'level stays' (c24) and no-setup-no-trade (h36) all supported and match D44. Distractors are real errors; the day-3 open buy is ruled out by c12/c17. No second answer."
+   "notes": "keep: no trigger, no trade; the 'buy at the close' choice is a wrong answer; agrees with D-003"
   },
   "q68": {
    "status": "cut",

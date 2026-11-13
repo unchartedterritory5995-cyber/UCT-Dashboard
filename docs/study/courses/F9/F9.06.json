@@ -126,6 +126,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "h9",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -422,6 +430,24 @@
    "source": "h3",
    "quote": "Total open risk and position size by market condition are guides that vary, not hard caps.",
    "claim": "Our rulebook treats total open risk as a guide that varies, not a hard cap."
+  },
+  {
+   "id": "r01",
+   "source": "h9",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "h9",
+   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+  },
+  {
+   "id": "r03",
+   "source": "h9",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -698,16 +724,17 @@
    "rung": 3,
    "format": "tf",
    "house": true,
-   "q": "Our plan says how much to sell at the first trim: a third of the position at 3R.",
-   "answer": "True",
-   "why": "True. Our hard rule for the first trim is a third of the position at 3R. Another third goes at 5R, and the last third trails. The first trim can sit anywhere from 3R to 6R, and in practice the owner mostly waits for 5R. Plan those prices before you buy.",
-   "lesson_line": "A third at 3R, a third at 5R. Plan the prices before you buy.",
+   "q": "Our plan fixes the first sell at a third of the position, sold at 3R every time.",
+   "answer": "False",
+   "why": "False. The first sell is a judgment, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Plan the price marks before you buy.",
+   "lesson_line": "The first sell is a judgment, not a fixed third. Mark the R prices before you buy.",
    "facts": [
-    "h01",
-    "h02",
+    "r01",
+    "r02",
+    "r03",
     "f37"
    ],
-   "simple": "True, because our hard rule for the first trim is a third of the position once the trade is up 3R.",
+   "simple": "False, because the first sell is a judgment call, and he usually waits until day 3 at the earliest.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -716,7 +743,7 @@
      "a rule the owner marks adjustable"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q08",
@@ -862,11 +889,10 @@
      "stop": 20
     }
    },
-   "why": "$600. The 200 you sold at $23 made $3 a share, which is $600. The 400 left went out at breakeven, $20, for nothing. That's our plan: a third off at 3R, and the stop on the rest moves up to breakeven. The trim banked the gain, and the breakeven stop kept it, as long as it filled at $20.",
-   "lesson_line": "A third off at 3R, stop to breakeven: the gain is banked, and the rest comes out even if it fills.",
+   "why": "$600. The 200 you sold at $23 made $3 a share, which is $600. The 400 left went out at breakeven, $20, for nothing. The sale banked the gain, and the breakeven stop kept it, as long as it filled at $20.",
+   "lesson_line": "Sell part, stop to breakeven: the gain is banked, and the rest comes out even if it fills.",
    "facts": [
     "f23",
-    "h01",
     "h08",
     "f02",
     "f28"
@@ -880,7 +906,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings2"
   },
   {
    "key": "q13",
@@ -1473,9 +1499,9 @@
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "ok"
   },
   "q08": {
    "status": "pass",
@@ -1505,7 +1531,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 1R = $1, so 3R = $23. 200 of 600 is a third (h01, B19). 200 x $3 = $600, and the 400 left exit at $20 for $0, so the total is $600. The calc gives 600 (its stop arg is the moved $20 stop, which is in the stem). Breakeven at the first trim fits B19 (2R to 5R) and TRADE_PLANS line 10. The fill condition is stated (f02). Stem is 131 chars. The $ prefix rules out an answer in R. Coming after q07, it does not answer q07 or q23."
+   "notes": "ok"
   },
   "q13": {
    "status": "cut",
@@ -1569,9 +1595,9 @@
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "ok"
   },
   "q24": {
    "status": "pass",
