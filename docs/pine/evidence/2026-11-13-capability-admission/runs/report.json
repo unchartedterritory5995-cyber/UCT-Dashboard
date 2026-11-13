@@ -1,0 +1,2830 @@
+{
+ "populations": {
+  "capture": {
+   "scripts": 369,
+   "admitted": 136,
+   "runtimeLane": 12,
+   "hostLane": 81,
+   "refused": 43,
+   "coreOnly": 31
+  },
+  "committed": {
+   "scripts": 266,
+   "admitted": 26,
+   "runtimeLane": 7,
+   "hostLane": 17,
+   "refused": 2,
+   "coreOnly": 4
+  },
+  "reference": {
+   "scripts": 271,
+   "admitted": 64,
+   "runtimeLane": 5,
+   "hostLane": 50,
+   "refused": 9,
+   "coreOnly": 7
+  },
+  "builtin": {
+   "scripts": 142,
+   "admitted": 51,
+   "runtimeLane": 4,
+   "hostLane": 42,
+   "refused": 5,
+   "coreOnly": 30
+  }
+ },
+ "captures": [
+  {
+   "capture": "adx-and-di-for-v4-rddt-1d-2026-09-27",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "adx-and-di-for-v4-spy-1d-2026-10-03",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "atr-trailing-stoploss-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "atr-trailing-stoploss-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "candlestick-patterns-identified-update-1-17-26-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "history-expr"
+   ]
+  },
+  {
+   "capture": "candlestick-patterns-identified-update-1-17-26-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "history-expr"
+   ]
+  },
+  {
+   "capture": "cc-yata-rddt-1d-2026-09-27",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "cdc-btc-rainbow-road-spy-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "cumulative-volume-delta-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "cumulative-volume-delta-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "delta-rsi-oscillator-strategy-spy-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "elliott-wave-3-finder-v2-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "elliott-wave-3-finder-v2-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "engulfingcandle-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "engulfingcandle-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "fvg-trend-rddt-1d-2026-09-27",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "h3-alma-v4-spy-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "h3-vwap-source-spy-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "h3-vwap-source-spy-5-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "keltner-channels-bands-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "keltner-channels-bands-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "liquidity-engulfing-candles-upslidedown-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "liquidity-engulfing-candles-upslidedown-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-10-03",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "opening-range-initial-balance-opening-price-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "opening-range-initial-balance-opening-price-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "pivot-point-supertrend-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "pivot-point-supertrend-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "probe-default-colour-v3-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "probe-default-colour-v4-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "probe-default-colour-v6-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "probe-sparse-rows-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "qqe-signals-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "qqe-signals-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "reassign",
+    "var"
+   ]
+  },
+  {
+   "capture": "rt1-na-test-v4-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rt1-na-test-v5-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rt1-na-test-v6-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rt3-na-logic-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rt3-na-logic-v4-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rvol-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rvol-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "supertrend-kivancozbilgic-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "support-and-resistance-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "support-and-resistance-spy-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "syminfo-roster-aapl-1d-2026-09-30",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "syminfo-roster-bitstamp-btcusd-1d-2026-09-30",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "syminfo-roster-brk-b-1d-2026-09-30",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "syminfo-roster-f-1d-2026-09-30",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "syminfo-roster-spy-1d-2026-09-30",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bar-counters-rddt-15-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bar-counters-rddt-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bar-counters-rddt-240-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bar-counters-rddt-5-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bar-counters-rddt-60-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bar-counters-spy-1-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bar-counters-spy-30-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bgcolor-barcolor-spy-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bgcolor-v4-default-spy-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bool-cast-spy-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bool-cast-spy-60-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bool-cast-v4-spy-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bool-cast-v4-spy-60-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-clock-vwap-spy-5-ext-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-colour-components-spy-1d-2026-10-01",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-default-param-spy-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-gradient-edges-spy-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-gradient-spy-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-int-div-assign-spy-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "reassign"
+   ]
+  },
+  {
+   "capture": "vw-mbb-auto-spy-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-mintick-arkk-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-bac-pl-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-dfliw-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-grrrw-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-imo-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-qqq-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-xlk-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-yhnau-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-ne-na-spy-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-rt6-runtime-colour-rddt-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-rt6-runtime-colour-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-bitstamp-btcusd-1d-2026-09-30",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-eurusd-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-fx-eurusd-1d-2026-10-01",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-spy-15-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-spy-1d-2026-09-30",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-spy-1d-full-2026-10-01",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-spy-1d-full-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-spy-1m-2026-10-01",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-spy-1m-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-spy-1w-2026-10-01",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-close-tf-spy-1w-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-session-spy-1d-2026-09-28",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-session-spy-60-ext-2026-09-28",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-session-spy-60-rth-2026-09-28",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-bitstamp-btcusd-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-eurusd-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-fx-eurusd-1d-2026-10-01",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-1-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-15-2026-10-01",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-1d-full-2026-10-01",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-1d-full-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-1m-2026-10-01",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-1m-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-1w-2026-10-01",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-1w-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-240-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-30-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-5-2026-10-01",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-5-ext-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-60-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-var-seed-spy-1d-2026-09-28",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "w4-cross-round-spy-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-alma-spy-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-clock-vwap-spy-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-int-cast-spy-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-mintick-aapl-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-aitx-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-brka-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-btcusdt-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-es1-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-eurusd-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-nkla-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-sndl-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-spx-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-mintick-spy-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-nvi-pvi-spy-1d-full-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-nvi-pvi-spy-1d-truncated-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-session-spy-1d-2026-09-27",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-spy-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  }
+ ],
+ "admittedUngraded": [
+  {
+   "key": "committed:kernel-channel-backquant__d8c4b7f75c",
+   "lane": null,
+   "guard": "pine:block",
+   "declined": "runtime:conditional-history",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "key": "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "committed:pivot-high-low-points__hoTsDQRY3L",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "committed:sessions__2677",
+   "lane": null,
+   "guard": "pine:function",
+   "declined": "pine:function",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "committed:smart-money-interest-index-algoalpha__effdd7852c",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "committed:smart-money-volume-index-algoalpha__6663950b80",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "committed:visualizing-displacement-tfo__5b861441c2",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:4-colour-macd__1146",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "history-expr",
+    "ternary",
+    "tuple-destructure"
+   ]
+  },
+  {
+   "key": "reference:auto-fib-levels__01de230c0a",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:average-true-range-trailing-stops-strategy-by-sylvain-vervoort__608",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:bearish-engulfing__110",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:bill-williams-awesome-oscillator-ao__543",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:bollingers-bands-fibonacci-ratios__2778",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "reference:bullish-engulfing__111",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:candles__1055",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "history-expr"
+   ]
+  },
+  {
+   "key": "reference:check-head-and-shouldersmask-man__INWKFwOBpV",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:cm-forex-sessions-highlight-v1__41",
+   "lane": null,
+   "guard": "pine:no-output",
+   "declined": "pine:function",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:cm-gann-swing-highlow-v2__592",
+   "lane": null,
+   "guard": "pine:role-order",
+   "declined": "runtime:conditional-history",
+   "caps": [
+    "core",
+    "fn-single",
+    "history-expr",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:coral-trend-indicator-lazybear__836",
+   "lane": null,
+   "guard": "pine:state",
+   "declined": "runtime:withheld-all",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:cumulative-volume-delta__6e0c94af7a",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:demand-and-supply-candles-open__2XdpoRlzHB",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:doji-signals__4178",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:elliot-wave-oscillator-lazybear__14",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:elliott-wave-oscillator__ZESVhxLVIL",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:elliott-wave-oscillator__r4MVRjtjDc",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:ema-ribbon-krypt__GOYNhZP4X9",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:engulfing-candles__JRjO56hfaw",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:engulfing-sinyal__pAgeLQw9kl",
+   "lane": null,
+   "guard": "pine:colour-value",
+   "declined": "pine:colour-value",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:fibonacci-bollinger-bands__2835",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "reference:fibonacci-levels__RHEhVHNx6d",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block"
+   ]
+  },
+  {
+   "key": "reference:fibonacci-retracement-lines__BUdXB173r5",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:filtered-waves__qQY0b4PGLS",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:fixed-percent-stop-loss-take-profit-for-study-scripts__8l8h5SVmib",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:heatmap-volume-xdecow__2lteb6l2tk",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:kaufman-adaptive-bands__sXCNphOxWh",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-single",
+    "reassign"
+   ]
+  },
+  {
+   "key": "reference:laguerre-rsi-v4-lk__114",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:linear-regression-channel__XiFnwmUCKS",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:macd-trend-heatmap-by-chartart__1985",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:mamona-candles__1510",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "reference:mema-bb-parabolic-sar__nurAC4OTMa",
+   "lane": null,
+   "guard": "pine:function",
+   "declined": "runtime:colour",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:money-flow-index__3LM5J3rc0O",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "key": "reference:moving-average-adx__1704",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:moving-average-colored-emasma__1581",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:obv-accumulation-distribution-combination-v2__VQisUlaDL3",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "reference:on-balance-volume-macd-acceleratorawesome-oscillator-pivdiv-3__FIPN6o0f6y",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:parabolic-sar-alerts-on-close-quantnomad__hdvUgc9je5",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:pin-bar-indicator__CclWWrUHpq",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:pivot-points-high-low-extension__Pxr8FVNWPB",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:quantnomad-pivot-points-alerts__eJJzrMjMYe",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "reference:rate-of-change-and-rsi-zones__2ff596b2f1",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:relative-volume-rvol-depthhouse__5INmqVXfui",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:rsi-bands-lazybear__197",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "reference:rsi-chart-bars__131",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:rsi-cyclic-smoothed__ckgSq3I4CY",
+   "lane": null,
+   "guard": "pine:offset-literal",
+   "declined": "pine:offset-literal",
+   "caps": [
+    "core",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:rsi-divergence__Q55lng135i",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:rssupport-and-resistance__bcx67lT3El",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:simple-moving-averages__kWRFasqqym",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:smart-money-concepts-smc-with-macd-signals__507767e966",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary",
+    "tuple-destructure"
+   ]
+  },
+  {
+   "key": "reference:squeeze-momentum-indicator-lazybear__2439",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA",
+   "lane": null,
+   "guard": "pine:colour-value",
+   "declined": "pine:colour-value",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:supertrend__nlyrgnVJ8Z",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "key": "reference:trade-archer-on-balance-volume-moving-averages-v1__897",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:trading-session-indicator__E4P4ZGnwPT",
+   "lane": null,
+   "guard": "pine:no-output",
+   "declined": "pine:function",
+   "caps": [
+    "core",
+    "fn-single",
+    "history-expr",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:triple-moving-averages__iRcDB7kRWk",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:tutorial-rsiwings-priceswings-for-find-pyramiding-entries-with-higher-__pfm3UYqhXM",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:twiggs-money-flow-lazybear__1562",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single"
+   ]
+  },
+  {
+   "key": "reference:ut-bot-cooldown-visual-fvg__17b93cb3b0",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "key": "reference:vwap__87pM0vNjII",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "reference:wavetrend-with-crosses-lazybear__2295",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:williams-vix-fix-bottoms-and-tops__f5d5130307",
+   "lane": null,
+   "guard": "pine:reassign",
+   "declined": "runtime:conditional-history",
+   "caps": [
+    "core",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:advance-decline-ratio-bars__Advance_Decl",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:arnaud-legoux-moving-average__Arnaud1Legou",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:aroon__Aroon",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:average-daily-range__AverageDayRa",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:awesome-oscillator__Awesome_Osci",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:balance-of-power__Balance1of1P",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:bollinger-bands-b__Bollinger_Ba",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:bollinger-bandwidth__Bollinger_Ba",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:bollinger-bars__Bollinger1Ba",
+   "lane": null,
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:bull-bear-power__BullBearPowe",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:chande-kroll-stop__Chande1Kroll",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:chande-momentum-oscillator__Chande_Momen",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:chop-zone__Chop1Zone",
+   "lane": null,
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:choppiness-index__Choppiness_I",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:connors-rsi__Connors_RSI",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:coppock-curve__Coppock1Curv",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:detrended-price-oscillator__DPO",
+   "lane": null,
+   "guard": "pine:offset-literal",
+   "declined": "pine:offset-literal",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:directional-movement-index__DMI",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:donchian-channels__Donchian_Cha",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:double-exponential-moving-average__DEMA",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:envelope__ENV",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:fisher-transform__Fisher_Trans",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-single",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:historical-volatility__Historical_V",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:hull-moving-average__Hull1MA",
+   "lane": null,
+   "guard": "pine:window",
+   "declined": "pine:window",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:least-squares-moving-average__Least1Square",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:mass-index__Mass1Index",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:mcginley-dynamic__McGinley1Dyn",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:median__Median",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:momentum__Momentum",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:money-flow-index__Money_Flow",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:moving-average-crossover__MA1Cross",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:parabolic-sar__PSAR",
+   "lane": null,
+   "guard": "pine:function",
+   "declined": "pine:function",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:rate-of-change__ROC",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:rci-ribbon__RCI_Ribbon",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:relative-vigor-index__Relative_Vig",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:smi-ergodic-indicator__SMI_Ergodic_",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:smi-ergodic-oscillator__SMI_Ergodic_",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:smoothed-moving-average__Smoothed1Mov",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "builtin:stochastic-rsi__Stochastic_R",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:stochastic__Stochastic",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:supertrend__Supertrend",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "history-expr",
+    "reassign",
+    "ternary",
+    "tuple-destructure"
+   ]
+  },
+  {
+   "key": "builtin:time-weighted-average-price__Time1Weighte",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "var"
+   ]
+  },
+  {
+   "key": "builtin:trend-strength-index__Trend1Streng",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:triple-exponential-moving-average__TEMA",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:trix__TRIX",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:ultimate-oscillator__Ultimate_Osc",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-single"
+   ]
+  },
+  {
+   "key": "builtin:volume-weighted-moving-average__VWMA",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:vortex-indicator__Vortex1Indic",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:weighted-moving-average__WMA",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "key": "builtin:williams-fractal__Whilliams_Fr",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "for",
+    "reassign"
+   ]
+  },
+  {
+   "key": "builtin:woodies-cci__Woodies1CCI",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  }
+ ],
+ "stops": [
+  {
+   "capture": "vw-bgcolor-barcolor-spy-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-rt6-runtime-colour-rddt-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-rt6-runtime-colour-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-time-tf-bitstamp-btcusd-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-int-cast-spy-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-nvi-pvi-spy-1d-truncated-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  }
+ ],
+ "matchToDiverge": []
+}

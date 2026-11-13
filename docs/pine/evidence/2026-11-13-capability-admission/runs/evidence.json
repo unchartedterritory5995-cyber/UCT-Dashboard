@@ -1,0 +1,1248 @@
+{
+ "calc-bars": {
+  "captures": 2,
+  "scripts": 1,
+  "evidence": [
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "compound-assign": {
+  "captures": 7,
+  "scripts": 5,
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]"
+   },
+   {
+    "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_R1_STRATEGY"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   }
+  ]
+ },
+ "conditional-ta": {
+  "captures": 7,
+  "scripts": 4,
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   }
+  ]
+ },
+ "core": {
+  "captures": 26,
+  "scripts": 18,
+  "evidence": [
+   {
+    "capture": "adx-and-di-for-v4-rddt-1d-2026-09-27",
+    "script": "ADX and DI for v4"
+   },
+   {
+    "capture": "adx-and-di-for-v4-spy-1d-2026-10-03",
+    "script": "ADX and DI for v4"
+   },
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-10-03",
+    "script": "SAR"
+   },
+   {
+    "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_R1_STRATEGY"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG_NEG"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK"
+   },
+   {
+    "capture": "vw-var-seed-spy-1d-2026-09-28",
+    "script": "UCTPROBE_VW_VAR_SEED_V5"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "enum": {
+  "captures": 0,
+  "scripts": 0,
+  "evidence": []
+ },
+ "fn-multi": {
+  "captures": 19,
+  "scripts": 12,
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG_NEG"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "fn-single": {
+  "captures": 19,
+  "scripts": 12,
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG_NEG"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "for": {
+  "captures": 12,
+  "scripts": 8,
+  "evidence": [
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "for-in": {
+  "captures": 1,
+  "scripts": 1,
+  "evidence": [
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   }
+  ]
+ },
+ "generics": {
+  "captures": 2,
+  "scripts": 2,
+  "evidence": [
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG_NEG"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   }
+  ]
+ },
+ "history-expr": {
+  "captures": 3,
+  "scripts": 2,
+  "evidence": [
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "if-block": {
+  "captures": 21,
+  "scripts": 15,
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-10-03",
+    "script": "SAR"
+   },
+   {
+    "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_R1_STRATEGY"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG_NEG"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "import": {
+  "captures": 0,
+  "scripts": 0,
+  "evidence": []
+ },
+ "library-decl": {
+  "captures": 0,
+  "scripts": 0,
+  "evidence": []
+ },
+ "max_bars_back": {
+  "captures": 4,
+  "scripts": 2,
+  "evidence": [
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   }
+  ]
+ },
+ "method-call": {
+  "captures": 4,
+  "scripts": 3,
+  "evidence": [
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG_NEG"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   }
+  ]
+ },
+ "method-def": {
+  "captures": 0,
+  "scripts": 0,
+  "evidence": []
+ },
+ "obj:box": {
+  "captures": 5,
+  "scripts": 3,
+  "evidence": [
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "obj:collection": {
+  "captures": 5,
+  "scripts": 3,
+  "evidence": [
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   }
+  ]
+ },
+ "obj:delete": {
+  "captures": 9,
+  "scripts": 5,
+  "evidence": [
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   }
+  ]
+ },
+ "obj:getter": {
+  "captures": 3,
+  "scripts": 3,
+  "evidence": [
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG_NEG"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   }
+  ]
+ },
+ "obj:label": {
+  "captures": 11,
+  "scripts": 8,
+  "evidence": [
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-10-03",
+    "script": "SAR"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG_NEG"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK"
+   }
+  ]
+ },
+ "obj:line": {
+  "captures": 13,
+  "scripts": 8,
+  "evidence": [
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG_NEG"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "obj:linefill": {
+  "captures": 2,
+  "scripts": 1,
+  "evidence": [
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   }
+  ]
+ },
+ "obj:polyline": {
+  "captures": 0,
+  "scripts": 0,
+  "evidence": []
+ },
+ "obj:table": {
+  "captures": 0,
+  "scripts": 0,
+  "evidence": []
+ },
+ "realtime-state": {
+  "captures": 5,
+  "scripts": 4,
+  "evidence": [
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG_NEG"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   }
+  ]
+ },
+ "reassign": {
+  "captures": 24,
+  "scripts": 16,
+  "evidence": [
+   {
+    "capture": "adx-and-di-for-v4-rddt-1d-2026-09-27",
+    "script": "ADX and DI for v4"
+   },
+   {
+    "capture": "adx-and-di-for-v4-spy-1d-2026-10-03",
+    "script": "ADX and DI for v4"
+   },
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-10-03",
+    "script": "SAR"
+   },
+   {
+    "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_R1_STRATEGY"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK"
+   },
+   {
+    "capture": "vw-var-seed-spy-1d-2026-09-28",
+    "script": "UCTPROBE_VW_VAR_SEED_V5"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "request-other": {
+  "captures": 0,
+  "scripts": 0,
+  "evidence": []
+ },
+ "strategy-decl": {
+  "captures": 0,
+  "scripts": 0,
+  "evidence": []
+ },
+ "switch": {
+  "captures": 2,
+  "scripts": 1,
+  "evidence": [
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   }
+  ]
+ },
+ "ternary": {
+  "captures": 21,
+  "scripts": 13,
+  "evidence": [
+   {
+    "capture": "adx-and-di-for-v4-rddt-1d-2026-09-27",
+    "script": "ADX and DI for v4"
+   },
+   {
+    "capture": "adx-and-di-for-v4-spy-1d-2026-10-03",
+    "script": "ADX and DI for v4"
+   },
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA_V4"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-10-03",
+    "script": "SAR"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-var-seed-spy-1d-2026-09-28",
+    "script": "UCTPROBE_VW_VAR_SEED_V5"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "tuple-destructure": {
+  "captures": 3,
+  "scripts": 2,
+  "evidence": [
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   }
+  ]
+ },
+ "typed-array": {
+  "captures": 4,
+  "scripts": 3,
+  "evidence": [
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   }
+  ]
+ },
+ "udt": {
+  "captures": 0,
+  "scripts": 0,
+  "evidence": []
+ },
+ "var": {
+  "captures": 19,
+  "scripts": 13,
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]"
+   },
+   {
+    "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_R1_STRATEGY"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG"
+   },
+   {
+    "capture": "vw-var-seed-spy-1d-2026-09-28",
+    "script": "UCTPROBE_VW_VAR_SEED_V5"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution"
+   }
+  ]
+ },
+ "varip": {
+  "captures": 0,
+  "scripts": 0,
+  "evidence": []
+ },
+ "while": {
+  "captures": 4,
+  "scripts": 3,
+  "evidence": [
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK"
+   }
+  ]
+ }
+}
