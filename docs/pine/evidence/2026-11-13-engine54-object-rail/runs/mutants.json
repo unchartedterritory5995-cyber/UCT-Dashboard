@@ -293,5 +293,94 @@
   "restoredBlobEqual": true,
   "killedBy": [],
   "note": "review round, on 7dc188f159"
+ },
+ {
+  "id": "C0-review2",
+  "mutant": "control: no edit",
+  "files": [],
+  "verdict": "GREEN",
+  "restoredBlobEqual": true,
+  "killedBy": [],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N20",
+  "mutant": "every string compared as a colour (the review-2 blocker)",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× pure: colour-shaped text and tooltips that differ are refused; a colour slot is still a colour 5ms",
+   "× pure: a table cell's text is exact, its colours are colours 1ms",
+   "× at the bind: a run label whose text or tooltip is the colour-shaped spelling of the host's is refused 14ms"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N21",
+  "mutant": "rows drawn with no theme (theme blind spot)",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× host chart.fg_color against the run's #2962FF (the slot default) is refused; the same reference agrees 5ms"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N22",
+  "mutant": "G7: an object op is interned without its site",
+  "files": [
+   "app/src/components/chart/engine/runtime/lowerIr.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× G7: label.new on lines 6 and 7, same arguments: two sites in the probe, the door and the run; served 12ms"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N23",
+  "mutant": "G8: a setter is a no-op in the run",
+  "files": [
+   "app/src/components/chart/engine/runtime/objectStore.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× G8: the host and the run agree at the label's FINAL text and y; a run at its create-time props is refused 26ms"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N24",
+  "mutant": "the server site key reads Unicode digits",
+  "files": [
+   "api/services/presentation_schema.py"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "FAILED tests/test_runtime_objects_schema_parity.py::test_the_rule_set[engine 54: a source call in non-ASCII digits]"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N25",
+  "mutant": "an unstamped run half is said as changed",
+  "files": [
+   "app/src/components/chart/engine/nativeRegistry.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× an edited tree, an edited object program, an edited site map, a missing stamp: refused; re-stamped: served 40ms"
+  ],
+  "note": "review 2, on 1ffb5add59"
  }
 ]

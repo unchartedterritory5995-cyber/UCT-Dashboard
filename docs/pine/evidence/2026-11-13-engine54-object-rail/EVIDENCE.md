@@ -207,6 +207,63 @@ Engine 54 changed that sentence, so the Python constant follows it, and a copy o
 document drops the older wording too (`RUN_HALF_DRAWING_SENTENCES_PRIOR`; railed in
 `test_share_strips_run_reads.py`).
 
+## Review 2 of #1202 (CHANGES-REQUIRED at `3a0b463ea6`), fixed on `1ffb5add59`; engine stays 54
+
+The reviewer independently proved production inertness (266 scripts A/B against the merge-base: 0
+differences; adx columns identical; hostParity identity-only; interning leaves op order, ids and GC
+unchanged; telemetry carries no member id). Fixed:
+
+1. **BLOCKER: colour-shaped TEXT compared equal.** The rail's string branch normalised EVERY string as a
+   colour, so a label's text `#abc` equalled `#AABBCC`, `rgb(1,2,3)` equalled `#010203`, a tooltip `#fff`
+   equalled `#FFFFFF`, and a tampered run label's text was served. Now only the render state's colour
+   slots compare as colours: `objectRenderState.RENDER_COLOUR_SLOTS` (exported: the per-family slots it
+   paints, plus a cell's `text_color` / `bgcolor`), read, not restated; every other string is exact
+   (`rowDiff`). Rails: the three cases plus "Up" vs "up", pure and at the bind (`TXT`: a host-carried
+   label with text `#abc` and tooltip `#fff`, the run's tampered), cell text exact / cell colour a colour,
+   and a colour slot keeping one spelling (`#abc` = `#AABBCC` on `color`).
+2. **Theme blind spot.** The rail drew rows with no theme, so a host `chart.fg_color` fell to the slot's
+   default and equalled the run's literal `#2962FF`. Rows are now drawn under TWO sentinel themes
+   (`SENTINEL_THEMES`) and must agree under both, so a theme-relative value never equals a literal (nor
+   `fg` equals `bg`, nor `@50` equals `@0`). Railed with stubbed host/run pairs (unreachable from real
+   scripts today: the run lane refuses `chart.fg_color`).
+3. **Committed rails for G7 and G8.** G7 (`PAIR`): two same-shape `label.new` calls on lines 6 and 7 keep
+   sites `6:5` and `7:5` in the probe, the door and the run, and the honest pair is served. G8
+   (`SETTER`): a label changed by `label.set_text` / `label.set_y` after it is made is compared at its
+   FINAL state, and a run reporting the create-time text or y is refused.
+4. **Schema parity.** `presentation_schema.py` read `\d` (Unicode-aware in Python: `١:٢` matched);
+   now `[0-9]` for the site id and the source call. Two fixture cases (non-ASCII digits in a source call
+   and in a site id).
+5. **Wording.** A run half with NO program stamp at all (minted before engine 54) now refuses
+   `run-half:program-unstamped` with its own sentence ("set up ... by an older version of the app"); a
+   stamp present and wrong is still `run-half:program-unbound` ("have changed").
+6. **NOTE ONLY.** Fields outside the render row are not compared: `text_font_family`, `text_wrap`, a
+   cell's `tooltip` / `width` / `height` (and any other property `toRenderState` does not carry). They are
+   compared automatically if they ever enter the render state, because the rail compares the render row.
+
+Review-2 mutants (on `1ffb5add59`, C0 GREEN, every restore blob-equal): N20 every string compared as a
+colour, N21 rows drawn with no theme, N22 (G7) an object op interned without its site, N23 (G8) a setter
+a no-op in the run, N24 the server site key reading Unicode digits, N25 an unstamped run half said as
+changed: all KILLED (28 mutants in all, `runs/mutants.json`).
+
+Review-2 runs, after `origin/master` (`f95dd6991d`) was merged in again (merge commit; it touched the
+engine: `defSchema.js`, `nativeRegistry.js`, `derivedColumns.js`, `serverCompute.js`, RS work):
+- Focused (<= 5 files per run): `runHalfObjectRail` (29), `runHalf`, `runtimeObjectsSchemaParity`,
+  `nativeRegistry`, `defSchema`: 670 green; `binder`, `memberPaneDefinition`, `shareStripCopy`,
+  `storedBytes.parity`, `objectRenderDrops`: 105 green.
+- Touched pytest: 324 passed, 1 xfailed.
+- hostParity `--host node --check`: **HP-1 GREEN 166/166** (no runtime-lane code moved in review 2).
+- Reach: real allowlist **0 minted**, pane dark 0; allow-every 6 minted, 0 served (no-comparable 3,
+  runtime:limit 2, uncompared-site 1), bind p95 383 ms (`runs/reach.json`, `review2Tally`).
+- Objects-v2 regrade, runtime-on: v1 94/31/15, v2 90/35/15 (unchanged), `movedToDiverge: []`: **0
+  MATCH->DIVERGE** (`runs/regrade-rt-review2.json`).
+- The merge touched the engine, so ONE heavy run under `heavy_lock` (`engine/ast`,
+  `engine/runtime/__tests__`, `engine/__tests__`, `builder`, `--maxWorkers=1`): **1,142 files, 19,892
+  passed, 12 failed, 205 skipped**. Failed: the master reds `readoutSchema.va2` (8), `rsRatingDef` (1),
+  `rsVsEmaDef` (1), and two new master reds from master's RS work, `markerPixels` (1: an eleventh colour
+  input) and `colorUpDownSubstitution` (1: the `maLength2` label is 21 characters). Both fail identically
+  with `origin/master`'s `nativeRegistry.js` swapped in (restored from the saved copy, blob equal
+  `f50d17b020`). None is this branch's.
+
 ## Tests
 
 - Focused (<= 5 files per run, `--maxWorkers=1`, outside the lock): `runHalfObjectRail.test.jsx` (20,

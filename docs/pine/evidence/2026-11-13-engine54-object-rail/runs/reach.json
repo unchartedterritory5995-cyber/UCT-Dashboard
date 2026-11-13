@@ -355,5 +355,72 @@
    "boundLive": null,
    "boundMs": 35
   }
- ]
+ ],
+ "review2Tally": {
+  "off": {
+   "scripts": 679,
+   "hostOk": 297,
+   "hostPartial": 57,
+   "minted": 0,
+   "declined": {
+    "run-half:pane-off": 57
+   },
+   "bound": {},
+   "boundCodes": {}
+  },
+  "real": {
+   "scripts": 679,
+   "hostOk": 297,
+   "hostPartial": 57,
+   "minted": 0,
+   "declined": {
+    "runtime:not-yet-graded": 57
+   },
+   "bound": {},
+   "boundCodes": {}
+  },
+  "every": {
+   "scripts": 679,
+   "hostOk": 297,
+   "hostPartial": 57,
+   "minted": 6,
+   "declined": {
+    "runtime:call-windowed-state": 1,
+    "runtime:object-op": 1,
+    "runtime:statement": 2,
+    "runtime:request": 6,
+    "run-half:size": 1,
+    "lower-tf:store-unmeasured": 1,
+    "pine:function": 8,
+    "runtime:conditional-history": 5,
+    "runtime:block-value": 1,
+    "pine:request": 3,
+    "budget:lookback": 2,
+    "runtime:request-with-state": 5,
+    "pine:builtin": 2,
+    "runtime:colour": 1,
+    "runtime:input-state": 1,
+    "runtime:call-undeclared-builtin-state": 1,
+    "lower-tf:lookahead": 1,
+    "runtime:history-dynamic-offset": 5,
+    "runtime:call-text-state": 2,
+    "runtime:function": 1,
+    "runtime:history-expression": 1
+   },
+   "bound": {
+    "refused": 6
+   },
+   "boundCodes": {
+    "run-half:no-comparable-objects": 3,
+    "runtime:limit": 2,
+    "run-half:uncompared-site": 1
+   },
+   "boundMs": {
+    "n": 6,
+    "p50": 52,
+    "p95": 383,
+    "max": 383
+   }
+  }
+ }
 }
