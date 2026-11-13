@@ -1,0 +1,91 @@
+/* Notebook simplify, Task 2: the "Saved views" group at the foot of the View menu (SavedViewsMenuGroup.jsx). Its
+   rows reuse the menu's own `.item` (NewNoteMenu.module.css); this file lays out the row's three buttons and sets
+   the group apart from the modes with a rule, not a second role="separator". The touch tier is <=1024px. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.label {
+  padding: 4px 12px 2px;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+/* Go-live wave 1 (D3): the one quiet line when the saved views could not be read. */
+.failed {
+  margin: 0;
+  padding: var(--space-xs) var(--space-md) var(--space-sm);
+  font-size: var(--text-md);
+  color: var(--text-muted);
+}
+.apply {
+  flex: 1;
+  min-width: 0;
+}
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.iconBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.iconBtn:hover,
+.iconBtn:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+.deleteBtn:hover {
+  color: var(--danger-ink);
+}
+.iconBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ut-gold);
+}
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--ut-gold);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 13px;
+}
+.renameInput:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ut-gold);
+}
+
+@media (max-width: 1024px) {
+  .iconBtn {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  /* (Its 16 px text on the touch tier, against iOS's zoom on focus, is tokens.css's own rule for every field.) */
+  .renameInput {
+    min-height: var(--tap-min);
+  }
+}

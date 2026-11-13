@@ -51,10 +51,8 @@ const phraseStart = (...phrases) => (q) => q.length >= KEYS3_MIN_CHARS && phrase
 const NOTEBOOK_COMMANDS = [
   { id: 'nb-new', kind: 'command', label: 'New Note', icon: 'document',
     to: '/journal/notebook?new=blank', keywords: ['note', 'notebook', 'new', 'create'] },
-  // Wave H checkpoint decision 28: bare `/journal/notebook` now renders
-  // Research Home (checkpoint decision 33) -- this command already IS
-  // "Open Research Home" by construction, so it gets Home's own keywords
-  // rather than a second, redundant command pointing at the identical route.
+  // Bare `/journal/notebook` opens the notes list (Notebook simplify, Task 5; Research Home, which it used to open,
+  // was deleted in go-live wave 1), so this command is "open the notes list" by construction.
   { id: 'nb-open', kind: 'command', label: 'Open Notebook', icon: 'library',
     to: '/journal/notebook', keywords: ['notebook', 'note', 'research', 'open', 'home'] },
   // Lane KEYS: this used to open the Notebook and stop, search panel closed. The hash is the
@@ -99,15 +97,16 @@ const NOTEBOOK_COMMANDS = [
     action: 'door', door: NOTEBOOK_DOORS.ASK, keywords: [],
     match: phraseStart('ask about this note', 'ask this note', 'ask note'),
     when: ({ location }) => noteOpenAt(location) },
-  // Q2: the New note sheet (the template picker), which Research Home has no door to.
+  // Q2: the New note sheet (the template picker), straight from the palette.
   { id: 'nb-templates', kind: 'command', label: 'New note from a template', icon: 'document',
     to: NOTEBOOK_TEMPLATES_TO, keywords: [],
     match: phraseStart('new note from a template', 'note from a template', 'from a template', 'templates') },
-  // Q11: the notes list ("Open Notebook" above is Research Home). Focus lands on its heading.
+  // Q11: the notes list with every filter cleared (`view=all`; "Open Notebook" above opens the list as it was left).
+  // Focus lands on its heading.
   { id: 'nb-all-notes', kind: 'command', label: 'All notes', icon: 'library',
     to: NOTEBOOK_LIST_TO, keywords: [],
     match: phraseStart('all notes', 'notes list') },
-  // Q15: "Reporting soon" on Research Home, focus on the first name's prep button.
+  // Q15: "Reporting soon" on the Daily brief (`?view=today#prep` unfolds it), focus on the first name's prep button.
   { id: 'nb-earnings-prep', kind: 'command', label: 'Earnings prep: reporting soon', icon: 'document',
     to: NOTEBOOK_PREP_TO, keywords: [],
     match: phraseStart('earnings prep', 'reporting soon', 'prep note'),

@@ -1,0 +1,58 @@
+{
+ "report_day": "2026-11-17",
+ "data_dir": "<temp>\\ff2-held-data\\c2",
+ "c2_email": "q1c2m4721753@local.dev",
+ "sample_ids": [
+  "725b1066036d4811a3f296665f625004",
+  "6595bd7277d34952b7357908c7048f9b",
+  "cb3a253e5ad04ad4bc8d303d3479ac9f",
+  "e3a3990640dd4d849212572f5fa16ebf",
+  "2189ab46ca4445a5854c5786092dc731",
+  "9ba40f07eb6d4a8eaa6c5f7fd37b38a1",
+  "e749e70ffd4346fb91d1fa033cc1155b",
+  "50f1bc3d1de945bdb429b0691a79ea59",
+  "2eac4c65b54f481b81d03cc6e0d21007",
+  "61e3fd4f5c904f2fa99618cad129eeb4"
+ ],
+ "sample_titles": [
+  "Call excerpt: example -- TSLA",
+  "Earnings prep draft: example -- AMZN",
+  "Thesis: example -- NVDA leadership",
+  "Active setup: example -- MSFT base breakout",
+  "Trade plan: example -- AAPL pullback",
+  "Research: how a base forms",
+  "Thesis: leaders recover first",
+  "Welcome to your sample notebook",
+  "Daily note example",
+  "Pre-market checklist"
+ ],
+ "sample_by_ticker": {
+  "AAPL": "9ba40f07eb6d4a8eaa6c5f7fd37b38a1",
+  "MSFT": "e749e70ffd4346fb91d1fa033cc1155b",
+  "NVDA": "50f1bc3d1de945bdb429b0691a79ea59",
+  "GOOGL": null,
+  "TSLA": "61e3fd4f5c904f2fa99618cad129eeb4",
+  "AMZN": "2eac4c65b54f481b81d03cc6e0d21007"
+ },
+ "first_note": "fe0603ac4df546aea8a97bd907df2501",
+ "gallery_submission": "39b7f2c549844bd08ac891b96f3668c7",
+ "tip": "7e849c6740",
+ "own_same_name_folder": "300c42f6dd3544dab1eba124c4ff14de",
+ "amd_note": "92c1f90f693247af9d1c2e195be158a1",
+ "amd_plan": {
+  "target": 534.1234117261956,
+  "entry": 383.68808508590814,
+  "stop": 233.25275844562063
+ },
+ "amd_embed": "be32093e-fd9a-4665-a82e-cff9c8d9cd81",
+ "amd_tag": "VCP",
+ "amd_pos": "bedc7445-b833-483b-a0be-64b52a03cb06",
+ "nvda_pos": "f13e0bd2-37f2-4c43-9b26-d041de3bd2c9",
+ "ibm_note": "baa6eedd4db94fffa7ca050ee8854351",
+ "ibm_v1": "b3118a4335ea470e90edca6d9e4c4acb",
+ "ibm_pos": "76b43d63-55d4-450c-9643-9d4af0269c1e",
+ "explainer_in_feature_step": false,
+ "ibm_trade": "e4df2415-1568-47d9-888b-899ffcce2c3e",
+ "amd_trade": "b2212c20-fa17-4f61-a3b1-7c212b182ea4",
+ "prep_note": "dcbc52eebadc47b581a0c35baa8c3360"
+}

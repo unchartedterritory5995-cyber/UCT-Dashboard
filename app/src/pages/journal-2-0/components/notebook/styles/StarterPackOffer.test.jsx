@@ -101,6 +101,17 @@ describe('How do you trade? (R-P5-5)', () => {
     expect(screen.queryByRole('button', { name: 'Starter packs' })).toBeNull()
   })
 
+  it('1b. Notebook simplify: with notes (noNotes false) the card never renders above a filtered-empty list', async () => {
+    flags()
+    const { unmount } = render(swr(<KindSection onCreate={vi.fn()} noNotes={false} />))
+    await screen.findByRole('group', { name: 'Start from a template' })
+    expect(card()).toBeNull()
+    unmount()
+    // CONTROL: the same member and the same switch, with zero notes, is asked
+    kindSection()
+    expect(await screen.findByRole('region', { name: TITLE })).toBeInTheDocument()
+  })
+
   it('2. test_no_offer_for_a_member_with_styles: one own style means no card, and the link still opens it', async () => {
     flags()
     list = WITH_OWN

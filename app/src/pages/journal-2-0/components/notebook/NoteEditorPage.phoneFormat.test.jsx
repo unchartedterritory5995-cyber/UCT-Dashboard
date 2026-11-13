@@ -5,6 +5,7 @@ import { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
 import { FOCUSABLE_SELECTOR } from '../../../../components/mobile/useFocusTrap'
 import { MQ } from '../../../../styles/breakpoints'
 import { isFirstRunStageHeld } from '../../../../components/firstRun/firstRunStage'
+import editorStyles from './NoteEditorPage.module.css'
 
 // Wave 10 lane D3P (D-3 PHONE): at 390 px the editor's formatting row wrapped to about eight
 // rows, the note's title sat below the first screen, and the phone's Log FAB covered one of the
@@ -94,9 +95,15 @@ const nameOf = (el) => {
   return (copy.textContent || '').replace(/\s+/g, ' ').trim()
 }
 /** Every control in `root`, DISABLED ones included (Undo and Redo are disabled with nothing to
- *  undo, and they are still controls the row carries). The Tab ring below uses FOCUSABLE_SELECTOR. */
-const controlsIn = (root) => [...root.querySelectorAll('button, select, input, textarea, a[href]')]
-const tabRing = (root) => [...root.querySelectorAll(FOCUSABLE_SELECTOR)]
+ *  undo, and they are still controls the row carries). The Tab ring below uses FOCUSABLE_SELECTOR.
+ *  Notebook simplify, Task 4: the desktop row's own "Aa" (More formatting) and "Insert" are not the touch row's --
+ *  `.desktopOnly` is `display: none` at 1024 px and below (NoteEditorPage.calmToolbar.test.jsx holds that rule) --
+ *  so they are set aside here and checked on their own below. */
+const desktopOnly = (el) => Boolean(el.closest(`.${editorStyles.desktopOnly}`))
+const allControlsIn = (root) => [...root.querySelectorAll('button, select, input, textarea, a[href]')]
+const controlsIn = (root) => allControlsIn(root).filter((el) => !desktopOnly(el))
+// A control under `[hidden]` is not a Tab stop in a browser (display: none), so it is not in the ring.
+const tabRing = (root) => [...root.querySelectorAll(FOCUSABLE_SELECTOR)].filter((el) => !el.closest('[hidden]'))
 const controlNamed = (toolbar, name) => {
   const hits = controlsIn(toolbar).filter((el) => nameOf(el) === name)
   if (hits.length !== 1) throw new Error(`expected ONE control named ${JSON.stringify(name)}, found ${hits.length}`)
@@ -147,6 +154,17 @@ describe('D3P: the phone formatting disclosure holds the moved controls, never t
     for (const name of KEPT) expect(inRun(controlNamed(toolbar, name)), `${name} stays out`).toBe(false)
     for (const name of PHONE_ONLY) expect(inRun(controlNamed(toolbar, name)), `${name} stays out`).toBe(false)
     expect(inRun(toggleOf(toolbar)), 'the toggle is not inside what it opens').toBe(false)
+  }, 60000)
+
+  it("Task 4: the desktop row's own controls are the only ones set aside, sit in no run, and leave the Tab ring while Format is open", async () => {
+    const toolbar = await mountToolbar()
+    const runs = runsOf(toolbar)
+    const desk = allControlsIn(toolbar).filter(desktopOnly)
+    expect(desk.map(nameOf)).toEqual(['More formatting', 'Insert'])
+    for (const el of desk) expect(runs.some((r) => r.contains(el)), nameOf(el)).toBe(false)
+    expect(desk.some((el) => tabRing(toolbar).includes(el)), 'closed: present (the desktop draws them)').toBe(true)
+    fireEvent.click(toggleOf(toolbar))
+    expect(desk.some((el) => tabRing(toolbar).includes(el)), "open: out of the trap's ring").toBe(false)
   }, 60000)
 
   it('COMPLETE: every control in the row is kept, moved or the toggle -- a new one must be classified', async () => {

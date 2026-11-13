@@ -85,7 +85,7 @@ def _inputs(block: str) -> dict:
             if m:
                 spec[bound] = float(m.group(1))
         if spec["type"] == "enum":
-            spec["options"] = re.findall(r"\['([A-Za-z]+)',", entry)
+            spec["options"] = re.findall(r"\['([A-Za-z_]+)',", entry)
         if spec["type"] == "string":
             pat = re.search(r"\bpattern:\s*'((?:[^'\\]|\\.)*)'", entry)
             if pat:
@@ -161,7 +161,7 @@ def test_every_row_input_is_declared_on_the_js_side_with_the_rows_rule(def_id):
         elif spec["type"] == "string":
             assert js[key]["default"] == spec["default"], key
             assert js[key]["pattern"] == spec["pattern"] and js[key]["maxLength"] == spec["maxLength"], key
-            assert js[key]["case"] == spec["case"], key
+            assert js[key].get("case") == spec.get("case"), key
     # ...and the only JS inputs the row lacks are presentation (Style) ones.
     extra = {k: v for k, v in js.items() if k not in {i["key"] for i in _row(def_id)["inputs"]}}
     toggles = PRESENTATION_TOGGLES.get(def_id, set())

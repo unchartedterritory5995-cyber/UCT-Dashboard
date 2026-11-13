@@ -20,6 +20,27 @@ import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill
 import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, dailyCachePaintVerdict, classifyIntradayTail, isCacheCurrentForView } from './marketSession'
 import { getTodayBar, todayPackUsable } from '../lib/todayPackClient'
 
+// ── What ELSE a chart needs for a symbol whose bars are being warmed ─────────────
+// ⚰️ Measured on production 2026-11-12: scanning a warmed list drew the next symbol's
+// candles in ~40 ms, from memory, and its server-computed indicator panes 1.2 to 2.0 s
+// later, because bars had a prefetch and those columns were only asked for once the chart
+// was already on the symbol. Every warmer below already knows which symbols are next; a
+// lane with something to fetch per symbol registers here and is told the same list, with
+// the timeframe and how the caller ranked it. This module imports nothing of the chart
+// engine (it stays in the page's first bytes); the engine registers its warmer when a chart
+// loads (`components/chart/engine/serverWarm.js`). A warmer is told, never awaited, and one
+// that throws cannot break a bars warm.
+const _symbolWarmers = new Set()
+/** Register a `(symbols, tf, {priority, visible}) => void` told about every symbol set warmed here. @returns {() => void} */
+export function registerSymbolWarmer(fn) {
+  _symbolWarmers.add(fn)
+  return () => { _symbolWarmers.delete(fn) }
+}
+/** Tell them (also called by the BarStore facade, `data/barStore/prefetch.js`: one registry, two warmers). */
+export function tellSymbolWarmers(syms, tf, opts = {}) {
+  if (syms.length) for (const fn of _symbolWarmers) { try { fn(syms, tf, opts) } catch { /* never breaks a bars warm */ } }
+}
+
 // ⛔ D10 (2026-11-10): a non-OK body is NOT data. `r.json()` on a 404/429/500 handed the
 // error body ({detail:…}) to the caller as if it were bars. Both fetchers now throw the
 // same tagged error StockChart's own fetcher throws (`status`, `warming`, `retryAfterMs`).
@@ -727,7 +748,10 @@ export function warmTypedSymbol(sym, tf = 'D') {
     _typedLatest = null
   }
   const saved = memPeekSavedAt(S, tf)
-  if (memHas(S, tf) && Number.isFinite(saved) && Date.now() - saved < TYPED_FRESH_MS) return null
+  if (memHas(S, tf) && Number.isFinite(saved) && Date.now() - saved < TYPED_FRESH_MS) {
+    tellSymbolWarmers([S], tf, { priority: true })   // a known name, bars current: its companions may not be
+    return null
+  }
   if (_typedLatest && _typedLatest.url === url) return null   // this text is already being warmed
   const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null
   _typedLatest = { url, ctl, kept: false }
@@ -748,6 +772,9 @@ export function warmTypedSymbol(sym, tf = 'D') {
         savedAt = have.savedAt ?? null
       }
     }
+    // A cached set exists, so the text IS a ticker (a prefix has none, see below): its companion
+    // lanes are told now, whether the bars then paint from cache or wait on the request.
+    if (lastT != null) tellSymbolWarmers([S], tf, { priority: true })
     if (lastT != null && _typedCachePaints(S, tf, lastT, savedAt)) return 'cache'
     // ⛔ A PREFIX IS NOT A TICKER. Typing GOOGL settles on G, GO, GOO, GOOG on the way; on a
     // browser holding the whole-universe pack, text with NO cached set is almost always a
@@ -765,6 +792,7 @@ export function warmTypedSymbol(sym, tf = 'D') {
     const curSaved = memPeekSavedAt(S, tf)
     const stale = Number.isFinite(curSaved) && curSaved > startedAt
     memPut(S, tf, json.bars, { startedAt })
+    if (lastT == null && !_typedSuperseded(url)) tellSymbolWarmers([S], tf, { priority: true })   // the authority just said it is real
     return stale ? 'stale-answer' : 'network'
   })().catch(() => false).finally(() => {
     if (_typedLatest && _typedLatest.url === url && _typedLatest.ctl === ctl) _typedLatest = null
@@ -808,6 +836,7 @@ export function _isAuthoritativeAnswer(json, sym, tf) {
 export function prefetchBars(tickers, tf = 'D', { priority = false, urgent = false } = {}) {
   if (!tickers?.length) return
   const syms = tickers.filter(Boolean)
+  tellSymbolWarmers(syms, tf, { priority: priority || urgent })
   const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
   if (urgent) {
     // Only the LATEST urgent call stays urgent: a fast walk must not leave a trail
@@ -832,6 +861,7 @@ export function prefetchBars(tickers, tf = 'D', { priority = false, urgent = fal
 // Prefetch a single ticker for one timeframe (hover). ONE request, not eight.
 export function prefetchBar(sym, tf = 'D') {
   if (!sym) return
+  tellSymbolWarmers([sym], tf, { priority: true })
   _enqueue(_url(sym, tf))
   prefetchTickerMeta(sym)
 }
@@ -1019,6 +1049,9 @@ export function prefetchGridWarm(tickers) {
 //               _holdJob). Only prewarmVisibleList's top rows pass it.
 export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false } = {}) {
   if (!tickers?.length) return
+  // Told BEFORE the already-warm skips below: bars a member warmed yesterday are durable,
+  // the companion lanes' data is per page load and may still be missing for these symbols.
+  tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
   const front = []
   for (const sym of tickers) {
     if (!sym) continue
@@ -1275,13 +1308,17 @@ async function _warmIntentNow(sym, tf) {
 
 export function prefetchBarOnIntent(sym, tf = 'D', { delay = 120 } = {}) {
   if (!sym || !tf) return
-  if (memHas(sym, tf)) return
+  // Bars already in memory need nothing; the companion lanes' data (per page load) may still be
+  // missing, so with a warmer registered the intent is still announced after the same debounce.
+  const held = memHas(sym, tf)
+  if (held && !_symbolWarmers.size) return
   const key = `${String(sym).toUpperCase()}_${tf}`
   if (_intentTimers.has(key)) return // debounce: a fire is already pending
   const t = setTimeout(() => {
     _intentTimers.delete(key)
-    _warmIntentNow(sym, tf)
+    tellSymbolWarmers([sym], tf, { priority: true })
+    if (!held) _warmIntentNow(sym, tf)
   }, delay)
   _intentTimers.set(key, t)
-  prefetchTickerMeta(sym)
+  if (!held) prefetchTickerMeta(sym)
 }

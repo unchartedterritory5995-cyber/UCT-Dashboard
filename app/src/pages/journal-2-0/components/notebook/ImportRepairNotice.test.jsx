@@ -179,20 +179,21 @@ describe('ImportRepairNotice', () => {
   }, 30000)
 })
 
-// Task 10 concern 2: a member lands on Research Home (the bare root), not on a list.
-describe('ImportRepairNotice on Research Home', () => {
+// Task 10 concern 2: the notice is where a member LANDS -- the bare Notebook. Notebook simplify, Task 5: that is the
+// notes list now (it was Research Home); these cases keep the bare address so they follow the landing.
+describe('ImportRepairNotice on the bare Notebook (where a member lands)', () => {
   async function renderHome(wrap = (x) => x) {
     render(<Providers route="/journal/notebook">{wrap(<NotebookTab />)}</Providers>)
     await screen.findAllByText('Theses') // the folder tree is real and fed by the fixtures
-    // Non-vacuity: this IS Research Home, not a list (the list's view switcher is absent).
-    await waitFor(() => expect(screen.queryByRole('button', { name: /^View:/ })).toBeNull())
+    // Non-vacuity: the bare address IS the list now (its toolbar is there).
+    await screen.findByRole('toolbar', { name: 'Notes list tools' })
     await settle()
   }
 
-  it('Import notes on Research Home opens the import wizard', async () => {
+  it('Import notes on the empty Notebook opens the import wizard', async () => {
     installFetch([
       [/^\/api\/j2\/notes\/import\/repair-notice$/, { show: false, lossNotes: 0 }],
-      // Home offers "Import notes" to a member with no notes yet (its welcome).
+      // The list's empty state offers "Import notes" to a member with no notes yet.
       [/^\/api\/j2\/notes$/, { notes: [], total: 0 }],
     ])
     await renderHome()
@@ -201,7 +202,7 @@ describe('ImportRepairNotice on Research Home', () => {
     await screen.findByTestId('import-file-input', {}, { timeout: 10000 })
   }, 20000)
 
-  it('shows once on Research Home, and its Re-import to recover opens the wizard ticked', async () => {
+  it('shows once on the bare Notebook, and its Re-import to recover opens the wizard ticked', async () => {
     const spy = installFetch(NOTICE_ROUTES(5))
     await renderHome()
     await screen.findByRole('heading', { name: HEADING })

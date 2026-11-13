@@ -101,6 +101,11 @@
   font-size: 13px;
   color: var(--text-muted);
 }
+/* Final fix (A4): the one step the "n of N done" line does not count says so. */
+.optional {
+  font-size: var(--text-base);
+  color: var(--text-muted);
+}
 
 /* The touch tier is <=1024px (phone AND tablet), never <=640 alone. */
 @media (max-width: 1024px) {

@@ -1,0 +1,85 @@
+{
+ "empty-1280": {
+  "first_run_sheet_closed": true,
+  "base_tour_card_on_screen": true,
+  "sample_door": "card",
+  "standalone_beside_card": false,
+  "checklist": {
+   "progress": "0 of 3 done",
+   "items": [
+    {
+     "label": "Write your first note",
+     "done": false
+    },
+    {
+     "label": "Start a note from a template",
+     "done": false
+    },
+    {
+     "label": "Open the sample notebookOptional",
+     "done": false
+    },
+    {
+     "label": "Take the Notebook basics tour",
+     "done": false
+    }
+   ]
+  }
+ },
+ "more-sample-1280": {
+  "rows_drawn_in_order": [
+   "Export",
+   "Remove the sample notebook",
+   "My tools",
+   "Manage templates"
+  ],
+  "focused_on_open_by_click": "Export",
+  "focused_on_open_by_keyboard": "Export"
+ },
+ "empty-390": {
+  "first_run_sheet_closed": true,
+  "base_tour_card_on_screen": true,
+  "sample_door": "card",
+  "standalone_beside_card": false,
+  "checklist": {
+   "progress": "0 of 3 done",
+   "items": [
+    {
+     "label": "Write your first note",
+     "done": false
+    },
+    {
+     "label": "Start a note from a template",
+     "done": false
+    },
+    {
+     "label": "Open the sample notebookOptional",
+     "done": false
+    },
+    {
+     "label": "Take the Notebook basics tour",
+     "done": false
+    }
+   ]
+  }
+ },
+ "more-sample-390": {
+  "rows_drawn_in_order": [
+   "Today's note",
+   "Ask your Notebook",
+   "New from a template",
+   "Import",
+   "Voice note",
+   "Today's recap",
+   "This week's review",
+   "This month's review",
+   "Journal tools",
+   "Export",
+   "Remove the sample notebook",
+   "My tools",
+   "Manage templates"
+  ],
+  "focused_on_open_by_click": "Today's note",
+  "focused_on_open_by_keyboard": "Today's note"
+ }
+}

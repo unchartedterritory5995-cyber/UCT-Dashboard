@@ -21,7 +21,8 @@ describe('NoteExportControls -- axe', () => {
       <NoteExportControls noteId="n1" title="Plan" columnRef={{ current: null }} onMessage={() => {}} />,
     )
     fireEvent.click(screen.getByRole('button', { name: /^export/i }))
-    expect(screen.getAllByRole('menuitem')).toHaveLength(4)
+    // Notebook simplify, Task 4: PNG and Print are the menu's first two items, above the four formats.
+    expect(screen.getAllByRole('menuitem')).toHaveLength(6)
     await expectNoAxeViolations(container)
   })
 })

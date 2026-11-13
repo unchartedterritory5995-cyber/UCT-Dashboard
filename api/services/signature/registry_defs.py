@@ -126,7 +126,33 @@ RS_LINE_BENCHMARKS: tuple[str, ...] = rs_benchmark_menu(
 # the prewarm set and the screener's ETF set (all derived from those two tuples)
 # never grow it. Only the v4 row offers it; the ticker itself is the
 # `customBenchmark` string input, validated by `rs_benchmarks.CUSTOM_SYMBOL_RE`.
-RS_LINE_BENCHMARKS_V4: tuple[str, ...] = RS_LINE_BENCHMARKS + (_rs_benchmarks.CUSTOM_BENCHMARK,)
+#
+# ⭐ 2026-11-12 (owner: "benchmark to sector, theme etc"): the v4 menu also names
+# `rs_benchmarks.CHOICE_BENCHMARKS` (Pick a sector, Theme (auto), Pick a theme,
+# with CUSTOM), still OUT of the v3 tuple and every set derived from it, and is
+# arranged in its own order (`_RS_MENU_ORDER_V4`): the indexes, then the groups
+# from widest to narrowest, then the member's own ticker. The option KEYS are
+# unchanged (saved charts and bound alerts carry them); only the order moved.
+_RS_MENU_ORDER_V4: tuple[str, ...] = ("SPY", "RSP", "QQQ", "IWM", "SECTOR", "SECTOR_PICK", "INDUSTRY",
+                                      "THEME", "THEME_PICK", "CUSTOM")
+RS_LINE_BENCHMARKS_V4: tuple[str, ...] = rs_benchmark_menu(
+    _RS_MENU_ORDER_V4, _rs_benchmarks.LITERAL_BENCHMARKS + _rs_benchmarks.AUTO_BENCHMARKS
+    + _rs_benchmarks.CHOICE_BENCHMARKS)
+
+
+def rs_benchmark_choice_inputs() -> list[dict]:
+    """The second values the v4 benchmark menu's choices read, declared ONCE for
+    the rsLine v4 row and the split rows: the member's own ticker (CUSTOM), the
+    picked sector ETF (SECTOR_PICK) and the picked theme's ID (THEME_PICK). Each
+    pattern / option list is `rs_benchmarks`' own, never re-typed."""
+    return [
+        {"key": "customBenchmark", "type": "string", "default": "",
+         "pattern": _rs_benchmarks.CUSTOM_SYMBOL_RE.pattern, "maxLength": 10, "case": "upper"},
+        {"key": "sectorBenchmark", "type": "enum", "default": _rs_benchmarks.DEFAULT_SECTOR_PICK,
+         "options": list(_rs_benchmarks.SECTOR_PICKS)},
+        {"key": "themeBenchmark", "type": "string", "default": "",
+         "pattern": _rs_benchmarks.THEME_ID_RE.pattern, "maxLength": 64},
+    ]
 
 # ⭐ UCT RELATIVE STRENGTH v2 (plan docs/superpowers/specs/2026-11-05-uct-relative-
 # strength-indicator-design.md §8.1, §13). `wire_columns` requires the provider's
@@ -338,8 +364,8 @@ def _rs_phase3_inputs() -> list[dict]:
         # ⭐ ONE AUTHORITY FOR WHAT A CUSTOM BENCHMARK MAY BE: the pattern is
         # `rs_benchmarks.CUSTOM_SYMBOL_RE`'s own source, never re-typed, and
         # `maxLength` is the longest ticker it accepts (a rail checks both).
-        {"key": "customBenchmark", "type": "string", "default": "",
-         "pattern": _rs_benchmarks.CUSTOM_SYMBOL_RE.pattern, "maxLength": 10, "case": "upper"},
+        # 2026-11-12: the picked sector and theme ride beside it.
+        *rs_benchmark_choice_inputs(),
         number("rrgRatioLength", "int", rsm.DEFAULT_RRG_RATIO_LEN),
         number("rrgMomentumLength", "int", rsm.DEFAULT_RRG_MOM_LEN),
         number("clenowWindow", "int", rsm.DEFAULT_CLENOW_WINDOW),
@@ -565,8 +591,7 @@ def _rs_split_benchmark_inputs() -> list[dict]:
     three ratio indicators."""
     return [
         {"key": "benchmark", "type": "enum", "default": "SPY", "options": list(RS_LINE_BENCHMARKS_V4)},
-        {"key": "customBenchmark", "type": "string", "default": "",
-         "pattern": _rs_benchmarks.CUSTOM_SYMBOL_RE.pattern, "maxLength": 10, "case": "upper"},
+        *rs_benchmark_choice_inputs(),
     ]
 
 

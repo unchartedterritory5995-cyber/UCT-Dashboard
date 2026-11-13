@@ -2,8 +2,9 @@
  * Fin walk 8.3 — "From the whole Notebook a citation opens the cited note, not a
  * passage in it. Inside a note it lands on the passage."
  *
- * The REAL pieces, end to end: the real NotebookTab routes the open; the real
- * ResearchHome renders the real AskPanel (its SSE parser, its citation buttons);
+ * The REAL pieces, end to end: the real NotebookTab routes the open; the list
+ * toolbar's "AI" section (NotebookAiPanel, Research Home's Ask moved there by
+ * Notebook simplify Task 5) renders the real AskPanel (its SSE parser, its citation buttons);
  * the real `openSpanningCitation` hands the passage to the tab's own `openNote`;
  * the real NoteEditorPage mounts the real TipTap editor and lands on it. Only the
  * data hooks and the heavy siblings the tab mounts beside the editor are stubbed,
@@ -143,9 +144,10 @@ const renderTab = (entry = '/journal/notebook') => render(
   <MemoryRouter initialEntries={[entry]}><NotebookTab /><Where /></MemoryRouter>,
 )
 
-/** Research Home → Ask → tap the one citation. Returns the editor that opened. */
+/** The list's AI → Ask (open at once) → tap the one citation. Returns the editor that opened. */
 async function askAndTap() {
-  fireEvent.click(await screen.findByRole('button', { name: 'Ask a question about my notebook' }))
+  const bar = await screen.findByRole('toolbar', { name: 'Notes list tools' })
+  fireEvent.click(within(bar).getByRole('button', { name: 'AI' }))
   const ask = await screen.findByRole('dialog', { name: /Ask/ })
   fireEvent.change(within(ask).getByRole('textbox'), { target: { value: 'what was the entry?' } })
   fireEvent.click(within(ask).getByRole('button', { name: 'Ask' }))

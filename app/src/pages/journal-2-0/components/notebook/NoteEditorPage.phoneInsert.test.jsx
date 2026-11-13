@@ -86,13 +86,19 @@ async function mountEditor() {
   })
 }
 const toolbar = () => screen.getByRole('toolbar', { name: 'Editor toolbar' })
-const insertBtn = () => within(toolbar()).getByRole('button', { name: 'Insert' })
+// Notebook simplify, Task 4: the desktop row's last control is also named "Insert" (it opens the widget palette;
+// `.desktopOnly`, never drawn at 1024 px and below). The phone "+" is the one carrying the phone-only class.
+const insertBtn = () => {
+  const hits = within(toolbar()).getAllByRole('button', { name: 'Insert' }).filter((b) => /insertPhone/.test(b.className))
+  if (hits.length !== 1) throw new Error(`expected ONE phone "+", found ${hits.length}`)
+  return hits[0]
+}
 
 describe('P0.6: the phone "+" insert menu', () => {
   it('the phone "+" lists image, file, camera scan and chart/block, and each opens its door', async () => {
     setPhone(true)
     await mountEditor()
-    fireEvent.click(screen.getByRole('button', { name: 'Insert' }))
+    fireEvent.click(insertBtn())
     const names = screen.getAllByRole('menuitem').map((m) => m.textContent.trim())
     expect(names).toEqual(['Image', 'Attach a file', 'Scan with camera', 'Chart or block'])
     const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {})
@@ -108,7 +114,7 @@ describe('P0.6: the phone "+" insert menu', () => {
     vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(function () {
       clicked.push({ accept: this.accept || '', capture: this.getAttribute('capture') })
     })
-    const open = () => fireEvent.click(screen.getByRole('button', { name: 'Insert' }))
+    const open = () => fireEvent.click(insertBtn())
 
     open()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Image' }))
@@ -127,7 +133,7 @@ describe('P0.6: the phone "+" insert menu', () => {
   it('Chart or block opens the widget palette', async () => {
     setPhone(true)
     await mountEditor()
-    fireEvent.click(screen.getByRole('button', { name: 'Insert' }))
+    fireEvent.click(insertBtn())
     fireEvent.click(screen.getByRole('menuitem', { name: 'Chart or block' }))
     expect(await screen.findByRole('dialog', { name: 'Insert widget' })).toBeTruthy()
   }, 60000)

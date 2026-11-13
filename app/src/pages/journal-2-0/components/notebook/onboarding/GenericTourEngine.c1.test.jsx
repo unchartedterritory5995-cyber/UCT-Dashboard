@@ -340,7 +340,7 @@ describe('(b) an in-note start opens a suitable note, never creates one', () => 
     )
     const d = await card('This walkthrough runs inside a note')
     expect(d).toHaveTextContent('You do not have a note it can open yet')
-    expect(d).toHaveTextContent('start it again from Learn')
+    expect(d).toHaveTextContent('start it again from Walkthroughs on the Support page')   // fix round 1 (4h): Learn is gone
     expect(screen.queryByRole('button', { name: 'Add the sample notebook' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Go to the Notebook' }))
     expect(onClose).toHaveBeenCalledTimes(1)

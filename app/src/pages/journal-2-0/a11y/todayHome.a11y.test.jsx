@@ -1,10 +1,12 @@
-// S15 (audit 2026-11-05, M1): the Today home -- the greeting, the five cards with their rows, the empty asks, and the
-// "Open the Notebook on" choice -- read by axe, as the Notebook renders it (inside its main region).
+// S15 (audit 2026-11-05, M1): the Today home (the Daily brief since Notebook simplify, Task 5) -- the greeting, the
+// five cards with their rows, the empty asks, and the folded "Reporting soon" and "Passed setups" below them (they
+// replaced the "Open the Notebook on" choice) -- read by axe, as the Notebook renders it (inside its main region).
 import { describe, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { axeSurface } from './surface'
 import { __resetMyNamesQueue } from '../lib/myNames'
+import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 
 vi.mock('../components/notebook/FirstRunGate', () => ({ FirstRunInlineSlot: () => null }))
 import TodayHome, { TODAY_URL } from '../components/notebook/TodayHome'
@@ -30,12 +32,14 @@ beforeEach(() => {
     ok: true, status: 200, json: () => Promise.resolve(String(url) === TODAY_URL ? TODAY : String(url).startsWith('/api/watchlists') ? [] : {}),
   })))
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); __resetNotebookFlags() })
 
 describe('the Today home -- axe', () => {
   axeSurface('today-home', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true, notebook_passed_setups_enabled: true })
     render(<MemoryRouter><main><TodayHome onOpenNote={() => {}} onCreateNote={() => {}} onSelectAllNotes={() => {}} /></main></MemoryRouter>)
     expect(await screen.findByTestId('today-plan')).toBeInTheDocument()
-    expect(screen.getByLabelText('Open the Notebook on')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Reporting soon/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Passed setups/ })).toBeInTheDocument()
   })
 })

@@ -13,6 +13,7 @@ import { WHATS_NEW_COPY } from './journal-2-0/components/notebook/onboarding/tou
 import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
 import { SkipLinkPortal } from '../components/skipLinks'
 import { tourProgress, TOUR_PROGRESS } from './journal-2-0/components/notebook/onboarding/tourProgress'
+import { armedCapabilities, PREVIEW_COPY } from './journal-2-0/components/notebook/onboarding/capabilityList'
 import {
   ANSWER_PREFIX, HELP_SEARCH_ID, NEW_TICKET_HREF, QUICK_ANSWERS_ID, WALKTHROUGHS_ID,
 } from '../components/helpAnchors'
@@ -337,7 +338,7 @@ function PublishSentence() {
  *  Replaying the base tour reuses `startState('notebook-basics')`, which resolves
  *  to the SAME `TOUR_START_STATE` the existing "Take the tour" link already uses
  *  (tourRegistry.js) -- zero behaviour change for the one tour that ships today. */
-// The anchor is components/helpAnchors.js's (one authority: the Help menu and the Learn menu link to it too).
+// The anchor is components/helpAnchors.js's (one authority: the Help menu links to it too).
 export { WALKTHROUGHS_ID }
 
 function WalkthroughsSection() {
@@ -390,6 +391,30 @@ function WalkthroughsSection() {
         })}
       </ul>
     </div>
+  )
+}
+
+/** Help > "What your Notebook can do" (go-live wave 1, A6). It was the first-run welcome's folded preview
+ *  (CapabilityPreview, retired with Research home); here it is a plain section beside the walkthroughs: one line per
+ *  capability ARMED for this member (capabilityList.js, each line on its own flag), no sample promotion, nothing to
+ *  press. It rides the same wave-14 switch as the walkthroughs above it, as the preview did. */
+export function NotebookCapabilitiesSection() {
+  const lines = checklistEnabled(notebookFlag) ? armedCapabilities() : []
+  if (!lines.length) return null
+  return (
+    <section className={styles.faqWrap} aria-labelledby="support-notebook-can-do">
+      <h2 id="support-notebook-can-do" className={`${styles.faqTitle} ${styles.whatsNewTitle}`}>
+        <UIcon name="book" size={13} />
+        {PREVIEW_COPY.heading}
+      </h2>
+      <ul className={styles.capabilityList}>
+        {lines.map((c) => (
+          <li key={c.id} className={styles.capabilityRow}>
+            <strong>{c.label}.</strong> {c.line}
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -539,20 +564,22 @@ export const FAQS = [
     topic: 'notebook',
     q: 'How do I get started with the Notebook?',
     keywords: 'notebook start begin first note new note thesis research write notes getting started tour',
-    a: <>Open the <Link to="/journal/notebook">Notebook</Link> and choose <strong>+ New note</strong>,
-      or start from a thesis. What you write saves as you type. Folders and tags are on the left,
-      and the Notebook home shows what you were working on, your favorites and your active
-      theses.<TourLink /></>,
+    a: <>Open the <Link to="/journal/notebook">Notebook</Link>: it opens on your notes. Choose{' '}
+      <strong>+ New</strong> for a blank note, or the arrow beside it to start from a template such as
+      a thesis. What you write saves as you type. Folders and tags are on the left, and{' '}
+      <strong>Daily brief</strong>, under All notes, shows today&apos;s plan, the setups near your entry
+      and the notes that need a review.<TourLink /></>,
   },
   {
     id: 'notebook-templates-daily-note',
     topic: 'notebook',
     q: 'How do templates and the daily note work?',
     keywords: 'template templates daily note today journal save as template your templates thesis',
-    a: <>Choose <strong>Templates</strong> in the Notebook's toolbar to start a note from a
-      layout — a thesis, a daily note and more. <strong>Today</strong> opens today's daily note,
-      and creates it the first time you open it each day. To reuse a layout of your own, open a
-      note and choose <strong>Save as template</strong> from its menu; it then appears under
+    a: <>On the notes list, open the arrow beside <strong>+ New</strong> and choose{' '}
+      <strong>From a template</strong> to start a note from a layout: a thesis, a daily note and more.{' '}
+      <strong>Today&apos;s note</strong> opens today&apos;s daily note, and creates it the first time you
+      open it each day. To reuse a layout of your own, open a note and choose{' '}
+      <strong>Save as template</strong> from its menu; it then appears under
       <strong> Your templates</strong>.</>,
   },
   {
@@ -577,7 +604,7 @@ export const FAQS = [
       note (from its menu) to keep it out of your lists without deleting it, and
       <strong> Lock</strong> it to switch editing off until you unlock it. Select several notes to
       move, tag, archive or delete them together. Deleted notes go to Trash, where you can restore
-      them.</>,
+      them. Trash and Archived are under <strong>More</strong> in the folders panel.</>,
   },
   {
     id: 'notebook-search-quick-switcher',
@@ -644,8 +671,8 @@ export const FAQS = [
         <li><strong>Word (.docx)</strong> — headings, lists, tables and images as Word's own;
           anything Word has no match for becomes plain text.</li>
       </ul>
-      For one note, use the <strong>Export</strong> menu in the note's toolbar. For a PDF, choose
-      <strong> Print</strong>, then Save as PDF.</>,
+      For one note, use the <strong>Export</strong> menu in the note's toolbar. For a PDF, open
+      <strong> Export</strong>, choose <strong>Print</strong>, then Save as PDF.</>,
   },
   {
     id: 'notebook-offline-conflicted-copies',
@@ -673,14 +700,13 @@ export const FAQS = [
     when: onboardingOn,
     q: 'What is the sample notebook, and how do I remove it?',
     keywords: 'sample notebook example demo notes remove delete tour welcome practice',
-    a: <>When your Notebook is empty, its first screen offers <strong>Add a sample notebook</strong>:
-      five example notes in a folder called "Sample notebook" — a welcome note, a research note, a
-      thesis, a daily note and a checklist — to look around and practise on. It is only offered
-      while you have no notes. To remove it, choose <strong>Remove it</strong> on the strip at the top
-      of the Notebook home; the sample notes move to Trash, where you can still restore them. If you
-      hid that strip, open the "Sample notebook" folder, select its notes and choose{' '}
-      <strong>Move to Trash</strong>. Deleting the folder alone keeps its notes: they move to Unfiled.
-      <TourLink /></>,
+    a: <>When your Notebook is empty, the notes list offers <strong>Add a sample notebook</strong>:
+      five example notes in a folder called "Sample notebook" (a welcome note, a research note, a
+      thesis, a daily note and a checklist) to look around and practise on. It is only offered
+      while you have no notes. To remove it, open <strong>More notebook actions</strong> (the three
+      dots) on the notes list and choose <strong>Remove the sample notebook</strong>; the sample notes
+      move to Trash (under <strong>More</strong> in the folders panel), where you can still restore them. Deleting the folder alone keeps its notes: they
+      move to Unfiled.<TourLink /></>,
   },
   {
     id: 'notebook-sharing-publishing',
@@ -1481,6 +1507,7 @@ export default function Support() {
 
         {!loading && <WhatsNewSection />}
         {!loading && <WalkthroughsSection />}
+        {!loading && <NotebookCapabilitiesSection />}
         {!loading && <QuickAnswers faqs={orderedFaqs} votes={votes} onVote={handleVote} />}
         {/* TERM-039: what is here today and what is on early for this account. */}
         {!loading && <FeatureStatusStrip />}
