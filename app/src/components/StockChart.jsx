@@ -5097,6 +5097,10 @@ export default function StockChart({
   // ⚠️ `lastBarSymRef` below already stamps the DEVELOPING bar for the same reason;
   // this is the same guard for the BASE bar, which that one never covered.
   const prevBarsSymRef = useRef(null)
+  // ⛔ …AND OF WHICH TIMEFRAME. The readout shows the newest bar of the CURRENT key or
+  // nothing: during a timeframe-switch hold the series still holds the OUTGOING timeframe's
+  // bars (updateChart keeps them on screen), and they are not the new key's newest bar.
+  const prevBarsTfRef = useRef(null)
   // A2: the bars actually PAINTED at the last setData (i.e. displayBars, which carries
   // the session-preview candle). Distinct from prevBarsRef (pure regular-session bars):
   // the no-op/incremental render plan must be measured against what's on screen, or a
@@ -5918,6 +5922,9 @@ export default function StockChart({
     // `_legendSymOk` below guards only the DEVELOPING bar and the live-price
     // overlay; the base o/h/l/c was taken from this array unconditionally.
     if (prevBarsSymRef.current !== symRef.current) return null
+    // The same identity, for the timeframe: a held switch (the outgoing tf's bars still on
+    // screen) prints nothing until the new key's own bars are painted.
+    if (prevBarsTfRef.current !== resolvedTfRef.current) return null
     const last = bars[bars.length - 1]
     let o = last.o, h = last.h, l = last.l
     let c = last.c
@@ -10833,6 +10840,7 @@ export default function StockChart({
       // its own feedback-loop history — this fix is about data identity, not framing.
       prevBarsRef.current = null
       prevBarsSymRef.current = null
+      prevBarsTfRef.current = null
       return
     }
 
@@ -14029,6 +14037,7 @@ export default function StockChart({
     // `symRef` is mirrored, which stamped B's bars as A — the readout then saw a
     // mismatch and printed NOTHING (the A → blank → B legend flicker).
     prevBarsSymRef.current = sym   // whose bars these are — see the ref's note
+    prevBarsTfRef.current = resolvedTf   // …and of which timeframe (the same render's own tf)
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
     // ⚠️ `userDefsGeneration` IS A DEPENDENCY ON MODULE STATE, AND IT IS
@@ -18222,6 +18231,7 @@ export default function StockChart({
         lastCfgSigRef.current = null
         prevBarsRef.current = null
         prevBarsSymRef.current = null           // the stamp goes with the bars it names
+        prevBarsTfRef.current = null
         prevPaintBarsRef.current = null
         lastBarCountRef.current = 0
         zoomKeyRef.current = null
