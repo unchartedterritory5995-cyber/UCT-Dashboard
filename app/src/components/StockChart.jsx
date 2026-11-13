@@ -1590,6 +1590,7 @@ import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
+import { armServerWarm } from './chart/engine/serverWarm'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalDomain, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
 import { primaryChartTypeFor, primaryChartTypesFor } from './chart/engine/sourceCapability'
@@ -1635,6 +1636,13 @@ const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
 engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
   ? import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.ensureRuntimeLane())
   : Promise.reject(new Error('the runtime pane is switched off'))))
+
+// ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
+// prefetch already knows which symbols are next; this registers the lane's warmer with it
+// (`engine/serverWarm.js`) so an RS pane draws with its candles on a list scan instead of
+// 1-2 s after them. ⛔ REGISTERED HERE, in the chart's module, for the reason above: a page
+// that never loads a chart never arms it, and it adds nothing to another route's bytes.
+armServerWarm()
 
 const NOOP = () => {}
 

@@ -3629,6 +3629,14 @@
   },
   "knobs": {
     "_readme": "X-16 (TERMINAL-NEXT ledger hygiene, 2026-10-02). Env vars that DECIDE behaviour but that `flags` cannot hold, because its rail admits only names the AST index classifies as a gate (ENABLED/DISABLE/_ON), a visibility flag or a *_MODE_FLAGS entry: a CUTOVER switch, a SAMPLE RATE, and a gate that lives in ANOTHER REPO. Each row says where it is read and what its unset value does. tests/test_flag_ledger_knobs.py holds every `repo: uct-dashboard` row to the AST scan (a name the code no longer reads fails) and every row to the same status vocabulary as `flags`.",
+    "PY_SWITCH_INTERVAL_MS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/gil_tuning.py::apply (read once at web boot from api/main.py's lifespan; milliseconds; blank means the default; a value that is not a number in [0.05, 10] is REFUSED and the interpreter's interval is left as it was)",
+      "kind": "config",
+      "status": "armed",
+      "default": "0.5",
+      "note": "2026-11-12: the interpreter's thread switch interval for the web process. The default IS the decision: 0.5 ms, set on no service. CPython's own default is 5 ms, and a row-by-row sqlite read waits one interval per row while any other thread runs Python: 852 rows measured 1.7 ms alone and ~1,640 ms beside one busy thread, which is what Server-Timing rs-bars showed on every cold /api/signature/columns ask (a chart's RS panes blank 1.2 to 2.0 s behind its candles). Set 5 to restore the interpreter default; the boot line `[startup] thread switch interval` prints the value in force. Rail: tests/test_gil_tuning.py."
+    },
     "SESSION_DEVICE_LIMIT": {
       "repo": "uct-dashboard",
       "read_at": "api/services/session_guard.py::device_limit (read per call at sign-in from auth_service; integer >= 0; blank or unparseable means the default)",
