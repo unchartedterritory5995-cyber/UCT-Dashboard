@@ -269,9 +269,11 @@ def test_no_post_event_bar_reaches_an_events_conditioning_or_selection(monkeypat
         for i, d in enumerate(S):
             if upto is not None and i > upto:
                 break
-            c = _wavy(i) * (3.0 if poison and i > CUT else 1.0)        # a wildly different future
-            o = _wavy(i - 1) * (1.012 if i % 7 == 0 else 0.997) if i else c
-            out.append({"t": d, "o": o * (3.0 if poison and i > CUT else 1.0), "h": 0, "l": 0, "c": c, "v": 0})
+            # a wildly different future: every post-T bar swings x0.3 / x3 (crash first), so any peek moves a value
+            f = (0.3 if (i - CUT) % 2 else 3.0) if poison and i > CUT else 1.0
+            c = _wavy(i) * f
+            o = _wavy(i - 1) * (1.012 if i % 7 == 0 else 0.997) * f if i else c
+            out.append({"t": d, "o": o, "h": 0, "l": 0, "c": c, "v": 0})
         return out
 
     def study(b, end=None):
