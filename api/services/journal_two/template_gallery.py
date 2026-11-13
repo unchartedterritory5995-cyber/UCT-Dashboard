@@ -2432,7 +2432,7 @@ def unpublish(user_id: str, gallery_id: str, conn: sqlite3.Connection | None = N
 # nowhere else; publish asks the reducer for no report at all, so there is nothing of it to store or log.
 
 EXAMPLE_STYLE_SENTENCE = "Pick one of your own shared styles."
-EXAMPLE_KIND_SENTENCE = "This note is a different kind from the style."
+EXAMPLE_KIND_SENTENCE = "This note is a different note type from the style."
 EXAMPLE_TOO_LONG_SENTENCE = "That note is too long to share as an example. Trim it and try again."
 #: The gallery image route an example's switched-on image is rewritten to (Task 4 serves it); `n` is the
 #: image's place in the reduced body, from 0. It must match `public.EXAMPLE_IMAGE_ROUTE`.

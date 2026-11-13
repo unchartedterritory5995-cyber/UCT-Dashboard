@@ -89,7 +89,7 @@ def _clean_name(raw: Any) -> str:
         raise KindValidationError("A note type needs a name.")
     name = " ".join(raw.split())
     if len(name) > MAX_KIND_NAME_CHARS:
-        raise KindValidationError(f"A kind's name can be at most {MAX_KIND_NAME_CHARS} characters.")
+        raise KindValidationError(f"A note type's name can be at most {MAX_KIND_NAME_CHARS} characters.")
     return name
 
 
@@ -144,10 +144,10 @@ def create_kind(user_id: str, name: Any, icon: Any = None, conn: sqlite3.Connect
     conn = conn or get_connection()
     try:
         if _taken(user_id, clean, conn):
-            raise KindValidationError(f"There is already a kind called {clean}.")
+            raise KindValidationError(f"There is already a note type called {clean}.")
         n = conn.execute("SELECT COUNT(*) AS c FROM j2_note_kinds WHERE user_id = ?", (user_id,)).fetchone()["c"]
         if n >= MAX_KINDS_PER_MEMBER:
-            raise KindValidationError(f"You can keep up to {MAX_KINDS_PER_MEMBER} kinds of note.")
+            raise KindValidationError(f"You can keep up to {MAX_KINDS_PER_MEMBER} note types.")
         kid = MEMBER_KIND_PREFIX + uuid.uuid4().hex
         try:
             conn.execute("INSERT INTO j2_note_kinds (id, user_id, name, icon, sort_order, created_at)"
@@ -156,7 +156,7 @@ def create_kind(user_id: str, name: Any, icon: Any = None, conn: sqlite3.Connect
         except sqlite3.IntegrityError:
             # Lost a same-name race (a double-clicked button): the unique index is the authority.
             conn.rollback()
-            raise KindValidationError(f"There is already a kind called {clean}.")
+            raise KindValidationError(f"There is already a note type called {clean}.")
         return get_kind(user_id, kid, conn)
     finally:
         if owned:
@@ -166,7 +166,7 @@ def create_kind(user_id: str, name: Any, icon: Any = None, conn: sqlite3.Connect
 def update_kind(user_id: str, kind_id: str, *, name: Any = None, icon: Any = None,
                 sort_order: Any = None, conn: sqlite3.Connection | None = None) -> dict | None:
     if kind_id in BUILTIN_KIND_IDS:
-        raise KindValidationError("Built-in kinds can't be changed. Make your own kind instead.")
+        raise KindValidationError("Built-in note types can't be changed. Make your own note type instead.")
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -176,7 +176,7 @@ def update_kind(user_id: str, kind_id: str, *, name: Any = None, icon: Any = Non
         if name is not None:
             clean = _clean_name(name)
             if _taken(user_id, clean, conn, except_id=kind_id):
-                raise KindValidationError(f"There is already a kind called {clean}.")
+                raise KindValidationError(f"There is already a note type called {clean}.")
             sets.append("name = ?"); params.append(clean)
         if icon is not None:
             sets.append("icon = ?"); params.append(_clean_icon(icon))
@@ -236,7 +236,7 @@ def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = No
     member's soft-deleted styles of the kind are KEPT while wave 11 is on (n = 0, c3 / W11-R10) and hard-deleted,
     as on master, while it is off (n = how many)."""
     if kind_id in BUILTIN_KIND_IDS:
-        raise KindValidationError("Built-in kinds can't be deleted.")
+        raise KindValidationError("Built-in note types can't be deleted.")
     from api.services.journal_two.notes import _begin_immediate
     owned = conn is None
     conn = conn or get_connection()
@@ -256,11 +256,11 @@ def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = No
                              + (f" ({notes_trashed} in Trash)" if notes_trashed else ""))
             if styles_n:
                 parts.append(f"{styles_n} style{'s' if styles_n != 1 else ''}")
-            tail = ("Restore or empty the ones in Trash, and move the rest to another kind first."
-                    if notes_trashed else "Move them to another kind first.")
+            tail = ("Restore or empty the ones in Trash, and move the rest to another note type first."
+                    if notes_trashed else "Move them to another note type first.")
             if started:
                 conn.rollback()
-            raise KindInUse(f"This kind is used by {' and '.join(parts)}. {tail}")
+            raise KindInUse(f"This note type is used by {' and '.join(parts)}. {tail}")
         purged = 0
         if not _keeps_deleted_styles() and _has_styles_table(conn):
             purged = conn.execute("DELETE FROM j2_journal_styles WHERE user_id = ? AND kind_id = ?"
