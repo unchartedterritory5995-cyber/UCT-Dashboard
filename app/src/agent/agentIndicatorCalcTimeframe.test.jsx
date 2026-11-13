@@ -4,7 +4,7 @@
 // Proves: one write of one leaf; the chart's own timeframe never moves; every refusal is the product's own reason; no-op is
 // honest; exact Undo (CHART = the absent key); stale Undo refused; targeting (two RSIs, every chart); and the terminology
 // split (calc vs show-on vs the chart's timeframe), including an unclear "put the RSI on weekly" that ASKS.
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { registerBuiltins } from './builtins'
 import { buildContext, getCapability } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
@@ -152,6 +152,14 @@ describe('C2 / C4 — refusals in the product\'s own words; never coerced, never
   it('a LOWER frame than the chart: the select\'s own note', async () => {
     const why = await refused(host([L()]), [op('L', 'inst:rsi:1', '5 minute')])
     expect(why).toMatch(/A 5m calculation can't be shown on a 1D chart/)
+    // (AUDIT #1171 ruling 1) the product door that CAN store it is named; nothing is coerced to the chart's frame or a higher one
+    expect(why).toMatch(/The indicator's own Timeframe setting \(Chart Settings → Indicators\) can still store it/)
+    for (const tf of ['1 minute', '15 minute', '1 hour']) {
+      const h = host([L()])
+      const w2 = await refused(h, [op('L', 'inst:rsi:1', tf)])
+      expect(w2, tf).toMatch(/can't be shown on a 1D chart.*can still store it/)
+      expect(calcOf(h, 'L', 'inst:rsi:1'), tf).toBeUndefined()
+    }
   })
   it.each(['4 hour', 'quarterly', '13 minute', '2 days'])('an unsupported frame "%s" asks with the real choices, never coerced', async (tf) => {
     const why = await refused(host([L()]), [op('L', 'inst:rsi:1', tf)])
@@ -203,6 +211,30 @@ describe('C7 — stale Undo and alerts', () => {
     const { res } = await run(h, [op('L', 'inst:rsi:1', 'W')])
     expect(res.ok).toBe(true)
     expect(res.lines.join(' ')).toMatch(/your alert on RSI.* still runs on daily bars, so it now watches a different line than the chart draws — the alert was not changed/)
+  })
+  // (AUDIT #1171 ruling 2) information only, from the loaded list: an alert armed from ANOTHER instance, or an INACTIVE one, is never mentioned
+  it.each([
+    ['armed from a different instance', [{ id: 2, sym: 'NVDA', indicator: 'rsi', tf: 'D', active: true, instance_id: 'inst:rsi:2' }]],
+    ['inactive (paused)', [{ id: 3, sym: 'NVDA', indicator: 'rsi', tf: 'D', active: false, instance_id: 'inst:rsi:1' }]],
+    ['on another symbol', [{ id: 4, sym: 'AAPL', indicator: 'rsi', tf: 'D', active: true, instance_id: 'inst:rsi:1' }]],
+    ['already on the new frame', [{ id: 5, sym: 'NVDA', indicator: 'rsi', tf: 'W', active: true, instance_id: 'inst:rsi:1' }]],
+  ])('an alert %s: no note', async (_w, rows) => {
+    await loadIndicatorAlerts({ indicatorAlerts: { list: () => rows } })
+    const h = host([L()])
+    const { res } = await run(h, [op('L', 'inst:rsi:1', 'W')])
+    expect(res.ok).toBe(true)
+    expect(res.lines.join(' ')).not.toMatch(/alert/i)
+  })
+  it('the note never reads the server, never confirms, never writes: one chart write, no alert call', async () => {
+    const list = vi.fn(() => [{ id: 1, sym: 'NVDA', indicator: 'rsi', tf: 'D', active: true, instance_id: 'inst:rsi:1' }])
+    await loadIndicatorAlerts({ indicatorAlerts: { list } })
+    const calls = list.mock.calls.length
+    const h = host([L()])
+    const { p, res } = await run(h, [op('L', 'inst:rsi:1', 'W')])
+    expect(res.ok).toBe(true)
+    expect(list.mock.calls.length).toBe(calls)
+    expect(h.writes.length).toBe(1)
+    expect(p.lines.join(' ')).not.toMatch(/confirm|approve/i)
   })
 })
 

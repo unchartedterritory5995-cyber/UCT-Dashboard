@@ -257,6 +257,8 @@ export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
       // ⭐ P2: the op's own allowed values (`detail.options`: values, or {label} rows)
       if (!allowed && Array.isArray(d.options) && d.options.length) allowed = ` It can be ${d.options.map(o => (o && typeof o === 'object' ? (o.label ?? o.value ?? o.target) : o)).join(', ')}.`
       // calc-TF family: the product's own reason it follows the chart's timeframe (CAPABILITY_WORDS / the select's note)
+      // (AUDIT #1171 ruling 1) a lower / straddling frame: the Inspector's Timeframe select CAN store it — say so; never coerced
+      if (op === 'setCalculationTimeframe' && d.relation) return `I didn't change its calculation timeframe: ${d.why}. Nothing was changed. The indicator's own Timeframe setting (Chart Settings → Indicators) can still store it, and the chart would then show that same note and calculate it on the chart's own bars.`
       if (op === 'setCalculationTimeframe' && (d.capability || d.relation)) return `I didn't change its calculation timeframe: ${d.why}. Nothing was changed.`
       return `I didn't ${op === 'setInputs' || P2_OPS.has(op) ? 'change it' : 'add it'}: ${d.why || 'that setting is not valid'}.${allowed} Nothing was changed.`
     }
