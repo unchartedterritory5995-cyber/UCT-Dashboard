@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouteOpened } from '../../lib/notebookUsage'
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import LoadFailed from '../LoadFailed'
 import Sheet from '../../../../components/mobile/Sheet'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
-import { BOARD_URL } from '../../lib/setupsBoardLink'
+import { BOARD_URL, fromDailyBrief } from '../../lib/setupsBoardLink'
+import { NOTEBOOK_TODAY_TO } from '../../lib/notebookDoors'
 import { chartPlanEnabled } from '../../lib/widgetEmbedCore'
 import useStaggeredMount from '../../../charts/grid/useStaggeredMount'
 import { makeGridWarmer } from '../../../charts/grid/gridWarm'
@@ -220,6 +221,11 @@ export default function SetupsBoard() {
   useRouteOpened('setups_board', boardOn)   // follow-up A: only when the board itself renders
   const similarOn = findSimilarEnabled()
   const [params, setParams] = useSearchParams()
+  // Follow-up B, item 1c: where the member came from rides in router state (the Daily brief's link sets it). The
+  // "Find more like this" sheet rewrites the address in place, so it carries the state along or the way back would
+  // flip to "Back to Notebook" after the sheet closed.
+  const routeState = useLocation().state
+  const fromBrief = fromDailyBrief(routeState)
   const [picked, setPicked] = useState(() => {
     const raw = params.get('similar')
     if (!raw || !raw.includes(':')) return null
@@ -228,12 +234,12 @@ export default function SetupsBoard() {
   })
   const open = useCallback((t) => {
     setPicked(t)
-    setParams((p) => { const n = new URLSearchParams(p); n.set('similar', `${t.noteId}:${t.embedKey}`); return n }, { replace: true })
-  }, [setParams])
+    setParams((p) => { const n = new URLSearchParams(p); n.set('similar', `${t.noteId}:${t.embedKey}`); return n }, { replace: true, state: routeState })
+  }, [setParams, routeState])
   const close = useCallback(() => {
     setPicked(null)
-    setParams((p) => { const n = new URLSearchParams(p); n.delete('similar'); return n }, { replace: true })
-  }, [setParams])
+    setParams((p) => { const n = new URLSearchParams(p); n.delete('similar'); return n }, { replace: true, state: routeState })
+  }, [setParams, routeState])
 
   // Both capabilities off: the route sends the member back to the Notebook (as My Playbook
   // sends them to Insights) instead of a page that says a dark feature exists.
@@ -241,9 +247,10 @@ export default function SetupsBoard() {
   return (
     <div className={styles.page} data-setups-page="">
       {/* P0.5: the board had no way back; a member who followed the home's door could only use the
-          browser's Back. A real link to the Notebook home, above the title. */}
-      <Link to="/journal/notebook" className={styles.backLink}>
-        <UIcon name="chevronLeft" size={14} gold={false} /> Back to Notebook
+          browser's Back. A real link to the Notebook home, above the title. Follow-up B, item 1c: back to the Daily
+          brief when the member came from it. */}
+      <Link to={fromBrief ? NOTEBOOK_TODAY_TO : '/journal/notebook'} className={styles.backLink}>
+        <UIcon name="chevronLeft" size={14} gold={false} /> {fromBrief ? 'Back to Daily brief' : 'Back to Notebook'}
       </Link>
       <h1 className={styles.pageTitle}>Setups</h1>
       {boardOn && <Board onFindSimilar={similarOn ? open : null} />}

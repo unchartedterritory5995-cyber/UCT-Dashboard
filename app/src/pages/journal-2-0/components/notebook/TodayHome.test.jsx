@@ -4,7 +4,7 @@
 // not drawn; the two first-run asks are compact; one quiet line when nothing else is drawn; the header's one button is
 // today's note (Start / Open / the Trash pair).
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const draftDailyReview = vi.fn()
@@ -22,6 +22,7 @@ import TodayHome, {
   msUntilET,
 } from './TodayHome'
 import { TODAY_READ_URL } from '../../lib/todayHome'
+import { FROM_DAILY_BRIEF } from '../../lib/setupsBoardLink'
 import { CAPTURE_OPEN_EVENT } from '../../lib/captureBus'
 import { NAMES_ASK } from './EmptyNamesAsk'
 import { FIRST_PLAN } from './FirstPlanAsk'
@@ -538,6 +539,23 @@ describe('the Daily brief', () => {
     await screen.findByTestId('today-plan')
     expect(screen.queryByRole('button', { name: /^Reporting soon/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Passed setups/ })).toBeNull()
+  })
+})
+
+// Follow-up B, item 1c: the brief's "Open the setups board" says where the member came from, in router state, so the
+// board's way back returns to the brief (SetupsBoard.test.jsx holds the other half).
+describe('the setups board link carries where the member came from', () => {
+  it('"Open the setups board" moves to the board with the Daily brief in router state, and no URL parameter', async () => {
+    function Spy() {
+      const l = useLocation()
+      return <div data-testid="loc">{`${l.pathname}${l.search}|${JSON.stringify(l.state)}`}</div>
+    }
+    render(
+      <MemoryRouter initialEntries={['/journal/notebook?view=today']}>
+        <TodayHome onOpenNote={vi.fn()} onOpenToday={vi.fn()} /><Spy />
+      </MemoryRouter>)
+    fireEvent.click(await screen.findByRole('link', { name: 'Open the setups board →' }))
+    expect(screen.getByTestId('loc').textContent).toBe(`/journal/notebook/setups|${JSON.stringify({ from: FROM_DAILY_BRIEF })}`)
   })
 })
 

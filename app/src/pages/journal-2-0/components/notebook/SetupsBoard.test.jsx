@@ -41,6 +41,7 @@ import { prefetchListAllTimeframes } from '../../../../utils/prefetchBars'
 import { Providers } from '../../a11y/fixtures'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { contract, contractBody } from '../../__fixtures__/contract'
+import { FROM_DAILY_BRIEF } from '../../lib/setupsBoardLink'
 
 const BOARD = contractBody('setups-board.forty')
 const CARDS = BOARD.cards
@@ -201,6 +202,32 @@ describe('SetupsBoard', () => {
     // it sits above the page title
     const title = screen.getByRole('heading', { level: 1, name: 'Setups' })
     expect(back.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  // Follow-up B, item 1c: a member who came from the Daily brief's "Open the setups board" goes back to the brief.
+  // Where they came from rides in router state (no URL parameter), and survives the "Find more like this" sheet,
+  // which rewrites the address in place.
+  it('from the Daily brief, the way back reads "Back to Daily brief" and returns there, also after the sheet', async () => {
+    latchNotebookFlags({ notebook_setups_board_enabled: true, notebook_find_similar_enabled: true })
+    const board = contractBody('setups-board')
+    const tagged = board.cards.filter((c) => c.similarEmbedKey)
+    stub([
+      [/\/api\/j2\/setups-board$/, board],
+      [/\/api\/j2\/similar-names\/templates$/, contractBody('similar-names.templates')],
+      [new RegExp(`/api/j2/similar-names/${tagged[0].noteId}/${tagged[0].similarEmbedKey}$`), MATCHES],
+    ])
+    render(
+      <Providers route={{ pathname: '/journal/notebook/setups', state: { from: FROM_DAILY_BRIEF } }}>
+        <SetupsBoard />
+      </Providers>)
+    const back = await screen.findByRole('link', { name: 'Back to Daily brief' })
+    expect(back.getAttribute('href')).toBe('/journal/notebook?view=today')
+    expect(screen.queryByRole('link', { name: 'Back to Notebook' })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'Find more like SBNV' }))
+    await screen.findByText('SM01')
+    fireEvent.keyDown(document.activeElement || document.body, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByText('SM01')).toBeNull())
+    expect(screen.getByRole('link', { name: 'Back to Daily brief' }).getAttribute('href')).toBe('/journal/notebook?view=today')
   })
 
   it('when only examples show, it does not claim "No open setups yet." above them', async () => {

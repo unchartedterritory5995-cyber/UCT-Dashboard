@@ -57,7 +57,7 @@ import { TIPS_PREF } from '../../lib/notebookTips'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
 import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
-import { SETUPS_BOARD_PATH } from '../../lib/setupsBoardLink'
+import { FROM_DAILY_BRIEF, SETUPS_BOARD_PATH } from '../../lib/setupsBoardLink'
 import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
 import { passedSetupsEnabled } from '../../lib/researchCapture'
 import { NOTEBOOK_PREP_HASH } from '../../lib/notebookDoors'
@@ -377,7 +377,7 @@ function SetupsCard({ setups, reason, onOpenNote, onRetry }) {
       )}
       {setups.count > 0 && (
         <div className={styles.cardFoot}>
-          <Link className={styles.action} to={SETUPS_BOARD_PATH}>
+          <Link className={styles.action} to={SETUPS_BOARD_PATH} state={{ from: FROM_DAILY_BRIEF }}>
             {setups.more > 0 ? `${setups.more} more on the setups board →` : 'Open the setups board →'}
           </Link>
         </div>
