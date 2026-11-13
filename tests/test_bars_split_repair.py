@@ -268,7 +268,7 @@ class TestTheWireIsNotCut:
     def test_serving_a_chart_repairs_the_store_behind_it(self, fresh_db, monkeypatch):
         from api.services.cache import cache
         bars, declared_iso, boundary = _plant_unadjusted_split()
-        cache.set(san._META_KEY.format("DD"),
+        san._META_CACHE.set(san._META_KEY.format("DD"),
                   {"ipo": None, "splits": _declared(declared_iso)}, ttl=3600)
 
         ran: list = []
@@ -299,7 +299,7 @@ class TestTheWireIsNotCut:
         wrong reason."""
         from api.services.cache import cache
         days = _sessions(datetime.date(2024, 1, 2), 300)
-        cache.set(san._META_KEY.format("CLEAN"),
+        san._META_CACHE.set(san._META_KEY.format("CLEAN"),
                   {"ipo": None, "splits": [(days[200].isoformat(), 2.0)]}, ttl=3600)
         ran: list = []
         monkeypatch.setattr(rep, "repair_ticker",
