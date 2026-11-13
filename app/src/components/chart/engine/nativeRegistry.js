@@ -3424,6 +3424,14 @@ function copyColumns(out) {
  *  run serves (`na` with `na`, a number to 1e-9 of its size). That is what proves the run's
  *  drawings belong to the plots beside them on THIS chart; one bar off and the host picture
  *  stays.
+ *  ⛔⛔ ENGINE 54 — and before the run is asked, the document must still digest to the program
+ *  stamp its door wrote (`runHalfProgram.js`, `run-half:program-unbound`); after the column rail,
+ *  THE OBJECT RAIL (`runHalfObjectRail.js`, registered through `runHalfRailSeam.js`): at every
+ *  create site the host draws, the run's objects made at the same source call must be the host's
+ *  (`run-half:object-rail`, `run-half:host-object-withheld`), and a run half with nothing
+ *  comparable is refused (`run-half:no-comparable-objects`) unless recorded evidence admits its
+ *  script. A drawing-only script (no plot mapped) is therefore never served on its gates alone.
+ *  Every answer is noted for the refusal telemetry (`runHalfTelemetry.js`).
  *  The answer rides non-enumerable (`runtimeObjects.js::RUN_HALF_KEY`): `served` with the
  *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),
  *  `pending` while the run is in flight, `refused` with its code. `ctx` absent (a probe that
