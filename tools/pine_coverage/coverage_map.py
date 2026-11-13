@@ -159,13 +159,13 @@ LEGACY_COLOURS = {"aqua", "black", "blue", "fuchsia", "gray", "green", "lime", "
 
 # ⭐⭐ WS-I Part 2 (2026-11-13): THE DETECTOR LIVES IN api/services/pine_capabilities.py, the ONE
 # authority the runtime lane's capability admission asks. The census re-imports it, never a copy:
-# strip_code, version_of, FEATURES (and conditional-ta's COND_TA_RX), usage_of, KEYWORD_FEATURE,
+# strip_code, version_of, FEATURES + features_of (conditional-ta is a line scan), usage_of, KEYWORD_FEATURE,
 # the engine's order set (PINE_JS, engine_order_calls, order_calls_in).
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 from api.services.pine_capabilities import (  # noqa: E402
-    COND_TA_RX, FEATURES, KEYWORD_FEATURE, METHOD_CALL_RX, PINE_JS, engine_order_calls, order_calls_in,
-    strip_code, usage_of, version_of,
+    FEATURES, KEYWORD_FEATURE, METHOD_CALL_RX, PINE_JS, conditional_ta_in, engine_order_calls, features_of,
+    join_continuations, order_calls_in, strip_code, usage_of, version_of,
 )
 
 

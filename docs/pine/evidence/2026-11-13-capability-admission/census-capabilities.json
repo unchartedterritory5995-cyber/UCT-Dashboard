@@ -71,6 +71,7 @@
 "ternary"
 ],
 "0266aea9412cad1edec32fafa193308f0f791212dfc7c57e2b9c0615abe600b6":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -104,6 +105,7 @@
 "ternary"
 ],
 "02d7afbba807d4069e700981a8821ebfdf7e017ccea73693506fda4f6e4f3085":[
+"collections:array",
 "core",
 "for",
 "if-block",
@@ -123,6 +125,7 @@
 "ternary"
 ],
 "04253c18ca56d93d7f109888348eeb4bc95cf31828bf79535b317b04837bb88d":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -156,6 +159,7 @@
 "var"
 ],
 "05b4e3829bd291248c8f4179972386bdc96880d9e122eb5ef7dd0f546e0876c2":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -167,6 +171,7 @@
 "var"
 ],
 "06014dc7d444cd1a9e298d6282ec7f6eb197cc481aa2b9bf9001fb1977b714db":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -209,6 +214,7 @@
 "var"
 ],
 "076a507200dae1630c5ea8ff248aa986e329ce5b794a273b32f6335ba5df4883":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -241,12 +247,14 @@
 "ternary"
 ],
 "0851b97b8012d0f6781cdac6236e570bb83cb7b749f4b52981e6e255d6f160ea":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "if-block",
 "import",
 "method-call",
@@ -278,6 +286,7 @@
 "var"
 ],
 "0905a0a5cdb86fb4e7fc16b6724947257219b9fd04eae5c1ae69af8fbbed0481":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -306,6 +315,7 @@
 "method-call"
 ],
 "0a29a4498e48c8de7837c553523659b5023ad26be5a0160f04a1aa4fe961de1a":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -341,10 +351,12 @@
 "var"
 ],
 "0b2d134ea2e4f37d185b28e9860587a371b02d0085a61efea214443c6666cd4a":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "history-expr",
 "if-block",
 "import",
@@ -386,6 +398,7 @@
 "tuple-destructure"
 ],
 "0c59a784b072d46c52a8113b8a8971be112cdf5945833f450d9e06468c893c7f":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -446,12 +459,14 @@
 "ternary"
 ],
 "0dadc5f08b124ae1b248ae74c47ac818be83808e1fbf1c5ec4578e15b601fab2":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
 "fn-single",
 "for",
 "for-in",
+"generics",
 "history-expr",
 "if-block",
 "max_bars_back",
@@ -539,6 +554,7 @@
 "var"
 ],
 "10d426d5d3dbdb1fb8d8a376ea7923f4836d2809fc4e22c6d17b9835150fa189":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -546,6 +562,7 @@
 "fn-single",
 "for",
 "for-in",
+"generics",
 "history-expr",
 "if-block",
 "max_bars_back",
@@ -587,6 +604,7 @@
 "var"
 ],
 "1239897afcb4387cda046a0422636231d3db6d7f4f5d4d8f8d7ef0186db83a84":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -600,6 +618,7 @@
 "var"
 ],
 "1257ce608027efbc0b159c3a9922b8352f29d03f6516a9dd3a12e07bb89c331c":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -693,6 +712,8 @@
 "var"
 ],
 "151cf3d9e60c2aaadea76fb74bbd5616c5df8114aa4ca8bb994e38f4187b2927":[
+"collections:array",
+"collections:matrix",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -744,6 +765,7 @@
 "var"
 ],
 "16548b760bccf53cd31a12e0b57f7fb38de40577c2587d4e8f02ce6e594bf567":[
+"collections:array",
 "core",
 "for",
 "if-block",
@@ -781,6 +803,7 @@
 "var"
 ],
 "16ffd9a1a66cbdfc0e3e2bc85a5da02374752139f7ba4ed79cecf8c7642899d0":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -824,6 +847,7 @@
 "strategy-decl"
 ],
 "18279b6aa3fbba7499888e5066d95d7664904b560caa2b65be1a51e27743ef99":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -842,6 +866,7 @@
 "var"
 ],
 "186a0e233ff03634a42d09d86e3e4dea0db6c5f875e527226588a05b4786e1a2":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -885,6 +910,7 @@
 "var"
 ],
 "18dc72b7be9f444d2f10f1812a6013f37ba34f39a791dc75354a4736fd4d357e":[
+"collections:array",
 "compound-assign",
 "core",
 "for",
@@ -901,6 +927,7 @@
 "while"
 ],
 "191a9be38d64e191f40ac5db615063a07ada4da8c0fb4dd7a7f538baa5f5ce03":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -988,6 +1015,7 @@
 "core"
 ],
 "1c714330db12f6010f7154315e9aa8d5f4e79d9faefc016723146662421e8580":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -1008,6 +1036,7 @@
 "ternary"
 ],
 "1cc29accaa44455f74e80d5ccc2e379b26f8c8ca819e476e43e6203a768f0047":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -1024,6 +1053,7 @@
 "var"
 ],
 "1d39ab50b74c2194ef276fadcdc1abef9ea4057f68bdeb4ec7349614533b2f18":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -1070,6 +1100,7 @@
 "var"
 ],
 "1e18b1f267089fa33b7f5abb3f41d36cef5f968ce98183777fdc18a93ff15a7b":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -1211,6 +1242,7 @@
 "core"
 ],
 "219d069e03903f4e9ccd0a7e042f96adc37714efcfc12706645db482df092822":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -1258,9 +1290,12 @@
 "ternary"
 ],
 "22bb546d9390ecccf6cacd1f8871ddfb4b14b7073577203bd49b375ce397ca14":[
+"collections:array",
+"collections:matrix",
 "compound-assign",
 "core",
 "for",
+"generics",
 "history-expr",
 "if-block",
 "method-call",
@@ -1276,6 +1311,7 @@
 "var"
 ],
 "22f09e2c06bb2de8fcf9334f6374582cbf0a8eaffa0b058f3b80e36be71707f2":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -1283,6 +1319,7 @@
 "fn-single",
 "for",
 "for-in",
+"generics",
 "if-block",
 "import",
 "method-call",
@@ -1323,6 +1360,7 @@
 "ternary"
 ],
 "24e6ac05b1680a28e66da49a6c4756ccf49a81ab33834c928a8ba0765f9f5835":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -1348,6 +1386,7 @@
 "var"
 ],
 "25a1edaacc7adb843e9bf401e9c892a08f14d4203af51b8c8b17649d21e80168":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -1357,6 +1396,7 @@
 "ternary"
 ],
 "25ab74b6854585b4cba7e4120aa13263d564621c0e7158459ad5c3373a70642f":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -1432,6 +1472,7 @@
 "core",
 "for",
 "for-in",
+"generics",
 "if-block",
 "method-call",
 "obj:box",
@@ -1468,6 +1509,7 @@
 "core"
 ],
 "2a9289f3243add434329cb06bc559e148d4bac69845118c74ceccc12f71c1c76":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -1497,6 +1539,7 @@
 "var"
 ],
 "2ada1e6b54506e5f281e4c549eb62480871052279409d0af3bc07360b30a042a":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -1517,6 +1560,7 @@
 "varip"
 ],
 "2b147e539483d003e4292e27ac9eda993205002ed17b15ad5af951298a65ada8":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -1544,6 +1588,7 @@
 "tuple-destructure"
 ],
 "2c579c89e66cd022f8cc5d1e68b54de1c1c1f785d4abb50621571e95fb750fd5":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -1567,6 +1612,7 @@
 "ternary"
 ],
 "2d34f6b389ee4448beffa52f9e2249049f6b9365630e02bef57c7d9e09edfc8c":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -1587,12 +1633,15 @@
 "ternary"
 ],
 "2d6f141bc96302fa0f85e542138b315d5a99bbae3e88bb0799496cd50c3c2b7d":[
+"collections:array",
+"collections:matrix",
 "compound-assign",
 "conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "if-block",
 "import",
 "max_bars_back",
@@ -1605,6 +1654,7 @@
 "var"
 ],
 "2da873c228b9a0819a6c0244706ebbc2d44b19a65dd4074f2d9a525f40d657a9":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -1628,6 +1678,7 @@
 "core"
 ],
 "2e388f11d718f68cbc4ab026b63a1b14d33b9788eab4e4f06f4f9dad1a2280c0":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -1648,6 +1699,7 @@
 "core"
 ],
 "2e89665acd634797854c1c27c48d5365f5b8f522aeb975aa0ecde3e75ed4c5b0":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -1708,6 +1760,7 @@
 "var"
 ],
 "2fc8364db521bf6b980545dd580c4a163a8c62d72de21ed57823359163d291f4":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -1765,6 +1818,7 @@
 "var"
 ],
 "326fd875407e26b1eb848d7137bba2c08c4b17454e725854a48f5e9525a426d4":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -1808,6 +1862,7 @@
 "core"
 ],
 "340b65e04b1b23d2f7c41692fe64330552430a88276273bb0b57a0795cc4235b":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -1860,6 +1915,7 @@
 "core"
 ],
 "34fe410a4c018f3b31d8aa2cb23fb4508359bd32274c237e431616c69e68bbb0":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -1884,12 +1940,14 @@
 "ternary"
 ],
 "363218f4b9a4b819bcc269bc8bc9a419ddf257dc493aba52c46545d50cb6fc1d":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "history-expr",
 "if-block",
 "max_bars_back",
@@ -1941,10 +1999,12 @@
 "ternary"
 ],
 "3900bc6a857f368d54951cdd11f6bbf8998ceb4d4d7daa0d3a0185b3c9ed507f":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
 "fn-single",
+"generics",
 "if-block",
 "obj:box",
 "obj:label",
@@ -1993,6 +2053,7 @@
 "ternary"
 ],
 "3b149853a0925db2fceb449a8790fd3e223a55c75e061e84845d9e5b2bdcf1ad":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -2052,6 +2113,7 @@
 "var"
 ],
 "3cda29815a7523c2c13f4e5fc9195c93af4968ec304dcbd128d759ecbe0bde2a":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -2083,6 +2145,7 @@
 "switch"
 ],
 "3e19969987bde1985ee85deaf047c4828b93df8d71ed4627fa77c685944c1bf3":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -2105,6 +2168,7 @@
 "ternary"
 ],
 "3e4d1b3b1ed318cbd5193950b4a035a96cdf6afed0d9077541e064c76ca1ea31":[
+"collections:array",
 "core",
 "for",
 "generics",
@@ -2119,6 +2183,7 @@
 "var"
 ],
 "3e6fb2898c8efa4635c69a0d44c36a765403147dec7b7d469c8519e7e4e32866":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -2176,6 +2241,7 @@
 "var"
 ],
 "3fb6c720dd448404c2ffcf58cfee16ff61b2e1fee2d0a66d9748fc13f09481fd":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -2194,6 +2260,7 @@
 "var"
 ],
 "40366e14e3f35c058df8cadd3883b631992970ff4070ab8c0277e5f16f3412bd":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -2223,6 +2290,7 @@
 "var"
 ],
 "4173e9f1b6ef807f316567e128c1b61f757b3103b372ec2d412a6f8ad17252f6":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -2254,6 +2322,7 @@
 "var"
 ],
 "420d344055e8c9895398322015e9109687de61b53d30e2d23ea88fecd9477cbd":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -2287,6 +2356,7 @@
 "var"
 ],
 "43023052b40eb5b27aaa42fcd5f8381aae72d2c7ef9bdf3c9a696c5d43574ab5":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -2303,6 +2373,7 @@
 "var"
 ],
 "4343444156452b4cb39d7251ce49e3e3a809dca1e989d41192da258036747ab8":[
+"collections:array",
 "core",
 "for",
 "if-block",
@@ -2364,6 +2435,7 @@
 "ternary"
 ],
 "4795f38a5df74abc4a3616d6538dfb18345d47d3a354b9ec0b6f9041ad363256":[
+"collections:array",
 "core",
 "request-other",
 "ternary"
@@ -2373,6 +2445,7 @@
 "ternary"
 ],
 "47b3e84cdeb416d1f9efa529c7f54b50ce51b9ab7b0ad2d46bbfd9918282912a":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -2401,11 +2474,13 @@
 "var"
 ],
 "48d10e692a8447a5490670b1567a274b9eedfd4e110a97520adcac0f4ed4d0cc":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "if-block",
 "max_bars_back",
 "obj:box",
@@ -2464,6 +2539,7 @@
 "var"
 ],
 "4ab1cd809eb1659152a4332d0653d28dca6472a70e55b74fd225326306423089":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -2536,6 +2612,7 @@
 "ternary"
 ],
 "4cc0f38b57a89ecbf09c8beeda229cb547a1407ba0de194553d03b8c4131e801":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -2557,6 +2634,7 @@
 "ternary"
 ],
 "4cc5fa2b591efebdd6c8f52e5fc183b5c30e9da7a510d4288385abe0563838a8":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -2638,6 +2716,7 @@
 "var"
 ],
 "4dac67bac4e5e9204bfa4b7892da0fd26d68a93113db87ae72f598a0e23cc568":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -2651,6 +2730,7 @@
 "var"
 ],
 "4df6a4d770675fe3a252b49be479d1fd727a3ea76ca176c4cb9987674290f445":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -2696,6 +2776,7 @@
 "ternary"
 ],
 "4e94f5fddb872f8fe56f9746363e10b90884783ce6be4b43eceed2ddd48a8a6d":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -2737,6 +2818,8 @@
 "var"
 ],
 "50202c3955843d3516f6a9f163f2aeb883bc7e2febb76d61d803a5fa4b14e10f":[
+"collections:array",
+"collections:map",
 "conditional-ta",
 "core",
 "enum",
@@ -2781,6 +2864,7 @@
 "var"
 ],
 "5254a5e3bd578f0bc882c30c490c08800aa4b973cb19f65b2e35fc2a9377d185":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -2815,6 +2899,7 @@
 "strategy-decl"
 ],
 "536acafa55a488f18f73e232879078b44e2327496c5d06ea842fc5e3232391cb":[
+"collections:array",
 "core",
 "for",
 "if-block",
@@ -2833,6 +2918,8 @@
 "ternary"
 ],
 "5488887493b9e9d25f24f2cac988cc178050e2e9f0c88f0a2bfcd9ff39256061":[
+"collections:array",
+"collections:matrix",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -2852,6 +2939,7 @@
 "var"
 ],
 "549658208ed1a753259cab0023f0f54ee34c7c4e1139ba4d91dd2be55b9520b8":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -2950,6 +3038,7 @@
 "ternary"
 ],
 "579e5d0bbbee5ba8fd15cc0e425c9e68a34841c0fea88afab6feaa77997b08ad":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -2991,6 +3080,7 @@
 "varip"
 ],
 "58c1912325d14b8c96c1e3b2c937cf51992b343bce947ee3a24a8e4a8b7d0853":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -3028,6 +3118,7 @@
 "obj:label"
 ],
 "5944612de739bfe9a6cc341eaa86cac28142f4f550ee7dee9014fbfa448b84a2":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -3055,6 +3146,7 @@
 "ternary"
 ],
 "59d89f7e2aee19eb7776873e908117b1335fcc1ef5cf81db23cb1bbfcd19a1fb":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -3097,6 +3189,7 @@
 "reassign"
 ],
 "5d0467f377d234e0e7e63b207aa4867fa2bd98cd009bc5302db5d55fcd4b5586":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -3124,6 +3217,7 @@
 "var"
 ],
 "5d7d7017e421c51f2478cd7f99f266c19437d0aa39a32275ea41f602b028e4e9":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -3291,6 +3385,7 @@
 "var"
 ],
 "65969c93569f9417edaa45702199c664472a09d2903bdeadeee8423935a7b6a8":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -3355,11 +3450,14 @@
 "var"
 ],
 "672f90aa78e5a2d7a95f984d198ae19d2d908ea88508297a351c411d0aa51a4e":[
+"collections:array",
+"collections:matrix",
 "conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "history-expr",
 "if-block",
 "obj:table",
@@ -3370,6 +3468,7 @@
 "var"
 ],
 "674aa91ab13db4f43fdfd1f18007108faef9c5feb6e1db4d05bda93428f2c060":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -3425,11 +3524,13 @@
 "strategy-decl"
 ],
 "689b5313bc8fa043b7952648a462c0b3ba525ea07f835dc4e9712779a715ce91":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
 "for",
 "for-in",
+"generics",
 "if-block",
 "import",
 "max_bars_back",
@@ -3471,6 +3572,7 @@
 "conditional-ta",
 "core",
 "for",
+"generics",
 "if-block",
 "method-call",
 "obj:label",
@@ -3481,6 +3583,7 @@
 "var"
 ],
 "6afdbf049629011b1954fed6c5870e9f7872151c8c2754cc39b3953f520c3f87":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -3518,6 +3621,7 @@
 "ternary"
 ],
 "6cbfd68624400c6652b72bb07bb848777b2cfe30039f250a816339c4653b7ea0":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -3586,6 +3690,7 @@
 "ternary"
 ],
 "6e364ba297bbb89baf145d0d75d5df72186fee593aec76d9f69b086d7b576877":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -3614,6 +3719,7 @@
 "core"
 ],
 "6fb8ba4a1af6dff9f08f3cc805b3b674c696cf2497827788f9d77af971f816ea":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -3635,7 +3741,9 @@
 "var"
 ],
 "70d58b91bb8c1bc45a9dbdb2502d1e1c134a05f76b8fba80d681e4d0ac5c9244":[
+"collections:array",
 "core",
+"generics",
 "if-block",
 "typed-array",
 "var"
@@ -3666,10 +3774,13 @@
 "reassign"
 ],
 "72720b8fff62417c3eb08db7d8b8dec6ea16741480b8aab76dcb05031e5bd365":[
+"collections:array",
+"collections:matrix",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "history-expr",
 "if-block",
 "max_bars_back",
@@ -3690,6 +3801,7 @@
 "core",
 "fn-multi",
 "fn-single",
+"generics",
 "history-expr",
 "if-block",
 "import",
@@ -3703,6 +3815,7 @@
 "var"
 ],
 "72a6e98e7b795b677bb24dcaccd3b6ee5f556d1c7c8db71b0ea079957345c952":[
+"collections:array",
 "conditional-ta",
 "core",
 "for",
@@ -3719,6 +3832,7 @@
 "var"
 ],
 "7375c4d95c5820eb9dce153a30b21d12a1bfd6fe823685cc36a950faf6bac656":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -3741,6 +3855,7 @@
 "fn-multi",
 "fn-single",
 "for-in",
+"generics",
 "if-block",
 "method-call",
 "obj:label",
@@ -3773,6 +3888,7 @@
 "var"
 ],
 "74945a30bacde2b76f6abef25d5b4d53f2611375fe2a395787a6c570f42469f9":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -3816,6 +3932,7 @@
 "ternary"
 ],
 "7579631b43642b95a4c3672ebdef843791022b281a2e2bfe88c3784b09f3473d":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -3863,6 +3980,7 @@
 "ternary"
 ],
 "77fce641033802bb67c0681369be1fd7daf80158e8c56d340c1e37ae9e3aa21a":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -3894,6 +4012,7 @@
 "tuple-destructure"
 ],
 "7a3b146a3f93540325188eec01623bce08a88a600847dc0883c087dddc029a14":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -3939,11 +4058,13 @@
 "core"
 ],
 "7c39dba45fcc6ece5e37e8c4e61ac6ba0bfeecbfe4b0a3162f174eae4e4968dd":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
 "for",
 "for-in",
+"generics",
 "history-expr",
 "if-block",
 "import",
@@ -3988,6 +4109,7 @@
 "var"
 ],
 "7e204569929d9b38c82d19ac2b0ad7882fed9ee46192cb4ab8c0a5a377bd8841":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -4025,6 +4147,7 @@
 "ternary"
 ],
 "7e60ca18d4b065fa9ca5df9cb36c0899f95b37dd09cce3c8068a24008338f52c":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -4037,6 +4160,7 @@
 "var"
 ],
 "7e8eb8d1c01434a9c7f9635067d79cda110a01f7ab25919933d69542c489af6c":[
+"collections:array",
 "core",
 "for",
 "if-block",
@@ -4051,6 +4175,8 @@
 "var"
 ],
 "7f2f62c5dc347c7610e66c3b405ba314b9e5067f68e88fb38029e976f1ab2425":[
+"collections:array",
+"collections:map",
 "compound-assign",
 "core",
 "fn-multi",
@@ -4075,6 +4201,7 @@
 "ternary"
 ],
 "7f98768dc94399bdc66bd6f4d3931a0514f0aefe37096b1af0795399aeb133ec":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -4121,6 +4248,7 @@
 "strategy-decl"
 ],
 "821103a7605b915c3866c18e8b912bafd3bce39a35be7583b292bb78613dd343":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -4139,6 +4267,8 @@
 "var"
 ],
 "82a778d12fb359dd0e1b621fed4b33288eae75150562f8d09eecc8edac158805":[
+"collections:array",
+"collections:matrix",
 "compound-assign",
 "core",
 "fn-multi",
@@ -4159,6 +4289,7 @@
 "var"
 ],
 "82e164fc60b05b9fd102f146784b621b3cdbc67a1d6149f7d07ae7858e10a218":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -4259,10 +4390,12 @@
 "core"
 ],
 "89a30e2797fe92fd00d5a0b89edfc628e119a1caa4cf7208c0f7448321ba2670":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
 "for-in",
+"generics",
 "history-expr",
 "if-block",
 "obj:label",
@@ -4351,6 +4484,7 @@
 "ternary"
 ],
 "8bf9b9f8f2dbb3600b6d36e4f6a6df3944ceee88cd908c8c94b7d8fd90d387af":[
+"collections:array",
 "core",
 "for",
 "if-block",
@@ -4362,6 +4496,7 @@
 "var"
 ],
 "8c2d311c2ac3e380405b82029d4a166b21934b686f7dc283eee4127eb6cca86e":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -4375,12 +4510,14 @@
 "var"
 ],
 "8c7d47a7e245b358747672f8157d36af9caf3e273d655a539f51246662b5545c":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
 "for",
 "for-in",
+"generics",
 "history-expr",
 "if-block",
 "import",
@@ -4421,6 +4558,7 @@
 "tuple-destructure"
 ],
 "8e1b85f52778498fc3ee29fbcb8d75735bb7c0c6cc9c828f6370b6b68ce15bd3":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -4444,6 +4582,7 @@
 "var"
 ],
 "8e8ee2aba7c95332035825f8db5644783ddc764f9e7fa328226d1fd32d9f2367":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -4500,6 +4639,7 @@
 "ternary"
 ],
 "929c29bea7dc5e58977818c22fb5a402215a688ceff13fa7fbc75e03c6868d0a":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -4567,10 +4707,12 @@
 "var"
 ],
 "95de2ffb071ac86aa4f32f6ad3eda5e5a17c1b6edf811ad322a7b8d904a0a34a":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
+"generics",
 "history-expr",
 "if-block",
 "method-call",
@@ -4603,6 +4745,7 @@
 "ternary"
 ],
 "97d8eb66ec4b8cce0838667488c421afba7785d8db5ae16f575bf9ec5b73d316":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -4638,6 +4781,7 @@
 "var"
 ],
 "98601000956dc9554cecd6c7099d7bccb89a9b6f53af9488d49e3fb93da15576":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -4676,6 +4820,7 @@
 "var"
 ],
 "9906a5be26b9a75439699e8143b6094742e6ec9dac170313d9db947788b4b797":[
+"collections:array",
 "core",
 "for",
 "if-block",
@@ -4692,6 +4837,7 @@
 "reassign"
 ],
 "996b909e23b875814ac84e1af491e8c0913b59e45a974fc495fa6f07b388c3b4":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -4707,20 +4853,24 @@
 "var"
 ],
 "99ac8ac19ed825c3f5fca337a7e4baa9bdb77815277ccd9f2df3caf9c5a585d0":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "if-block",
 "reassign",
 "ternary",
 "typed-array"
 ],
 "9a27bc71b30b1d89a3a806932d75fde460ba28415c5b32ba3b0b0bf691faaac6":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
+"generics",
 "history-expr",
 "if-block",
 "method-call",
@@ -4738,6 +4888,7 @@
 "core"
 ],
 "9c1e3c51e8879e6ef8631ae09cb275e7eefb70fc278818d0c664e426e7b2c1aa":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -4774,6 +4925,7 @@
 "core"
 ],
 "9d1d8bd738709ed4efe17f37d6dacfa131cad44efb93def754a363ec94fa449b":[
+"collections:array",
 "core",
 "fn-single",
 "for",
@@ -4806,8 +4958,10 @@
 "var"
 ],
 "9dc6230a64089a09df31d30b7b58a0f2a6cf3f4a2cd8ab5a746bbfb2527b88eb":[
+"collections:array",
 "core",
 "for",
+"generics",
 "if-block",
 "method-call",
 "obj:collection",
@@ -4858,12 +5012,14 @@
 "ternary"
 ],
 "9f84c6e4dd58875f4d9b5a843eb2bc55ced7664fe644bdf6292d84def0798424":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
 "for",
 "for-in",
+"generics",
 "if-block",
 "max_bars_back",
 "method-call",
@@ -4903,6 +5059,7 @@
 "ternary"
 ],
 "a1883886a8265cffc580283568d9b460d5ef51e46d1bbc1a133a3fbfb46d4ca6":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -4918,6 +5075,7 @@
 "typed-array"
 ],
 "a1a7166d79f247446e86efcc6f92bc6b259ffb1f1df222eabd662bdfce60f3ec":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -4937,6 +5095,7 @@
 "var"
 ],
 "a26b7b7cce85296dcfdc5937776cea8c44e488e50f3c041200989a90944a0c8e":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -4996,6 +5155,7 @@
 "var"
 ],
 "a3c547cc482c291fc138df76ed7aff7cb5d6c504715a06c05216dd6b5d1ffa72":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -5051,6 +5211,7 @@
 "var"
 ],
 "a4cf7d8f0e9b68c57fcc659281f7cfc7d338113e79e1d1bbac038f92411d3ff1":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -5081,6 +5242,8 @@
 "ternary"
 ],
 "a58e0cf13181d753eddf8564ab9d90190207e6a19a6c50405e3f64fa0bf2ea81":[
+"collections:array",
+"collections:matrix",
 "core",
 "fn-multi",
 "fn-single",
@@ -5114,6 +5277,7 @@
 "ternary"
 ],
 "a5f1d6fac195a183f2861f4c105744c437c17cc98ee35152f1f510ecfdfc50df":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -5135,6 +5299,7 @@
 "var"
 ],
 "a71ce64d299dac7b39c1a3119c028178dba24b53ebdc142edfa010689afe103c":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -5180,6 +5345,7 @@
 "ternary"
 ],
 "a876da5957144370c4ae53783d8f3598bca07da60967717ea5b9241f63d5aacc":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -5198,6 +5364,7 @@
 "tuple-destructure"
 ],
 "a9206097b4ef73a17a00cc49caba533209f337b5c3f30ff212835c36505b4fc5":[
+"collections:array",
 "compound-assign",
 "core",
 "for",
@@ -5209,6 +5376,8 @@
 "var"
 ],
 "a968bdb560ec96d5805b33375cb5ea8b89938252c232e83bcac80df3ba11f809":[
+"collections:array",
+"collections:map",
 "compound-assign",
 "core",
 "fn-single",
@@ -5226,6 +5395,7 @@
 "while"
 ],
 "a9f0c82830d98411181d79c3de379a381729c12caac1c35097d65f11c1f3f46e":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -5306,10 +5476,12 @@
 "ternary"
 ],
 "ab681bc10a54911ae9feafb63866aab838e3edecc189d839dcc8441166f69466":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
+"generics",
 "history-expr",
 "if-block",
 "method-call",
@@ -5346,6 +5518,7 @@
 "var"
 ],
 "aca002b30ce4605a1ea183107dad02b19c9cbcb143e470b04876078f7e017332":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -5388,6 +5561,7 @@
 "var"
 ],
 "adf15f52abb4d1266d0bf4cb6ababdb26ac30289f639d51e4e3c764319258ab4":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -5433,6 +5607,7 @@
 "ternary"
 ],
 "b07876acacfa32f8ea3d5db7ea91cf44dbb1e9ff0cd408c163c5513e6844c958":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -5463,6 +5638,7 @@
 "var"
 ],
 "b23dd910be14b5694baa07c727584ef6b2acec00559f2f9ca53a56fd5eab25ac":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -5498,6 +5674,7 @@
 "history-expr"
 ],
 "b37d33266c101272233e9cc759cece7e76573858a6982355daa35b9e7f3b8235":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -5517,6 +5694,7 @@
 "var"
 ],
 "b3939627e076989e126979b693326be7fe6cc9d0d30a75a5ce9d4b84470b386b":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -5555,6 +5733,7 @@
 "ternary"
 ],
 "b41903eaef3cdd27e29411a6d1a102ab8927e22b474e459b3086b4dab3b1da40":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -5584,6 +5763,7 @@
 "history-expr"
 ],
 "b5b8f79ba25b58d36aa2e23291fa9ba203c312e1320bd213dc904d03f7e88b3f":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -5599,11 +5779,13 @@
 "tuple-destructure"
 ],
 "b6c7577c5998dc6f7844ccb11968b7c5c7d6b278ddb033f4bd812e7ef473088e":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "history-expr",
 "if-block",
 "max_bars_back",
@@ -5637,6 +5819,7 @@
 "var"
 ],
 "b8e4a504a5314605ae620a60e32a795b8bea7533e5c004e3649de3787692e8ad":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -5653,6 +5836,7 @@
 "var"
 ],
 "b9230ef3d87aba96c9694deb8d96f8562d6443dd6e262d8e2b80a1bb7a2b6ffb":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -5678,6 +5862,7 @@
 "ternary"
 ],
 "b96f89db0e102366cb1bed10f60e1e2dad04d62516ffd985c3ac4019b25ad1f5":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -5723,11 +5908,14 @@
 "var"
 ],
 "ba2f770b0a7a860ca44275462ceb4cdbfb6954856ec178c78010ca315d407d2a":[
+"collections:array",
+"collections:matrix",
 "compound-assign",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "if-block",
 "reassign",
 "ternary"
@@ -5736,6 +5924,7 @@
 "core"
 ],
 "bafd441641cdaefbdfa8fda7c5f952825a8aa508231cd604db45220e042a9dff":[
+"collections:array",
 "compound-assign",
 "core",
 "enum",
@@ -5778,11 +5967,13 @@
 "ternary"
 ],
 "bcf2e3d96b3d348a9103e8f3ffd7ad92e7196b3d243f74fd960a4b42f02c33b9":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "if-block",
 "method-call",
 "obj:delete",
@@ -5815,6 +6006,7 @@
 "fn-multi",
 "fn-single",
 "for-in",
+"generics",
 "if-block",
 "import",
 "method-call",
@@ -5878,6 +6070,7 @@
 "ternary"
 ],
 "bfe5cbe0232714bdbb4adfb20c165892f2223d0132796194caf00d9cde4bf2e6":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -5898,10 +6091,12 @@
 "var"
 ],
 "c040a08a4eacec179a16606e928027578095d694ce496b597464a8123f6e800d":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
 "fn-single",
+"generics",
 "history-expr",
 "if-block",
 "max_bars_back",
@@ -5944,6 +6139,7 @@
 "var"
 ],
 "c1f1954700a4b22fb5c9e437b42d96cb7b2f802200d820221adba5e78c9dfe0d":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -6043,6 +6239,7 @@
 "var"
 ],
 "c4bbef7c340e4b90537728f1abb88af606a4a66f0fa719a853e4c713243f820f":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -6060,11 +6257,13 @@
 "var"
 ],
 "c4f6fee5635e112065d0e25c947e14eb82cbe0365e3c44a0b6c24b8f0ff79822":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "if-block",
 "max_bars_back",
 "method-call",
@@ -6098,6 +6297,7 @@
 "strategy-decl"
 ],
 "c63b0ad52dab7317c8dd5729e5b07b18e4caa7be71ffb284d990d68ed3244531":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -6153,6 +6353,7 @@
 "ternary"
 ],
 "c72538d0f04f957cb937a07dc2c38e6793fd37f952de8c943598037832f6035a":[
+"conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
@@ -6257,6 +6458,7 @@
 "strategy-decl"
 ],
 "cbcb47ba377d1e46f79526bbd3c6ed5fb31d24850504b0fee0406e30b2034b62":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -6277,6 +6479,7 @@
 "var"
 ],
 "cbe8acbc6e871843cd191b855d8069a900e79d6be6eda1aede8b3913988b8140":[
+"collections:array",
 "core",
 "fn-single",
 "ternary"
@@ -6290,6 +6493,8 @@
 "var"
 ],
 "cd0cbe99aaafec5a6ed7730191abee6cbcc6f7e20841c85f2d917f0d4aa7ddae":[
+"collections:array",
+"collections:matrix",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -6311,6 +6516,7 @@
 "while"
 ],
 "cd12f1e45cd84a094388493fe0b7c61de5227d8ac7123c6272f4a3104f1feab7":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -6349,6 +6555,7 @@
 "var"
 ],
 "cd8c7577ed60bfec6e2ebc4e07d10b06bbb320151cb7e653622a92aaedc456de":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -6368,6 +6575,7 @@
 "var"
 ],
 "cdae0510d9c38b51dd860039ba0d983e409de4ed6f0a7a18359011b4e681c277":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -6388,6 +6596,7 @@
 "ternary"
 ],
 "cebcd7d1fa7c4cb6ea556d44b4d112bce395baf339ccb9ea3984ef482f7261d6":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -6421,6 +6630,7 @@
 "tuple-destructure"
 ],
 "cf5d2464b9d0141e45ab0f516bc1d615208039f707b27645033e9844f34136ac":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -6452,12 +6662,14 @@
 "core"
 ],
 "d24b7e470f707320ab6e15b174f96ff8977e59f111cf212cd248cf2483a2600a":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "history-expr",
 "if-block",
 "max_bars_back",
@@ -6532,6 +6744,7 @@
 "var"
 ],
 "d7368d1a0a3f54710a109120a0277e9432177f76d1c0a21a79124d42f70afcc1":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -6581,6 +6794,7 @@
 "core"
 ],
 "d9f11992bf6e03a6bd6a1cb663070ba3bc597d5ff7694feec128c53f138fcee3":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -6641,6 +6855,7 @@
 "fn-multi",
 "fn-single",
 "for",
+"generics",
 "if-block",
 "max_bars_back",
 "method-call",
@@ -6654,6 +6869,7 @@
 "var"
 ],
 "dc86bab1994db447a56b98ab7be4b554544a57d22ce773d6726c45b1136f61fd":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -6693,6 +6909,7 @@
 "obj:label"
 ],
 "dea85a38225442ffb5fd1ff7800ed7d2a08cd9b4241bc4c9bd2334033d2104ba":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -6716,6 +6933,7 @@
 "var"
 ],
 "df1af724e9f64e6619e5eca6b18d032c5b713343d74796ab4eeeae4f9ef426d8":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -6760,6 +6978,7 @@
 "var"
 ],
 "e0cf33dd484ba37a583dd18c1fdc58e51bd0731e5d37b749955eb62794184fb9":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -6775,6 +6994,7 @@
 "var"
 ],
 "e0db92075b2e1421b0c47c26b26de7ad5fe52fd6313971d6edbf6a28c9d4b538":[
+"collections:array",
 "core",
 "for",
 "for-in",
@@ -6792,6 +7012,7 @@
 "var"
 ],
 "e0f725cf255aa1220dbf0eafff2a2450d2bedf00733241c5a403b4f2687892bc":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",
@@ -6808,6 +7029,7 @@
 "var"
 ],
 "e1633fbe79e13b31f63b264026395c4734cd67db65cfa9d09cb17bca0f8b7991":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -6859,6 +7081,7 @@
 "var"
 ],
 "e1c592098f94ac8d96ee885a57b89386a773b128c5a7a1b02b6bbeeb30c638a3":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -6888,6 +7111,7 @@
 "ternary"
 ],
 "e2ff7d788c694424facc01cd373b852b4f13c7301c2d4a96a81a72e0707b4844":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -6914,6 +7138,7 @@
 "e48b42ba92a5720ba0628767b84b221e50e7ad90cbe1b0f9ba38cdbe20873016":[
 "core",
 "for-in",
+"generics",
 "if-block",
 "max_bars_back",
 "method-call",
@@ -6985,6 +7210,7 @@
 "fn-single",
 "for",
 "for-in",
+"generics",
 "if-block",
 "method-call",
 "obj:box",
@@ -7012,6 +7238,7 @@
 "var"
 ],
 "e8c92f7b76aa240c5be0bd39e61150812eb64bf599ac52d616965bc04bea9fba":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -7034,6 +7261,7 @@
 "ternary"
 ],
 "e908e2f279d4e3b8fdcadfe2379e5f1c46f66dbb424770563ea7ecd028fe30ec":[
+"collections:array",
 "core",
 "request-other",
 "ternary"
@@ -7050,6 +7278,7 @@
 "var"
 ],
 "e9432813152263dc62172c9528f57588f73607cac570ef8c1cfcbe6086c6851f":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -7094,6 +7323,7 @@
 "ternary"
 ],
 "eabf8db5f2cd2f72b9266124f48a536e20be760b22a83639eb5d7a7dfb04791f":[
+"collections:array",
 "core",
 "generics",
 "if-block",
@@ -7110,6 +7340,7 @@
 "ternary"
 ],
 "eac1938335506c74cebde67ed9c6ea78c2eb8b2c7a533875eda1749061d20bbd":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -7128,6 +7359,7 @@
 "ternary"
 ],
 "eadafc741e0fd2ad63d3cd64d8b718ad9b423056874f09b99749cddba0d47f58":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -7184,9 +7416,11 @@
 "var"
 ],
 "ebd022d944eeb9cfb22c35fbae253707ebb08901a27a48e3e217c63593baf72f":[
+"collections:array",
 "compound-assign",
 "core",
 "for",
+"generics",
 "if-block",
 "method-call",
 "obj:collection",
@@ -7220,6 +7454,7 @@
 "var"
 ],
 "ed162070dffc1f86e673a8a22a152b0e53b93afa5dcba4304bcafbecb40e7468":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -7236,6 +7471,7 @@
 "var"
 ],
 "ed2f65351c836e1656d3a521d9d8f0c60da9e426cf3c6305439e1a5278ef43c9":[
+"collections:array",
 "core",
 "fn-single",
 "if-block",
@@ -7274,6 +7510,8 @@
 "ternary"
 ],
 "ee848e8e1de892c088648980a0d8e422d93800d131d235ff2dc3b79d4c7ebf11":[
+"collections:array",
+"collections:map",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -7339,6 +7577,7 @@
 "ternary"
 ],
 "ef979738e8ea1c82572115d4f80544933ecc88c39de7bd8cc691011c22aebbcd":[
+"collections:array",
 "compound-assign",
 "core",
 "fn-multi",
@@ -7379,6 +7618,7 @@
 "ternary"
 ],
 "f0841b341e4c94c5620410c90b6dde9ca087224a0066a9dd49adad63aaa2172c":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -7406,6 +7646,7 @@
 "ternary"
 ],
 "f1ccce646011120567301c357082571d20c062c1d0c3a3c5170c5733c05a3f48":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -7435,6 +7676,9 @@
 "ternary"
 ],
 "f2417c7655f5d80e443589232555dc3670e2afcb69b28dfabb50b750d417d0aa":[
+"collections:array",
+"collections:map",
+"collections:matrix",
 "core",
 "fn-multi",
 "fn-single",
@@ -7486,6 +7730,7 @@
 "var"
 ],
 "f3d2f0f8d3c981cf2fba7029c1daca8dfe10b3e8fd6893ce19d8ae174e86980d":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -7534,6 +7779,7 @@
 "var"
 ],
 "f4de349fe90823ee24e5d964680dc256436dc70d824da5dbd12a660cec4e56a3":[
+"collections:array",
 "compound-assign",
 "conditional-ta",
 "core",
@@ -7554,6 +7800,7 @@
 "core"
 ],
 "f54f8f7fa9dc31bf97f2111d91816c17b2add0f77ecbb3bc843b81a6e0b36612":[
+"collections:array",
 "core",
 "fn-multi",
 "fn-single",
@@ -7573,6 +7820,7 @@
 "ternary"
 ],
 "f5a5d012c431b26f22292a26e6af23f325fd9b0b41825324dc7ca6dd73a8b7c3":[
+"collections:array",
 "compound-assign",
 "core",
 "enum",
@@ -7599,6 +7847,8 @@
 "while"
 ],
 "f5d9fcd90557abd66cae5f146ff8cc50caa3d5958e5ce4ea3c42aea2092e9718":[
+"collections:array",
+"collections:map",
 "core",
 "fn-multi",
 "fn-single",
@@ -7689,6 +7939,7 @@
 "ternary"
 ],
 "fba03112eb8f97598c345d18086604ce68699e0d0e14602227208f435eea0388":[
+"collections:array",
 "conditional-ta",
 "core",
 "fn-multi",

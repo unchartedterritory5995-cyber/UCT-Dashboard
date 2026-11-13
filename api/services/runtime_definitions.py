@@ -603,8 +603,12 @@ def runtime_admission(source: Any) -> dict:
     `capability_admitted` admits it. The allowlist is NOT folded in (the client asks its own
     latched allowlist first). Nothing is stored and the source is never logged."""
     h = source_hash(source) if isinstance(source, str) else None
+    # ⛔ B1 (review 2026-11-13): with the flag OFF the detector is NEVER run. The answer is a
+    # constant, so no request can spend server time on a door that admits nothing.
+    if not capability_admission_on():
+        return {"sha256": h, "admitted": False, "missing": []}
     ok, missing = capability_admitted(source)
-    admitted = bool(ok and capability_admission_on() and not killed(None, source))
+    admitted = bool(ok and not killed(None, source))
     return {"sha256": h, "admitted": admitted, "missing": missing}
 
 

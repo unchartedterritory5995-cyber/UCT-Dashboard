@@ -34,7 +34,7 @@ import threading
 import time
 from typing import Any, Dict, Literal, Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -103,11 +103,36 @@ class EngineStatusIn(BaseModel):
     reason: str = Field(..., min_length=1, max_length=2000)
 
 
-class RuntimeAdmissionIn(BaseModel):
-    """WS-I Part 2 -- one script to ask capability admission about. ⛔ `source` is typed
-    `Any` and checked in the handler, NOT by a pydantic constraint: a constraint's 422
-    echoes the offending value back in its detail, and this door never repeats a script."""
-    source: Any = None
+# ── WS-I Part 2: the runtime-admission door's INVOCATION bound (review B1c, 2026-11-13) ──────
+# The same shape as `_charge_propose` below it in spirit: one sliding window per member, charged
+# BEFORE any work, per process (exact while web is one uvicorn process; per instance after a
+# scale-out). MemberPane asks once per source that has been still for 250 ms, so 60 a minute is
+# far above a member typing and far below a loop.
+RUNTIME_ADMISSION_MAX_PER_MINUTE = 60
+_RUNTIME_ADMISSION_WINDOW_SECONDS = 60
+_runtime_admission_calls: dict[str, list[float]] = {}
+_runtime_admission_lock = threading.Lock()
+
+
+def _charge_runtime_admission(user_id: str, *, now: float | None = None) -> None:
+    """Record one runtime-admission call for `user_id`, or raise 429 if the minute is full."""
+    now = time.time() if now is None else now
+    cutoff = now - _RUNTIME_ADMISSION_WINDOW_SECONDS
+    with _runtime_admission_lock:
+        recent = [t for t in _runtime_admission_calls.get(user_id, ()) if t > cutoff]
+        if len(recent) >= RUNTIME_ADMISSION_MAX_PER_MINUTE:
+            retry_after = max(1, int(recent[0] + _RUNTIME_ADMISSION_WINDOW_SECONDS - now))
+            _runtime_admission_calls[user_id] = recent
+            raise HTTPException(
+                status_code=429,
+                detail=f"At most {RUNTIME_ADMISSION_MAX_PER_MINUTE} script checks per minute. "
+                       f"Try again in {retry_after}s.",
+                headers={"Retry-After": str(retry_after)})
+        recent.append(now)
+        _runtime_admission_calls[user_id] = recent
+        if len(_runtime_admission_calls) > 5000:
+            for uid in [u for u, ts in _runtime_admission_calls.items() if not ts or ts[-1] <= cutoff]:
+                _runtime_admission_calls.pop(uid, None)
 
 
 class ProposeIn(BaseModel):
@@ -625,7 +650,7 @@ def runtime_kill(user: dict = Depends(require_paid)):
 
 
 @router.post("/runtime-admission")
-def runtime_admission(body: RuntimeAdmissionIn, user: dict = Depends(require_paid)):
+def runtime_admission(body: Any = Body(None), user: dict = Depends(require_paid)):
     """WS-I Part 2 -- ``{sha256, admitted, missing}``: may the runtime lane draw THIS script by
     capability (`runtime_definitions.runtime_admission`)? The member door latches the answer per
     source hash (`engine/runtimeKill.js`), beside the kill list it reads from `/runtime-kill`.
@@ -633,8 +658,12 @@ def runtime_admission(body: RuntimeAdmissionIn, user: dict = Depends(require_pai
     ⛔ STORES NOTHING AND NEVER LOGS THE SOURCE (not in a sentence, not in a 4xx detail).
     ⛔ At most `RUNTIME_MAX_DEFINITION_BYTES` (128 KiB, UTF-8): the runtime document's own cap.
     ⛔ DECLARED BEFORE `/{def_id}`, beside `/runtime-kill`, though no `POST /{def_id}` exists
-    to shadow it today."""
-    source = body.source
+    to shadow it today.
+    ⛔ The body is taken as ANY JSON and checked here, never by a pydantic model: a model's 422
+    echoes the offending value (a script, or a non-object body) back in its detail.
+    ⛔ RATE-LIMITED per member (`RUNTIME_ADMISSION_MAX_PER_MINUTE`), charged before any work."""
+    _charge_runtime_admission(str(user["id"]))
+    source = body.get("source") if isinstance(body, dict) else None
     if not isinstance(source, str) or not source.strip():
         raise HTTPException(status_code=400, detail="source: the Pine script to ask about, "
                                                     "a non-empty string")

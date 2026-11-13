@@ -32,7 +32,9 @@ def caps(body: str) -> set:
 # ─── the vocabulary ──────────────────────────────────────────────────────────
 
 def test_the_vocabulary_is_core_plus_census_features_plus_objects_plus_runtime_only():
-    assert pc.CAPABILITY_IDS == ({pc.CORE_ID} | set(pc.FEATURE_IDS) | set(pc.OBJ_IDS) | set(pc.RUNTIME_ONLY_IDS))
+    assert pc.CAPABILITY_IDS == ({pc.CORE_ID} | set(pc.FEATURE_IDS) | set(pc.OBJ_IDS) | set(pc.COLLECTION_IDS)
+                                 | set(pc.RUNTIME_ONLY_IDS))
+    assert set(pc.COLLECTION_IDS) == {"collections:array", "collections:matrix", "collections:map"}
     assert set(pc.OBJ_IDS) == {"obj:line", "obj:label", "obj:box", "obj:table", "obj:linefill",
                                "obj:polyline", "obj:delete", "obj:getter", "obj:collection"}
     assert set(pc.RUNTIME_ONLY_IDS) == {"varip", "calc-bars", "realtime-state", "request-other"}
@@ -41,8 +43,8 @@ def test_the_vocabulary_is_core_plus_census_features_plus_objects_plus_runtime_o
 
 def test_the_census_reimports_the_detector_never_a_copy():
     from tools.pine_coverage import coverage_map as cm
-    for name in ("strip_code", "FEATURES", "usage_of", "version_of", "KEYWORD_FEATURE", "COND_TA_RX",
-                 "order_calls_in", "engine_order_calls", "METHOD_CALL_RX"):
+    for name in ("strip_code", "FEATURES", "features_of", "conditional_ta_in", "join_continuations", "usage_of",
+                 "version_of", "KEYWORD_FEATURE", "order_calls_in", "engine_order_calls", "METHOD_CALL_RX"):
         assert getattr(cm, name) is getattr(pc, name), name
     src = (ROOT / "tools" / "pine_coverage" / "coverage_map.py").read_text(encoding="utf-8")
     assert "\nFEATURES = [" not in src and "\ndef strip_code(" not in src and "\ndef usage_of(" not in src
@@ -80,6 +82,18 @@ def test_the_server_import_never_reads_the_front_end_order_set():
     ("x = request.security('SPY', 'W', close)\n", {"request-other"}),
     ("plot(barstate.isconfirmed ? close : na)\n", {"realtime-state"}),
     ("plot(timenow)\n", {"realtime-state"}),
+    # C1: the collection namespaces, and generics through `<ns>.new<T>`
+    ("var a = array.new_float()\n", {"collections:array"}),
+    ("float[] a = na\n", {"collections:array", "typed-array"}),
+    ("parts = str.split(s, ',')\n", {"collections:array"}),
+    ("m = matrix.new<float>(2, 2)\n", {"collections:matrix", "generics"}),
+    ("var mp = map.new<string, float>()\n", {"collections:map", "generics"}),
+    ("var a = array.new<float>()\n", {"collections:array", "generics"}),
+    # C2: wrapped lines are read as the logical line they continue
+    ("f(a,\n  b) =>\n    ta.sma(a, b)\n", {"conditional-ta", "fn-multi"}),
+    ("x = c\n  ? a\n  : b\n", {"ternary"}),
+    ("x = c ?\n  a :\n  b\n", {"ternary"}),
+    ("y = if c and\n   d\n    ta.sma(close, 3)\n", {"conditional-ta", "if-block"}),
 ])
 def test_it_declares_at_least(body, want):
     got = caps(body)
@@ -107,6 +121,41 @@ def test_comments_strings_and_lookalike_words_declare_nothing_extra(body):
 @pytest.mark.parametrize("source", [None, "", "   \n", 42])
 def test_an_unreadable_source_is_UNREADABLE_never_empty(source):
     assert pc.capabilities_of(source) == frozenset({pc.UNREADABLE})
+
+
+def test_a_source_over_the_cap_is_UNREADABLE_in_constant_time():
+    """B1/e: the detector never reads more than the runtime document's own cap."""
+    assert pc.MAX_SOURCE_BYTES == rt.RUNTIME_MAX_DEFINITION_BYTES
+    big = V5 + "x = close\n" * (pc.MAX_SOURCE_BYTES // 10)
+    assert len(big.encode("utf-8")) > pc.MAX_SOURCE_BYTES
+    assert pc.capabilities_of(big) == frozenset({pc.UNREADABLE})
+    wide = V5 + "// " + "\u00e9" * (pc.MAX_SOURCE_BYTES // 2)      # under the cap in chars, over in bytes
+    assert len(wide) < pc.MAX_SOURCE_BYTES < len(wide.encode("utf-8"))
+    assert pc.capabilities_of(wide) == frozenset({pc.UNREADABLE})
+
+
+#: C3: a source the repaint classifier cannot read (an unterminated string).
+UNTERMINATED = V5 + "plot(close)\nx = 'abc\n"
+
+
+def test_C3_a_source_the_repaint_classifier_refuses_is_UNREADABLE():
+    from api.services import runtime_repaint
+    assert runtime_repaint.runtime_repaint_of(UNTERMINATED)["ok"] is False
+    assert pc.UNREADABLE in pc.capabilities_of(UNTERMINATED)
+
+
+def test_C3_and_capability_admission_refuses_it_naming_only_unreadable(monkeypatch):
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    rt._CAPS_CACHE.clear()
+    assert rt.capability_admitted(UNTERMINATED) == (False, ["unreadable"])
+    assert rt.not_graded(UNTERMINATED)
+
+
+def test_C2_a_continuation_line_at_top_level_is_not_a_block():
+    assert "conditional-ta" not in caps("plot(a,\n     color = ta.sma(close, 3) > 0 ? color.red : na)\n")
+    assert pc.join_continuations("a\n    b\n") == "a\n    b\n"           # a block, not a wrap
+    assert pc.join_continuations("a = f(1,\n    2)\nb\n") == "a = f(1, 2)\nb\n"
+    assert pc.join_continuations("a = c\n  ? 1\n  : 2\n") == "a = c ? 1 : 2\n"
 
 
 def test_the_repaint_classifiers_reads_reach_the_runtime_only_ids():
@@ -151,7 +200,10 @@ def _under_declared(census: dict, sources: dict) -> dict:
         want = census.get(rt.source_hash(src))
         if want is None:
             continue
-        missing = set(want) - set(pc.capabilities_of(src))
+        got = set(pc.capabilities_of(src))
+        if got == {pc.UNREADABLE} and len(src.encode("utf-8")) > pc.MAX_SOURCE_BYTES:
+            continue                       # over the cap: read as nothing, so admitted as nothing
+        missing = set(want) - got
         if missing:
             gaps[key] = sorted(missing)
     return gaps
@@ -181,3 +233,81 @@ def test_A6_every_census_id_is_in_the_vocabulary():
     census = json.loads(SNAPSHOT.read_text(encoding="utf-8"))["census"]
     assert set().union(*map(set, census.values())) <= pc.CAPABILITY_IDS
     assert not re.search(r'"text"\s*:', SNAPSHOT.read_text(encoding="utf-8"))   # hashes only, no source
+
+
+# ─── B1 (review 2026-11-13): the detector is LINEAR. One paid request must never freeze the pod. ───
+# The regex it replaced (`COND_TA_RX`) took 15.3 s on the reported shape (200 lines of `x = if c`
+# at indent 160, 33.8 KB) and 230 s on a 126 KB one; the `^\s*` rows took 56 s on 16 KB of blank
+# lines. The two small cases run FIRST so a regression fails in under a second, not in minutes.
+# Bound: the reported shapes 250 ms; every adversarial 128 KiB shape 1 s (measured locally at
+# 0.02-0.3 s, the repaint classifier included; the headroom is for a slower CI runner).
+
+import time  # noqa: E402
+
+_H = "//@version=5\nindicator('x')\n"
+_CAP = pc.MAX_SOURCE_BYTES
+
+
+def _fill(unit):
+    return (_H + unit * ((_CAP - len(_H)) // len(unit)))[:_CAP]
+
+
+def _clock(src):
+    best = None
+    for _ in range(2):
+        t0 = time.perf_counter()
+        pc.capabilities_of(src)
+        d = time.perf_counter() - t0
+        best = d if best is None else min(best, d)
+    return best
+
+
+def test_B1_0_the_reported_shape_is_fast():
+    src = _H + (" " * 160 + "x = if c\n") * 200
+    assert 33000 < len(src) < 35000
+    assert _clock(src) < 0.25
+
+
+def test_B1_1_blank_lines_are_fast():
+    assert _clock(_H + "\n" * 16000) < 0.25
+    assert _clock(_H + (" " * 40 + "\n") * 400) < 0.25
+
+
+def _deep():
+    out, i = [_H], 0
+    while sum(map(len, out)) < _CAP - 200:
+        out.append(" " * (4 * (i % 40)) + ("x = if c\n" if i % 2 else "if close > open\n"))
+        i += 1
+    return "".join(out)
+
+
+ADVERSARIAL = {
+    "indent 160, x = if c": lambda: _fill(" " * 160 + "x = if c\n"),
+    "deep nested headers": _deep,
+    "repeated x = if c": lambda: _fill("x = if c\n"),
+    "one long line": lambda: _H + "a" * (_CAP - len(_H)),
+    "long spaced words": lambda: _fill("a b "),
+    "nested brackets": lambda: _H + "(" * ((_CAP - len(_H)) // 2) + ")" * ((_CAP - len(_H)) // 2),
+    "blank lines": lambda: _H + "\n" * (_CAP - len(_H)),
+    "whitespace lines": lambda: _fill(" " * 60 + "\n"),
+    "unclosed calls": lambda: _fill("f(a, b\n"),
+    "tuple opens": lambda: _fill("[a, b\n"),
+    "question marks": lambda: _fill("x = c ? a\n"),
+    "function headers": lambda: _fill("f(a) =>\n"),
+    "else chain": lambda: _fill("else\n    "),
+    "wrapped continuation": lambda: _fill("x = a +\n   b\n"),
+}
+
+
+@pytest.mark.parametrize("name", list(ADVERSARIAL))
+def test_B1_2_every_adversarial_128_KiB_source_is_bounded(name):
+    src = ADVERSARIAL[name]()
+    assert len(src.encode("utf-8")) <= _CAP
+    assert _clock(src) < 1.0, name
+
+
+def test_B1_3_it_scales_linearly():
+    """4x the source, at most ~4x the time (a quadratic scan is 16x)."""
+    small = _H + (" " * 160 + "x = if c\n") * 200
+    big = _H + (" " * 160 + "x = if c\n") * 800
+    assert _clock(big) < 8 * max(_clock(small), 0.002)

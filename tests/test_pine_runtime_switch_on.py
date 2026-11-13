@@ -575,7 +575,7 @@ def test_WSI_R1_a_script_can_never_UNDER_declare_its_census_capabilities():
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
     for s in doc["scripts"]:
         code, _ = cm.strip_code((ROOT / s["source"]).read_text(encoding="utf-8"))
-        found = {fid for fid, _l, rx, fl in cm.FEATURES if re.search(rx, code, fl)}
+        found = cm.features_of(code)
         assert found, s["slug"]
         assert found <= set(s["capabilities"]), (s["slug"], sorted(found - set(s["capabilities"])))
 

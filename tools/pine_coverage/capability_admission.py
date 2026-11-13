@@ -41,6 +41,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from api.services import pine_capabilities as pc  # noqa: E402
+from api.services import rollout_gate as rg  # noqa: E402
 from api.services import runtime_definitions as rt  # noqa: E402
 
 
@@ -89,6 +90,8 @@ def census_capabilities(src, inv):
                 caps.add("obj:collection")
         if head == "array" and last.startswith("new_") and last[4:] in fams:
             caps |= {"obj:" + last[4:], "obj:collection"}
+        if head in ("array", "matrix", "map"):
+            caps.add("collections:" + head)
         if head == "request":
             caps.add("request-other")
         if (head == "barstate" and last != "isfirst") or i == "timenow":
@@ -158,17 +161,21 @@ def cmd_evidence(a):
         verdict = v[s["capture"]]["verdict"]
         if lane != "runtime" or verdict != "MATCH":
             continue
+        family, community = rg.pine_evidence_script(v[s["capture"]].get("script"), s["capture"])
         for cap in s["caps"]:
-            per[cap].append({"capture": s["capture"], "script": v[s["capture"]].get("script")})
+            per[cap].append({"capture": s["capture"], "script": family, "community": community,
+                             "title": v[s["capture"]].get("script")})
     out = {}
     for cap in sorted(pc.CAPABILITY_IDS | set(per)):
         ev = per.get(cap, [])
         out[cap] = {"captures": len({e["capture"] for e in ev}), "scripts": len({e["script"] for e in ev}),
+                    "communityScripts": len({e["script"] for e in ev if e["community"]}),
                     "evidence": sorted(ev, key=lambda e: e["capture"])}
     json.dump(out, open(a.out, "w", encoding="utf-8"), indent=1) if a.out else None
     for cap, row in out.items():
         if row["captures"]:
-            print("  %-18s %3d captures / %2d scripts" % (cap, row["captures"], row["scripts"]))
+            print("  %-18s %3d captures / %2d scripts / %2d community" % (cap, row["captures"], row["scripts"],
+                                                                      row["communityScripts"]))
     # every runtime-drawn capture, with its verdict, for the STOP rule
     drawn = [(k, v[s["capture"]]["verdict"]) for k, s in inp.items()
              if s["population"] == "capture" and lanes.get(k, {}).get("lane") == "runtime"]

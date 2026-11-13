@@ -92,6 +92,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Callable, Optional
 
 from fastapi import Depends, HTTPException
@@ -540,8 +541,13 @@ def pine_runtime_admission(script, registry) -> list[str]:
 #
 #   * `admitted: true` AND `status: conformant` (both: `admitted` is the
 #     stricter word, and R1's per-script gate keeps reading `status`);
-#   * at least TWO evidence entries `{capture, script, verdict: MATCH,
-#     runtimePane: on}`, naming TWO distinct captures of TWO distinct scripts;
+#   * at least TWO evidence entries `{capture, script, community, verdict: MATCH,
+#     runtimePane: on}`, naming TWO distinct captures of TWO DISTINCT scripts, where
+#     `script` is the script's FAMILY (`pine_evidence_script`: a probe and its own
+#     variant, `..._AVG` and `..._AVG_NEG`, are one script), and AT LEAST ONE of the
+#     counted scripts is a COMMUNITY script (`community: true`), not one of our
+#     UCTPROBE_ / vw- probes (coordinator ruling 2026-11-13). Probes still count as
+#     captures;
 #   * for an object family (`obj:*`), each counted entry ALSO carries
 #     `objectsV2: MATCH` and `objectsLane: runtime` (a v2 objects grade with the
 #     RUN drawing them). No capture carries that today, so no `obj:*` row admits.
@@ -553,6 +559,32 @@ def pine_runtime_admission(script, registry) -> list[str]:
 
 PINE_CAPABILITY_MIN_CAPTURES = 2
 PINE_CAPABILITY_MIN_SCRIPTS = 2
+PINE_CAPABILITY_MIN_COMMUNITY_SCRIPTS = 1
+#: A probe's title or capture id starts with one of these; every other capture is a community script.
+PINE_PROBE_PREFIXES = ("UCTPROBE_", "vw-")
+#: A probe's own variants end with one of these suffixes (repeatedly stripped to its family).
+_PINE_PROBE_VARIANT_SUFFIXES = ("_NEG", "_POS", "_ALT")
+
+
+def pine_evidence_script(title, capture_id):
+    """``(script, community)`` for one evidence capture: the script FAMILY it counts as, and
+    whether it is a community script. A probe (`PINE_PROBE_PREFIXES` on its title or capture id)
+    is a family with its variants: `_NEG` / `_POS` / `_ALT` / `_V<n>` suffixes are stripped, so
+    UCTPROBE_VW_INT_ARRAY_AVG_NEG is UCTPROBE_VW_INT_ARRAY_AVG. A community script is its title."""
+    t = title if isinstance(title, str) and title else (capture_id or "")
+    cid = capture_id if isinstance(capture_id, str) else ""
+    probe = t.startswith(PINE_PROBE_PREFIXES) or cid.startswith(PINE_PROBE_PREFIXES)
+    if not probe:
+        return t, True
+    fam = t
+    while True:
+        base = re.sub(r"_V\d+$", "", fam)
+        for suf in _PINE_PROBE_VARIANT_SUFFIXES:
+            if base.endswith(suf):
+                base = base[: -len(suf)]
+        if base == fam:
+            return fam, False
+        fam = base
 PINE_CAPABILITY_OBJECT_PREFIX = "obj:"
 PINE_OBJECTS_LANE_RUNTIME = "runtime"
 
@@ -590,6 +622,10 @@ def pine_capability_admission(name, row) -> list[str]:
                if _pine_capability_evidence_counts(name, e)]
     captures = {e["capture"] for e in counted}
     scripts = {e["script"] for e in counted}
+    community = {e["script"] for e in counted if e.get("community") is True}
+    if len(community) < PINE_CAPABILITY_MIN_COMMUNITY_SCRIPTS:
+        reasons.append(f"capability `{name}` has no community script among its evidence (only our "
+                       "probes); admission needs at least one")
     if len(captures) < PINE_CAPABILITY_MIN_CAPTURES or len(scripts) < PINE_CAPABILITY_MIN_SCRIPTS:
         what = ("objects v2 MATCH captures with the run drawing them"
                 if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX)

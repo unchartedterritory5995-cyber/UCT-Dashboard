@@ -55,52 +55,147 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 # ⛔ BLOCK-AWARE, NOT "the script has an `if` and a `ta.`". The header line's own
 # condition (`if ta.crossover(a, b)`) runs every bar and does NOT count; only a
 # DEEPER-indented line in the header's contiguous block does (blank lines may sit
-# inside it). Each alternative is deterministic (`[ \t]+\S` cannot split two
-# ways), so the scan is linear per header, never exponential.
+# inside it).
 # ⛔ v1-v4 spell the same calls bare (`sma(`, `rsi(`), so the bare names Pine had
 # before namespaces are matched too; a v5+ user function that reuses one of
 # those names is over-reported, which is the safe direction for a grading gate.
+#
+# ⛔⛔ WS-I Part 2 review B1 (2026-11-13): IT IS A LINE SCAN, NOT A REGEX. The regex this
+# replaced (`COND_TA_RX`: a lazy group of block lines over a back-referenced indentation)
+# backtracked super-linearly: a 33.8 KB source took 15.3 s and a 126 KB one 230 s, holding the
+# GIL on a sync route, so ONE request froze the web pod. `conditional_ta_in` walks each logical
+# line once with a stack of open block indents: linear. Every regex left in this module is
+# anchored or bounded so that it is linear too (`^[ \t]*+` is POSSESSIVE and never crosses a
+# line; `\s` under `re.M` used to let `^\s*` restart from every blank line, quadratic on a file
+# of blank lines). `tests/test_pine_capabilities.py` times adversarial 128 KiB sources (B1).
 _COND_TA_BARE = ("sma|ema|rma|wma|vwma|swma|hma|alma|linreg|rsi|atr|tr|stdev|dev|variance|"
                  "highest|lowest|highestbars|lowestbars|change|mom|roc|cum|sum|crossover|crossunder|"
                  "cross|valuewhen|barssince|pivothigh|pivotlow|rising|falling|correlation|percentrank|"
                  "percentile_linear_interpolation|percentile_nearest_rank|median|mode|range|stoch|cci|"
                  "mfi|cmo|tsi|bb|bbw|kc|kcw|macd|dmi|sar|supertrend|vwap|wpr|cog")
-_COND_TA_CALL = r"(?<![\w.])(?:ta\.\w+|(?:%s))\s*\(" % _COND_TA_BARE
-_COND_TA_HEADER = (r"(?:(?:[\w\[\], ]+=\s*)?(?:if|for|while|switch)\b|else\b"
-                   r"|(?:export\s+)?(?:method\s+)?\w+\s*\([^()\n]*\)\s*=>[ \t]*$)")
-COND_TA_RX = (r"^(?P<ci>[ \t]*)%s[^\n]*\n(?:[ \t]*\n|(?P=ci)[ \t]+\S[^\n]*\n)*?(?P=ci)[ \t]+(?=\S)[^\n]*?%s"
-              r"|^[ \t]*(?:export\s+)?(?:method\s+)?\w+\s*\([^()\n]*\)\s*=>[^\n]*?%s"
-              % (_COND_TA_HEADER, _COND_TA_CALL, _COND_TA_CALL))
+_COND_TA_CALL_RX = re.compile(r"(?<![\w.])(?:ta\.\w+|(?:%s))\s*\(" % _COND_TA_BARE)
+#: A block header, matched at the START of one logical line (indentation removed).
+_COND_TA_HEADER_RX = re.compile(r"(?:[\w\[\], ]+=[ \t]*)?(?:if|for|while|switch)\b|else\b"
+                                r"|(?:export\s+)?(?:method\s+)?\w+\s*\([^()]*\)\s*=>")
 
-FEATURES = [  # (id, label, regex over comment/string-stripped code, flags)
-    ("var", "var declarations (state that persists across bars)", r"^\s*var\s+", re.M),
+
+def _indent_of(line):
+    n = 0
+    for ch in line:
+        if ch == " ":
+            n += 1
+        elif ch == "\t":
+            n += 4
+        else:
+            break
+    return n
+
+
+def join_continuations(code):
+    """Fold Pine's wrapped lines into the logical line they continue (C2, review 2026-11-13).
+
+    A physical line CONTINUES the previous logical line when a `(` or `[` is still open at its
+    start, or when it is indented deeper than that line by a number of columns that is NOT a
+    multiple of 4 (Pine's own rule for a wrapped line; a multiple of 4 opens a block). The
+    logical line keeps its first line's indentation; a continuation is appended after one space.
+    Comments and string contents must already be stripped (`strip_code`). Linear. Returns the
+    SAME string when nothing is folded."""
+    out = []                       # logical lines, each a list of pieces (no quadratic appends)
+    depth = 0
+    base = 0
+    folded = False
+    for line in code.split("\n"):
+        body = line.strip()
+        ind = _indent_of(line) if body else 0
+        if out and body and (depth > 0 or (ind > base and (ind - base) % 4 != 0)):
+            out[-1].append(body)
+            folded = True
+        else:
+            out.append([line])
+            if body:
+                base = ind
+        if body:
+            depth = max(0, depth + body.count("(") + body.count("[") - body.count(")") - body.count("]"))
+    return "\n".join(" ".join(parts) for parts in out) if folded else code
+
+
+def conditional_ta_in(code, *, joined=None):
+    """Does a ta call sit INSIDE a block (an if / else / switch arm, a for / while body, a user
+    function body)? One pass over the logical lines (`join_continuations` first, or `joined` when
+    the caller already folded them), a stack of the open headers' indentation: a line deeper than
+    an open header is in its block."""
+    stack = []
+    for line in (joined if joined is not None else join_continuations(code)).split("\n"):
+        text = line.strip()
+        if not text:
+            continue
+        ind = _indent_of(line)
+        while stack and stack[-1] >= ind:
+            stack.pop()
+        if stack and _COND_TA_CALL_RX.search(text):
+            return True
+        m = _COND_TA_HEADER_RX.match(text)
+        if m:
+            if "=>" in m.group(0) and _COND_TA_CALL_RX.search(text, m.end()):
+                return True                       # a single-line function body
+            stack.append(ind)
+    return False
+
+
+FEATURES = [  # (id, label, regex over comment/string-stripped code, flags) - every regex linear (B1)
+    # B1: each line-anchored row opens `^[ \t]*+` (possessive, never crosses a line) where it was
+    # `^\s*`; the rest of each pattern is the census's own, unchanged.
+    ("var", "var declarations (state that persists across bars)", r"^[ \t]*+var\s+", re.M),
     ("varip", "varip (intrabar-persistent state, realtime only)", r"\bvarip\b", 0),
-    ("if-block", "if statements / blocks", r"^\s*(?:[\w\[\], ]+=\s*)?if\b", re.M),
-    ("for", "for loops", r"^\s*(?:[\w\[\], ]+=\s*)?for\s+\w+\s*=", re.M),
-    ("for-in", "for...in loops", r"^\s*(?:[\w\[\], ]+=\s*)?for\s+(?:\[[^\]]*\]|\w+)\s+in\b", re.M),
-    ("while", "while loops", r"^\s*(?:[\w\[\], ]+=\s*)?while\b", re.M),
+    ("if-block", "if statements / blocks", r"^[ \t]*+(?:[\w\[\], ]+=\s*)?if\b", re.M),
+    ("for", "for loops", r"^[ \t]*+(?:[\w\[\], ]+=\s*)?for\s+\w+\s*=", re.M),
+    ("for-in", "for...in loops", r"^[ \t]*+(?:[\w\[\], ]+=\s*)?for\s+(?:\[[^\]]*\]|\w+)\s+in\b", re.M),
+    ("while", "while loops", r"^[ \t]*+(?:[\w\[\], ]+=\s*)?while\b", re.M),
     ("switch", "switch", r"\bswitch\b", 0),
     ("reassign", ":= reassignment", r":=", 0),
     ("compound-assign", "+= -= *= /= %=", r"[+\-*/%]=(?!=)", 0),
-    ("tuple-destructure", "[a, b] = tuple destructuring", r"^\s*\[[\w\s,]+\]\s*=", re.M),
-    ("fn-single", "user function, single-line body", r"^\s*(?:export\s+)?\w+\s*\([^()]*\)\s*=>\s*\S", re.M),
-    ("fn-multi", "user function, multi-line body", r"^\s*(?:export\s+)?\w+\s*\([^()]*\)\s*=>\s*$", re.M),
-    ("udt", "type (user-defined types)", r"^\s*(?:export\s+)?type\s+\w+", re.M),
-    ("method-def", "method definitions", r"^\s*(?:export\s+)?method\s+\w+", re.M),
-    ("enum", "enum", r"^\s*(?:export\s+)?enum\s+\w+", re.M),
-    ("import", "import of a library", r"^\s*import\s+\S+", re.M),
-    ("library-decl", "library() declaration", r"^\s*library\s*\(", re.M),
-    ("strategy-decl", "strategy() declaration", r"^\s*strategy\s*\(", re.M),
-    ("generics", "array<T> / matrix<T> / map<K,V> generics", r"\b(?:array|matrix|map)\s*<", 0),
+    ("tuple-destructure", "[a, b] = tuple destructuring", r"^[ \t]*+\[[\w\s,]+\]\s*=", re.M),
+    ("fn-single", "user function, single-line body", r"^[ \t]*+(?:export\s+)?\w+\s*\([^()]*\)\s*=>\s*\S", re.M),
+    ("fn-multi", "user function, multi-line body", r"^[ \t]*+(?:export\s+)?\w+\s*\([^()]*\)\s*=>\s*$", re.M),
+    ("udt", "type (user-defined types)", r"^[ \t]*+(?:export\s+)?type\s+\w+", re.M),
+    ("method-def", "method definitions", r"^[ \t]*+(?:export\s+)?method\s+\w+", re.M),
+    ("enum", "enum", r"^[ \t]*+(?:export\s+)?enum\s+\w+", re.M),
+    ("import", "import of a library", r"^[ \t]*+import\s+\S+", re.M),
+    ("library-decl", "library() declaration", r"^[ \t]*+library\s*\(", re.M),
+    ("strategy-decl", "strategy() declaration", r"^[ \t]*+strategy\s*\(", re.M),
+    # C1 (review 2026-11-13): `matrix.new<float>` / `map.new<string, float>` / `array.new<line>` are generics too
+    ("generics", "array<T> / matrix<T> / map<K,V> generics", r"\b(?:array|matrix|map)(?:\s*\.\s*new\w*)?\s*<", 0),
     ("typed-array", "float[] style array types", r"\b(?:float|int|bool|string|color|line|label|box)\s*\[\s*\]", 0),
     ("history-expr", "history reference on an expression  (expr)[n]", r"\)\s*\[", 0),
-    # decided in usage_of(): `x.f(` where x is NOT a built-in namespace (this regex never matches)
+    # decided in usage_of()/capabilities_of(): `x.f(` where x is NOT a built-in namespace (never matches)
     ("method-call", "method-call syntax  x.f(...) on a value", r"(?!)", 0),
     ("max_bars_back", "max_bars_back", r"\bmax_bars_back\b", 0),
     ("ternary", "?: ternary", r"\?[^?:\n]+:", 0),
+    # decided in features_of() by `conditional_ta_in`, a line scan (never matches)
     ("conditional-ta", "ta.* called inside an if / loop / switch arm or a function body (per-call-site history)",
-     COND_TA_RX, re.M),
+     r"(?!)", 0),
 ]
+
+
+def features_of(code):
+    """The census FEATURES a comment- and string-stripped script uses: each row's regex over the
+    code AND over its logical lines (`join_continuations`, so a wrapped ternary or a function
+    header split over lines is seen; C2), plus `conditional-ta` from its line scan. Never fewer
+    than either form alone. Linear (B1). `method-call` is decided by the caller (namespaces)."""
+    joined = join_continuations(code)
+    found = set()
+    for fid, _l, rx, fl in FEATURES:
+        if re.search(rx, code, fl) or (joined is not code and fid in _LINE_SENSITIVE
+                                       and re.search(rx, joined, fl)):
+            found.add(fid)
+    if conditional_ta_in(code, joined=joined):
+        found.add("conditional-ta")
+    return found
+
+
+#: The rows whose answer can change when wrapped lines are folded: those anchored at a line
+#: start (`re.M`) or stopping at a newline. Every other row already reads across lines.
+_LINE_SENSITIVE = frozenset(fid for fid, _l, rx, fl in FEATURES if fl & re.M or r"\n" in rx)
 
 
 def strip_code(src):
@@ -176,7 +271,7 @@ def usage_of(src, inv):
                 used.add("[]")
         elif op in code:
             used.add(op)
-    feats = {fid for fid, _l, rx, fl in FEATURES if re.search(rx, code, fl)}
+    feats = features_of(code)
     for m in METHOD_CALL_RX.finditer(code):
         if m.group(1) is None or m.group(1) not in inv.namespaces:
             feats.add("method-call")
@@ -247,10 +342,19 @@ OBJECT_FAMILIES = ("line", "label", "box", "table", "linefill", "polyline")
 OBJ_IDS = tuple("obj:" + f for f in OBJECT_FAMILIES) + ("obj:delete", "obj:getter", "obj:collection")
 #: Declared by every readable script, so no script is admitted by naming nothing.
 CORE_ID = "core"
+#: C1 (review 2026-11-13): the collection NAMESPACES, each its own capability, so `core` does not
+#: admit a whole namespace no capture exercised (`matrix` and `map` have no runtime-on capture).
+#: Every OTHER built-in (ta.*, str.*, math.*, timeframe.*, plotshape ...) rides `core`: core admits
+#: every built-in the runtime implements; the runtime front end's named refusals (pine:builtin,
+#: runtime:conditional-history ...) and the graph/runtime differential are that net (EVIDENCE).
+COLLECTION_IDS = ("collections:array", "collections:matrix", "collections:map")
 #: What only the per-bar run can do, and no historical capture grades.
 RUNTIME_ONLY_IDS = ("varip", "calc-bars", "realtime-state", "request-other")
 #: ⛔ THE CLOSED WORLD: every id `capabilities_of` may return except `UNREADABLE`.
-CAPABILITY_IDS = frozenset((CORE_ID,) + FEATURE_IDS + OBJ_IDS + RUNTIME_ONLY_IDS)
+CAPABILITY_IDS = frozenset((CORE_ID,) + FEATURE_IDS + OBJ_IDS + COLLECTION_IDS + RUNTIME_ONLY_IDS)
+#: B1/e: the largest source the detector reads: the runtime document's own cap
+#: (`runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES`; the rail holds the two equal).
+MAX_SOURCE_BYTES = 128 * 1024
 #: Returned for a source the repaint classifier cannot read (or that is not a string). It is
 #: never in the vocabulary, so it can never be admitted: an unreadable script is withheld.
 UNREADABLE = "unreadable"
@@ -274,6 +378,17 @@ _OBJ_GETTER_RX = re.compile(r"\.\s*get_\w+\s*\(")
 _OBJ_COLLECTION_RX = re.compile(
     r"(?<![\w.])(?:%s)\s*\.\s*all\b|\bnew_(?:%s)\b|<\s*(?:%s)\b|(?<![\w.])(?:%s)\s*\[\s*\]"
     % (_FAM, _FAM, _FAM, _FAM))
+#: Over-declared: an `array.` / `array<` use, ANY `x[]` type (user types included), and the
+#: built-ins that hand back an array (`str.split`, `request.security_lower_tf`,
+#: `ta.pivot_point_levels`, `<object>.all`).
+_COLLECTION_RX = {
+    "collections:array": re.compile(
+        r"(?<![\w.])array\s*[.<]|\b\w+\s*\[\s*\]|(?<![\w.])str\s*\.\s*split\s*\("
+        r"|(?<![\w.])request\s*\.\s*security_lower_tf\b|(?<![\w.])ta\s*\.\s*pivot_point_levels\b"
+        r"|(?<![\w.])(?:line|label|box|table|linefill|polyline)\s*\.\s*all\b"),
+    "collections:matrix": re.compile(r"(?<![\w.])matrix\s*[.<]"),
+    "collections:map": re.compile(r"(?<![\w.])map\s*[.<]"),
+}
 _CALC_BARS_RX = re.compile(r"\bcalc_bars_count\b")
 #: Every `barstate.*` but `isfirst` (each other one answers differently on a live or forming
 #: bar), and the wall clock.
@@ -292,8 +407,12 @@ def capabilities_of(source):
     stripped first (`strip_code`), exactly as the census reads a script. Never raises."""
     if not isinstance(source, str) or not source.strip():
         return frozenset({UNREADABLE})
+    # B1/e: bounded. A source over the runtime document's own cap is never stored or served, so it
+    # is not read either: UNREADABLE (withheld, fail closed), in constant time.
+    if len(source) > MAX_SOURCE_BYTES or len(source.encode("utf-8")) > MAX_SOURCE_BYTES:
+        return frozenset({UNREADABLE})
     code, _strings = strip_code(source)
-    found = {CORE_ID} | {fid for fid, _l, rx, fl in FEATURES if re.search(rx, code, fl)}
+    found = {CORE_ID} | features_of(code)
     # `method-call` is decided outside FEATURES (its regex never matches), by the census's own
     # rule, over the built-in namespaces instead of the reference inventory
     for m in METHOD_CALL_RX.finditer(code):
@@ -309,6 +428,9 @@ def capabilities_of(source):
         found.add("obj:getter")
     if _OBJ_COLLECTION_RX.search(code):
         found.add("obj:collection")
+    for cid, rx in _COLLECTION_RX.items():
+        if rx.search(code):
+            found.add(cid)
     if _CALC_BARS_RX.search(code):
         found.add("calc-bars")
     if _REALTIME_RX.search(code):

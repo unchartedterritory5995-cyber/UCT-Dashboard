@@ -93,6 +93,9 @@ describe.skipIf(!IN)('WS-I Part 2 — the member door per script', () => {
         guard: d.ok ? null : (d.guard || null),
         declined: d.runtimeDeclined ? d.runtimeDeclined.code : null,
         notGraded: MODE === 'admission' ? !!runtimeNotGradedOf({ hash }) : null,
+        // the member-visible disclosures (names, and whether one says something is not drawn)
+        notes: d.ok ? (d.notes || []).map((x) => (x && x.name) || String(x)) : [],
+        notDrawn: d.ok ? (d.notes || []).filter((x) => x && /not drawn|does not draw/i.test(x.note || '')).map((x) => x.note) : [],
         ms: Math.round(performance.now() - t0),
       })
     }

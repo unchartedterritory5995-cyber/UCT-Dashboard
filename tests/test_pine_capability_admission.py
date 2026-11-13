@@ -94,8 +94,8 @@ def _registry_file(tmp_path, monkeypatch, mutate) -> None:
     monkeypatch.setattr(rt, "ALLOWLIST_PATH", str(f))
 
 
-EV2 = [{"capture": "c-1", "script": "A", "verdict": "MATCH", "runtimePane": "on"},
-       {"capture": "c-2", "script": "B", "verdict": "MATCH", "runtimePane": "on"}]
+EV2 = [{"capture": "c-1", "script": "A", "community": True, "verdict": "MATCH", "runtimePane": "on"},
+       {"capture": "c-2", "script": "B", "community": False, "verdict": "MATCH", "runtimePane": "on"}]
 ROW = {"status": "conformant", "admitted": True, "evidence": EV2}
 
 
@@ -112,8 +112,10 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
     assert rt.admitted_capabilities()["admitted"] == sorted([
         "core", "reassign", "ternary", "if-block", "var", "fn-single", "fn-multi", "for",
         "compound-assign", "history-expr", "tuple-destructure",
-        # coordinator ruling 2026-11-13: the one evidence rule, no exceptions in either direction
-        "while", "typed-array", "method-call", "generics"])
+        # coordinator rulings 2026-11-13: the one evidence rule, no exceptions in either direction;
+        # distinct script families, at least one community script (generics: probes only, out);
+        # the array namespace on its own evidence (matrix and map have none)
+        "while", "typed-array", "method-call", "collections:array"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -184,6 +186,10 @@ def test_the_allow_report_carries_the_admission_only_while_ON(on):
     (dict(ROW, evidence=["c-1", "c-2"]), "0 MATCH captures"),
     (dict(ROW, evidence="c-1,c-2"), "0 MATCH captures"),
     ("junk", "not in the registry"),
+    # evidence quality (ruling 2026-11-13): no community script, or one script family twice
+    (dict(ROW, evidence=[dict(e, community=False) for e in EV2]), "no community script"),
+    (dict(ROW, evidence=[dict(EV2[0], community="yes"), EV2[1]]), "no community script"),
+    (dict(ROW, evidence=[EV2[0], dict(EV2[1], script="A")]), "from 1 script"),
 ])
 def test_A1_each_rule_withholds_by_name(row, needle):
     reasons = rg.pine_capability_admission("for", row)
@@ -222,6 +228,35 @@ def test_A2_every_vocabulary_id_outside_the_admitted_set_withholds(on):
         finally:
             pc.capabilities_of = orig
             rt._CAPS_CACHE.clear()
+
+
+def test_C3_an_id_outside_the_vocabulary_counts_missing(tmp_path, monkeypatch, on):
+    """Closed world at the gate: an id the detector returns that the vocabulary does not name is
+    missing, even when a registry row of that name looks admitted."""
+    def add(doc):
+        doc["capabilities"]["zz-new"] = dict(ROW)
+        return doc
+    _registry_file(tmp_path, monkeypatch, add)
+    orig = pc.capabilities_of
+    try:
+        pc.capabilities_of = lambda _s: frozenset({"core", "zz-new"})
+        rt._CAPS_CACHE.clear()
+        assert rt.capability_admitted(MEMBER_COPY) == (False, ["zz-new"])
+    finally:
+        pc.capabilities_of = orig
+        rt._CAPS_CACHE.clear()
+
+
+def test_C1_a_matrix_or_map_script_is_withheld(on):
+    """The collection namespaces are admitted on their own evidence: matrix and map have none."""
+    for body, cap in (("m = matrix.new<float>(2, 2)\n", "collections:matrix"),
+                      ("var mp = map.new<string, float>()\n", "collections:map")):
+        ok, missing = rt.capability_admitted(MEMBER_COPY + body)
+        assert not ok and cap in missing, (cap, missing)
+    gauss = (ROOT / "corpus" / "committed").glob("one-sided-gaussian-support-resistance-rate-loxx__*.pine")
+    src = next(gauss).read_text(encoding="utf-8")
+    ok, missing = rt.capability_admitted(src)
+    assert not ok and "collections:matrix" in missing
 
 
 def test_A2_an_unreadable_source_withholds(on):
@@ -346,8 +381,11 @@ def _phantoms(registry: dict) -> list:
                 continue
             if r["verdict"] != "MATCH":
                 bad.append((cap, cid, f"runtime-on verdict is {r['verdict']}"))
-            if e.get("script") != r.get("script"):
+            family, community = rg.pine_evidence_script(r.get("script"), cid)
+            if e.get("script") != family:
                 bad.append((cap, cid, "names another script"))
+            if e.get("community") is not community:
+                bad.append((cap, cid, "states the wrong community flag"))
             fixture = ROOT / r["file"]
             if not fixture.is_file():
                 bad.append((cap, cid, "no fixture"))
@@ -374,15 +412,18 @@ def test_A8_the_rail_can_fail():
     v = _verdicts()
     diverge = next(i for i, r in v.items() if r["verdict"] == "DIVERGE")
     match = next(i for i, r in v.items() if r["verdict"] == "MATCH" and r["format"] == "harness-v1")
+    fam, comm = rg.pine_evidence_script(v[match]["script"], match)
     fake = {"for": {"admitted": True, "evidence": [
         {"capture": "no-such-capture-2026-01-01", "script": "x"},
         {"capture": diverge, "script": v[diverge]["script"]},
-        {"capture": match, "script": "somebody else"}]},
-        "obj:polyline": {"admitted": True, "evidence": [{"capture": match, "script": v[match]["script"]}]}}
+        {"capture": match, "script": "somebody else", "community": comm},
+        {"capture": match, "script": fam, "community": not comm}]},
+        "obj:polyline": {"admitted": True, "evidence": [{"capture": match, "script": fam, "community": comm}]}}
     got = {(c, why) for c, _id, why in _phantoms(fake)}
     assert ("for", "no such capture in the runtime-on verdicts") in got
     assert ("for", "runtime-on verdict is DIVERGE") in got
     assert ("for", "names another script") in got
+    assert ("for", "states the wrong community flag") in got
     assert ("obj:polyline", "the capture's script does not use it") in got
 
 
@@ -412,7 +453,50 @@ def test_the_door_answers_sha_admitted_missing(store, on):
 
 def test_the_door_with_the_flag_off_admits_nothing(store):
     body = _client().post("/api/user-definitions/runtime-admission", json={"source": MEMBER_COPY}).json()
-    assert body["admitted"] is False
+    assert body == {"sha256": rt.source_hash(MEMBER_COPY), "admitted": False, "missing": []}
+
+
+def test_B1_with_the_flag_off_the_door_never_runs_the_detector(store, monkeypatch):
+    """B1a: OFF answers a constant; no request can spend server time on a door that admits nothing."""
+    def boom(_s):
+        raise AssertionError("the detector ran with the flag off")
+    monkeypatch.setattr(pc, "capabilities_of", boom)
+    rt._CAPS_CACHE.clear()
+    r = _client().post("/api/user-definitions/runtime-admission", json={"source": MEMBER_COPY + "// x\n"})
+    assert r.status_code == 200 and r.json()["admitted"] is False
+
+
+def test_B1c_the_door_is_rate_limited_per_member(store, on):
+    router_mod._runtime_admission_calls.clear()
+    t0 = 1_000_000.0
+    for i in range(router_mod.RUNTIME_ADMISSION_MAX_PER_MINUTE):
+        router_mod._charge_runtime_admission("u1", now=t0 + i * 0.1)
+    with pytest.raises(Exception) as e:
+        router_mod._charge_runtime_admission("u1", now=t0 + 7)
+    assert getattr(e.value, "status_code", None) == 429
+    router_mod._charge_runtime_admission("u2", now=t0 + 7)                 # another member is unaffected
+    router_mod._charge_runtime_admission("u1", now=t0 + 61)                # and the window slides
+    router_mod._runtime_admission_calls.clear()
+
+
+def test_B1c_the_route_charges_before_any_work(store, on, monkeypatch):
+    router_mod._runtime_admission_calls.clear()
+    monkeypatch.setattr(router_mod, "RUNTIME_ADMISSION_MAX_PER_MINUTE", 2)
+    c = _client()
+    codes = [c.post("/api/user-definitions/runtime-admission", json={"source": MEMBER_COPY}).status_code
+             for _ in range(3)]
+    assert codes == [200, 200, 429]
+    assert c.post("/api/user-definitions/runtime-admission", json=[]).status_code == 429   # charged first
+    router_mod._runtime_admission_calls.clear()
+
+
+@pytest.mark.parametrize("raw", ['"SECRET_MARKER"', '["SECRET_MARKER"]', '{"source": ["SECRET_MARKER"]}',
+                                 'not json SECRET_MARKER', '7'])
+def test_the_door_never_echoes_a_non_object_body(store, on, raw):
+    router_mod._runtime_admission_calls.clear()
+    r = _client().post("/api/user-definitions/runtime-admission", content=raw,
+                       headers={"content-type": "application/json"})
+    assert r.status_code in (400, 422) and "SECRET_MARKER" not in r.text
 
 
 def test_the_door_is_paid_gated(store, on):

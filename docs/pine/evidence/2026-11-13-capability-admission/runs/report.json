@@ -2,18 +2,18 @@
  "populations": {
   "capture": {
    "scripts": 369,
-   "admitted": 140,
-   "runtimeLane": 16,
+   "admitted": 139,
+   "runtimeLane": 15,
    "hostLane": 81,
    "refused": 43,
    "coreOnly": 31
   },
   "committed": {
    "scripts": 266,
-   "admitted": 28,
-   "runtimeLane": 8,
+   "admitted": 26,
+   "runtimeLane": 7,
    "hostLane": 17,
-   "refused": 3,
+   "refused": 2,
    "coreOnly": 4
   },
   "reference": {
@@ -62,6 +62,7 @@
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
+    "collections:array",
     "compound-assign",
     "core",
     "fn-multi",
@@ -159,6 +160,7 @@
    "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
+    "collections:array",
     "core",
     "fn-multi",
     "fn-single",
@@ -177,6 +179,7 @@
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
+    "collections:array",
     "core",
     "fn-multi",
     "fn-single",
@@ -294,6 +297,7 @@
    "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
+    "collections:array",
     "core",
     "fn-multi",
     "fn-single",
@@ -353,6 +357,7 @@
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
+    "collections:array",
     "compound-assign",
     "core",
     "fn-multi",
@@ -641,21 +646,6 @@
    ]
   },
   {
-   "capture": "vw-array-na-spy-1d-2026-10-02",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "ternary"
-   ]
-  },
-  {
    "capture": "vw-bar-counters-rddt-15-2026-09-30",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
@@ -870,6 +860,7 @@
    "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
+    "collections:array",
     "core",
     "fn-multi",
     "fn-single",
@@ -887,6 +878,7 @@
    "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
+    "collections:array",
     "core",
     "fn-multi",
     "fn-single",
@@ -1033,6 +1025,7 @@
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
+    "collections:array",
     "core",
     "fn-single",
     "ternary"
@@ -1591,39 +1584,6 @@
     "reassign",
     "ternary",
     "var"
-   ]
-  },
-  {
-   "key": "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888",
-   "lane": null,
-   "guard": "pine:block",
-   "declined": "runtime:output-map",
-   "caps": [
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "reassign",
-    "ternary",
-    "typed-array"
-   ]
-  },
-  {
-   "key": "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "reassign",
-    "ternary"
    ]
   },
   {
