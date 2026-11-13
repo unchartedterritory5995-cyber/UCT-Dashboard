@@ -6651,6 +6651,92 @@
    "shape": null
   },
   {
+   "name": "chartFeatures.companyPanel",
+   "domain": "chartFeatures",
+   "target": "chart",
+   "summary": "ONE chart's Company Info panel (side panel: Overview, Financials, Earnings, Ownership, News): add/expand it, collapse it to its edge rail (it stays), remove it, or show a tab — as Add to Chart, its chevron and its tabs do. Undo restores it exactly.",
+   "hints": "target = the chart. op: open (add, or expand a collapsed one) | collapse (hide / minimise / bare \"close\" — it stays on the chart) | remove (only for remove / take off / get rid of). tab = overview | financials | earnings | ownership | news: pass it HERE, also with op open (\"add the company panel on News\" = one call); a tab alone opens the panel. Company/profile/info panel = this. The strip under the chart (earnings or \"fundamentals\" strip) = chartFeatures.earningsStrip.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "open",
+       "collapse",
+       "remove",
+       null
+      ]
+     },
+     "tab": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "overview",
+       "financials",
+       "earnings",
+       "ownership",
+       "news",
+       "valuation",
+       null
+      ]
+     }
+    },
+    "required": [
+     "op",
+     "tab"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartFeatures.earningsStrip",
+   "domain": "chartFeatures",
+   "target": "chart",
+   "summary": "Add or remove ONE chart's Earnings Strip (quarterly EPS and revenue in a strip under the chart; also called the fundamentals strip), as Add to Chart does. Undo restores it exactly (its height too).",
+   "hints": "target = the chart. op: open (add / show) | remove (only for remove / take off / get rid of) | collapse (hide / minimise / bare \"close\": it has no collapsed state, so this asks). The side panel is chartFeatures.companyPanel.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "open",
+       "collapse",
+       "remove"
+      ]
+     }
+    },
+    "required": [
+     "op"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "drawing.positionCalculator",
    "domain": "drawing",
    "target": "chart",

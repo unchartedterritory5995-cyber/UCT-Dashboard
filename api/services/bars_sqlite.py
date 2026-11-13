@@ -1914,6 +1914,18 @@ def max_daily_volume_in_range(from_ymd: int, to_ymd: int, min_sessions: int = 2)
     return {str(r[0]).upper(): int(r[1]) for r in rows}
 
 
+def daily_volume_stats_in_range(from_ymd: int, to_ymd: int) -> dict:
+    """{TICKER: (max daily volume, session count)} over DAILY bars with from_ymd <= ts < to_ymd.
+    The building block of the all-time volume reference's incremental fold
+    (`scan_volume._ever_reference`): a short recent window rides the by-date index."""
+    rows = _conn().execute(
+        """SELECT ticker, MAX(v), COUNT(*) FROM ohlcv
+           WHERE tf='D' AND ts>=? AND ts<? GROUP BY ticker""",
+        (int(from_ymd), int(to_ymd)),
+    ).fetchall()
+    return {str(r[0]).upper(): (int(r[1] or 0), int(r[2])) for r in rows}
+
+
 def closes_near_date(to_ymd: int, from_ymd: int) -> dict:
     """{TICKER: most-recent daily close with from_ymd <= ts <= to_ymd} — each ticker's close
     on the nearest trading day on/before `to_ymd` within the window (one scan handles
@@ -1963,11 +1975,26 @@ def closes_asof(symbols, to_ymd: int, from_ymd: int) -> dict:
 def recent_first_trade(since_ymd: int) -> dict:
     """{TICKER: earliest daily-bar ts (YYYYMMDD)} for tickers whose FIRST daily bar is
     on/after since_ymd — a proxy for "first traded (IPO'd) within the window", given
-    bars.db's since-inception daily coverage for the tracked universe. One indexed
-    GROUP BY; powers the IPO-in-last-year scan."""
+    bars.db's since-inception daily coverage for the tracked universe. Powers the
+    IPO-in-last-year scan.
+
+    ⚡ SKIP-SCAN, one index seek per ticker (2026-11-12). The old
+    `WHERE tf='D' GROUP BY ticker` walked EVERY index entry of every timeframe (~92M
+    locally, more on the pods) to read one MIN per ticker: 19.3 s on a 3.3 GB local
+    store, and the boot probe's `ipo-scan-ref` thread at ~90% of a core right after
+    each deploy. Hopping ticker to ticker and asking each for its first daily bar is
+    two seeks per ticker: 0.03 s, identical result. Works on both layouts (the rowid
+    store's (ticker, tf, ts) lookup index and the clustered store's primary key)."""
     rows = _conn().execute(
-        """SELECT ticker, MIN(ts) AS first_ts FROM ohlcv
-           WHERE tf='D' GROUP BY ticker HAVING first_ts>=? AND first_ts>0""",
+        """WITH RECURSIVE t(x) AS (
+               SELECT (SELECT MIN(ticker) FROM ohlcv)
+               UNION ALL
+               SELECT (SELECT MIN(ticker) FROM ohlcv WHERE ticker > t.x) FROM t
+               WHERE t.x IS NOT NULL)
+           SELECT x, first_ts FROM (
+               SELECT x, (SELECT MIN(ts) FROM ohlcv WHERE ticker = t.x AND tf = 'D') AS first_ts
+               FROM t WHERE x IS NOT NULL)
+           WHERE first_ts >= ? AND first_ts > 0""",
         (int(since_ymd),),
     ).fetchall()
     return {str(r[0]).upper(): int(r[1]) for r in rows}

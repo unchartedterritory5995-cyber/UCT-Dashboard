@@ -71,9 +71,24 @@ export const LABEL_ANCHOR = Object.freeze({
   *  adapter reads the SAME vocabulary — a `size = size.small` label on the
   *  canvas and a `text_size = size.small` cell in the table must mean one
   *  number, and two private copies is how they stop meaning one number. */
+import { POINT_SIZE_ANCHORS, pointSizeWord } from './objectPointSizes.js'
+
 export const TEXT_SIZE_PX = Object.freeze({
   tiny: 8, small: 10, normal: 12, large: 16, huge: 22, auto: 12,
 })
+
+/** ⭐⭐ ENGINE 52 — a drawing's text size: a `size.*` word, or a v6 int in points that the
+ *  reference equates with a word (`objectPointSizes.js`), drawn exactly as that word. Both lanes
+ *  withhold any other int by name, so none reaches here; were one to, it is the word table's
+ *  `normal` only because nothing else is witnessed (and a rail pins that both lanes withhold). */
+export function textSizePx(size, kind = 'label', table = TEXT_SIZE_PX) {
+  if (typeof size === 'number') {
+    const w = pointSizeWord(size, kind)
+    return w ? table[w] : table.normal
+  }
+  return table[size] || table.normal
+}
+export { POINT_SIZE_ANCHORS }
 const LABEL_FONT_PX = TEXT_SIZE_PX
 /** ⭐ P2 — a label's or a box's `text_formatting` → the canvas font's style/weight
  *  prefix (two independent axes, as `objectTableDom.js` reads a cell's). */
@@ -295,7 +310,7 @@ export function paintObjects(ctx, state, m) {
     // `text_valign`, centred unless said), one line per `\n`. It was carried into the
     // render state and never painted.
     if (b.text) {
-      const px = TEXT_SIZE_PX[b.text_size] || 12
+      const px = textSizePx(b.text_size, 'boxTable')
       const lines = String(b.text).split('\n')
       const left = Math.min(x1, x2)
       const right = Math.max(x1, x2)
@@ -381,7 +396,7 @@ export function paintObjects(ctx, state, m) {
     // ⭐ A BAR-ANCHORED LABEL WITH NO PRICE sits at the pane edge it names.
     const y = p.y !== null ? p.y
       : (lb.yloc === 'abovebar' ? height * 0.12 : height * 0.88)
-    const px = LABEL_FONT_PX[lb.size] || 12
+    const px = textSizePx(lb.size, 'label', LABEL_FONT_PX)
     ctx.save()
     ctx.font = `${fontStyleOf(lb.text_formatting)}${px}px -apple-system, Segoe UI, sans-serif`
     ctx.textBaseline = 'middle'
@@ -394,7 +409,7 @@ export function paintObjects(ctx, state, m) {
     // bar) was drawn BELOW its anchor, over the candle it names.
     if (SHAPE_STYLES.has(lb.style)) {
       // a GLYPH at the anchor, the text beyond it on the side the style faces
-      const s = SHAPE_PX[lb.size] || SHAPE_PX.normal
+      const s = textSizePx(lb.size, 'label', SHAPE_PX)
       const cx = p.x + (anchor.dx * s) / 2
       const cy = y + (anchor.dy * s) / 2
       drawShape(ctx, lb.style, cx, cy, s, lb.color || '#2962FF')

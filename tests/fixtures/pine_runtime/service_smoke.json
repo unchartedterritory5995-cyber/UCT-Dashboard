@@ -6,12 +6,12 @@
   "out3",
   "value"
  ],
- "digest": "cf5a5f024e306e344d4d4ff76eb79d889d1cfc4c8cbe20e2cf8b798d3de3d6c2",
+ "digest": "b5f203f30c16271574587c51c6a514ceddac48597ab07586b859effc972bd87d",
  "identity": {
   "runtime_frontend": 1,
   "runtime_ir": 1,
   "runtime_language": "pine",
-  "script_engine": 51
+  "script_engine": 52
  },
  "series": {
   "n": 1500,

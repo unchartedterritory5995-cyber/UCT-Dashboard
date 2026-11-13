@@ -166,8 +166,8 @@ export const TOPICS = [
   {
     id: 'stockInfo', title: 'Stock information and news',
     words: [/\b(news|catalysts?|earnings|profile|fundamentals?|compare|headlines?)\b/],
-    caps: ['stock.profile', 'stock.earnings', 'stock.compare', 'news.latest', 'news.catalysts'], productHas: true,
-    canDo: 'look up a company’s profile and key numbers, its earnings, compare two stocks, and show the latest news and catalysts',
+    caps: ['stock.profile', 'stock.earnings', 'stock.compare', 'news.latest', 'news.catalysts', 'chartFeatures.companyPanel', 'chartFeatures.earningsStrip'], productHas: true,
+    canDo: 'look up a company’s profile and key numbers, its earnings, compare two stocks, and show the latest news and catalysts; and on a chart, add, expand, collapse or remove its Company Info panel (and switch its Overview, Financials, Earnings, Ownership or News tab) or add or remove its Earnings Strip — with Undo',
     known: () => ['calendar, ownership, insider, ETF holdings, options flow and themes (on their own widgets)'],
     planned: { when: 'Batch 10', what: 'more read-only data questions' },
   },

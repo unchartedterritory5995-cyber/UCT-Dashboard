@@ -15,8 +15,12 @@ import { render, screen, cleanup } from '@testing-library/react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { SWRConfig } from 'swr'
+import fs from 'node:fs'
+import path from 'node:path'
+import { Parser } from 'acorn'
+import acornJsx from 'acorn-jsx'
 import RegistryToursGate from './RegistryToursGate'
-import { OTHER_TOURS, startKind, startPath, startState } from './tourRegistry'
+import { OTHER_TOURS, TOUR_REGISTRY, startKind, startPath, startState } from './tourRegistry'
 import { openRegistryTour, __resetRegistryTourControl } from './tourRegistryControl'
 import { SAMPLE_IMPORT_PREFIX } from './tourStart'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
@@ -30,10 +34,12 @@ import RouteErrorBoundary from '../../../../../components/RouteErrorBoundary'
 const params = (l) => new URLSearchParams(l.search)
 const onNote = (l) => l.pathname === '/journal/notebook' && Boolean(params(l).get('note'))
 const onNotebook = (l) => l.pathname === '/journal/notebook'
-// Research Home: `?view=home` (Tier 3b: the bare address is the member's landing, the Today home by default; the
-// suites run with that default off, where the bare address is Research Home as before).
-const onHome = (l) => onNotebook(l) && !['note', 'side', 'resurfaceVersion', 'new'].some((k) => params(l).has(k))
-  && (!params(l).has('view') || params(l).get('view') === 'home')
+// Go-live wave 1: Research Home is gone (Notebook simplify Task 5 un-routed it; `?view=home` is the list). The two
+// pages on the Notebook route are the Daily brief (`?view=today`, TodayHome.jsx) and, at every other address, the notes
+// list -- whose own file (NotebookTab.jsx) also holds the phone note's back button, so it is "the Notebook, not the
+// Daily brief". The folders panel is beside both.
+const onBrief = (l) => onNotebook(l) && params(l).get('view') === 'today' && !params(l).has('note')
+const onNotebookNotBrief = (l) => onNotebook(l) && params(l).get('view') !== 'today'
 const ROUTE_OF_FILE = {
   'components/notebook/NoteEditorPage.jsx': onNote,
   'components/notebook/NoteShareControls.jsx': onNote,
@@ -50,12 +56,10 @@ const ROUTE_OF_FILE = {
   'components/notebook/styles/StylesManager.jsx': () => false,      // P5: the Styles manager open: behind a click
   'components/notebook/TemplateGallery.jsx': () => false,           // P5: the community gallery open: behind two clicks
   'components/notebook/StyleLibraryCard.jsx': () => false,          // P5 (C11): a library card, inside the open gallery
-  'tabs/NotebookTab.jsx': onNotebook,
+  'tabs/NotebookTab.jsx': onNotebookNotBrief,                      // the list's toolbar and menus (and the phone back)
   'components/notebook/FolderSidebar.jsx': onNotebook,
-  'components/notebook/ResearchHome.jsx': onHome,
-  'components/notebook/NewNoteMenu.jsx': onHome,                    // P0.10: Research Home's New note split
-  'components/notebook/ReportingSoon.jsx': onHome,
-  'components/notebook/PassedSetups.jsx': onHome,
+  'components/notebook/ReportingSoon.jsx': onBrief,                 // the Daily brief's folded boxes (they unfold for a tour)
+  'components/notebook/PassedSetups.jsx': onBrief,
   'components/trade/PlanGradeCard.jsx': (l) => /^\/journal-2-0\/trade\/[^/]+$/.test(l.pathname),
   'components/EntryContextCard.jsx': (l) => /^\/journal-2-0\/(trade|position)\/[^/]+$/.test(l.pathname),
   'components/WhyPrompt.jsx': (l) => /^\/journal-2-0\/(trade|position)\/[^/]+$/.test(l.pathname),
@@ -154,4 +158,84 @@ describe('every registered tour, opened from Help the way a member opens it', ()
     RESULTS.push({ id, start: k ? JSON.stringify(tour.start) : '(none)', opens, where })
     expect(opens, `${id} did not open (ended at ${where})`).toBe(true)
   }, 15000)
+})
+
+// ── Go-live wave 1 (C7): every step's anchor file is ROUTED ──────────────────────────────────
+// The stand-in above is only as true as ROUTE_OF_FILE. Research Home showed how it goes wrong: Task 5 un-routed it, and
+// its entry here kept saying "on screen at ?view=home", so four tours read as reachable while no member could reach
+// them. Two checks make the model answer for itself:
+//   1. EVERY step of EVERY registered tour (the base tour too, and steps behind a click) names a file the model knows;
+//   2. every file the model knows is REACHED from the app's entry (App.jsx), by walking the real import graph with an
+//      AST -- static imports, re-exports and `import('...')`, relative specifiers resolved the way Vite does
+//      (.jsx/.js/index). A file nothing routed imports (Research Home after Task 5) fails here by name.
+// (components/screener/reachable.test.js sweeps all of app/src the same way, with every import form; this is the
+// narrow, tour-shaped version, so a tour pointing into an unrouted file fails in the tour's own rail.)
+const SRC = path.resolve(__dirname, '..', '..', '..', '..', '..')   // app/src
+const J2 = path.join(SRC, 'pages', 'journal-2-0')
+const JsxParser = Parser.extend(acornJsx())
+
+function importsOf(file) {
+  const src = fs.readFileSync(file, 'utf8')
+  let ast
+  try { ast = JsxParser.parse(src, { ecmaVersion: 'latest', sourceType: 'module', allowHashBang: true }) } catch { return [] }
+  const out = []
+  ;(function visit(n) {
+    if (!n || typeof n.type !== 'string') return
+    if ((n.type === 'ImportDeclaration' || n.type === 'ExportNamedDeclaration' || n.type === 'ExportAllDeclaration')
+      && n.source && typeof n.source.value === 'string') out.push(n.source.value)
+    if (n.type === 'ImportExpression' && n.source?.type === 'Literal' && typeof n.source.value === 'string') out.push(n.source.value)
+    for (const v of Object.values(n)) {
+      if (Array.isArray(v)) v.forEach(visit)
+      else if (v && typeof v.type === 'string') visit(v)
+    }
+  })(ast)
+  return out
+}
+
+function resolveFrom(file, spec) {
+  if (!spec.startsWith('.')) return null
+  const base = path.resolve(path.dirname(file), spec.split('?')[0])
+  for (const c of [base, `${base}.jsx`, `${base}.js`, path.join(base, 'index.jsx'), path.join(base, 'index.js')]) {
+    if (/\.(jsx?|mjs)$/.test(c) && fs.existsSync(c) && fs.statSync(c).isFile()) return c
+  }
+  return null
+}
+
+function reachedFromApp() {
+  const seen = new Set()
+  const stack = [path.join(SRC, 'App.jsx')]
+  while (stack.length) {
+    const f = stack.pop()
+    if (seen.has(f)) continue
+    seen.add(f)
+    for (const spec of importsOf(f)) {
+      const r = resolveFrom(f, spec)
+      if (r && !seen.has(r)) stack.push(r)
+    }
+  }
+  return seen
+}
+
+describe('every tour step\'s anchor file is routed (C7)', () => {
+  it('every step of every registered tour names a file the stand-in models', async () => {
+    const unmodelled = []
+    for (const t of TOUR_REGISTRY) {
+      const { steps } = await t.load()
+      for (const st of steps) if (!ROUTE_OF_FILE[st.file]) unmodelled.push(`${t.id}.${st.id}: ${st.file}`)
+    }
+    expect(unmodelled).toEqual([])
+  })
+
+  it('every file the stand-in models is reached from App.jsx (no tour can point into an unrouted file)', () => {
+    const reached = reachedFromApp()
+    expect(reached.size, 'non-vacuity: the walk reached the app').toBeGreaterThan(200)
+    const unrouted = Object.keys(ROUTE_OF_FILE).filter((rel) => !reached.has(path.join(J2, rel)))
+    expect(unrouted).toEqual([])
+  }, 60000)
+
+  it('CONTROL: a file nothing imports is not reached (the walk can say no)', () => {
+    const reached = reachedFromApp()
+    expect(reached.has(path.join(J2, 'components', 'notebook', 'onboarding', 'tourAnchors.test.js'))).toBe(false)
+    expect(reached.has(path.join(J2, 'components', 'notebook', 'onboarding', 'tourRegistry.js'))).toBe(true)
+  }, 60000)
 })

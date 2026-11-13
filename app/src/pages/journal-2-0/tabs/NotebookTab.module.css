@@ -182,9 +182,11 @@
   padding-inline: 8px;
   border-left: 1px solid var(--bg);
 }
-/* A ⋯ row a phone needs (Today, From a template, Import) while "+ New" and Today give way to the floating
-   "+" (S12). Desktop has them on the row itself, so the menu leaves them out there. */
+/* A ⋯ row a phone needs (Today, From a template, Import, Voice note, Reviews) while "+ New" and Today give way to the
+   floating "+" (S12). Desktop has them on the row itself, so the menu leaves them out there. */
 .phoneOnlyItem { display: none !important; }
+/* Go-live wave 1 (D2): a ⋯ row the whole touch tier needs ("Ask your Notebook": the row's "AI" is desktop-only). */
+.touchOnlyItem { display: none !important; }
 .phoneFolders { display: none; }
 .search {
   flex: 1;
@@ -255,6 +257,50 @@
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 18px;
 }
+/* Notebook simplify, Task 3 (2026-11-11): List view's default layout -- one note per row in ONE column, no wider than
+   860 px, left-aligned in the content area, a hairline between rows (NoteCard's `.row` draws no chrome of its own).
+   The row highlight lives here, on each row's outermost element (`data-note-row`), so it covers the tick box too.
+   Measured before: "View: List" drew cards five across at 1920 px. "Cards" (the View menu) is `.grid` above. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 860px;
+}
+.rows > [data-note-row] {
+  border-bottom: 1px solid var(--border);
+}
+.rows > [data-note-row]:hover,
+.rows > [data-note-row]:has(:focus-visible) {
+  background: var(--bg-hover);
+}
+/* Go-live wave 1 (D5): a SELECTED row's tint, on the accent token (it follows the theme), and it stays under hover
+   and keyboard focus. It was a raw rgba on NoteCard's wrapper, which the hover rule above painted over (a hovered
+   selected row looked unselected). These rules outrank the hover rule (the ticked box in `:has` adds weight), and a
+   hovered or focused selected row is a step stronger, so both states still read. */
+.rows > [data-note-row]:has(input[type="checkbox"]:checked) {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.rows > [data-note-row]:has(input[type="checkbox"]:checked):hover,
+.rows > [data-note-row]:has(input[type="checkbox"]:checked):has(:focus-visible) {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+/* the loading placeholder for a row: two lines, no box */
+.noteRowSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+/* the View menu's "Rows / Cards", indented under List so they read as List's own choice (the label lines up with
+   "List"'s, past its icon) */
+.layoutGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.layoutGroup > [role='menuitemradio'] { padding-left: 32px; }
 /* G-106: mirrors NoteCard.module.css's .card geometry (border/radius/padding)
    closely enough to reserve the right box, without importing that module --
    this is a placeholder shape, never a real card. */
@@ -347,6 +393,10 @@
   /* The icon-only ⋯ and ▾ need the WIDTH too — a 44px-tall, 32px-wide target is
      still a miss on the axis the finger is moving along. */
   .toolBtn { min-width: var(--tap-min, 44px); }
+  /* Go-live wave 1 (D2): the list's "AI" is a desktop control (>=1025px); on the touch tier ⋯ carries "Ask your
+     Notebook" (`.touchOnlyItem`). The phone rule below hides it too, with "+ New" and Today. */
+  .newWrap .aiBtn { display: none; }
+  .touchOnlyItem { display: flex !important; }
 }
 
 /* S12 (B13): the in-note Folders door exists on a phone only (it opens the FolderSheet). */
@@ -432,7 +482,8 @@
   .phoneFolders { display: inline-flex; }
   .wrap[data-list-toolbar] > .sidebarToggle { display: none; }
   .newWrap .newSplit,
-  .newWrap .todayBtn { display: none; }
+  .newWrap .todayBtn,
+  .newWrap .aiBtn { display: none; }
   .phoneOnlyItem { display: flex !important; }
   /* 16px inputs avoid the iOS focus-zoom */
   .search, .sortSelect { font-size: 16px; }
@@ -791,11 +842,6 @@
   cursor: not-allowed;
 }
 
-/* Audit 2026-11-05, S15: a bare Notebook while the member's landing is still being read. It holds the space the
-   landing will fill, so the page does not jump when it arrives. */
-.landingPending {
-  min-height: 60vh;
-}
 
 /* VIS-6 (live finding, 390 px): the sort's face. Not drawn above the touch tier. At <=1024 px the select (16 px,
    so iOS never zooms) is a transparent layer over a face drawn with View's own button classes, so the three

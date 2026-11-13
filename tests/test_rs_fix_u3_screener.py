@@ -303,8 +303,8 @@ def test_the_default_splits_reader_never_schedules_a_warm_and_fetches_on_budget(
     from api.services import bars_sanitize as san
     from api.services import declared_splits as ds
     submitted, asked = [], []
-    monkeypatch.setattr(san.cache, "get", lambda key: None)
-    monkeypatch.setattr(san.cache, "set", lambda key, value, ttl: None)
+    monkeypatch.setattr(san._META_CACHE, "get", lambda key: None)
+    monkeypatch.setattr(san._META_CACHE, "set", lambda key, value, ttl: None)
     monkeypatch.setattr(san._warm_pool, "submit", lambda fn: submitted.append(fn))
     monkeypatch.setattr(ds, "_default_fetch",
                         lambda t: asked.append(t) or {"ipo": None, "splits": [("2026-01-02", 2.0)]})

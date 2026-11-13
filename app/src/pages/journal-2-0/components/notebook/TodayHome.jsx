@@ -1,10 +1,18 @@
 // Audit 2026-11-05, spec S15 (mockup M1) and S18: the Today home -- the reason to open the Notebook every morning.
+// Notebook simplify, Task 5: it is the "Daily brief" now, an optional page (`?view=today`, the folders panel's "Daily
+// brief" row). The Notebook opens on the notes list; this page no longer offers "Open the Notebook on" or a Research
+// home link. Below the cards it carries two of Research home's boxes, folded: "Reporting soon" and "Passed setups"
+// (each only while its switch is on; folded, a box is not mounted and reads nothing).
+// Go-live wave 1: three more of Research home's pieces live here. The Notices box sits at the top of the cards (it
+// renders nothing when there is nothing to tell), and "Needs review" and "Notes on your open positions" sit after the
+// cards, each drawn only when it has rows.
 //
-// ⛔⛔ ONE REQUEST. Everything here is `GET /api/j2/notes/today` (api/services/journal_two/notebook_today.py): today's
-// note (made from the member's daily template the first time today), the setups near entry, the member's names,
+// ⛔⛔ ONE REQUEST FOR THE CARDS. The phase cards are `GET /api/j2/notes/today` (api/services/journal_two/notebook_today.py):
+// today's note (made from the member's daily template the first time today), the setups near entry, the member's names,
 // what is open from yesterday, on this day, the market line and the ET session. The cards never fetch on mount (the
 // auth gate serialises every lazy read behind it); a card's own ask (adding names, writing the recap) runs only when
-// the member presses it.
+// the member presses it. The two review sections read `GET /api/j2/notebook/home` (useNotebookHome) only AFTER that
+// read has answered, so they never delay a card; the Notices box makes its own two reads (NoticesBox.jsx).
 //
 // The page is a lazy view (tabs/NotebookTab.jsx `lazyView`): its bytes are not on the Notebook's first open.
 //
@@ -16,17 +24,18 @@
 //
 // The cards' ORDER follows the ET session (`cardOrder`): the plan first before the open, the setups and names during
 // the session, and after the close the recap first (S18, from 16:05 ET on a session day).
-import { useContext, useEffect, useId, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Suspense, useContext, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import useSWR from 'swr'
 import { AuthContext } from '../../../../context/AuthContext'
 import usePreferences from '../../../../hooks/usePreferences'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import LoadFailed from '../LoadFailed'
+import CollapsibleSection from '../CollapsibleSection'
 import EmptyNamesAsk from './EmptyNamesAsk'
 import FirstPlanAsk from './FirstPlanAsk'
 import { FirstRunInlineSlot } from './FirstRunGate'
-import { importWithOneRetry } from '../../lib/lazyChunk'
+import lazyChunk, { importWithOneRetry } from '../../lib/lazyChunk'
 import { DAILY_FOLDER_NOTICE, DAILY_TEMPLATE_MISSING, openDailyNote } from '../../lib/dailyNote'
 import { openCapture } from '../../lib/captureBus'
 import { firstRunInlineIsDue } from '../../lib/firstRun'
@@ -36,10 +45,25 @@ import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
 import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { SETUPS_BOARD_PATH } from '../../lib/setupsBoardLink'
-import { LANDINGS, LANDING_PREF, resolveLanding } from '../../lib/todayHome'
+import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
+import { passedSetupsEnabled } from '../../lib/researchCapture'
+import { NOTEBOOK_PREP_HASH } from '../../lib/notebookDoors'
+import {
+  getRegistryTourClosedCount, getRegistryTourWanted, hasPendingRegistryTourOpen, subscribeRegistryTourClosed,
+  subscribeRegistryTourWanted,
+} from './onboarding/tourRegistryControl'
 import styles from './TodayHome.module.css'
 
 export const TODAY_URL = '/api/j2/notes/today'
+
+// Research home's two boxes, fetched only while their switch is on and the member opens them.
+const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
+const PassedSetups = lazyChunk(() => import('./PassedSetups'))
+// Go-live wave 1, fix round 1: Research home's two note sections, a chunk of their own (TodayHomeNotes.jsx).
+const HomeNotes = lazyChunk(() => import('./TodayHomeNotes'))
+// Fix round 1: the Notices box's panel (the Journal Today panel, its own boundary inside) is fetched when the brief
+// draws it, not with the brief (it renders nothing until it lands, and nothing with nothing to tell).
+const NoticesPanel = lazyChunk(() => import('../../surfaces/today/panels/NoticesPanel'))
 
 /** S18's button, verbatim. */
 export const RECAP_ACTION = "Write today's recap (about 1 minute)"
@@ -476,21 +500,29 @@ function SkeletonCard({ id, wide }) {
   )
 }
 
-// ⛔ The write names the key LITERALLY (`notebook_landing`, the value of LANDING_PREF) so the
-// preferences additions-only rail (hooks/usePreferences.additionsOnly.test.js) can read which key
-// is written; an identifier there is an opaque site it cannot classify. The read keeps the constant.
-// TodayHome.test.jsx asserts the POSTed key equals LANDING_PREF, so the two cannot drift apart.
-function LandingChoice() {
-  const { prefs, setPref, loading } = usePreferences()
-  const uid = useId()
-  const value = resolveLanding(prefs?.[LANDING_PREF], { on: true })
+/** Research home's "Reporting soon" and "Passed setups", below the cards, folded by default (the member's own
+ *  open/closed choice is kept per box, CollapsibleSection). A walkthrough running now unfolds both, so its anchors are
+ *  on screen; the palette's "Earnings prep" (`#prep`) unfolds Reporting soon. */
+function MoreBoxes({ onOpenNote }) {
+  const prepOn = earningsPrepEnabled()
+  const passedOn = passedSetupsEnabled()
+  const tourWanted = useSyncExternalStore(subscribeRegistryTourWanted, getRegistryTourWanted, () => null)
+  const location = useLocation()
+  if (!prepOn && !passedOn) return null
+  const tourSignal = tourWanted ? `tour:${tourWanted}` : null
+  const prepSignal = location.hash === NOTEBOOK_PREP_HASH ? `prep:${location.key}` : null
   return (
-    <div className={styles.landing}>
-      <label htmlFor={`${uid}-landing`}>Open the Notebook on</label>
-      <select id={`${uid}-landing`} className={styles.select} value={value} disabled={loading}
-        onChange={(e) => setPref('notebook_landing', e.target.value)}>
-        {LANDINGS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
-      </select>
+    <div className={styles.more} data-today-more="">
+      {prepOn && (
+        <CollapsibleSection id="nb-today-reporting-soon" title="Reporting soon" openSignal={tourSignal || prepSignal}>
+          <Suspense fallback={null}><ReportingSoon onOpenNote={onOpenNote} /></Suspense>
+        </CollapsibleSection>
+      )}
+      {passedOn && (
+        <CollapsibleSection id="nb-today-passed-setups" title="Passed setups" openSignal={tourSignal}>
+          <Suspense fallback={null}><PassedSetups /></Suspense>
+        </CollapsibleSection>
+      )}
     </div>
   )
 }
@@ -569,7 +601,7 @@ function FirstRunSlot({ onOpenNote, onOpenToday }) {
 }
 
 export default function TodayHome({
-  onOpenNote, onCreateNote, onSelectAllNotes, onOpenResearchHome, onNoteMade, onNotice, todayRead = 'make',
+  onOpenNote, onCreateNote, onSelectAllNotes, onNoteMade, onNotice, todayRead = 'make',
   dailyTemplateId = '',
 }) {
   const auth = useContext(AuthContext)
@@ -581,6 +613,26 @@ export default function TodayHome({
   const order = data ? cardOrder(data.session, { recapOn }) : SKELETON_ORDER
   const reasons = data?.reasons || {}
   useTodayRefresh(mutate, data)
+  // Review 4e: a registry walkthrough running now (the signal MoreBoxes unfolds the boxes on).
+  const tourWanted = useSyncExternalStore(subscribeRegistryTourWanted, getRegistryTourWanted, () => null)
+  // Final fix (C5): the gate publishes the wanted tour from an EFFECT, after the render in which this home first draws
+  // (with its chunk in hand), so the latches below could set before the tour was wanted and Notices drew under a
+  // starting tour. A walkthrough asked for on THIS visit (Help's navigation state, or a request still pending) holds
+  // the latches from the first render until that tour has ended (the gate's closed count moves on, which it also does
+  // for a request it drops).
+  const location = useLocation()
+  const closedCount = useSyncExternalStore(subscribeRegistryTourClosed, getRegistryTourClosedCount, () => 0)
+  const [askedAt] = useState(() => (
+    location.state?.startRegistryTourId || hasPendingRegistryTourOpen() ? getRegistryTourClosedCount() : null))
+  const tourAsked = Boolean(tourWanted) || (askedAt !== null && closedCount === askedAt)
+  // Fix round 2 (re-review): the hold covers only what has not been drawn yet. Once Notices or the note sections are on
+  // screen they stay, so a walkthrough that starts later never unmounts them and shifts the boxes up mid-tour.
+  const [noticesDrawn, setNoticesDrawn] = useState(false)
+  const [notesDrawn, setNotesDrawn] = useState(false)
+  const showNotices = noticesDrawn || !tourAsked
+  const showNotes = notesDrawn || (Boolean(data || error) && !tourAsked)
+  if (showNotices && !noticesDrawn) setNoticesDrawn(true)
+  if (showNotes && !notesDrawn) setNotesDrawn(true)
 
   // The day's note was MADE by this read: the tree and the counts are told (S6), once per note.
   const madeRef = useRef(null)
@@ -645,18 +697,21 @@ export default function TodayHome({
         <div className={styles.headActions}>
           <button type="button" className="btn btn-ghost btn-sm" onClick={quickCapture}>Quick capture</button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSelectAllNotes?.()}>All notes</button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => onCreateNote?.()}>+ New note</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => onCreateNote?.()}>+ New</button>
         </div>
       </header>
       {error && <LoadFailed compact what="Today" error={error} onRetry={refresh} />}
+      {/* Go-live wave 1: Research home's Notices, at the top of the cards (nothing at all when there is nothing).
+          Fix round 1 (review 4e): held while a walkthrough is wanted, with the note sections below: both land late and
+          would push the folded boxes a tour has just scrolled into view. They come in when the tour ends. Fix round 2:
+          only what has not been drawn yet is held; once drawn, they stay. */}
+      {showNotices && <Suspense fallback={null}><NoticesPanel /></Suspense>}
       {!error && <div className={styles.grid}>{order.map(card)}</div>}
       <FirstRunSlot onOpenNote={onOpenNote} onOpenToday={refresh} />
-      <footer className={styles.foot}>
-        <LandingChoice />
-        {onOpenResearchHome && (
-          <button type="button" className={styles.link} onClick={onOpenResearchHome}>Research home →</button>
-        )}
-      </footer>
+      {showNotes && (
+        <Suspense fallback={null}><HomeNotes ready onOpenNote={onOpenNote} styles={styles} /></Suspense>
+      )}
+      <MoreBoxes onOpenNote={onOpenNote} />
     </div>
   )
 }

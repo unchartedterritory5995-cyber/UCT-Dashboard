@@ -10873,6 +10873,134 @@
       ]
     },
     {
+      "id": "chartFeatures.companyPanel",
+      "source": "Charts family 11-12: Indicators → Add to Chart adds Company Info (addFeature: added, expanded, default width); its tab strip (setTab)",
+      "capabilities": [
+        "chartFeatures.companyPanel"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartFeatures.companyPanel"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartFeatures.companyPanel",
+            "target": "$charts[0]",
+            "args": {
+              "op": "open",
+              "tab": "news"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "dock": {
+          "company": true,
+          "open": true,
+          "tab": "news",
+          "bottom": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "add the company panel and open news",
+        "show the company info panel on the news tab",
+        "open the profile panel on news"
+      ]
+    },
+    {
+      "id": "chartFeatures.companyPanel.remove",
+      "source": "Charts family 11-12: Add to Chart's remove (removeFeature); Undo restores the member's own width (not DEFAULT_RIGHT_W)",
+      "capabilities": [
+        "chartFeatures.companyPanel"
+      ],
+      "board": "DOCKED",
+      "needs": [
+        "chartFeatures.companyPanel"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartFeatures.companyPanel",
+            "target": "$charts[0]",
+            "args": {
+              "op": "remove",
+              "tab": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "dock": {
+          "company": false,
+          "open": false,
+          "rightW": 520
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "remove the company panel from this chart",
+        "take the company info off the chart",
+        "get rid of the company panel"
+      ]
+    },
+    {
+      "id": "chartFeatures.earningsStrip",
+      "source": "Charts family 11-12: Add to Chart adds the Earnings Strip (addFeature EARNINGS_STRIP: dock.strip; never DOCK_PANELS' unrendered dock.bottom)",
+      "capabilities": [
+        "chartFeatures.earningsStrip"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartFeatures.earningsStrip"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartFeatures.earningsStrip",
+            "target": "$charts[0]",
+            "args": {
+              "op": "open"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "dock": {
+          "strip": true,
+          "bottom": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "show the earnings strip on this chart",
+        "add the fundamentals strip",
+        "put the earnings strip under the chart"
+      ]
+    },
+    {
       "id": "chartSetup.stepBars",
       "source": "C1-032 (pl-exec4): the Time Navigator's one-bar step buttons",
       "capabilities": [

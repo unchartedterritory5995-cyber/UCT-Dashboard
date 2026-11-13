@@ -454,22 +454,22 @@ describe('the header folds from the first paint on the list address', () => {
     expect(root(container)).toHaveAttribute('data-tools-door', 'true')
   })
 
+  // Notebook simplify, Task 5: the Notebook opens on the list, so the bare address, Research home's old `?view=home`
+  // and a view this build does not know are the list too; only the Daily brief and a note are not.
   it('the address rule', () => {
-    const ids = ['list', 'board', 'calendar']
-    const f = (p, q) => isNotebookListAddress(p, q, '/journal/notebook', ids)
+    const f = (p, q) => isNotebookListAddress(p, q, '/journal/notebook')
     expect(f('/journal/notebook', '?view=all')).toBe(true)
     expect(f('/journal/notebook', '?view=board')).toBe(true)
     expect(f('/journal/notebook', '?folder=f1')).toBe(true)
     expect(f('/journal/notebook', '?tag=swing')).toBe(true)
-    expect(f('/journal/notebook', '')).toBe(false)                  // Home
-    expect(f('/journal/notebook', '?view=nope')).toBe(false)        // an unknown view opens Home
+    expect(f('/journal/notebook', '')).toBe(true)                   // the bare Notebook IS the list
+    expect(f('/journal/notebook/', '')).toBe(true)
+    expect(f('/journal/notebook', '?view=home')).toBe(true)         // Research home's old address opens the list
+    expect(f('/journal/notebook', '?view=nope')).toBe(true)         // an unknown view opens the list
+    expect(f('/journal/notebook', '?view=today')).toBe(false)       // the Daily brief
+    expect(f('/journal/notebook', '?view=today&folder=f1')).toBe(true) // a filter is the list (NotebookTab agrees)
     expect(f('/journal/notebook', '?view=all&note=n1')).toBe(false) // a note
+    expect(f('/journal/notebook', '?note=n1')).toBe(false)
     expect(f('/journal/notebook/research/NVDA', '?view=all')).toBe(false)
-    // Tier 3b M10: the bare address is the list for a member whose chosen landing is All notes -- and only then.
-    const g = (p, q) => isNotebookListAddress(p, q, '/journal/notebook', ids, { landingAll: true })
-    expect(g('/journal/notebook', '')).toBe(true)
-    expect(g('/journal/notebook', '?view=today')).toBe(false)
-    expect(g('/journal/notebook', '?view=home')).toBe(false)
-    expect(g('/journal/notebook', '?note=n1')).toBe(false)
   })
 })

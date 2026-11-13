@@ -15,6 +15,9 @@ import { AuthContext } from '../../../../../context/AuthContext'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { RELOAD_FLAG } from '../../../../../utils/lazyWithRetry'
 import { chunkRetry } from '../../../lib/lazyChunk'
+import { STARTER_PACKS_FLAG } from '../../../lib/starterPacksFlag'
+import { TIPS_PREF } from '../../../lib/notebookTips'
+import { FIRST_RUN_MARKS, setFirstRunShowing } from '../../../lib/firstRun'
 
 const realLocation = window.location
 const realImportUrl = chunkRetry.importUrl
@@ -218,6 +221,44 @@ describe('the chunk is fetched only when the tour is about to show', () => {
     const load = tourLoader()
     const Gate = makeTourGate(load, 0)
     render(<Page Gate={Gate} hasAnyNotes route={{ pathname: '/journal/notebook', state: { startTour: true } }} />)
+    expect(await screen.findByText('the tour is open')).toBeInTheDocument()
+  })
+})
+
+// Go-live wave 2 (the c2 walk at 1280, 820 and 390): a brand-new member met the 60-second first run AND the base tour's
+// card at once. The first run's "showing" signal is set in FirstRunGate's effect, after the render in which both gates
+// first see the preferences, so this gate latched the tour first. It now reads the sheet's own due rule.
+describe('one first-run moment at a time (S16): the tour waits for the 60-second first run', () => {
+  beforeEach(() => {
+    __resetNotebookFlags()     // the flags latch once: the outer beforeEach latched onboarding alone
+    latchNotebookFlags({ notebook_onboarding_enabled: true, [STARTER_PACKS_FLAG]: true })
+  })
+  afterEach(() => { act(() => setFirstRunShowing(false)) })
+
+  it('a new member whose first run is due: the tour is not fetched while it is due', async () => {
+    const load = tourLoader()
+    const Gate = makeTourGate(load, 0)
+    render(<Page Gate={Gate} />)
+    await waitFor(() => expect(prefsRead()).toBe(true))
+    await settle(80)
+    expect(load).not.toHaveBeenCalled()
+    expect(screen.queryByText('the tour is open')).toBeNull()
+  })
+
+  it('once the first run has been shown and closed, the tour comes', async () => {
+    prefs = { [TIPS_PREF]: JSON.stringify({ v: 1, seen: [FIRST_RUN_MARKS.shown] }) }
+    const load = tourLoader()
+    const Gate = makeTourGate(load, 0)
+    render(<Page Gate={Gate} />)
+    expect(await screen.findByText('the tour is open')).toBeInTheDocument()
+  })
+
+  it('CONTROL: with the starter packs switch off there is no first run, and the tour comes at once', async () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_onboarding_enabled: true, [STARTER_PACKS_FLAG]: false })
+    const load = tourLoader()
+    const Gate = makeTourGate(load, 0)
+    render(<Page Gate={Gate} />)
     expect(await screen.findByText('the tour is open')).toBeInTheDocument()
   })
 })

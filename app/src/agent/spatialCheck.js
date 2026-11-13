@@ -430,6 +430,10 @@ const sepButMatches = (text) => (WHOLE_BOARD.test(String(text || '')) ? [...Stri
 export function withoutExclusions(text) {
   let s = exceptForm(text)
   for (const m of [...s.matchAll(EXCEPT), ...s.matchAll(NEG_EXCEPT), ...sepButMatches(s)]) s = s.slice(0, m.index) + ' '.repeat(m[0].length) + s.slice(m.index + m[0].length)
+  // (hotfix) a negated-ticker clause ("…, but leave NVDA's alone") names no place either
+  for (const m of [...s.matchAll(NEG_CUE_RE), ...s.matchAll(NEG_ANY_RE), ...s.matchAll(NEG_STAY_RE)]) {
+    if (negTickerRefs(m[0]).length) s = s.slice(0, m.index) + ' '.repeat(m[0].length) + s.slice(m.index + m[0].length)
+  }
   return s
 }
 // (AUDIT control) NEG_EXCEPT's "X" excludes only a CHART or a POSITION — a chart noun, a place / order word, the click, or a ticker
@@ -466,12 +470,68 @@ function negNamesAChart(phrase, charts) {
 // "chart" / "one" and the clause's end (a neighbour or relation — "SPY's neighbour" — stays unplaced, as before).
 const EXCEPT_TICKER_POSS = /\b(?:except(?:\s+for)?|apart\s+from|other\s+than|excluding|but\s+not|save\s+for|minus)\s+((?:the\s+)?[A-Za-z]{1,5}['’]s(?:\s+(?:chart|one))?)(?=\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\b|\s*[,.;!?]|\s*$)/gi
 const tickerPossMatches = (text) => [...String(text || '').matchAll(EXCEPT_TICKER_POSS)]
+// (hotfix, ticker-possessive targeting) a NEGATED TICKER clause beside a change on the board: "…, but leave NVDA's alone",
+// "…, skip NVDA's", "…; dont touch NVDA", "Not the NVDA chart though.", "hands off the NVDA chart", "Leave NVDA out of it.",
+// "spare NVDA and …", "…, NVDA's can stay as it is". The cue (leave / keep / skip / not / hands off / ignore / don't touch /
+// exclude / spare / without …) governs a TICKER reference — "NVDA's (chart | one)", "the NVDA one | chart", or a bare ticker
+// the board shows — as its whole object, at a clause's start (after , ; : . ! ? — – or but / and / then / so / though …) or,
+// for "without" / "with the exception of", anywhere. Only TICKER objects are read here (a position, a line, the click and a
+// relation keep their own readers); a value or an indicator ("keep the RSI", "don't touch the axis", "skip to the next bar",
+// "leave it on weekly") is no ticker reference and reads nothing. Each reference is PLACED on the board's symbols:
+//   one chart shows it → excluded; several → UNPLACED (asked) and every one of them never offered;
+//   none, and it is a POSSESSIVE ("leave Apple's alone") → UNPLACED (it names a chart the board cannot place: asked);
+//   none, and a plain ticker → nothing (master policy: a ticker the board does not show is no chart to protect).
+const NEG_NOUN = String.raw`(?:chart|one|cell|pane|panel|graph)`
+const NEG_TOK = String.raw`[A-Za-z][A-Za-z0-9]{0,5}(?:\.[A-Za-z0-9]{1,2})?`
+const NEG_PTOK = String.raw`[A-Za-z][A-Za-z0-9]{0,11}`                // a possessive may be a company ("Microsoft's": asked)
+const NEG_REF1 = String.raw`(?:the\s+)?${NEG_PTOK}['’]s(?:\s+${NEG_NOUN})?|the\s+${NEG_TOK}\s+${NEG_NOUN}|${NEG_TOK}(?:\s+${NEG_NOUN})?`
+const NEG_REFS = String.raw`(?:${NEG_REF1})(?:\s*(?:,|&|\band\b|\bor\b|\bnor\b)\s*(?:${NEG_REF1}))*`
+const NEG_START = String.raw`(?:^|[,;:.!?—–(]|\b(?:and|but|then|so|though|although|while|also|plus|or|just|now)\b)\s*(?:(?:please|just|also|then|and|but|so|now|oh|ok(?:ay)?)\s+)*`
+const NEG_DONT = String.raw`(?:don['’]?t|dont|do\s+not|never|please\s+don['’]?t|no\s+need\s+to)\s+(?:touch|change|modify|alter|update|switch|mess\s+with|bother\s+with|include|do\s+anything\s+(?:to|with)|(?:apply|add)\s+(?:it|this|that|them)\s+to|put\s+(?:it|this|that|them)\s+on)`
+const NEG_CUE = String.raw`(?:leave(?:\s+(?:alone|out))?|keep(?:\s+out)?|skip|ignore|exclude|spare|hands\s+off(?:\s+of)?|not(?:\s+(?:on|for|to|in|with))?|${NEG_DONT})`
+const NEG_TAIL = String.raw`(?:\s+(?:alone|be|out(?:\s+of\s+(?:it|this|that|them|this\s+one))?|as\s+(?:it\s+|they\s+)?(?:is|are|was)|as\s+is|untouched|unchanged|the\s+same|where\s+(?:it\s+is|they\s+are)|though|please|thanks|for\s+now|this\s+time|too))*`
+// keep / leave AT A SETTING ("keep NVDA on daily") excludes only beside the whole board or the rest (alone it can be the change)
+const NEG_AT = String.raw`(?:\s+(?:(?:on|at|in)\s+)?(?:(?:a|the)\s+)?${KEEP_SETTING}(?:\s+(?:as\s+(?:it\s+)?is|for\s+now|too))?)`
+const NEG_END = String.raw`(?=\s*(?:[,;:.!?—–)]|$)|\s+(?:and|but|then|though|while|so)\b)`
+const NEG_STAY = String.raw`(?:(?:can|should|will|may|must|could)\s+)?(?:stays?|remains?)(?:\s+(?:as\s+(?:it\s+)?is|as\s+is|the\s+same|unchanged|untouched|put|where\s+it\s+is|${KEEP_SETTING}|on\s+${KEEP_SETTING}))?|(?:is|['’]s)\s+(?:(?:just|already)\s+)?(?:fine|good|ok(?:ay)?|perfect|alright)(?:\s+(?:as\s+(?:it\s+)?is|as\s+is|the\s+way\s+it\s+is))?`
+const NEG_CUE_RE = new RegExp(String.raw`${NEG_START}(${NEG_CUE})\s+(${NEG_REFS})(${NEG_AT})?${NEG_TAIL}${NEG_END}`, 'gi')
+const NEG_ANY_RE = new RegExp(String.raw`\b(without|with\s+the\s+exception\s+of)\s+(${NEG_REFS})${NEG_TAIL}${NEG_END}`, 'gi')
+const NEG_STAY_RE = new RegExp(String.raw`${NEG_START}()(${NEG_REFS})\s+(?:${NEG_STAY})${NEG_END}`, 'gi')
+// the loose form for the UNPLACED net: a cue and whatever it governs to the clause's end ("leave SPY's neighbour alone")
+const NEG_NET_RE = new RegExp(String.raw`${NEG_START}(${NEG_CUE}|without|with\s+the\s+exception\s+of)\s+([^,;:.!?—–]{1,60}?)${NEG_TAIL}${NEG_END}`, 'gi')
+const LOWER_STOP = /^(?:all|now|one|out|any|are|for|the|and|low|big|key|fun|run|see|has|two|new|top|it|on|be|so|or|go|me|us|we|my|an|a|to|in|at|by|of|up|is|no|do|own|way|day|bar|bars|log|this|that|them|these|those|rest|else|time|week|line|axis|grid|row|rows|both|each|mine|here|there|today|again|weekly|daily|monthly|hourly|chart|charts|ones)$/i
+/** Each ticker reference a negated-ticker clause governs → [{ phrase, tok, poss, index, input }]. */
+export function negTickerRefs(text, charts = []) {
+  const s = String(text || '')
+  const syms = new Set(charts.map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
+  const wide = REST_WORDS.test(s) || WHOLE_BOARD.test(s)
+  const out = []
+  const read = (m, refs, at) => {
+    if (at && !wide) return
+    const cue = String(m[1] || '').toLowerCase()
+    if (/^keep$/.test(cue) && !wide && m[0].trim().endsWith(refs.trim())) return       // a bare "keep X" is no exclusion alone
+    for (const r of refs.split(/\s*(?:,|&|\band\b|\bor\b|\bnor\b)\s*/i).filter(Boolean)) {
+      const x = new RegExp(String.raw`^(?:the\s+)?(?:(${NEG_PTOK})(['’]s)|(${NEG_TOK}))(?:\s+${NEG_NOUN})?$`, 'i').exec(r.trim())
+      if (!x) continue
+      const tok = x[1] || x[3], poss = !!x[2], up = tok.toUpperCase()
+      const onBoard = syms.has(up) && (tok === up || (tok.length >= 3 && !LOWER_STOP.test(tok)))
+      const tickerish = onBoard || (/^[A-Z][A-Z0-9.]{0,5}$/.test(tok) && tok !== 'I') || (poss && /^[A-Z]/.test(tok))
+      if (!tickerish) continue
+      out.push({ phrase: r.trim(), tok: up, poss, onBoard, index: m.index, input: s })
+    }
+  }
+  for (const m of s.matchAll(NEG_CUE_RE)) read(m, m[2], m[3])
+  for (const m of s.matchAll(NEG_ANY_RE)) read(m, m[2], null)
+  for (const m of s.matchAll(NEG_STAY_RE)) read(m, m[2], null)
+  return out
+}
 /** The charts an exclusion in the words names (by symbol, position, order, or "this one" = the click). */
 export function excludedCharts(text, charts = [], sel = null) {
   const out = new Set()
   // the exception PHRASES a reader below placed (added a chart or UNPLACED), normalized — matched by phrase, not by index: the
   // readers run on exceptForm(text), the unplaced scan on the words as said
   const placed = []
+  const unoffered = new Set()
   let adds = 0
   const add = out.add.bind(out)
   out.add = (x) => { adds++; return add(x) }
@@ -480,6 +540,22 @@ export function excludedCharts(text, charts = [], sel = null) {
     const a0 = adds
     try { readException(m) } finally { if (adds > a0) placed.push(normPhrase(m[1])) }
   }
+  // (hotfix) a NEGATED TICKER clause ("…, but leave NVDA's alone", "…; dont touch NVDA", "Not the NVDA chart though."):
+  // each ticker reference placed on the board's symbols (negTickerRefs)
+  for (const r of negTickerRefs(text, charts)) {
+    const list = charts.filter(c => String(c?.symbol || '').toUpperCase() === r.tok)
+    placed.push(normPhrase(r.phrase))
+    if (list.length === 1) { out.add(list[0].ref); continue }
+    if (list.length > 1) {
+      const scope = scopeLine(text, charts, sel)
+      const inScope = scope ? list.filter(c => scope.includes(c)) : []
+      if (inScope.length === 1) { out.add(inScope[0].ref); continue }
+      out.add(UNPLACED)
+      for (const c of list) unoffered.add(c.ref)
+      continue
+    }
+    if (r.poss) out.add(UNPLACED)
+  }
   // (AUDIT #1143 follow-up 2) an exception the readers could NOT place but whose words NAME A CHART — "except the one next to
   // mine", "apart from this one's neighbour", "other than the chart I opened" — was silently nothing, so the chart the member
   // excluded was NOT protected (a plan on it ran). Now it is UNPLACED: the plan is asked. Only when the excepted words name a
@@ -487,7 +563,12 @@ export function excludedCharts(text, charts = [], sel = null) {
   // time ("except on Fridays", "except volume", "except the 50 day", "excluding after-hours") still excludes nothing.
   // ⛔ read on the words AS SAID, never exceptForm: exceptForm writes "the same column BUT the other row" as "column except …",
   // which is a line relation, not an exception (agentLineRelations)
-  for (const k of String(text || '').matchAll(EXC_KW)) {
+  // (hotfix) …and a NEGATED-TICKER cue ("leave SPY's neighbour alone", "hands off the one beside NVDA") on the same net: only
+  // when its words carry a ticker (an all-caps symbol or a capitalized possessive) and a chart word — "not the chart I meant",
+  // "don't touch the axis", "skip to the next bar" carry none and read nothing (as before)
+  const negNet = [...String(text || '').matchAll(NEG_NET_RE)].map(k => ({ 1: k[2] }))
+    .filter(k => /\b(?!I\b)[A-Z][A-Z0-9]{0,4}\b|\b[A-Z][a-z]+['’]s\b/.test(k[1]) && CHARTISH_WORDS.test(k[1]))
+  for (const k of [...String(text || '').matchAll(EXC_KW), ...negNet]) {
     const w = normPhrase(k[1])
     if (placed.some(ph => ph && (w.startsWith(ph) || ph.startsWith(w)))) continue
     if (!CHARTISH.test(k[1])) continue
@@ -501,6 +582,8 @@ export function excludedCharts(text, charts = [], sel = null) {
     add(UNPLACED)
   }
   out.add = add
+  // the charts an UNPLACED exception may mean (a ticker on several charts): never offered by a question (`unoffered`)
+  Object.defineProperty(out, 'unoffered', { value: unoffered, enumerable: false })
   return out
   function readException(m) {
     const phrase = m[1].trim()
@@ -547,6 +630,7 @@ export function excludedCharts(text, charts = [], sel = null) {
       const scope = scopeLine(text, charts, sel)
       const inScope = scope ? multi.filter(c => scope.includes(c)) : []
       out.add(inScope.length === 1 ? inScope[0].ref : UNPLACED)
+      if (inScope.length !== 1) for (const c of multi) unoffered.add(c.ref)
     }
   }
 }
@@ -666,7 +750,9 @@ export function spatialConstraints(text, charts = [], sel = null) {
     }
   }
   // (G3) an exclusion is never a target, whatever else the words name
-  for (const r of excludedCharts(text, charts, sel)) out.excluded.add(r)
+  const exc = excludedCharts(text, charts, sel)
+  for (const r of exc) out.excluded.add(r)
+  out.unoffered = exc.unoffered
   // (AUDIT probe 3) "leave this alone …", "don't touch this chart …": the click is excluded, whatever the plan
   if (sel && negatedClick(text).excludes) out.excluded.add(sel)
   // "… leave the ones around it alone", "not the one under it": a negated RELATION — its charts are excluded
@@ -699,10 +785,14 @@ export function everyExceptSet(text, charts = [], sel = null) {
   const q = EVERY_Q.exec(t)
   if (!q) return null
   const after = q.index + q[0].length
-  const ex = EXCEPT_WORD.exec(t.slice(after))
+  const ex0 = EXCEPT_WORD.exec(t.slice(after))
+  // (hotfix) a negated-TICKER clause beside the quantifier ("every chart weekly, but leave NVDA's alone") is this family too:
+  // the quantifier's own words run to its clause's end, and the exclusion is the ticker the clause names
+  const ex = ex0 || (negTickerRefs(text, charts).length
+    ? { index: t.slice(after).split(/[,;:.!?—–]|\s+(?:but|and|then|though)\s+/i)[0].length, neg: true } : null)
   if (!ex) return null
   const seg = t.slice(after, after + ex.index).replace(BOARD_PP, ' ')
-  const phrase = t.slice(after + ex.index).split(/[,;.!?]|\s+(?:and|then)\s+/i)[0]
+  const phrase = ex.neg ? '' : t.slice(after + ex.index).split(/[,;.!?]|\s+(?:and|then)\s+/i)[0]
   const excluded = new Set(excludedCharts(text, charts, sel))
   if (sel && negatedClick(text).excludes) excluded.add(sel)
   // a RELATION to the click inside the exclusion ("except the one diagonally across from this"): its target is excluded; a
@@ -795,7 +885,8 @@ export function checkSpatialConstraints({ host, ops, text, pickedRefs = [], getT
   const countOff = k.count != null && planned.size !== k.count
   if (!bad.length && !countOff) return null
   const ok = charts.filter(c => (!k.allowed || k.allowed.has(c.ref)) && !k.excluded.has(c.ref))
-  const pool = new Set((ok.length ? ok : charts.filter(c => !k.excluded.has(c.ref))).map(c => c.ref))
+  // ⛔ (hotfix) never a chart the words exclude, nor one an unplaced exclusion may mean (a ticker on several charts)
+  const pool = new Set((ok.length ? ok : charts.filter(c => !k.excluded.has(c.ref))).map(c => c.ref).filter(r => !k.unoffered?.has(r)))
   // the choices are entries of the plan's own target kind (a chart, or a chart's indicators entry), as the screens before offer
   const choices = first.list.filter(s => pool.has(chartRefOf(first.kind, s))).map(s => ({ ref: s.ref, label: s.label }))
   return { ask: { text: k.plural || countOff ? 'Which charts do you mean? Your words name these:' : 'Which chart do you mean? Pick one:', choices },

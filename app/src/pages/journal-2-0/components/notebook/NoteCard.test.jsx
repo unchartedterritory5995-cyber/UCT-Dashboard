@@ -89,6 +89,76 @@ describe('NoteCard — wave 5 selection', () => {
   })
 })
 
+// Notebook simplify, Task 3: `layout="row"`, the notes list's default. Line one the title, line two the meta line in
+// this order: relative date, $TICKER, up to three tags (muted text), the subtitle; then the lock and "Not synced" marks.
+describe('NoteCard — the row layout', () => {
+  const full = note({
+    ticker: 'NVDA', tags: ['semis', 'thesis', 'ai', 'extra'], subtitle: 'Data centre cycle', locked: true,
+  })
+  const metaWords = (container) => [...container.querySelector('[data-note-meta]').children]
+    .map((el) => el.getAttribute('aria-label') || el.textContent.trim())
+
+  it('the title, then the meta line: date, ticker, three tags at most, subtitle, then the marks', () => {
+    const { container } = render(<NoteCard note={full} onOpen={vi.fn()} layout="row" blocked />)
+    expect(container.querySelector('[data-note-title]')).toHaveTextContent('NVDA thesis')
+    const words = metaWords(container)
+    expect(words[0]).toBe('now')
+    expect(words.slice(1)).toEqual(['$NVDA', '#semis', '#thesis', '#ai', 'Data centre cycle', 'Locked', BLOCKED_BADGE])
+  })
+
+  it('opens the note on click; the hub identity stays on ONE element, the button', () => {
+    const onOpen = vi.fn()
+    const { container } = render(<NoteCard note={full} onOpen={onOpen} layout="row" selectable onToggleSelect={vi.fn()} />)
+    const tagged = container.querySelectorAll('[data-note-card-id]')
+    expect(tagged).toHaveLength(1)
+    expect(tagged[0].tagName).toBe('BUTTON')
+    fireEvent.click(tagged[0])
+    expect(onOpen).toHaveBeenCalledWith(full)
+    // the checkbox still sits BESIDE the row button
+    expect(tagged[0].contains(screen.getByRole('checkbox', { name: 'Select NVDA thesis' }))).toBe(false)
+  })
+
+  it('draws no thumbnail and no card chrome (the card layout keeps both)', () => {
+    const withImg = note({ firstImageUrl: '/ok.png' })
+    const row = render(<NoteCard note={withImg} onOpen={vi.fn()} layout="row" />)
+    expect(row.container.querySelector('[data-card-thumb]')).toBeNull()
+    expect(row.container.querySelector('[data-note-card-id]').className).not.toMatch(/_card_/)
+    row.unmount()
+    const card = render(<NoteCard note={withImg} onOpen={vi.fn()} />)   // CONTROL: the card still has it
+    expect(card.container.querySelector('[data-card-thumb]')).not.toBeNull()
+    expect(card.container.querySelector('[data-note-meta]')).toBeNull()
+  })
+
+  it('a trashed row is inert with its own Restore, and carries no blocked badge', () => {
+    const onRestore = vi.fn()
+    render(<NoteCard note={full} onOpen={vi.fn()} onRestore={onRestore} layout="row" blocked />)
+    expect(screen.queryByText(BLOCKED_BADGE)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
+    expect(onRestore).toHaveBeenCalledWith(full)
+  })
+
+  it('an archived row keeps its Unarchive beside the row button', () => {
+    const onUnarchive = vi.fn()
+    render(<NoteCard note={full} onOpen={vi.fn()} onUnarchive={onUnarchive} layout="row" />)
+    const un = screen.getByRole('button', { name: 'Unarchive NVDA thesis' })
+    expect(document.querySelector('[data-note-card-id]').contains(un)).toBe(false)
+    fireEvent.click(un)
+    expect(onUnarchive).toHaveBeenCalledWith(full)
+  })
+
+  it('`selecting` marks a row so its tick box shows with nothing hovered; a card ignores it', () => {
+    const { container, rerender } = render(
+      <NoteCard note={full} onOpen={vi.fn()} layout="row" selectable onToggleSelect={vi.fn()} />,
+    )
+    const wrap = () => container.querySelector('[data-note-row]')
+    expect(wrap().className).not.toMatch(/_selectingAny_/)                 // CONTROL
+    rerender(<NoteCard note={full} onOpen={vi.fn()} layout="row" selectable selecting onToggleSelect={vi.fn()} />)
+    expect(wrap().className).toMatch(/_selectingAny_/)
+    rerender(<NoteCard note={full} onOpen={vi.fn()} selectable selecting onToggleSelect={vi.fn()} />)
+    expect(wrap().className).not.toMatch(/_selectingAny_|_selectRow_/)    // Cards are unchanged
+  })
+})
+
 // Visual audit issue 6: a thumbnail that fails to load used to paint the
 // browser's broken-image glyph. On error the thumb box goes and the card keeps
 // its no-image layout. CONTROL: before the error the thumb IS there, so the

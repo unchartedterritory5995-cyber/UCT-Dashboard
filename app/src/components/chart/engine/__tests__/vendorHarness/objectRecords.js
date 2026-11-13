@@ -57,7 +57,7 @@ function colourDefault(D, ourFamily, field) {
 }
 
 /** One field of one paired record → its row. */
-function fieldRow(spec, ctx, v, p) {
+export function fieldRow(spec, ctx, v, p) {
   const { field, kind } = spec
   const raw = p ? p[spec.ours] : undefined
   if (kind === 'colour') {
@@ -89,6 +89,10 @@ function fieldRow(spec, ctx, v, p) {
     return { field, state: a === b ? 'agree' : 'differ', vendor: b, ours: a }
   }
   if (kind === 'enum') {
+    // ⭐ Engine 52 — a v6 INT text size (points) is served on the words' scale, but no
+    // capture records a point size's pixels (`ts` / `sz` are words in every one): NOT graded,
+    // never compared with a word (`objectCanvas.js::POINT_SIZE_ANCHORS`).
+    if ((field === 'size' || field === 'text_size') && typeof ours === 'number') return { field, state: 'pointSize', vendor, ours }
     if (!has(spec.codes, String(vendor))) return { field, state: 'undecoded', vendor, ours: ours ?? null }
     const decoded = spec.codes[String(vendor)]
     return { field, state: decoded === ours ? 'agree' : 'differ', vendor: decoded, ours: ours ?? null }

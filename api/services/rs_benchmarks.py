@@ -19,6 +19,31 @@ The chart's `benchmark` input is an enum the server resolves:
   an index (``$SPX``). Empty or invalid ⇒ SPY with ``fallback`` set; a valid
   ticker is NEVER swapped for SPY. Not in :data:`AUTO_BENCHMARKS`, so neither
   the chart's menu nor the alert lane grows it by accident.
+* ``SECTOR_PICK`` (2026-11-12, owner: "benchmark to sector, theme etc") — a
+  sector the member picks, passed as ``sector``: one of the eleven SPDR ETFs in
+  :data:`SECTOR_PICKS`. Anything else ⇒ SPY with ``fallback`` set.
+* ``THEME`` — the stock's own UCT theme (`theme_db`), as an equal-weight
+  composite of the theme's member stocks, built exactly like ``INDUSTRY``'s
+  (:func:`equal_weight_composite`, the same member cap, ordering and presence
+  rule). In several themes, the one where its tier is strongest
+  (:data:`TIER_RANK`: core, then relevant, then peripheral); a tie goes to the
+  theme with the most members, then the name. No theme, or too few members
+  with bars ⇒ the ``SECTOR`` resolution with ``fallback`` saying why.
+* ``THEME_PICK`` — a theme the member picks, passed as ``theme``: the theme's
+  stable ID (never its display name, so a rename keeps a saved chart).
+  Blank, malformed or unknown ⇒ the ``SECTOR`` resolution with ``fallback``.
+
+⭐ A COMPOSITE NEVER CONTAINS THE CHARTED STOCK (2026-11-12). An industry or
+theme index that holds the stock itself measures the stock partly against
+itself, more so in a thin group; the member is dropped before the fetch, for
+INDUSTRY, THEME and THEME_PICK alike.
+
+The three new names live in :data:`CHOICE_BENCHMARKS` with CUSTOM, OUT of
+:data:`LITERAL_BENCHMARKS` + :data:`AUTO_BENCHMARKS`, for the reason CUSTOM is:
+every set derived from those two tuples (the v3 menu, the prewarm set, the
+screener's ETF set, Compass's RS tool) stays exactly as it was. Only the v4 menu
+(`registry_defs.RS_LINE_BENCHMARKS_V4`) names them, and the alert lane adds
+``THEME`` by name (`alert_rs_series.RS_ALERT_BENCHMARKS`).
 
 ⭐ PURE WHERE IT CAN BE. The bar fetcher is injected (the router passes
 `_fetch_bars_for_tf`; an optional `has_bars` presence probe rides the same
@@ -84,6 +109,47 @@ LABELS: Dict[str, str] = {
     "RSP": "Equal-weight S&P 500 (RSP)",
 }
 
+#: ⭐ THE PICKABLE SECTORS (2026-11-12), in the menu's order, with the plain
+#: name a member reads. The same eleven ETFs as :data:`SECTOR_ETF` (a rail
+#: holds the two sets equal), so every pick is already in the prewarm set.
+SECTOR_PICKS: Dict[str, str] = {
+    "XLK": "Technology",
+    "XLV": "Health Care",
+    "XLF": "Financials",
+    "XLY": "Consumer Discretionary",
+    "XLP": "Consumer Staples",
+    "XLE": "Energy",
+    "XLI": "Industrials",
+    "XLB": "Materials",
+    "XLU": "Utilities",
+    "XLRE": "Real Estate",
+    "XLC": "Communication Services",
+}
+DEFAULT_SECTOR_PICK = "XLK"
+
+SECTOR_PICK_BENCHMARK = "SECTOR_PICK"
+THEME_BENCHMARK = "THEME"
+THEME_PICK_BENCHMARK = "THEME_PICK"
+#: The v4 menu's benchmarks beyond the v3 vocabulary, each carrying a second
+#: value (or, for THEME, a theme lookup): resolved here, listed only by the v4
+#: menu. See the module docstring for why they are not AUTO / LITERAL names.
+CHOICE_BENCHMARKS = (SECTOR_PICK_BENCHMARK, THEME_BENCHMARK, THEME_PICK_BENCHMARK, CUSTOM_BENCHMARK)
+
+#: A theme's stable ID (`themes.id`, e.g. ``semiconductor_equipment``): what a
+#: saved chart stores for "Pick a theme". The server row and the JS input carry
+#: this source as their `pattern`.
+THEME_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_\-]{0,63}$")
+#: A membership tier's strength: lower is stronger. An unknown tier ranks last.
+TIER_RANK: Dict[str, int] = {"core": 0, "relevant": 1, "peripheral": 2}
+
+#: The fallback reasons the new benchmarks print (the provider turns each into
+#: a sentence, `rs_provider._RS_FALLBACK_SENTENCE`).
+NO_SECTOR_PICK = "no sector picked"
+NO_THEME = "no theme"
+NO_THEME_PICK = "no theme picked"
+THEME_NOT_FOUND = "theme not found"
+THEME_TOO_SMALL = "theme too small"
+
 #: The universe map's industry label for every ETF (its Finviz source's convention).
 ETF_INDUSTRY = "Exchange Traded Fund"
 
@@ -125,6 +191,189 @@ def _cap_universe() -> set:
     except Exception:                                   # noqa: BLE001
         logger.exception("rs_benchmarks: cap universe read failed")
         return set()
+
+
+def _bar_symbol(sym: str) -> str:
+    """A ticker in the bar store's spelling: upper case, class shares hyphenated
+    (the theme taxonomy writes ``BRK.B``; bars.db and the cap universe hold
+    ``BRK-B``)."""
+    return str(sym or "").strip().upper().replace(".", "-")
+
+
+def _themes_for(sym: str) -> List[dict]:
+    """``[{"id", "name", "tier", "members"}]``: every UCT theme ``sym`` belongs
+    to (owner and engine memberships merged, `theme_db`), with each theme's
+    member count. One seam for tests; best effort like the map."""
+    try:
+        from api.services import theme_db
+        rows = theme_db.get_themes_for_ticker(sym) or []
+        out = []
+        for r in rows:
+            tid = r.get("theme_id")
+            if not tid:
+                continue
+            out.append({"id": tid, "name": r.get("theme_name") or tid,
+                        "tier": str(r.get("tier") or "relevant").lower(),
+                        "members": len(theme_db.get_theme_holdings(tid) or [])})
+        return out
+    except Exception:                                   # noqa: BLE001 — the taxonomy is best effort
+        logger.exception("rs_benchmarks: theme read failed for %s", sym)
+        return []
+
+
+def _theme_info(theme_id: str) -> Optional[dict]:
+    """``{"id", "name"}`` for a theme ID, ``None`` when no such theme exists."""
+    try:
+        from api.services import theme_db
+        row = theme_db.get_theme(theme_id)
+        return {"id": row["id"], "name": row.get("name") or row["id"]} if row else None
+    except Exception:                                   # noqa: BLE001
+        logger.exception("rs_benchmarks: theme lookup failed for %r", theme_id)
+        return None
+
+
+def _theme_members(theme_id: str) -> List[str]:
+    """Every member ticker of a theme, every tier, in the bar store's spelling."""
+    try:
+        from api.services import theme_db
+        return [_bar_symbol(h.get("sym")) for h in (theme_db.get_theme_holdings(theme_id) or [])
+                if h.get("sym")]
+    except Exception:                                   # noqa: BLE001
+        logger.exception("rs_benchmarks: theme members read failed for %r", theme_id)
+        return []
+
+
+def theme_choices() -> List[dict]:
+    """``[{"id", "name"}]`` for the "Pick a theme" list, in the taxonomy's
+    display order (`theme_db.get_theme_names`: names only, no membership merge,
+    so the list costs one small read). ``[]`` when the tables cannot be read."""
+    try:
+        from api.services import theme_db
+        return [{"id": t["id"], "name": t["name"]} for t in (theme_db.get_theme_names() or [])
+                if t.get("id") and THEME_ID_RE.fullmatch(str(t["id"]))]
+    except Exception:                                   # noqa: BLE001
+        logger.exception("rs_benchmarks: theme list read failed")
+        return []
+
+
+def pick_strongest_theme(themes: Sequence[dict]) -> Optional[dict]:
+    """The theme a stock's ``THEME`` benchmark uses: the strongest tier
+    (:data:`TIER_RANK`, an unknown tier last), then the most members, then the
+    name (case-blind), then the ID, so the answer never depends on row order."""
+    if not themes:
+        return None
+    return min(themes, key=lambda t: (TIER_RANK.get(str(t.get("tier") or "").lower(), len(TIER_RANK)),
+                                      -int(t.get("members") or 0),
+                                      str(t.get("name") or "").lower(), str(t.get("id") or "")))
+
+
+def normalize_sector_pick(value: Optional[str]) -> Optional[str]:
+    """The ETF when ``value`` is one of :data:`SECTOR_PICKS`, else ``None``."""
+    s = str(value or "").strip().upper()
+    return s if s in SECTOR_PICKS else None
+
+
+def normalize_theme_id(value: Optional[str]) -> Optional[str]:
+    """The theme ID when ``value`` reads as one (:data:`THEME_ID_RE`), else
+    ``None``. Whether the theme EXISTS is the resolver's question."""
+    s = str(value or "").strip()
+    return s if s and s.isascii() and THEME_ID_RE.fullmatch(s) else None
+
+
+def benchmark_picks(requested: Optional[str], inputs: Optional[dict]) -> Dict[str, str]:
+    """``{"customBenchmark", "sectorBenchmark", "themeBenchmark"}`` as the compute
+    reads them: each normalised and BLANK unless the benchmark is the one that
+    reads it, so a value left in a hidden box is not a second cache entry for
+    the same answer. ``customBenchmark`` keeps the rule
+    `rs_provider._rs_phase3_params` has always applied to it."""
+    req = str(requested or "").upper()
+    inp = inputs or {}
+    return {
+        "customBenchmark": (normalize_custom_symbol(inp.get("customBenchmark")) or ""
+                            if req == CUSTOM_BENCHMARK else ""),
+        "sectorBenchmark": (normalize_sector_pick(inp.get("sectorBenchmark")) or ""
+                            if req == SECTOR_PICK_BENCHMARK else ""),
+        "themeBenchmark": (normalize_theme_id(inp.get("themeBenchmark")) or ""
+                           if req == THEME_PICK_BENCHMARK else ""),
+    }
+
+
+def benchmark_name(bench: dict) -> Optional[str]:
+    """The benchmark's plain name for a pane label: the ticker (``XLK``), the
+    industry (``Semiconductors``) or the theme (``AI / GPU Chips``), never the
+    synthetic ``INDUSTRY:`` / ``THEME:`` key."""
+    if not isinstance(bench, dict):
+        return None
+    if bench.get("name"):
+        return str(bench["name"])
+    resolved = str(bench.get("resolved") or "")
+    if resolved.startswith("INDUSTRY:"):
+        return resolved[len("INDUSTRY:"):] or None
+    return resolved or None
+
+
+# ⭐ THE COMPOSITE MEMO (2026-11-12). An industry or theme composite costs one
+# bar read per member (up to :data:`MAX_INDUSTRY_MEMBERS`) and a chain-link pass;
+# a chart with three RS indicators, its regime read and the alert lane's cycle
+# would each pay that again. Results are kept per process for
+# :data:`COMPOSITE_MEMO_TTL_S` (D / W / M; :data:`COMPOSITE_MEMO_TTL_INTRADAY_S`
+# intraday, where the forming bar moves), keyed on the CALLER'S READER as well as
+# the group, so two readers (the chart's store read, the alert lane's, a test's
+# fixture) never share an answer. A caller that passes no ``memo`` reader gets
+# no memo at all. Bounded, expired entries swept on every write.
+COMPOSITE_MEMO_TTL_S = 300.0
+COMPOSITE_MEMO_TTL_INTRADAY_S = 60.0
+_COMPOSITE_MEMO_MAX = 96
+_composite_memo: Dict[tuple, tuple] = {}
+_composite_memo_lock = threading.Lock()
+
+
+def composite_memo_reset() -> None:
+    """Forget every memoised composite (tests; a bars repair that must be seen now)."""
+    with _composite_memo_lock:
+        _composite_memo.clear()
+
+
+def _memo_ttl(tf: str) -> float:
+    return COMPOSITE_MEMO_TTL_S if str(tf).upper() in ("D", "1D", "W", "1W", "M", "1M") \
+        else COMPOSITE_MEMO_TTL_INTRADAY_S
+
+
+def _composite(members: Sequence[str], exclude: str, tf: str, count: int, fetch_bars: "FetchBars",
+               has_bars: Optional["HasBars"], memo: object, group: tuple):
+    """``(composite_bars, contributing_count)`` for a group, the charted stock
+    (``exclude``) left out. ``composite_bars`` is ``None`` when fewer than
+    :data:`MIN_INDUSTRY_MEMBERS` members had bars or the presence rule left no
+    bar. Memoised under ``memo`` (see above)."""
+    ex = _bar_symbol(exclude)
+    names = [m for m in (members or []) if m and _bar_symbol(m) != ex]
+    key = None
+    if memo is not None:
+        key = (memo, group, str(tf), int(count), ex if len(names) != len(members or []) else "")
+        now = _now()
+        with _composite_memo_lock:
+            hit = _composite_memo.get(key)
+            if hit is not None and 0 <= now - hit[0] < _memo_ttl(tf):
+                return hit[1]
+    ordered = order_industry_members(names, tf, fetch_bars, has_bars)
+    # Fetch first, then count: a member without bars in the store contributes
+    # nothing, so the floor is on CONTRIBUTING names (review finding).
+    series = {m: fetch_bars(m, tf, count) for m in ordered[:MAX_INDUSTRY_MEMBERS]}
+    contributing = {m: s for m, s in series.items() if s}
+    out = (None, len(contributing))
+    if len(contributing) >= MIN_INDUSTRY_MEMBERS:
+        bars = equal_weight_composite(contributing)
+        if bars:
+            out = (bars, len(contributing))
+    if key is not None:
+        now = _now()
+        with _composite_memo_lock:
+            for k in [k for k, (at, _v) in _composite_memo.items() if not (0 <= now - at < _memo_ttl(k[2]))]:
+                _composite_memo.pop(k, None)
+            while len(_composite_memo) >= _COMPOSITE_MEMO_MAX:
+                _composite_memo.pop(next(iter(_composite_memo)))
+            _composite_memo[key] = (now, out)
+    return out
 
 
 HasBars = Callable[[str, str], bool]
@@ -304,9 +553,55 @@ def _resolve_custom(sym_u: str, custom: Optional[str], tf: str, count: int,
             "fallback": None, "bars": list(bars or []), "note": note}
 
 
+def _resolve_sector(req: str, sym_u: str, tf: str, count: int, fetch_bars: FetchBars) -> dict:
+    """The SECTOR branch (also every theme benchmark's fallback): the symbol's
+    sector ETF, SPY for an ETF or an unmapped sector."""
+    groups = _groups_for(sym_u) or {}
+    sector = groups.get("sector")
+    # ⭐ AN ETF HAS NO SECTOR OF ITS OWN. The universe map files every ETF under
+    # sector "Financial" / industry "Exchange Traded Fund" (its source's
+    # convention), so SPY's "sector ETF" would resolve to XLF — a comparison
+    # that means nothing. For an ETF the market is the benchmark, and the
+    # legend says why (plan §6.10; Phase 2 map §4.1.6).
+    if (groups.get("industry") or "") == ETF_INDUSTRY:
+        return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
+                "fallback": "symbol is an ETF", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
+    etf = SECTOR_ETF.get(sector or "")
+    if not etf:
+        return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
+                "fallback": "no sector" if not sector else f"sector not mapped: {sector}",
+                "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
+    return {"requested": req, "resolved": etf, "label": f"{sector} ({etf})",
+            "fallback": None, "bars": fetch_bars(etf, tf, count)}
+
+
+def _theme_fallback(req: str, reason: str, sym_u: str, tf: str, count: int, fetch_bars: FetchBars) -> dict:
+    """A theme benchmark that cannot be built falls to the stock's sector (and
+    from there to SPY, as SECTOR does), with the THEME reason first: the member
+    asked for a theme, and the note must say why they are not seeing one."""
+    out = _resolve_sector(req, sym_u, tf, count, fetch_bars)
+    out["fallback"] = reason if not out.get("fallback") else f"{reason}; {out['fallback']}"
+    return out
+
+
+def _resolve_theme(req: str, theme: Optional[dict], sym_u: str, tf: str, count: int,
+                   fetch_bars: FetchBars, has_bars: Optional[HasBars], memo: object) -> dict:
+    """An equal-weight composite of ``theme``'s members, the stock left out;
+    too few members with bars ⇒ the sector, with :data:`THEME_TOO_SMALL`."""
+    composite, n = _composite(_theme_members(theme["id"]), sym_u, tf, count, fetch_bars, has_bars,
+                              memo, ("THEME", theme["id"]))
+    if composite:
+        return {"requested": req, "resolved": f"THEME:{theme['id']}",
+                "label": f"{theme['name']} (equal-weight, {n} names)",
+                "fallback": None, "bars": composite, "name": theme["name"]}
+    return _theme_fallback(req, THEME_TOO_SMALL, sym_u, tf, count, fetch_bars)
+
+
 def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
                       fetch_bars: FetchBars, has_bars: Optional[HasBars] = None, *,
-                      custom: Optional[str] = None, warm: Optional[Warm] = None) -> dict:
+                      custom: Optional[str] = None, warm: Optional[Warm] = None,
+                      sector: Optional[str] = None, theme: Optional[str] = None,
+                      memo: object = None) -> dict:
     """Resolve the enum to bars.
 
     Returns ``{"requested", "resolved", "label", "fallback", "bars"}``.
@@ -324,12 +619,42 @@ def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
     most once per ticker per :data:`CUSTOM_WARM_TTL_S` in this process. A CUSTOM
     result also carries ``note`` (``None`` unless bars are missing). ``custom``
     and ``warm`` are ignored for every other benchmark.
+
+    2026-11-12: ``SECTOR_PICK`` reads ``sector`` (an ETF of
+    :data:`SECTOR_PICKS`), ``THEME_PICK`` reads ``theme`` (a theme ID); both
+    are ignored for every other benchmark. A ``THEME`` / ``THEME_PICK`` result
+    also carries ``name``, the theme's display name (:func:`benchmark_name`).
+    ``memo`` is the caller's bar reader, under which industry and theme
+    composites are memoised (:func:`_composite`); ``None`` memoises nothing.
     """
     req = str(requested or DEFAULT_BENCHMARK).upper()
     sym_u = str(sym or "").upper()
 
     if req == CUSTOM_BENCHMARK:
         return _resolve_custom(sym_u, custom, tf, count, fetch_bars, warm)
+
+    if req == SECTOR_PICK_BENCHMARK:
+        etf = normalize_sector_pick(sector)
+        if etf is None:
+            return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
+                    "fallback": NO_SECTOR_PICK, "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
+        return {"requested": req, "resolved": etf, "label": f"{SECTOR_PICKS[etf]} ({etf})",
+                "fallback": None, "bars": fetch_bars(etf, tf, count)}
+
+    if req == THEME_BENCHMARK:
+        best = pick_strongest_theme(_themes_for(sym_u))
+        if best is None:
+            return _theme_fallback(req, NO_THEME, sym_u, tf, count, fetch_bars)
+        return _resolve_theme(req, best, sym_u, tf, count, fetch_bars, has_bars, memo)
+
+    if req == THEME_PICK_BENCHMARK:
+        tid = normalize_theme_id(theme)
+        if tid is None:
+            return _theme_fallback(req, NO_THEME_PICK, sym_u, tf, count, fetch_bars)
+        info = _theme_info(tid)
+        if info is None:
+            return _theme_fallback(req, THEME_NOT_FOUND, sym_u, tf, count, fetch_bars)
+        return _resolve_theme(req, info, sym_u, tf, count, fetch_bars, has_bars, memo)
 
     # ⛔ AN UNKNOWN VALUE IS AN ERROR, NOT SPY. The definition's enum vocabulary
     # (`registry_defs.RS_LINE_BENCHMARKS`, derived from the two tuples above)
@@ -346,23 +671,7 @@ def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
                 "fallback": None, "bars": fetch_bars(req, tf, count)}
 
     if req == "SECTOR":
-        groups = _groups_for(sym_u) or {}
-        sector = groups.get("sector")
-        # ⭐ AN ETF HAS NO SECTOR OF ITS OWN. The universe map files every ETF under
-        # sector "Financial" / industry "Exchange Traded Fund" (its source's
-        # convention), so SPY's "sector ETF" would resolve to XLF — a comparison
-        # that means nothing. For an ETF the market is the benchmark, and the
-        # legend says why (plan §6.10; Phase 2 map §4.1.6).
-        if (groups.get("industry") or "") == ETF_INDUSTRY:
-            return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
-                    "fallback": "symbol is an ETF", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
-        etf = SECTOR_ETF.get(sector or "")
-        if not etf:
-            return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
-                    "fallback": "no sector" if not sector else f"sector not mapped: {sector}",
-                    "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
-        return {"requested": req, "resolved": etf, "label": f"{sector} ({etf})",
-                "fallback": None, "bars": fetch_bars(etf, tf, count)}
+        return _resolve_sector(req, sym_u, tf, count, fetch_bars)
 
     # req == "INDUSTRY" — the last value in the vocabulary checked above.
     groups = _groups_for(sym_u) or {}
@@ -370,21 +679,17 @@ def resolve_benchmark(sym: str, requested: Optional[str], tf: str, count: int,
     if (industry or "") == ETF_INDUSTRY:
         return {"requested": req, "resolved": DEFAULT_BENCHMARK, "label": LABELS[DEFAULT_BENCHMARK],
                 "fallback": "symbol is an ETF", "bars": fetch_bars(DEFAULT_BENCHMARK, tf, count)}
-    members = (order_industry_members(_members_of(industry), tf, fetch_bars, has_bars)
-               if industry else [])
-    # Fetch first, then count: a member without bars in the store contributes
-    # nothing, so the floor is on CONTRIBUTING names and the label says how
-    # many actually carried the composite (review finding). The fetch cap
-    # keeps a 200-name group from costing 200 full reads per chart open, and
-    # `order_industry_members` puts the names that HAVE bars (and are in the
-    # cap universe) ahead of the slice so the cap never excludes them.
-    series = {m: fetch_bars(m, tf, count) for m in members[:MAX_INDUSTRY_MEMBERS]}
-    contributing = {m: s for m, s in series.items() if s}
-    if len(contributing) >= MIN_INDUSTRY_MEMBERS:
-        composite = equal_weight_composite(contributing)
+    # The fetch cap keeps a 200-name group from costing 200 full reads per chart
+    # open, and `order_industry_members` puts the names that HAVE bars (and are
+    # in the cap universe) ahead of the slice so the cap never excludes them.
+    # The label says how many actually carried the composite (review finding).
+    # 2026-11-12: the charted stock is left out (`_composite`), as for a theme.
+    if industry:
+        composite, n = _composite(_members_of(industry), sym_u, tf, count, fetch_bars, has_bars,
+                                  memo, ("INDUSTRY", industry))
         if composite:
             return {"requested": req, "resolved": f"INDUSTRY:{industry}",
-                    "label": f"{industry} (equal-weight, {len(contributing)} names)",
+                    "label": f"{industry} (equal-weight, {n} names)",
                     "fallback": None, "bars": composite}
     # Not enough of a group: fall to the sector, then the market, and say so.
     sector = groups.get("sector")

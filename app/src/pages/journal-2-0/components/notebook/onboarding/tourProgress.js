@@ -1,7 +1,7 @@
 // S14 (audit 2026-11-05, details #65 and #68): what the member has done with each tour, read off the tour-seen state
 // that already exists -- never a new key. The base tour keeps its own key (`notebook_tour`, tourPref.js); every other
-// tour has a row in `notebook_tours` (tourSeenState.js). Read by the Learn menu (a ✓ for done, "New" for not taken)
-// and Help > Walkthroughs ("Start" for not taken, "Replay" for taken).
+// tour has a row in `notebook_tours` (tourSeenState.js). Read by Help > Walkthroughs ("Start" for not taken,
+// "Replay" for taken). (Research Home's Learn menu read it too, until go-live wave 1.)
 //
 //   done   the member finished it;
 //   taken  the member walked into it (started, or closed it part way);

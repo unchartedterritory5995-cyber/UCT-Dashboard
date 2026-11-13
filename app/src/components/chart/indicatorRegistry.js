@@ -274,7 +274,12 @@ export function fieldFromInput(input) {
     // declares), which is everything the control needs to refuse a value before
     // `setInstanceInput` would (`textInputCommit`).
     case 'string': {
-      const out = { ...base, type: 'text' }
+      // ⭐ 2026-11-12 — a string that names a server-owned list of choices
+      // (`optionsSource`, e.g. the RS "Pick a theme" benchmark) is a searchable
+      // chooser on every surface (`OptionsSourcePicker`), never a free text box:
+      // what it stores is the chosen entry's ID.
+      const out = { ...base, type: input.optionsSource ? 'pick' : 'text' }
+      if (input.optionsSource) out.optionsSource = input.optionsSource
       for (const k of TEXT_FIELD_KEYS) if (input[k] !== undefined) out[k] = input[k]
       return out
     }

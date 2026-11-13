@@ -23,6 +23,8 @@ export const PAST_TO_PENDING = Object.freeze({
   Zoomed: 'Zoom',
   // calc-TF family (indicatorStyle.setCalcTimeframe: 'Calculated RSI 14 on Chart (QQQ) on weekly bars …')
   Calculated: 'Calculate',
+  // chartFeatures.companyPanel ('Expanded the Company Info panel …' / 'Collapsed the Company Info panel …')
+  Expanded: 'Expand', Collapsed: 'Collapse',
 })
 // phrases that state a RESULT as already true
 const PHRASES = [

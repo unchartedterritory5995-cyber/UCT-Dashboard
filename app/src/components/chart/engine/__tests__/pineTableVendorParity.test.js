@@ -103,8 +103,9 @@ const DRAWN = new Map()
 function drawnUncached(source, bars, symbol) {
   const built = paneDef(source)
   const reader = objectReaderFor(built.definition, bars, { inputs: undefined, tf: 'D', symbol })
+  // ⭐ Engine 52 (review M6): `readUnknown` as production passes it (`binder.js`)
   const run = evaluateObjects(reader.program, {
-    barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,
+    barCount: bars.length, readNode: reader.readNode, readUnknown: reader.readUnknown, readTime: (i) => bars[i].t,
   })
   const state = toRenderState(run.live, { bars })
   const root = doc.createElement('div')
@@ -168,10 +169,12 @@ describe.each([SPY, AGEN])('⭐⭐ $label — every drawn cell against the captu
     // the renderer's `top_right` — right only while no HV event is recent, which
     // is what both captures happen to show. An enum slot this door cannot read now
     // withholds its drawing (`enum:unreadable`, `table@490`), never a default corner.
-    expect(stats).toEqual({ tables: 1, cells: 3, skipped: 0 })
+    // ⛔⛔ ENGINE 52 — STOP ITEM (reported, coordinator to rule): the ATRx cell's `text_color` is `atrMultColor`, a default reassigned in an `if` from a choice on a block local (`absMult <= 7 ? color.white : …`), which no reader follows; under "never drawn at the default" the cell is WITHHELD by name (`pine:prop-unreadable`). Its TEXT was byte-identical to TradingView (the capture records text, not colour), so this moves the capture's drawn cells 3 -> 2.
+    expect(stats).toEqual({ tables: 1, cells: 2, skipped: 0 })
     expect(volume).toBeUndefined()
     expect(vVolume).toHaveLength(1)
-    expect(range.cells).toHaveLength(vRange.length)
+    expect(range.cells).toHaveLength(vRange.length - 1)
+    expect(built.translation.objectDiagnostics.withheldPropNames).toContain('cell.text_color@576')
     expect(built.translation.objectDiagnostics.createDropWhy.some((w) => w.startsWith('create table@490 position: pine:enum-unreadable'))).toBe(true)
   })
 
@@ -191,7 +194,8 @@ describe.each([SPY, AGEN])('⭐⭐ $label — every drawn cell against the captu
     // The literals, the separators, the `$`, the `%`, the `x`, the unit suffix,
     // the parentheses — and the number of decimal places each float was
     // formatted to. Everything except the digits themselves.
-    expect(range.cells.map(shapeOf)).toEqual(vRange.map(shapeOf))
+    // (engine 52 STOP item: the ATRx cell is withheld, see the count case above)
+    expect(range.cells.map(shapeOf)).toEqual(vRange.slice(0, 2).map(shapeOf))
     // (the Volume table is withheld by name — engine 51, see the count case above)
     expect(volume).toBeUndefined()
   })
@@ -236,9 +240,11 @@ describe('⭐⭐ SPY — the numbers, each one named', () => {
   it('⭐⭐ THE THREE RANGE CELLS ARE BYTE-IDENTICAL TO TRADINGVIEW', () => {
     // ATR(14), the day's range as a percentage of it, and the extension from the
     // 50 SMA in ATRs. All three are windowed, so 1,400 bars and 8,458 bars agree.
-    expect(range.cells).toEqual(vRange)
+    // ⛔⛔ ENGINE 52 — STOP ITEM (reported, coordinator to rule): the ATRx cell's `text_color` is `atrMultColor`, a default reassigned in an `if` from a choice on a block local (`absMult <= 7 ? color.white : …`), which no reader follows; under "never drawn at the default" the cell is WITHHELD by name (`pine:prop-unreadable`). Its TEXT was byte-identical to TradingView (the capture records text, not colour), so this moves the capture's drawn cells 3 -> 2.
+    expect(range.cells).toEqual(vRange.slice(0, 2))
+    expect(vRange[2]).toBe('| ATRx: 0.92')
     expect(range.cells).toEqual([
-      'ATR : $6.21 (0.81%)', '| Range: 137.58%', '| ATRx: 0.92',
+      'ATR : $6.21 (0.81%)', '| Range: 137.58%',
     ])
   })
 
@@ -291,10 +297,10 @@ describe('⭐ AGEN — the second symbol, the same four shapes', () => {
   })
 
   it('⭐ and the Range table still reads three cells in the ATR vocabulary', () => {
-    expect(range.cells).toHaveLength(3)
+    // (engine 52 STOP item: the ATRx cell is withheld by name)
+    expect(range.cells).toHaveLength(2)
     expect(range.cells[0]).toMatch(/^ATR : \$\d/)
     expect(range.cells[1]).toMatch(/^\| Range: /)
-    expect(range.cells[2]).toMatch(/^\| ATRx: /)
   })
 })
 
@@ -332,7 +338,8 @@ describe('⭐⭐ toggles ON — the same script draws SIX cells', () => {
     const { stats, tables } = drawn(ON, forTables(SPY.bars), SPY.symbol)
     // engine 51: the Volume table (and its AVol cell) is withheld by name, so the
     // Range table draws its four (the DCR cell now present) and nothing else
-    expect(stats).toEqual({ tables: 1, cells: 4, skipped: 0 })
+    // (engine 52 STOP item: the ATRx cell is withheld by name; the DCR cell's colour is now read)
+    expect(stats).toEqual({ tables: 1, cells: 3, skipped: 0 })
     const all = tables.flatMap((t) => t.cells)
     const avol = all.find((c) => c.startsWith('| AVol : '))
     const dcr = all.find((c) => c.startsWith('| DCR: '))
@@ -347,8 +354,9 @@ describe('⭐⭐ toggles ON — the same script draws SIX cells', () => {
     // ⛔ AND THE FOUR THAT WERE ALREADY THERE ARE UNCHANGED — a toggle that also
     // moved a number would be a different bug wearing this one's clothes.
     const range = tables.find((t) => t.cells.some((c) => c.includes('ATR')))
-    expect(range.cells.slice(0, 3)).toEqual([
-      'ATR : $6.21 (0.81%)', '| Range: 137.58%', '| ATRx: 0.92',
+    // (engine 52 STOP item: the ATRx cell is withheld by name)
+    expect(range.cells.slice(0, 2)).toEqual([
+      'ATR : $6.21 (0.81%)', '| Range: 137.58%',
     ])
   })
 

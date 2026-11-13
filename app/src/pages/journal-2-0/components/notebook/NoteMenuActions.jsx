@@ -73,8 +73,9 @@ import styles from './NoteMenuActions.module.css'
  *   editor has. Optional: without it (unit tests, no editor) the template is
  *   saved as before.
  */
-// Notebook P1: "Save as template with blocks" -- offered only while journal styles are on. The first press
-// fetches the lazy door (button, form, sentence), which opens the form at once; nothing is fetched before.
+// Notebook P1: the template that keeps live blocks -- offered only while journal styles are on. Notebook simplify,
+// Task 4: it is a choice INSIDE the one "Save as template" entry ("Keep live blocks"); choosing it fetches the lazy
+// door (its naming form), and nothing is fetched before.
 const SaveStyleDoor = lazyChunk(() => loadStyle('SaveStyleDoor'))
 const UNSENT_BEFORE_TEMPLATE = "Your latest edits haven't reached the server yet, so the template would miss them. Nothing was saved — try again in a moment."
 
@@ -83,7 +84,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
   const [status, setStatus] = useState(null) // { message, tone }
   const [templateDraft, setTemplateDraft] = useState(null) // string while naming
   const [pickingBeside, setPickingBeside] = useState(false)
-  const [styleDoor, setStyleDoor] = useState(false)   // Notebook P1: pressed once -> the lazy door takes over
+  const [keepBlocks, setKeepBlocks] = useState(false) // Task 4: the open template form's choice (plain by default)
   // F4 / A2R-07: which door's button to hand focus back to once its inline form has closed.
   const templateBtnRef = useRef(null)
   const besideBtnRef = useRef(null)
@@ -174,14 +175,15 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
     }).then((ok) => { if (ok) { refocusRef.current = 'template'; setTemplateDraft(null) } })
   }
 
-  // The Save-as-style button: the same control before the press and while its chunk loads (busy, kept in place,
-  // still focused), then the lazy door takes over with focus in its form.
-  const styleBtn = (p) => (
-    <button type="button" className={styles.btn} aria-expanded={styleDoor} {...p}>
-      <UIcon name="sliders" size={13} gold={false} />
-      Save as template with blocks
-    </button>
-  )
+  // Notebook simplify, Task 4: closing the template form, from either save path. The blocks path's form hands its
+  // sentence here (it unmounts with the form), and focus goes back to "Save as template".
+  const closeTemplate = (sentence, { failed } = {}) => {
+    if (sentence) setStatus({ tone: failed ? 'error' : 'ok', message: sentence })
+    refocusRef.current = 'template'
+    setTemplateDraft(null)
+    setKeepBlocks(false)
+  }
+  const blocksOn = journalStylesEnabled()
 
   return (
     <span className={styles.group} role="group" aria-label="Organise this note">
@@ -214,7 +216,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
           ref={templateBtnRef}
           type="button"
           className={styles.btn}
-          onClick={() => { setStatus(null); setTemplateDraft(note.title || '') }}
+          onClick={() => { setStatus(null); setKeepBlocks(false); setTemplateDraft(note.title || '') }}
           disabled={busy}
           title="Reuse this note's title, body and properties for new notes"
         >
@@ -222,6 +224,23 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
           Save as template
         </button>
       ) : (
+        <span className={styles.templateForm} role="group" aria-label="Save as template">
+        {/* Notebook simplify, Task 4: ONE entry, two ways to save. Plain (the default) copies the title, body and
+            properties; "Keep live blocks" saves the note's blocks, outline and property values (the journal styles
+            path, offered only while that switch is on). Each is its existing save, unchanged. */}
+        {blocksOn && (
+          <span className={styles.templateForm} role="group" aria-label="What the template keeps">
+            <button type="button" className={`${styles.btn} ${keepBlocks ? '' : styles.btnOn}`}
+              aria-pressed={!keepBlocks} onClick={() => setKeepBlocks(false)}>Plain</button>
+            <button type="button" className={`${styles.btn} ${keepBlocks ? styles.btnOn : ''}`}
+              aria-pressed={keepBlocks} onClick={() => setKeepBlocks(true)}>Keep live blocks</button>
+          </span>
+        )}
+        {keepBlocks ? (
+          <Suspense fallback={<span className={styles.status} role="status">Opening…</span>}>
+            <SaveStyleDoor note={note} onBeforeSave={onBeforeTemplate} onDone={closeTemplate} />
+          </Suspense>
+        ) : (
         <form className={styles.templateForm} onSubmit={submitTemplate}>
           <input
             className={styles.templateInput}
@@ -233,14 +252,11 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
             autoFocus
           />
           <button type="submit" className={styles.btn} disabled={busy}>Save template</button>
-          <button type="button" className={styles.btn} onClick={() => { refocusRef.current = 'template'; setTemplateDraft(null) }}>Cancel</button>
+          <button type="button" className={styles.btn} onClick={() => closeTemplate(null)}>Cancel</button>
         </form>
+        )}
+        </span>
       )}
-      {/* Notebook P1 (spec P1.4): "Save as template with blocks". Dark behind journalStylesEnabled(); the
-          whole door (button, form, sentence) is a lazy chunk. */}
-      {journalStylesEnabled() && (styleDoor
-        ? <Suspense fallback={styleBtn({ 'aria-busy': true, 'aria-disabled': true, autoFocus: true })}><SaveStyleDoor note={note} onBeforeSave={onBeforeTemplate} /></Suspense>
-        : styleBtn({ onClick: () => setStyleDoor(true) }))}
       {/* Wave 10 lane K2 (walk row S2-27): the door STAYS while its search is open -- a
           disclosure button (`aria-expanded`) with the search after it -- so Escape has a
           control to hand focus back to, and a screen reader hears what opened. The search is

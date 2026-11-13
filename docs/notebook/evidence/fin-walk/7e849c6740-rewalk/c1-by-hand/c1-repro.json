@@ -1,0 +1,26 @@
+{
+ "sample_add": 200,
+ "aapl_title": "Trade plan: example -- AAPL pullback",
+ "navigation": {
+  "put_started": true,
+  "put_finished": false,
+  "put_failure": "net::ERR_ABORTED"
+ },
+ "url_after_nav": "/journal/insights",
+ "server_has_edit": false,
+ "row_offered": true,
+ "messages": [
+  "The sample was not removed: \"Trade plan: example -- AAPL pullback\" has changes that have not finished saving. Open it so it can finish saving, then remove the sample again."
+ ],
+ "active_after": 10,
+ "removed": false,
+ "follow": {
+  "indicator": "Saved",
+  "secs_to_saved": 3.0,
+  "server_has_edit_after_open": false,
+  "messages": [
+   "Sample notebook moved to Trash. You can restore it from there."
+  ],
+  "removed_second_press": true
+ }
+}

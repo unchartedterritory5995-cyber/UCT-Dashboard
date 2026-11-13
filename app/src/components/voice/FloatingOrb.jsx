@@ -11,7 +11,6 @@ import VisionAttachButton from './VisionAttachButton'
 import UIcon from '../ui/UIcon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
 import useScrollLocked from '../../hooks/useScrollLocked'
-import { useIsPhone } from '../../hooks/useBreakpoint'
 import { isCompactHeaderRoute } from '../../pages/journal-2-0/lib/compactHeaderRoute'
 import styles from './FloatingOrb.module.css'
 
@@ -136,12 +135,13 @@ export default function FloatingOrb({ context = 'global' }) {
   // (showCoachmark untouched) and shows on the next ordinary page. The list is measured,
   // not guessed: viewportLockedRoutes.js.
   const onViewportLockedPage = isViewportLockedRoute(useLocation().pathname)
-  // Tier 1b fix round 1 (review Important 5): on a PHONE's Notebook the cluster gives way to the Notebook's own "+"
-  // (S12, FloatingOrb.module.css), so the card that names the compass button WAITS there too -- not dismissed.
+  // Notebook simplify: nor anywhere on the Notebook, at any width. The Notebook is the quiet surface; the card
+  // waits (not dismissed) and shows once on another page. (This subsumes Tier 1b fix round 1's phone-only term: on a
+  // PHONE's Notebook the cluster gives way to the Notebook's own "+", S12, FloatingOrb.module.css.)
   const pathname = useLocation().pathname
-  const onPhoneNotebook = useIsPhone() && isCompactHeaderRoute(pathname)
+  const onNotebook = isCompactHeaderRoute(pathname)
   const coachmarkOn = showCoachmark && Boolean(firstRunSlot) && !firstRunStageHeld && !onViewportLockedPage
-    && !onPhoneNotebook
+    && !onNotebook
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
 

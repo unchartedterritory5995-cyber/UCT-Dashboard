@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 203,
-  "withProductionKinds": 194,
+  "all": 205,
+  "withProductionKinds": 196,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 203,
-  "withAnyRegressionCase": 151,
+  "capabilities": 205,
+  "withAnyRegressionCase": 153,
   "perProtection": {
    "nl": {
-    "covered": 148,
-    "applicable": 203
+    "covered": 150,
+    "applicable": 205
    },
    "routing": {
-    "covered": 145,
-    "applicable": 203
+    "covered": 147,
+    "applicable": 205
    },
    "args": {
-    "covered": 151,
-    "applicable": 203
+    "covered": 153,
+    "applicable": 205
    },
    "execution": {
-    "covered": 148,
-    "applicable": 203
+    "covered": 150,
+    "applicable": 205
    },
    "receipt": {
-    "covered": 120,
-    "applicable": 203
+    "covered": 122,
+    "applicable": 205
    },
    "refusal": {
     "covered": 35,
-    "applicable": 203
+    "applicable": 205
    },
    "permission": {
-    "covered": 196,
-    "applicable": 203
+    "covered": 198,
+    "applicable": 205
    },
    "undo": {
-    "covered": 74,
-    "applicable": 133
+    "covered": 76,
+    "applicable": 135
    },
    "multiStep": {
     "covered": 39,
-    "applicable": 203
+    "applicable": 205
    },
    "phrasings": {
-    "covered": 144,
-    "applicable": 203
+    "covered": 146,
+    "applicable": 205
    }
   }
  },
@@ -2019,6 +2019,124 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartFeatures.companyPanel": {
+   "domain": "chartFeatures",
+   "group": "chartFeatures",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "chartFeatures.companyPanel: \"add the company panel and open news\"",
+     "chartFeatures.companyPanel: \"show the company info panel on the news tab\"",
+     "chartFeatures.companyPanel: \"open the profile panel on news\"",
+     "chartFeatures.companyPanel.remove: \"remove the company panel from this chart\"",
+     "chartFeatures.companyPanel.remove: \"take the company info off the chart\"",
+     "chartFeatures.companyPanel.remove: \"get rid of the company panel\""
+    ],
+    "routing": [
+     "chartFeatures.companyPanel: \"add the company panel and open news\"",
+     "chartFeatures.companyPanel: \"show the company info panel on the news tab\"",
+     "chartFeatures.companyPanel: \"open the profile panel on news\"",
+     "chartFeatures.companyPanel.remove: \"remove the company panel from this chart\"",
+     "chartFeatures.companyPanel.remove: \"take the company info off the chart\"",
+     "chartFeatures.companyPanel.remove: \"get rid of the company panel\""
+    ],
+    "args": [
+     "corpus chartFeatures.companyPanel",
+     "corpus chartFeatures.companyPanel.remove"
+    ],
+    "execution": [
+     "chartFeatures.companyPanel (c)",
+     "chartFeatures.companyPanel.remove (c)"
+    ],
+    "receipt": [
+     "chartFeatures.companyPanel (c)",
+     "chartFeatures.companyPanel.remove (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartFeatures.companyPanel: undo restores",
+     "chartFeatures.companyPanel.remove: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartFeatures.earningsStrip": {
+   "domain": "chartFeatures",
+   "group": "chartFeatures",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "chartFeatures.earningsStrip: \"show the earnings strip on this chart\"",
+     "chartFeatures.earningsStrip: \"add the fundamentals strip\"",
+     "chartFeatures.earningsStrip: \"put the earnings strip under the chart\""
+    ],
+    "routing": [
+     "chartFeatures.earningsStrip: \"show the earnings strip on this chart\"",
+     "chartFeatures.earningsStrip: \"add the fundamentals strip\"",
+     "chartFeatures.earningsStrip: \"put the earnings strip under the chart\""
+    ],
+    "args": [
+     "corpus chartFeatures.earningsStrip"
+    ],
+    "execution": [
+     "chartFeatures.earningsStrip (c)"
+    ],
+    "receipt": [
+     "chartFeatures.earningsStrip (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartFeatures.earningsStrip: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

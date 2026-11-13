@@ -82,7 +82,7 @@ const ALLOW = new Map([
   // A note made before this rename carries the old walkthrough title in its OWN body; it is still recognised.
   ['lib/templateBlocks.js|How to use this template', 'the legacy title, recognised in stored notes, never written'],
   ['components/notebook/SlashMenu.jsx|My presets', 'the slash menu group of CHART presets (lib/notebookSets), not note templates'],
-  ['components/notebook/NoteEditorPage.jsx|Insert a chart or preset — pick ticker and timeframe by clicking',
+  ['components/notebook/NoteEditorPage.jsx|Insert a chart or preset: pick ticker and timeframe by clicking',
     'the insert palette offers chart presets (lib/notebookSets), not note templates'],
 ])
 

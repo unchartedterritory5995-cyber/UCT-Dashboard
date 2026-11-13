@@ -1770,3 +1770,19 @@ def test_guard_withholds_the_calc_timeframe_action_name_bare():
 ])
 def test_guard_still_passes_ordinary_prose_about_calculation_timeframes(text):
     assert guard.suspicious(text) is False
+
+
+# ── chartFeatures (Company Info panel + Earnings Strip): its action names are withheld when a passage names them bare ───────
+@pytest.mark.parametrize("name", ["chartFeatures.companyPanel", "chartFeatures.earningsStrip"])
+def test_guard_withholds_the_chart_features_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "The company reported earnings after the close.",
+    "Earnings season starts next week; watch the company guidance.",
+    "Open the company panel on the chart to read the profile.",
+    "The earnings strip shows quarterly EPS and revenue.",
+])
+def test_guard_still_passes_ordinary_prose_about_companies_and_earnings(text):
+    assert guard.suspicious(text) is False
