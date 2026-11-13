@@ -8,7 +8,7 @@
 
 **Tech Stack:** React + Vite SPA, CSS modules, vitest + Testing Library. No new dependency.
 
-**Spec:** the owner-approved proposal, `C:\Users\Patrick\Documents\UCT-Notebook-Simplify-2026-11-11\index.html` (local file, nine numbered changes with before/after pictures). The owner's words: "lets do all that but show me what it would look like in a local host first before we make it live and final".
+**Spec:** the owner-approved proposal, a local file on the owner's machine (`UCT-Notebook-Simplify-2026-11-11/index.html`, nine numbered changes with before/after pictures; not in the repository). The owner's words: "lets do all that but show me what it would look like in a local host first before we make it live and final".
 
 ## Global Constraints
 
