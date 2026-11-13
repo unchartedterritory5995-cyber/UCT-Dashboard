@@ -506,19 +506,24 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         door = C.sample_door(pg_, 10000)
         promo = door["door"] == "card" and not door["standalone_with_card"]
         chk = pg_.evaluate(CHECKLIST_JS)
+        # Simplify pass 2 (C5): while the Get started card is up, the empty list draws no inline template grid (the
+        # card's "Start a note from a template" and "+ New"'s arrow open the picker). Read outside any dialog.
+        grid_inline = pg_.evaluate("() => [...document.querySelectorAll('[data-template-gallery]')]"
+                                   ".filter(e => !e.closest('[role=dialog]') && e.getBoundingClientRect().height > 0).length")
         C.goto(pg_, base, "/support")
         cap = pg_.locator("section[aria-labelledby='support-notebook-can-do']")
         preview = C.vis_loc(cap, 20000)
         lines = [re.sub(r"\s+", " ", t).strip() for t in cap.first.locator("li").all_inner_texts()] if preview else []
         # S16: one first-run moment at a time -- the 60-second first run and the base tour never on screen together
-        ok = empty and imp and promo and bool(chk) and preview and bool(lines) and not seen["both_at_once"]
-        C.step(pg_, inst_, "first run", "empty notes list: Import notes and the Get started list, whose sample row is the one sample door (no standalone Add a sample notebook beside it); one first-run moment at a time; Help lists What your Notebook can do",
+        ok = (empty and imp and promo and bool(chk) and preview and bool(lines) and not seen["both_at_once"]
+              and not (door["door"] == "card" and grid_inline))
+        C.step(pg_, inst_, "first run", "empty notes list: Import notes and the Get started list, whose sample row is the one sample door (no standalone Add a sample notebook beside it) and no template grid under it; one first-run moment at a time; Help lists What your Notebook can do",
                "PASS" if ok else "FAIL", empty_list=empty, import_notes=imp, base_tour_autostarted=seen["base_tour"],
                first_run_sheet_and_tour_together=seen["both_at_once"],
                base_tour_title=seen.get("base_tour_title"), first_run_sheet=seen["first_run_sheet"], help_capabilities=preview,
                preview_lines=lines, sample_door=door["door"], sample_door_first_seen=door.get("first_seen"),
                standalone_sample_button_beside_card=door["standalone_with_card"], checklist=chk,
-               scope=["section[aria-labelledby='support-notebook-can-do']"])
+               template_grid_under_card=grid_inline, scope=["section[aria-labelledby='support-notebook-can-do']"])
 
     def firstrun():
         first_run_on(pg, inst, ctx)
@@ -4306,8 +4311,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         j = r.json() if r.status == 200 else {}
         return sorted((f.get("name") or "") for f in ((j.get("folders") if isinstance(j, dict) else j) or []))
 
-    def same_box(a, b, tol=1.0):
-        return bool(a and b) and all(abs(a[k] - b[k]) <= tol for k in ("left", "top", "width", "height"))
+    def same_box(a, b, tol=1.0, keys=("left", "top", "width", "height")):
+        return bool(a and b) and all(abs(a[k] - b[k]) <= tol for k in keys)
+
+    # A text line that gains words to its right (the date line gets the session and regime once the read lands) has not
+    # moved: its block box only widens. Measured on c2 (attach run 1): heading and line kept left 372, top 105.4/141.4 and
+    # their heights; only their widths grew. So the text rows are held to where they START and how TALL they are.
+    STILL = ("left", "top", "height")
 
     # ── discover.daily-brief (1280) ────────────────────────────────────────────────────────────────
     # Simplify pass 2 (B1, B4, B5; review check e). Opening the Daily brief makes nothing: no note, no folder. Its one
@@ -4351,7 +4361,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                    notes_before=notes0, notes_after=notes1, folders_before=folders0, folders_after=folders1,
                    today_read=today_body, header_buttons=(after or {}).get("buttons"), expected_button=BRIEF_START,
                    nothing_yet_line=quiet, scope=["[data-today-home]"])
-            steady = (first and after and same_box(first["heading"], after["heading"]) and same_box(first["line"], after["line"])
+            steady = (first and after and same_box(first["heading"], after["heading"], keys=STILL)
+                      and same_box(first["line"], after["line"], keys=STILL)
                       and same_box(first["actions"], after["actions"]) and first.get("skeletons") == 1
                       and after.get("first_content") is not None and first.get("skeleton") is not None
                       and abs(after["first_content"]["top"] - first["skeleton"]["top"]) <= 2.0)
@@ -4523,7 +4534,22 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 fmenu.get_by_role("menuitem", name="Font", exact=True).first.click(timeout=8000)
                 p9.wait_for_timeout(400)
                 fit_font = second_view_fit(p9, fmenu)
-            C.step(p9, i9, "discover.second-view-390", "390 px: Aa > Font shows Back and the fonts inside the window, its last row clear of the floating +",
+                fit_font["door"] = "Aa menu > Font (second view)"
+            elif via_format:
+                # Measured at 390 (attach run 1): the phone's "Format" ("Aa" in the row) opens the format row in place,
+                # whose font is the native select "Font family" (the platform's own picker), not the Aa menu: there is no
+                # second view to measure. The select itself is measured instead: inside the window, uncovered, above "+".
+                sel = p9.get_by_role("combobox", name="Font family").filter(visible=True)
+                if C.vis_loc(sel, 5000):
+                    c_ = sel.first.evaluate(COVER_JS)
+                    fab = p9.locator("[data-notebook-plus]").filter(visible=True)
+                    fr = fab.first.evaluate("(e) => { const b = e.getBoundingClientRect(); return { top: b.top } }") if fab.count() else None
+                    opts = sel.first.evaluate("(e) => [...e.options].map(o => o.text)")
+                    ok_ = bool(c_.get("inside_x") and c_.get("above_fold") and c_.get("uncovered")
+                               and (fr is None or c_["rect"]["bottom"] <= fr["top"]))
+                    fit_font = {"ok": ok_, "names": opts, "door": "Format row > Font family (native select)", "select": c_,
+                                "plus_button": fr}
+            C.step(p9, i9, "discover.second-view-390", "390 px: the font choice (Aa > Font, or on a phone the Format row's Font family) is inside the window, clear of the floating +",
                    "PASS" if fit_font["ok"] and len(fit_font["names"]) >= 2 else "FAIL", reached_through_format=via_format,
                    **fit_font, scope=["[role=menu]"])
             p9.keyboard.press("Escape")
@@ -4548,6 +4574,86 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 if c_ is not None:
                     c_.close()
 
+    # ── discover.plus-ask-390 (390) ────────────────────────────────────────────────────────────────
+    # Simplify pass 2 (A8 and its fix round; review check a). From an open note, the floating "+" > "Ask your Notebook"
+    # goes to the notes list with the Notebook's Ask open and focus in its question field, in one press; closing Ask
+    # hands focus back to the "+" ("Add to your notebook").
+    ACTIVE_JS = r"""() => { const a = document.activeElement; if (!a) return null;
+      return { tag: a.tagName.toLowerCase(), label: a.getAttribute('aria-label'), placeholder: a.getAttribute('placeholder'),
+               plus: a.hasAttribute('data-notebook-plus') } }"""
+
+    def d_plus_ask_390():
+        cP, emailP, meP, iP, pP = new_member("c2pak", "390")
+        try:
+            st, body = C.api(cP, iP, "POST", base, "/api/j2/notes", {"title": "A note to ask from", "bodyJson": TEXT_DOC})
+            nid = ((body or {}).get("note") or body or {}).get("id") if isinstance(body, dict) else None
+            at(pP, base, "/journal/notebook", first_run=True)
+            at(pP, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+            plus = pP.locator("[data-notebook-plus]").filter(visible=True)
+            shown = C.vis_loc(plus, 15000)
+            row = pP.get_by_role("button", name="Ask your Notebook", exact=True)
+            focus_in, url_after, ask_open, focus_back, err = None, None, False, None, None
+            try:
+                C.press_through(pP, plus.first)
+                row.first.wait_for(state="visible", timeout=10000)
+                row.first.click()
+                field = pP.locator('[placeholder^="What have I written about"]').filter(visible=True)
+                ask_open = C.vis_loc(field, 15000)
+                pP.wait_for_timeout(1200)
+                focus_in = pP.evaluate(ACTIVE_JS)
+                url_after = pP.url.split(base)[-1]
+                pP.get_by_role("button", name="Close Ask", exact=True).filter(visible=True).first.click(timeout=8000)
+                pP.wait_for_timeout(800)
+                focus_back = pP.evaluate(ACTIVE_JS)
+            except Exception as e:  # noqa: BLE001
+                err = str(e)[:300]
+            on_list = bool(url_after) and "note=" not in url_after and "/journal/notebook" in url_after
+            in_field = bool(focus_in) and (focus_in.get("placeholder") or "").startswith("What have I written about")
+            C.step(pP, iP, "discover.plus-ask-390", "390 px, from an open note: + > Ask your Notebook lands on the notes list with Ask open and focus in its field; closing Ask returns focus to +",
+                   "PASS" if shown and ask_open and on_list and in_field and (focus_back or {}).get("plus") else "FAIL",
+                   plus_shown=shown, ask_open=ask_open, url_after=url_after, focus_after_press=focus_in,
+                   focus_after_close=focus_back, reach_error=err)
+        finally:
+            cP.close()
+
+    # ── discover.insert-palette (1280) ─────────────────────────────────────────────────────────────
+    # Simplify pass 2 (C4). The Insert palette's last group (the market snapshots) is not drawn until "Show all" at the
+    # foot of the list is pressed; the press draws it and puts focus on its first row.
+    PALETTE_JS = r"""() => { const d = document.querySelector('[role=dialog][aria-label="Insert widget"]'); if (!d) return null;
+      const a = document.activeElement;
+      return { groups: [...d.querySelectorAll('[role=group]')].map(g => g.getAttribute('aria-label')),
+               show_all: !!d.querySelector('[aria-label="Show all blocks"]'),
+               focus: a ? { text: (a.innerText || '').trim().slice(0, 40), group: a.closest('[role=group]')?.getAttribute('aria-label') || null } : null } }"""
+
+    def d_insert_palette():
+        cI, emailI, meI, iI, pI = new_member("c2pal", "1280")
+        try:
+            st, body = C.api(cI, iI, "POST", base, "/api/j2/notes", {"title": "A note to insert into", "bodyJson": TEXT_DOC})
+            nid = ((body or {}).get("note") or body or {}).get("id") if isinstance(body, dict) else None
+            at(pI, base, "/journal/notebook", first_run=True)
+            at(pI, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+            door = pI.locator('[data-tour="note-toolbar"]').get_by_role("button", name=re.compile(r"^Insert( widget)?$")).filter(visible=True)
+            before, after, err = None, None, None
+            try:
+                door.first.click(timeout=10000)
+                pI.get_by_role("dialog", name="Insert widget").first.wait_for(state="visible", timeout=15000)
+                pI.get_by_role("button", name="Show all blocks", exact=True).first.wait_for(state="visible", timeout=15000)
+                before = pI.evaluate(PALETTE_JS)
+                pI.get_by_role("button", name="Show all blocks", exact=True).first.click()
+                pI.wait_for_timeout(500)
+                after = pI.evaluate(PALETTE_JS)
+            except Exception as e:  # noqa: BLE001
+                err = str(e)[:300]
+            new_groups = [g for g in ((after or {}).get("groups") or []) if g not in ((before or {}).get("groups") or [])]
+            ok = (before and before["show_all"] and after and not after["show_all"] and len(new_groups) == 1
+                  and (after.get("focus") or {}).get("group") == new_groups[0])
+            C.step(pI, iI, "discover.insert-palette", "the Insert palette keeps the market snapshots behind Show all at its foot; Show all draws them and puts focus on the first",
+                   "PASS" if ok else "FAIL", before=before, after=after, new_group=new_groups, reach_error=err,
+                   scope=['[role=dialog][aria-label="Insert widget"]'])
+            pI.keyboard.press("Escape")
+        finally:
+            cI.close()
+
     def discover():
         # Go-live wave 2: new-note-home -> new-note-list, setups-box -> setups-card, learn-groups -> help-walkthroughs
         # (Research home's split button, its setups box and the Learn menu were retired; each check now walks the door
@@ -4562,7 +4668,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                  ("phone-more-sample", d_phone_more_sample),
                  # Simplify pass 2 (Task 4): the Daily brief makes nothing until pressed (B1, B4, B5, check e); Graph and
                  # Timeline under More views (C1, check f); the cold Export press and the 390 second views (C3, check d, g).
-                 ("daily-brief", d_daily_brief), ("more-views", d_more_views), ("note-second-views", d_note_second_views))
+                 ("daily-brief", d_daily_brief), ("more-views", d_more_views), ("note-second-views", d_note_second_views),
+                 ("plus-ask-390", d_plus_ask_390), ("insert-palette", d_insert_palette))
         for name, fn in doors:
             HOLD.clear()
             try:
