@@ -764,7 +764,15 @@ export function useDurableNote({
       },
     })
     writerRef.current = writer
+    // ⭐ Follow-up D (F4): a full navigation or a hidden tab flushes the pending snapshot now
+    // rather than after the debounce. Best effort only: IndexedDB has no synchronous write, so a
+    // transaction started here may not commit; the localStorage draft still owns that window.
+    const flushOnHide = (e) => { if (e.type === 'pagehide' || document.visibilityState === 'hidden') writer.flush() }
+    window.addEventListener('pagehide', flushOnHide)
+    document.addEventListener('visibilitychange', flushOnHide)
     return () => {
+      window.removeEventListener('pagehide', flushOnHide)
+      document.removeEventListener('visibilitychange', flushOnHide)
       // Navigating away in-app runs this while the page is still alive, so a
       // scheduled-but-unwritten snapshot can still land. ⛔ Acceleration, not
       // the mechanism: a real tab close runs no cleanup at all, which is

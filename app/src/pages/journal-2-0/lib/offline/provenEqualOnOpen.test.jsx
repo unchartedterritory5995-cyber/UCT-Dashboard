@@ -226,7 +226,8 @@ describe('⭐ F3 (f): the label claims nothing before the device answers, then s
       }
       return tx
     }
-    const { result } = renderHook(() => useDurableNote({ accountId: 'u42', noteId: 'n1', debounceMs: 0, connect: async () => db }))
+    const connect = async () => db   // one identity: an inline connect re-runs the writer effect every render
+    const { result } = renderHook(() => useDurableNote({ accountId: 'u42', noteId: 'n1', debounceMs: 0, connect }))
     let recovering
     await act(async () => { recovering = result.current.recover({ server: SERVER }); await settleIdb(4) })
     await act(async () => { result.current.schedule({ title: 'Thesis', subtitle: '', bodyJson: SAVED, baseUpdatedAt: T1 }); await settleIdb(6) })
@@ -241,6 +242,72 @@ describe('⭐ F3 (f): the label claims nothing before the device answers, then s
     expect(saveIndicatorWords({ status: 'saving', held: true })).toBe(SAVING_WORDS)
     expect(saveIndicatorWords({ status: 'saved', held: true, loading: true })).toBe('')
     expect(saveIndicatorWords({ status: 'saved', held: true, offline: true, persisted: true })).toBe(offlineKept(true))
+  })
+})
+
+describe('⭐ F4 (g): pagehide and a hidden tab flush the pending durable write, nothing more', () => {
+  function mountWriter() {
+    const db = createFakeDb()
+    let writes = 0
+    const orig = db.transaction.bind(db)
+    db.transaction = (names, mode = 'readonly') => {
+      if (mode === 'readwrite' && Array.isArray(names) && names.includes('notes')) writes += 1
+      return orig(names, mode)
+    }
+    const connect = async () => db   // one identity: an inline connect re-runs the writer effect (and its flush) every render
+    const view = renderHook(() => useDurableNote({ accountId: 'u42', noteId: 'n1', debounceMs: 60_000, connect }))
+    return { db, view, writes: () => writes }
+  }
+  const typed = { title: 'Thesis', subtitle: '', bodyJson: SAVED, baseUpdatedAt: T1 }
+  const setVisibility = (v) => Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v })
+  afterEach(() => { delete document.visibilityState })
+
+  it('pagehide writes the scheduled snapshot at once, exactly one write, none left for the timer', async () => {
+    const { db, view, writes } = mountWriter()
+    await act(async () => { view.result.current.schedule(typed); await settleIdb(4) })
+    expect(db.dump('notes')).toEqual([])                      // still inside the debounce
+    await act(async () => { window.dispatchEvent(new Event('pagehide')); await settleIdb(6) })
+    expect(db.dump('notes')[0]).toMatchObject({ noteId: 'n1', dirty: 1, bodyJson: SAVED })
+    expect(writes()).toBe(1)
+    await act(async () => { vi.advanceTimersByTime(61_000); await settleIdb(6) })
+    expect(writes()).toBe(1)
+    view.unmount()
+  })
+
+  it('visibilitychange flushes only when the tab became hidden', async () => {
+    const { db, view } = mountWriter()
+    await act(async () => { view.result.current.schedule(typed); await settleIdb(4) })
+    setVisibility('visible')
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); await settleIdb(6) })
+    expect(db.dump('notes')).toEqual([])
+    setVisibility('hidden')
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); await settleIdb(6) })
+    expect(db.dump('notes')[0]).toMatchObject({ dirty: 1, bodyJson: SAVED })
+    view.unmount()
+  })
+
+  it('no writer (the wave switched off): pagehide is harmless and writes nothing', async () => {
+    localStorage.setItem(OFFLINE_FLAG_KEY, '0')
+    const off = mountWriter()
+    await act(async () => { off.view.result.current.schedule(typed); await settleIdb(4) })
+    expect(() => window.dispatchEvent(new Event('pagehide'))).not.toThrow()
+    await act(async () => { await settleIdb(6) })
+    expect(off.writes()).toBe(0)
+    off.view.unmount()
+  })
+
+  it('an unmounted writer stops listening (the handlers it added are the ones removed)', () => {
+    const addW = vi.spyOn(window, 'addEventListener'); const remW = vi.spyOn(window, 'removeEventListener')
+    const addD = vi.spyOn(document, 'addEventListener'); const remD = vi.spyOn(document, 'removeEventListener')
+    const { view } = mountWriter()
+    // the writer's one handler serves both events (the owner lock adds a pagehide handler of its own)
+    const onVis = addD.mock.calls.find((c) => c[0] === 'visibilitychange')?.[1]
+    expect(onVis).toBeTypeOf('function')
+    expect(addW).toHaveBeenCalledWith('pagehide', onVis)
+    view.unmount()
+    expect(remW).toHaveBeenCalledWith('pagehide', onVis)
+    expect(remD).toHaveBeenCalledWith('visibilitychange', onVis)
+    for (const s of [addW, remW, addD, remD]) s.mockRestore()
   })
 })
 
