@@ -189,7 +189,7 @@ def cmd_report(a):
         refused = [s for s in adm if not door.get(s["key"], {}).get("ok")]
         rep["populations"][pop] = {"scripts": len(rows), "admitted": len(adm), "runtimeLane": len(reach),
                                    "hostLane": len(host), "refused": len(refused),
-                                   "emptyCapabilities": sum(1 for s in adm if not s["caps"])}
+                                   "coreOnly": sum(1 for s in adm if s["caps"] == [pc.CORE_ID])}
     graded_hashes = {s["hash"] for s in inp if s["population"] == "capture"}
     for s in inp:
         if not s["admitted"]:

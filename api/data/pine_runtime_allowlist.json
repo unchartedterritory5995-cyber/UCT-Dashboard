@@ -82,7 +82,7 @@
         {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": "every readable script declares it (series expressions, built-in calls, plots); admitted on every runtime-on MATCH capture the RUN drew (WS-I Part 2). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": "every readable script declares it (series expressions, built-in calls, plots); admitted on every runtime-on MATCH capture the RUN drew (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "reassign": {
       "status": "conformant",
@@ -113,7 +113,7 @@
         {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": ":= reassignment of a series variable across bars, graded MATCH with the runtime pane on (PHASE3-RUNTIME-PLAN 2.4; WS-I Part 2 re-derived). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": ":= reassignment of a series variable across bars, graded MATCH with the runtime pane on (PHASE3-RUNTIME-PLAN 2.4; WS-I Part 2 re-derived). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "ternary": {
       "status": "conformant",
@@ -141,7 +141,7 @@
         {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": "?: on series values, graded MATCH with the runtime pane on (PHASE3-RUNTIME-PLAN 2.4; WS-I Part 2 re-derived). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": "?: on series values, graded MATCH with the runtime pane on (PHASE3-RUNTIME-PLAN 2.4; WS-I Part 2 re-derived). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "if-block": {
       "status": "conformant",
@@ -169,7 +169,7 @@
         {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": "if statements and blocks, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": "if statements and blocks, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "var": {
       "status": "conformant",
@@ -195,7 +195,7 @@
         {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": "var declarations (state kept across bars), drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": "var declarations (state kept across bars), drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "fn-single": {
       "status": "conformant",
@@ -221,7 +221,7 @@
         {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": "user functions with a one-line body, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": "user functions with a one-line body, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "fn-multi": {
       "status": "conformant",
@@ -247,7 +247,7 @@
         {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": "user functions with a block body, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": "user functions with a block body, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "for": {
       "status": "conformant",
@@ -266,7 +266,7 @@
         {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": "for loops, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": "for loops, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "compound-assign": {
       "status": "conformant",
@@ -280,7 +280,7 @@
         {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": "+= -= *= /= %=, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": "+= -= *= /= %=, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "history-expr": {
       "status": "conformant",
@@ -290,7 +290,7 @@
         {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": "(expr)[n] history on an expression, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": "(expr)[n] history on an expression, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "tuple-destructure": {
       "status": "conformant",
@@ -300,7 +300,7 @@
         {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "verdict": "MATCH", "runtimePane": "on"}
       ],
-      "note": "[a, b] = tuple destructuring, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts PROVISIONAL, each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+      "note": "[a, b] = tuple destructuring, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json agrees on every evidence capture), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "conditional-ta": {
       "status": "divergent",
