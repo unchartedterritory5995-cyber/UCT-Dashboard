@@ -218,18 +218,10 @@ export async function settleIfServerHolds(db, noteId, serverCopy, serverUpdatedA
 /** Both identical branches: settle, or clear the proven entry, or leave a rewritten one. */
 async function supersedeIdentical(db, entry, mine, reason) {
   const how = await settleIfServerHolds(db, entry.noteId, entry.patch, mine.serverUpdatedAt, { clear: entry.mutationId })
-  if (!how) {
-    return {
-      mutationId: entry.mutationId, noteId: entry.noteId, outcome: SKIPPED,
-      reason: 'the entry changed or went while the server was asked; nothing removed, the next drain decides',
-    }
-  }
-  return {
-    mutationId: entry.mutationId,
-    noteId: entry.noteId,
-    outcome: SUPERSEDED,
-    reason: how === 'settled' ? `${reason}; the record is settled` : reason,
-  }
+  const out = { mutationId: entry.mutationId, noteId: entry.noteId }
+  // Neither: the entry changed (or went) while the server was asked. Nothing removed; the next drain decides.
+  if (!how) return { ...out, outcome: SKIPPED, reason: 'the entry changed while the server was asked; kept' }
+  return { ...out, outcome: SUPERSEDED, reason: how === 'settled' ? `${reason}; the record is settled` : reason }
 }
 
 async function settleBlocked(db, entry, error) {
