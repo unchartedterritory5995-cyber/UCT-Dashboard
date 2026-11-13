@@ -190,6 +190,7 @@
   "calendar.day": "calendar",
   "periodSort.run": "periodSort",
   "periodSort.dock": "periodSort",
+  "compare.openView": "comparePanel",
   "multiChart.set": "multiChart",
   "multiChart.cell": "multiChart"
  },
@@ -321,6 +322,10 @@
   {
    "id": "chartView",
    "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+  },
+  {
+   "id": "comparePanel",
+   "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
   },
   {
    "id": "periodSort",
@@ -504,6 +509,10 @@
      {
       "id": "chartView",
       "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
      },
      {
       "id": "periodSort",
@@ -705,6 +714,10 @@
      {
       "id": "chartView",
       "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
      },
      {
       "id": "periodSort",
@@ -920,6 +933,10 @@
      {
       "id": "chartView",
       "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
      },
      {
       "id": "periodSort",
@@ -1147,6 +1164,10 @@
       "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -1344,6 +1365,10 @@
       "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      },
      {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
+     },
+     {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
      }
@@ -1392,6 +1417,7 @@
     "watchlistShow",
     "guide",
     "chartView",
+    "comparePanel",
     "periodSort"
    ],
    "names": [
@@ -1578,6 +1604,7 @@
     "calendar.day",
     "periodSort.run",
     "periodSort.dock",
+    "compare.openView",
     "multiChart.set",
     "multiChart.cell"
    ],
