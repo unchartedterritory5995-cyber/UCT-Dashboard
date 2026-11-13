@@ -29,10 +29,8 @@ import { getExtSessionCached } from '../../../utils/extSession'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useHeaderSnapshot from './useHeaderSnapshot'
 import useHeaderExtrasWarm from './useHeaderExtrasWarm'
-import useWatchlistPerformance from '../../../hooks/useWatchlistPerformance'
-import useWatchlistMeta from '../../../hooks/useWatchlistMeta'
-import useVolumeCurve from '../../../hooks/useVolumeCurve'
-import useWatchlistThemes from '../../../hooks/useWatchlistThemes'
+import { useChartPerformance as useWatchlistPerformance, useChartMeta as useWatchlistMeta } from '../restedReaders'
+import { useChartVolumeCurve as useVolumeCurve, useChartThemes as useWatchlistThemes } from '../restedReaders'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
   HEADER_FIELD_BY_KEY, PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,

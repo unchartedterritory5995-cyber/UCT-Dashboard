@@ -2,9 +2,10 @@
 //
 // ─── THE CHART'S PER-SYMBOL READS, BEHIND THE REST GATE ──────────────────────
 //
-// A chart reads five small things keyed by its symbol through hooks the rest of the app
-// uses too (name and sector, the listing date, delisted, the leveraged family, the header
-// snapshot). On a chart the symbol can change several times a second; everywhere else it
+// A chart reads small things keyed by its symbol through hooks the rest of the app uses too
+// (name and sector, the listing date, delisted, the leveraged family, the header snapshot,
+// and the header's optional fields: N-day change, theme, average volume and IPO date, the
+// volume curve). On a chart the symbol can change several times a second; everywhere else it
 // does not. So the gate (`lib/symbolPace.js`: a symbol the member is racing past is not
 // asked for, the one they stop on is) is applied HERE, at the chart's own call sites, and
 // the hooks themselves stay ordinary reads that import nothing from it.
@@ -27,6 +28,14 @@ import useSingleStockEtfs from '../../hooks/useSingleStockEtfs'
 import { singleStockEtfsKey } from '../../hooks/singleStockEtfsKey'
 import useFundamentalSnapshot from '../../hooks/useFundamentalSnapshot'
 import { snapshotKey } from '../../hooks/fundamentalSnapshotKey'
+import useWatchlistPerformance from '../../hooks/useWatchlistPerformance'
+import { watchlistPerformanceKey } from '../../hooks/watchlistPerformanceKey'
+import useWatchlistThemes from '../../hooks/useWatchlistThemes'
+import { watchlistThemesKey } from '../../hooks/watchlistThemesKey'
+import useWatchlistMeta from '../../hooks/useWatchlistMeta'
+import { snapshotBatchKey } from '../../hooks/watchlistMetaKey'
+import useVolumeCurve from '../../hooks/useVolumeCurve'
+import { volumeCurveKey } from '../../hooks/volumeCurveKey'
 
 /** Name, sector, industry, theme, exchange (`useTickerMeta`). */
 export function useChartTickerMeta(sym) {
@@ -51,4 +60,28 @@ export function useChartSingleStockEtfs(sym) {
 /** The header's rating, market cap and next earnings (`useFundamentalSnapshot`). */
 export function useChartSnapshot(sym, enabled = true) {
   return useFundamentalSnapshot(sym, enabled, useRestGate(enabled ? snapshotKey(sym) : null))
+}
+
+// ── the header's OPTIONAL fields (each read only while a field that needs it is shown) ──────
+// The chart passes each of these hooks the one symbol on screen (or none). The gate follows
+// the key the hook itself asks under for that list.
+
+/** N-day change (`useWatchlistPerformance`). */
+export function useChartPerformance(tickers) {
+  return useWatchlistPerformance(tickers, useRestGate(watchlistPerformanceKey(tickers)))
+}
+
+/** The primary theme (`useWatchlistThemes`). */
+export function useChartThemes(tickers) {
+  return useWatchlistThemes(tickers, useRestGate(watchlistThemesKey(tickers)))
+}
+
+/** Average volume, IPO date and the snapshot's own fields (`useWatchlistMeta`, its per-symbol read). */
+export function useChartMeta(tickers) {
+  return useWatchlistMeta(tickers, useRestGate(snapshotBatchKey([...new Set(tickers)].sort())))
+}
+
+/** The time-of-day volume curve (`useVolumeCurve`). */
+export function useChartVolumeCurve(enabled, tickers) {
+  return useVolumeCurve(enabled, tickers, useRestGate(enabled ? volumeCurveKey(tickers) : null))
 }
