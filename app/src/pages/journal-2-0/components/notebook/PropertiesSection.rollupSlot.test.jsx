@@ -4,9 +4,22 @@
 import { Component, useState } from 'react'
 import fs from 'node:fs'
 import path from 'node:path'
-import { describe, it, expect, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { RollupEditorSlot, rollupEditorLoaders, rollupEditorModule, ROLLUP_EDITOR_UNAVAILABLE } from './PropertiesSection'
+import { SWRConfig } from 'swr'
+
+let notePropsResult = { properties: [], isLoading: false, refresh: async () => ({}) }
+let defsResult = []
+vi.mock('../../hooks/useNoteProperties', () => ({ default: () => notePropsResult }))
+vi.mock('../../hooks/useJ2PropertyDefs', () => ({
+  default: () => ({ propertyDefs: defsResult, create: vi.fn(), updateConfig: vi.fn(async () => {}), refresh: vi.fn(async () => {}) }),
+}))
+
+import PropertiesSection, { RollupEditorSlot, rollupEditorLoaders, rollupEditorModule, ROLLUP_EDITOR_UNAVAILABLE } from './PropertiesSection'
+const ROLLUP_DEF = {
+  id: 'ro1', name: 'Linked count', type: 'rollup', source: 'user_set', computed: true,
+  config: { source: 'linked', aggregate: 'count' },
+}
 import { rollupReady as fromComputed } from '../../lib/formula/computed'
 import { rollupReady as fromEditor } from './RollupEditor'
 
@@ -49,6 +62,25 @@ describe('the rollup editor slot', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     await waitFor(() => expect(screen.getAllByRole('combobox').length).toBeGreaterThan(0))
+  })
+
+  // Final fix (B3): an EXISTING complete rollup is ready before its editor is drawn; Save waits for the editor, so a
+  // click aimed at it cannot land on what the late editor pushes under the pointer.
+  it('an existing complete rollup: Save stays disabled until its editor is drawn', async () => {
+    let resolve
+    const held = new Promise((r) => { resolve = r })
+    rollupEditorLoaders.editor = () => held
+    defsResult = [ROLLUP_DEF]
+    notePropsResult = {
+      isLoading: false, refresh: vi.fn(async () => ({})),
+      properties: [{ ...ROLLUP_DEF, value: 3, computedValue: { value: 3, kind: 'rollup' } }],
+    }
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><PropertiesSection noteId="n1" updateNote={vi.fn()} /></SWRConfig>)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit rollup Linked count' }))
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    await act(async () => { resolve(await REAL.editor()) })
+    expect(screen.getAllByRole('combobox').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
   })
 
   it('rollupReady is one function, read from computed.js', () => {

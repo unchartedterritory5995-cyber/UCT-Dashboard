@@ -18,6 +18,13 @@
 import { useSyncExternalStore } from 'react'
 import { RETRY_WAIT_MS, importWithOneRetry } from './lazyChunk'
 
+// Final fix (C5, a stale tab after a deploy): a held chunk whose member-pressed "Try again" ALSO failed is most
+// likely gone from the server (the page was loaded before a deploy), so another Try again cannot work. Then the
+// stand-in says so and offers a Reload the MEMBER presses: never an automatic reload (they may have typed something).
+export const RELOAD_TO_RECOVER = 'Reload the page to get this back.'
+/** A property, so a rail can see the press without reloading jsdom. */
+export const pageReload = { run: () => { window.location.reload() } }
+
 const IDLE = Object.freeze({ status: 'idle', Component: null })
 const LOADING = Object.freeze({ status: 'loading', Component: null })
 const FAILED = Object.freeze({ status: 'failed', Component: null })
@@ -35,7 +42,9 @@ export function heldModule(load, waitMs = RETRY_WAIT_MS) {
     if (snapshot.Component) return Promise.resolve(snapshot.Component)
     if (inflight) return inflight
     publish(LOADING)
-    inflight = importWithOneRetry(load, waitMs).then(
+    // Final fix (B4): the loader is called inside a promise, so one that throws synchronously is a failed fetch
+    // (`failed`, asked again on the next warm), never a throw out of warm() that leaves the slot at `loading`.
+    inflight = importWithOneRetry(() => Promise.resolve().then(load), waitMs).then(
       (mod) => {
         inflight = null
         const Component = mod?.default

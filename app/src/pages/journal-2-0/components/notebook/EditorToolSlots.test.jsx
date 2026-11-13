@@ -15,6 +15,7 @@ import { chunkRetry } from '../../lib/lazyChunk'
 import {
   editorToolLoaders, findBarModule, tableToolbarModule, FindBarSlot, TableToolbarSlot, FIND_UNAVAILABLE,
 } from './EditorToolSlots'
+import { pageReload, RELOAD_TO_RECOVER } from '../../lib/heldModule'
 
 const REAL = { ...editorToolLoaders }
 const RELOAD_FLAG = 'uct.chunk-reload-attempted' // utils/lazyWithRetry.js sets it just before a reload
@@ -43,7 +44,10 @@ function Page({ ed, onClosed }) {
   return (
     <div onKeyDown={onKeyDown}>
       <textarea data-testid="note" />
-      {open && <FindBarSlot editor={ed} onClose={() => { setOpen(false); onClosed?.() }} />}
+      {open && <FindBarSlot editor={ed} onClose={() => {
+        // NoteEditorPage's closeFind: the bar closes, the find marks clear and the note takes focus back.
+        setOpen(false); ed?.commands.noteFindClear(); ed?.commands.focus(); onClosed?.()
+      }} />}
     </div>
   )
 }
@@ -57,6 +61,9 @@ const deferred = () => {
 beforeEach(() => {
   // jsdom has no scrollIntoView; the real bar scrolls to the active match once the handed query has run.
   if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}
+  // jsdom lays nothing out; ProseMirror measures a Range when the editor takes focus (the Esc case below).
+  if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
+  if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 })
   findBarModule.resetForTests()
   tableToolbarModule.resetForTests()
   try { sessionStorage.removeItem(RELOAD_FLAG) } catch {}
@@ -101,20 +108,24 @@ describe('the find bar, cold', () => {
     expect(document.activeElement).toBe(stand)
     fireEvent.change(stand, { target: { value: 'buy' } })
     expect(note.value).toBe('')
-    await act(async () => { d.resolve(await REAL.findBar()) })
-    await waitFor(() => expect(document.querySelector('[data-find-stand-in]')).toBeNull())
+    const RealBar = await REAL.findBar()
+    // Final fix (B5): the stand-in leaves and the real field holds focus in the SAME commit -- read straight after the
+    // one act that lands the chunk, never after a waitFor that would also pass if focus arrived frames later.
+    await act(async () => { d.resolve(RealBar) })
+    expect(document.querySelector('[data-find-stand-in]')).toBeNull()
     const field = screen.getByRole('searchbox', { name: 'Find in note' })
-    expect(field.value).toBe('buy')
     expect(document.activeElement).toBe(field)
+    expect(field.value).toBe('buy')
     expect(field.selectionStart).toBe(3) // the next letter lands after the ones typed
     expect(screen.getByText('1/2')).toBeInTheDocument() // the handed text ran as the query
   })
 
-  it('(b) Esc on the stand-in closes it, and the page does not see the Escape', () => {
+  it('(b) Esc on the stand-in closes it, the page does not see the Escape, and focus is back in the editor', async () => {
     editorToolLoaders.findBar = () => new Promise(() => {})
     const onClosed = vi.fn()
     const pageKey = vi.fn()
-    render(<div onKeyDown={pageKey}><Page ed={null} onClosed={onClosed} /></div>)
+    const ed = mountEditor('<p>buy the dip</p>')
+    render(<div onKeyDown={pageKey}><Page ed={ed} onClosed={onClosed} /></div>)
     const note = screen.getByTestId('note')
     act(() => { fireEvent.keyDown(note, { key: 'f', ctrlKey: true }) })
     pageKey.mockClear()
@@ -122,6 +133,10 @@ describe('the find bar, cold', () => {
     expect(onClosed).toHaveBeenCalledTimes(1)
     expect(pageKey).not.toHaveBeenCalled()
     expect(screen.queryByRole('searchbox', { name: 'Find in note' })).toBeNull()
+    // Final fix (B5): focus is in the note's editor, not dropped on the page with the stand-in (TipTap's focus
+    // command lands on the next animation frame, hence the wait).
+    await waitFor(() => expect(ed.view.dom.contains(document.activeElement)).toBe(true))
+    expect(document.activeElement).not.toBe(document.body)
   })
 })
 
@@ -141,6 +156,38 @@ describe('the find bar, failed', () => {
     editorToolLoaders.findBar = REAL.findBar
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Match case' })).toBeInTheDocument())
+  })
+})
+
+describe('the find bar, Try again (final fix B2 + C5)', () => {
+  it('keeps focus on the field while it runs; a repeat failure puts it on Try again and offers Reload; one that lands hands it to the real bar', async () => {
+    const reload = vi.spyOn(pageReload, 'run').mockImplementation(() => {})
+    editorToolLoaders.findBar = () => Promise.reject(new Error('boom'))
+    render(<Page ed={null} />)
+    act(() => { fireEvent.keyDown(screen.getByTestId('note'), { key: 'f', ctrlKey: true }) })
+    await screen.findByText(FIND_UNAVAILABLE)
+    expect(screen.queryByRole('button', { name: 'Reload' })).toBeNull()
+    let reject
+    const failing = new Promise((_, rej) => { reject = rej })
+    editorToolLoaders.findBar = () => failing
+    act(() => { screen.getByRole('button', { name: 'Try again' }).focus() })
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Try again' })) })
+    expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: 'Find in note' }))
+    await act(async () => { reject(new Error('gone')) })
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Try again' }))
+    expect(screen.getByText(`${FIND_UNAVAILABLE} ${RELOAD_TO_RECOVER}`)).toBeInTheDocument()
+    expect(reload).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
+    expect(reload).toHaveBeenCalledTimes(1)
+    const RealBar = await REAL.findBar()
+    let resolve
+    const landing = new Promise((r) => { resolve = r })
+    editorToolLoaders.findBar = () => landing
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Try again' })) })
+    expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: 'Find in note' }))
+    await act(async () => { resolve(RealBar) })
+    expect(screen.getByRole('button', { name: 'Match case' })).toBeInTheDocument()
+    expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: 'Find in note' }))
   })
 })
 

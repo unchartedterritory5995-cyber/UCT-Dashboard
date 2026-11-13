@@ -12,7 +12,7 @@
 // mount asks for it again.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
-import { heldModule, useHeldModule } from '../../lib/heldModule'
+import { RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../../lib/heldModule'
 import styles from './NoteFindBar.module.css'
 
 // A property, so a rail can hold or fail a fetch (jsdom cannot fetch a chunk), like `sourceSheetLoaders`.
@@ -33,8 +33,25 @@ export const FIND_UNAVAILABLE = 'Find could not be loaded.'
 
 function FindStandIn({ value, onChange, onClose, failed, onRetry }) {
   const inputRef = useRef(null)
+  const retryRef = useRef(null)
+  // Final fix (B2): Try again leaves the screen while the fetch runs, so the press first puts focus on the field (a
+  // stable element: the real bar takes it from there when it lands); a repeat failure puts it back on Try again.
+  const retryingRef = useRef(false)
+  // Final fix (C5): a failure after the member's own Try again: the chunk is likely gone after a deploy.
+  const [stale, setStale] = useState(false)
   // Layout effect: focus moves in the press's own commit, before the next keystroke can reach the note.
   useLayoutEffect(() => { inputRef.current?.focus() }, [])
+  useLayoutEffect(() => {
+    if (!failed || !retryingRef.current) return
+    retryingRef.current = false
+    setStale(true)
+    retryRef.current?.focus()
+  }, [failed])
+  const retry = () => {
+    retryingRef.current = true
+    inputRef.current?.focus()
+    onRetry?.()
+  }
   const onKeyDown = (e) => {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -61,9 +78,14 @@ function FindStandIn({ value, onChange, onClose, failed, onRetry }) {
           autoComplete="off"
           spellCheck={false}
         />
-        <span className={styles.count} aria-live="polite">{failed ? FIND_UNAVAILABLE : ''}</span>
+        <span className={styles.count} aria-live="polite">
+          {failed ? (stale ? `${FIND_UNAVAILABLE} ${RELOAD_TO_RECOVER}` : FIND_UNAVAILABLE) : ''}
+        </span>
         {failed && (
-          <button type="button" className={styles.textBtn} onClick={onRetry}>Try again</button>
+          <button ref={retryRef} type="button" className={styles.textBtn} onClick={retry}>Try again</button>
+        )}
+        {failed && stale && (
+          <button type="button" className={styles.textBtn} onClick={pageReload.run}>Reload</button>
         )}
         <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close find" title="Close (Esc)">
           <UIcon name="x" size={13} gold={false} />

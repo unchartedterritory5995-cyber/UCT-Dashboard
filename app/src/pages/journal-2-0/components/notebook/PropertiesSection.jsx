@@ -125,6 +125,10 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   const savedViews = viewsData?.savedViews ?? []
   const [newFormula, setNewFormula] = useState('')
   const [newRollup, setNewRollup] = useState({})
+  // Final fix (B3): Save (and Create) wait for the rollup editor to be drawn. An EXISTING complete rollup is "ready"
+  // before its editor's chunk lands, and the late editor then pushes the row down: a click aimed at Save could land
+  // on whatever moved under it.
+  const rollupEditorDrawn = useHeldModule(rollupEditorModule).status === 'ready'
   // The computed property being edited in place: { id, type, text | config, error }.
   const [editing, setEditing] = useState(null)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -369,7 +373,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   const typeChoices = formulasOn ? [...NEW_PROPERTY_TYPES, ...COMPUTED_PROPERTY_TYPES] : NEW_PROPERTY_TYPES
   const canCreate = Boolean(newPropName.trim())
     && (!isFormula || checkFormula(newFormula, propertyDefs).ok)
-    && (!isRollup || rollupReady(newRollup))
+    && (!isRollup || (rollupEditorDrawn && rollupReady(newRollup)))
 
   // A starter formula names the number properties it reads; this makes the ones
   // the member does not have yet, so a first formula is one click from working.
@@ -514,7 +518,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                     {editing.error && <div className={styles.error} role="alert">{editing.error}</div>}
                     <div className={styles.editActions}>
                       <button type="button" className={styles.newPropCreate} onClick={saveEdit}
-                        disabled={p.type === 'rollup' && !rollupReady(editing.config)}>Save</button>
+                        disabled={p.type === 'rollup' && !(rollupEditorDrawn && rollupReady(editing.config))}>Save</button>
                       <button type="button" className={styles.suggestBtn} onClick={() => setEditing(null)}>Cancel</button>
                     </div>
                   </div>
