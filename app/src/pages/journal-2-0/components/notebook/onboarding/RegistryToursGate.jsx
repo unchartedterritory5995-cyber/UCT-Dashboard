@@ -18,7 +18,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { lazyLeaf, RETRY_WAIT_MS } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
-import { FIRST_RUN_PENDING, useFirstRunPending, useFirstRunShowing } from '../../../lib/firstRun'
+import { FIRST_RUN_DUE, useFirstRunPending, useFirstRunShowing } from '../../../lib/firstRun'
 import { getTourEntry, tourLive } from './tourRegistry'
 import {
   REGISTRY_TOUR_OPEN_EVENT, announceRegistryTourClosed, hasPendingRegistryTourOpen,
@@ -175,7 +175,7 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
     // to cancel it for a member who is NOT new but whose preferences read was slow. A Notebook whose preferences never
     // load cannot run a walkthrough anyway.
     const held = Boolean(allowed && (firstRunShowing || firstRunPending))
-    const timed = Boolean(allowed && (firstRunShowing || firstRunPending === FIRST_RUN_PENDING.due))
+    const timed = Boolean(allowed && (firstRunShowing || firstRunPending === FIRST_RUN_DUE))
     const failedRef = useRef(failed)
     failedRef.current = failed
     useEffect(() => {

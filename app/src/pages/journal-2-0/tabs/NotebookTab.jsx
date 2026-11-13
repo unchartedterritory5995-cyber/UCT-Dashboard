@@ -82,7 +82,7 @@ import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 import FirstRunGate from '../components/notebook/FirstRunGate'
 import { TODAY_READ_URL, TODAY_VIEW, todayLandingOn } from '../lib/todayHome'
-import { FIRST_RUN_MARKS, FIRST_RUN_PENDING, firstRunIsDue, setFirstRunPending } from '../lib/firstRun'
+import { FIRST_RUN_DUE, FIRST_RUN_MARKS, FIRST_RUN_UNDECIDED, firstRunIsDue, setFirstRunPending } from '../lib/firstRun'
 import { starterPacksEnabled } from '../lib/starterPacksFlag'
 import { TIPS_PREF, seenTips } from '../lib/notebookTips'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
@@ -1010,7 +1010,7 @@ export default function NotebookTab() {
   const firstRunDue = firstRunOn && firstRunIsDue({ enabled: true, prefsReady: !prefsReadFailed, tipsRaw, notesKnown, hasAnyNotes })
   // Final fix (C5): the shell's walkthrough gate holds a walkthrough while the first run is due here or undecided.
   // Follow-up B, item 2c: it is told which (a bounded hold for 'due', no limit while 'undecided').
-  const firstRunPending = firstRunDue ? FIRST_RUN_PENDING.due : (firstRunUndecided ? FIRST_RUN_PENDING.undecided : null)
+  const firstRunPending = firstRunDue ? FIRST_RUN_DUE : (firstRunUndecided ? FIRST_RUN_UNDECIDED : null)
   useLayoutEffect(() => { setFirstRunPending(firstRunPending) }, [firstRunPending])
   useLayoutEffect(() => () => setFirstRunPending(false), [])
   // Tier 2 fix round 1 (review Important 1): the list's ⋯ carries "Journal tools" (a phone row) while the list
@@ -2145,7 +2145,7 @@ export default function NotebookTab() {
       // Plan Task 11 / ruling R4 (a documented deviation from spec P1.6, which asks for an outbox
       // queue): a create -- a styled one included -- is REFUSED offline and never queued; the member
       // is told so rather than shown a bare failure.
-      // Review M-3: a STYLED create's 4xx carries the server's own sentence ("Choose a kind of note."); every
+      // Review M-3: a STYLED create's 4xx carries the server's own sentence ("Choose a note type."); every
       // other create says exactly what it said before. A 404 is the switch or a gone style: no sentence to show.
       setActionError(typeof navigator !== 'undefined' && navigator.onLine === false
         ? "You're offline. A new note needs a connection; nothing was saved."

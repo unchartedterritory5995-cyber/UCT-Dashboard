@@ -19,7 +19,7 @@ import {
   REGISTRY_TOUR_CLOSED_EVENT, getRegistryTourWanted, hasPendingRegistryTourOpen, openRegistryTour, __resetRegistryTourControl,
 } from './tourRegistryControl'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
-import { FIRST_RUN_PENDING, setFirstRunPending, setFirstRunShowing } from '../../../lib/firstRun'
+import { FIRST_RUN_DUE, FIRST_RUN_UNDECIDED, setFirstRunPending, setFirstRunShowing } from '../../../lib/firstRun'
 
 const BORROWED_FLAG = 'notebook_template_gallery_enabled'
 const TOUR_A = { id: 'w14-0-tour-a', flag: BORROWED_FLAG, title: 'Tour A', replayable: true }
@@ -126,7 +126,7 @@ describe('never over the 60-second first run (the base tour hold, C5)', () => {
     try {
       const Gate = makeRegistryToursGate(engineLoader(), 0)
       render(<Page Gate={Gate} tours={[TOUR_A]} />)
-      act(() => { setFirstRunPending(FIRST_RUN_PENDING.undecided) })
+      act(() => { setFirstRunPending(FIRST_RUN_UNDECIDED) })
       act(() => { openRegistryTour('w14-0-tour-a') })
       await act(async () => { await vi.advanceTimersByTimeAsync(FIRST_RUN_HOLD_MS * 3) })
       expect(screen.queryByText('Tour A is open')).toBeNull()
@@ -145,10 +145,10 @@ describe('never over the 60-second first run (the base tour hold, C5)', () => {
     try {
       const Gate = makeRegistryToursGate(engineLoader(), 0)
       render(<Page Gate={Gate} tours={[TOUR_A]} />)
-      act(() => { setFirstRunPending(FIRST_RUN_PENDING.undecided) })
+      act(() => { setFirstRunPending(FIRST_RUN_UNDECIDED) })
       act(() => { openRegistryTour('w14-0-tour-a') })
       await act(async () => { await vi.advanceTimersByTimeAsync(FIRST_RUN_HOLD_MS * 2) })
-      act(() => { setFirstRunPending(FIRST_RUN_PENDING.due) })
+      act(() => { setFirstRunPending(FIRST_RUN_DUE) })
       await act(async () => { await vi.advanceTimersByTimeAsync(FIRST_RUN_HOLD_MS - 100) })
       expect(screen.queryByRole('status')).toBeNull()
       expect(getRegistryTourWanted()).toBe('w14-0-tour-a')

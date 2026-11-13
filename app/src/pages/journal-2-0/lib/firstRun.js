@@ -64,11 +64,12 @@ export function useFirstRunShowing() {
 // here (the gate holds a walkthrough for a bounded time). 'undecided': the preferences or the notes count have not
 // answered yet (the gate holds without a limit: a member who is NOT new but whose preferences read is slow must not
 // lose the walkthrough they asked for). `true` is read as 'due'.
-export const FIRST_RUN_PENDING = Object.freeze({ due: 'due', undecided: 'undecided' })
+export const FIRST_RUN_DUE = 'due'
+export const FIRST_RUN_UNDECIDED = 'undecided'
 let pending = null
 const pendingSubs = new Set()
 export function setFirstRunPending(state) {
-  const next = state === true ? FIRST_RUN_PENDING.due : state || null
+  const next = state === true ? FIRST_RUN_DUE : state || null
   if (next === pending) return
   pending = next
   for (const f of Array.from(pendingSubs)) f()
