@@ -56,6 +56,17 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // WORKSPACE: color groups, chart tabs, the crosshair bus, hotkey arbitration,
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
+// One item from StockChart's own menu sections (the payload's `sections`), or null:
+// only a row with a handler counts, so a malformed item never draws a dead row.
+const sectionItem = (sections, id) => {
+  if (!Array.isArray(sections)) return null
+  for (const sec of sections) {
+    const hit = (sec && Array.isArray(sec.items) ? sec.items : []).find(i => i && i.id === id)
+    if (hit) return typeof hit.onSelect === 'function' ? hit : null
+  }
+  return null
+}
+
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
   const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, canOpenCompare } = useWorkspace()
   const navigate = useNavigate()
@@ -555,7 +566,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       onWatermark: p.onWatermark, region: p.region, onCandle: p.onCandle,
       // B9: the pane owner's chip rows when the click landed in an indicator pane.
       paneIndicator: p.paneIndicator && Array.isArray(p.paneIndicator.items) && p.paneIndicator.items.length
-        ? p.paneIndicator : null })
+        ? p.paneIndicator : null,
+      // C1-123: StockChart's own "Add indicator…" item (`ind-add`), when its menu
+      // offers one. The row below calls THAT item's onSelect (the library, falling
+      // back to settings), so its gate (drawing tools, the open price area) is the
+      // source's and nothing is re-implemented here.
+      addIndicator: sectionItem(p.sections, 'ind-add') })
   }, [])
 
   useEffect(() => {
@@ -1004,6 +1020,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 )}
                 <div className={styles.menuDivider} />
                 {/* ── Chart configuration ── */}
+                {ctxMenu.addIndicator && (
+                  <button type="button" className={styles.chartCtxItem} data-menu-id="ind-add" onClick={() => { const add = ctxMenu.addIndicator; closeCtx(); add.onSelect() }}>
+                    <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add indicator…
+                  </button>
+                )}
                 <button type="button" className={styles.chartCtxItem} data-menu-id="settings" onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
                 </button>

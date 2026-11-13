@@ -1,0 +1,56 @@
+[
+ {
+  "id": "CM-1",
+  "say": "how do I send the chart to the journal and choose where it goes",
+  "feature": "chartMenu",
+  "row": "journalChoose"
+ },
+ {
+  "id": "CM-2",
+  "say": "show me how to pick which journal entry a chart capture lands in",
+  "feature": "chartMenu",
+  "row": "journalChoose"
+ },
+ {
+  "id": "CM-3",
+  "say": "how do I save this chart into a particular journal page",
+  "feature": "chartMenu",
+  "row": "journalChoose"
+ },
+ {
+  "id": "CM-4",
+  "say": "how do I ask the AI about this stock from the chart",
+  "feature": "chartMenu",
+  "row": "askAi"
+ },
+ {
+  "id": "CM-5",
+  "say": "show me how to ask AI about a bar on the chart",
+  "feature": "chartMenu",
+  "row": "askAi"
+ },
+ {
+  "id": "CM-6",
+  "say": "how do I get an AI take on this ticker by right-clicking the chart",
+  "feature": "chartMenu",
+  "row": "askAi"
+ },
+ {
+  "id": "CM-7",
+  "say": "how do I open candle settings by right-clicking a candle",
+  "feature": "chartMenu",
+  "row": "candleSettings"
+ },
+ {
+  "id": "CM-8",
+  "say": "show me how to reach the canvas settings from the chart menu",
+  "feature": "chartMenu",
+  "row": "canvasSettings"
+ },
+ {
+  "id": "CM-9",
+  "say": "how do I right-click the watermark to open its settings",
+  "feature": "chartMenu",
+  "row": "watermarkSettings"
+ }
+]
