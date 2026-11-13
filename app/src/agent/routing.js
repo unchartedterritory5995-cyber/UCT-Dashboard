@@ -33,6 +33,8 @@ const UNIVERSE_WORDS = /\bpull(?:ed|ing|s)?[-\s]?backs? (?:to|into|toward|near)\
 const DATA_HISTORY = new RegExp(`^(?!.*(?:${UNIVERSE_WORDS.source}))(?!.*(?:${CONCEPT_Q.source})).*${STOCK_HISTORY.source}`)
 // W2 (CG-1): "four equal panels" — a count of chart cells said as panels / cells / boxes / windows / quadrants
 const GRID_CELLS = /\b(two|three|four|five|six|seven|eight|nine|[2-9]) (?:\w+ )?(?:panels|cells|boxes|windows|quadrants)\b|\bequal (?:panels|cells|boxes|windows|quadrants)\b/
+// pl-grid: a chart's geometry word family, said with a board noun (workspace group below). No lookbehind (#1022 rail).
+const CHART_GEOMETRY = /^(?=.*\b(?:charts?|widgets?|panels?|windows?|cells?|tiles?)\b).*\b(?:wid(?:e|er|est|en|ens|ened|ening|th|ths)|narrow(?:s|er|est|ed|ing)?|resiz(?:e|es|ed|ing))\b/
 const EQUAL_SIZE = /\b(same|equal|even|identical) (size|sizes|sized|width|height)\b|\bequal(ly)?[\s-]?sized?\b|\bevenly\b|\bequally\b|\bsplit\b|\btile\b|\btiled\b/
 
 /** Action groups, keyed by capability DOMAIN (the name prefix). Titles are shown to the model. */
@@ -44,7 +46,9 @@ export const GROUPS = [
       /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|thin bars|invert|template|tabs?|compar(?:e|es|ing|isons?)|versus|against|overlays?|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
       /\bvolume\b/,
       // execution family L (pl-exec): the strips Chart Settings → Header names, whose fields chart.setSetting picks
-      /\b(?:info row|bar info|header)\b/,
+      /\b(?:info row|bar info|headers?)\b/,
+      // pl-grid: a chart PART named on its own ("make the price axis wider") is the chart's (marketDataPhrases CHART_PART)
+      /\bax[ie]s\b/,
       // CG-25 (corpus #774): "theme" is the CHART's look — never the app's ("light / dark / app / UCT theme")
       // ⛔ no lookbehind (iOS 16 floor, src/noRegexLookbehind.test.js): the 0–5 characters before the space are consumed and
       // checked by lookahead instead — the same answer as `\b` + not-after-"light |dark |app |uct |site " + `themes?\b`
@@ -126,6 +130,10 @@ export const GROUPS = [
     // existing charts stay; chartGrid.set only with a count, grid or equal-size words, or a replace)
     words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(another|new|one more|second|extra) charts?\b/, /\b(add|open|close|remove|delete|get rid of|ditch|kill|lose|drop)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
       /\b(link|unlink|colou?r group)\b/, /\btabs?\b/, EQUAL_SIZE,
+      // pl-grid: the GEOMETRY word family (width / wide / widen / narrow / resize, every inflection) said of a chart or
+      // another board widget is widget.resize: "widen the chart", "the AAPL chart is too narrow", "change the width of
+      // this chart". A board noun is required: "narrow my screen to tech stocks" is a refinement, not a resize.
+      CHART_GEOMETRY,
       // CG-3a (corpus #769): a COUNT of charts with no tickers ("put four charts on my screen", "create four charts") is
       // new charts + an even re-tile — the widget adds and the arrange live here (chartGrid needs tickers)
       MULTI_CHARTS, GRID_CELLS, /\b(2 ?x ?2|[2-4] by [2-4])\b/] },

@@ -180,30 +180,22 @@ describe('chart display settings, through the real panel (one table)', () => {
 // capabilities/marketDataResolve.js clarifyText: "I'm not sure which instrument "axis" means …" — the request never
 // reaches the model or a plan (seen live in this file's C1-054 first phrasing). The rule held out here: a sentence whose
 // only candidate is a chart noun is not a price question (parsePriceSentence → null, so it goes on to the model).
-// `it.fails` = the product does NOT meet the rule today (the case passes while the parser still claims the noun, and
-// turns RED once it is fixed: then make it a plain `it`). `it` = already holds. No product change here.
+// Every case holds since pl-exec's chart-noun fix (marketDataPhrases.js CHART_PART: a lower-case sentence that names a
+// chart part is not a price question); the wider family is held out in agent/chartNounNotTicker.test.js.
 import { parsePriceSentence } from '../../capabilities/marketDataPhrases'
 const NOUN_HELD_OUT = [
-  { noun: 'axis', text: 'hide the price label on the axis', holds: false },
-  { noun: 'scale', text: 'show me the price scale', holds: false },
-  { noun: 'crosshair', text: 'show the price on the crosshair', holds: false },
-  { noun: 'legend', text: 'show the price legend', holds: false },
-  { noun: 'watermark', text: 'show the price in the watermark', holds: false },
-  { noun: 'grid', text: 'show the grid lines at the price', holds: true },
-  { noun: 'label', text: 'hide the price labels', holds: true },
+  { noun: 'axis', text: 'hide the price label on the axis' },
+  { noun: 'scale', text: 'show me the price scale' },
+  { noun: 'crosshair', text: 'show the price on the crosshair' },
+  { noun: 'legend', text: 'show the price legend' },
+  { noun: 'watermark', text: 'show the price in the watermark' },
+  { noun: 'grid', text: 'show the grid lines at the price' },
+  { noun: 'label', text: 'hide the price labels' },
 ]
 describe('held-out routing: chart nouns are never ticker symbols (pre-model price fast path)', () => {
   for (const c of NOUN_HELD_OUT) {
     const name = `ROUTE-NOUN ${c.noun} "${c.text}": not read as a price question for ${c.noun.toUpperCase()} (reaches the model)`
     const body = () => expect(parsePriceSentence(c.text), `${c.text} → ${JSON.stringify(parsePriceSentence(c.text))}`).toBeNull()
-    if (c.holds) it(name, body)
-    else {
-      it.fails(`${name} — KNOWN GAP: "${c.noun}" is not in NOT_A_TICKER (marketDataPhrases.js:31), so it is a candidate and the resolver asks which instrument it means`, body)
-      // the PIN: the exact wrong reading today. It goes red when the parser is fixed (then this pair becomes one plain `it`,
-      // in pl-exec's NOT_A_TICKER fix commit) and also if the wrong behaviour changes shape (the bare it.fails would not notice).
-      it(`KNOWN GAP ROUTE-NOUN ${c.noun} "${c.text}": today it is read as a quote for the lowercase candidate "${c.noun}"`, () => {
-        expect(parsePriceSentence(c.text)).toEqual({ intent: 'quote', candidates: [{ text: c.noun, form: 'lower' }], sessionWord: null })
-      })
-    }
+    it(name, body)
   }
 })
