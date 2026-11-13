@@ -160,12 +160,20 @@ function plan(r, { op, bars, date, speed }) {
   }
 }
 
-/** A multi-step replay plan that stopped part-way: an error the runtime says as-is (`complete`), keeping what landed (`keptNote`). */
-export function replayStopped(done, total, r) {
+/** A multi-step replay plan that stopped part-way — the runtime's EXISTING convention for a step that fails after its own
+ *  earlier part landed (indicatorAuthoring.js:774-779: the rename stays, `keptNote` + `unreverted`; runtime.js:96-100: a
+ *  failed plan's result is `undo: null`, the kept part is said, never "nothing was left changed"). So: no automatic rollback,
+ *  no Undo — and the receipt says how to get back (AUDIT #1174 partial-failure ruling). `landed` = the steps' args that landed. */
+export function replayStopped(done, total, r, landed = []) {
   const now = !r ? 'I can’t read it right now' : !r.mode ? 'the bar replay is off'
     : `the bar replay is on, ${r.playing ? 'playing' : 'paused'} at ${r.speed}×${r.index != null ? `, ${at(r.index, r.total)}` : ''}`
-  const e = new Error(`The bar replay did ${done} of the ${total} steps you asked for, then the next one did not take effect on the chart, so I stopped there and pressed nothing after it. The chart now: ${now}.`)
+  // the way back from what landed: an entered replay is left with Exit; anything else is moved back on the replay bar
+  const back = landed.some(a => a?.op === 'enter')
+    ? 'To undo it, press Exit on the replay bar, or say “exit the bar replay”.'
+    : 'To undo it, move it back with the replay bar’s buttons (‹ › « » and the speed), or ask me.'
+  const e = new Error(`The bar replay did ${done} of the ${total} steps you asked for, then the next one did not take effect on the chart, so I stopped there and pressed nothing after it. The chart now: ${now}. ${back}`)
   e.complete = true
+  e.unreverted = true
   e.keptNote = `the ${done === 1 ? 'first step stays' : `first ${done} steps stay`} (${now})`
   return e
 }

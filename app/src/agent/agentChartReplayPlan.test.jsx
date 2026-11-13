@@ -159,6 +159,15 @@ describe('a multi-op replay plan on ONE chart, through the real panel and the re
     expect(text).toMatch(/the bar replay is on, paused at 1×, bar 29 of 40/)
     expect(text).not.toMatch(/nothing was left changed/)
     expect(text).not.toMatch(/Stepped the bar replay forward 5 bars \(now|Set the bar replay to 20×/)
+    // AUDIT partial-failure ruling — the runtime's EXISTING convention for a step whose own earlier part landed
+    // (indicatorAuthoring.js:774-779 keptNote + unreverted; runtime.js:96-100 a failed plan is `undo: null`):
+    // NO automatic rollback (the replay stays on: no exit was pressed), NO Undo, and the receipt says how to get back
+    expect(c.calls.some(([, a]) => a.op === 'exit')).toBe(false)
+    expect(text).toMatch(/To undo it, press Exit on the replay bar, or say “exit the bar replay”/)
+    const before = c.calls.length
+    await say('undo')
+    expect(c.calls.length).toBe(before)                                          // no Undo entry: "undo" presses nothing
+    expect(c.meta()).toMatchObject({ mode: true, index: Math.floor(N * 0.7) })
   }, 40000)
 })
 

@@ -417,7 +417,7 @@ export const chartKind = {
       const steps = viewDo.steps || [viewDo]
       // a step that fails AFTER earlier ones landed stops there and says exactly what the chart now shows (they stay: a
       // receipt never claims "nothing was left changed" over a replay that is on)
-      const stop = (done) => { if (done) throw replayStopped(done, steps.length, host.charts.read(ref)?.view?.replay) }
+      const stop = (done) => { if (done) throw replayStopped(done, steps.length, host.charts.read(ref)?.view?.replay, steps.slice(0, done).map(s => s.arg)) }
       for (const [done, s] of steps.entries()) {
         const one = { op: viewDo.op, arg: s.arg, want: s.want }
         if (!host.charts.viewDo?.(ref, one.op, one.arg)) { stop(done); return false }
