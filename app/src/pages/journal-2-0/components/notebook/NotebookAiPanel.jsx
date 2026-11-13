@@ -10,20 +10,60 @@
 // Notebook what to change" with it (preview fix round 1: a door left behind on its own read as a stray button) -- and
 // hands focus back to the AI button through `onClose`. The AI button (on a phone, ⋯ "Ask your Notebook") opens both
 // again.
-import { Suspense, useState } from 'react'
-import lazyChunk from '../../lib/lazyChunk'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import UIcon from '../../../../components/ui/UIcon'
+import { RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../../lib/heldModule'
+import whenIdle from '../../lib/whenIdle'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import styles from './NotebookAiPanel.module.css'
+import actionStyles from './AiActionsPanel.module.css'
 
 // Fetched only while its switch is on (the box checks the switch itself too), as on Research home.
-const AiActionsBox = lazyChunk(() => import('./AiActionsPanel'))
+// Follow-up B fix round 1 (item 5): held, not `lazyChunk` + Suspense (whose reveal is held back about 300 ms even with
+// the chunk in hand). It is asked for once this panel's chunk is in hand and the page is idle (the panel's chunk is
+// itself fetched when the list is idle and when a pointer or focus reaches "AI", NotebookAiPanelSlot.jsx), and again
+// when the section mounts; with it in hand the box is drawn in the section's own commit. Before it lands a frame with
+// the same toggle is drawn: pressing it puts focus on a status line at once, and the box opens with the request field
+// focused when it lands. A failed fetch says so, with a Reload the member presses.
+export const aiActionsLoaders = { box: () => import('./AiActionsPanel') }
+export const aiActionsModule = heldModule(() => aiActionsLoaders.box())
+const actionsOn = () => notebookFlag('notebook_ai_actions_enabled') === true
+if (typeof window !== 'undefined') whenIdle(() => { if (actionsOn()) aiActionsModule.warm() })
+export const AI_ACTIONS_UNAVAILABLE = 'Tell Notebook what to change could not be loaded.'
+export const AI_ACTIONS_LOADING = 'Loading…'
+
+function AiActionsFrame({ failed, wantOpen, onOpen }) {
+  const statusRef = useRef(null)
+  useLayoutEffect(() => { if (wantOpen) statusRef.current?.focus() }, [wantOpen])
+  return (
+    <section className={actionStyles.wrap} aria-label="Or tell Notebook what to change" data-ai-actions-stand-in="">
+      <button type="button" className={actionStyles.toggle} aria-expanded={wantOpen} onClick={onOpen}>
+        <UIcon name="sparkle" size={13} gold={false} /> Or tell Notebook what to change
+      </button>
+      {(wantOpen || failed) && (
+        <p ref={statusRef} tabIndex={-1} role={failed ? 'alert' : 'status'}>
+          {failed ? `${AI_ACTIONS_UNAVAILABLE} ${RELOAD_TO_RECOVER}` : AI_ACTIONS_LOADING}
+          {failed && <> <button type="button" className="btn btn-secondary btn-sm" onClick={pageReload.run}>Reload</button></>}
+        </p>
+      )}
+    </section>
+  )
+}
+
+export function AiActionsSlot(props) {
+  const { status, Component } = useHeldModule(aiActionsModule)
+  // A press on the frame's toggle before the box lands: the box opens (request field focused) when it does.
+  const [wantOpen, setWantOpen] = useState(false)
+  useEffect(() => { aiActionsModule.warm() }, [])
+  if (Component) return <Component {...props} defaultOpen={wantOpen} />
+  return <AiActionsFrame failed={status === 'failed'} wantOpen={wantOpen} onOpen={() => setWantOpen(true)} />
+}
 
 export default function NotebookAiPanel({ id, onOpenNote, onClose, blockedNoteIds = null }) {
-  const actionsOn = notebookFlag('notebook_ai_actions_enabled') === true
   const [previewDoc, setPreviewDoc] = useState(null)
   const [capturedSource, setCapturedSource] = useState(null)
   const closeAsk = () => onClose?.()
@@ -35,11 +75,7 @@ export default function NotebookAiPanel({ id, onOpenNote, onClose, blockedNoteId
             signal, openNote: onOpenNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
           })} />
       </div>
-      {actionsOn && (
-        <Suspense fallback={null}>
-          <AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={onOpenNote} />
-        </Suspense>
-      )}
+      {actionsOn() && <AiActionsSlot blockedNoteIds={blockedNoteIds} onOpenNote={onOpenNote} />}
       <DocumentPreviewSheet
         open={!!previewDoc}
         href={previewDoc?.href}
