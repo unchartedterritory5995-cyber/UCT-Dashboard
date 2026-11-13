@@ -68,7 +68,7 @@ import { reviewDraftsEnabled } from '../lib/reviewDraftsFlag'
 // Fix round 1 (first-open bytes): the Reviews rows' words are on first open; the drafting door is fetched on the first press.
 import { REVIEW_PERIODS, reviewDraftFailedSentence, reviewDraftingSentence } from '../lib/reviewPeriods'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
-import { withDone } from '../components/notebook/onboarding/gettingStartedPref'
+import { checklistEnabled, withDone } from '../components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_TITLE } from '../../../surfaces/pageTitle.js'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk, { importWithOneRetry } from '../lib/lazyChunk'
@@ -83,8 +83,8 @@ import FollowupOfferSlot from '../components/notebook/FollowupOfferSlot'
 import { loadStyle } from '../components/notebook/styles/lazyStyles'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 import FirstRunGate from '../components/notebook/FirstRunGate'
-import { TODAY_VIEW, todayLandingOn } from '../lib/todayHome'
-import { FIRST_RUN_MARKS, firstRunIsDue, setFirstRunPending, useFirstRunShowing } from '../lib/firstRun'
+import { TODAY_READ_URL, TODAY_VIEW, todayLandingOn } from '../lib/todayHome'
+import { FIRST_RUN_MARKS, firstRunIsDue, setFirstRunPending } from '../lib/firstRun'
 import { starterPacksEnabled } from '../lib/starterPacksFlag'
 import { TIPS_PREF, seenTips } from '../lib/notebookTips'
 // Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
@@ -99,7 +99,7 @@ import TourOfferDoor from '../components/notebook/onboarding/TourOfferDoor'
 import NotebookPlusFab from '../components/notebook/NotebookPlusFab'
 import { holdImageForNote } from '../lib/pendingImageInsert'
 import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
-import GettingStartedChecklist from '../components/notebook/GettingStartedChecklist'
+import GettingStartedChecklist, { useGettingStartedCardUp } from '../components/notebook/GettingStartedChecklist'
 // Fix round 1 (first-open bytes): what the list needs before a press about the sample notebook is its keys module and
 // the two hooks; the sample's client (sampleNotebook.js: add, the removal's sentences, remove) is fetched on a press,
 // and the zero-notes door is a lazy chunk (below).
@@ -145,11 +145,15 @@ function SavedViewsMenuGroup(props) {
 // Fix round 1: the zero-notes "Add a sample notebook" door, fetched when the empty state draws (it renders nothing until
 // it lands, and nothing at all for a member it is not for).
 
+// `fallback`: undefined draws the loading line; an element (or null) is drawn as is; a component gets the view's props
+// (the Daily brief's, so its focus landing exists while its chunk is on the way).
 function lazyView(load, label, fallback) {
   const Chunk = lazyChunk(load)
+  const loading = <div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div>
   function LazyNotebookView(props) {
+    const Fallback = typeof fallback === 'function' ? fallback : null
     return (
-      <Suspense fallback={fallback === undefined ? <div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div> : fallback}>
+      <Suspense fallback={Fallback ? <Fallback {...props} loading={loading} /> : fallback === undefined ? loading : fallback}>
         <Chunk {...props} />
       </Suspense>
     )
@@ -211,7 +215,24 @@ const loadTodayHome = () => {
   }
   return todayHomeImport
 }
-const TodayHome = lazyView(loadTodayHome, 'today')
+// Simplify pass 2: the brief draws the page's one "Daily brief" heading and takes the pane's focus ref for it. Until its
+// chunk lands, the pane's own hidden heading of the same words holds that ref, so a focus call in that window still
+// lands on a heading (deleteFocusFallback.test.jsx); if it holds focus as the brief replaces it, focus moves on to the
+// brief's heading rather than falling to <body>.
+function TodayHomeLoading({ headingRef, loading }) {
+  // An unmount cleanup runs before React detaches the heading's ref, so the ref still names this heading here.
+  useLayoutEffect(() => () => {
+    const el = headingRef?.current
+    if (el && el === document.activeElement) queueMicrotask(() => headingRef.current?.focus())
+  }, [headingRef])
+  return (
+    <>
+      <h2 ref={headingRef} tabIndex={-1} className={styles.paneHeading} data-focus-fallback="">Daily brief</h2>
+      {loading}
+    </>
+  )
+}
+const TodayHome = lazyView(loadTodayHome, 'today', TodayHomeLoading)
 // Go-live wave 1, fix round 1 (first-open bytes): the zero-notes sample door, through `lazyView` with a null fallback
 // (nothing flashes while the chunk lands).
 const SampleNotebookDoor = lazyView(() => import('../components/notebook/onboarding/SampleNotebookDoor'), 'sample notebook', null)
@@ -744,9 +765,11 @@ export default function NotebookTab() {
   // Lane KEYS3 (Q2): the command palette's "New note from a template" arrives on the notes
   // list with `#templates` (lib/notebookDoors.js). The New note sheet opens, exactly as the
   // Templates button opens it. Keyed on `location.key`, so choosing the command twice works twice.
+  // Simplify pass 2 (D3): a sheet the hash opened (`'hash'`, read as open everywhere else) closes when the hash goes
+  // away (the browser's Back); a sheet a button opened is left alone.
   useEffect(() => {
-    if (location.hash !== NOTEBOOK_TEMPLATES_HASH) return
-    setPickerOpen(true)
+    if (location.hash === NOTEBOOK_TEMPLATES_HASH) setPickerOpen('hash')
+    else setPickerOpen((open) => (open === 'hash' ? false : open))
   }, [location.hash, location.key])
 
   // Lane KEYS3 (Q11): the command palette's "All notes" arrives with `#notes`. Keyboard focus
@@ -928,7 +951,8 @@ export default function NotebookTab() {
   // (`?view=board`, `?view=tasks`, ...), `home` (Research home's old address; Research home itself was deleted in go-live
   // wave 1) or one this build does not know. ⚰️ It used to open the member's LANDING ("Open the Notebook on": Today, Research home or All notes,
   // default Today), and opening Today MADE the day's note as a side effect of opening the Notebook. Now nothing is made
-  // until the member opens the Daily brief (`?view=today`, its own read) or presses "Today's note".
+  // until the member presses "Today's note" (or the Daily brief's "Start today's note": simplify pass 2, B1 -- the
+  // brief itself only reads).
   // ⛔ A2R-03 (a11y second review, 2026-10-01): every VIEW_MODES id is a list address -- `?view=graph` once rendered
   // Research Home, so a keyboard walk never found the graph canvas. With no home behind the list that cannot recur.
   const viewParam = searchParams.get('view')
@@ -943,18 +967,15 @@ export default function NotebookTab() {
   })
   // The Daily brief (the Today home): `?view=today`, nothing else.
   const isToday = !noteId && !hasActiveFilters && !isTrashView && viewParam === TODAY_VIEW
-  // I9 + fix round 2 (R1-B): what the Today home reads. `hold` (make=0, never make the day's note) only while the
-  // 60-second first run IS due or on screen -- Build makes the note, with the names the member typed. `wait` (no read
-  // at all; the skeletons stay up) while that cannot be decided yet: the preferences have not answered, or the notes
-  // count has not and the tips do not record the first run. A member whose tips record it can never get it again,
-  // so their read starts at once, as `make` -- one request, never a make=0 read and then a make=1 read.
-  const firstRunShowing = useFirstRunShowing()
+  // The 60-second first run's state, for the shell's walkthrough gate below: due, or not decided yet (the preferences
+  // have not answered, or the notes count has not and the tips do not record the first run).
+  // Simplify pass 2 (B1): ⚰️ this also decided what the Daily brief read (`make` / `hold` / `wait`); the brief reads
+  // with make=0 in every state now (TodayHome.jsx), so nothing here decides whether a page load makes the note.
   const tipsRaw = notebookPrefs?.[TIPS_PREF]
   const firstRunSeen = seenTips(tipsRaw).has(FIRST_RUN_MARKS.shown)
   const firstRunOn = starterPacksEnabled()
   const firstRunUndecided = firstRunOn && (Boolean(prefsLoading) || (!notesKnown && !firstRunSeen))
   const firstRunDue = firstRunOn && firstRunIsDue({ enabled: true, prefsReady: !prefsReadFailed, tipsRaw, notesKnown, hasAnyNotes })
-  const todayRead = firstRunShowing || firstRunDue ? 'hold' : firstRunUndecided ? 'wait' : 'make'
   // Final fix (C5): the shell's walkthrough gate holds a walkthrough while the first run is due here or undecided.
   const firstRunPending = firstRunDue || firstRunUndecided
   useLayoutEffect(() => { setFirstRunPending(firstRunPending) }, [firstRunPending])
@@ -963,8 +984,13 @@ export default function NotebookTab() {
   // toolbar is on screen, so the phone Journal header may fold to no row (lib/journalToolsDoor.js).
   // S15: the Daily brief has no list toolbar either.
   const listToolbarShown = !noteId && !isToday
-  // the compact sort words, on a phone only (review minor 12)
-  const phoneSortWords = useIsPhone()
+  // On a phone: the compact sort words (review minor 12) and the sample row's short label (final fix M10: one honest
+  // name for both readers).
+  const onPhone = useIsPhone()
+  // Simplify pass 2 (C5): the empty list's template grid waits while the Get started card is up (its "Start a note from
+  // a template" row opens the picker, as "+ New" does). With the card's switch on, its answer waits on the preferences
+  // read, so until that lands neither is drawn: the grid never flashes in and out.
+  const gridWaits = useGettingStartedCardUp() || (checklistEnabled(notebookFlag) && Boolean(prefsLoading))
   // VIS-6 fix round 1 (review 9): the FIELD the sort dropdown shows, whatever the direction (FX4: the table's headers
   // set `updated_asc` / `title_desc`). ONE authority for the select's value and its touch-tier face.
   const sortField = sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort
@@ -2208,11 +2234,24 @@ export default function NotebookTab() {
     aiOpenerRef.current = document.activeElement   // the ⋯ button: the menu hands focus back to it before this runs
     setAiOpen(true)
   }
+  // Simplify pass 2, Task 1 fix round 1: the phone "+" sheet's "Ask your Notebook". The "+" is drawn on every Notebook
+  // view, the section only with the list, so from a note or the Daily brief this first goes to the list (the panel's
+  // "All notes") and opens the section there, in one press. The sheet's row is gone by the time Ask closes, so the
+  // opener is the "+" itself.
+  const openAiFromPlus = () => {
+    if (!listToolbarShown) selectAllNotes()
+    aiOpenerRef.current = plusRef.current
+    setAiOpen(true)
+  }
   // Preview fix round 1 (item 4): closing the question panel closes the WHOLE AI section -- the question panel and
   // "Or tell Notebook what to change" together (that door used to stay behind on its own) -- and hands focus back.
+  // Fix round 1 (Task 1): only to an opener still in the page; a removed one falls back to "AI".
   const closeAi = () => {
     setAiOpen(false)
-    requestAnimationFrame(() => (aiOpenerRef.current || aiBtnRef.current)?.focus?.())
+    requestAnimationFrame(() => {
+      const opener = aiOpenerRef.current
+      ;(opener?.isConnected ? opener : aiBtnRef.current)?.focus?.()
+    })
   }
   // ...and the section is closed whenever the list is entered: it closes as the member leaves the list (a note, the
   // Daily brief), so coming back never finds it reopened by itself. Pressing "AI" again opens both pieces.
@@ -2227,12 +2266,24 @@ export default function NotebookTab() {
   const { prefs, setPrefMerged } = usePreferences()
   const dailyTemplateId = prefs?.[DAILY_TEMPLATE_PREF] || ''
   const openingTodayRef = useRef(false)
-  const openToday = async () => {
-    if (openingTodayRef.current) return
+  const { mutate: mutateSwrKey } = useSWRConfig()   // the cache this tree reads from (the brief's read is in it)
+  // Simplify pass 2 (B1): also the Daily brief's "Start today's note". One door, one note: every caller (the list's
+  // button, Ctrl+Alt+D, the phone row, the brief's Start) asks for `seedToday`, today's plan from the held figures, which
+  // the server writes only into a note THIS call makes (an existing note is opened unchanged).
+  // Final fix I4 (ruling): the brief's Start makes the note and STAYS on the brief (`stay`): the plan card arrives with
+  // the re-read below and the brief moves focus to "Open today's note". Every other caller opens the note. Resolves
+  // true when the note is there (made or found), false when the press failed (the failure sentence is on screen).
+  const startToday = async ({ stay = false } = {}) => {
+    if (openingTodayRef.current) return false
     openingTodayRef.current = true
     setActionError('')
     try {
-      const { note, created, templateMissing } = await openDailyNote({ templateId: dailyTemplateId })
+      const { note, created, templateMissing } = await openDailyNote({ templateId: dailyTemplateId, seedToday: true })
+      // The Daily brief's cached answer may say "Start today's note": it says the note exists at once (a return to the
+      // brief, or the brief still on screen, reads "Open today's note"), and is read again for the plan lines.
+      mutateSwrKey(TODAY_READ_URL, (d) => d && {
+        ...d, todayNote: { ...d.todayNote, id: note.id, title: note.title, missing: false, trashed: false },
+      })
       if (created) {
         addNoteToTree(note)
         refreshAll()
@@ -2244,14 +2295,21 @@ export default function NotebookTab() {
       if (templateMissing) {
         setActionError(DAILY_TEMPLATE_MISSING)
       }
-      openNote(note)
+      if (!stay) openNote(note)
+      return true
     } catch (e) {
       console.error('[notebook] open daily note failed', e)
       setActionError("Couldn't open today's note. Nothing was created.")
+      return false
     } finally {
       openingTodayRef.current = false
     }
   }
+  // ⛔ Both take NO arguments, on purpose: they are click handlers and the shortcut's callback, so an event can never be
+  // read as options. `openToday` opens the note (the list's button, Ctrl+Alt+D, the phone row); `startTodayHere` is the
+  // Daily brief's Start (final fix I4).
+  const openToday = () => startToday()
+  const startTodayHere = () => startToday({ stay: true })
   const openTodayRef = useRef(openToday)
   openTodayRef.current = openToday
   useEffect(() => {
@@ -2315,6 +2373,7 @@ export default function NotebookTab() {
         (m) => typeof m?.draftReview === 'function')
       await draftReview(period, {
         accountId: reviewAccountId,
+        dailyTemplateId,   // final fix I1: a recap that makes today's note makes it from the member's template
         onOpenNote: openNote,
         onNotice: (message) => setBulkNotice({ message, tone: 'info' }),
       })
@@ -2328,17 +2387,24 @@ export default function NotebookTab() {
     }
   }
 
-  // The Reviews rows, for the New menu (`anchored`: the walkthrough's three literal anchors) and the phone ⋯ group
-  // (plain: an anchor is written once). Disabled while a draft runs (D4).
+  // Simplify pass 2 (C2): the three reviews are the second view of ONE row, "Draft a review", in the New menu and in the
+  // phone ⋯. Disabled while a draft runs (D4). The walkthrough's anchors are written once, here, and drawn by whichever
+  // menu is open: the two are never open together (opening one closes the other, and the New menu is not drawn on a
+  // phone), so an anchor is on the page at most once, and the phone tier's "Open Draft a review" step can wait for the
+  // first one. Pass 2 merged the walkthrough's weekly and monthly steps (the registry's six-step budget), so the
+  // monthly row carries no anchor.
   const REVIEW_ROW_ANCHOR = {
     daily: (p, c) => <button {...p} data-tour="review-drafts-daily">{c}</button>,
     weekly: (p, c) => <button {...p} data-tour="review-drafts-weekly">{c}</button>,
-    monthly: (p, c) => <button {...p} data-tour="review-drafts-monthly">{c}</button>,
   }
-  const reviewRows = ({ anchored }) => REVIEW_PERIODS.map(({ period, label }) => ({
-    key: period, label, icon: 'book', run: () => runReviewDraft(period), disabled: Boolean(reviewDrafting),
-    render: anchored ? REVIEW_ROW_ANCHOR[period] : undefined,
-  }))
+  const draftReviewRow = (more) => ({
+    key: 'reviews', label: 'Draft a review', icon: 'book',
+    children: REVIEW_PERIODS.map(({ period, label }) => ({
+      key: period, label, icon: 'book', run: () => runReviewDraft(period), disabled: Boolean(reviewDrafting),
+      render: REVIEW_ROW_ANCHOR[period],
+    })),
+    ...more,
+  })
 
   // S11 (audit 2026-11-05): the notes list's three toolbar menus. Each item is the SAME handler its
   // old toolbar button ran -- moved, never re-implemented -- and an item whose gate is off is absent.
@@ -2412,13 +2478,15 @@ export default function NotebookTab() {
       return next
     }, { replace: true })
   }
+  const modeRow = ({ id, icon, short }) => ({ key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id) })
   const viewMenuItems = [
-    ...VIEW_MODES.flatMap(({ id, icon, short }) => [
-      { key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id) },
+    ...VIEW_MODES.filter((m) => !m.more).flatMap((m) => [
+      modeRow(m),
       // Notebook simplify, Task 3: List's own two-way choice, directly under it, while List is the mode.
-      id === 'list' && viewMode === 'list' && {
+      m.id === 'list' && viewMode === 'list' && {
         key: 'list-layout',
-        group: 'List layout',
+        // Simplify pass 2 (A10): "Show as"; "layout" is the page-layout panels' word.
+        group: 'Show as',
         className: styles.layoutGroup,
         items: [
           { key: 'rows', label: 'Rows', checked: listLayout === 'rows', run: () => setListLayout('rows') },
@@ -2426,6 +2494,13 @@ export default function NotebookTab() {
         ],
       },
     ].filter(Boolean)),
+    // Simplify pass 2 (C1): Graph and Timeline wait one press deeper, in a second view of this same menu. A saved view
+    // or a `?view=graph` / `?view=timeline` link still opens them directly; while one is on, the trigger names it and
+    // this row reads as the active one.
+    {
+      key: 'more-views', label: 'More views', icon: 'more', current: Boolean(currentView.more),
+      children: VIEW_MODES.filter((m) => m.more).map(modeRow),
+    },
     // ⛔ NO Save view IN GRAPH MODE, nor in a mode the table marks `saveable: false` (Tasks): graph has
     // nothing of its own to store, so a "saved" graph view would reopen as a plain Graph click -- a silent
     // trap (competitive audit UX #18, 2026-09-22).
@@ -2453,12 +2528,7 @@ export default function NotebookTab() {
     // Notebook simplify, Task 3: Research Home's "Reviews that write themselves", from the list too. Each runs the ONE
     // drafting door (lib/reviewDraftRun.js); absent while review drafts are off, so no row opens nothing.
     // Go-live wave 1 (C2): the review-drafts walkthrough points at the three rows (literal anchors).
-    reviewsOn && {
-      key: 'reviews',
-      group: 'Reviews',
-      heading: true,
-      items: reviewRows({ anchored: true }),
-    },
+    reviewsOn && draftReviewRow({ render: (p, c) => <button {...p} data-tour="review-drafts-open">{c}</button> }),
   ].filter(Boolean)
   // On a phone "+ New", Today and AI give way to the floating "+" (S12) and the row, so ⋯ carries them there (CSS shows
   // `phoneOnlyItem` rows at <=640px only): every toolbar action stays reachable at every width.
@@ -2482,22 +2552,19 @@ export default function NotebookTab() {
       key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote, className: phoneOnly,
       render: (p, c) => <button {...p} data-tour="new-note-voice-phone">{c}</button>,
     },
-    reviewsOn && {
-      key: 'reviews',
-      group: 'Reviews',
-      heading: true,
-      className: phoneOnly,
-      render: (p, c) => <div {...p} data-tour="review-drafts-phone">{c}</div>,
-      items: reviewRows({ anchored: false }),
-    },
+    reviewsOn && draftReviewRow({ className: phoneOnly, render: (p, c) => <button {...p} data-tour="review-drafts-phone">{c}</button> }),
     // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
     // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
-    { key: 'journal-tools', label: 'Journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
+    // Simplify pass 2 (A9): "Trade journal tools", so it is not read as a sibling of "My tools" below.
+    { key: 'journal-tools', label: 'Trade journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
     { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true) },
     // Go-live wave 1 (A7): at every width, only while the sample is active (its status read says so). Final fix residual
     // R3: right after Export, so on a desktop (no phone rows) More never opens with focus on this destructive row; on a
     // phone the menu scrolls inside the window above the "+" (C3), so it stays reachable there.
-    sampleActiveIds.length > 0 && { key: 'remove-sample', label: SAMPLE_ROW_COPY.removeRow, icon: 'trash', run: () => removeSample() },
+    // Simplify pass 2 (C6): one line on a phone ("Remove sample notebook"); the desktop words are unchanged.
+    sampleActiveIds.length > 0 && {
+      key: 'remove-sample', label: SAMPLE_ROW_COPY[onPhone ? 'removeRowPhone' : 'removeRow'], icon: 'trash', run: () => removeSample(),
+    },
     toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
     stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true) },
@@ -2784,7 +2851,9 @@ export default function NotebookTab() {
         {/* Wave 8 (8A, A4): what the pane shows, as a heading -- the landing
             place for the skip link and for focus when a delete leaves no row
             after it. Visually hidden until it takes focus. */}
-        {!noteId && (
+        {/* Simplify pass 2: the Daily brief draws its own visible "Daily brief" heading and takes this ref for it, so the
+            page has ONE heading of that name and every focus call below lands on the visible one. */}
+        {!noteId && !isToday && (
           <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading} data-focus-fallback="">{paneHeading}</h2>
         )}
         {/* Finish program, lane FE2 round 2: this confirm and its error line sit ABOVE the
@@ -2955,10 +3024,9 @@ export default function NotebookTab() {
           {repairNotice}
           <TodayHome
             onOpenNote={openNote}
-            onCreateNote={() => createNote()}
-            onSelectAllNotes={selectAllNotes}
-            onNoteMade={(note) => { if (note) addNoteToTree(note); refreshAll(); refreshSidebarCounts() }}
-            todayRead={todayRead}
+            onOpenToday={openToday}
+            onStartToday={startTodayHere}
+            headingRef={paneHeadingRef}
             dailyTemplateId={dailyTemplateId}
             onNotice={(message) => setBulkNotice({ message, tone: 'info' })}
           />
@@ -2999,9 +3067,10 @@ export default function NotebookTab() {
               </button>
               {viewMenu.open && (
                 <div {...viewMenu.menuProps} aria-label="View">
-                  <MenuRows menu={viewMenu} items={viewMenuItems} />
-                  {/* Notebook simplify, Task 2: the saved views left the folders panel and live here. */}
-                  <SavedViewsMenuGroup
+                  <MenuRows menu={viewMenu} items={viewMenuItems} label="View" />
+                  {/* Notebook simplify, Task 2: the saved views left the folders panel and live here. Not in the
+                      "More views" second view (pass 2, C1): that view holds only Back, Graph and Timeline. */}
+                  {!viewMenu.sub && <SavedViewsMenuGroup
                     menu={viewMenu}
                     views={savedViews}
                     activeViewId={activeView?.id ?? null}
@@ -3010,7 +3079,7 @@ export default function NotebookTab() {
                     onDeleteView={onDeleteViewRequest}
                     onAddStarterViews={savedViewsLoading || savedViewsError ? null : addStarterThesisViews}
                     loadFailed={Boolean(savedViewsError)}
-                  />
+                  />}
                 </div>
               )}
             </div>
@@ -3028,7 +3097,7 @@ export default function NotebookTab() {
             // aria-hidden. Above 1024 px the face is not drawn and the select renders as before.
             <span className={styles.sortWrap} data-sort-wrap="">
             <span className={`btn btn-secondary btn-sm ${styles.toolBtn} ${styles.sortFace}`} aria-hidden="true" data-sort-face="">
-              {SORT_OPTIONS.find((o) => o.value === sortField)?.[phoneSortWords ? 'short' : 'label'] || 'Sort'}
+              {SORT_OPTIONS.find((o) => o.value === sortField)?.[onPhone ? 'short' : 'label'] || 'Sort'}
               <UIcon name="chevronDown" {...TOOLBAR_ICON} />
             </span>
             <select
@@ -3050,7 +3119,7 @@ export default function NotebookTab() {
               {/* Tier 2 (production check of Tier 1b, 390 px): "Recently upd…" was cut off and pushed ⋯ onto a line
                   of its own. On a PHONE the words are compact (review minor 12: only there); the control's NAME
                   ("Sort notes") says what they order. Wider screens keep "Recently updated". */}
-              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{phoneSortWords ? o.short : o.label}</option>)}
+              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{onPhone ? o.short : o.label}</option>)}
             </select>
             </span>
           )}
@@ -3120,7 +3189,7 @@ export default function NotebookTab() {
               </button>
               {newMenu.open && (
                 <div {...newMenu.menuProps} aria-label="Start a note">
-                  <MenuRows menu={newMenu} items={newMenuItems} />
+                  <MenuRows menu={newMenu} items={newMenuItems} label="Start a note" />
                 </div>
               )}
             </div>
@@ -3132,7 +3201,7 @@ export default function NotebookTab() {
               </button>
               {moreMenu.open && (
                 <div {...moreMenu.menuProps} aria-label="More notebook actions">
-                  <MenuRows menu={moreMenu} items={moreMenuItems} />
+                  <MenuRows menu={moreMenu} items={moreMenuItems} label="More notebook actions" />
                 </div>
               )}
             </div>
@@ -3300,7 +3369,7 @@ export default function NotebookTab() {
             {/* P5 final fix: not while the New note sheet is open, so the page holds ONE picker (one
                 gallery door for a tour to wait on, one "How do you trade?", ruling P5-T10-R2). */}
             <div className={styles.emptyPicker}>
-              {!pickerOpen && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} kindSection={kindSection(false)} />}
+              {!pickerOpen && !gridWaits && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} kindSection={kindSection(false)} />}
             </div>
           </div>
         ) : (
@@ -3558,7 +3627,7 @@ export default function NotebookTab() {
       <NotebookPlusSheet open={plusOpen} onClose={() => setPlusOpen(false)} returnFocusTo={plusRef}
         onQuickNote={() => createNote()} onVoiceNote={recordVoiceNote}
         onPhoto={(file) => createNote({ title: 'Chart screenshot', onCreated: (c) => holdImageForNote(c.id, file) })}
-        askAi={auth?.isPaid === true} busy={creating} />
+        onAskNotebook={auth?.isPaid === true ? openAiFromPlus : null} busy={creating} />
     </div>
     </SplitViewContext.Provider>
   )

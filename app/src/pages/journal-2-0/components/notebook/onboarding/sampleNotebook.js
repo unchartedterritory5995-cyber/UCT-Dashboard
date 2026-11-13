@@ -43,6 +43,10 @@ export const SAMPLE_COPY = Object.freeze({
   // moment" is not always true here: a save whose answer was lost is not re-sent by waiting). Says what works.
   heldOne: 'has changes that have not finished saving. Open it so it can finish saving, then remove the sample again.',
   heldMany: 'have changes that have not finished saving. Open them so they can finish saving, then remove the sample again.',
+  // Simplify pass 2 (D2): a BLOCKED note (its last save was refused, so waiting or opening it does not send it) keeps
+  // the older remedy, in a sentence of its own: edit it once more.
+  blockedOne: 'is waiting to sync. Edit it once more so it can save, then remove the sample again.',
+  blockedMany: 'are waiting to sync. Edit them once more so they can save, then remove the sample again.',
   uncheckedNotRemoved: `${UNCHECKED_SENTENCE} The sample was not removed:`,
   removeAnyway: 'Remove anyway',
   removeAnywayConfirm: 'Remove the sample notebook without checking this device? Words typed here that have not reached the server may not be kept.',
@@ -144,8 +148,9 @@ export const HELD_TITLE_TIMEOUT_MS = 3000
 /**
  * The sentence -- and, for a device that could not be asked, the offer -- when the pre-check
  * holds the sample back (fix I-3). Null when nothing is held. Every held note is NAMED (up to
- * three, then a count). A note with changes that have not finished saving (unsent, or blocked)
- * gets THIS door's sentence (final fix C1): what to do, never "try again in a moment".
+ * three, then a count). A note with changes that have not finished saving (unsent) gets THIS door's
+ * sentence (final fix C1): what to do, never "try again in a moment". A blocked note gets its own sentence after it
+ * (simplify pass 2, D2): it is waiting to sync and needs one more edit.
  * @param hold  precheckNoteBatch's answer: { blocked, unsent, unchecked }
  */
 export function describeSampleHold(hold, { titleOf = () => null } = {}) {
@@ -157,14 +162,20 @@ export function describeSampleHold(hold, { titleOf = () => null } = {}) {
     return parts.length > 3 ? `${shown} and ${parts.length - 3} more` : shown
   }
   if (blocked.length || unsent.length) {
-    const held = [...unsent, ...blocked]
-    const names = held.map((id) => {
-      const t = titleOf(id)
-      return t ? `"${t}"` : 'A note'
-    })
-    const shown = names.slice(0, 3).join(', ')
-    const who = names.length > 3 ? `${shown} and ${names.length - 3} more` : shown
-    return { message: `${SAMPLE_COPY.notRemoved} ${who} ${held.length === 1 ? SAMPLE_COPY.heldOne : SAMPLE_COPY.heldMany}` }
+    const said = (ids, one, many) => {
+      if (!ids.length) return []
+      const names = ids.map((id) => {
+        const t = titleOf(id)
+        return t ? `"${t}"` : 'A note'
+      })
+      const shown = names.slice(0, 3).join(', ')
+      return [`${names.length > 3 ? `${shown} and ${names.length - 3} more` : shown} ${ids.length === 1 ? one : many}`]
+    }
+    return {
+      message: [SAMPLE_COPY.notRemoved,
+        ...said(unsent, SAMPLE_COPY.heldOne, SAMPLE_COPY.heldMany),
+        ...said(blocked, SAMPLE_COPY.blockedOne, SAMPLE_COPY.blockedMany)].join(' '),
+    }
   }
   if (unchecked.length) {
     const parts = unchecked.map((id) => {

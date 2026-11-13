@@ -88,7 +88,7 @@ describe('1. the header: Favorite · AI · Share · ⋯', () => {
     }
     // Share is a real control here (its switch is on), not an empty slot.
     expect(within(four[2]).getAllByRole('button').length).toBeGreaterThan(0)
-    expect(within(four[1]).getByRole('button', { name: /^ask this note$/i })).toBeTruthy()
+    expect(within(four[1]).getByRole('button', { name: /^ask about this note$/i })).toBeTruthy()
     expect(within(four[1]).getByRole('button', { name: 'Writing help' })).toBeTruthy()
   })
 

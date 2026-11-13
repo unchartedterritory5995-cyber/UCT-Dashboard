@@ -9,6 +9,8 @@ export const SAMPLE_PREF = 'notebook_sample'
 /** The words the notes list draws before a press: the More menu row and its busy line (SAMPLE_COPY spreads them). */
 export const SAMPLE_ROW_COPY = Object.freeze({
   removeRow: 'Remove the sample notebook',
+  // Simplify pass 2 (C6): the same row at 640 px and below, where the longer words wrapped to two lines.
+  removeRowPhone: 'Remove sample notebook',
   removingLine: 'Removing the sample notebook…',
 })
 

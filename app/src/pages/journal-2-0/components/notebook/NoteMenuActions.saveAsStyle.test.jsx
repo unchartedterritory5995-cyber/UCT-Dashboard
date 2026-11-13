@@ -2,7 +2,7 @@
 // S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
 // Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 /**
@@ -100,6 +100,8 @@ describe('Save this note\'s setup as a style', () => {
     it('with no kind at all nothing is guessed: Save waits for a choice, then sends it', async () => {
       const kind = await save({ id: 'n1', title: 'NVDA plan' })
       expect(kind).toHaveValue('')
+      // Simplify pass 2 (A4): the empty choice is worded with the field's own name.
+      expect(within(kind).getByRole('option', { name: 'Choose a note type' })).toHaveValue('')
       expect(screen.getByRole('button', { name: 'Save template' })).toBeDisabled()
       fireEvent.change(kind, { target: { value: 'daily_prep' } })
       expect(screen.getByRole('button', { name: 'Save template' })).not.toBeDisabled()

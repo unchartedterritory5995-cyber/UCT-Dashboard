@@ -15,13 +15,7 @@
   left: 0;
   right: auto;
 }
-.label {
-  flex: 1;
-}
-/* The item that is on at the caret (Quote or Code), and the font or size in use: the row's own active tone. */
-.checked {
-  color: var(--accent);
-}
+/* The item on at the caret (Quote, Code) and the font or size in use take the engine's `.itemChecked` tone. */
 /* Font (about two dozen faces) and Size (seventeen) are long lists: the view scrolls inside the menu. */
 .list {
   max-height: 320px;

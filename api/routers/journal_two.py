@@ -2644,13 +2644,20 @@ def daily_note_endpoint(
         # (the first run's Build, Today's "Start a fresh one") starts it with the Today home's plan, so the names
         # the member just typed reach today's plan. Applied only when this call makes the note.
         seed = None
-        if body.get("seedToday") is True:
-            from api.middleware.auth_middleware import get_user_plan
-            from api.services.journal_two import notebook_today
-            paid = is_paid_user({**user, "plan": get_user_plan(user["id"])})
-            # Fix round 2 (N5): built HERE, before the door opens its write transaction -- the seed's reads (the
-            # market, up to 200 chart notes, the names) must never run while auth.db's write lock is held.
-            seed = notebook_today.plan_seed_for(user["id"], paid=paid)
+        # Final fix I3: every "Today's note" press sends `seedToday`, and most presses open a note that already
+        # exists. A cheap read first (it also checks the day, so a bad one is a 400 before anything is built); the
+        # seed is built only when this press can make the note.
+        if body.get("seedToday") is True and not note_daily.daily_note_exists(user["id"], body.get("date")):
+            try:
+                from api.middleware.auth_middleware import get_user_plan
+                from api.services.journal_two import notebook_today
+                paid = is_paid_user({**user, "plan": get_user_plan(user["id"])})
+                # Fix round 2 (N5): built HERE, before the door opens its write transaction -- the seed's reads (the
+                # market, up to 200 chart notes, the names) must never run while auth.db's write lock is held.
+                seed = notebook_today.plan_seed_for(user["id"], paid=paid)
+            except Exception:  # noqa: BLE001 -- the plan lines are a convenience; the day's note is not
+                logger.exception("[notebook] today's plan seed could not be built; the note is made without it")
+                seed = None
         out = note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"), seed_blocks=seed)
     except note_daily.DailyNoteError as e:
         raise HTTPException(status_code=400, detail=str(e))

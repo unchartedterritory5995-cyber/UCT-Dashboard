@@ -1023,11 +1023,15 @@ with sync_playwright() as p:
         page.goto(notebook_url(None, "?view=all"))
         dismiss_intro(page)
         page.wait_for_timeout(600)
-        tl_btn = page.get_by_role("button", name="Timeline view", exact=True)
-        tl_btn.wait_for(state="visible", timeout=8000)
-        tl_btn.click()
+        # S11 put the modes in the list's View menu (its button names the mode: "View: Timeline"); simplify pass 2 (C1)
+        # put Timeline under that menu's "More views" row.
+        tl_btn = page.locator('[data-tour="view-switcher"]').filter(visible=True)
+        tl_btn.first.wait_for(state="visible", timeout=8000)
+        tl_btn.first.click()
+        page.get_by_role("menu", name="View").get_by_role("menuitem", name="More views", exact=True).first.click()
+        page.get_by_role("menu", name="View").get_by_role("menuitemradio", name="Timeline", exact=True).first.click()
         page.wait_for_timeout(500)
-        pressed = tl_btn.get_attribute("aria-pressed")
+        pressed = "true" if " ".join(tl_btn.first.inner_text().split()) == "View: Timeline" else "false"
 
         save_btn = page.get_by_role("button", name="Save view", exact=True)
         view_name = f"Walk timeline {RUN}"
@@ -1106,9 +1110,7 @@ with sync_playwright() as p:
         if saved_view_row_count:
             view_row.first.click()
             page.wait_for_timeout(500)
-            restored_as_timeline = page.get_by_role(
-                "button", name="Timeline view", exact=True
-            ).get_attribute("aria-pressed") == "true"
+            restored_as_timeline = " ".join(tl_btn.first.inner_text().split()) == "View: Timeline"
 
         record(
             "W6_timeline", "PASS" if (pressed == "true" and saved_ok and saved_type == "timeline"

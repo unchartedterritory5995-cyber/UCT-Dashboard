@@ -60,7 +60,7 @@ const labelled = (n, names = {}) => {
 function KindSectionLoading({ headingId }) {
   return (
     <section className={styles.wrap} aria-labelledby={headingId} aria-busy="true" data-kind-section-loading="">
-      <p className="sr-only" role="status">Loading kinds of note…</p>
+      <p className="sr-only" role="status">Loading note types…</p>
       <h3 id={headingId} className={styles.h}>Start from a template</h3>
       {styleLibraryEnabled() && (
         <button type="button" className={styles.libraryDoor} disabled tabIndex={-1} aria-hidden="true" style={{ visibility: 'hidden' }}>

@@ -4,6 +4,14 @@
 // The property that holds a note's current kind. ⛔ ONE FACT IN TWO FILES with note_kinds.NOTE_KIND_PROPERTY
 // (pinned by test_the_client_property_id_equals_the_server_property_id); lib/kindOfNoteOffer.js imports it.
 export const NOTE_KIND_PROPERTY = 'builtin:note_kind'
+/** Simplify pass 2 (A4): a member reads that property as "Note type"; the server still names it "Kind of note". The
+ *  client renames it where it reads a property (`key` names the id field: `id`, or `propertyId` on a suggestion).
+ *  Display only: the id and the stored key never change. */
+export const NOTE_TYPE_LABEL = 'Note type'
+export const asNoteTypeName = (p, key = 'id') => (p && p[key] === NOTE_KIND_PROPERTY ? { ...p, name: NOTE_TYPE_LABEL } : p)
+/** A response body whose `list` field holds properties, with that one renamed (the property hooks' fetchers). */
+export const withNoteTypeNames = (body, list) => (Array.isArray(body?.[list])
+  ? { ...body, [list]: body[list].map((p) => asNoteTypeName(p)) } : body)
 
 export const BUILTIN_NOTE_KINDS = Object.freeze([
   { id: 'trade_plan', name: 'Trade plan', icon: 'chart' },

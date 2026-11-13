@@ -3,6 +3,17 @@
 .menuWrap {
   position: relative;
   display: inline-flex;
+  flex-wrap: wrap;
+}
+/* Final fix M8: the menu's chunk could not be fetched: the sentence and a Reload, on their own line under Export. */
+.loadFailed {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 .trigger {
   display: inline-flex;
@@ -68,4 +79,11 @@
   height: 1px;
   margin: 2px 4px;
   background: var(--border);
+}
+/* Simplify pass 2 (C3): inside the note's More panel the formats are the panel's second view (drawn into its slot, not
+   dropped under the button), so the menu is a plain column of the panel's rows. */
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
 }

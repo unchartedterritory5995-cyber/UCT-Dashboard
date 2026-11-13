@@ -71,6 +71,15 @@ describe('the request names the member\'s selected account (K2)', () => {
     expect(onOpenNote).toHaveBeenCalledWith({ id: 'daily1' }, null, { to: 'collapsed' })
   })
 
+  // Final fix I1: today's recap can be the first door of the day, so it makes today's note as "Today's note" does.
+  it('I1 daily: the member\'s daily template and the plan seed go to the daily door', async () => {
+    await draftReview('daily', { accountId: null, onOpenNote: vi.fn(), dailyTemplateId: 'tpl-d' })
+    expect(calls.daily[0]).toMatchObject({ templateId: 'tpl-d', seedToday: true })
+    calls.daily.length = 0
+    await draftReview('daily', { onOpenNote: vi.fn() })                     // no template chosen: still the seed
+    expect(calls.daily[0]).toMatchObject({ templateId: '', seedToday: true })
+  })
+
   it('control: "All accounts" (no id) leaves the parameter off', async () => {
     await draftReview('weekly', { accountId: null, onOpenNote: vi.fn() })
     expect(new URL(draftUrls()[0], 'http://x').searchParams.has('accountId')).toBe(false)

@@ -1183,8 +1183,8 @@ def main(argv=None) -> int:
                 press("tab", times=7); time.sleep(1); press("escape")
             row(17, "Ctrl+H, Tab x7 (to the replace field), Escape", ["Replace with", "Note body"], _replace,
                 note="(script says one Tab; from the find box the order is Match case, Whole word, Previous, Next, then the replace row)")
-            row(18, "focus Ask, Enter", ["Ask this note", "Your question"],
-                lambda: (focus_role("button", "Ask this note"), time.sleep(1), press("enter")))
+            row(18, "focus Ask, Enter", ["Ask about this note", "Your question"],   # simplify pass 2 (A6) renamed the door and its panel
+                lambda: (focus_role("button", "Ask about this note"), time.sleep(1), press("enter")))
 
             def _ask():
                 type_text("What is the dividend?"); press("enter")
@@ -1195,15 +1195,19 @@ def main(argv=None) -> int:
                                 f"text={ans.text_content().strip()[:140]!r}")
             row(19, "type a question the note cannot answer, Enter, wait", ["find", "note"], _ask,
                 note="(the sentence is read from a live region; its exact words are the service's)")
-            row(20, "focus Close Ask, Enter", ["Ask this note", "button"],
+            row(20, "focus Close Ask, Enter", ["Ask about this note", "button"],
                 lambda: (focus_role("button", "Close Ask"), time.sleep(1), press("enter")))
 
             def _graph():
                 page.goto(f"{a.base}/journal/notebook?view=all", wait_until="domcontentloaded"); time.sleep(4)
                 GUARD.ensure(); time.sleep(1)
-                focus_role("button", "Graph view"); time.sleep(1); press("space"); time.sleep(2.5)
+                # S11 put the modes in the list's View menu ("View: List"); simplify pass 2 (C1) put Graph under its
+                # "More views" row, a second view in the same menu (Enter opens it; focus lands on its first row).
+                focus_role("button", "View: List"); time.sleep(1); press("enter"); time.sleep(1)
+                focus_role("menuitem", "More views"); time.sleep(1); press("enter"); time.sleep(1)
+                focus_role("menuitemradio", "Graph"); time.sleep(1); press("enter"); time.sleep(2.5)
                 focus_role("button", "Show as list"); time.sleep(1); press("space")
-            row(21, "list; Graph view; Show as list, Space", ["Graph view", "Show as list", "pressed"], _graph)
+            row(21, "list; View > More views > Graph; Show as list, Space", ["More views", "Graph", "Show as list", "pressed"], _graph)
 
             def _canvas():
                 press("space"); time.sleep(2)

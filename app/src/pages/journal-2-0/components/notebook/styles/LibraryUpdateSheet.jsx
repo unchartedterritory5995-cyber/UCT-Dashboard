@@ -1,7 +1,7 @@
 // P3a Task 10: review an author's update to a style the member adopted from the community library, then
 // "Update my copy" or "Not now" (R-P3-8: an explicit, previewed merge that never removes the member's edits).
 // StylesManager opens it from its Updates list and from the bell notice's link (?libraryUpdate=<styleId>).
-// ⛔ Named LibraryUpdateSheet, not the plan's StyleUpdateSheet: that name is the P1 "Update layout" sheet for one
+// ⛔ Named LibraryUpdateSheet, not the plan's StyleUpdateSheet: that name is the P1 "Update template" sheet for one
 //    NOTE (StyleUpdateSheet.jsx, pinned by NoteEditorPage.styleChunks.test.js). This one updates a STYLE.
 // ⛔ Lazy-only: StylesManager's own chunk imports this, nothing eager does (R-P3-5).
 // ⛔ The outline is replaced ONLY when the member ticks "Use the author's new outline", and it starts unticked.

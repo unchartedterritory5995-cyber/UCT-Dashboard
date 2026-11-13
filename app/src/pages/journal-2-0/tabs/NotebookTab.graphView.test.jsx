@@ -103,10 +103,17 @@ describe('NotebookTab — graph view wiring', () => {
     // load-bearing check is the same: exactly ONE row is checked.
     // Notebook simplify, Task 3: the modes only -- List's own Rows / Cards (a named group under it) and the saved
     // views (a group below) are radios of their own.
-    const checkedNames = () => { viewOption('List'); return screen.getAllByRole('menuitemradio')
-      .filter((b) => !b.closest('[role="group"]'))
-      .filter((b) => b.getAttribute('aria-checked') === 'true')
-      .map((b) => b.textContent.trim()) }
+    // Simplify pass 2 (C1): Graph and Timeline are radios of the menu's "More views" second view (a named group); while
+    // one is on, "More views" is the current row and its second view holds the checked mode.
+    const checkedNames = () => {
+      viewOption('List')
+      const more = screen.getByRole('menuitem', { name: 'More views' })
+      if (more.getAttribute('aria-current') === 'true') fireEvent.click(more)
+      return screen.getAllByRole('menuitemradio')
+        .filter((b) => !b.closest('[role="group"]') || b.closest('[role="group"]').getAttribute('aria-label') === 'More views')
+        .filter((b) => b.getAttribute('aria-checked') === 'true')
+        .map((b) => b.textContent.trim())
+    }
 
     it('marks exactly one view mode checked, and moves it on click', () => {
       renderTab()

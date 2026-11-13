@@ -7,7 +7,9 @@ import { MemoryRouter } from 'react-router-dom'
  * ⚰️ This file also railed where the Notebook OPENS (the Today home by default, the member's `notebook_landing` choice,
  * Research Home at `?view=home`, nothing drawn until the preferences answered). Task 5 made the Notebook open on the
  * notes list, always; those seven cases were replaced by NotebookTab.landing.test.jsx. What stays here: what the Daily
- * brief reads (`make`, `hold`, `wait`) for each first-run state.
+ * brief is handed for each first-run state.
+ * Simplify pass 2 (B1): ⚰️ it was handed a read decision (`make`, `hold`, `wait`); the brief reads with make=0 in every
+ * state now, so it is handed no decision at all -- only the door that makes the note on a press (`onOpenToday`).
  * Through the real NotebookTab; the Daily brief itself is a stand-in (it has its own suite).
  */
 const H = vi.hoisted(() => ({ total: 3, todayChunk: [] }))
@@ -30,9 +32,8 @@ vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: (
 vi.mock('../components/notebook/TodayHome', () => {
   H.todayChunk.push(Date.now())          // the chunk was asked for
   return { default: (p) => (
-    <div data-testid="today-home" data-read={p.todayRead}>
-      <button type="button" onClick={p.onSelectAllNotes}>All notes</button>
-    </div>
+    <div data-testid="today-home" data-read={p.todayRead === undefined ? 'none' : String(p.todayRead)}
+      data-start={typeof p.onOpenToday === 'function' ? '1' : '0'} />
   ) }
 })
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
@@ -67,39 +68,28 @@ afterEach(() => { setCurrentAccountId(null); __resetNotebookFlags() })
 
 const at = (path) => render(<MemoryRouter initialEntries={[path]}><NotebookTab /></MemoryRouter>)
 
-// Fix round 1 (I9) + fix round 2 (R1-B): Today's read is `make` (make the day's note if missing), `hold` (make=0: the
-// first run IS due or on screen) or `wait` (no read yet: it cannot be decided). Only a member who can still get the
-// first run ever waits or holds; an established member's one read is `make`, at once.
-describe('the first run and the day note (I9, R1-B)', () => {
+// Simplify pass 2 (B1): whatever the first run's state, the Daily brief is handed no read decision (it reads with
+// make=0 itself) and is handed the list button's door for its "Start today's note".
+describe('the first run and the day note (B1: no state makes the note on load)', () => {
   beforeEach(() => { latchNotebookFlags({ notebook_starter_packs_enabled: true }) })
 
-  it('a brand-new member (no notes, first run not yet seen): hold (make=0)', async () => {
-    H.total = 0
-    prefs = {}
-    at('/journal?view=today')
-    expect((await screen.findByTestId('today-home', {}, T)).getAttribute('data-read')).toBe('hold')
-  })
-
-  it('first run not yet seen and the notes count unknown: wait -- no read at all (never make=0, then make=1)', async () => {
-    H.total = undefined
-    prefs = {}
-    at('/journal?view=today')
-    expect((await screen.findByTestId('today-home', {}, T)).getAttribute('data-read')).toBe('wait')
-  })
-
-  it('R1-B: an ESTABLISHED member (first run recorded) reads with make at once, even with the notes count unknown', async () => {
-    H.total = undefined
-    prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }
-    at('/journal?view=today')
-    expect((await screen.findByTestId('today-home', {}, T)).getAttribute('data-read')).toBe('make')
-  })
-
-  it('CONTROL: a member who has seen the first run, with notes, reads with make', async () => {
-    H.total = 3
-    prefs = { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }
-    at('/journal?view=today')
-    await waitFor(() => expect(screen.getByTestId('today-home').getAttribute('data-read')).toBe('make'), T)
-  })
+  const cases = [
+    ['a brand-new member (no notes, first run not yet seen)', 0, {}],
+    ['first run not yet seen and the notes count unknown', undefined, {}],
+    ['an established member (first run recorded), notes count unknown', undefined,
+      { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }],
+    ['a member who has seen the first run, with notes', 3, { notebook_tips: JSON.stringify({ v: 1, seen: ['first-run'] }) }],
+  ]
+  for (const [label, total, p] of cases) {
+    it(`${label}: no read decision, and the Start door`, async () => {
+      H.total = total
+      prefs = p
+      at('/journal?view=today')
+      const home = await screen.findByTestId('today-home', {}, T)
+      expect(home.getAttribute('data-read')).toBe('none')
+      expect(home.getAttribute('data-start')).toBe('1')
+    })
+  }
 })
 
 // Final fix (C5): the shell's walkthrough gate (RegistryToursGate.jsx) cannot compute the first run's due rule (it does
