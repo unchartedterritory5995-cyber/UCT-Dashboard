@@ -656,6 +656,10 @@ class DetectorBudget:
         self.spent = 0.0
         self.done = 0
         self.big_done = 0
+        #: sources whose stored set this request already looked up (`prefetch_capabilities`)
+        self.store_checked: set = set()
+        #: the admitted set, read ONCE per request (the registry is a file read and a policy pass)
+        self.admitted: Optional[set] = None
 
     def allows(self, nbytes: int = 0) -> bool:
         if self.runs <= 0:
@@ -722,18 +726,56 @@ def _store_get(key: str) -> Optional[frozenset]:
     from api.services import user_definitions as svc
     try:
         with contextlib.closing(svc._connect()) as c:
-            c.execute(_CAPS_DDL)
             r = c.execute(f"SELECT capabilities FROM {CAPS_TABLE} WHERE source_sha256 = ? "
                           "AND detector_version = ?", (key, pine_capabilities.DETECTOR_VERSION)).fetchone()
-    except Exception:  # noqa: BLE001 - an unreadable store is a miss, never an admission
+    except Exception:  # noqa: BLE001 - an unreadable store (or no table yet) is a miss, never an admission
         return None
-    if r is None:
-        return None
+    return _caps_from_json(r[0]) if r is not None else None
+
+
+def _caps_from_json(raw: Any) -> Optional[frozenset]:
     try:
-        caps = json.loads(r[0])
-    except ValueError:
+        caps = json.loads(raw)
+    except (TypeError, ValueError):
         return None
     return frozenset(caps) if isinstance(caps, list) and all(isinstance(x, str) for x in caps) else None
+
+
+def prefetch_capabilities(rows: Any, budget: "Optional[DetectorBudget]" = None) -> None:
+    """Load the persisted capability sets of every row a request is about to serve, in ONE query, into
+    the LRU (final verify of #1204: one connection per row cost a list of 50 rows ~0.09 s). Only while
+    capability admission is on; a row with no stored set stays a miss. Never raises."""
+    if not capability_admission_on():
+        return
+    from api.services import pine_capabilities
+    from api.services import user_definitions as svc
+    keys = []
+    for row in rows if isinstance(rows, (list, tuple)) else ():
+        definition = row.get("definition") if isinstance(row, dict) else None
+        src = run_read_source(definition)
+        if src is None and is_runtime(definition):
+            src = (definition.get("compute") or {}).get("source")
+        if isinstance(src, str) and src:
+            k = source_hash(src)
+            if _lru_get(k) is None:
+                keys.append(k)
+    if not keys:
+        return
+    if budget is not None:
+        budget.store_checked.update(keys)       # a miss here is not looked up again per row
+    try:
+        with contextlib.closing(svc._connect()) as c:
+            for i in range(0, len(keys), 500):
+                part = keys[i:i + 500]
+                for key, raw in c.execute(
+                        f"SELECT source_sha256, capabilities FROM {CAPS_TABLE} WHERE detector_version = ? "
+                        f"AND source_sha256 IN ({','.join('?' * len(part))})",
+                        [pine_capabilities.DETECTOR_VERSION, *part]):
+                    caps = _caps_from_json(raw)
+                    if caps is not None:
+                        _lru_put(key, caps)
+    except Exception:  # noqa: BLE001 - a failed prefetch only means per-row reads
+        return
 
 
 def _store_put(key: str, caps: frozenset) -> None:
@@ -760,7 +802,7 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
     hit = _lru_get(key)
     if hit is not None:
         return hit
-    stored = _store_get(key)
+    stored = None if (budget is not None and key in budget.store_checked) else _store_get(key)
     if stored is not None:
         _lru_put(key, stored)
         return stored
@@ -804,7 +846,12 @@ def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
         caps = capabilities_for(source, budget=budget, persist=persist)
         if caps is None:
             return False, [PENDING]
-        admitted = set(admitted_capabilities()["admitted"])
+        if budget is not None:
+            if budget.admitted is None:
+                budget.admitted = set(admitted_capabilities()["admitted"])
+            admitted = budget.admitted
+        else:
+            admitted = set(admitted_capabilities()["admitted"])
     except Exception:  # noqa: BLE001 - fail closed: what cannot be read is not admitted
         log.warning("[runtime_definitions] capability admission unreadable; not admitted")
         return False, [pine_capabilities.UNREADABLE]
@@ -1025,7 +1072,10 @@ def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
     if not why and not ungraded:
         return row
     out = dict(row)
-    d = json.loads(json.dumps(definition))
+    # only `meta` is written: a shallow copy with its own `meta` serves the same document without a
+    # JSON round trip of the whole script per row (final verify of #1204: a list of near-cap rows)
+    d = dict(definition)
+    d["meta"] = dict(definition["meta"]) if isinstance(definition.get("meta"), dict) else definition.get("meta")
     meta = d.get("meta") if isinstance(d.get("meta"), dict) else {}
     if why:
         meta["runtimeKilled"] = why
@@ -1068,7 +1118,10 @@ def _stamp_run_read_ast(row: dict, definition: dict, *, budget: "Optional[Detect
     if not why and not ungraded and not any(k in meta_in for k in RUN_READ_STAMPS):
         return row
     out = dict(row)
-    d = json.loads(json.dumps(definition))
+    # only `meta` is written: a shallow copy with its own `meta` serves the same document without a
+    # JSON round trip of the whole script per row (final verify of #1204: a list of near-cap rows)
+    d = dict(definition)
+    d["meta"] = dict(definition["meta"]) if isinstance(definition.get("meta"), dict) else definition.get("meta")
     meta = d.get("meta") if isinstance(d.get("meta"), dict) else {}
     for k in RUN_READ_STAMPS:
         meta.pop(k, None)

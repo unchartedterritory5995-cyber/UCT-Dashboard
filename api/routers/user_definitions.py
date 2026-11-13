@@ -426,6 +426,7 @@ def list_definitions(user: dict = Depends(require_paid),
     # WS-I Part 2: ONE detector budget for the whole list (a member has up to 50 rows; each row's
     # capability set is read from the store, and at most `DETECTOR_RUNS_PER_REQUEST` are computed)
     budget = runtime_definitions.DetectorBudget()
+    runtime_definitions.prefetch_capabilities(rows, budget)   # the stored sets in ONE query (flag on only)
     stamped = [_stamped(r, budget=budget) for r in rows]
     # ⭐ 2026-11-02 -- LINE IDENTITY, read for every row on ONE connection.
     ids = svc.line_identities_many(
