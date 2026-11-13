@@ -43,7 +43,7 @@ beforeEach(() => {
 })
 
 describe('A1.2 — what is recorded, and its label', () => {
-  it('hide / show / add / remove / remove-all are recorded; an input edit is not', () => {
+  it('hide / show / add / remove / remove-all are recorded; an input edit is recorded quietly (no toast)', () => {
     const cs = chart()
     expect(describeIndicatorChange(cs, setIndicatorEnabled(cs, 'rsi', false, R), label)).toEqual({ kind: 'hide', label: 'RSI hidden (2)' })
     const hidden = norm(setIndicatorEnabled(cs, 'rsi', false, R))
@@ -51,8 +51,75 @@ describe('A1.2 — what is recorded, and its label', () => {
     expect(describeIndicatorChange(cs, addInstance(cs, 'macd', R), label).kind).toBe('add')
     expect(describeIndicatorChange(cs, removeInstance(cs, 'inst:rsi:1', R), label)).toEqual({ kind: 'remove', label: 'Removed RSI' })
     expect(describeIndicatorChange(cs, removeDefinition(cs, 'rsi', R), label)).toEqual({ kind: 'remove', label: 'Removed 2 RSI' })
-    expect(describeIndicatorChange(cs, setInstanceInput(cs, 'inst:rsi:1', 'period', 30, R), label)).toBe(null)
-    expect(recordIndicatorChange('global', cs, setInstanceInput(cs, 'inst:rsi:1', 'period', 30, R), { labelOf: label })).toBe(null)
+    expect(describeIndicatorChange(cs, setInstanceInput(cs, 'inst:rsi:1', 'period', 30, R), label))
+      .toEqual({ kind: 'edit', label: 'RSI edited', instanceIds: ['inst:rsi:1'] })
+    const e = recordIndicatorChange('global', cs, setInstanceInput(cs, 'inst:rsi:1', 'period', 30, R), { labelOf: label })
+    expect(e.kind).toBe('edit')
+    expect(e.toast, 'an input edit never raises the chart toast').toBe(false)
+    // a write that moves no input and no visibility (placement, or nothing) is still not recorded
+    expect(describeIndicatorChange(cs, cs, label)).toBe(null)
+  })
+})
+
+// ⭐ 2026-11-13 — FOUND LIVE: Chart Settings → Indicators, add UCT RS Line, change its
+// "Scale to rating" select; the Undo button still read "Undo: UCT RS added", and clicking
+// it left the indicator on the chart (the add's record refused, `changed-since`: the
+// instance it added had moved under an unrecorded edit). Generic: any input edit did it.
+describe('2026-11-13 — an input edit after an add: Undo undoes the edit, then the add', () => {
+  const add = (s, defId) => {
+    const before = s.cs
+    s.write(addInstance(before, defId, R))
+    recordIndicatorChange('chart:c1', before, s.cs, { labelOf: label })
+    return s.cs.indicatorInstances.find((i) => i.defId === defId && !before.indicatorInstances.some((b) => b.instanceId === i.instanceId))
+  }
+  const edit = (s, id, key, value) => {
+    const before = s.cs
+    s.write(setInstanceInput(before, id, key, value, R))
+    return recordIndicatorChange('chart:c1', before, s.cs, { labelOf: label })
+  }
+  const top = () => peekIndicatorHistory('chart:c1').past.at(-1)
+  const live = (s, id) => s.cs.indicatorInstances.find((i) => i.instanceId === id && !i.removed)
+
+  it('the reproduction: add RSI, edit an input → the button names the EDIT, and two Undos remove the indicator', () => {
+    const s = surface()
+    const start = s.cs
+    const inst = add(s, 'rsi')
+    expect(top().label).toBe('RSI added')
+    edit(s, inst.instanceId, 'period', 8)
+    expect(top().label, 'the stale "added" entry must not be what Undo offers').toBe('RSI edited')
+    expect(undoIndicatorChange('chart:c1', s.cs, s.write).ok).toBe(true)
+    expect(live(s, inst.instanceId).inputs.period ?? null).not.toBe(8)
+    expect(top().label).toBe('RSI added')
+    const r = undoIndicatorChange('chart:c1', s.cs, s.write)
+    expect(r.ok, `the add's Undo refused: ${r.reason}`).toBe(true)
+    expect(live(s, inst.instanceId), 'Undo of the add left the indicator on the chart').toBeFalsy()
+    expect(bytes(s.cs)).toBe(bytes(start))
+    // and Redo walks forward again, edit included
+    expect(redoIndicatorChange('chart:c1', s.cs, s.write).ok).toBe(true)
+    expect(redoIndicatorChange('chart:c1', s.cs, s.write).ok).toBe(true)
+    expect(live(s, inst.instanceId).inputs.period).toBe(8)
+  })
+
+  it('one edit session is one entry: three quick edits of one indicator fold, and one Undo restores the first value', () => {
+    const s = surface()
+    const was = live(s, 'inst:rsi:1').inputs.period
+    edit(s, 'inst:rsi:1', 'period', 10)
+    edit(s, 'inst:rsi:1', 'period', 11)
+    edit(s, 'inst:rsi:1', 'period', 12)
+    expect(peekIndicatorHistory('chart:c1').past).toHaveLength(1)
+    expect(undoIndicatorChange('chart:c1', s.cs, s.write).ok).toBe(true)
+    expect(live(s, 'inst:rsi:1').inputs.period).toBe(was)
+  })
+
+  it('an edit session that ends where it began leaves no entry; an edit of ANOTHER instance is its own entry', () => {
+    const s = surface()
+    const was = live(s, 'inst:rsi:1').inputs.period
+    edit(s, 'inst:rsi:1', 'period', 10)
+    edit(s, 'inst:rsi:1', 'period', was)
+    expect(peekIndicatorHistory('chart:c1').past).toHaveLength(0)
+    edit(s, 'inst:rsi:1', 'period', 10)
+    edit(s, 'inst:rsi:2', 'period', 30)
+    expect(peekIndicatorHistory('chart:c1').past.map((e) => e.label)).toEqual(['RSI edited', 'RSI edited'])
   })
 })
 
