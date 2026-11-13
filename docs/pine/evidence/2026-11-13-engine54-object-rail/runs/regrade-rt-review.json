@@ -1,0 +1,97 @@
+{
+ "lane": "runtime-on",
+ "totals": {
+  "captures": 152,
+  "errors": 0,
+  "v1": {
+   "DIVERGE": 31,
+   "INCONCLUSIVE": 15,
+   "MATCH": 94
+  },
+  "v2": {
+   "DIVERGE": 35,
+   "INCONCLUSIVE": 15,
+   "MATCH": 90
+  }
+ },
+ "runHalf": {
+  "door": {
+   "declined:runtime:call-windowed-state": 2,
+   "minted": 4,
+   "declined:runtime:object-op": 2,
+   "declined:runtime:statement": 2,
+   "declined:runtime:request": 8,
+   "declined:run-half:size": 2,
+   "declined:lower-tf:store-unmeasured": 2,
+   "declined:pine:function": 6,
+   "declined:runtime:conditional-history": 4,
+   "declined:runtime:block-value": 2,
+   "declined:pine:request": 2,
+   "declined:pine:builtin": 2,
+   "declined:runtime:colour": 2,
+   "declined:runtime:input-state": 2
+  },
+  "bind": {
+   "refused": 4
+  },
+  "bindCodes": {
+   "run-half:no-comparable-objects": 2,
+   "runtime:limit": 2
+  },
+  "minted": [
+   {
+    "file": "tests/fixtures/vendor/harness/atr-support-and-resistance-rddt-1d-2026-09-28.json",
+    "bind": "refused",
+    "bindCode": "run-half:no-comparable-objects",
+    "before": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    },
+    "after": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    }
+   },
+   {
+    "file": "tests/fixtures/vendor/harness/atr-support-and-resistance-spy-1d-2026-10-03.json",
+    "bind": "refused",
+    "bindCode": "run-half:no-comparable-objects",
+    "before": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    },
+    "after": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    }
+   },
+   {
+    "file": "tests/fixtures/vendor/harness/volume-profile-rddt-1d-2026-09-28.json",
+    "bind": "refused",
+    "bindCode": "runtime:limit",
+    "before": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    },
+    "after": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    }
+   },
+   {
+    "file": "tests/fixtures/vendor/harness/volume-profile-spy-1d-2026-10-03.json",
+    "bind": "refused",
+    "bindCode": "runtime:limit",
+    "before": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    },
+    "after": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    }
+   }
+  ],
+  "movedToDiverge": []
+ }
+}

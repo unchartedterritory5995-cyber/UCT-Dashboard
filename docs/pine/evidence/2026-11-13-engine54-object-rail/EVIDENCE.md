@@ -48,8 +48,12 @@ objects made at the SAME source call must be the host's objects:
 - nothing comparable: no host site in a family the host draws (the verdict `removes`, or a family it
   withholds WHOLE), or the compared sites hold no object on either side: `run-half:no-comparable-
   objects`, unless the Part 2 hook admits the script.
-Run objects at a source call the host program does not have (the drawings it LOST, the reason the run
-half exists) are not compared object by object; they are drawn only when the compared sites agree.
+- ⭐ REVIEW ROUND: EVERY object the run draws must come from a site the rail compared. A run object
+  made at a call the host program lost, or in a family the host draws none of (or with no site),
+  refuses `run-half:uncompared-site`; only the Part 2 evidence hook admits such a run (2+ distinct
+  objects-v2 MATCH captures with the runtime pane on), the same rule as nothing comparable. A compared
+  site that disagrees refuses whatever the evidence. (The first cut drew such objects beside a
+  non-vacuous comparison of the others: auto-trendlines' 16 lines rode on 52 compared labels.)
 
 ## Forgery binding: option (a), and why not (b)
 (b) is not feasible in this engine:
@@ -101,18 +105,20 @@ Upper bound, the 6 minted, bound over the 600-bar synthetic series from the list
 | script | before | after |
 |---|---|---|
 | atr-support-and-resistance | served (0 objects) | **refused `run-half:no-comparable-objects`** (the 3 compared sites hold nothing on either side) |
-| auto-trendlines-by-pivots | served (68 objects) | **served**: 52 labels compared at its 2 host sites (26 + 26), all equal; its 16 lines come from a call the host program lost (a family the host draws none of) |
+| auto-trendlines-by-pivots | served (68 objects) | first cut: served (52 labels compared at its 2 host sites, all equal; 16 lines from a call the host lost, unchecked). **Review round: refused `run-half:uncompared-site`** |
 | fabio-style-order-flow | served (35 objects) | **refused `run-half:no-comparable-objects`** (the host program draws nothing: no site) |
 | intraday-power-3-visual | served (0 objects) | **refused `run-half:no-comparable-objects`** |
 | volume-profile | refused `runtime:limit` | refused `runtime:limit` (before the rail) |
 | fourier-extrapolator | refused `runtime:limit` | refused `runtime:limit` |
 
-Served / refused: before **4 / 2** (`runtime:limit` 2); after **1 / 5** (`run-half:no-comparable-objects`
-3, `runtime:limit` 2). Bind time with the run (synchronous, cold): before p50 72 / p95 462 ms, after
-p50 61 / p95 344 ms (600 bars; the pane budget is 1,000 ms).
-auto-trendlines GENUINELY matches on what is comparable: it is served on 52 compared objects, not on
-its gates. volume-profile never reaches the rail on these bars (it stops on `runtime:limit` first, as
-under engine 53).
+Served / refused: before **4 / 2** (`runtime:limit` 2); first cut 1 / 5 (`run-half:no-comparable-objects`
+3, `runtime:limit` 2); **after the review round 0 / 6** (`run-half:no-comparable-objects` 3,
+`runtime:limit` 2, `run-half:uncompared-site` 1: auto-trendlines). Real allowlist and pane dark still
+0 minted; door declines identical. Bind time with the run (synchronous, cold): before p50 72 / p95
+462 ms, first cut 61 / 344, review round 79 / 498 (600 bars, 6 binds; the pane budget is 1,000 ms).
+No run half is served in the upper bound on these bars: every one either has nothing comparable,
+draws at a call the rail did not compare, or stops first. volume-profile never reaches the rail on
+these bars (it stops on `runtime:limit` first, as under engine 53).
 
 ### (ii) Objects v1 / v2 regrade (`objectsV2Regrade`, `runs/regrade-*-cmp.json`)
 
@@ -138,6 +144,14 @@ on 2 distinct captures with the runtime pane on (the BEFORE run above), exactly 
 |---|---|---|---|---|---|
 | production (`VENDOR_HARNESS_RUNTIME_ON=0`) | 369 | 154/48/167 | 154/48/167 | **0** | **0** |
 | runtime-on (`=1`, upper bound) | 369 | 183/48/138 | 181/48/140 | **0** | 2: both atr-support-and-resistance captures MATCH -> INCONCLUSIVE (objects; the run half refused, above) |
+
+### (iv) Review round re-runs (on `7dc188f159`)
+- Reach (allow-every): auto-trendlines refused `run-half:uncompared-site` (table above); `runs/reach.json`
+  (`reviewTally`, `reviewEveryMinted`).
+- Objects-v2 regrade, runtime-on: v1 94/31/15, v2 90/35/15, identical to the first engine-54 run;
+  run-half ledger served 0 / refused 4 (`run-half:no-comparable-objects` 2, `runtime:limit` 2),
+  `movedToDiverge: []`: **0 MATCH->DIVERGE** (`runs/regrade-rt-review.json`). auto-trendlines has no
+  capture, so the regrade cannot move on it.
 
 ## Mutants (`runs/mutants.json`)
 
@@ -165,8 +179,10 @@ committed blob, on `445612b31b`. C0 (no edit): GREEN. Every restore: blob equal.
 | N15 | the run stamps no site on its objects | every served test (the honest run half is refused) |
 | N16a / N16b | client / server schema accept any source call | runtimeObjectsSchemaParity / test_runtime_objects_schema_parity |
 | N17 | the server telemetry accepts a free-text code | test_run_half_refusal_telemetry |
+| N18 (review) | a run object from an uncompared site is served | auto-trendlines shape, pure; at the bind (line compared, lost-loop labels) |
+| N19 (review) | the evidence hook always admits an uncompared site | the same two tests |
 
-All 20 KILLED. N16a was re-run on `c2c888e12a` after the parity file's field-list fix (its own
+All 20 KILLED, and in the review round (on `7dc188f159`, its own C0 GREEN) N18 and N19 KILLED: 22 in all. N16a was re-run on `c2c888e12a` after the parity file's field-list fix (its own
 control, the unedited file, green): KILLED by the three engine-54 source-call cases.
 
 ## hostParity, service smoke
@@ -218,6 +234,12 @@ document drops the older wording too (`RUN_HALF_DRAWING_SENTENCES_PRIOR`; railed
   `test_share_strips_run_reads` + `test_run_half_source_binding` after the merge of #1190: 37 passed
   (1 xfailed, theirs); `test_pine_runtime_engine_identity` + `test_pine_runtime_service_smoke` after the
   re-record: 29 passed.
+- Review round (on `7dc188f159`): `runHalfObjectRail.test.jsx` + `runHalf.test.jsx` 57 green (3 new
+  tests; `runHalf.test.jsx` admits its fixture through the evidence hook, its loop labels coming from a
+  lost call); `memberPaneDefinition`, `runHalf.pairing.rail`, `shareStripCopy`,
+  `runtimeObjectsSchemaParity`, `editorStatus.families` 80 green; touched pytest (the list above plus
+  `test_share_strips_run_reads`, `test_pine_runtime_engine_identity`, `test_pine_runtime_service_smoke`)
+  322 passed, 1 xfailed.
 - pytest, wider: every `tests/test_*.py` naming `user_definitions`, `presentation_schema`,
   `runtime_definitions` or `pine_runtime_telemetry` (127 files): **4,572 passed, 28 failed**. None is
   this branch's: the known master reds `test_alert_erasure` (1), `test_definition_concierge` (5),
@@ -243,10 +265,10 @@ document drops the older wording too (`RUN_HALF_DRAWING_SENTENCES_PRIOR`; railed
 
 - Part 2 (capability admission) is not here. The evidence hook (`setRunHalfObjectEvidence`) has no
   production caller; atr-support-and-resistance already carries the evidence shape (above).
-- A family the host draws NONE of (a lost call) is not compared object by object: its objects are drawn
-  only beside a non-vacuous comparison of the families the host does draw (auto-trendlines' 16 lines
-  ride on 52 compared labels). Per-family admission for such a family is Part 2's ("family admission
-  counted per family", engine-53 "Before Part 2" (b)).
+- CLOSED in the review round (no longer deferred): a run object from an uncompared site refuses
+  `run-half:uncompared-site`. Consequence, stated: without Part 2 evidence a run half can only serve
+  drawings the host program itself compares, so the run half adds a drawing the host lost only through
+  the evidence hook.
 - The engine-53 "Before Part 2" latch / fetch ordering note is unchanged.
 - A framed instance (an instance timeframe) computes its run on the frame's bars while the binder draws
   host objects on the chart's bars: unchanged from engine 53, inert while no run half is minted, named

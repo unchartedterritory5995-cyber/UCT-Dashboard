@@ -237,5 +237,123 @@
    "boundLive": null,
    "boundMs": 26
   }
+ ],
+ "reviewNote": "after the review round (7dc188f159): every object the run draws must come from a compared site",
+ "reviewTally": {
+  "off": {
+   "scripts": 679,
+   "hostOk": 297,
+   "hostPartial": 57,
+   "minted": 0,
+   "declined": {
+    "run-half:pane-off": 57
+   },
+   "bound": {},
+   "boundCodes": {}
+  },
+  "real": {
+   "scripts": 679,
+   "hostOk": 297,
+   "hostPartial": 57,
+   "minted": 0,
+   "declined": {
+    "runtime:not-yet-graded": 57
+   },
+   "bound": {},
+   "boundCodes": {}
+  },
+  "every": {
+   "scripts": 679,
+   "hostOk": 297,
+   "hostPartial": 57,
+   "minted": 6,
+   "declined": {
+    "runtime:call-windowed-state": 1,
+    "runtime:object-op": 1,
+    "runtime:statement": 2,
+    "runtime:request": 6,
+    "run-half:size": 1,
+    "lower-tf:store-unmeasured": 1,
+    "pine:function": 8,
+    "runtime:conditional-history": 5,
+    "runtime:block-value": 1,
+    "pine:request": 3,
+    "budget:lookback": 2,
+    "runtime:request-with-state": 5,
+    "pine:builtin": 2,
+    "runtime:colour": 1,
+    "runtime:input-state": 1,
+    "runtime:call-undeclared-builtin-state": 1,
+    "lower-tf:lookahead": 1,
+    "runtime:history-dynamic-offset": 5,
+    "runtime:call-text-state": 2,
+    "runtime:function": 1,
+    "runtime:history-expression": 1
+   },
+   "bound": {
+    "refused": 6
+   },
+   "boundCodes": {
+    "run-half:no-comparable-objects": 3,
+    "runtime:limit": 2,
+    "run-half:uncompared-site": 1
+   },
+   "boundMs": {
+    "n": 6,
+    "p50": 79,
+    "p95": 498,
+    "max": 498
+   }
+  }
+ },
+ "reviewEveryMinted": [
+  {
+   "name": "committed:atr-support-and-resistance__3e9ddb38c4",
+   "columns": 3,
+   "bound": "refused",
+   "boundCode": "run-half:no-comparable-objects",
+   "boundLive": null,
+   "boundMs": 231
+  },
+  {
+   "name": "committed:volume-profile__X0dKLxdLh4",
+   "columns": 0,
+   "bound": "refused",
+   "boundCode": "runtime:limit",
+   "boundLive": null,
+   "boundMs": 118
+  },
+  {
+   "name": "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79",
+   "columns": 0,
+   "bound": "refused",
+   "boundCode": "run-half:uncompared-site",
+   "boundLive": null,
+   "boundMs": 39
+  },
+  {
+   "name": "reference:fabio-style-order-flow-lvn-volumeprofile-fvgob-liquiditygrabs-dashboar__d7293b07f6",
+   "columns": 3,
+   "bound": "refused",
+   "boundCode": "run-half:no-comparable-objects",
+   "boundLive": null,
+   "boundMs": 498
+  },
+  {
+   "name": "reference:fourier-extrapolator-of-price-w-projection-forecast-loxx__5c7061572f",
+   "columns": 0,
+   "bound": "refused",
+   "boundCode": "runtime:limit",
+   "boundLive": null,
+   "boundMs": 79
+  },
+  {
+   "name": "reference:intraday-power-3-visual__f9b34d80bb",
+   "columns": 0,
+   "bound": "refused",
+   "boundCode": "run-half:no-comparable-objects",
+   "boundLive": null,
+   "boundMs": 35
+  }
  ]
 }

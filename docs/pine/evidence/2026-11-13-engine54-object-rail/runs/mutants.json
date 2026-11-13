@@ -256,5 +256,42 @@
    "FAILED tests/test_run_half_refusal_telemetry.py::test_anything_free_form_is_refused[bad3]",
    "FAILED tests/test_run_half_refusal_telemetry.py::test_anything_free_form_is_refused[bad4]"
   ]
+ },
+ {
+  "id": "N18",
+  "mutant": "a run object from an uncompared site is served (the review gap)",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× auto-trendlines shape, pure: labels compared and equal, plus lines from a lost call: refused 6ms",
+   "× at the bind: the line compared and equal, the loop labels from a lost call: refused; evidence admits 28ms"
+  ],
+  "note": "review round, on 7dc188f159"
+ },
+ {
+  "id": "N19",
+  "mutant": "the evidence hook always admits an uncompared site",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× auto-trendlines shape, pure: labels compared and equal, plus lines from a lost call: refused 6ms",
+   "× at the bind: the line compared and equal, the loop labels from a lost call: refused; evidence admits 27ms"
+  ],
+  "note": "review round, on 7dc188f159"
+ },
+ {
+  "id": "C0-review",
+  "mutant": "control: no edit",
+  "files": [],
+  "verdict": "GREEN",
+  "restoredBlobEqual": true,
+  "killedBy": [],
+  "note": "review round, on 7dc188f159"
  }
 ]
