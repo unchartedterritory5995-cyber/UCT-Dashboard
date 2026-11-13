@@ -272,6 +272,9 @@ export const SURFACES = Object.freeze({
   // population (rail a11y/templateLibrary.a11y.test.jsx: the Templates tab; the Template library section; a
   // template's detail; the adoption sheet; one choice's picker; the share preview; the 3rd-day Helpful line).
   'components/notebook/myTools/TemplatesTab.jsx': { recipe: 'my-tools-templates' },
+  // Follow-up C: the member's own templates, one list at a time (the tab's list, extracted so the template manager
+  // renders the same rows).
+  'components/notebook/myTools/TemplateList.jsx': { coveredBy: 'my-tools-templates' },
   'components/notebook/library/TemplateLibrarySection.jsx': { recipe: 'template-library-section' },
   'components/notebook/library/LibraryCardFacts.jsx': { coveredBy: 'template-library-section' },
   'components/notebook/library/TemplateDetailSheet.jsx': { recipe: 'template-detail-sheet' },
