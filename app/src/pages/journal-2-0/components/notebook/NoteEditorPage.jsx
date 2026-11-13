@@ -139,7 +139,7 @@ import lazyChunk, { RETRY_WAIT_MS, importWithOneRetry } from '../../lib/lazyChun
 import whenIdle from '../../lib/whenIdle'
 import { FindBarSlot, TableToolbarSlot, warmEditorTools } from './EditorToolSlots'
 import useToolbarRoving from '../../lib/useToolbarRoving'
-import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
+import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvasModel'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { loadStyle } from './styles/lazyStyles'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
