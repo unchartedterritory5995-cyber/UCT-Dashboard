@@ -157,7 +157,7 @@ import { isOptionsSource, OPTIONS_SOURCES, optionLabelFor, humanizeOptionValue }
 import { validateEndLabel } from './endLabel'
 // ⭐ The client-derived column (`plots[].derive`, same round): grammar beside its
 // one reader, `derivedColumns.js`, which imports nothing of this module.
-import { DERIVE_FIELDS } from './derivedColumns'
+import { DERIVE_FIELDS, DERIVE_KIND_MA, DERIVE_MA_FIELDS, DERIVE_MA_TYPES } from './derivedColumns'
 // ⭐ The live forming-bar tail (`plots[].liveTail`, RS split U2b): its grammar is
 // a leaf of its own, `liveTailSchema.js`, NOT the reader `liveTail.js` — the
 // reader is also the benchmark tail store (the door's request, wall clocks), and
@@ -3587,6 +3587,7 @@ function validateDerives(def, plots, errors, inputsByKey) {
     const path = `plots[${index}].derive`
     const d = plot.derive
     if (!isPlainObject(d)) { errors.push(`${path}: expected {from, where, activeWhen?}, got ${fmt(d)}`); return }
+    if (d.kind !== undefined) { validateDerivedAverage(def, plot, d, path, byKey, serverLane, errors, inputsByKey); return }
     for (const k of Object.keys(d)) {
       if (!DERIVE_FIELDS.includes(k)) errors.push(`${path}.${k}: unknown field — expected one of: ${list(DERIVE_FIELDS)}`)
     }
@@ -3611,6 +3612,70 @@ function validateDerives(def, plots, errors, inputsByKey) {
     }
     if (d.activeWhen !== undefined) validateInputCondition(d.activeWhen, `${path}.activeWhen`, inputsByKey, errors)
   })
+}
+
+/**
+ * ⭐ `plots[].derive: {kind: 'ma', of, length, type, activeWhen?, scalar?}`
+ * (2026-11-13, the UCT RS Line's second average) — a moving average the CLIENT
+ * builds from a column the compute already returned (`derivedColumns.derivedAverage`).
+ * Unlike the event form it draws a LINE, and that is safe for the reason the
+ * event form refuses one: it is a NEW column with its own key, never a copy of a
+ * column the compute owns (a server that later sends the key wins, `withDerivedColumns`).
+ *
+ * Fail closed: `kind` is `'ma'`; only on the SERVER lane; only a `line` plot;
+ * `of` names a declared data plot that is not this one, not a guide and not
+ * itself derived; `length` is a whole number ≥ 1 or `input:<key>` of a declared
+ * int input whose floor is ≥ 1; `type` is EMA or SMA or `input:<key>` of a
+ * declared enum input whose every option is one of them; `activeWhen` is an
+ * input condition; `scalar` (the readout key its reading is written under) is a
+ * plain name; the plot is NOT in `rescale.plots` (it is built from the scaled
+ * line, so listing it would scale it twice); unknown fields are refused.
+ */
+function validateDerivedAverage(def, plot, d, path, byKey, serverLane, errors, inputsByKey) {
+  for (const k of Object.keys(d)) {
+    if (!DERIVE_MA_FIELDS.includes(k)) errors.push(`${path}.${k}: unknown field — expected one of: ${list(DERIVE_MA_FIELDS)}`)
+  }
+  if (d.kind !== DERIVE_KIND_MA) {
+    errors.push(`${path}.kind: expected ${fmt(DERIVE_KIND_MA)} (or no kind, the event form), got ${fmt(d.kind)}`)
+    return
+  }
+  if (!serverLane) {
+    errors.push(`${path}: a derived column is built where server columns are aligned (\`serverColumnsFor\`), so only a compute.kind "server" definition may declare one`)
+  }
+  if (plot.style !== 'line') {
+    errors.push(`${path}: a derived average draws as a "line" plot (got style ${fmt(plot.style)})`)
+  }
+  const of = byKey.get(d.of)
+  if (!isNonEmptyString(d.of) || !of) errors.push(`${path}.of: ${fmt(d.of)} names no declared plot`)
+  else if (d.of === plot.key) errors.push(`${path}.of: a plot cannot average itself`)
+  else if (of.style === 'hlines') errors.push(`${path}.of: ${fmt(d.of)} is a guide and returns no column`)
+  else if (of.derive !== undefined) errors.push(`${path}.of: ${fmt(d.of)} is itself derived — average a column the compute returns`)
+  if (typeof d.length === 'string') {
+    const m = /^input:([A-Za-z_][A-Za-z0-9_]*)$/.exec(d.length)
+    const inp = m ? inputsByKey.get(m[1]) : null
+    if (!inp) errors.push(`${path}.length: ${fmt(d.length)} is not input:<key> of a declared input`)
+    else if (inp.type !== 'int' || !(Number(inp.min) >= 1)) errors.push(`${path}.length: ${fmt(m[1])} must be an int input with min >= 1`)
+  } else if (!(Number.isInteger(d.length) && d.length >= 1)) {
+    errors.push(`${path}.length: expected a whole number >= 1 or input:<key>, got ${fmt(d.length)}`)
+  }
+  if (typeof d.type === 'string' && d.type.startsWith('input:')) {
+    const inp = inputsByKey.get(d.type.slice('input:'.length))
+    const opts = inp && Array.isArray(inp.options) ? inp.options.map(enumOptionValue) : []
+    if (!inp || inp.type !== 'enum') errors.push(`${path}.type: ${fmt(d.type)} is not input:<key> of a declared enum input`)
+    else if (!opts.length || !opts.every((o) => DERIVE_MA_TYPES.includes(o))) {
+      errors.push(`${path}.type: every option of ${fmt(inp.key)} must be one of ${list(DERIVE_MA_TYPES)}`)
+    }
+  } else if (!DERIVE_MA_TYPES.includes(d.type)) {
+    errors.push(`${path}.type: expected one of ${list(DERIVE_MA_TYPES)} or input:<key>, got ${fmt(d.type)}`)
+  }
+  if (d.activeWhen !== undefined) validateInputCondition(d.activeWhen, `${path}.activeWhen`, inputsByKey, errors)
+  if (d.scalar !== undefined && !(typeof d.scalar === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(d.scalar))) {
+    errors.push(`${path}.scalar: expected a plain name, got ${fmt(d.scalar)}`)
+  }
+  const scaled = isPlainObject(def && def.rescale) && Array.isArray(def.rescale.plots) ? def.rescale.plots : []
+  if (scaled.includes(plot.key)) {
+    errors.push(`${path}: a derived average is built from the scaled line, so ${fmt(plot.key)} may not be in rescale.plots (it would be scaled twice)`)
+  }
 }
 
 /**

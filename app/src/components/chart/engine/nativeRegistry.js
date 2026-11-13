@@ -4298,6 +4298,12 @@ const RS_GOLD = '#c9a84c'
 // (design round, 2026-11-08: green while the line is above, red while below).
 const RS_BULL = '#3cb868'
 const RS_BEAR = '#e74c3c'
+// ⭐ 2026-11-13 — THE SECOND AVERAGE'S VIOLET: a hue no other RS mark wears (not
+// the line's blue, the neutral, the gold, the bull or the bear), measured at WCAG
+// >= 3:1 against EVERY chart theme's canvas, dark and light (3.31:1 on Warm sand,
+// the worst; the first average's neutral is 3.29:1 there). Pinned by
+// `rsSecondAverage.test.js` over `CHART_THEMES`.
+const RS_MA2 = '#9b6fd6'
 /** The band's opacity: a tint under the line, never a second line. */
 const RS_SHADE_OPACITY = 0.12
 /** The toggles every preset states explicitly, so `detectPreset` (first match
@@ -4403,6 +4409,11 @@ const RS_BAND_WHEN = 'input:ratingBands'
  *  shade (`showAverage`), in the inputs' condition grammar: the `rsMa` plot, its
  *  band and the Average group's colour read it. */
 const RS_AVERAGE_ON = Object.freeze({ key: 'showAverage', equals: true })
+/** 2026-11-13 — the slim line's switch for its SECOND average (`showAverage2`). */
+const RS_AVERAGE2_ON = Object.freeze({ key: 'showAverage2', equals: true })
+/** 2026-11-13 — the second average's type choices, shared with the v5 legacy
+ *  declaration so a stored value survives a rollback (the first's vocabulary). */
+const RS_MA_TYPE_OPTIONS = [['EMA', 'Exponential'], ['SMA', 'Simple']]
 /** 2026-11-12 — the slim line's "Scale to rating" choices (`rescale`), shared with
  *  the v5 definition's legacy declaration so a stored value survives a rollback. */
 const RS_SCALE_OPTIONS = [['off', 'Off'], ['ibd', 'RS Rating'], ['m1', '1M rank'], ['m3', '3M rank'],
@@ -4705,6 +4716,13 @@ const RS_LINE_V5_RAW = {
     // legacy with the slim options exactly, so a stored choice survives a rollback.
     { key: 'scaleToRating', type: 'enum', label: 'Scale to rating', default: 'off', group: 'Line', legacy: true,
       options: RS_SCALE_OPTIONS },
+    // And for the slim line's second average (2026-11-13): its switch, length, type
+    // and colour, legacy here with the slim types, ranges and options exactly.
+    { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Line', legacy: true },
+    { key: 'maLength2', type: 'int', label: 'Second average (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Line', legacy: true },
+    { key: 'maType2', type: 'enum', label: 'Second average type', default: 'SMA', group: 'Line', legacy: true,
+      options: RS_MA_TYPE_OPTIONS },
+    { ...colorInput('ma2Color', 'Second average colour', RS_MA2), group: 'Line', legacy: true },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
@@ -5411,6 +5429,20 @@ const RS_LINE_SLIM_RAW = {
       options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
       tooltip: 'Exponential reacts faster; simple is what StockCharts uses.' },
     { ...colorInput('maColor', 'Average colour', RS_NEUTRAL), group: 'Average', activeWhen: RS_AVERAGE_ON },
+    // ⭐ 2026-11-13 — THE SECOND AVERAGE (Deepvue's MA2, a 50 SMA off by default;
+    // Webster reads the 21 and the 50 on the RS line). Presentation only: none of
+    // the four is a server input, so it keys no fetch, moves no `compute.rev` and
+    // no alert reads it; the column is derived on the client (`rsMa2` below).
+    // Declared OFF, so every saved chart draws exactly as before.
+    { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Average',
+      tooltip: 'Draw a second moving average on the RS line, dotted, with no shading (a 50-day simple average by default, the slower read beside the 21). Off by default.' },
+    { key: 'maLength2', type: 'int', label: 'Second average (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Average',
+      activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Second average length in bars. 50 is the slower read many traders pair with the 21.' },
+    { key: 'maType2', type: 'enum', label: 'Second average type', default: 'SMA', group: 'Average',
+      options: RS_MA_TYPE_OPTIONS, activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Simple by default (Deepvue draws its second RS average as a 50 SMA); exponential reacts faster.' },
+    { ...colorInput('ma2Color', 'Second average colour', RS_MA2), group: 'Average', activeWhen: RS_AVERAGE2_ON },
     // ── rendered: Line (folded) ──
     { ...colorInput('color', 'Line colour', RS_INFO), group: 'Line', tooltip: 'Colour of the RS line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
@@ -5481,6 +5513,17 @@ const RS_LINE_SLIM_RAW = {
     { key: 'rsMa', label: 'Average', style: 'line', color: '$maColor', width: 1, lineStyle: 'largeDashed', precision: 4, role: 'context', legend: { hide: true },
       activeWhen: RS_AVERAGE_ON,
       liveTail: { kind: 'ma', of: 'rsLine', length: 'input:maLength', type: 'input:maType' } },
+    // ⭐ 2026-11-13 — THE SECOND AVERAGE, derived on the CLIENT from the line as
+    // drawn (`derivedColumns.derivedAverage`, the server's own arithmetic): it runs
+    // after the live tail and the rating scale, so the forming bar is in it and,
+    // scaled, it is k times the raw average, exactly like `rsMa`. Not in
+    // `rescale.plots` (it would be scaled twice). Dotted and violet against the
+    // first's large dashes; no band (the 21's shade stays the one shade). Hidden
+    // from the pane label like the first; its reading is the readout's `phase2` row.
+    { key: 'rsMa2', label: 'Second average', style: 'line', color: '$ma2Color', width: 1, lineStyle: 'dotted', precision: 4,
+      role: 'context', legend: { hide: true }, activeWhen: RS_AVERAGE2_ON,
+      derive: { kind: 'ma', of: 'rsLine', length: 'input:maLength2', type: 'input:maType2', activeWhen: RS_AVERAGE2_ON,
+        scalar: 'average2' } },
     // ⭐ THE DOTS ARE GLYPHS, ALL THREE (map §(a) U7: MarketSurge's blue circle, not
     // a 4 px point). lightweight-charts clamps a glyph's height to 12..30 px of bar
     // spacing BEFORE the multiplier (`__tests__/markerPixels.test.js` mirrors the
@@ -5555,6 +5598,12 @@ const RS_LINE_SLIM_RAW = {
         evidenceSource: 'scalar:evidence.sentence.phase',
         learn: 'phase' } },
     { key: 'fromMa', label: 'From average', source: 'scalar:legend.pctFromMa', format: 'pct', detailOf: 'phase' },
+    // ⭐ 2026-11-13 — the second average's reading, the RS line row's words
+    // ("above its 50 SMA by 2.1%"), only while it is drawn. The CLIENT writes
+    // `average2` beside the payload (`derivedColumns.withDerivedScalars`); no card,
+    // like Scale: the sentence is the statement, and the cards export to the agent,
+    // which has no second average.
+    { key: 'phase2', label: '2nd average', source: 'scalar:average2.summary', format: 'text', when: 'input:showAverage2' },
     { key: 'rsHigh', label: 'Last RS high', source: 'scalar:lastRsHigh.summary', format: 'text',
       card: { what: 'How many bars since the RS line last closed at its highest level of the lookback (252 bars on a daily chart, ties count).',
         origin: 'IBD\'s RS line new high; the blue dot MarketSurge draws.',

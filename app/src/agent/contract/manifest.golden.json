@@ -7376,6 +7376,56 @@
    "shape": null
   },
   {
+   "name": "uctIntelligence.set",
+   "domain": "uctIntelligence",
+   "target": "chart",
+   "summary": "ONE chart's UCT Intelligence INDICATOR (its Indicators library row and panel): add or remove it, or turn one of its layers on or off, as the member's own switches do. Layers not released to the member are refused. Undo restores it exactly.",
+   "hints": "target = the chart. op add | remove (the indicator), or on | off with layer = autoPatterns (the Patterns button / auto chart patterns) | labels (pattern labels & numbers) | supportResistance | candles (candlestick patterns) | setups | caution. Creating or modifying an indicator WITH UCT Intelligence is indicator authoring, not this. Chart IQ is chart.setSetting.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "add",
+       "remove",
+       "on",
+       "off"
+      ]
+     },
+     "layer": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "autoPatterns",
+       "labels",
+       "supportResistance",
+       "candles",
+       "setups",
+       "caution",
+       null
+      ]
+     }
+    },
+    "required": [
+     "op",
+     "layer"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "agent.capabilities",
    "domain": "agent",
    "target": "about",
