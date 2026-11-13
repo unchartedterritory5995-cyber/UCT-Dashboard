@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouteOpened } from '../../lib/notebookUsage'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
@@ -216,6 +217,7 @@ function Templates({ onPick }) {
 
 export default function SetupsBoard() {
   const boardOn = boardEnabled()
+  useRouteOpened('setups_board', boardOn)   // follow-up A: only when the board itself renders
   const similarOn = findSimilarEnabled()
   const [params, setParams] = useSearchParams()
   const [picked, setPicked] = useState(() => {

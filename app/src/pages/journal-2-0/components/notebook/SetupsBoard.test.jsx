@@ -133,8 +133,10 @@ describe('SetupsBoard', () => {
     await waitFor(() => expect(prefetchListAllTimeframes).toHaveBeenCalledTimes(1))
     expect(prefetchListAllTimeframes).toHaveBeenCalledWith(
       CARDS.slice(PAGE_SIZE, 2 * PAGE_SIZE).map((c) => c.symbol), { tfs: ['D'] })
-    // and no fetch but the board's own read
-    expect(calls).toEqual(['/api/j2/setups-board'])
+    // and no fetch but the board's own read (and follow-up A's one `notebook_route_opened` on the telemetry door)
+    expect([...calls].sort()).toEqual(['/api/j2/setups-board', '/api/j2/telemetry'])
+    expect(JSON.parse(global.fetch.mock.calls.find(([u]) => u === '/api/j2/telemetry')[1].body))
+      .toEqual({ event: 'notebook_route_opened', props: { route: 'setups_board' } })
   })
 
   it('the card words the server numbers', async () => {

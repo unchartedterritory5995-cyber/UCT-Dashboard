@@ -239,7 +239,7 @@ function TrashedNoteActions({ note, templateId, onChanged }) {
     const out = await runNoteBatch({ ids: [note.id], op: 'restore' })
     if (!out?.results?.some((r) => r.status === 'changed' || r.status === 'unchanged')) throw new Error('')
   })
-  const fresh = () => run('fresh', () => openDailyNote({ templateId: templateId || undefined, seedToday: true }))
+  const fresh = () => run('fresh', () => openDailyNote({ templateId: templateId || undefined, seedToday: true, door: 'brief_start' }))
   return (
     <div className={styles.trashed} data-today-trashed="">
       <p className={styles.quietInline}>{TRASHED_NOTE}</p>

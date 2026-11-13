@@ -33,6 +33,7 @@ import { WIDGET_KINDS, CAPTURE_KINDS } from '../../lib/notebookWidgets'
 import { widgetsWaveOn, WIDGET_CHUNK_LOST, doorLostSentence } from '../../lib/notebookWidgetsFlags'
 import { captureEnabled } from '../../../../widgets/captureRelease'
 import { insertToolBlock } from '../../lib/toolEmbed'
+import { withInsertDoor } from '../../lib/notebookUsage'
 import styles from './SlashMenu.module.css'
 
 // Notebook P2a: a trader block (and the market context stamp) in the Planning a trade group, dark behind the
@@ -1348,7 +1349,8 @@ SlashList.displayName = 'SlashList'
  *  Guarded (lib/suggestionSession.js): an item chosen for a session that has ended never runs.
  *  The slash menu passes no pluginKey, so it lives under Suggestion's default key. */
 export const slashCommand = guardedCommand(SuggestionPluginKey, ({ editor, range, props }) => {
-  props.command({ editor, range })
+  // Follow-up A: one slash press is one insert door (`block_inserted` via 'slash', lib/notebookUsage.js).
+  withInsertDoor('slash', () => props.command({ editor, range }))
 })
 
 export const SlashMenuExtension = Extension.create({

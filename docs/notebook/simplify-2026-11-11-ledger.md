@@ -583,3 +583,22 @@ Instruments re-pointed (none deleted, skipped or turned into INFO):
 - Door table: no row presses the brief's Start; no string changed.
 
 Results: re-walk at `4f3d94089f` (product `b4312c0ea7`): every final-fix row PASS; the only rows not PASS are three new rows' first contact (INSTRUMENT, re-pointed, PASS on the next run) and the resurfacing rows that need the `child` step's state (INSTRUMENT, attach state). Door audit rows 41 and 46 unchanged. First-open bytes 2,259,277 B of 2,260,793 B (PASS).
+
+## Follow-up A (2026-11-13): first-open headroom, then usage counting, base `ae77287cb1`
+
+Part 1, headroom. `lib/tradeCanvas.js` was one module imported statically by the schema node, the editor page, the slash menu and the canvas create door, so the board's operations, camera and placement rode on first open although only the board (already fetched on demand) runs them. The stored-shape half is now `lib/tradeCanvasModel.js` (re-exported by `tradeCanvas.js`); first-open importers read it. Rail: `lib/tradeCanvasModel.test.js`. First open 2,259,277 B to 2,252,145 B (-7,132 B). No surface changed when it appears.
+
+Part 2, usage counting. Eight events, sent through the same telemetry door as every Notebook event (one POST each, never awaited by the press), stored as `j2:<event>` in `activity_log`, read by `tools/notebook_usage_report.py --db <path>` (read only). Every property is a fixed id or a bool: no title, ticker, tag, folder name, note text or anything typed is recorded, on the client (`sanitizeProps`) or again on arrival (`_sanitize_notebook_props`); a value off its list is stored as "other".
+
+| Event | Question it answers |
+|---|---|
+| `view_used` (`mode`, `via`: menu, saved_view, link) | Which list views members choose, and through which door; which views could be retired. |
+| `list_layout_used` (`layout`) | Whether anyone picks Cards over Rows. |
+| `menu_row_used` (`menu`, `row`) | Which rows of the New, list More, View, note More, AI, Aa and phone "+" menus are pressed, and which never are. The row id is written on the row where it is defined (`row:` on a MenuRows item, `data-row` on a hand-written row); `lib/notebookUsage.test.js` fails by file and label on a row without one and holds the enum equal to the ids the rows carry. |
+| `today_door_used` (`door`, `created`) | Which door today's note is opened or started from (list button, Ctrl+Alt+D, phone row, the brief's Start or Open, the recap), and how often a door makes the note. `journal_panel` is in the list but not wired: its door is `surfaces/today/panels/TodayNotePanel.jsx`, out of this task's bounds. |
+| `template_started` (`source`, `family`) | Catalogue, note type, own or library template, and which catalogue family or built-in note type. A member's own or library template is `custom`. |
+| `block_inserted` (`kind`, `via`) | Which registry widgets and blocks are inserted from the slash menu, the palette, or the palette opened from the phone "+", once per press. A member-built widget is `custom`. Text blocks from the slash menu (headings, lists, table, callout, toggle, math) are not registry kinds and are not counted. |
+| `panel_row_used` (`row`) | Which left-panel rows are pressed (All notes, Daily brief, favorites, recents, a folder, a tag, the shelves, My Playbook, the Search tab); a folder or tag is only "folder" or "tag". |
+| `notebook_route_opened` (`route`) | How often the Setups board, My Playbook (in the Notebook) and the ticker research page render. |
+
+`block_used` stays as it was: it counts the 13 trader blocks whenever the widget insert command places one, whichever caller ran it, and nothing else. `block_inserted` is the wider one: every registry kind, but only from a member's press in one of the three insert doors, once per press, from the editor's own transaction (the widget node's plugin), so a multi-chart insert counts once.

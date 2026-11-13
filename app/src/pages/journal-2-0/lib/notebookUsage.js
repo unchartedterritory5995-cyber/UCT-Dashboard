@@ -1,0 +1,58 @@
+// Follow-up A (usage counting): the small helpers the usage events share. The events and their enums are
+// lib/notebookTelemetry.js; what each answers is docs/notebook/simplify-2026-11-11-ledger.md, "Follow-up A".
+import { useEffect } from 'react'
+import { EVENT_SCHEMAS, NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
+
+/** `notebook_route_opened`: once per mount of one of the Notebook's side routes (off while `on` is false). */
+export function useRouteOpened(route, on = true) {
+  useEffect(() => {
+    if (on) trackNotebookEvent(NOTEBOOK_EVENTS.NOTEBOOK_ROUTE_OPENED, { route })
+  }, [route, on])
+}
+
+const FAMILIES = EVENT_SCHEMAS.template_started.family.values
+
+/** A catalogue family id or a built-in note type id, as `template_started.family`; anything else is 'custom'. */
+export const templateFamily = (id) => (typeof id === 'string' && FAMILIES.has(id) && id !== 'custom' ? id : 'custom')
+
+/** The `template_started` props for the note type picker's create (`{kindId}` or `{styleId}`). A built-in style
+ *  (`builtin:<type>`) is that note type; a member's own style is 'own'. */
+export function kindStart({ kindId, styleId } = {}) {
+  if (kindId) return { source: 'note_type', family: templateFamily(kindId) }
+  const builtin = typeof styleId === 'string' && styleId.startsWith('builtin:') ? styleId.slice(8) : null
+  return builtin ? { source: 'note_type', family: templateFamily(builtin) } : { source: 'own', family: 'custom' }
+}
+
+// ── block_inserted: which door is inserting ──────────────────────────────────
+// A door (the slash menu, the widget palette, the palette opened from the phone "+") runs its insert inside
+// `withInsertDoor`; the widget node's plugin (lib/widgetEmbedNode.jsx) reports the FIRST widget the insert adds, once
+// per press. An insert outside a door (a template, a paste, a capture) counts nothing.
+let door = null
+
+/** Run `fn` as one press of `via`. A promise keeps the door open until it settles (a widget fetched first). */
+export function withInsertDoor(via, fn) {
+  const mine = { via, sent: false }
+  door = mine
+  const done = () => { if (door === mine) door = null }
+  let out
+  try {
+    out = fn()
+  } catch (e) {
+    done()
+    throw e
+  }
+  if (out && typeof out.then === 'function') out.then(done, done)
+  else done()
+  return out
+}
+
+/** Is a door open and not yet counted? (the node plugin looks at a transaction only then) */
+export const insertDoorOpen = () => Boolean(door && !door.sent)
+
+/** The registry id `widgetId` was just inserted: counted once for the open door, if any. */
+export function reportInsertedBlock(widgetId) {
+  if (!door || door.sent) return null
+  door.sent = true
+  const kind = widgetId === 'builtWidget' ? 'custom' : widgetId
+  return trackNotebookEvent(NOTEBOOK_EVENTS.BLOCK_INSERTED, { kind, via: door.via })
+}

@@ -145,6 +145,9 @@ describe('creating from a member template', () => {
     expect(post.body).toMatchObject({ title: 'Week', bodyJson: BODY })
     const put = calls.find((c) => c.url === '/api/j2/notes/new1' && c.method === 'PUT')
     expect(put.body).toEqual({ properties: { 'builtin:thesis_status': 'active' } })
+    // Follow-up A: one template_started, a member's own template, with exactly its two ids (never the name).
+    expect(calls.filter((c) => c.url === '/api/j2/telemetry' && c.body?.event === 'template_started').map((c) => c.body))
+      .toEqual([{ event: 'template_started', props: { source: 'own', family: 'custom' } }])
   })
 })
 

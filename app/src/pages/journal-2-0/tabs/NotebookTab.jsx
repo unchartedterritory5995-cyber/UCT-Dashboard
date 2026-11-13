@@ -11,6 +11,8 @@ import { TASK_PARAM } from '../lib/noteTasks'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import { MenuRows, useMenuButton } from '../components/notebook/NewNoteMenu'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../lib/notebookTelemetry'
+import { kindStart, templateFamily } from '../lib/notebookUsage'
 import whenIdle from '../lib/whenIdle'
 import TemplatePickerSkeleton from '../components/notebook/TemplatePickerSkeleton'
 import Sheet from '../../../components/mobile/Sheet'
@@ -1010,8 +1012,13 @@ export default function NotebookTab() {
   // always came back as the list. A saved view pins its own mode, so a NEW `?view=` clears it.
   // ⛔ A2R-03: every VIEW_MODES id is recognised here, never only `tasks` (the reminder's link), or a
   // graph/board/calendar URL would land on Research Home.
+  // Follow-up A: the mode the View menu last wrote to the address. A `?view=` this tab did not write is a link (or
+  // a reload of one), counted once per change of the address as `view_used` via 'link'.
+  const viewWrittenRef = useRef(null)
   useEffect(() => {
     if (!VIEW_MODES.some((m) => m.id === viewParam)) return
+    if (viewWrittenRef.current === viewParam) viewWrittenRef.current = null
+    else trackNotebookEvent(NOTEBOOK_EVENTS.VIEW_USED, { mode: viewParam, via: 'link' })
     setViewMode(viewParam)
     setActiveView(null)
   }, [viewParam])
@@ -1385,7 +1392,9 @@ export default function NotebookTab() {
     // board as a list the moment boards became saveable -- the failure is
     // quiet, which is why the server's SAVEABLE_VIEW_TYPES and this set are
     // pinned against each other by a test.
-    setViewMode(SAVEABLE_VIEW_MODES.has(view.viewType) ? view.viewType : 'list')
+    const mode = SAVEABLE_VIEW_MODES.has(view.viewType) ? view.viewType : 'list'
+    trackNotebookEvent(NOTEBOOK_EVENTS.VIEW_USED, { mode, via: 'saved_view' })
+    setViewMode(mode)
     // Fix round 1 (review Important 2): a saved view pins its OWN mode, so the address keeps no `?view=<mode>`
     // (a stale `?view=board` reopened the board on reload and dropped the saved view). Writing the view's type there
     // instead would trip the URL effect, which clears a saved view by design.
@@ -1952,7 +1961,9 @@ export default function NotebookTab() {
   // that passes one (S2/B1: never from app focus).
   // `stylesOn` is the switch read once above, beside the Styles manager's state.
   // `focus` is asked for only inside the New-note sheet, never on the inline empty-notebook mount.
-  const kindSection = (focus) => (stylesOn ? <KindSection busy={creating} autoFocusFirst={focus} onCreate={createNote} noNotes={notesKnown && !hasAnyNotes} /> : null)
+  // Follow-up A: a note type (or a style) used from the picker counts as `template_started` (lib/notebookUsage.js).
+  const createFromKind = (args) => createNote({ ...args, started: kindStart(args) })
+  const kindSection = (focus) => (stylesOn ? <KindSection busy={creating} autoFocusFirst={focus} onCreate={createFromKind} noNotes={notesKnown && !hasAnyNotes} /> : null)
 
   // Create a note. Blank note passes no title/body; a template seeds both
   // (plus its preset tags and, when known, the ticker). The actual network
@@ -1993,8 +2004,11 @@ export default function NotebookTab() {
   // to the note's first field, never the title it already has.
   // Fix round 1 (review finding 10): only a note the Use NAMED skips the title; an untitled one (a members' gallery
   // template made without a name) opens in its title, as every picked note did before.
-  const landTemplateNote = (created) => landPickedNote(created,
-    typeof created?.title === 'string' && created.title.trim() ? { to: 'field' } : {})
+  // Follow-up A: a note landed from the Template library counts as `template_started` (library).
+  const landTemplateNote = (created) => {
+    if (created?.id) trackNotebookEvent(NOTEBOOK_EVENTS.TEMPLATE_STARTED, { source: 'library', family: 'custom' })
+    return landPickedNote(created, typeof created?.title === 'string' && created.title.trim() ? { to: 'field' } : {})
+  }
   const landCreatedNote = (created, openOptions) => {
     globalMutate(`/api/j2/notes/${created.id}`, { note: created }, false)
     // Instant: put it in the tree now, then reconcile from the server.
@@ -2005,7 +2019,7 @@ export default function NotebookTab() {
     openNote(created, null, openOptions)
   }
   const createNote = async ({
-    title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null, styleId, kindId, onCreated,
+    title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null, styleId, kindId, onCreated, started,
   } = {}) => {
     setCreating(true)
     setPickerOpen(false)
@@ -2072,6 +2086,8 @@ export default function NotebookTab() {
       // A styled note is not blank either: the server composed its body (its outline).
       // S12: a door that hands the new note something to place (the "+" sheet's photo) does it BEFORE it opens.
       if (created?.id) onCreated?.(created)
+      // Follow-up A: a note started from a template counts once, after the server made it ({source, family}).
+      if (created?.id && started) trackNotebookEvent(NOTEBOOK_EVENTS.TEMPLATE_STARTED, started)
       landPickedNote(created, { blank: !title && !bodyJson && !styleId && !kindId, to: focusFirst })
     } catch (e) {
       console.error('[notebook] create note failed', e)
@@ -2142,6 +2158,7 @@ export default function NotebookTab() {
       // Lane KEYS3 (Q2): the template's title would have named the ticker and none is
       // known, so naming it is the member's next act: the note opens in its Ticker field.
       focusFirst: !ctx.ticker && templateWantsTicker(tpl) ? 'ticker' : null,
+      started: { source: 'catalogue', family: templateFamily(tpl.family) },
     })
   }
 
@@ -2187,7 +2204,7 @@ export default function NotebookTab() {
       setCreating(false)
       return
     }
-    await createNote({ title: full.title, bodyJson, properties: full.properties })
+    await createNote({ title: full.title, bodyJson, properties: full.properties, started: { source: 'own', family: 'custom' } })
   }
 
   const handlePick = (tplOrNull) =>
@@ -2273,12 +2290,12 @@ export default function NotebookTab() {
   // Final fix I4 (ruling): the brief's Start makes the note and STAYS on the brief (`stay`): the plan card arrives with
   // the re-read below and the brief moves focus to "Open today's note". Every other caller opens the note. Resolves
   // true when the note is there (made or found), false when the press failed (the failure sentence is on screen).
-  const startToday = async ({ stay = false } = {}) => {
+  const startToday = async ({ stay = false, door } = {}) => {
     if (openingTodayRef.current) return false
     openingTodayRef.current = true
     setActionError('')
     try {
-      const { note, created, templateMissing } = await openDailyNote({ templateId: dailyTemplateId, seedToday: true })
+      const { note, created, templateMissing } = await openDailyNote({ templateId: dailyTemplateId, seedToday: true, door })
       // The Daily brief's cached answer may say "Start today's note": it says the note exists at once (a return to the
       // brief, or the brief still on screen, reads "Open today's note"), and is read again for the plan lines.
       mutateSwrKey(TODAY_READ_URL, (d) => d && {
@@ -2308,10 +2325,13 @@ export default function NotebookTab() {
   // ⛔ Both take NO arguments, on purpose: they are click handlers and the shortcut's callback, so an event can never be
   // read as options. `openToday` opens the note (the list's button, Ctrl+Alt+D, the phone row); `startTodayHere` is the
   // Daily brief's Start (final fix I4).
-  const openToday = () => startToday()
-  const startTodayHere = () => startToday({ stay: true })
+  // Follow-up A: each door names itself (`today_door_used`, sent by openDailyNote when the note is there).
+  const openToday = () => startToday({ door: 'list_button' })
+  const openTodayFromRow = () => startToday({ door: 'phone_row' })
+  const openTodayFromBrief = () => startToday({ door: 'brief_open' })
+  const startTodayHere = () => startToday({ stay: true, door: 'brief_start' })
   const openTodayRef = useRef(openToday)
-  openTodayRef.current = openToday
+  openTodayRef.current = () => startToday({ door: 'shortcut' })
   useEffect(() => {
     const onKey = (e) => {
       if (!isDailyShortcut(e)) return
@@ -2398,9 +2418,9 @@ export default function NotebookTab() {
     weekly: (p, c) => <button {...p} data-tour="review-drafts-weekly">{c}</button>,
   }
   const draftReviewRow = (more) => ({
-    key: 'reviews', label: 'Draft a review', icon: 'book',
+    key: 'reviews', label: 'Draft a review', icon: 'book', row: 'reviews',
     children: REVIEW_PERIODS.map(({ period, label }) => ({
-      key: period, label, icon: 'book', run: () => runReviewDraft(period), disabled: Boolean(reviewDrafting),
+      key: period, label, icon: 'book', run: () => runReviewDraft(period), disabled: Boolean(reviewDrafting), row: `review_${period}`,
       render: REVIEW_ROW_ANCHOR[period],
     })),
     ...more,
@@ -2408,9 +2428,9 @@ export default function NotebookTab() {
 
   // S11 (audit 2026-11-05): the notes list's three toolbar menus. Each item is the SAME handler its
   // old toolbar button ran -- moved, never re-implemented -- and an item whose gate is off is absent.
-  const viewMenu = useMenuButton()
-  const newMenu = useMenuButton()
-  const moreMenu = useMenuButton()
+  const viewMenu = useMenuButton('view')
+  const newMenu = useMenuButton('new')
+  const moreMenu = useMenuButton('list_more')
 
   // Go-live wave 1 (A7): "Remove the sample notebook", a row of ⋯ at every width while the sample is active. It was
   // Research home's strip ("Remove it"); the flow is the same: the bulk trash's pre-check over the sample notes still
@@ -2471,6 +2491,10 @@ export default function NotebookTab() {
   // The view goes in the address (`?view=board`), so a reload or a shared link opens it again. The URL
   // effect above reads the same param, so this is one fact in one place, not a second store.
   const chooseViewMode = (id) => {
+    // Follow-up A: a mode the member picked from the View menu (once per change; the address write below is ours, so
+    // the `?view=` effect does not count it again as a link).
+    if (id !== viewMode) trackNotebookEvent(NOTEBOOK_EVENTS.VIEW_USED, { mode: id, via: 'menu' })
+    viewWrittenRef.current = viewParam === id ? null : id
     setViewMode(id)
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -2478,7 +2502,11 @@ export default function NotebookTab() {
       return next
     }, { replace: true })
   }
-  const modeRow = ({ id, icon, short }) => ({ key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id) })
+  const modeRow = ({ id, icon, short }) => ({ key: id, label: short, icon, checked: viewMode === id, run: () => chooseViewMode(id), row: id })
+  const chooseLayout = (layout) => {
+    trackNotebookEvent(NOTEBOOK_EVENTS.LIST_LAYOUT_USED, { layout })
+    setListLayout(layout)
+  }
   const viewMenuItems = [
     ...VIEW_MODES.filter((m) => !m.more).flatMap((m) => [
       modeRow(m),
@@ -2489,8 +2517,8 @@ export default function NotebookTab() {
         group: 'Show as',
         className: styles.layoutGroup,
         items: [
-          { key: 'rows', label: 'Rows', checked: listLayout === 'rows', run: () => setListLayout('rows') },
-          { key: 'cards', label: 'Cards', checked: listLayout === 'cards', run: () => setListLayout('cards') },
+          { key: 'rows', label: 'Rows', checked: listLayout === 'rows', run: () => chooseLayout('rows'), row: 'rows' },
+          { key: 'cards', label: 'Cards', checked: listLayout === 'cards', run: () => chooseLayout('cards'), row: 'cards' },
         ],
       },
     ].filter(Boolean)),
@@ -2498,7 +2526,7 @@ export default function NotebookTab() {
     // or a `?view=graph` / `?view=timeline` link still opens them directly; while one is on, the trigger names it and
     // this row reads as the active one.
     {
-      key: 'more-views', label: 'More views', icon: 'more', current: Boolean(currentView.more),
+      key: 'more-views', label: 'More views', icon: 'more', current: Boolean(currentView.more), row: 'more_views',
       children: VIEW_MODES.filter((m) => m.more).map(modeRow),
     },
     // ⛔ NO Save view IN GRAPH MODE, nor in a mode the table marks `saveable: false` (Tasks): graph has
@@ -2510,21 +2538,21 @@ export default function NotebookTab() {
     // nothing.
     ...(!activeView && viewMode !== 'graph' && SAVEABLE_VIEW_MODES.has(viewMode) ? [
       { key: 'sep', separator: true },
-      { key: 'save', label: 'Save view', icon: 'plus', run: () => setSaveViewOpen(true) },
+      { key: 'save', label: 'Save view', icon: 'plus', run: () => setSaveViewOpen(true), row: 'save_view' },
     ] : []),
   ]
   const newMenuItems = [
-    { key: 'blank', label: 'Blank', icon: 'document', run: () => createNote() },
+    { key: 'blank', label: 'Blank', icon: 'document', run: () => createNote(), row: 'blank' },
     // "From a template": with the template switch on, the sheet with focus on the first note type (the old list
     // caret's door); with it off there are no note types, and it is the plain sheet. Notebook simplify, Task 3: the
     // "From an outline" row is gone -- it opened the same sheet (search first), one door too many.
-    { key: 'template', label: 'From a template', icon: 'library', run: fromStyle || openNewNoteSheet },
+    { key: 'template', label: 'From a template', icon: 'library', run: fromStyle || openNewNoteSheet, row: 'template' },
     // Go-live wave 1 (C1): the voice-notes walkthrough points at this row (a literal anchor, MenuRows `render`).
     recordVoiceNote && {
-      key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote,
+      key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote, row: 'voice',
       render: (p, c) => <button {...p} data-tour="new-note-voice">{c}</button>,
     },
-    { key: 'import', label: 'Import', icon: 'upload', run: openImport },
+    { key: 'import', label: 'Import', icon: 'upload', run: openImport, row: 'import' },
     // Notebook simplify, Task 3: Research Home's "Reviews that write themselves", from the list too. Each runs the ONE
     // drafting door (lib/reviewDraftRun.js); absent while review drafts are off, so no row opens nothing.
     // Go-live wave 1 (C2): the review-drafts walkthrough points at the three rows (literal anchors).
@@ -2540,34 +2568,34 @@ export default function NotebookTab() {
   const touchOnly = styles.touchOnlyItem
   const moreMenuItems = [
     // Final fix (C5): the same words as the toolbar's button and the first run ("Today's note").
-    { key: 'today', label: "Today's note", icon: 'sun', run: openToday, className: phoneOnly },
-    { key: 'ask', label: 'Ask your Notebook', icon: 'sparkle', run: openAiFromMenu, className: touchOnly },
+    { key: 'today', label: "Today's note", icon: 'sun', run: openTodayFromRow, className: phoneOnly, row: 'today_note' },
+    { key: 'ask', label: 'Ask your Notebook', icon: 'sparkle', run: openAiFromMenu, className: touchOnly, row: 'ask_notebook' },
     // Final fix (A1): the template-gallery and template-library walkthroughs open here on a phone (a literal anchor).
     {
-      key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly,
+      key: 'template', label: 'New from a template', icon: 'library', run: openNewNoteSheet, className: phoneOnly, row: 'template',
       render: (p, c) => <button {...p} data-tour="new-from-template-phone">{c}</button>,
     },
-    { key: 'import', label: 'Import', icon: 'upload', run: openImport, className: phoneOnly },
+    { key: 'import', label: 'Import', icon: 'upload', run: openImport, className: phoneOnly, row: 'import' },
     recordVoiceNote && {
-      key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote, className: phoneOnly,
+      key: 'voice', label: 'Voice note', icon: 'mic', run: recordVoiceNote, className: phoneOnly, row: 'voice',
       render: (p, c) => <button {...p} data-tour="new-note-voice-phone">{c}</button>,
     },
     reviewsOn && draftReviewRow({ className: phoneOnly, render: (p, c) => <button {...p} data-tour="review-drafts-phone">{c}</button> }),
     // Tier 2 fix round 1 (review Important 1): on the phone Notebook list the Journal header's tools fold into this
     // row (lib/journalToolsDoor.js), so the header takes no row and nothing sits over the section strip.
     // Simplify pass 2 (A9): "Trade journal tools", so it is not read as a sibling of "My tools" below.
-    { key: 'journal-tools', label: 'Trade journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly },
-    { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true) },
+    { key: 'journal-tools', label: 'Trade journal tools', icon: 'sliders', run: openJournalTools, className: phoneOnly, row: 'journal_tools' },
+    { key: 'export', label: 'Export', icon: 'download', run: () => setExportOpen(true), row: 'export' },
     // Go-live wave 1 (A7): at every width, only while the sample is active (its status read says so). Final fix residual
     // R3: right after Export, so on a desktop (no phone rows) More never opens with focus on this destructive row; on a
     // phone the menu scrolls inside the window above the "+" (C3), so it stays reachable there.
     // Simplify pass 2 (C6): one line on a phone ("Remove sample notebook"); the desktop words are unchanged.
     sampleActiveIds.length > 0 && {
-      key: 'remove-sample', label: SAMPLE_ROW_COPY[onPhone ? 'removeRowPhone' : 'removeRow'], icon: 'trash', run: () => removeSample(),
+      key: 'remove-sample', label: SAMPLE_ROW_COPY[onPhone ? 'removeRowPhone' : 'removeRow'], icon: 'trash', run: () => removeSample(), row: 'remove_sample',
     },
-    toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools },
+    toolsOn && { key: 'tools', label: 'My tools', icon: 'wrench', run: openTools, row: 'my_tools' },
     // S7 (one vocabulary): the journal styles manager is where a member manages templates.
-    stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true) },
+    stylesOn && { key: 'manage', label: 'Manage templates', icon: 'sliders', run: () => setStylesOpen(true), row: 'manage_templates' },
   ].filter(Boolean)
 
   // A successful import can create notes AND folders — refresh both. Notes
@@ -3024,7 +3052,7 @@ export default function NotebookTab() {
           {repairNotice}
           <TodayHome
             onOpenNote={openNote}
-            onOpenToday={openToday}
+            onOpenToday={openTodayFromBrief}
             onStartToday={startTodayHere}
             headingRef={paneHeadingRef}
             dailyTemplateId={dailyTemplateId}

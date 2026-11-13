@@ -1288,6 +1288,8 @@ export default function NoteEditorPage({
   const [chromeMsg, setChromeMsg] = useState(null)
   // Widget palette (point-and-click inserts) — toggled from the toolbar row.
   const [paletteOpen, setPaletteOpen] = useState(false)
+  // Follow-up A: which door opened the palette (`block_inserted`'s via).
+  const [paletteVia, setPaletteVia] = useState('palette')
   useEffect(warmWidgetPalette, [])
   useEffect(warmSourceSheets, [])
   useEffect(warmEditorToolsWhenIdle, [])
@@ -2597,7 +2599,7 @@ export default function NoteEditorPage({
   }, [openWritingHelp])
   // Notebook simplify, Task 4: the desktop header's ONE "AI" menu (Ask about this note, Writing help), on the
   // notes list's menu engine. Called here, above the early returns, as every hook must be.
-  const aiMenu = useMenuButton()
+  const aiMenu = useMenuButton('note_ai')
   // ── Wave 11 lane 11A: voice notes ─────────────────────────────────────────
   // ⛔ DARK behind `notebook_voice_notes_enabled` and paid-only, like the routes.
   // "Add to this note" is ONE editor transaction at the end of the note (never a
@@ -5097,13 +5099,13 @@ export default function NoteEditorPage({
     ref: menu ? undefined : writingHelpButtonRef,
     onMouseDown: (e) => e.preventDefault(),
     onClick: menu
-      ? menu.run(() => openWritingHelpFromButton(menu.triggerProps.ref.current))
+      ? menu.run(() => openWritingHelpFromButton(menu.triggerProps.ref.current), 'writing_help')
       : () => openWritingHelpFromButton(),
     'aria-label': 'Writing help',
     title: 'Writing help — summarize, rewrite, continue or translate',
   })
   const writingHelpDoor = (menu) => (menu ? (
-    <button {...writingHelpDoorProps(menu)} data-tour="writing-help-menu">
+    <button {...writingHelpDoorProps(menu)} data-tour="writing-help-menu" data-row="writing_help">
       <UIcon name="sparkle" {...TOOLBAR_ICON} />
       Writing help
     </button>
@@ -5115,7 +5117,7 @@ export default function NoteEditorPage({
   ))
   // The widget palette's two row doors (the touch row's "Insert widget", the desktop row's "Insert"): its Escape
   // and close hand focus back to whichever opened it.
-  const togglePalette = (e) => { paletteOpenerRef.current = e.currentTarget; setOutlineOpen(false); setPaletteOpen((o) => !o) }
+  const togglePalette = (e) => { paletteOpenerRef.current = e.currentTarget; setPaletteVia('palette'); setOutlineOpen(false); setPaletteOpen((o) => !o) }
 
   // Notebook phone pass (2026-10-10): on a phone the note header keeps Star, Share and More;
   // these are the header actions More carries there (NoteMoreMenu renders them only when it was
@@ -5135,6 +5137,7 @@ export default function NoteEditorPage({
       className={styles.chromeBtn}
       onClick={() => { close?.(); openJournalTools() }}
       data-journal-tools-door=""
+      data-row="journal_tools"
     >
       <UIcon name="sliders" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
       {/* Simplify pass 2 (A9): "Trade journal tools", so it is not read as a sibling of "My tools". */}
@@ -5148,6 +5151,7 @@ export default function NoteEditorPage({
         className={styles.chromeBtn}
         onClick={(e) => openAskFrom(e.currentTarget)}
         aria-label="Ask about this note"
+        data-row="ask_note"
       >
         <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
         Ask about this note
@@ -5162,6 +5166,7 @@ export default function NoteEditorPage({
           className={styles.chromeBtn}
           onClick={() => { openFind(); close() }}
           aria-label="Find in note"
+          data-row="find"
           title="Find in this note"
         >
           <UIcon name="search" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
@@ -5174,6 +5179,7 @@ export default function NoteEditorPage({
           type="button"
           className={`${styles.chromeBtn} ${outlineOpen ? styles.toolBtnActive : ''}`}
           onClick={() => { toggleOutline(trigger); close() }}
+          data-row="outline"
           aria-expanded={outlineOpen}
           aria-label="Outline"
           title="Outline — every heading in this note"
@@ -5422,8 +5428,8 @@ export default function NoteEditorPage({
                 </button>
                 {aiMenu.open && (
                   <div {...aiMenu.menuProps} aria-label="AI">
-                    <button type="button" role="menuitem" className={menuStyles.item}
-                      onClick={aiMenu.run(() => openAskFrom(aiMenu.triggerProps.ref.current))}>
+                    <button type="button" role="menuitem" className={menuStyles.item} data-row="ask_note"
+                      onClick={aiMenu.run(() => openAskFrom(aiMenu.triggerProps.ref.current), 'ask_note')}>
                       <UIcon name="search" {...TOOLBAR_ICON} />
                       Ask about this note
                     </button>
@@ -5479,6 +5485,7 @@ export default function NoteEditorPage({
               type="button"
               className={styles.chromeBtn}
               onClick={() => setHistoryOpen(true)}
+              data-row="history"
               title="See earlier versions of this note and restore one"
               aria-label="Version history"
             >
@@ -5489,6 +5496,7 @@ export default function NoteEditorPage({
               type="button"
               className={styles.chromeBtn}
               onClick={onDuplicate}
+              data-row="duplicate"
               disabled={duplicating}
               title="Create a copy of this note"
               aria-label="Duplicate note"
@@ -5506,6 +5514,7 @@ export default function NoteEditorPage({
                 type="button"
                 className={styles.chromeBtn}
                 onClick={makeThesis}
+                data-row="make_thesis"
                 disabled={makingThesis}
                 title="Add evidence, a changelog and reviews to this note"
               >
@@ -5539,7 +5548,7 @@ export default function NoteEditorPage({
             </>)}
             <div className={moreStyles.sep} role="separator" />
             {/* S7 (one vocabulary): the note menu's "Delete" is "Move to Trash", the sidebar's word. */}
-            <button type="button" className={`${styles.chromeBtn} ${moreStyles.danger}`} onClick={onDeleteRequest}>
+            <button type="button" className={`${styles.chromeBtn} ${moreStyles.danger}`} onClick={onDeleteRequest} data-row="trash">
               Move to Trash
             </button>
           </NoteMoreMenu>
@@ -5969,7 +5978,7 @@ export default function NoteEditorPage({
           duplicated the chrome height by hand). */}
       {paletteOpen && editor && !locked && (
         <Suspense fallback={null}>
-          <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} returnFocusTo={paletteOpenerRef} />
+          <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} returnFocusTo={paletteOpenerRef} via={paletteVia} />
         </Suspense>
       )}
       {/* P0.6: the phone "+" menu. Each row calls the same door its desktop button calls. */}
@@ -5983,7 +5992,7 @@ export default function NoteEditorPage({
             { label: 'Image', onClick: () => fileInputRef.current?.click() },
             { label: 'Attach a file', onClick: () => attachFileInputRef.current?.click() },
             { label: 'Scan with camera', onClick: () => scanInputRef.current?.click() },
-            { label: 'Chart or block', onClick: () => { paletteOpenerRef.current = insertPhoneRef.current; setOutlineOpen(false); setPaletteOpen(true) } },
+            { label: 'Chart or block', onClick: () => { paletteOpenerRef.current = insertPhoneRef.current; setPaletteVia('phone_plus'); setOutlineOpen(false); setPaletteOpen(true) } },
           ]}
         />
       )}

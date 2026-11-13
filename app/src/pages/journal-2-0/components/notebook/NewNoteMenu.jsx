@@ -5,13 +5,16 @@
 // menus (tabs/NotebookTab.jsx), the note's "AI" and "Aa" menus and the saved views group.
 import { Fragment, useRef, useState, useEffect, useLayoutEffect } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
+import { trackMenuRow } from '../../lib/notebookTelemetry'
 import styles from './NewNoteMenu.module.css'
 
 // ONE menu-button engine (S11, audit 2026-11-05): the notes list's toolbar menus (View, New, More, in
 // tabs/NotebookTab.jsx) and the note's own menus run this hook, so the keyboard contract is written once. Headless on purpose: a caller renders its own trigger <button> (a tour anchor is a
 // LITERAL `data-tour` attribute on it, which tourAnchors.test.js reads by AST) and spreads
 // `triggerProps` onto it; `menuProps` go on the role="menu" element.
-export function useMenuButton() {
+// Follow-up A (usage counting): `name` is the menu's id in `menu_row_used` (lib/notebookTelemetry.js); `run(fn, row)`
+// and a second view's opening count one press of the row whose id is `row`, written where the row is defined.
+export function useMenuButton(name = null) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
@@ -63,7 +66,8 @@ export function useMenuButton() {
     if (sub) { const rows = rowsOf(el); (rows[1] || rows[0])?.focus() }
     else if (subFrom.current) (el.querySelector(`[data-menu-sub="${subFrom.current}"]`) || rowsOf(el)[0])?.focus()
   }, [sub])
-  const openSub = (key) => { subFrom.current = key; setSub(key) }
+  const track = (row) => { if (name) trackMenuRow(name, row) }
+  const openSub = (key, row) => { track(row); subFrom.current = key; setSub(key) }
   const back = () => setSub(null)
 
   const close = () => { setOpen(false); triggerRef.current?.focus() }
@@ -108,11 +112,12 @@ export function useMenuButton() {
   // Focus goes back to the trigger BEFORE the item runs: the menu (and the item holding focus) is gone
   // on the next render, and what the item opens (a sheet, a dialog) returns focus to whatever held it
   // when it opened.
-  const run = (fn) => () => { setOpen(false); triggerRef.current?.focus(); fn?.() }
+  const run = (fn, row) => () => { track(row); setOpen(false); triggerRef.current?.focus(); fn?.() }
 
   return {
     open,
     run,
+    track,
     sub,
     openSub,
     back,
@@ -140,7 +145,7 @@ function rowsOf(menuEl) {
 }
 
 /** The rows of a `useMenuButton` menu. `items`: {key, label, icon?, run, checked?, current?, separator?, className?,
- *  disabled?, children?, childLabel?}. A row whose `checked` is a boolean is a `menuitemradio` (the View menu's modes);
+ *  disabled?, children?, childLabel?, row}. `row` is the row's fixed usage id (follow-up A, `menu_row_used`). A row whose `checked` is a boolean is a `menuitemradio` (the View menu's modes);
  *  `current` marks a plain row as holding the mode in use (aria-current); `separator: true` draws a rule.
  *  Notebook simplify, Task 3: `{key, group, items, heading?, className?}` is a named role="group" of rows (the View
  *  menu's "Show as" under List, the New menu's "Reviews"); `heading: true` also draws its name, set apart by a rule.
@@ -202,7 +207,9 @@ function rowsFor(menu, items) {
       // `current`: the row holds the mode in use without being a radio (the View menu's "More views" while Graph is on).
       className: `${styles.item} ${it.checked || it.current ? styles.itemChecked : ''} ${it.className || ''}`,
       'aria-current': it.current || undefined,
-      onClick: sub ? () => menu.openSub(it.key) : menu.run(it.run),
+      onClick: sub ? () => menu.openSub(it.key, it.row) : menu.run(it.run, it.row),
+      // Follow-up A: the row's usage id (`menu_row_used`); notebookUsage.test.js fails by name on a row without one.
+      'data-row': it.row,
       // Go-live wave 1 (D4): a row whose door is busy (a review drafting) cannot be pressed again meanwhile.
       disabled: it.disabled || undefined,
       'aria-haspopup': sub ? 'menu' : undefined,
