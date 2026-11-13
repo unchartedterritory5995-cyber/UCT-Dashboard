@@ -458,14 +458,16 @@ export function registerBarsCapability() {
     name: CAPABILITY,
     surfaces: ['*'],
     target: 'market', query: true,
-    summary: 'Answer questions about ONE stock\'s COMPLETED daily sessions (or weekly / monthly bars, or 2-3 stocks\' relative performance) from UCT\'s bars: the close (latest, or on a date), one session\'s open/high/low/close, '
-      + 'the change over N sessions, the high and low of a window (a week, a month, N sessions, or dated), the 52-week range, the distance off its 52-week high, or its pullbacks — each as of a date when one is given. Use this (disposition apply, research null) '
-      + 'for "how did AAPL close yesterday", "NVDA close last Friday", "AAPL high on 2026-10-15", "TSLA range last week", "NVDA 5-day change". Never for today\'s price (stock.quote).',
-    hints: 'target = the ref of the stockData entry; symbol uppercase; measure = lastClose (the close, latest or on `date`) | session (open/high/low/close/volume of ONE day: "high on", "low on", "open on") '
-      + '| change (N sessions) | range (high and low over a window) | range52w | offHigh (below the 52-week high) | pullbacks; sessions = the N of an N-session change or range (weeks × 5), else null; '
-      + 'date = the member\'s date words exactly ("last friday", "yesterday", "oct 15", "2026-10-15", "last week", "last month") or null for the latest; from = a range\'s start words ("from X to Y": date = Y), else null. '
-      + '"close last Friday" → lastClose + date; "high on Oct 15" → session + date; "range last week" → range + date (sessions null: the week decides); "range over the last 10 sessions" → range + sessions 10. '
-      + 'periods = weekly/monthly closes+changes; compare = 2-3 stocks\' performance (symbols = the others): timeframe W|M, sessions = N periods or from/date = ISO window; else null.',
+    // turn.py MAX_SUMMARY / MAX_HINTS: the server CUTS a longer text on every request (capabilityTextLimits.test.js), so every
+    // rule lives inside the limits — the summary says what and when (and never for today's price), the hints say how
+    summary: 'ONE stock\'s COMPLETED sessions from UCT\'s bars, never today\'s price (stock.quote): a close, one session\'s OHLC, an N-session change, a window\'s high / low, the 52-week range, '
+      + 'distance off the 52-week high, pullbacks, weekly / monthly closes, or 2-3 stocks\' relative performance. '
+      + 'Use this (disposition apply, research null) for "NVDA close last Friday", "monthly returns for NVDA in 2024".',
+    hints: 'target = the stockData ref; symbol uppercase. measure = lastClose (the close, latest or on `date`) | session (ONE day\'s open/high/low/close/volume: "high on", "low on", "open on") | change (N sessions) '
+      + '| range (high and low of a window) | range52w | offHigh (below the 52-week high) | pullbacks | periods (weekly / monthly closes + changes) | compare (2-3 stocks; symbols = the others, else null). '
+      + 'sessions = the N of a change or range (weeks × 5), or N periods; else null. date = the member\'s date words exactly ("last friday", "yesterday", "oct 15", "2026-10-15", "last week", "last month"), '
+      + 'or a period window\'s ISO end; null = the latest. from = a range\'s start words ("from X to Y": date = Y) or a period window\'s ISO start, else null. timeframe = W | M for periods / compare, else null. '
+      + '"close last Friday" → lastClose + date; "high on Oct 15" → session + date; "range last week" → range + date (sessions null); "range over the last 10 sessions" → range + sessions 10.',
     args: {
       type: 'object',
       properties: {

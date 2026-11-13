@@ -239,14 +239,16 @@ export function registerHistoryCapability() {
     surfaces: ['charts'],
     target: 'market', query: true,
     localOnly: true,                    // ⛔ shown to the member; the model never sees a return (turn.LOCAL_ONLY_ACTIONS)
-    summary: 'EVENT STUDY from UCT\'s stored daily history: every time ONE stock met a technical condition (a one-day move of N%, an opening gap of N%+, a new N-day closing high = a breakout, RSI, % from an N-day SMA, Bollinger %B or the MACD histogram above / below / crossing a level), '
-      + 'what its price did over the next 1, 5 and 21 sessions — events, hit rate, average, median, best, worst, against all sessions. UCT computes and shows it; you never see the returns. '
-      + 'Use this (disposition apply, research null) for "how has NVDA behaved after 5%+ gaps", "what happens after AMD crosses above its 50-day", "how does SPY do after 20-day breakouts". Descriptive, never a prediction. '
-      + 'A study conditioned on MARKET BREADTH (breadth thrusts, % above a moving average, NH/NL) or on earnings dates is NOT available: plan nothing and say so in one line, with no figure.',
-    hints: 'target = the ref of the stockData entry; symbol uppercase. indicator gap_pct (period null; threshold = the gap % — negative with op below for gaps down; 5 when no size is named) | pct_from_high (an N-day BREAKOUT / new N-day high: period = N, 252 for a 52-week high; op cross_above, threshold 0) '
-      + '| pct_from_sma (crossing a moving average: period = the SMA days; op cross_above / cross_below, threshold 0) | rsi (period, 14 when none is named) | bb_pct_b (period) | macd_hist (period null). '
-      + 'op above | below | cross_above | cross_below. horizons = session counts (1–252, at most 4; null = [1, 5, 21]). since = YYYY-MM-DD or null (all history). reply: one short line, no figures. '
-      + 'day_pct = a one-day close-to-close move (period null; "fell 3% in a day" → op below, threshold -3). last = N for "the last N times", else null. Earnings-date studies: not available.',
+    // turn.py MAX_SUMMARY / MAX_HINTS: the server CUTS a longer text on every request (capabilityTextLimits.test.js), so the
+    // breadth / earnings refusal rule lives in the hints in full and is named in the summary
+    summary: 'EVENT STUDY from UCT\'s stored daily history: each time ONE stock met a technical condition (one-day move, opening gap, N-day breakout, RSI, % from an SMA, Bollinger %B, MACD histogram), '
+      + 'its forward returns vs all sessions. UCT shows it; you never see returns. Descriptive, never a prediction. '
+      + 'Use this (disposition apply, research null). Breadth / earnings-date studies: NOT available (hints).',
+    hints: 'target = the stockData ref; symbol uppercase. indicator day_pct (a one-day close-to-close move; period null; "fell 3% in a day" → op below, threshold -3) | gap_pct (period null; threshold = the gap %, negative with op below for gaps down; 5 when no size is named) '
+      + '| pct_from_high (an N-day BREAKOUT / new N-day high: period = N, 252 for 52 weeks; op cross_above, threshold 0) | pct_from_sma (crossing an SMA: period = its days; op cross_above / cross_below, threshold 0) '
+      + '| rsi (period, 14 when none is named) | bb_pct_b (period) | macd_hist (period null). op above | below | cross_above | cross_below. horizons = sessions (1–252, at most 4; null = [1, 5, 21]). '
+      + 'since = YYYY-MM-DD or null. last = N for "the last N times", else null. reply: one short line, no figures. '
+      + 'A study conditioned on MARKET BREADTH (thrusts, % above a moving average, NH/NL) or on EARNINGS DATES is NOT available: plan nothing and say so in one line, with no figure.',
     args: {
       type: 'object',
       properties: {
