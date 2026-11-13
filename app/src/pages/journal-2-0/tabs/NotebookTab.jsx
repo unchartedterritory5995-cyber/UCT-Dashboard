@@ -2227,11 +2227,24 @@ export default function NotebookTab() {
     aiOpenerRef.current = document.activeElement   // the ⋯ button: the menu hands focus back to it before this runs
     setAiOpen(true)
   }
+  // Simplify pass 2, Task 1 fix round 1: the phone "+" sheet's "Ask your Notebook". The "+" is drawn on every Notebook
+  // view, the section only with the list, so from a note or the Daily brief this first goes to the list (the panel's
+  // "All notes") and opens the section there, in one press. The sheet's row is gone by the time Ask closes, so the
+  // opener is the "+" itself.
+  const openAiFromPlus = () => {
+    if (!listToolbarShown) selectAllNotes()
+    aiOpenerRef.current = plusRef.current
+    setAiOpen(true)
+  }
   // Preview fix round 1 (item 4): closing the question panel closes the WHOLE AI section -- the question panel and
   // "Or tell Notebook what to change" together (that door used to stay behind on its own) -- and hands focus back.
+  // Fix round 1 (Task 1): only to an opener still in the page; a removed one falls back to "AI".
   const closeAi = () => {
     setAiOpen(false)
-    requestAnimationFrame(() => (aiOpenerRef.current || aiBtnRef.current)?.focus?.())
+    requestAnimationFrame(() => {
+      const opener = aiOpenerRef.current
+      ;(opener?.isConnected ? opener : aiBtnRef.current)?.focus?.()
+    })
   }
   // ...and the section is closed whenever the list is entered: it closes as the member leaves the list (a note, the
   // Daily brief), so coming back never finds it reopened by itself. Pressing "AI" again opens both pieces.
@@ -3588,7 +3601,7 @@ export default function NotebookTab() {
       <NotebookPlusSheet open={plusOpen} onClose={() => setPlusOpen(false)} returnFocusTo={plusRef}
         onQuickNote={() => createNote()} onVoiceNote={recordVoiceNote}
         onPhoto={(file) => createNote({ title: 'Chart screenshot', onCreated: (c) => holdImageForNote(c.id, file) })}
-        onAskNotebook={auth?.isPaid === true ? openAiFromMenu : null} busy={creating} />
+        onAskNotebook={auth?.isPaid === true ? openAiFromPlus : null} busy={creating} />
     </div>
     </SplitViewContext.Provider>
   )

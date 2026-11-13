@@ -64,7 +64,7 @@ export default function ExampleNotePicker({ styleItemId, onPick, onClose }) {
         {loading && <p className={styles.hint} role="status">Loading your notes…</p>}
         {kind.phase === 'ready' && !loading && !error && !shown.length && (
           <p className={styles.hint} role="status">
-            {q ? 'None of your notes of this note type match.' : "You don't have a note of this note type yet."}
+            {q ? 'None of your notes of this type match.' : "You don't have a note of this type yet."}
           </p>
         )}
         {shown.length > 0 && (

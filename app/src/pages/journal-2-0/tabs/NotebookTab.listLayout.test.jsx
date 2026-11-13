@@ -85,11 +85,17 @@ describe('rows are the default: one column, a title and a quiet meta line per no
       .filter((el) => !el.closest('[data-saved-views-group]'))
       .map((el) => el.textContent.trim())
     expect(order.slice(0, 4)).toEqual(['List', 'Rows', 'Cards', 'Table'])
+    // Simplify pass 2 (A10, Task 1 fix round 1): the group is "Show as", and the old name is gone where it was drawn.
+    expect(within(menu).getByRole('group', { name: 'Show as' })).toBeInTheDocument()
+    expect(within(menu).queryByRole('group', { name: 'List layout' })).toBeNull()
+    expect(menu).not.toHaveTextContent(/List layout/)
   })
 
   it('CONTROL: outside List (Table) the menu offers no Rows / Cards', async () => {
     await renderTab('/journal/notebook?view=table')
-    expect(within(openViewMenu()).queryByRole('group', { name: 'Show as' })).toBeNull()
+    const menu = openViewMenu()
+    expect(within(menu).queryByRole('group', { name: 'Show as' })).toBeNull()
+    expect(within(menu).queryByRole('group', { name: 'List layout' })).toBeNull()
   })
 })
 

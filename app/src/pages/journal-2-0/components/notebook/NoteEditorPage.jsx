@@ -205,7 +205,7 @@ const AlertPhraseMenu = lazyChunk(() => import('./AlertPhraseMenu'))
 // Item 10: the "Tag NVDA · Daily" chip on a pasted chart screenshot. LAZY: it exists only after a paste, with both
 // switches on, once the screenshot read has found exactly one ticker.
 const ScreenshotTagOffer = lazyChunk(() => import('./ScreenshotTagOffer'))
-// Notebook P1 (spec P1.3): the "Update layout" offer, its previewed sheet, the /style chooser and the
+// Notebook P1 (spec P1.3): the "Update template" offer, its previewed sheet, the /style chooser and the
 // "updated" confirmation, behind ONE lazy import (a second import of the same module costs first-open bytes).
 // Mounted only while journalStylesEnabled() -- a switch that is off never fetches it.
 const StyleHost = lazyChunk(() => loadStyle('StyleHost'))
@@ -6108,7 +6108,7 @@ export default function NoteEditorPage({
             once the body names a $TICKER twice it OFFERS the link, through the Ticker field's door. */}
         <TickerSuggestion editor={editor} noteId={noteId} ticker={note?.ticker || null}
           readOnly={locked || unreadable || isCanvas} onLink={(sym) => onTickerChange(sym)} />
-        {/* Notebook P1: the previewed "Update layout" offer, its sheet, /style and the confirmation (dark behind
+        {/* Notebook P1: the previewed "Update template" offer, its sheet, /style and the confirmation (dark behind
             the switch), fetched on demand: for a styled note, or once /style was pressed in this editor.
             What only this editor can do is handed over as `api`; the host does the rest. */}
         {journalStylesEnabled() && (note?.styleId || styleAsk) && (

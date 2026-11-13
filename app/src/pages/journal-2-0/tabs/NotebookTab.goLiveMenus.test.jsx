@@ -33,9 +33,9 @@ const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30
 beforeEach(() => { draft.calls = []; draft.release = null; draft.notice = null })
 afterEach(() => { cleanup(); __resetNotebookFlags() })
 
-async function renderTab(routes = []) {
+async function renderTab(routes = [], route = '/journal/notebook?view=all') {
   installFetch([[/mapping-offer$/, { offer: null }], ...routes])
-  render(<Providers auth={AUTH} route="/journal/notebook?view=all"><NotebookTab /></Providers>)
+  render(<Providers auth={AUTH} route={route}><NotebookTab /></Providers>)
   await settle()
 }
 const bar = () => screen.getByRole('toolbar', { name: 'Notes list tools' })
@@ -98,15 +98,58 @@ describe('D2: "Ask your Notebook" is the touch tier\'s door; the toolbar AI is d
 
   // Simplify pass 2 (A8): the phone "+" sheet's row is the same door: "Ask your Notebook" opens the Notebook's own Ask
   // (it was "Ask AI" and went to Compass, the voice coach page).
-  it('the "+" sheet\'s "Ask your Notebook" opens the same notebook-wide Ask as the ⋯ row', async () => {
-    await renderTab()
-    expect(screen.queryByTestId('ask-scope')).toBeNull()
+  // Task 1 fix round 1 (item 1): the "+" is drawn on every Notebook view on a phone, but the Ask section only with the
+  // notes list. From a note or the Daily brief the row goes to the list first (the panel's "All notes" action) and
+  // opens Ask there, in ONE press, with focus in the question field; it never opens a section nobody can see.
+  const plusSheet = async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add to your notebook' }))
-    const sheet = await screen.findByRole('dialog', { name: 'Add' }, { timeout: 5000 })
-    expect(within(sheet).queryByRole('button', { name: 'Ask AI' })).toBeNull()
+    return screen.findByRole('dialog', { name: 'Add' }, { timeout: 5000 })
+  }
+  const askRegion = () => screen.getByRole('region', { name: 'Ask your Notebook' })
+  it.each([
+    ['the notes list', '/journal/notebook?view=all'],
+    ['an open note', '/journal/notebook?note=n1'],
+    ['the Daily brief', '/journal/notebook?view=today'],
+  ])('the "+" sheet\'s "Ask your Notebook" from %s: one press shows the list with Ask open and focused', async (_, route) => {
+    await renderTab([], route)
+    expect(screen.queryByTestId('ask-scope')).toBeNull()
+    const sheet = await plusSheet()
+    // the rows, exactly: no "Ask AI" (the Compass row this replaced) can come back unseen
+    expect(within(sheet).getAllByRole('button').map((b) => b.textContent.trim()))
+      .toEqual(expect.arrayContaining(['Quick note', 'Ask your Notebook', 'Help & feedback']))
+    expect(within(sheet).queryByText(/Ask AI/)).toBeNull()
     fireEvent.click(within(sheet).getByRole('button', { name: 'Ask your Notebook' }))
     expect((await screen.findByTestId('ask-scope', {}, { timeout: 5000 })).textContent).toContain('My Notebook')
-    expect(screen.getByRole('region', { name: 'Ask your Notebook' })).toBeTruthy()
+    expect(bar()).toBeTruthy()                                   // the notes list is what is shown
+    expect(document.querySelector('[data-today-home]')).toBeNull()
+    expect(askRegion()).toBeTruthy()
+    await waitFor(() => {
+      expect(askRegion().contains(document.activeElement)).toBe(true)
+      expect(document.activeElement.tagName).toMatch(/^(INPUT|TEXTAREA)$/)
+    }, { timeout: 5000 })
+  })
+
+  // Task 1 fix round 1 (item 2): the sheet's row is gone when Ask closes, so focus goes back to the "+" itself.
+  it('opened from the "+", closing Ask puts focus back on "Add to your notebook"', async () => {
+    await renderTab()
+    fireEvent.click(within(await plusSheet()).getByRole('button', { name: 'Ask your Notebook' }))
+    await screen.findByTestId('ask-scope', {}, { timeout: 5000 })
+    await waitFor(() => expect(askRegion().contains(document.activeElement)).toBe(true), { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Close Ask' }))
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Ask your Notebook' })).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add to your notebook' })))
+  })
+
+  it('opened from the ⋯ row, closing Ask puts focus back on the ⋯ button', async () => {
+    await renderTab()
+    const more = within(bar()).getByRole('button', { name: 'More notebook actions' })
+    fireEvent.click(more)
+    const row = within(screen.getByRole('menu', { name: 'More notebook actions' })).getByRole('menuitem', { name: 'Ask your Notebook' })
+    fireEvent.click(row)
+    await screen.findByTestId('ask-scope', {}, { timeout: 5000 })
+    await waitFor(() => expect(askRegion().contains(document.activeElement)).toBe(true), { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Close Ask' }))
+    await waitFor(() => expect(document.activeElement).toBe(more))
   })
 
   it('the stylesheet: touch-only rows hidden by default and shown at <=1024px, where the toolbar AI hides', () => {

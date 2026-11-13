@@ -39,6 +39,10 @@ describe('the floating "+"', () => {
       expect(within(sheet).getByRole('button', { name })).toBeTruthy()
     }
     expect(within(sheet).getByLabelText('Photo / chart screenshot')).toHaveAttribute('type', 'file')
+    // Task 1 fix round 1: the rows, exactly and in order, so an "Ask AI" row (the Compass door this replaced) cannot
+    // come back beside the new one unseen.
+    const rows = [...sheet.querySelectorAll('[class*="rows"] > button, [class*="rows"] > label')].map((el) => el.textContent.trim())
+    expect(rows).toEqual(['Quick note', 'Voice note', 'Photo / chart screenshot', 'Ask your Notebook', 'Help & feedback'])
   })
 
   // Simplify pass 2 (A8): the row was "Ask AI" and opened Compass (the voice coach page). It is the Notebook's own
@@ -55,8 +59,7 @@ describe('the floating "+"', () => {
     expect(onAskNotebook).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('where').textContent).toBe('/journal/notebook')
     expect(screen.queryByRole('dialog', { name: 'Add' })).toBeNull()
-    expect(within(open()).queryByRole('button', { name: 'Ask AI' })).toBeNull()
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Add' })).getByRole('button', { name: 'Help & feedback' }))
+    fireEvent.click(within(open()).getByRole('button', { name: 'Help & feedback' }))
     await waitFor(() => expect(feedback).toHaveBeenCalledTimes(1))   // on the next frame (fix round 2, N2)
     window.removeEventListener(OPEN_FEEDBACK_EVENT, feedback)
   })
