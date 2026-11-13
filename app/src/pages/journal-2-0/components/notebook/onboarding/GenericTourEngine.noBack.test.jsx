@@ -1,10 +1,11 @@
-// Follow-up B, item 2b: Back from a step inside a menu's SECOND view goes to the step that opened that view, and the
-// menu is left as it is. Before: the opener's anchor (a row of the menu's first view) was not on screen, so Back
-// skipped it and landed on the step that opened the MENU, whose card told the member to press the arrow (which closes
-// the menu). The Reviews walkthrough (tours/reviewDrafts.steps.js) is the case: its first review's card.
+// Follow-up B fix round 1 (replaces the round-0 `backFrom` engine change): a step may say it has no Back (`noBack`).
+// The Reviews walkthrough (tours/reviewDrafts.steps.js) sets it on its first review: that card sits inside the menu's
+// SECOND view, and Back from it used to land on step 1 with the menu open, telling the member to press the arrow (which
+// closes the menu). With no Back on that card, nothing points at a control that is not on screen. Every other card is
+// unchanged: Back is drawn, and from a step whose earlier step is on screen it goes there.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import GenericTourEngine from './GenericTourEngine'
@@ -13,12 +14,12 @@ import { STEPS as REVIEW_STEPS } from './tours/reviewDrafts.steps'
 
 // The Reviews walkthrough's shape, on one tier: the arrow opens the menu, a row opens its second view, the reviews.
 const entry = {
-  id: 'second-view-probe',
+  id: 'no-back-probe',
   load: async () => ({
     steps: [
       { id: 'open', anchor: 'arrow', file: 'x', waitFor: 'row-open' },
       { id: 'open-reviews', anchor: 'row-open', file: 'x', waitFor: 'review-daily' },
-      { id: 'daily', anchor: 'review-daily', file: 'x' },
+      { id: 'daily', anchor: 'review-daily', file: 'x', noBack: true },
       { id: 'later', anchor: 'review-weekly', file: 'x' },
     ],
     copy: {
@@ -30,7 +31,6 @@ const entry = {
   }),
 }
 
-// The menu: the arrow is always drawn; open, the first view has the row, the second view has the reviews.
 function Menu() {
   const [view, setView] = useState('first')
   return (
@@ -66,28 +66,33 @@ beforeEach(() => {
 })
 afterEach(() => { restore(); vi.restoreAllMocks() })
 
-describe('Back from a step inside a second view', () => {
-  it('goes to the step that opened the view, with the menu left as it is', async () => {
+const back = () => screen.queryByRole('button', { name: 'Back' })
+
+describe('a step with `noBack`', () => {
+  it('the first review (inside the second view) draws no Back; the cards around it are unchanged', async () => {
     render(<Page />)
     expect(await screen.findByRole('dialog', { name: 'Press the arrow' }, { timeout: 4000 })).toBeInTheDocument()
+    expect(back()).toBeDisabled()                                                // the first card: Back drawn, disabled
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(await screen.findByRole('dialog', { name: 'Open Draft a review' })).toBeInTheDocument()
+    expect(back()).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Draft a review' }))     // the member opens the second view
     expect(await screen.findByRole('dialog', { name: "Today's recap" }, { timeout: 4000 })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    expect(await screen.findByRole('dialog', { name: 'Open Draft a review' })).toBeInTheDocument()
-    expect(screen.getByTestId('second-view')).toBeInTheDocument()                 // the menu is as it was
-    // It stays there: the review it waits for was already on screen, so nothing jumps forward on its own.
-    await new Promise((r) => setTimeout(r, 400))
-    expect(screen.getByRole('dialog', { name: 'Open Draft a review' })).toBeInTheDocument()
-    // Next goes on to the review again.
+    expect(back()).toBeNull()
+    expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await waitFor(() => expect(screen.getByRole('dialog', { name: "Today's recap" })).toBeInTheDocument())
+    expect(await screen.findByRole('dialog', { name: 'Week and month' })).toBeInTheDocument()
+    // CONTROL: the next card has Back again, and it goes to the review (on screen), the engine's ordinary rule.
+    fireEvent.click(back())
+    expect(await screen.findByRole('dialog', { name: "Today's recap" })).toBeInTheDocument()
+    expect(screen.getByTestId('second-view')).toBeInTheDocument()
   })
 
-  it('the Reviews walkthrough has that shape: on each tier, the first review is waited for by the step that opens its view', () => {
+  it('the Reviews walkthrough sets it on its first review only, the step every tier reaches inside the second view', () => {
     const daily = REVIEW_STEPS.find((s) => s.id === 'daily')
-    const openers = REVIEW_STEPS.filter((s) => s.waitFor === daily.anchor).map((s) => `${s.id}:${s.tier}`)
-    expect(openers).toEqual(['open-reviews:wide', 'phone-open-reviews:phone'])
+    expect(REVIEW_STEPS.filter((s) => s.noBack).map((s) => s.id)).toEqual(['daily'])
+    expect(REVIEW_STEPS.filter((s) => s.waitFor === daily.anchor).map((s) => `${s.id}:${s.tier}`))
+      .toEqual(['open-reviews:wide', 'phone-open-reviews:phone'])
+    expect(daily.tier).toBeUndefined()                                           // on both tiers
   })
 })

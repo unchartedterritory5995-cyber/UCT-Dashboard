@@ -112,23 +112,6 @@ function presentFrom(steps, from, dir) {
   return -1
 }
 
-/**
- * Where Back goes from step `index`: the nearest earlier step on screen, EXCEPT that a step an earlier step WAITED FOR
- * (`waitFor` naming this step's anchor) goes back to that waiting step even though its own anchor is not on screen.
- * Follow-up B, item 2b: the first row of a menu's second view (the reviews, inside "Draft a review") is waited for by
- * the step that opened the view; that step's anchor left with the menu's first view, so Back skipped it and landed on
- * the step that opened the MENU, whose card says to press the arrow (which closes the menu). Now Back lands on the
- * step that opened the view, and the menu is left as it is.
- */
-function backFrom(steps, index) {
-  const here = steps[index]?.anchor
-  for (let i = index - 1; i >= 0; i -= 1) {
-    if (anchorFor(steps[i].anchor)) return i
-    if (here && steps[i].waitFor === here) return i
-  }
-  return -1
-}
-
 const hasSteps = (m) => !!m && (Array.isArray(m.steps) || Array.isArray(m.STEPS))
 
 /** A tour's steps and copy, through the Notebook's chunk recovery (lib/lazyChunk.js): a failed
@@ -353,7 +336,8 @@ export default function GenericTourEngine({
 
   const goBack = useCallback(() => {
     if (!steps || moving) return
-    const prev = backFrom(steps, index)
+    if (steps[index]?.noBack) return
+    const prev = presentFrom(steps, index - 1, -1)
     if (prev >= 0) goTo(prev)
   }, [steps, moving, index, goTo])
 
@@ -544,7 +528,9 @@ export default function GenericTourEngine({
     )
   }
 
-  const isFirst = backFrom(steps, index) < 0
+  const isFirst = presentFrom(steps, index - 1, -1) < 0
+  // Follow-up B fix round 1: a step that lives inside a view a previous step opened (a menu's second view) draws no
+  // Back: going back would name a control that is no longer on screen (`noBack`, tours/index.js contract).
   const isLast = index === steps.length - 1
   // FIN-A11Y (I-8): the step count and the "do this" hint are part of what is SAID. The
   // dialog is described by them, and so is the heading that takes focus on every step
@@ -577,9 +563,11 @@ export default function GenericTourEngine({
           Skip tour
         </button>
         <span className={styles.nav}>
-          <button type="button" className="btn btn-secondary" onClick={goBack} disabled={isFirst || moving}>
-            Back
-          </button>
+          {!step.noBack && (
+            <button type="button" className="btn btn-secondary" onClick={goBack} disabled={isFirst || moving}>
+              Back
+            </button>
+          )}
           {isLast ? (
             <button type="button" className="btn btn-primary" onClick={() => close(TOUR_STATES.done)}>
               Done
