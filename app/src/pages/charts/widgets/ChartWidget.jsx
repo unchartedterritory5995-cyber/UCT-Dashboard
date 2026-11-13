@@ -42,6 +42,8 @@ import { WORKSPACE_PICKER_TYPES, labelMap, catalogMeta } from '../../../widgets/
 import { nextGroup, isSuspendedGroup } from '../colorGroups'
 import { resolveThemeColor } from '../../../lib/theme'
 import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
+import { registerShortcuts } from '../../command/shortcutRegistry'
+import { modalLayerOpen } from '../../../lib/topLayer'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
 // chart's right-click "Add widget" submenu never drifts from it.
@@ -464,6 +466,20 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const [presetFlyout, setPresetFlyout] = useState(false)  // pane indicator's "Preset" side flyout open
   const [wmAdjusting, setWmAdjusting] = useState(false)  // watermark "adjust position" mode active
   const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null); setTplFlyout(false); setPresetFlyout(false) }, [])
+  // Escape closes the menu (it closed only on its backdrop) and hands focus back to the chart, as Reset view does. Bound only
+  // while it is open; a modal layer above the page owns the press; otherwise the menu claims it, so nothing else answers it.
+  const ctxOpen = !!ctxMenu
+  useEffect(() => {
+    if (!ctxOpen) return undefined
+    return registerShortcuts({
+      'charts.ctxMenuClose': (e) => {
+        if (modalLayerOpen()) return
+        e.stopPropagation()
+        closeCtx()
+        requestAnimationFrame(() => { try { paneRef.current?.focus?.() } catch { /* noop */ } })
+      },
+    })
+  }, [ctxOpen, closeCtx])
   const ctxMenuRef = useRef(null)
   // Location-aware in Y too: after the menu renders, measure it and nudge it fully
   // on-screen so a right-click near the bottom (or right) never clips off. Runs in a
