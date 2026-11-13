@@ -28,6 +28,7 @@ import { registerChartSetupCapabilities } from './capabilities/chartSetup'
 import { registerCompareGroupCapability } from './capabilities/compareGroup'
 import { registerChartMenuCapabilities } from './capabilities/chartMenu'
 import { registerChartFeatureCapabilities } from './capabilities/chartFeatures'
+import { registerChartReplayCapabilities } from './capabilities/chartReplay'
 import { registerDrawingExtras } from './capabilities/drawingExtras'
 import { registerIndicatorControlCapabilities } from './capabilities/indicatorControls'
 import { registerIndicatorTemplateCapabilities } from './capabilities/indicatorTemplates'
@@ -83,6 +84,7 @@ export function registerBuiltins() {
   registerCompareGroupCapability()          // C1-035 / C1-037 / C1-040: the Compare panel's group controls
   registerChartMenuCapabilities()           // C1-178 / C1-061: the chart's right-click Ask AI and watermark Reset
   registerChartFeatureCapabilities()        // Add to Chart's host features: the Company Info panel + the Earnings Strip
+  registerChartReplayCapabilities()         // the toolbar's Replay / Time Machine bar: play, pause, step, jump, speed, exit
   registerDrawingExtras()                   // C1-144 / C1-160 / C1-165: Position Calculator, Save as default, tool favourites
   registerIndicatorControlCapabilities()
   registerIndicatorTemplateCapabilities()

@@ -441,7 +441,21 @@ export const GROUPS = [
     words: [/\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
       /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
       /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
+  // Charts family (2026-11-12): ONE chart's bar replay playback (chartReplay.playback: the toolbar's Replay / Time Machine
+  // bar) in its OWN words-only fillLast group, LAST, so every existing group keeps its place and no fill changes. Its words
+  // name the replay as a THING played (a playback verb governing "the replay", the replay bar / speed, "in the replay" with a
+  // step, a speed with replay) — never "replay mode" / "replay as of / from <date>" (chart.replay's cutoff), never the verb
+  // "replay the tutorial / alert". Bare playback words ("next bar", "pause", "5x") bring it only while a chart's bar replay
+  // is ON (routingNames.replayOn): outside replay "next bar" stays chartSetup.stepBars.
+  { id: 'chartReplay', title: 'A chart\u2019s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit', domains: ['chartReplay'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:play|pause|un-?pause|resume|restart|rewind|step|advance|scrub|skip|fast[- ]?forward|speed up|slow down|run|continue|start|stop|exit|leave|quit|close|end|enter|open|launch|turn (?:on|off))\s+(?:the\s+|this\s+|that\s+|my\s+|its\s+)?(?:\w+\s+)?(?:bar\s+)?replay\b(?!\s+(?:mode|as of|from|of)\b)/,
+      /\breplay\s+(?:bar|speed|playback|controls?|scrubber|slider)\b|\btime machine\b/,
+      /\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b).*\b(?:step|forward|back|next|previous|bars?|play|pause|speed|faster|slower)\b|\b(?:step|forward|next|previous|bars?|play|pause|speed|faster|slower)\b.*\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b)/,
+      /\breplay\b(?!\s+mode\b).*\b(?:\d+ ?x|faster|slower)\b|\b(?:\d+ ?x|faster|slower)\b.*\breplay\b(?!\s+mode\b)/] },
 ]
+// chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)
+const REPLAY_ON_WORDS = /^(?:please )?(?:play|pause|resume|unpause|stop)\b|\b(?:play|pause|resume) (?:it|playback|playing)\b|\b(?:next|previous|prev|last) bar\b|\bstep (?:it )?(?:forward|back(?:ward)?)\b|\b(?:forward|back) (?:\d+|one|a|ten) bars?\b|\b(?:speed (?:it )?up|slow (?:it )?down|faster|slower)\b|\b(?:1|5|20) ?x\b|\b(?:to )?the (?:start|end|beginning)\b/
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
 const NOT_TICKERS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC'])
@@ -504,6 +518,8 @@ function namedGroups(q, names) {
     && /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b/.test(q)
   if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).some(t => !(runsPeriodSort && t === 'periodsort'))) out.add('boardEdit')
   if (names?.widgetItems?.length && itemNamedTypes(q, names.widgetItems).length) out.add('boardEdit')
+  // chartReplay: while a chart's bar replay is on, its bare playback words ("next bar", "pause", "5x") mean the replay
+  if (names?.replayOn === true && REPLAY_ON_WORDS.test(q)) out.add('chartReplay')
   return out
 }
 
@@ -521,6 +537,8 @@ export function routingNames(host) {
       try { r = host.widgets.door?.(w.id)?.read?.() || null } catch { r = null }
       return ITEM_LISTS[w.type].map(l => ({ type: w.type, key: l.key, names: (Array.isArray(r?.[l.key]) ? r[l.key] : []).map(x => x?.name).filter(Boolean) }))
     })),
+    // chartReplay: is any chart's bar replay (the Replay / Time Machine button) on right now
+    replayOn: (() => { try { return !!host?.charts?.list?.()?.some(s => s?.view?.replay?.mode === true) } catch { return false } })(),
     indicatorTemplates: read(() => {
       const raw = host?.prefs?.read?.()?.indicator_templates
       const list = typeof raw === 'string' ? JSON.parse(raw) : raw

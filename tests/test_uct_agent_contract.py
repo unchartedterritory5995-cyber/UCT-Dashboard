@@ -35,6 +35,8 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "chartMenu": "chartMenu",
              # Charts family (2026-11-12): the chart's Company Info panel + Earnings Strip, own words-only group
              "chartFeatures": "chartFeatures",
+             # Charts family (2026-11-12): ONE chart's bar replay playback, own words-only group
+             "chartReplay": "chartReplay",
              # C3-205..207 (pl-exec6): Tools → Custom-Period Sort, its own words-only group (app/src/agent/routing.js)
              "periodSort": "periodSort",
              # #1030 (2026-11-10): the Multi Chart grid family, its own fillLast group (app/src/agent/routing.js)
