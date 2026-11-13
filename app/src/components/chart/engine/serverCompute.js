@@ -37,6 +37,9 @@ import { withLiveTail, benchmarkTailFor, subscribeBenchmarkTails, registerBenchm
 // ⭐ 2026-11-12 — a declared `rescale` (`rescale.js`): the drawn columns multiplied
 // by one factor per envelope so the line reads like a rating. Presentation only.
 import { rescaleOf, rescaleChoice, rescaleFactor, withRescale, withRescaleScalars } from './rescale'
+// ⭐ 2026-11-13 — what this browser last had for a symbol, kept across page loads
+// (`serverColumnsDisk.js`): drawn at once, marked provisional, always re-asked.
+import { readDisk, writeDisk, forgetDisk } from './serverColumnsDisk'
 
 /** The ONE path every server-lane definition is fetched through. */
 export const SERVER_COLUMNS_PATH = '/api/signature/columns'
@@ -344,11 +347,68 @@ function _cellsOf(parsed) {
   return n
 }
 
+// ─── PROVISIONAL: AN ENTRY FROM THIS BROWSER'S STORE, NOT YET THE SERVER'S ───
+//
+// The first chart of a page load (and every pop-out window, and a jump to a
+// symbol nothing pre-loaded) used to draw its candles from the browser's own
+// store in milliseconds and wait a server round trip for its server columns. So
+// a landed envelope is also kept on disk (`serverColumnsDisk.js`), and a chart
+// that shows a symbol reads back what this browser last had for it.
+//
+// ⛔ IT IS DRAWN, AND IT IS NEVER BELIEVED. A key in `_provisional` is painted by
+// `cachedColumns` like any other and is asked for from the server exactly as an
+// ABSENT key is (`ensureColumns`, both request doors). Then:
+//   · the server's answer is the same     -> the flag goes, nothing repaints;
+//   · the server's answer differs         -> it replaces the entry and repaints;
+//   · the server refuses the ask          -> the entry and its record are removed;
+//   · the server cannot compute it yet    -> it stays drawn through the lane's own
+//     bounded retries (`DEGRADED_RETRY_MS`), then the server's answer stands;
+//   · the server does not answer at all   -> it stays drawn and is asked again.
+// An entry written under another server revision is never drawn (`serverColumnsFor`).
+const _provisional = new Set()          // keys whose cached entry came from the disk store
+const _provisionalNotBefore = new Map() // key -> do not re-ask before this time (a degraded answer's back-off)
+/**
+ * Is this status the server REFUSING the ask, as opposed to failing to answer it?
+ * Any client-error status except the three that mean "ask again later". Which
+ * refusal it is (signed out, not entitled, no such definition, bad inputs) is the
+ * server's business and is not read here: every one of them means "do not draw
+ * what this browser had".
+ */
+const ASK_AGAIN = new Set([408, 425, 429])
+function _refused(status) {
+  return status >= 400 && status < 500 && !ASK_AGAIN.has(status)
+}
+
 function _cacheDrop(key) {
+  _provisional.delete(key)
+  _provisionalNotBefore.delete(key)
   if (!_cache.has(key)) return
   _cache.delete(key)
   _cellsHeld -= _cacheCells.get(key) || 0
   _cacheCells.delete(key)
+}
+
+/** Cell-for-cell, scalar-for-scalar the same envelope (NaN equals NaN). */
+function sameEnvelope(a, b) {
+  if (a === b) return true
+  if (!a || !b || a.rev !== b.rev) return false
+  const ta = a.times || []
+  const tb = b.times || []
+  // (a different NUMBER of times is caught below: every column is as long as its times)
+  for (let i = 0; i < ta.length; i++) if (ta[i] !== tb[i]) return false
+  const ka = Object.keys(a.columns || {})
+  if (ka.length !== Object.keys(b.columns || {}).length) return false
+  for (const k of ka) {
+    const x = a.columns[k]
+    const y = b.columns[k]
+    if (!y || x.length !== y.length) return false
+    for (let i = 0; i < x.length; i++) {
+      const u = x[i]
+      const v = y[i]
+      if (u !== v && (u === u || v === v)) return false
+    }
+  }
+  return JSON.stringify(a.payload === undefined ? null : a.payload) === JSON.stringify(b.payload === undefined ? null : b.payload)
 }
 
 function _cachePut(key, parsed) {
@@ -367,7 +427,7 @@ function _cachePut(key, parsed) {
 
 /** Diagnostic + test seam: what the cache holds right now. */
 export function serverColumnsCacheStats() {
-  return { entries: _cache.size, cells: _cellsHeld, inflight: _inflight.size, wanted: _wanted.size }
+  return { entries: _cache.size, cells: _cellsHeld, inflight: _inflight.size, wanted: _wanted.size, provisional: _provisional.size }
 }
 
 /** Notified whenever an entry lands, so a host can repaint. @returns {() => void} */
@@ -450,12 +510,104 @@ function _trackDegraded(key, parsed, wire) {
   }, DEGRADED_RETRY_MS[tries]))
 }
 
+/**
+ * A server answer for `key` arrived (either request door). Puts it where a paint
+ * reads it and keeps it for the next page load.
+ *
+ * @returns {boolean} true when what a paint reads for `key` CHANGED. False only for
+ *   a provisional entry the server confirmed cell for cell, or one kept on screen
+ *   while the server cannot compute yet: nothing to repaint.
+ */
+function _land(key, sym, tf, parsed, wire) {
+  const degraded = isDegradedWire(wire)
+  if (_provisional.has(key)) {
+    const held = _cache.get(key)
+    if (degraded) {
+      const tries = _degradedTries.get(key) || 0
+      if (held && tries < DEGRADED_RETRY_MS.length) {
+        // The server cannot compute this yet. What this browser had stays drawn, and the
+        // ask is repeated on the lane's own back-off (a paint is forced when it is due).
+        _degradedTries.set(key, tries + 1)
+        _provisionalNotBefore.set(key, Date.now() + DEGRADED_RETRY_MS[tries])
+        _forgetDegraded(key)
+        _degradedTimers.set(key, setTimeout(() => {
+          _degradedTimers.delete(key)
+          if (_provisional.has(key)) _notify(key)
+        }, DEGRADED_RETRY_MS[tries]))
+        return false
+      }
+      // After the last try the server's answer stands, and the record is not kept.
+      forgetDisk(key)
+    } else if (held && sameEnvelope(held, parsed)) {
+      // Confirmed: the entry a paint already drew stays (same object, so nothing
+      // downstream recomputes) and stops being provisional.
+      _provisional.delete(key)
+      _provisionalNotBefore.delete(key)
+      _degradedTries.delete(key)
+      _forgetDegraded(key)
+      return false
+    }
+  }
+  _cachePut(key, parsed)
+  _trackDegraded(key, parsed, wire)
+  if (!degraded) writeDisk(key, sym, tf, parsed)
+  return true
+}
+
+// ─── READING THIS BROWSER'S STORE ────────────────────────────────────────────
+//
+// Once per (symbol, timeframe) per page load, when a chart shows it (`chartShows`,
+// before its first paint asks for anything) or a paint misses (`ensureColumns`).
+// A chart racing through symbols reads nothing until it stops, by the same hold
+// that keeps its server ask back. The read never stands in for the ask.
+const _diskAsked = new Set()  // `${sym}|${tf}` this page load has looked up (or is looking up)
+const _diskHeld = new Map()   // `${sym}|${tf}` -> timer, while a racing chart's read is held
+const _bootAt = Date.now()
+/** After this long, a page that has drawn no server-lane definition stops reading the store on a symbol change. */
+export const DISK_IDLE_READ_MS = 15_000
+let _everAsked = false
+
+function _hydrate(sym, tf) {
+  const gk = `${sym}|${tf}`
+  if (_diskAsked.has(gk)) return
+  _diskAsked.add(gk)
+  readDisk(sym, tf).then((found) => {
+    const landed = []
+    for (const { key, parsed } of found) {
+      if (_cache.has(key)) continue                       // the server (or a prime) answered first
+      _cachePut(key, parsed)
+      _provisional.add(key)
+      landed.push(key)
+    }
+    for (const key of landed) _notify(key)
+  })
+}
+
+function _hydrateWhenSettled(sym, tf) {
+  const t = String(tf == null ? 'D' : tf)
+  if (typeof sym !== 'string' || !sym) return
+  const gk = `${sym}|${t}`
+  if (_diskAsked.has(gk) || _diskHeld.has(gk)) return
+  const hold = _settleMs(sym, t)
+  if (!(hold > 0)) { _hydrate(sym, t); return }
+  _diskHeld.set(gk, setTimeout(() => {
+    _diskHeld.delete(gk)
+    if (_stillShown(sym, t)) _hydrate(sym, t)
+  }, hold))
+}
+
 /** Test seam + a symbol/timeframe change escape hatch. */
 export function clearServerColumns() {
   _cache.clear()
   _cacheCells.clear()
   _cellsHeld = 0
   _wanted.clear()
+  _provisional.clear()
+  _provisionalNotBefore.clear()
+  _diskAsked.clear()
+  for (const t of _diskHeld.values()) clearTimeout(t)
+  _diskHeld.clear()
+  _everAsked = false
   _inflight.clear()
   _asks.clear()
   _own.clear()
@@ -502,7 +654,10 @@ export function primeServerColumns(defId, sym, tf, inputs, wire) {
  */
 export function cachedColumns(defId, sym, tf, inputs) {
   const key = serverColumnsKey(defId, sym, tf, inputs)
-  if (!key) return null
+  return key ? _readKey(key) : null
+}
+
+function _readKey(key) {
   const hit = _cache.get(key)
   if (hit === undefined) return null
   // A read marks the entry as used: it moves to the young end, so the bounded
@@ -533,26 +688,33 @@ export function fetchColumns(defId, sym, tf, inputs, fetcher) {
   const existing = _inflight.get(key)
   if (existing) return existing
   const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
+  let unchanged = false                                 // a provisional entry confirmed or kept: nothing to repaint
   const p = Promise.resolve()
     .then(() => get(key))
     .then((wire) => {
       const parsed = columnsFromWire(wire)
-      _cachePut(key, parsed)
-      _trackDegraded(key, parsed, wire)
-      return parsed
+      unchanged = !_land(key, sym, tf, parsed, wire)
+      return _cache.get(key) || parsed
     })
-    .catch(() => {
+    .catch((err) => {
       // Quiet on purpose, exactly like `useSignatureIndicators`' fetcher: the
       // lane is paid-gated, so a 402 is a routine state and not an incident. The
       // failure is NOT cached — an absent entry retries on the next paint, a
       // cached empty one would be remembered as "no data" forever.
+      if (_provisional.has(key)) {
+        // What this browser had: a REFUSAL removes it (and its record); a server that
+        // did not answer leaves it drawn, and the next paint asks again.
+        const status = err && Number.isFinite(err.status) ? err.status : 0
+        if (!_refused(status)) { unchanged = true; return _cache.get(key) || null }
+        forgetDisk(key)
+      }
       _cacheDrop(key)
       return null
     })
     .finally(() => {
       if (_inflight.get(key) === p) _inflight.delete(key)
       _wanted.delete(key)
-      _notify(key)
+      if (!unchanged) _notify(key)
     })
   _inflight.set(key, p)
   return p
@@ -672,11 +834,13 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
   for (const a of Array.isArray(asks) ? asks : []) {
     if (!a || typeof a.defId !== 'string') continue
     const key = serverColumnsKey(a.defId, sym, tf, a.inputs)
-    if (!key || _cache.has(key) || _inflight.has(key)) continue
+    // A provisional entry (this browser's store) is asked for exactly as an absent one is.
+    if (!key || (_cache.has(key) && !_provisional.has(key)) || _inflight.has(key)) continue
     if (todo.some((t) => t.key === key)) continue
     todo.push({ key, defId: a.defId, inputs: a.inputs })
   }
   if (!todo.length) return Promise.resolve(0)
+  const unchanged = new Set()                           // provisional entries confirmed or kept: no repaint
   const get = typeof opts.getBatch === 'function' ? opts.getBatch : _batchGet
   const singles = () => Promise.all(todo.map((t) => fetchColumns(t.defId, sym, tf, t.inputs)))
     .then((got) => got.filter(Boolean).length)
@@ -695,13 +859,19 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
       todo.forEach((t, i) => {
         const slot = results[i]
         // A refused ask (the route's own 404 / 422 for it) is not cached, exactly
-        // as a failed single ask is not: the next paint asks again.
-        if (!slot || slot.status !== 200 || !slot.envelope) return
+        // as a failed single ask is not: the next paint asks again. What this browser
+        // had for it goes with the refusal; anything short of a refusal leaves it drawn.
+        if (!slot || slot.status !== 200 || !slot.envelope) {
+          if (_provisional.has(t.key)) {
+            if (slot && _refused(slot.status)) { _cacheDrop(t.key); forgetDisk(t.key) }
+            else unchanged.add(t.key)
+          }
+          return
+        }
         let parsed
-        try { parsed = columnsFromWire(slot.envelope) } catch { return }
-        if (quiet && _cache.has(t.key)) return
-        _cachePut(t.key, parsed)
-        _trackDegraded(t.key, parsed, slot.envelope)
+        try { parsed = columnsFromWire(slot.envelope) } catch { if (_provisional.has(t.key)) unchanged.add(t.key); return }
+        if (quiet && _cache.has(t.key) && !_provisional.has(t.key)) return
+        if (!_land(t.key, sym, tf, parsed, slot.envelope)) unchanged.add(t.key)
         landed += 1
       })
       return landed
@@ -718,6 +888,7 @@ export function fetchColumnsBatch(sym, tf, asks, opts = {}) {
       for (const t of todo) {
         // A warm repaints only for a key a paint asked for while it was on its way.
         const waited = _wanted.delete(t.key)
+        if (unchanged.has(t.key)) continue
         if (!quiet || waited) _notify(t.key)
       }
       return landed
@@ -777,6 +948,9 @@ export function chartShows(slot, sym, tf) {
   if (prev && prev.sym === sym && prev.tf === t) return
   const now = Date.now()
   _shown.set(slot, { sym, tf: t, at: now, gap: prev ? now - prev.at : Infinity })
+  // What this browser last had for the symbol, read before the first paint asks for
+  // anything. A page that draws no server-lane definition stops looking after a moment.
+  if (_everAsked || now - _bootAt < DISK_IDLE_READ_MS) _hydrateWhenSettled(sym, t)
 }
 
 /** The chart is gone (unmounted): nothing it showed is waited for on its behalf. */
@@ -892,17 +1066,24 @@ function _queueOwnAsk(key, defId, sym, tf, inputs) {
  * a request in flight for the next paint.
  */
 export function ensureColumns(defId, sym, tf, inputs, fetcher) {
-  const hit = cachedColumns(defId, sym, tf, inputs)
-  if (hit) return hit
   const key = serverColumnsKey(defId, sym, tf, inputs)
   if (!key) return null
+  const hit = _readKey(key)
+  // An entry from this browser's store is handed to the paint AND asked for, as if absent.
+  const provisional = !!hit && _provisional.has(key)
+  if (hit && !provisional) return hit
+  if (provisional) {
+    if (Date.now() < (_provisionalNotBefore.get(key) || 0)) return hit   // a degraded answer's back-off
+  } else {
+    _hydrateWhenSettled(sym, tf)
+  }
   _wanted.add(key)
   // An entry already on its way is not asked for twice: both doors below leave an
   // in-flight key alone (`fetchColumns` returns the pending request, a batch skips it).
   // An injected fetcher is a test's (or a host's) own single-ask door: honoured as is.
   if (typeof fetcher === 'function' || !batchAvailable()) fetchColumns(defId, sym, tf, inputs, fetcher)
   else _queueOwnAsk(key, defId, sym, tf, inputs)
-  return null
+  return hit || null
 }
 
 // ─── WHAT CHARTS ARE DRAWING, SO IT CAN BE ASKED FOR AHEAD ───────────────────
@@ -925,6 +1106,7 @@ export const ASK_MAX = 24
 const _asks = new Map()       // `${defId}|${tf}|${inputs}` -> { defId, tf, inputs, at }
 
 function _noteAsk(defId, tf, sent) {
+  _everAsked = true
   const t = String(tf == null ? 'D' : tf)
   const k = `${defId}|${t}|${serverInputsParam(sent)}`
   _asks.delete(k)
@@ -964,6 +1146,11 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
   _noteAsk(def.id, ctx.tf, sent)
   const parsed = ensureColumns(def.id, sym, ctx.tf, sent, ctx.fetcher)
   if (!parsed) return {}
+  // ⛔ 2026-11-13 — EXCEPT AN ENTRY FROM THIS BROWSER'S STORE. The rule below ("the cache
+  // cannot hold an entry from before a deploy") is true of the in-memory cache only: a
+  // record on disk can be older than the deploy. One on another rev is not drawn; the
+  // server's answer is already on its way (`ensureColumns` asked) and replaces it.
+  if (revMismatch(parsed, def) && _provisional.has(serverColumnsKey(def.id, sym, ctx.tf, sent))) return {}
   // ⭐ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED (review finding, 2026-11-06).
   // The first cut treated a rev mismatch as a cache miss and asked again. But the
   // only way the two revs differ is a SERVER that is on another revision — the
@@ -1048,8 +1235,11 @@ function rescaleFactorFor(def, parsed, inputs, tf, before) {
 export function scalarsFor(def, inputs, ctx) {
   const sym = ctx && typeof ctx.sym === 'string' ? ctx.sym : ''
   if (!def || !sym) return null
-  const parsed = cachedColumns(def.id, sym, ctx.tf, pickServerInputs(def, inputs))
+  const sent = pickServerInputs(def, inputs)
+  const parsed = cachedColumns(def.id, sym, ctx.tf, sent)
   if (!parsed) return null
+  // ...and the same exception: a store record on another rev is not read out either.
+  if (revMismatch(parsed, def) && _provisional.has(serverColumnsKey(def.id, sym, ctx.tf, sent))) return null
   // Same rule as the columns: what the server sent is what the readout reads.
   // A v1 server sends no payload, so this is simply null there.
   // ⭐ 2026-11-12 — plus, for a definition declaring `rescale` with the scale on,
