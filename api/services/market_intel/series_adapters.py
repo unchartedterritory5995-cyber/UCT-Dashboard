@@ -24,6 +24,7 @@ Normalized series:
 """
 from __future__ import annotations
 
+import math
 from typing import Any, Optional
 
 from api.services import breadth_metrics as _bm
@@ -104,6 +105,15 @@ def _tech_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
             "alignment": "session"}, None
 
 
+def _finite_positive(v: Any) -> Optional[float]:
+    """A usable price: a finite number above zero, else None (never a ZeroDivisionError, inf or NaN downstream)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) and f > 0 else None
+
+
 def _tech_load(spec: dict) -> dict:
     """The indicator computed by the SAME functions the alert evaluator uses (`indicator_compute`,
     unrounded `_raw` lane where it exists) over the stored daily closes. No new calculation."""
@@ -124,13 +134,27 @@ def _tech_load(spec: dict) -> dict:
     if ps.get("status") != "ok":
         return ps
     if spec["indicator"] == "day_pct":
+        # Guarded HERE, not trusted to the reader / bars_sanitize: a session whose close or previous close is zero,
+        # negative or non-finite gets NO value (a gap, which never qualifies and ends a run) and is counted.
         c = ps["closes"]
-        rows = [(c[k][0], (c[k][1] / c[k - 1][1] - 1.0) * 100.0) for k in range(1, len(c))]
+        rows, skipped = [], []
+        for k in range(1, len(c)):
+            prev, cur = _finite_positive(c[k - 1][1]), _finite_positive(c[k][1])
+            v = (cur / prev - 1.0) * 100.0 if prev is not None and cur is not None else None
+            if v is None or not math.isfinite(v):
+                skipped.append(c[k][0])
+                continue
+            rows.append((c[k][0], v))
         if not rows:
             return {"status": "unavailable", "reason": "not_enough_history",
-                    "detail": f"{spec['symbol']} has too little stored history for a one-day change series."}
+                    "detail": f"{spec['symbol']} has too little usable stored history for a one-day change series."}
+        notes = ([f"{len(skipped)} session(s) have no one-day change because their close or the previous close is zero, "
+                  f"negative or not a number in the stored history (first {skipped[0]}); they are gaps, never events."]
+                 if skipped else [])
         return {"status": "ok", "alignment": "session", "rows": rows, "max_staleness_days": None,
-                "coverage": {"first": rows[0][0], "last": rows[-1][0], "basis": ps.get("basis")},
+                "coverage": {"first": rows[0][0], "last": rows[-1][0], "basis": ps.get("basis"),
+                             "skipped_sessions": len(skipped)},
+                "notes": notes,
                 "source": {"interface": "price_reads.daily_closes (read-only store); change = close / previous close - 1"}}
     dates = [d for d, _ in ps["closes"]]
     closes = [c for _, c in ps["closes"]]

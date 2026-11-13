@@ -358,3 +358,40 @@ def test_dark_unless_the_kind_is_named(monkeypatch):
     monkeypatch.delenv(gw.DATA_ENV)
     assert _read({"symbol": "AAPL", "tf": "W"}, turn="t2")["status"] == "refused"
     assert store.calls == []
+
+
+# ── (5) day_pct guards its own inputs (AUDIT #1189): a zero, negative or NaN close is a counted gap, never a division ──
+
+@pytest.mark.parametrize("bad", [0.0, -5.0, float("nan"), float("inf")])
+@pytest.mark.parametrize("where", [10, 11])                 # the bad close as the session itself, then as the PREVIOUS close
+def test_day_pct_skips_a_non_positive_or_non_finite_close_and_counts_it(monkeypatch, bad, where):
+    from api.services.market_intel import series_adapters as sa
+    real_reader = pr.daily_closes
+    closes = [(d, _drops(i)) for i, d in enumerate(S)]
+    closes[where] = (closes[where][0], bad)
+    # stub the reader itself: the guard must hold without price_reads' or bars_sanitize's own filtering
+    monkeypatch.setattr(pr, "daily_closes", lambda sym: {"status": "ok", "symbol": "SPY", "closes": closes,
+                                                         "first": S[0], "last": S[-1], "basis": "test"})
+    r = sa.load({**_tech(), "label": "x", "unit": "percent_change", "domain": "signed", "category": "technical",
+                 "alignment": "session"})
+    assert r["status"] == "ok"
+    dates = [d for d, _ in r["rows"]]
+    assert all(math.isfinite(v) for _, v in r["rows"])
+    assert S[where] not in dates if where == 10 else S[where + 1] not in dates          # the pair that touches the bad close
+    skipped = {S[10], S[11]} if where == 10 else {S[11], S[12]}
+    assert skipped.isdisjoint(dates) and r["coverage"]["skipped_sessions"] == 2
+    assert r["notes"] and "2 session(s) have no one-day change" in r["notes"][0]
+    # end to end through the REAL reader: the study runs, the bad session is never an event, every value is finite
+    monkeypatch.setattr(pr, "daily_closes", real_reader)
+    fx.install(monkeypatch, bars=[{"t": d, "o": 1, "h": 0, "l": 0, "c": c, "v": 0} for d, c in closes])
+    res = es.run({"condition": {"series": _tech(), "op": "below", "threshold": -3}, "symbol": "SPY", "horizons": [{"sessions": 1}]})
+    assert res["status"] == "ok" and not skipped & {e["event_date"] for e in res["events"]}
+    assert all(math.isfinite(e["condition_value"]) for e in res["events"])
+
+
+def test_day_pct_with_no_usable_pair_is_unavailable_not_a_crash(monkeypatch):
+    from api.services.market_intel import series_adapters as sa
+    monkeypatch.setattr(pr, "daily_closes", lambda sym: {"status": "ok", "symbol": "SPY", "closes": [(S[0], 0.0), (S[1], 10.0), (S[2], float("nan"))],
+                                                         "first": S[0], "last": S[2]})
+    r = sa.load({**_tech(), "label": "x", "unit": "percent_change", "domain": "signed", "category": "technical", "alignment": "session"})
+    assert r["status"] == "unavailable" and r["reason"] == "not_enough_history"
