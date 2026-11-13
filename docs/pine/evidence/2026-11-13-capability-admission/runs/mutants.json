@@ -1,0 +1,331 @@
+{
+ "ranAt": "4b2fdf75e4",
+ "results": [
+  {
+   "id": "C0",
+   "mutant": "no edit (control)",
+   "runs": {
+    "js:src/components/chart/engine/__tests__/runtimeCapabilityAdmission.test.js:None": [
+     [
+      0,
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m17 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+     ]
+    ],
+    "js:src/components/chart/engine/__tests__/vendorHarness/capabilityEvidenceLane.test.js:None": [
+     [
+      0,
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m28 passed\u001b[39m\u001b[22m\u001b[90m (28)\u001b[39m"
+     ]
+    ],
+    "py:tests/test_pine_capabilities.py:A6": [
+     [
+      0,
+      "3 passed, 34 deselected in 8.07s"
+     ]
+    ],
+    "py:tests/test_pine_capability_admission.py:A1": [
+     [
+      0,
+      "17 passed, 45 deselected in 1.13s"
+     ]
+    ],
+    "py:tests/test_pine_capability_admission.py:A2": [
+     [
+      0,
+      "4 passed, 58 deselected in 1.17s"
+     ]
+    ],
+    "py:tests/test_pine_capability_admission.py:A3": [
+     [
+      0,
+      "2 passed, 60 deselected in 1.01s"
+     ]
+    ],
+    "py:tests/test_pine_capability_admission.py:A4": [
+     [
+      0,
+      "1 passed, 61 deselected in 1.15s"
+     ]
+    ],
+    "py:tests/test_pine_capability_admission.py:A5": [
+     [
+      0,
+      "7 passed, 55 deselected in 1.19s"
+     ]
+    ],
+    "py:tests/test_pine_capability_admission.py:A7": [
+     [
+      0,
+      "4 passed, 58 deselected in 1.13s"
+     ]
+    ],
+    "py:tests/test_pine_capability_admission.py:A8": [
+     [
+      0,
+      "2 passed, 60 deselected in 2.68s"
+     ]
+    ],
+    "py:tests/test_pine_capability_admission.py:A9": [
+     [
+      0,
+      "1 passed, 61 deselected in 1.14s"
+     ]
+    ],
+    "py:tests/test_pine_capability_admission.py:OFF": [
+     [
+      0,
+      "11 passed, 51 deselected in 1.37s"
+     ]
+    ]
+   },
+   "green": true
+  },
+  {
+   "id": "A1a",
+   "mutant": "a row not marked conformant admits",
+   "file": "api/services/rollout_gate.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 3 passed, 45 deselected in 1.24s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "A1b",
+   "mutant": "one script's captures admit (>=2 scripts ignored)",
+   "file": "api/services/rollout_gate.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 6 passed, 45 deselected in 1.21s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "A2",
+   "mutant": "a capability absent from the registry is not counted missing",
+   "file": "api/services/runtime_definitions.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 58 deselected in 1.27s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "A3",
+   "mutant": "the deny variable ADDS what it names",
+   "file": "api/services/runtime_definitions.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 60 deselected in 1.17s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "A4",
+   "mutant": "the verdict door ignores the kill list",
+   "file": "api/services/runtime_definitions.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 61 deselected in 1.17s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "A5",
+   "mutant": "an unreadable registry fails OPEN",
+   "file": "api/services/runtime_definitions.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 55 deselected in 1.15s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "A6a",
+   "mutant": "the detector drops obj:getter",
+   "file": "api/services/pine_capabilities.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 34 deselected in 7.72s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "A6b",
+   "mutant": "the detector drops the census FEATURES",
+   "file": "api/services/pine_capabilities.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 34 deselected in 8.25s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "A7",
+   "mutant": "an object family admits on plain runtime-on evidence",
+   "file": "api/services/rollout_gate.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 58 deselected in 1.40s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "A8",
+   "mutant": "an evidence id names a capture that DIVERGEs",
+   "file": "api/data/pine_runtime_allowlist.json",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 60 deselected in 2.67s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "A9",
+   "mutant": "a server lane admits by capability",
+   "file": "api/services/runtime_definitions.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 61 deselected in 1.31s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "F1",
+   "mutant": "flag OFF: the kill read always carries the switch",
+   "file": "api/routers/user_definitions.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 8 passed, 51 deselected in 1.61s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "F2",
+   "mutant": "flag OFF: a typo ('1') reads ON",
+   "file": "api/services/runtime_definitions.py",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "1 failed, 3 passed, 51 deselected in 1.63s"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "C1",
+   "mutant": "client: no verdict yet draws (fails open)",
+   "file": "app/src/components/chart/engine/runtimeKill.js",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m2 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "C2",
+   "mutant": "client: latches an answer naming another hash",
+   "file": "app/src/components/chart/engine/runtimeKill.js",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "C3",
+   "mutant": "client: a verdict counts while admission is off",
+   "file": "app/src/components/chart/engine/runtimeKill.js",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m2 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "C4",
+   "mutant": "client: unbounded verdicts",
+   "file": "app/src/components/chart/engine/runtimeKill.js",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "C5",
+   "mutant": "client: the lists' re-read drops the switch-off",
+   "file": "app/src/components/chart/engine/runtimeKill.js",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (17)\u001b[39m"
+    ]
+   ],
+   "restoredBlobMatches": true
+  },
+  {
+   "id": "L1",
+   "mutant": "evidence names a capture the HOST lane drew",
+   "file": "api/data/pine_runtime_allowlist.json",
+   "killed": true,
+   "runs": [
+    [
+     1,
+     "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m28 passed\u001b[39m\u001b[22m\u001b[90m (29)\u001b[39m"
+    ]
+   ],
+   "restoredBlobMatches": true
+  }
+ ]
+}

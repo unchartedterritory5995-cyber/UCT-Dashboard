@@ -131,7 +131,7 @@ it until that ruling.
 4. `coverage_map.usage_of` after the move equals the pre-move function on all 679 scripts (and
    `FEATURES`, `STRATEGY_ORDERS` equal).
 
-## Mutants (`runs/mutants.json`)
+## Mutants (`runs/mutants.json`, run at `4b2fdf75e4`, after the master merge)
 
 Method: copy the file, edit, run the focused tests, restore FROM THE SAVED COPY, then `git
 hash-object` == the committed blob (every one matched). `.pyc` cleared, `PYTHONDONTWRITEBYTECODE=1`.
