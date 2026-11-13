@@ -148,6 +148,16 @@ describe('AMBIGUITY: genuine ambiguity still asks and writes nothing', () => {
     expect(asked(), transcript()).toBe(true)
     expect(snapshot(m.board, 3)).toEqual(before)
   }, 60000)
+  // the words ALSO point at a chart no click names ("this one", "the selected chart"): "it" is not settled by the ticker alone
+  it.each(SAMPLE.filter(([, ana]) => ana.name === 'it' || ana.name === 'that chart').flatMap(([pair, ana]) => ['and do the same on this one', 'and the selected chart too']
+    .map(x => [`${pair[2]('SPY', ana)}, ${x}.`, pair[1]])))('"%s" (no click): asked, nothing changed', async (t, ops) => {
+    const m = mount(['SPY', 'NVDA'])
+    const before = snapshot(m.board, 2)
+    p.st.envelopes.push(plan(ops, 'SPY'))
+    await m.say(t)
+    expect(asked(), transcript()).toBe(true)
+    expect(snapshot(m.board, 2)).toEqual(before)
+  }, 60000)
   it.each(SAMPLE.flatMap(([pair, ana]) => [0, 1, 2, 3, 4].map(e => [wordsFor(pair, ana, 'AMD', 'NVDA', e), pair[1]])))('"%s" with AMD not on the board (the plan on SPY): asked, nothing changed', async (t, ops) => {
     const m = mount(['SPY', 'NVDA'])
     const before = snapshot(m.board, 2)
