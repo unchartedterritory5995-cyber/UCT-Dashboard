@@ -1326,8 +1326,14 @@ with sync_playwright() as p:
         # (e) Add a sample notebook -> the sample folder and the welcome note open
         pg.goto(notebook_url())
         dismiss_intro(pg)
-        add_btn = pg.get_by_role("button", name=copy["add"], exact=True)
-        add_btn.wait_for(state="visible", timeout=20000)
+        # Final fix (C4): while the Get started card is up, its "Open the sample notebook" row is the one sample door and
+        # the standalone copy["add"] button is not drawn; without the card the standalone button is the door.
+        add_btn = pg.get_by_role("button", name="Open the sample notebook", exact=True)
+        try:
+            add_btn.wait_for(state="visible", timeout=8000)
+        except Exception:  # noqa: BLE001 -- no Get started card here: the standalone button is the door
+            add_btn = pg.get_by_role("button", name=copy["add"], exact=True)
+            add_btn.wait_for(state="visible", timeout=20000)
         with pg.expect_response(lambda r: r.url.endswith("/api/j2/onboarding/sample-notebook")
                                 and r.request.method == "POST", timeout=30000) as ai:
             add_btn.click()

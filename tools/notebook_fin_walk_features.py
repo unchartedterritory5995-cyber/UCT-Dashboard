@@ -94,6 +94,68 @@ PAGE_LAYOUTS_JS = REPO / "app" / "src" / "pages" / "journal-2-0" / "lib" / "page
 _SAMPLE_DIR = REPO / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook" / "onboarding"
 SAMPLE_REMOVE_ROW = re.search(r"removeRow: '([^']+)'", (_SAMPLE_DIR / "sampleNotebookKeys.js").read_text(encoding="utf-8")).group(1)
 SAMPLE_REMOVED = re.search(r"removed: '([^']+)'", (_SAMPLE_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
+# Final fix (C1): the note's own save indicator when the server has the note (lib/offline/unsyncedCopy.js SAVED_WORDS).
+SAVED_WORDS = re.search(r"export const SAVED_WORDS = '([^']+)'", (REPO / "app" / "src" / "pages" / "journal-2-0" / "lib" / "offline" / "unsyncedCopy.js").read_text(encoding="utf-8")).group(1)
+# Final fix (C2): the Get started card's template step (onboarding/gettingStarted.js CHECKLIST_COPY.template).
+GS_TEMPLATE_ROW = re.search(r"\btemplate: '([^']+)'", (_SAMPLE_DIR / "gettingStarted.js").read_text(encoding="utf-8")).group(1)
+# Final fix (C1): this door's own hold words for a held note (one note / several), read from SAMPLE_COPY.
+SAMPLE_HELD_ONE = re.search(r"heldOne: '([^']+)'", (_SAMPLE_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
+SAMPLE_HELD_MANY = re.search(r"heldMany: '([^']+)'", (_SAMPLE_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
+
+
+class NoteWrites:
+    """Final fix (C1, walker half): watch one note's writes on a page so a step can wait for its save to LAND before it
+    navigates away. The committed 13f1b01f5e run opened the AAPL sample note (its chart embed captures a snapshot:
+    `POST .../images`, then a `PUT /api/j2/notes/<id>`) and navigated on while the PUT was in flight; its response was
+    lost to the navigation and the device kept the note marked unsent, so the sample's removal 33 minutes later was
+    held. `settle()` waits until no write to the note is in flight, every image upload has been followed by a PUT that
+    answered, and the note's own indicator (`[data-save-indicator]`) reads "Saved"; it returns what it saw."""
+
+    def __init__(self, pg, nid):
+        self.pg, self.nid = pg, str(nid)
+        self.inflight, self.done = 0, []
+        self._on_req = lambda r: self._mark(r, +1)
+        self._on_fin = lambda r: self._mark(r, -1, ok=True)
+        self._on_fail = lambda r: self._mark(r, -1, ok=False)
+        pg.on("request", self._on_req)
+        pg.on("requestfinished", self._on_fin)
+        pg.on("requestfailed", self._on_fail)
+
+    def _mine(self, r):
+        return r.method in ("PUT", "POST", "PATCH") and f"/api/j2/notes/{self.nid}" in r.url and "/opened" not in r.url
+
+    def _mark(self, r, d, ok=None):
+        if not self._mine(r):
+            return
+        self.inflight += d
+        if ok is not None:
+            kind = "image" if "/images" in r.url else ("put" if r.method == "PUT" else r.method.lower())
+            self.done.append({"kind": kind, "ok": ok, "t": time.time()})
+
+    def settle(self, timeout_s: float = 45.0) -> dict:
+        deadline = time.time() + timeout_s
+        words, landed = None, False
+        while time.time() < deadline:
+            last_img = max((d["t"] for d in self.done if d["kind"] == "image"), default=None)
+            put_after = last_img is None or any(d["kind"] == "put" and d["ok"] and d["t"] >= last_img for d in self.done)
+            try:
+                ind = self.pg.locator("[data-save-indicator]")
+                words = ind.first.inner_text().strip() if ind.count() else None
+            except Exception:  # noqa: BLE001 -- a re-render mid-read
+                words = None
+            if self.inflight <= 0 and put_after and words == SAVED_WORDS:
+                self.pg.wait_for_timeout(1500)   # a debounced save that starts just after "Saved" gets its chance
+                if self.inflight <= 0:
+                    landed = True
+                    break
+            self.pg.wait_for_timeout(500)
+        for ev, fn in (("request", self._on_req), ("requestfinished", self._on_fin), ("requestfailed", self._on_fail)):
+            try:
+                self.pg.remove_listener(ev, fn)
+            except Exception:  # noqa: BLE001
+                pass
+        return {"save_landed": landed, "indicator": words, "inflight_at_end": self.inflight,
+                "note_writes": [{"kind": d["kind"], "ok": d["ok"]} for d in self.done]}
 
 
 def page_layout_registry() -> dict:
@@ -404,7 +466,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         seen = C.settle_first_run(pg_)
         pg_.wait_for_timeout(1500)
         imp = C.vis_loc(pg_.get_by_role("button", name="Import notes"), 5000)
-        promo = C.vis_loc(pg_.get_by_role("button", name="Add a sample notebook"), 10000)
+        # Final fix (C4): with the Get started card up, its "Open the sample notebook" row is the one sample door and
+        # the standalone "Add a sample notebook" is not drawn beside it.
+        door = C.sample_door(pg_, 10000)
+        promo = door["door"] == "card" and not door["standalone_with_card"]
         chk = pg_.evaluate(CHECKLIST_JS)
         C.goto(pg_, base, "/support")
         cap = pg_.locator("section[aria-labelledby='support-notebook-can-do']")
@@ -412,11 +477,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         lines = [re.sub(r"\s+", " ", t).strip() for t in cap.first.locator("li").all_inner_texts()] if preview else []
         # S16: one first-run moment at a time -- the 60-second first run and the base tour never on screen together
         ok = empty and imp and promo and bool(chk) and preview and bool(lines) and not seen["both_at_once"]
-        C.step(pg_, inst_, "first run", "empty notes list: Import notes, Add a sample notebook and the Get started list; one first-run moment at a time; Help lists What your Notebook can do",
+        C.step(pg_, inst_, "first run", "empty notes list: Import notes and the Get started list, whose sample row is the one sample door (no standalone Add a sample notebook beside it); one first-run moment at a time; Help lists What your Notebook can do",
                "PASS" if ok else "FAIL", empty_list=empty, import_notes=imp, base_tour_autostarted=seen["base_tour"],
                first_run_sheet_and_tour_together=seen["both_at_once"],
                base_tour_title=seen.get("base_tour_title"), first_run_sheet=seen["first_run_sheet"], help_capabilities=preview,
-               preview_lines=lines, add_sample=promo, checklist=chk, scope=["section[aria-labelledby='support-notebook-can-do']"])
+               preview_lines=lines, sample_door=door["door"], sample_door_first_seen=door.get("first_seen"),
+               standalone_sample_button_beside_card=door["standalone_with_card"], checklist=chk,
+               scope=["section[aria-labelledby='support-notebook-can-do']"])
 
     def firstrun():
         first_run_on(pg, inst, ctx)
@@ -435,16 +502,20 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     def sample():
         home()
         C.settle_first_run(pg)
-        btn = pg.get_by_role("button", name="Add a sample notebook")
-        btn.first.wait_for(state="visible", timeout=20000)
-        C.press_through(pg, btn.first)
+        # Final fix (C4): the Get started card's sample row is the door while the card is up (the standalone button
+        # draws only without the card).
+        door = C.sample_door(pg, 20000)
+        if not door["loc"]:
+            raise RuntimeError("no sample door on the empty notes list (neither the Get started row nor the standalone button)")
+        C.press_through(pg, door["loc"])
         for _ in range(120):   # the click opens the sample's welcome note
             if len(C.notes_list(ctx, base)) >= 5:
                 break
             pg.wait_for_timeout(500)
         pg.wait_for_timeout(3000)
         landed = pg.url.split(base)[-1]
-        C.step(pg, inst, "sample notebook", "the click lands on the sample's welcome note", "INFO", landed=landed)
+        C.step(pg, inst, "sample notebook", "the click lands on the sample's welcome note", "INFO", landed=landed,
+               door=door["door"], standalone_sample_button_beside_card=door["standalone_with_card"])
         home()
         # Go-live wave 1 retired Research home's "You're looking at the sample notebook" strip; the sample's door
         # now is the notes list's More menu row "Remove the sample notebook" (shown while the sample is active).
@@ -469,6 +540,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     def examples():
         sb = S.get("sample_by_ticker") or {}
         # AAPL: the untraded chart plan -- fingerprint panel, plan panel, visual playbook card
+        aapl_writes = NoteWrites(pg, sb.get("AAPL"))
         C.goto(pg, base, f"/journal/notebook?note={sb.get('AAPL')}", ".ProseMirror")
         for name_ in ("Got it", "Dismiss tip"):
             b_ = pg.get_by_role("button", name=name_, exact=True)
@@ -509,6 +581,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                "PASS" if opened and any("AAPL" in t for t in (cards_txt or [])) else "FAIL", cards=cards_txt, reach_error=verr,
                scope=['[data-testid="visual-playbook"]'])
         pg.keyboard.press("Escape")
+        # Final fix (C1): the walk leaves the note only once its save has landed, as a member who waits for "Saved" does.
+        landed = aapl_writes.settle()
+        C.step(pg, inst, "sample examples", "AAPL plan note: its save lands before the walk leaves it (the note says Saved, no write in flight)",
+               "PASS" if landed["save_landed"] else "FAIL", **landed)
         # MSFT: the active setup, on the board
         C.goto(pg, base, "/journal/notebook/setups")
         C.vis(pg, "[data-board-card]", 40000)
@@ -1298,6 +1374,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     # ── the visual playbook ─────────────────────────────────────────────────────────────
     def vplaybook():
         nid = (S.get("sample_by_ticker") or {}).get("AAPL") or S.get("amd_note")
+        writes = NoteWrites(pg, nid)
         C.goto(pg, base, f"/journal/notebook?note={nid}", ".ProseMirror")
         panel = pg.locator('[data-testid="fingerprint-panel"]')
         fp = C.vis_loc(panel, 30000)
@@ -1324,6 +1401,11 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                "PASS" if opened and cards else "FAIL", opened=opened, cards=cards, gallery_text=text, reach_error=err,
                scope=['[data-testid="visual-playbook"]'])
         pg.keyboard.press("Escape")
+        # Final fix (C1): the 13f1b01f5e run navigated to Insights while this note's PUT was in flight (steps 59-60);
+        # its response was lost and the sample's removal was held 33 minutes later. Wait for the save to land first.
+        landed = writes.settle()
+        C.step(pg, inst, "visual playbook", "the plan note's save lands before the walk leaves it (the note says Saved, no write in flight)",
+               "PASS" if landed["save_landed"] else "FAIL", **landed)
     run("vplaybook", vplaybook)
 
     def playbook():
@@ -1705,7 +1787,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             mm = menu9.first.evaluate(COVER_JS) if op9 else {}
             items9 = [t for t in (menu_names(menu9) if op9 else [])]
             vis9 = [re.sub(r"\s+", " ", e.inner_text()).strip() for e in menu9.get_by_role("menuitem").filter(visible=True).all()] if op9 else []
-            want9 = ["New from a template", "Import"] + (["Voice note"] if voice_on else []) + (
+            want9 = ["Today's note", "New from a template", "Import"] + (["Voice note"] if voice_on else []) + (
                 ["Today's recap", "This week's review", "This month's review"] if reviews_on else [])
             ok9 = op9 and mm.get("inside_x") and mm["rect"]["bottom"] <= mm["innerHeight"] and all(x in vis9 for x in want9)
             C.step(p9, i9, "discover.new-note-list", "390 px: the More menu opens fully inside the window and carries the New menu's rows",
@@ -1715,6 +1797,110 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             for c_ in (c9, cA):
                 if c_ is not None:
                     c_.close()
+
+    # ── discover.get-started-template (1280) ───────────────────────────────────────────────────────
+    # Final fix (C2): the Get started card is drawn in the empty list's own state, so its "Start a note from a template"
+    # links to `?view=all#templates` (lib/notebookDoors.js NOTEBOOK_TEMPLATES_TO), which opens the New note sheet. It was
+    # a link to the list itself, which went nowhere on the screen it now sits on.
+    def d_get_started_template():
+        cT, emailT, meT, iT, pT = new_member("c2gst", "1280")
+        try:
+            at(pT, base, "/journal/notebook", first_run=True)
+            card = pT.locator("section").filter(has=pT.get_by_role("heading", name="Get started", exact=True))
+            link = card.get_by_role("link", name=GS_TEMPLATE_ROW, exact=True)
+            there = C.vis_loc(link, 20000)
+            href = link.first.get_attribute("href") if there else None
+            sheet = pT.get_by_role("dialog", name="New note")
+            opened, url_after, picker = False, None, False
+            if there:
+                C.press_through(pT, link.first)
+                opened = C.vis_loc(sheet, 15000)
+                url_after = pT.url.split(base)[-1]
+            if opened:
+                picker = C.vis_loc(sheet.get_by_label("Search templates"), 8000)
+            C.step(pT, iT, "discover.get-started-template", "empty list: the Get started card's 'Start a note from a template' opens the New note sheet",
+                   "PASS" if there and opened and picker else "FAIL", link_shown=there, href=href, sheet_opened=opened,
+                   template_search_in_sheet=picker, url_after=url_after, scope=["[role=dialog]"])
+            pT.keyboard.press("Escape")
+        finally:
+            cT.close()
+
+    # ── discover.phone-more-sample (390) ───────────────────────────────────────────────────────────
+    # Final fix (C3): with the sample active the phone's More menu is the longest it gets. It is held to the window
+    # (it scrolls inside itself) with room above the floating "+", so every row can be brought into view uncovered and
+    # pressed, and "Remove the sample notebook" works at 390.
+    def d_phone_more_sample():
+        cS, emailS, meS, iS, pS = new_member("c2pms", "390")
+        try:
+            at(pS, base, "/journal/notebook", first_run=True)
+            door = C.sample_door(pS, 20000)
+            if not door["loc"]:
+                raise RuntimeError("no sample door on the empty notes list at 390")
+            C.press_through(pS, door["loc"])
+            for _ in range(120):
+                if len(C.notes_list(cS, base)) >= 5:
+                    break
+                pS.wait_for_timeout(500)
+            st0 = cS.request.get(base + "/api/j2/onboarding/sample-notebook").json()
+            ids0 = set(st0.get("activeIds") or [])
+            at(pS, base, "/journal/notebook")
+            more = pS.get_by_role("button", name="More notebook actions", exact=True)
+            C.vis_loc(more, 30000)
+            menu = pS.get_by_role("menu", name="More notebook actions")
+            row = menu.get_by_role("menuitem", name=SAMPLE_REMOVE_ROW, exact=True)
+            got_row = False
+            for _ in range(2):    # the sample's status is read when the menu first opens; the row can arrive a moment later
+                C.press_through(pS, more.first)
+                C.vis_loc(menu, 8000)
+                if C.vis_loc(row, 8000):
+                    got_row = True
+                    break
+                pS.keyboard.press("Escape")
+                pS.wait_for_timeout(800)
+            m_menu = menu.first.evaluate(COVER_JS) if got_row else {}
+            fab = pS.locator("[data-notebook-plus]").filter(visible=True)
+            fab_rect = (fab.first.evaluate("(e) => { const b = e.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right } }")
+                        if fab.count() else None)
+            names = menu_names(menu) if got_row else []
+            rows_seen, bad = [], []
+            for i_ in range(menu.get_by_role("menuitem").count() if got_row else 0):
+                it = menu.get_by_role("menuitem").nth(i_)
+                try:
+                    it.scroll_into_view_if_needed(timeout=3000)
+                except Exception:  # noqa: BLE001 -- recorded as not inside below
+                    pass
+                pS.wait_for_timeout(150)
+                c_ = it.evaluate(COVER_JS)
+                inside = bool(c_.get("inside_x") and c_.get("above_fold") and c_["rect"]["bottom"] <= c_["innerHeight"] + 0.5
+                              and c_.get("uncovered"))
+                rows_seen.append({"text": c_.get("text"), "inside": inside, "rect": c_.get("rect"), "hit": c_.get("hit")})
+                if not inside:
+                    bad.append(c_.get("text"))
+            clear_of_plus = bool(m_menu) and (fab_rect is None or m_menu["rect"]["bottom"] <= fab_rect["top"] + 0.5)
+            order = names.index(SAMPLE_REMOVE_ROW) if SAMPLE_REMOVE_ROW in names else None
+            C.step(pS, iS, "discover.phone-more-sample", "390 px, sample active: the More menu is held inside the window above the floating +, and every row (Remove the sample notebook among them) can be brought into view uncovered",
+                   "PASS" if (got_row and m_menu.get("inside_x") and m_menu["rect"]["bottom"] <= m_menu["innerHeight"]
+                              and clear_of_plus and not bad) else "FAIL",
+                   menu=m_menu, plus_button=fab_rect, menu_clear_of_plus=clear_of_plus, menu_items=names, removal_row_index=order,
+                   rows=rows_seen, rows_not_inside=bad, scope=["[role=menu]"])
+            removed_line, clicks, c_row = False, 0, {}
+            if got_row:
+                row.first.scroll_into_view_if_needed(timeout=3000)
+                c_row = row.first.evaluate(COVER_JS)
+                row.first.click(timeout=5000)
+                clicks = 1
+                removed_line = C.vis_loc(pS.get_by_text(SAMPLE_REMOVED, exact=False), 20000)
+            status = pS.get_by_role("status").all_inner_texts() + pS.get_by_role("alert").all_inner_texts()
+            msg = [x_[:240] for x_ in status if "sample" in x_.lower()]
+            pS.wait_for_timeout(1500)
+            st1 = cS.request.get(base + "/api/j2/onboarding/sample-notebook").json()
+            left = [n.get("title") for n in C.notes_list(cS, base) if n.get("id") in ids0]
+            C.step(pS, iS, "discover.phone-more-sample", "390 px: Remove the sample notebook works from the phone's More menu (one press, the status line says so, the sample's notes leave the list)",
+                   "PASS" if got_row and removed_line and not left and not (st1.get("activeIds") or []) else "FAIL",
+                   removal_row=c_row, clicks=clicks, removed_line=removed_line, message=msg,
+                   active_before=len(ids0), active_after=len(st1.get("activeIds") or []), notes_left=left)
+        finally:
+            cS.close()
 
     # ── discover.phone-toolbar-inside (390) ────────────────────────────────────────────────────────
     def d_phone_toolbar():
@@ -2074,18 +2260,24 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             # a member with notes: the list offers no "Add a sample notebook"
             at(p9, base, "/journal/notebook")
             p9.wait_for_timeout(1500)
-            offered = p9.get_by_role("button", name="Add a sample notebook").filter(visible=True).count()
+            offered = p9.get_by_role("button", name=C.SAMPLE_ADD_BUTTON).filter(visible=True).count()
+            offered_row = p9.get_by_role("button", name=C.CHECKLIST_SAMPLE_ROW).filter(visible=True).count()
             C.step(p9, i9, "discover.help-walkthroughs", "390 px: a member with notes is not offered the sample on the notes list",
-                   "PASS" if offered == 0 else "FAIL", add_sample_buttons=offered)
+                   "PASS" if offered == 0 and offered_row == 0 else "FAIL", add_sample_buttons=offered,
+                   get_started_sample_rows=offered_row)
         finally:
             c9.close()
         # control: a member with NO notes IS offered the sample on the empty list (R15), so the absence above is not blindness
         cF, emailF, meF, iF, pF = new_member("c2lg0", "390")
         try:
             at(pF, base, "/journal/notebook", first_run=True)
-            sampleF = C.vis_loc(pF.get_by_role("button", name="Add a sample notebook"), 15000)
-            C.step(pF, iF, "discover.help-walkthroughs", "control, 390 px: the empty notes list offers 'Add a sample notebook' (ruling R15)",
-                   "PASS" if sampleF else "FAIL", add_sample_shown=sampleF)
+            # Final fix (C4): the offer is the Get started card's sample row while the card is up, the standalone
+            # button otherwise; exactly one of them.
+            doorF = C.sample_door(pF, 15000)
+            sampleF = doorF["door"] is not None and not doorF["standalone_with_card"]
+            C.step(pF, iF, "discover.help-walkthroughs", "control, 390 px: the empty notes list offers the sample, through one door (ruling R15; final fix C4)",
+                   "PASS" if sampleF else "FAIL", add_sample_shown=sampleF, door=doorF["door"],
+                   standalone_sample_button_beside_card=doorF["standalone_with_card"])
         finally:
             cF.close()
 
@@ -3966,7 +4158,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                  ("due-date", d_due_date), ("capture-doors", d_capture_doors), ("help-walkthroughs", d_learn_groups),
                  ("catalog", d_catalog), ("search-in-place", d_search_in_place),
                  ("chart-tour-no-deadend", d_chart_tour), ("chart-tour-no-deadend", d_chart_tour_nonotes),
-                 ("voice-tour", d_voice_tour))
+                 ("voice-tour", d_voice_tour), ("get-started-template", d_get_started_template),
+                 ("phone-more-sample", d_phone_more_sample))
         for name, fn in doors:
             HOLD.clear()
             try:
@@ -4006,7 +4199,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         # row "Remove the sample notebook" (wave 1, A7), and the list's status line says what happened. One press
         # on the row (opening the menu is the door's first press, as for any menu row).
         home()
-        clicks, msg = 0, None
+        clicks, msg, hold_seen = 0, None, None
         there = more_menu_has(pg, SAMPLE_REMOVE_ROW, press=True)
         removed_line = False
         if there:
@@ -4014,6 +4207,17 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             removed_line = C.vis_loc(pg.get_by_text(SAMPLE_REMOVED, exact=False), 20000)
             status = pg.get_by_role("status").all_inner_texts() + pg.get_by_role("alert").all_inner_texts()
             msg = [s[:200] for s in status if "sample" in s.lower()]
+            # Final fix (C1, section D): the designed hold names a note whose changes have not finished saving. The step
+            # waits and presses again ONCE, and records that it had to (an INFO row plus `hold_seen` on the verdict row).
+            hold = [s for s in status if SAMPLE_HELD_ONE in s or SAMPLE_HELD_MANY in s]
+            if not removed_line and hold:
+                hold_seen = hold[0][:300]
+                C.step(pg, inst, "remove sample", "the designed hold appeared: the step waits and presses again once", "INFO",
+                       message=hold_seen)
+                pg.wait_for_timeout(15000)
+                if more_menu_has(pg, SAMPLE_REMOVE_ROW, press=True):
+                    clicks += 1
+                    removed_line = C.vis_loc(pg.get_by_text(SAMPLE_REMOVED, exact=False), 20000)
             anyway = pg.get_by_role("button", name=re.compile("anyway", re.I))
             if anyway.count() and anyway.first.is_visible():
                 C.step(pg, inst, "remove sample", "one click was not enough: the page asked before removing", "INFO", message=msg)
@@ -4030,8 +4234,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         left = [n for n in C.notes_list(ctx, base) if n.get("id") in ids]
         row_gone = not more_menu_has(pg, SAMPLE_REMOVE_ROW)
         C.step(pg, inst, "remove sample", "More > Remove the sample notebook: every sample note leaves the Notebook in one press, the status line says so, the row leaves",
-               "PASS" if there and clicks == 1 and removed_line and row_gone and not left and not (after.get("activeIds") or []) else "FAIL",
-               more_menu_row=there, removed_line=removed_line, row_gone_after=row_gone, clicks=clicks,
+               "PASS" if (there and (clicks == 1 or (hold_seen and clicks == 2)) and removed_line and row_gone and not left
+                          and not (after.get("activeIds") or [])) else "FAIL",
+               more_menu_row=there, removed_line=removed_line, row_gone_after=row_gone, clicks=clicks, hold_seen=hold_seen,
                message=msg, active_before=len(before.get("activeIds") or []), active_after=len(after.get("activeIds") or []),
                notes_left=[n.get("title") for n in left])
         pg.wait_for_timeout(1500)

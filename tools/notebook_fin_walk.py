@@ -437,6 +437,44 @@ def settle_first_run(pg) -> dict:
     return seen
 
 
+_ONBOARDING_DIR = REPO / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook" / "onboarding"
+# Read from the product's own files, never retyped: the empty list's standalone button and the Get started card's row.
+SAMPLE_ADD_BUTTON = re.search(r"\badd: '([^']+)'", (_ONBOARDING_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
+CHECKLIST_SAMPLE_ROW = re.search(r"\bsample: '([^']+)'", (_ONBOARDING_DIR / "gettingStarted.js").read_text(encoding="utf-8")).group(1)
+
+
+def sample_door(pg, timeout: int = 20000) -> dict:
+    """The door a brand-new member has to the sample notebook on the empty notes list (final fix, C4): while the Get
+    started card is on screen with its sample row not done, the card's row ("Open the sample notebook") is THE door
+    and the standalone "Add a sample notebook" is not drawn; with no card (switch off, hidden, closed) the standalone
+    button is. Returns {"door": "card" | "standalone" | None, "loc": locator or None, "standalone_with_card": bool};
+    `standalone_with_card` true is the C4 defect (two sample doors on one screen) and a step must read it."""
+    card = pg.locator("section").filter(has=pg.get_by_role("heading", name="Get started", exact=True))
+    row = card.get_by_role("button", name=CHECKLIST_SAMPLE_ROW, exact=True)
+    lone = pg.get_by_role("button", name=SAMPLE_ADD_BUTTON, exact=True)
+    def on(loc):
+        try:
+            return loc.count() > 0 and loc.first.is_visible()
+        except Exception:  # noqa: BLE001 -- a navigation mid-read
+            return False
+
+    deadline = time.time() + timeout / 1000
+    first_seen = None
+    while time.time() < deadline:
+        if on(row) or on(lone):
+            first_seen = "card" if on(row) else "standalone"
+            # Both pieces are lazy: give the other one its chance to arrive before reading the screen as settled.
+            pg.wait_for_timeout(2500)
+            break
+        pg.wait_for_timeout(300)
+    r_on, l_on = on(row), on(lone)
+    if r_on:
+        return {"door": "card", "loc": row.first, "standalone_with_card": l_on, "first_seen": first_seen}
+    if l_on:
+        return {"door": "standalone", "loc": lone.first, "standalone_with_card": False, "first_seen": first_seen}
+    return {"door": None, "loc": None, "standalone_with_card": False, "first_seen": first_seen}
+
+
 def press_through(pg, loc, timeout: int = 10000) -> None:
     """Press `loc` the way a member would: if a first-visit card that arrived late (the base tour's card is modal: its
     layer takes the pointer) is in the way, close it as a member does, then press again. Any other failure raises."""

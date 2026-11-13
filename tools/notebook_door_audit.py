@@ -115,7 +115,7 @@ REQUIRED_AUDIT_ROWS = (11, 15, 23, 24, 26, 29, 32, 33, 34, 35, 39, 40, 41, 42, 4
 SEVERITY = {"EASY": 0, "OK": 1, "NOT_MEASURED": 2, "HARD": 4, "HIDDEN": 5}
 MEASURED = ("EASY", "OK", "HARD", "HIDDEN")
 REASON_VERDICTS = ("HARD", "HIDDEN", "NOT_MEASURED")
-SAMPLE_BUTTON = "Add a sample notebook"
+SAMPLE_BUTTON = "Add a sample notebook"   # drawn only while the Get started card is not up (final fix C4; C.sample_door)
 TOP_PATH = "/journal/notebook"
 # What says a Notebook page has loaded (go-live wave 2): the notes list's toolbar (the bare address), the Daily brief, or
 # an open note. A row whose path is another Journal page names its own `ready` selector.
@@ -869,9 +869,12 @@ def member_for(browser, admin_req, base: str, vp: str, dismiss: bool, data_dir: 
     pg = ctx.new_page()
     C.goto(pg, base, TOP_PATH)
     C.settle_first_run(pg)
-    btn = pg.get_by_role("button", name=SAMPLE_BUTTON)
-    btn.first.wait_for(state="visible", timeout=40000)
-    C.press_through(pg, btn.first)
+    # Final fix (C4): while the Get started card is up, its "Open the sample notebook" row is the empty list's one
+    # sample door; the standalone SAMPLE_BUTTON is drawn only without the card (C.sample_door reads both).
+    door = C.sample_door(pg, 40000)
+    if not door["loc"]:
+        raise SetupFailed(f"no sample door on the empty notes list (neither the Get started row nor {SAMPLE_BUTTON!r})")
+    C.press_through(pg, door["loc"])
     for _ in range(120):
         if len(C.notes_list(ctx, base)) >= 5:
             break
