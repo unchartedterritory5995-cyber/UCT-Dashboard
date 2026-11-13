@@ -67,7 +67,21 @@ person restored the 01:44 UTC backup at 09:30:40 ET. Now:
 **After a self-repair:** rows written after the backup are missing. Run the gap-fill for each day
 since the backup was taken (status endpoint shows `last_result`), after the close.
 
-## ⛔⛔ ROOT CAUSE (found 2026-11-13): two write-ahead logs. RESTART AFTER EVERY SWAP.
+## ⛔⛔ ROOT CAUSE, CONFIRMED 2026-11-13 21:10 UTC: `mem_observe` dropped SQLite's locks
+
+`api/services/mem_observe.py` (added 2026-11-06) measured page-cache residency by `os.open()` + mmap +
+`os.close()` on every big file the process held open, `flow.db`, `flow.db-wal` and `flow.db-shm`
+included, ~150 s after every boot and every 10 minutes after. On Linux, closing ANY descriptor for a
+file drops EVERY POSIX lock the process holds on it. The next ordinary SQLite close then believed it
+was the last connection and checkpointed and DELETED the -wal/-shm that other connections were still
+writing: two write-ahead logs, then corruption. It ran on flow-worker AND the worker (bars.db,
+unreadable 11/09). Proved live: each fresh flow-worker process showed deleted -wal/-shm handles exactly
+~150 s after start. Fixed: `MEM_OBSERVE_FILES=0` on flow-worker and worker (2026-11-13 21:09 UTC) and
+the scan now never opens a SQLite file (`_is_sqlite_name`, rail
+`tests/test_mem_observe_never_opens_sqlite.py`). ⛔ Never open+close a live SQLite file (or its
+sidecars) from any code in the same process, for any reason.
+
+## The two-logs mechanism (what the damage looked like) — RESTART AFTER EVERY SWAP
 
 On 11/13 the worker's PID 1 held `/data/flow.db-wal (deleted)` while its other connections wrote
 to a NEW `flow.db-wal`. Two logs for one database is the textbook SQLite corruption, and it
