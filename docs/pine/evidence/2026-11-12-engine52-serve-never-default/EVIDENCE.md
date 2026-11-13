@@ -240,3 +240,138 @@ Copy, edit, run, restore FROM THE COPY, `git hash-object` == `HEAD:` blob (all t
   fvg v4 `input.integer` withhold, both fixed and railed above.
 - objects-v2 re-grade and HP-1 re-run on the final head: unchanged (above), HP-1 GREEN 166/166.
 - Engine 51 (#1149) was not on master when this was pushed, so master was not merged in.
+
+
+## Part 2: review of #1164 (CHANGES-REQUIRED at `b40ed6f8b5`), fixed on the same branch; engine stays 52
+
+**Coordinator ruling on the STOP item: the ATRx withhold is ACCEPTED.** The reviewer confirmed the
+old v6 default ink (`#D1D4DC`) was wrong on every bar; TradingView draws it white.
+
+### B1: a UDT value something can change is never read at its seed (false serve, elliot-wave)
+`elliot-wave-detector-pro` declares `var WaveContext confirmedCtx = WaveContext.new(confirmedPattern="none", …)`
+and its detector writes `confirmedCtx.confirmedPhase := …` in seven places. The previous head served
+the info panel's cells as the seed literals. `mutableNames` tracks `name :=`, never `name.field :=`.
+
+Fix: `staticEscapes` (in `buildObjectProgram`), read off the raw tokens. A name escapes when:
+- a field of it is assigned (`x.f :=`, `+=`, …);
+- a method is called on it (`x.m(…)`; `x.get` / `x.size` excepted);
+- it appears bare anywhere other than its one `=` declaration: an alias (`a = x`), an argument
+  (`f(x)`, `array.set(x, …)`), a reassignment. The exceptions are `array.get(x, …)` / `array.size(x)`.
+
+The static reader answers no object (`{obj}`) or list (`{arr}`) through such a name.
+Rails: the five repros (field assignment, `var` field assignment, alias, helper argument, method),
+each must not serve the seed; a control reads an untouched value; elliot-wave's cells never carry
+the seed texts. The elliot-wave program now equals master's (census: unchanged row).
+
+### B2: a list folded from `str.split` is never read after a mutation
+Same rule (`{arr}`). Rails: `array.set`, `array.push`, the methods `push` and `reverse`, and a
+helper that mutates its parameter: all unread. Control: an untouched list is read (`a3`).
+
+### B3: an unreadable table count is presentation-inert
+`layoutTables` sizes a table by its cells, and the runtime uses `columns` / `rows` only to bound a
+merge (`objectRuntime.js`, TradingView's out-of-range error). Our runtime does not check a CELL
+against the declared size at all, so for cells the count is not observable here.
+- An unreadable count is now IGNORED (`diagnostics.inertTableCounts`).
+- If the script calls `table.merge_cells`, where the count bounds the merge, it still withholds.
+- Rails: the reviewer's `matrix.columns(m)` repro is drawn; the same script with a merge is withheld.
+
+### M4: surviving mutants, railed
+- **Division, by the reference** (`pine-version-evolution.md` row 47, `pine-presentation-spec.md`):
+  from v6 two ints divide with the fraction (`5 / 2` = 2.5); before v6 two ints truncate; a float on
+  either side divides as floats.
+  - Int-ness comes from the token's own spelling (`raw`: `7.0` and `7` lex to the same value).
+  - The script version comes from the translation in scope.
+  - Railed through an enum switch on `n / 2 * 2`: v6 `7` -> `large`, v5 `7` -> `small`, v5 `7.0` -> `large`.
+  - (A drawing's `width = 7 / 2` is answered by the columnar tree first; the static reader is its fallback.)
+- The bound-ternary block-local branch: railed (`m <= 7 ? white : red` inside the binding).
+- The helper loop's pass cap: railed (`f(10)` folds to `11`, `f(5000)` does not).
+- The `str.split` empty-piece guard: railed. The rail at the old :170 now asserts the served
+  VALUES (`#4CAF50` / `#787B86`).
+
+### M5: point sizes: anchors only
+The linear interpolation and the proportional-past-huge scaling were not stated anywhere. They are deleted.
+- Only an int the reference EQUATES with a word is served, drawn exactly as that word
+  (`objectPointSizes.js`): labels 0/7/10/12/18/24; boxes and cells 0/8/10/14/20/36.
+- Any other int is withheld by name in both lanes: `pine:text-size-points-unwitnessed`, drop
+  `enum:points-unwitnessed`, in `objectLoss` / `editorStatus` / the panel spec.
+- Census: engine 51 withheld 29 point-size slots; now **1 slot is served** (volume-footprint) and
+  **15 are withheld as unwitnessed**. The rest sit in drawings withheld for another named prop.
+  The sector-rotation fixture's cells (11 pt) stay withheld.
+
+### M6: the harness can now see a false draw
+`memberPaneTables.drawn()` and `pineTableVendorParity`'s helper pass `readUnknown`, as production
+does (`binder.js`). New rail (the reviewer's repro):
+- `plot(close)`, `ta.highest(volume[1], 2000)`, a `var` table at a position chosen on that condition;
+- the tree fails the lookback budget, and the table is never drawn at `top_right`;
+- mutant R1, the rail without `readUnknown`, goes RED.
+
+### L7, L8
+- **L7:** v6 re-evaluates a `for` bound before every pass (v6 migration guide, "Dynamic `for` loop
+  boundaries"). The helper runner re-reads the bound after each pass and refuses the fold if it
+  moved, so v5 and v6 never disagree on a folded value. Railed.
+- **L8:** a `str.replace` / `str.replace_all` target that can overlap itself (`aa` in `aaa`) is not
+  folded. Railed, with a control (`abab` -> `abx`).
+
+### L9: counts, drawn vs served (supersedes the "197 served" row above)
+Of the 463 engine-51 sites drawn at the default (line-matched against each drawing's withhold notes):
+
+| | sites |
+|---|---|
+| read, on a drawing that is drawn | **112** |
+| read, on a drawing withheld for another named prop | 83 |
+| withheld for this prop (`pine:prop-unreadable`) | 264 |
+| table counts, ignored as presentation-inert (B3) | 4 |
+| still drawn at a default | **0** |
+
+### Census, part 2 (base engine 51 = master's engine tree vs this head; 1,605 files)
+- 53 rows change, 0 in key order only, 0 new errors.
+- The UDT / list rule removed every intermediate-build serve that read an escaping value.
+  elliot-wave-detector-pro is now identical to master.
+
+Every changed script, by class:
+- **Newly served:** black-scholes (corpus + capture), cross-correlation, multicator-table (corpus +
+  2 captures), support-and-resistance-step-4, heikin-ashi-supertrend (also loses one fill).
+- **Withheld by name** (each had a prop drawn at the default): delta-imbalance, delta-volume-columns,
+  dual-supertrend, dynamic-S&R, fibonacci-statistics, liquidity-pools-pro, vix-term-structure,
+  luxy, machine-learning-supertrend, market-structure-trend-targets, volume-surge-radar,
+  rsi-levels-regime-map, mirage-liquidity-sweep, rsi-multi-timeframe-dashboard, seasonality (a merge
+  bounds its count), stop-loss-clustering (also `enum:points-unwitnessed`), strong-knn,
+  supertrendrange, trend-levels, volatility-coil-edge, volatility-trend-score.
+- **Same drawings, a value now read:** advanced-custom-multi-ma, artemis (corpus + 2 captures),
+  atr-based-trendlines, auto-trendline (corpus + 2 captures), chart-champions,
+  crypto-correlation-matrix, fxn-asian-session-range, fxn-week-and-day-separator, htf-liquidity
+  (corpus + 2 captures), ict-killzones (corpus + 2 captures), order-block-finder,
+  trendline-pivots-quantvue.
+
+### Objects v2, part 2 (152 captures)
+v1 79 / 31 / 15, v2 **75 / 35 / 15**, per family identical to engine 51. **No row of the re-grade
+changes; 0 captures move away.**
+
+### Mutants, part 2 (the five rail files; copy, edit, run, restore from the copy; hash == HEAD for all)
+| id | mutant | result |
+|---|---|---|
+| C0 | none | 61/61 green |
+| U1 | escapes ignored | RED 9 |
+| U2 | a field assignment is not an escape | survives: the C28 guard already refuses `x.f` when `x.f :=` exists (the dotted name is in `mutableNames`). The root rule is broader: an assignment to ANOTHER field cannot change the field read. It is kept as the reviewer asked; it makes such reads stricter, not wrong. Stated, not railed. |
+| U3 | a method call is not an escape | RED 3 |
+| U4 | a bare occurrence is not an escape | RED 5 |
+| D1 / D2 / D3 | v6 truncates / v5 keeps the fraction / int-ness from the value | RED 1 each |
+| F1 | the `for` bound read once | RED 1 |
+| P1 | no pass cap | RED 1 |
+| O1 | overlap guard off | RED 1 |
+| S1 | split empty-piece guard off | RED 1 |
+| C1 / C2 | unreadable count withholds / count ignored despite a merge | RED 1 each |
+| A1 / A2 / A3 | any int served (host) / (runtime) / the renderer ignores the anchor | RED 1 each |
+| B6 | the bound-ternary block-local branch off | RED 1 |
+| R1 | the failed-condition rail without `readUnknown` | RED 1 |
+
+### Runs, part 2
+- hostParity: HP-1 GREEN 166/166 (no digest moved; `--write` not needed), HP-4 GREEN (35 red).
+- `service_smoke.json` re-recorded against a local engine-52 service: identical (digest
+  `b5f203f30c16`), not re-committed; plain smoke PASS.
+  - The Node 20 binary used before was removed from the box in a disk cleanup, so this ran on the
+    system Node 24.13 with `--permission`, `--allow-fs-read=<worktrees>`, `--allow-worker` and
+    `--disallow-code-generation-from-strings`.
+- Heavy run on the review-fix head (ONE heavy-lock run: `ast`, `runtime/__tests__`, `__tests__`,
+  `builder`, `--maxWorkers=1`): 1,124 files, **19,558 passed, 2 failed, 199 skipped**. The 2 are the
+  master reds `rsRatingDef` / `rsVsEmaDef` (#1136).
