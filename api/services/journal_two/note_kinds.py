@@ -86,7 +86,7 @@ def _row(r: sqlite3.Row) -> dict:
 
 def _clean_name(raw: Any) -> str:
     if not isinstance(raw, str) or not raw.strip():
-        raise KindValidationError("A kind of note needs a name.")
+        raise KindValidationError("A note type needs a name.")
     name = " ".join(raw.split())
     if len(name) > MAX_KIND_NAME_CHARS:
         raise KindValidationError(f"A kind's name can be at most {MAX_KIND_NAME_CHARS} characters.")

@@ -1235,7 +1235,7 @@ def publish(user_id: str, template_id: Any, *, title: Any, description: Any, cat
             conn.close()
 
 
-CUSTOM_KIND_SENTENCE = "Only styles for a built-in kind of note can be shared yet."
+CUSTOM_KIND_SENTENCE = "Only styles for a built-in note type can be shared yet."
 ADOPTED_SHARE_SENTENCE = "This style came from the library, so it can't be shared again."
 
 
