@@ -262,6 +262,10 @@ def _save_or_400(user_id, def_id: str, definition: dict,
         # ⭐ PHASE 4 — a stale write: 409, the store's own sentence, nothing saved.
         return JSONResponse(status_code=409,
                             content={"detail": str(exc), "conflict": exc.as_dict()})
+    except runtime_definitions.CapabilityCheckBusy as exc:
+        # WS-I Part 2 (re-review F1): the capability check was busy; retryable, nothing saved
+        return JSONResponse(status_code=503, content={"detail": str(exc), "retryable": True},
+                            headers={"Retry-After": "2"})
     except svc.SaveRefused as exc:
         # ⭐ P0/0P — THE ADMISSION REFUSAL IS STRUCTURED: a 422 whose `detail`
         # is still the store's own sentence (so every client that renders
@@ -679,7 +683,7 @@ def runtime_admission(body: Any = Body(None), user: dict = Depends(require_paid)
             "source: longer than the runtime lane's "
             f"{runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES // 1024} KiB cap, so it is not "
             "asked about"))
-    return runtime_definitions.runtime_admission(source)
+    return runtime_definitions.runtime_admission(source, member=user["id"])
 
 
 @router.get("/{def_id}")

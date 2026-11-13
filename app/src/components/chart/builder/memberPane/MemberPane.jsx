@@ -50,7 +50,7 @@ import { memberPaneEnabled } from '../../engine/memberPaneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import {
   setRuntimeKillList, setRuntimeAllowList, setRuntimeCapabilityAdmission, runtimeCapabilityAdmissionOn,
-  runtimeAdmissionOf, requestRuntimeAdmission, RUNTIME_KILL_PATH,
+  runtimeAdmissionOf, watchRuntimeAdmission, RUNTIME_KILL_PATH,
 } from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
@@ -147,14 +147,13 @@ export default function MemberPane({
   // been still for `ADMISSION_ASK_DEBOUNCE_MS` (not per keystroke), and the build
   // re-runs when it lands (`killVersion`). Until then the lane declines it: fail
   // closed, with the "still being checked" sentence (`engine/runtimeKill.js`).
+  // ⭐ re-review F2 — and it KEEPS asking while the answer is "still being checked" (the server's
+  // detector was busy), on the lists' recheck interval, so the preview recovers by itself.
   useEffect(() => {
     if (!runtimeOn || !admissionOn || !source) return undefined
     if (runtimeAdmissionOf({ source })) return undefined
-    let alive = true
-    const t = setTimeout(() => {
-      requestRuntimeAdmission(source).then((v) => { if (alive && v) setKillVersion((n) => n + 1) })
-    }, ADMISSION_ASK_DEBOUNCE_MS)
-    return () => { alive = false; clearTimeout(t) }
+    return watchRuntimeAdmission(source, () => setKillVersion((n) => n + 1),
+      { delayMs: ADMISSION_ASK_DEBOUNCE_MS })
   }, [runtimeOn, admissionOn, source])
 
   // ⭐ THE BUILD IS MEMOISED ON THE SOURCE, not run per render: `translatePine`

@@ -16,6 +16,9 @@
 //   * the kill list is never overridden by a verdict.
 // ⛔ Node environment on purpose: `window` is absent unless a test installs it.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
 
 import {
   setRuntimeKillList, setRuntimeAllowList, runtimeKillOf, runtimeNotGradedOf,
@@ -23,7 +26,7 @@ import {
   setRuntimeCapabilityAdmission, runtimeCapabilityAdmissionOn, latchRuntimeAdmission,
   runtimeAdmissionOf, requestRuntimeAdmission, __resetRuntimeAdmission, runtimeSourceHash,
   RUNTIME_ADMISSION_PATH, RUNTIME_ADMISSION_MAX, RUNTIME_LISTS_RECHECK_MS, RUNTIME_KILL_PATH,
-  RUNTIME_ADMISSION_PENDING_RETRY_MS, RUNTIME_ADMISSION_PENDING_RETRIES,
+  RUNTIME_ADMISSION_PENDING_RETRY_MS, RUNTIME_ADMISSION_PENDING_RETRIES, watchRuntimeAdmission,
 } from '../runtimeKill'
 
 const SRC = '//@version=5\nindicator("mine")\nvar float x = na\nx := close > open ? close : x\nplot(x)\n'
@@ -222,7 +225,7 @@ describe('ON: a "still being checked" answer (the server gate was busy)', () => 
     const p = requestRuntimeAdmission(SRC)
     await flush()
     expect(runtimeAdmissionOf({ hash: H })).toBeNull()                  // pending latched nothing
-    expect(runtimeNotGradedOf({ source: SRC })).toMatch(CHECKING)
+    expect(runtimeNotGradedOf({ hash: H })).toMatch(CHECKING)
     await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
     const v = await p
     expect(v.admitted).toBe(true)
@@ -240,5 +243,45 @@ describe('ON: a "still being checked" answer (the server gate was busy)', () => 
     expect(await p).toBeNull()
     expect(fetchMock).toHaveBeenCalledTimes(RUNTIME_ADMISSION_PENDING_RETRIES)
     expect(runtimeAdmissionOf({ hash: H })).toBeNull()
+  })
+})
+
+describe('re-review F2: a source with no verdict recovers by itself', () => {
+  beforeEach(() => setRuntimeCapabilityAdmission(true))
+
+  it('⭐ a consult with the source re-asks once per recheck interval', async () => {
+    fetchMock.mockResolvedValue(okJson({ sha256: H, admitted: false, missing: ['pending'] }))
+    runtimeNotGradedOf({ source: SRC })
+    runtimeNotGradedOf({ source: SRC })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await flush()
+    vi.advanceTimersByTime(RUNTIME_LISTS_RECHECK_MS)
+    fetchMock.mockResolvedValue(okJson({ sha256: H, admitted: true, missing: [] }))
+    runtimeNotGradedOf({ source: SRC })
+    const calls = fetchMock.mock.calls.filter((c) => c[0] === RUNTIME_ADMISSION_PATH).length
+    expect(calls).toBeGreaterThanOrEqual(2)
+  })
+
+  it('⭐ watchRuntimeAdmission keeps asking on the recheck until a verdict lands, then reports it once', async () => {
+    fetchMock.mockResolvedValue(okJson({ sha256: H, admitted: false, missing: ['pending'] }))
+    const seen = []
+    const cancel = watchRuntimeAdmission(SRC, (v) => seen.push(v), { delayMs: 0, recheckMs: 60000 })
+    for (let i = 0; i < RUNTIME_ADMISSION_PENDING_RETRIES + 1; i += 1) {
+      await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
+    }
+    expect(seen).toEqual([])                                               // pending: nothing latched
+    fetchMock.mockResolvedValue(okJson({ sha256: H, admitted: true, missing: [] }))
+    await vi.advanceTimersByTimeAsync(60000)
+    await flush()
+    expect(seen.length).toBe(1)
+    expect(seen[0].admitted).toBe(true)
+    await vi.advanceTimersByTimeAsync(120000)
+    expect(seen.length).toBe(1)                                            // once, then it stops
+    cancel()
+  })
+
+  it('MemberPane recovers through it (wired, not just defined)', () => {
+    const src = fs.readFileSync(path.resolve(process.cwd(), 'src/components/chart/builder/memberPane/MemberPane.jsx'), 'utf8')
+    expect(src).toMatch(/return watchRuntimeAdmission\(source, \(\) => setKillVersion/)
   })
 })

@@ -3436,6 +3436,8 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     """
     from api.services import entitlements, runtime_definitions
 
+    # re-review F4: a served stamp a client wrote back is never stored
+    definition = runtime_definitions.scrub_served_stamps(definition)
     if not runtime_definitions.save_enabled():
         raise ValueError(
             "this store does not accept scripts drawn bar by bar yet — the runtime "
@@ -3452,8 +3454,8 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     if why:
         raise ValueError(f"{why} — so it is not saved. Nothing else of yours was touched.")
     # ⭐ GT (D6) — the starter allowlist: only a script graded MATCH is stored.
-    # WS-I Part 2 (final verify of #1204): `not_graded_at_save`, so a busy detector gate never
-    # refuses or blocks a save (the row is served "being checked" until its first serve computes it)
+    # WS-I Part 2 (re-review F1): `not_graded_at_save` waits briefly for the detector and raises
+    # `CapabilityCheckBusy` (retryable) rather than ever storing an unadmitted runtime row
     ungraded = runtime_definitions.not_graded_at_save(source)
     if ungraded:
         raise ValueError(f"{ungraded} — so it is not saved. Nothing else of yours was touched.")

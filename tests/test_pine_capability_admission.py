@@ -912,22 +912,65 @@ def test_GATE_a_busy_gate_serves_pending_and_never_waits(store, monkeypatch):
     assert rt.stamp_served(row, budget=rt.DetectorBudget()) is row       # the gate free: admitted
 
 
-def test_GATE_a_save_while_the_gate_is_busy_is_stored_and_persists_nothing(store, monkeypatch):
+def _hold_gate(seconds: float) -> threading.Thread:
+    """A thread that holds the process-wide detector gate for `seconds`."""
+    held = threading.Event()
+
+    def hold():
+        assert rt._DETECTOR_GATE.acquire(timeout=5)
+        held.set()
+        time.sleep(seconds)
+        rt._DETECTOR_GATE.release()
+    t = threading.Thread(target=hold)
+    t.start()
+    assert held.wait(5)
+    return t
+
+
+def test_F1_a_save_never_stores_an_unadmitted_row_while_the_check_is_busy(store, monkeypatch):
+    """D6 holds: only a graded script is stored. A save waits at most `SAVE_WAIT_SECONDS` for the
+    detector; past that it is refused as busy (retryable, 503), and nothing is stored."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "admins")
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    assert rt._DETECTOR_GATE.acquire(blocking=False)
+    holder = _hold_gate(rt.SAVE_WAIT_SECONDS + 1.0)
     try:
-        svc.save(USER, ADX["id"], member_doc(), role="admin")         # never refused, never blocked
+        t0 = time.perf_counter()
+        with pytest.raises(rt.CapabilityCheckBusy, match="try again in a moment"):
+            svc.save(USER, ADX["id"], member_doc(), role="admin")
+        assert time.perf_counter() - t0 < rt.SAVE_WAIT_SECONDS + 0.5          # bounded
+        assert svc.get(USER, ADX["id"]) is None                                # nothing stored
+        r = _client().post("/api/user-definitions", json={"definition": member_doc()})
+        assert r.status_code == 503 and r.headers.get("Retry-After") and r.json()["retryable"] is True
     finally:
-        rt._DETECTOR_GATE.release()
+        holder.join(10)
     with sqlite3.connect(svc._DB_PATH) as c:
         c.execute(rt._CAPS_DDL)
         assert c.execute(f"SELECT COUNT(*) FROM {rt.CAPS_TABLE}").fetchone()[0] == 0
-    served = _client().get(f"/api/user-definitions/{ADX['id']}").json()["definition"]
-    assert "runtimeNotGraded" not in served["meta"]                   # first serve computed it
+
+
+def test_F1_a_save_waits_out_a_short_busy_spell_and_stores_the_checked_row(store, monkeypatch):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    holder = _hold_gate(0.2)
+    try:
+        svc.save(USER, ADX["id"], member_doc(), role="admin")                 # waited, checked, stored
+    finally:
+        holder.join(10)
+    assert svc.get(USER, ADX["id"])["definition"]["compute"]["source"] == MEMBER_COPY
     with sqlite3.connect(svc._DB_PATH) as c:
         assert c.execute(f"SELECT COUNT(*) FROM {rt.CAPS_TABLE}").fetchone()[0] == 1
+
+
+def test_F1_a_save_of_an_unadmitted_script_is_refused_not_stored(store, monkeypatch):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    doc = member_doc(MEMBER_COPY + "var line l = na\nl := line.new(bar_index, low, bar_index, high)\n")
+    with pytest.raises(ValueError, match="not yet been graded"):
+        svc.save(USER, ADX["id"], doc, role="admin")
+    assert svc.get(USER, ADX["id"]) is None
 
 
 def test_GATE_a_run_is_projected_before_it_starts(store, monkeypatch):
@@ -988,3 +1031,98 @@ def test_GATE_a_run_in_progress_refuses_a_second_concurrently(store, monkeypatch
         release.set()
         holder.join(10)
     assert rt.capabilities_for(MEMBER_COPY + "// second\n", budget=rt.DetectorBudget(), persist=False) is not None
+
+
+
+# ═══ RE-REVIEW F2: one hammering member cannot starve another member's check ═════════════
+
+def test_F2_the_verdict_door_spends_from_the_members_own_budget(monkeypatch):
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    rt._reset_capability_cache(persisted=True)
+    now = time.monotonic()
+    rt._verdict_member_charge("u-hammer", now, rt.VERDICT_MEMBER_SECONDS)
+    assert rt.runtime_admission(MEMBER_COPY + "// h\n", member="u-hammer")["missing"] == [rt.PENDING]
+    assert rt.runtime_admission(MEMBER_COPY + "// o\n", member="u-other")["admitted"] is True
+    rt._reset_capability_cache(persisted=True)
+
+
+def test_F2_a_verdict_run_yields_to_persisted_work(monkeypatch):
+    """A verdict run cools only the verdict door: a serve right after it may run; a second verdict may not."""
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    rt._reset_capability_cache(persisted=True)
+    assert rt.runtime_admission(MEMBER_COPY + "// v1\n", member="u-a")["admitted"] is True
+    assert rt.runtime_admission(MEMBER_COPY + "// v2\n", member="u-b")["missing"] == [rt.PENDING]
+    assert rt.capabilities_for(MEMBER_COPY + "// serve\n", budget=rt.DetectorBudget()) is not None
+    rt._reset_capability_cache(persisted=True)
+
+
+def test_F2_a_hammering_member_cannot_keep_another_members_save_and_serve_from_being_checked(store, monkeypatch):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    monkeypatch.setattr(svc, "server_lanes_stamp", lambda row: {})
+    rt._reset_capability_cache(persisted=True)
+    stop = threading.Event()
+    answers = []
+
+    def hammer():
+        k = 0
+        while not stop.is_set():
+            answers.append(rt.runtime_admission(_adversarial_source(f"hammer {k}"), member="u-hammer"))
+            k += 1
+    h = threading.Thread(target=hammer)
+    h.start()
+    try:
+        time.sleep(0.3)                                                       # the hammer is running
+        svc.save(USER, ADX["id"], member_doc(), role="admin")                 # never refused as busy
+        assert svc.get(USER, ADX["id"]) is not None
+        # another member's stored, not-yet-checked row is checked on a serve within a few reads
+        other = "u-other-member"
+        _seed_member_rows(monkeypatch, other, [_near_cap_source("other member row", 20)])
+        checked = False
+        for _ in range(20):
+            body = router_mod.list_definitions(user={"id": other, "role": "admin", "plan": "premium"},
+                                               graph=False, engine=None)
+            if "runtimePending" not in (body["definitions"][0]["definition"].get("meta") or {}):
+                checked = True
+                break
+            time.sleep(0.15)
+        assert checked
+    finally:
+        stop.set()
+        h.join(30)
+    assert any(a["missing"] == [rt.PENDING] for a in answers)                 # the hammer was held back
+    spent = rt._verdict_member_spent("u-hammer", time.monotonic())
+    assert spent <= rt.VERDICT_MEMBER_SECONDS + 1.0                          # its own budget, plus one run
+
+
+# ═══ RE-REVIEW F3 / F4 ══════════════════════════════════════════════════════════════════
+
+def test_F3_a_single_row_serve_marks_pending_too(store, monkeypatch):
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    row = {"def_id": ADX["id"], "definition": member_doc()}
+    holder = _hold_gate(0.5)
+    try:
+        meta = rt.stamp_served(row)["definition"]["meta"]                    # budget None: GET /{id}, a share
+    finally:
+        holder.join(10)
+    assert "still being checked" in meta["runtimeNotGraded"] and meta["runtimePending"] is True
+
+
+def test_F4_a_written_back_stamp_is_never_stored_and_never_served(store, monkeypatch):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    doc = copy.deepcopy(ADX)                                                   # the graded script itself
+    doc["meta"].update(runtimePending=True, runtimeNotGraded="stale", runtimeKilled="stale")
+    svc.save(USER, ADX["id"], doc, role="admin")
+    stored = svc.get(USER, ADX["id"])["definition"]["meta"]
+    assert not any(k in stored for k in rt.RUN_READ_STAMPS)                   # scrubbed at save
+    # a row that already carries a stale stamp (stored before the scrub) is served without it
+    with sqlite3.connect(svc._DB_PATH) as c:
+        rid, blob = c.execute("SELECT id, definition FROM user_definitions WHERE def_id = ?", (ADX["id"],)).fetchone()
+        d = json.loads(blob)
+        d["meta"].update(runtimePending=True, runtimeNotGraded="stale")
+        c.execute("UPDATE user_definitions SET definition = ? WHERE id = ?", (json.dumps(d), rid))
+    served = _client().get(f"/api/user-definitions/{ADX['id']}").json()["definition"]["meta"]
+    assert not any(k in served for k in rt.RUN_READ_STAMPS)

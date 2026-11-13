@@ -173,6 +173,7 @@ export const RUNTIME_ADMISSION_MAX = 64
 
 let _capabilityAdmission = false
 const _verdicts = new Map()        // hash -> { admitted, at }
+const _askedAt = new Map()         // hash -> when a source with NO verdict was last re-asked (bounded)
 const _admissionInFlight = new Map() // hash -> Promise
 
 /** Latch the server's switch (`capability_admission` on the kill read). Anything but
@@ -257,11 +258,31 @@ export function requestRuntimeAdmission(source, _attempt = 0) {
   return p
 }
 
+/** ⭐ Re-review F2 — keep asking about ONE source until a verdict lands: now (after `delayMs`), and
+ *  then on the lists' recheck interval while the answer is still "being checked", so a preview stuck
+ *  pending recovers without an edit or a remount. `onVerdict(v)` fires once, with the latched verdict.
+ *  Returns a cancel function. Never throws. */
+export function watchRuntimeAdmission(source, onVerdict, { delayMs = 0, recheckMs = RUNTIME_LISTS_RECHECK_MS } = {}) {
+  let alive = true
+  let timer = null
+  const ask = () => {
+    if (!alive) return
+    Promise.resolve(requestRuntimeAdmission(source)).then((v) => {
+      if (!alive) return
+      if (v) { onVerdict(v); return }
+      timer = setTimeout(ask, recheckMs)      // no verdict yet: ask again on the recheck
+    }).catch(() => { if (alive) timer = setTimeout(ask, recheckMs) })
+  }
+  timer = setTimeout(ask, delayMs)
+  return () => { alive = false; if (timer) clearTimeout(timer) }
+}
+
 /** Rails only. */
 export function __resetRuntimeAdmission() {
   _capabilityAdmission = false
   _verdicts.clear()
   _admissionInFlight.clear()
+  _askedAt.clear()
 }
 
 /** Why this script is NOT drawn by the runtime lane (not yet graded), or null.
@@ -282,6 +303,13 @@ export function runtimeNotGradedOf({ source, hash } = {}) {
     }
     if (v && v.admitted) return null
     if (!v) {
+      // ⭐ re-review F2 — a source with NO verdict is re-asked on the lists' recheck interval (at most
+      // once per interval per hash), so the chart's own consults recover too
+      if (typeof source === 'string' && Date.now() - (_askedAt.get(h) || 0) >= RUNTIME_LISTS_RECHECK_MS) {
+        _askedAt.set(h, Date.now())
+        while (_askedAt.size > RUNTIME_ADMISSION_MAX) _askedAt.delete(_askedAt.keys().next().value)
+        requestRuntimeAdmission(source)
+      }
       return `this script (sha256 ${h.slice(0, 12)}…) is still being checked against the parts of `
         + 'Pine graded against TradingView, so it is not drawn bar by bar yet'
     }

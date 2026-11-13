@@ -495,8 +495,7 @@ def allow_list() -> list[str]:
 
 
 def not_graded(source: Optional[str], *, graded_only: bool = False,
-               budget: "Optional[DetectorBudget]" = None, capability: bool = True,
-               pending_ok: bool = False) -> Optional[str]:
+               budget: "Optional[DetectorBudget]" = None, capability: bool = True) -> Optional[str]:
     """Why this script is NOT served by the runtime lane (D6), or ``None``.
 
     The sentence is the reason; the code the member door declines with is
@@ -508,33 +507,36 @@ def not_graded(source: Optional[str], *, graded_only: bool = False,
     ``graded_only``, never ``capability=False``) ALSO admits a script `capability_admitted`
     admits, within the request's `budget`; a source whose set the budget could not compute is
     answered "still being checked" (fail closed) and fills on a later request. Off, nothing changes."""
-    sentence, pending = not_graded_reason(source, graded_only=graded_only, budget=budget,
-                                          capability=capability)
-    if pending and pending_ok:
-        return None
+    sentence, _pending = not_graded_reason(source, graded_only=graded_only, budget=budget,
+                                           capability=capability)
     return sentence
 
 
 def not_graded_at_save(source: Optional[str]) -> Optional[str]:
-    """The save door's question (final verify of #1204). With capability admission on, a source
-    whose capability set cannot be computed right now (the process-wide gate is busy) is SAVED and
-    nothing is persisted for it: the row is served "still being checked" (fail closed, never drawn)
-    and its first serve computes the set under the gate. Every other answer is `not_graded`'s. With
+    """The save door's question. ⛔ D6 HOLDS: only a graded script is stored. With capability
+    admission on, the save waits (at most `SAVE_WAIT_SECONDS`) for the process-wide gate and the
+    cool-down and runs the detector once; if it still cannot, it raises `CapabilityCheckBusy`
+    (retryable, nothing saved). It never stores an unadmitted runtime row (re-review F1). With
     admission off the call is exactly the one before Part 2."""
     if not capability_admission_on():
         return not_graded(source)
-    return not_graded(source, pending_ok=True)
+    sentence, pending = not_graded_reason(source, wait=SAVE_WAIT_SECONDS)
+    if pending:
+        h = source_hash(source) if isinstance(source, str) else ""
+        raise CapabilityCheckBusy(SAVE_BUSY_SENTENCE.format(h=h[:12]))
+    return sentence
 
 
 def not_graded_reason(source: Optional[str], *, graded_only: bool = False,
-                      budget: "Optional[DetectorBudget]" = None, capability: bool = True) -> tuple:
+                      budget: "Optional[DetectorBudget]" = None, capability: bool = True,
+                      wait: float = 0.0) -> tuple:
     """``(sentence or None, pending)``: `not_graded`'s answer, and whether it is only "still being
     checked" (the capability set is not known yet: the budget or the process-wide gate was busy)."""
     h = source_hash(source) if isinstance(source, str) else ""
     if h and any(h.startswith(e) for e in (graded_allow_list() if graded_only else allow_list())):
         return None, False
     if h and capability and not graded_only and capability_admission_on():
-        ok, missing = capability_admitted(source, budget=budget)
+        ok, missing = capability_admitted(source, budget=budget, wait=wait)
         if ok:
             return None, False
         if missing == [PENDING]:
@@ -632,6 +634,47 @@ _DETECTOR_GATE = threading.Semaphore(1)
 #: process-wide. A request that finds it cooling serves the row "still being checked".
 DETECTOR_DUTY_CYCLE = 1 / 3
 _DETECTOR_IDLE_UNTIL = [0.0]
+#: F1 (re-review of #1204): the SAVE door waits for the gate and the cool-down, bounded: a save
+#: either computes its set within this long, or is refused as busy (retryable). It never stores an
+#: unadmitted runtime row.
+SAVE_WAIT_SECONDS = 0.7
+#: F2: the VERDICT door (a preview's question, nothing persisted) yields to persisted work. It runs
+#: only when the gate is free AND the persisted cool-down has passed AND its OWN cool-down has passed
+#: (at most `VERDICT_DUTY_CYCLE` of wall time; a verdict run does not extend the persisted
+#: cool-down, so a hammering preview never starves a save or a serve), and each member may spend at
+#: most `VERDICT_MEMBER_SECONDS` of detector time in any `VERDICT_MEMBER_WINDOW` seconds.
+VERDICT_DUTY_CYCLE = 1 / 6
+_VERDICT_IDLE_UNTIL = [0.0]
+VERDICT_MEMBER_SECONDS = 3.0
+VERDICT_MEMBER_WINDOW = 60.0
+_VERDICT_SPENT: dict = {}            # member -> [(monotonic end, seconds), ...]
+_VERDICT_LOCK = threading.Lock()
+
+
+class CapabilityCheckBusy(ValueError):
+    """F1: the save door could not compute the script's capability set within `SAVE_WAIT_SECONDS`
+    (the detector was busy). Retryable; nothing was saved. The router answers 503 + Retry-After."""
+
+
+#: What a busy save door says (`CapabilityCheckBusy`).
+SAVE_BUSY_SENTENCE = ("this script (sha256 {h}…) could not be checked against the parts of Pine graded "
+                      "against TradingView right now because the check is busy; try again in a moment. "
+                      "Nothing was saved")
+
+
+def _verdict_member_spent(member: str, now: float) -> float:
+    with _VERDICT_LOCK:
+        runs = [(t, c) for t, c in _VERDICT_SPENT.get(member, ()) if now - t < VERDICT_MEMBER_WINDOW]
+        _VERDICT_SPENT[member] = runs
+        if len(_VERDICT_SPENT) > 5000:
+            for m in [m for m, r in _VERDICT_SPENT.items() if not r]:
+                _VERDICT_SPENT.pop(m, None)
+        return sum(c for _t, c in runs)
+
+
+def _verdict_member_charge(member: str, now: float, seconds: float) -> None:
+    with _VERDICT_LOCK:
+        _VERDICT_SPENT.setdefault(member, []).append((now, seconds))
 #: A running estimate of the detector's cost per source byte (an exponential average of the runs
 #: measured), so a run is projected before it starts. Seeded conservatively (5 us/byte = 0.65 s
 #: for a 128 KiB source).
@@ -705,10 +748,13 @@ def _lru_put(key: str, caps: frozenset) -> None:
 
 def _reset_capability_cache(*, persisted: bool = False) -> None:
     """Tests only: forget this process's LRU, and with `persisted` the stored sets too. Also ends
-    any detector cool-down (a fresh process has none)."""
+    any detector cool-down and the verdict door's per-member spend (a fresh process has none)."""
     with _CAPS_LRU_LOCK:
         _CAPS_LRU.clear()
     _DETECTOR_IDLE_UNTIL[0] = 0.0
+    _VERDICT_IDLE_UNTIL[0] = 0.0
+    with _VERDICT_LOCK:
+        _VERDICT_SPENT.clear()
     if persisted:
         from api.services import user_definitions as svc
         try:
@@ -793,10 +839,15 @@ def _store_put(key: str, caps: frozenset) -> None:
 
 
 def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
-                     persist: bool = True) -> Optional[frozenset]:
+                     persist: bool = True, wait: float = 0.0,
+                     verdict_member: Optional[str] = None) -> Optional[frozenset]:
     """This source's capability set: the LRU, then the persisted set, then (budget allowing) a
     fresh run, persisted unless `persist=False` (the verdict door stores nothing). ``None`` when
-    the set is not known and the budget is spent: the caller serves it fail-closed."""
+    the set is not known and no run may start now: the caller serves it fail-closed.
+
+    `wait` (the save door): wait up to that long for the gate and the cool-down, then run once.
+    `verdict_member` (the verdict door): run only if that member's rolling detector spend has room
+    and the detector is idle for persisted work AND for the verdict door (it yields; F2)."""
     from api.services import pine_capabilities
     key = source_hash(source)
     hit = _lru_get(key)
@@ -809,15 +860,31 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
     nbytes = len(source)
     if budget is not None and not budget.allows(nbytes):
         return None
-    if not _DETECTOR_GATE.acquire(blocking=False):
-        return None                      # another run holds the process: pending, never wait
+    if verdict_member is not None:
+        now = time.monotonic()
+        if (_verdict_member_spent(verdict_member, now) >= VERDICT_MEMBER_SECONDS
+                or now < _VERDICT_IDLE_UNTIL[0] or now < _DETECTOR_IDLE_UNTIL[0]):
+            return None                  # the verdict door yields: pending, never wait
+    deadline = time.monotonic() + max(0.0, wait)
+    got = _DETECTOR_GATE.acquire(timeout=wait) if wait > 0 else _DETECTOR_GATE.acquire(blocking=False)
+    if not got:
+        return None                      # another run holds the process: pending
     try:
-        if time.monotonic() < _DETECTOR_IDLE_UNTIL[0]:
-            return None                  # the detector is cooling down: pending, never wait
+        now = time.monotonic()
+        if now < _DETECTOR_IDLE_UNTIL[0]:
+            if wait > 0 and _DETECTOR_IDLE_UNTIL[0] <= deadline:
+                time.sleep(_DETECTOR_IDLE_UNTIL[0] - now)   # the save door waits out the cool-down
+            else:
+                return None              # cooling down: pending, never wait
         t0 = time.perf_counter()
         caps = pine_capabilities.capabilities_of(source)
         elapsed = time.perf_counter() - t0
-        _DETECTOR_IDLE_UNTIL[0] = time.monotonic() + elapsed * (1 / DETECTOR_DUTY_CYCLE - 1)
+        if verdict_member is not None:
+            # a verdict run cools only the verdict door (persisted work keeps priority)
+            _VERDICT_IDLE_UNTIL[0] = time.monotonic() + elapsed * (1 / VERDICT_DUTY_CYCLE - 1)
+            _verdict_member_charge(verdict_member, time.monotonic(), elapsed)
+        else:
+            _DETECTOR_IDLE_UNTIL[0] = time.monotonic() + elapsed * (1 / DETECTOR_DUTY_CYCLE - 1)
     finally:
         _DETECTOR_GATE.release()
     if nbytes >= 1024:
@@ -831,7 +898,8 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
 
 
 def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
-                        persist: bool = True) -> tuple:
+                        persist: bool = True, wait: float = 0.0,
+                        verdict_member: Optional[str] = None) -> tuple:
     """``(ok, missing)``: does EVERY capability this source uses carry admission? ``missing``
     names, sorted, each capability it uses that is not admitted (a capability absent from the
     registry is missing: CLOSED WORLD; an unreadable source is missing ``unreadable``; a source
@@ -843,7 +911,8 @@ def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
     if not isinstance(source, str) or not source.strip():
         return False, [pine_capabilities.UNREADABLE]
     try:
-        caps = capabilities_for(source, budget=budget, persist=persist)
+        caps = capabilities_for(source, budget=budget, persist=persist, wait=wait,
+                                verdict_member=verdict_member)
         if caps is None:
             return False, [PENDING]
         if budget is not None:
@@ -859,7 +928,7 @@ def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
     return (not missing), missing
 
 
-def runtime_admission(source: Any) -> dict:
+def runtime_admission(source: Any, member: Any = None) -> dict:
     """``POST /api/user-definitions/runtime-admission`` -- ``{sha256, admitted, missing}`` for one
     source, the client's per-hash verdict (`engine/runtimeKill.js`). ``admitted`` is True only
     when capability admission is ON, the script is not on the kill list, and
@@ -870,7 +939,10 @@ def runtime_admission(source: Any) -> dict:
     # constant, so no request can spend server time on a door that admits nothing.
     if not capability_admission_on():
         return {"sha256": h, "admitted": False, "missing": []}
-    ok, missing = capability_admitted(source, persist=False)      # the verdict door stores nothing
+    # the verdict door stores nothing, yields to persisted work, and spends from the member's own
+    # rolling detector budget (re-review F2); a member is never None here (the route passes its id)
+    ok, missing = capability_admitted(source, persist=False,
+                                      verdict_member=str(member) if member is not None else "<anonymous>")
     admitted = bool(ok and not killed(None, source))
     return {"sha256": h, "admitted": admitted, "missing": missing}
 
@@ -1031,7 +1103,7 @@ def _not_graded_for_stamp(source: Any, budget: "Optional[DetectorBudget]", capab
     budget or `capability=False` is in play WHILE capability admission is on. With it off neither can
     change the answer, so the call is exactly the one before Part 2 (every caller and test double
     sees the same call)."""
-    if (budget is None and capability) or not capability_admission_on():
+    if not capability_admission_on():
         return not_graded(source), False
     return not_graded_reason(source, budget=budget, capability=capability)
 
@@ -1069,7 +1141,10 @@ def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
     # WS-I Part 2: `budget` bounds the fresh detector runs a whole request may do; `capability=False`
     # (a non-latest history version, never drawn) asks no capability question at all.
     ungraded, pending = _not_graded_for_stamp(source, budget, capability)
-    if not why and not ungraded:
+    meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    # re-review F4: a stamp a client wrote back (`runtimeKilled` / `runtimeNotGraded` /
+    # `runtimePending`) is dropped, so a stored row can never be pinned in a served state
+    if not why and not ungraded and not any(k in meta_in for k in RUN_READ_STAMPS):
         return row
     out = dict(row)
     # only `meta` is written: a shallow copy with its own `meta` serves the same document without a
@@ -1077,6 +1152,8 @@ def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
     d = dict(definition)
     d["meta"] = dict(definition["meta"]) if isinstance(definition.get("meta"), dict) else definition.get("meta")
     meta = d.get("meta") if isinstance(d.get("meta"), dict) else {}
+    for k in RUN_READ_STAMPS:
+        meta.pop(k, None)
     if why:
         meta["runtimeKilled"] = why
     if ungraded:
@@ -1086,6 +1163,15 @@ def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
     d["meta"] = meta
     out["definition"] = d
     return out
+
+
+def scrub_served_stamps(definition: Any) -> Any:
+    """The definition without any served stamp (`RUN_READ_STAMPS`): what the save door stores
+    (re-review F4: a stamp a client wrote back is never stored). The SAME object when it carries none."""
+    meta = definition.get("meta") if isinstance(definition, dict) else None
+    if not isinstance(meta, dict) or not any(k in meta for k in RUN_READ_STAMPS):
+        return definition
+    return dict(definition, meta={k: v for k, v in meta.items() if k not in RUN_READ_STAMPS})
 
 
 def run_read_source(definition: Any) -> Optional[str]:
