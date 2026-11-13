@@ -133,7 +133,7 @@ import {
   BAR_COORD_PROPS,
   GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP, AUTO_MAX_BARS_BACK,
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
-  withObjectTransparency, isPassCondition,
+  withObjectTransparency, isPassCondition, objectSiteKey,
 } from './objectProgram.js'
 import { wholeTransparency, unpackColor } from '../colorInt.js'
 import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR, fromGradient, packedToObjectHex } from '../runtime/colours.js'
@@ -19373,6 +19373,11 @@ const POINT_SIZE_ANCHOR_SET = Object.freeze({
 /** ⛔ A helper body run before bar 0 stops after this many loop passes in all. */
 const STATIC_HELPER_MAX_PASSES = 1000
 
+/** ⭐⭐ ENGINE 54 — where the object pass names each create site's source call
+ *  (`translation.objectDiagnostics[OBJECT_SITE_SOURCES]`: `{s1: '12:5', ...}`), read by the
+ *  member door to mint a run half's `sites` (`memberPaneDefinition::hostPartialRunHalf`). */
+export const OBJECT_SITE_SOURCES = 'siteSources'
+
 function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatement,
   objectOpts = {}) {
   // ⭐ C22 — every Resolver this pass builds knows the op `convertList` is
@@ -23304,6 +23309,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  "fine" for the second case. Ordering makes the distinction unnecessary
    *  anyway — the reader emits the create immediately before the call. */
   const emittedSites = new Set()
+  /** ⭐⭐ ENGINE 54 — each emitted create site's SOURCE CALL (`objectSiteKey` of its
+   *  `<family>.new` token): the id the per-bar run stamps on the objects the same call
+   *  makes. Rides NON-ENUMERABLY on `diagnostics` (`OBJECT_SITE_SOURCES`), so no stored
+   *  document and no census over the diagnostics changes by a byte. */
+  const siteSources = {}
+  Object.defineProperty(diagnostics, OBJECT_SITE_SOURCES, { value: siteSources, enumerable: false, configurable: true })
 
   const targetRef = (argNode) => {
     const v = argNode && argNode.value
@@ -24947,6 +24958,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
       emittedSites.add(op.site)
+      { const key = objectSiteKey(op.at); if (key) siteSources[op.site] = key }
       ops.push(withUnwitnessedMarked({
         k: 'create',
         family: op.family,
