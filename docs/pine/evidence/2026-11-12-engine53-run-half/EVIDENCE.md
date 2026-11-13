@@ -203,6 +203,123 @@ All 18 KILLED.
   `test_saved_script_prebump`, `test_script_engine_version_gate`, `test_line_width_cap_parity`,
   `test_batch2_save_door`: **574 passed**.
 
+## Review of #1179 (APPROVE-WITH-NOTES at `ef373e1489`) — the fixes
+
+1. **The run half is bound to the document's own script** (MEDIUM). Before: the schema accepted any
+   `compute.runtimeObjects.source` and the bind ran it, so a document carrying script A's plots and
+   objects plus `runtimeObjects = {source: <another script>, outputs: {}}` passed every gate (the rail
+   is vacuous with no mapped plot), read `served` with `live: []`, and A's host drawings vanished.
+   Now, all three:
+   - **Save door** (`user_definitions.save` -> `runtime_definitions.run_half_source_refusal`): refused
+     (`SaveRefused`, guard `run-half:source`) unless `sha256(runtimeObjects.source)`, the document's
+     stamp `meta.pineSourceSha256` and `sha256(pine_source)` are one script; a save with no script
+     cannot bind one and is refused too. A share copy (`install_share`, saved without the author's
+     script) drops the run half (`runtime_definitions.without_run_half`): the author's Pine never
+     travels with a share, and the copy keeps the host picture. A fork carries its script and keeps it.
+   - **Bind** (`nativeRegistry::withRunHalf`): refused `run-half:source-unbound` unless
+     `sha256(ro.source) === meta.pineSourceSha256` (hash memoised per `runtimeObjects` object). The door
+     stamps the script it translated (`RUN_HALF_SOURCE_STAMP`), only on a minted document, so every
+     declined document stays byte-identical.
+   - **Schema** (both sides, one fixture): `runtimeObjects.source` must equal
+     `runtimeColours.source` when both are present, which also settles which script
+     `stamp_served` reads for such a row.
+   - Rails: the forged-doc repro on the client (`runHalf.test.jsx`: foreign source refused, no stamp
+     refused, a stamp naming the foreign script refused, honest served) and the server
+     (`test_run_half_source_binding.py`: forged, forged with the stamp forged too, no script, missing
+     or wrong stamp, share drops / fork keeps, the honest one saves).
+   - Residual, stated: the binding proves the run half is the row's own script; it cannot prove the
+     row's plots were translated from that script (that would need a server-side translation). A
+     member forging their OWN row draws a wrong picture only on their own chart; a share never
+     carries a run half. The vacuous rail for a drawing-only script is a Part 2 requirement (below).
+2. **Rails for the seven surviving mutants** X2-X8 (door ignores requests / naTests /
+   calc_bars_count / hidden rows; bind ignores the runtime.error stop; DIV-4 ignores the not-graded
+   stamp; the rail reads na vs a number as agreeing): each now killed (table below).
+3. **A refused run half over a host with no drawing program** (LOW): `binder.js` returned before
+   `publishDrops`; it now publishes the refusal sentence, and empties a layer the run drew before.
+   Railed with the fixture whose host program loses every drawing.
+4. **The door counts the bytes the store counts** (LOW): the 64 KiB check moved to the FINISHED
+   document and measures it as the store will (`storedBytes.js`: the save's engine stamp and graph
+   form, the store's `paramState`, the semantics strip and Python's JSON text). Over the cap, the run
+   half is taken out again so the document is byte-identical to the door that never asks.
+   `user_definitions.stored_bytes_for_new` is the server's count; `tests/fixtures/run_half_stored_bytes.json`
+   holds the two equal, and the saved blob's own length equals the server's count. A border rail
+   finds the largest script that still mints and proves its stored count is within 64 bytes under
+   the cap, and the next one declines byte-identically.
+
+## Before Part 2 (NOTE ONLY, not built here)
+
+- **Latch / fetch ordering (review finding 4).** A tab that has not latched the per-member
+  permission, or has not read the lists yet, answers `pane:not-permitted` / `pane:not-graded`, and
+  the member reads the "switched off for your account" sentence for a script that may be admitted a
+  moment later. Before admission widens reach: hold the run half `pending` (empty layer) until the
+  latch and the lists have answered, and word the member-visible sentence for "not yet known"
+  separately from "switched off".
+- **Requirements for capability admission to serve run halves:**
+  (a) the source binding (done here, item 1);
+  (b) an object-level cross-check against the host's partial program per create site, and, where
+      nothing is comparable (a drawing-only script, a vacuous rail), objects v2 runtime-on MATCH
+      evidence from 2 or more captures, with family admission counted per family;
+  (c) refuse when the run withholds ANY object the host draws, warm-up-withheld objects included
+      (today: a whole family withheld is refused; a single warm-up object is not compared);
+  (d) rail-refusal telemetry (which gate and which code refused, counted per script hash), so the
+      reach under admission is measured, not inferred.
+
+### Review mutants (`runs/mutants-review.json`; on `7cf9b35717`, before the master merge, which touched none of the mutated files)
+
+C0 (no edit): GREEN, 41 tests. Every restore from the saved copy: `git hash-object` == committed blob.
+
+| id | mutant | killed by |
+|---|---|---|
+| X2 | the door ignores `probe.requests` | runHalf.pairing.rail (X2) |
+| X3 | the door ignores `probe.naTests` | runHalf.pairing.rail (X3) |
+| X4 | the door ignores `calc_bars_count` | runHalf.test (X4) |
+| X5 | the bind ignores the script's `runtime.error` stop | runHalf.test (X5: refused before the run is asked) |
+| X6 | DIV-4 ignores the not-graded served stamp | div4RuntimeReadPaint (stamps) |
+| X7 | the rail reads na against a number as agreeing | runHalf.test (X7, both directions) |
+| X8 | the door maps hidden rows | runHalf.test (X8) |
+| X9 | the bind runs a run half not bound to the document's script | runHalf.test (forged doc) |
+| X10 | the save door accepts a run half naming another script | test_run_half_source_binding (forged doc) |
+| X11a / X11b | client / server schema accept a run half beside another script's colours | runtimeObjectsSchemaParity / test_runtime_objects_schema_parity |
+| X12 | a refused run half with no host program publishes nothing | runHalf.test (review 3) |
+| X13 | the door counts JavaScript's bytes, not the store's | runHalf.test (border) |
+| X14 | a share copy keeps the author's run half | test_run_half_source_binding (share / fork) |
+
+All 15 KILLED.
+
+### Runs after the review (which SHA ran what)
+
+- Review mutants X2-X14 (table above): on `7cf9b35717` (review fixes, before the merge).
+- `origin/master` (`02493fd108`) merged in with a merge commit: `16ce8fa4f9`. It touched none of
+  the run-half, schema, bind, binder, store or runtime files (no conflicts).
+- On `16ce8fa4f9`:
+  - Focused (<= 5 files per run, `--maxWorkers=1`): `runHalf.test.jsx` (33), `runHalf.pairing.rail`
+    (8), `storedBytes.parity` (3), `div4RuntimeReadPaint`, `runtimeObjectsSchemaParity` (25):
+    111 green; `memberPaneDefinition`, `partialDrawing`, `runtimeObjectsDoor`, `savedScriptUpgrade`,
+    `editorStatus.families`: 77 green; `nativeRegistry`, `defSchema`, `objectsNotShownNote`,
+    `objectRenderDrops`, `rt5RuntimeObjects`: 637 green.
+  - Touched pytest (`test_run_half_source_binding`, `test_runtime_objects_schema_parity`,
+    `test_engine53_stamp_served_ast`, `test_runtime_definitions`, `test_div4_runtime_colour_paint`,
+    `test_batch2_save_door`, `test_line_width_cap_parity`, `test_saved_script_prebump`,
+    `test_script_engine_version_gate`, `test_pine_runtime_engine_identity`,
+    `test_pine_runtime_service_smoke`): **246 passed**. Wider: every pytest file importing
+    `user_definitions` (120 files): 2,771 passed, 14 failed; all of those fail identically with
+    master's `user_definitions.py` / `runtime_definitions.py` / `presentation_schema.py` swapped in
+    (restored after, blobs equal): `test_alert_erasure` census, `test_definition_concierge` (3),
+    `test_p2x_truth_converse` R4, `test_pine_strategy_backtest` (1), `test_starter_library` (5),
+    `test_user_definitions_auth` (1). Master reds, not this branch's.
+  - Reach (inertness), 679 scripts: host-OK 297, host-partial 57. Pane dark: **0 minted**. REAL
+    allowlist: **0 minted** (57 `runtime:not-yet-graded`). Allow-every upper bound: **6 minted**
+    (4 served on synthetic bars, 2 refused `runtime:limit`; bind p95 236 ms), and
+    dual-view-htf-candlestick-patterns is now declined `run-half:size`: its 60 KB script
+    re-embedded puts it past the store's cap as the store counts it. Before item 4 it minted and
+    would have been refused at save. Every non-minted document is byte-identical to the
+    no-run-half document.
+  - ONE heavy run under `heavy_lock` (`engine/ast`, `engine/runtime/__tests__`, `engine/__tests__`,
+    `builder`, `--maxWorkers=1`): **1,134 files, 19,729 passed, 10 failed, 200 skipped**. Failed:
+    `readoutSchema.va2` (8), `rsRatingDef` (1), `rsVsEmaDef` (1). All three are known master reds.
+  - hostParity `--host node --check`: **HP-1 GREEN 166/166** (the digests are unchanged by the
+    review: no runtime-lane code moved).
+
 ## Deferred
 
 - Part 2 (capability admission) is not in this PR. Until it lands the allowlist holds only
