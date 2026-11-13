@@ -784,10 +784,14 @@ export function everyExceptSet(text, charts = [], sel = null) {
   const q = EVERY_Q.exec(t)
   if (!q) return null
   const after = q.index + q[0].length
-  const ex = EXCEPT_WORD.exec(t.slice(after))
+  const ex0 = EXCEPT_WORD.exec(t.slice(after))
+  // (hotfix) a negated-TICKER clause beside the quantifier ("every chart weekly, but leave NVDA's alone") is this family too:
+  // the quantifier's own words run to its clause's end, and the exclusion is the ticker the clause names
+  const ex = ex0 || (negTickerRefs(text, charts).length
+    ? { index: t.slice(after).split(/[,;:.!?—–]|\s+(?:but|and|then|though)\s+/i)[0].length, neg: true } : null)
   if (!ex) return null
   const seg = t.slice(after, after + ex.index).replace(BOARD_PP, ' ')
-  const phrase = t.slice(after + ex.index).split(/[,;.!?]|\s+(?:and|then)\s+/i)[0]
+  const phrase = ex.neg ? '' : t.slice(after + ex.index).split(/[,;.!?]|\s+(?:and|then)\s+/i)[0]
   const excluded = new Set(excludedCharts(text, charts, sel))
   if (sel && negatedClick(text).excludes) excluded.add(sel)
   // a RELATION to the click inside the exclusion ("except the one diagonally across from this"): its target is excluded; a
