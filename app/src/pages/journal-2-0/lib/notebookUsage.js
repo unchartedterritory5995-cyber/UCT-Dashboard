@@ -7,6 +7,9 @@ import { EVENT_SCHEMAS, MEMBER_BUILT_KIND, NOTEBOOK_EVENTS, trackNotebookEvent }
 /** The router state key the walkthrough engine puts on the navigation that starts a tour (GenericTourEngine). */
 export const TOUR_NAV = 'tourNav'
 let firstEntrySeen = false
+/** Follow-up B, item 6a: the router `location.key` last counted. A remount of the notes list while the navigation type
+ *  is still PUSH on the same entry would otherwise count that one link again. */
+let lastCountedKey = null
 /** The browser's own word for how the document was loaded ('navigate', 'reload', 'back_forward'), or null. */
 export const documentNav = {
   type: () => {
@@ -15,17 +18,23 @@ export const documentNav = {
 }
 /** Did the member open this address by a link? An in-app PUSH that the walkthrough engine did not make, or, once per
  *  document, the first entry (POP) when the browser loaded the page by a followed or typed link. Never Back or
- *  Forward, a reload, a REPLACE, or a remount on the same address. */
-export function linkOpened(navigationType, state) {
+ *  Forward, a reload, a REPLACE, or a remount on the same address: `key` (the router's `location.key`) is counted at
+ *  most once, whatever the navigation type still says. */
+export function linkOpened(navigationType, state, key = null) {
   const first = !firstEntrySeen
   firstEntrySeen = true
-  if (navigationType === 'PUSH') return !(state && state[TOUR_NAV])
-  if (navigationType !== 'POP' || !first) return false
-  const idx = globalThis.history?.state?.idx
-  return (idx === 0 || idx === undefined) && documentNav.type() === 'navigate'
+  if (key != null && key === lastCountedKey) return false
+  let opened = false
+  if (navigationType === 'PUSH') opened = !(state && state[TOUR_NAV])
+  else if (navigationType === 'POP' && first) {
+    const idx = globalThis.history?.state?.idx
+    opened = (idx === 0 || idx === undefined) && documentNav.type() === 'navigate'
+  }
+  if (opened && key != null) lastCountedKey = key
+  return opened
 }
 /** Tests only: a fresh document. */
-export const __resetLinkOpenedForTests = () => { firstEntrySeen = false }
+export const __resetLinkOpenedForTests = () => { firstEntrySeen = false; lastCountedKey = null }
 
 /** `notebook_route_opened`: once per mount of one of the Notebook's side routes (off while `on` is false). */
 export function useRouteOpened(route, on = true) {

@@ -8,9 +8,10 @@ import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { telemetryBodies, expectNoContent } from '../lib/testing/telemetryFetch'
 import NotebookTab from './NotebookTab'
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { TOUR_NAV, __resetLinkOpenedForTests, documentNav } from '../lib/notebookUsage'
+import { TOUR_NAV, __resetLinkOpenedForTests, documentNav, linkOpened } from '../lib/notebookUsage'
 
 const LAYOUT_KEY = 'uct.notebook.list.layout'
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
@@ -93,6 +94,34 @@ describe('a ?view= link (fix round 1, I2: only a link the member followed)', () 
     expect(usage('view_used')).toEqual([])
     const engine = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx'), 'utf8')
     expect(engine).toContain('navigate(r.path, { state: { ...(stripTourState(location.state) || {}), [TOUR_NAV]: true } })')
+  })
+
+  // Follow-up B, item 6a: the notes list remounted while the navigation type is still PUSH on the same entry (the
+  // same `location.key`) used to count the one link again.
+  it('a remount of the notes list on the same pushed address sends none', async () => {
+    let mounted = null
+    function Host() { const [on, setOn] = useState(true); mounted = setOn; return on ? <NotebookTab /> : null }
+    fetchSpy = installFetch([[/mapping-offer$/, { offer: null }]])
+    render(<Providers auth={AUTH} route="/journal/notebook?view=all"><NavProbe /><Host /></Providers>)
+    await settle()
+    await go('/journal/notebook?view=board')
+    expect(usage('view_used')).toHaveLength(1)
+    act(() => { mounted(false) })
+    await settle()
+    act(() => { mounted(true) })
+    await settle()
+    expect(screen.getByRole('button', { name: /^View: Board/ })).toBeTruthy()   // non-vacuity: remounted on the board
+    expect(usage('view_used')).toHaveLength(1)
+    await go('/journal/notebook?view=table')                                     // control: a new link still counts
+    expect(usage('view_used')).toHaveLength(2)
+  })
+
+  it('linkOpened counts one router entry (location.key) at most once', () => {
+    expect(linkOpened('PUSH', null, 'k1')).toBe(true)
+    expect(linkOpened('PUSH', null, 'k1')).toBe(false)
+    expect(linkOpened('PUSH', null, 'k2')).toBe(true)
+    expect(linkOpened('PUSH', { [TOUR_NAV]: true }, 'k3')).toBe(false)
+    expect(linkOpened('REPLACE', null, 'k4')).toBe(false)
   })
 
   it('Back to a view address sends none', async () => {

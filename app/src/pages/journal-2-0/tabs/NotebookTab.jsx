@@ -1053,7 +1053,8 @@ export default function NotebookTab() {
   useEffect(() => {
     if (!VIEW_MODES.some((m) => m.id === viewParam)) return
     if (viewWrittenRef.current === viewParam) viewWrittenRef.current = null
-    else if (linkOpened(navigationType, location.state)) {
+    // Follow-up B, item 6a: with the entry's key, so a remount on the same PUSH entry is not counted again.
+    else if (linkOpened(navigationType, location.state, location.key)) {
       trackNotebookEvent(NOTEBOOK_EVENTS.VIEW_USED, { mode: viewParam, via: 'link' })
     }
     setViewMode(viewParam)
