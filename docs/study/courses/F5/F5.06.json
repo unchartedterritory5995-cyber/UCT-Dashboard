@@ -1850,7 +1850,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed (34 - 32) x 500 = 1000. Deeper trap now ends on B22 (h4), worded 'sidesteps most of it', which is fair since a 5R hold still carries the gap."
+   "notes": "stop-gap loss arithmetic; no trim or short entry; keep agrees"
   },
   "q19": {
    "status": "pass",

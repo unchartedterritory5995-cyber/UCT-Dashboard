@@ -1865,7 +1865,7 @@
     "It sells at a 2R profit target"
    ],
    "answer": "It trails after the earlier sells",
-   "why": "It trails after the earlier sells. The first sell is a judgment: the owner very rarely sells on day 1 and usually waits until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 10-day average, or the 21-day for steadier movers.",
+   "why": "It trails after the earlier sells. The first sell is a judgment: we very rarely sell on day 1 and usually wait until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 10-day average, or the 21-day for steadier movers.",
    "lesson_line": "The first sell is a judgment, not a fixed third. Then trail what is left.",
    "facts": [
     "r01",

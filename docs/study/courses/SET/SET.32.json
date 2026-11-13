@@ -2036,7 +2036,7 @@
     "All of it at the close of day one"
    ],
    "answer": "Hold; day 3 at the earliest to sell",
-   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. At 2R the stop may go to breakeven, but nothing is sold yet.",
+   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. At 2R the stop may go to breakeven, but nothing is sold yet.",
    "lesson_line": "No fixed third at 3R. The first sell is a judgment, and it rarely comes on day one.",
    "facts": [
     "r21",
@@ -2045,7 +2045,7 @@
     "c34"
    ],
    "wrong": {
-    "A third now, since it is up 2R": "The owner very rarely sells on day 1. At 2R the stop may go to breakeven, but nothing is sold.",
+    "A third now, since it is up 2R": "We very rarely sell on day 1. At 2R the stop may go to breakeven, but nothing is sold.",
     "A third at 3R, even if that is today": "A fixed third at 3R is no longer the rule. The first sell is a judgment.",
     "All of it at the close of day one": "We swing trade. Selling everything on day 1 is not a swing trade."
    },
@@ -2604,7 +2604,7 @@
     "At the close, once it settles"
    ],
    "answer": "Not yet; day 3 at the earliest",
-   "why": "Not yet. The first sell is a judgment, not a fixed third at 3R. Tuesday is the day after the buy, and the owner usually waits until day 3 at the earliest.",
+   "why": "Not yet. The first sell is a judgment, not a fixed third at 3R. Tuesday is the day after the buy, and we usually wait until day 3 at the earliest.",
    "lesson_line": "A gap past 3R the day after the buy is not an automatic sell. Judge the push.",
    "facts": [
     "r21",

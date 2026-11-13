@@ -2197,7 +2197,7 @@
     "Sell it all and bank the day"
    ],
    "answer": "Hold; first sell comes later",
-   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. The stop may go to breakeven between 2R and 5R.",
+   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. The stop may go to breakeven between 2R and 5R.",
    "lesson_line": "No fixed third at 3R. Day one is rarely a sell day, so wait for the push.",
    "facts": [
     "r21",
@@ -2208,10 +2208,10 @@
    "wrong": {
     "Sell half; stop to breakeven": "Not half, and not on day 1. The first sell is a judgment, usually on day 3 or later.",
     "Sell it all and bank the day": "We swing trade, days to a few weeks, so we do not bank the day. The first sell usually waits until day 3.",
-    "Sell a third; stop to breakeven": "A fixed third at 3R is no longer the rule. Day 1 is the day the owner very rarely sells."
+    "Sell a third; stop to breakeven": "A fixed third at 3R is no longer the rule. Day 1 is the day we very rarely sell."
    },
    "house": true,
-   "simple": "Hold. The first sell is a judgment, and the owner rarely sells on day one.",
+   "simple": "Hold. The first sell is a judgment, and we rarely sell on day one.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -3453,7 +3453,7 @@
     "Hold it all; skip every trim"
    ],
    "answer": "Hold; first sell day 3 at the earliest",
-   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. Selling it all at 1R to 2R as a day trade is a named mistake. We swing trade, days to a few weeks. The originator's quick 2025 exits are an option, not ours.",
+   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. Selling it all at 1R to 2R as a day trade is a named mistake. We swing trade, days to a few weeks. The originator's quick 2025 exits are an option, not ours.",
    "lesson_line": "The pivot is a swing entry with a tight stop. Let it become a swing.",
    "facts": [
     "c24",

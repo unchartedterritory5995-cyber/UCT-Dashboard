@@ -16790,7 +16790,7 @@
   "difficulty": 1,
   "id": "si_0cccdf0d7a5c",
   "lesson_origin": "session",
-  "lesson_text": "Trim. Our plans run Entry, Stop, Trim, Trail: get in, set the stop, take some off, then trail the rest. The owner's full line ends with Advance. The first sell is a judgment, rarely on day 1, and the last part trails. Entry, Stop, Trim, Trail. Every trade plan we teach runs in that order.",
+  "lesson_text": "Trim. Our plans run Entry, Stop, Trim, Trail: get in, set the stop, take some off, then trail the rest. Our full line ends with Advance. The first sell is a judgment, rarely on day 1, and the last part trails. Entry, Stop, Trim, Trail. Every trade plan we teach runs in that order.",
   "module": "V",
   "prompt_json": {
    "bank": [
@@ -16838,7 +16838,7 @@
    "simple": "Trim comes third because you take some profit off as the trade works, then trail the rest.",
    "tier": "core",
    "unit": "V.05",
-   "why": "Trim. Our plans run Entry, Stop, Trim, Trail: get in, set the stop, take some off, then trail the rest. The owner's full line ends with Advance. The first sell is a judgment, rarely on day 1, and the last part trails."
+   "why": "Trim. Our plans run Entry, Stop, Trim, Trail: get in, set the stop, take some off, then trail the rest. Our full line ends with Advance. The first sell is a judgment, rarely on day 1, and the last part trails."
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -18529,7 +18529,7 @@
   "difficulty": 2,
   "id": "si_763b1827cd81",
   "lesson_origin": "session",
-  "lesson_text": "False. The first sell is a judgment that depends on many factors, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best. The first sell is a judgment, not a fixed third at 3R.",
+  "lesson_text": "False. The first sell is a judgment that depends on many factors, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best. The first sell is a judgment, not a fixed third at 3R.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -18581,7 +18581,7 @@
    "simple": "False, because the first sell is a judgment and not a set third at 3R.",
    "tier": "core",
    "unit": "V.05",
-   "why": "False. The first sell is a judgment that depends on many factors, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best."
+   "why": "False. The first sell is a judgment that depends on many factors, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best."
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -20885,7 +20885,7 @@
    "why": "Trail under the 4-day line. Our Slingshot trails under the 10-day average, or under each higher low. The 4-day average of the highs is the entry line, not the trail. The entry, the stop and the first sell in the note all match our plan.",
    "wrong": {
     "Entry as it trades up through it": "That's our entry: price trading up through the line, not a close.",
-    "First sell: day 3 at the earliest": "That fits how we sell. The owner very rarely sells on day 1, and the first sell is a judgment.",
+    "First sell: day 3 at the earliest": "That fits how we sell. We very rarely sell on day 1, and the first sell is a judgment.",
     "Stop under the trigger day's low": "That's our stop. The day before's low is the wider choice."
    }
   },
@@ -22029,7 +22029,7 @@
   "difficulty": 1,
   "id": "si_67b288c342b7",
   "lesson_origin": "session",
-  "lesson_text": "It trails after the earlier sells. The first sell is a judgment: the owner very rarely sells on day 1 and usually waits until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 10-day average, or the 21-day for steadier movers. The first sell is a judgment, not a fixed third. Then trail what is left.",
+  "lesson_text": "It trails after the earlier sells. The first sell is a judgment: we very rarely sell on day 1 and usually wait until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 10-day average, or the 21-day for steadier movers. The first sell is a judgment, not a fixed third. Then trail what is left.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -22090,7 +22090,7 @@
    "simple": "The last part trails, because the first sell is a judgment and what is left rides the trail.",
    "tier": "core",
    "unit": "V.06",
-   "why": "It trails after the earlier sells. The first sell is a judgment: the owner very rarely sells on day 1 and usually waits until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 10-day average, or the 21-day for steadier movers.",
+   "why": "It trails after the earlier sells. The first sell is a judgment: we very rarely sell on day 1 and usually wait until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 10-day average, or the 21-day for steadier movers.",
    "wrong": {
     "It sells at a 2R profit target": "Our plan has no fixed 2R target. The first sell is a judgment, and the last part trails.",
     "It sells at a set percent gain": "Our plan does not sell the last part at a set percent. It trails.",

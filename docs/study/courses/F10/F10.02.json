@@ -885,7 +885,7 @@
     "Add to the position as it keeps rising"
    ],
    "answer": "Sell partials, trail rising averages",
-   "why": "Sell partials into strength and trail the rising moving averages. That is our rule, in the owner's words. Take some off as it runs, and let the stop follow the trend up. Leave only the first stop, and a winner can turn into a loser.",
+   "why": "Sell partials into strength and trail the rising moving averages. That is our rule. Take some off as it runs, and let the stop follow the trend up. Leave only the first stop, and a winner can turn into a loser.",
    "lesson_line": "We hold winners by selling partials into strength and trailing the rising moving averages.",
    "facts": [
     "h02",

@@ -2763,3 +2763,7 @@ Given on the local review page on 2026-11-12 (Step 1 of the overbuild review); t
 Still open (he asked what these mean; the defaults stand until he answers):
 - **D-007.** He was not sure what it asks. Plain version for him: before any chart example goes into a lesson, do you want to see and approve each one (keep / keep with a note / cut), as you did for the Kicker? Default stays until he answers.
 - **D-016.** He was not sure what it asks. Plain version for him: a table of small naming choices (which name a setup goes by, and which family it is filed under in the journal). Default stays until he answers.
+- **Gap-open sell (chat, 2026-11-12).** His answer: "Optional, my judgment"
+  Rule: A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule; questions must not key it as required.
+- **Short entry (chat, 2026-11-12).** His answer: "Through the trigger"
+  Rule: Shorts enter like buys: as price trades through the trigger, never at the close.

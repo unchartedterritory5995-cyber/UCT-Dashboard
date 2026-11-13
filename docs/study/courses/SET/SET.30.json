@@ -1244,7 +1244,7 @@
    "criterion": "pl.burst",
    "q": "Our parabolic long is Bracco's parabolic burst mirrored: three straight down days, two gap downs, rising volume.",
    "answer": "True",
-   "why": "True. Our rulebook makes the parabolic long the mirror image of Bracco's burst, a burst down, and the owner confirmed it. Bracco's own post has no parabolic long. The card lists three straight lower closes, two gap-down opens, bigger losses, rising volume and a climax gap down.",
+   "why": "True. Our rulebook makes the parabolic long the mirror image of Bracco's burst, a burst down. Bracco's own post has no parabolic long. The card lists three straight lower closes, two gap-down opens, bigger losses, rising volume and a climax gap down.",
    "lesson_line": "Read Bracco's burst upside down. That is our parabolic long.",
    "facts": [
     "h10b",
@@ -2251,7 +2251,7 @@
    "criterion": "pl.breakeven",
    "q": "Our card moves the parabolic long's stop to breakeven at 2R, the low end of the house window.",
    "answer": "True",
-   "why": "True. The card moves the stop to breakeven at 2R, the low end of the house window. The owner's rule is to move it at 2R to 5R, ideally, so 2R is the early end of that range, not a separate rule.",
+   "why": "True. The card moves the stop to breakeven at 2R, the low end of the house window. Our rule is to move it at 2R to 5R, ideally, so 2R is the early end of that range, not a separate rule.",
    "lesson_line": "Two R and the stop goes to the fill. The bounce does not wait for you.",
    "facts": [
     "c20",
@@ -4300,7 +4300,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c22/s04/s05/s07/c12; story numbers are in the question; slide-age caveat closes c24 pass reading."
+   "notes": "index gap and VWAP long entry; not a trim or short entry; keep agrees"
   },
   "q66": {
    "status": "cut",

@@ -965,6 +965,12 @@
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "g1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
   }
  ],
  "walkthroughs": [
@@ -2305,31 +2311,31 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "fb.trim_gap_open",
-   "q": "What do you do on Friday?",
+   "q": "What is true about Friday's gap?",
    "choices": [
-    "Sell some, right at the open",
-    "Wait and decide at the close",
-    "Sell the whole position now",
-    "Hold it all; keep the stop"
+    "Selling some now is your call",
+    "A gap past 3R is an automatic sell",
+    "A gap past 3R means sell it all",
+    "A gap day is never a day to sell"
    ],
-   "answer": "Sell some, right at the open",
-   "why": "Sell some at the open. It is day 4, past the day 3 earliest mark, and the gap is the push. If a stock opens above a level where you planned to sell, take that sale at the open. The rest stays on the plan.",
-   "lesson_line": "A gap through your planned sell level is the sale. Take it at the open.",
+   "answer": "Selling some now is your call",
+   "why": "Selling some now is your call. A gap past 3R is not an automatic sell. It is day 4, past the day 3 earliest mark, so selling some is a fair choice. Holding and trailing is a fair choice too.",
+   "lesson_line": "A gap past 3R is not an automatic sell. Selling some is your call.",
    "facts": [
-    "h25",
-    "r07",
-    "r08"
+    "g1",
+    "r06",
+    "r07"
    ],
    "wrong": {
-    "Wait and decide at the close": "The level is already passed. Waiting gives the gap a chance to fill.",
-    "Sell the whole position now": "Too much at once. Sell some into the push and keep the rest on the plan.",
-    "Hold it all; keep the stop": "The stop stays, but your plan was to sell some into a push, and the gap is that push."
+    "A gap past 3R is an automatic sell": "No gap is an automatic sell. Selling part on a big gap is a judgment, never a rule.",
+    "A gap past 3R means sell it all": "Too much at once. The first sell is a judgment, and the rest stays on the plan.",
+    "A gap day is never a day to sell": "It is allowed. Selling part into a big gap is one choice you may make."
    },
    "house": true,
-   "story": "Your flat base long is on day 4. Your plan is to sell some into a strong push. It closed Thursday at 2.6R. Friday it gaps open to 3.4R.",
-   "simple": "Sell some at the open, because the stock gapped past the level where the plan says to sell.",
+   "story": "Your flat base long is on day 4. It closed Thursday at 2.6R. Friday it gaps open to 3.4R.",
+   "simple": "A gap past 3R is not an automatic sell. Selling some at the open is your call, and so is holding.",
    "deeper": {
-    "example": "Gaps happen. Friday's open is already past 3R, and it is day 4, so the push is here. Waiting for the close only gives the move a chance to fade. Sell some at the open and leave the rest to the trail."
+    "example": "Friday's open is past 3R and it is day 4, so selling some is a fair choice. So is holding it all and trailing. Take the gap as a chance, not an order. Either way, keep the stop."
    },
    "tier": "extended",
    "risk": {
@@ -2338,7 +2344,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings3"
   },
   {
    "key": "q39",
@@ -4185,7 +4191,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Planned-sell gap on day 4; ok."
+   "notes": "re-keyed to your call; no required sell; quote verbatim; style ok"
   },
   "q39": {
    "status": "pass",

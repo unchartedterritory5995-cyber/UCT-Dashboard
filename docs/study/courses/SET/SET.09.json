@@ -1136,6 +1136,12 @@
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "g1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
   }
  ],
  "walkthroughs": [
@@ -4392,32 +4398,31 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "ch.trim_gap_open",
-   "q": "What do you do at the open?",
-   "story": "Your plan is to sell part into a strong push after day 3. You bought at 91.29 with the stop at 90.67, so 3R is 93.15. On day 4 the stock opens at 94.20.",
+   "q": "What does the plan say at the open?",
+   "story": "The first sell is a judgment, usually day 3 at the earliest. You bought at 91.29 with the stop at 90.67, so 3R is 93.15. On day 4 the stock opens at 94.20.",
    "choices": [
-    "Sell part at the open",
-    "Wait for a dip to 93.15",
-    "Sell two thirds at open",
-    "Sell it at the close"
+    "Sell part at the open; it is the rule",
+    "Wait for a dip to 93.15; it is the rule",
+    "Sell two thirds at the open",
+    "Your call: sell part or hold on"
    ],
    "wrong": {
-    "Wait for a dip to 93.15": "Our rule is to take it at the open, not to bet on a pullback.",
-    "Sell it at the close": "The rule says at the open.",
-    "Sell two thirds at open": "Too much at once. Sell part into the gap and keep the rest on the plan."
+    "Sell part at the open; it is the rule": "Selling part on a gap is one choice you may make. It is never a rule.",
+    "Wait for a dip to 93.15; it is the rule": "No rule asks you to wait for a dip. Waiting is a bet that it comes.",
+    "Sell two thirds at the open": "Too much at once. If you sell, sell part and keep the rest on the plan."
    },
-   "answer": "Sell part at the open",
-   "why": "Sell part at the open. It is day 4, past the day 3 earliest mark, and the stock gapped above 3R. If a stock opens above a level where you planned to sell, take that sale at the open. Here 3R was 93.15 and the stock opened at 94.20.",
-   "lesson_line": "A gap over your planned sell level means you sell at the open.",
+   "answer": "Your call: sell part or hold on",
+   "why": "It is your call. It is day 4, past the day 3 earliest mark, and the stock gapped above 3R. A gap past 3R is not an automatic sell. Selling part at the open is one choice you may make. Holding is another.",
+   "lesson_line": "A gap past your planned sell level is not an automatic sell. It is your call.",
    "facts": [
-    "h41",
-    "c56",
+    "g1",
     "r03",
     "r04"
    ],
    "house": true,
-   "simple": "When a stock opens above a level where we planned to sell, we sell at the open and do not wait.",
+   "simple": "A gap past 3R is not an automatic sell. Selling part at the open is allowed, and so is holding.",
    "deeper": {
-    "trap": "Do not treat 93.15 as a limit order sitting in the market. When a stock gaps over it, the price you can get is the open. Waiting for a fall back to 93.15 is a bet that it comes."
+    "trap": "Do not read the gap as an order to sell. 93.15 is a mark, not a trigger. The gap lets you sell part by judgment. It does not make you."
    },
    "tier": "expert",
    "risk": {
@@ -4426,7 +4431,7 @@
      "rests on the owner's rulebook B19 and F63"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings3"
   },
   {
    "key": "q86",
@@ -5256,8 +5261,8 @@
   "q85": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Q still says first third; reword."
+   "fixed": false,
+   "notes": "re-keyed to your call; 93.15 math ok; quote verbatim; style ok"
   },
   "q86": {
    "status": "cut",

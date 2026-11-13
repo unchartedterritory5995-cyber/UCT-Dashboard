@@ -954,6 +954,12 @@
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "g1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
   }
  ],
  "walkthroughs": [
@@ -2141,32 +2147,31 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ipo.trim_gap_open",
-   "q": "What do you do at the open?",
+   "q": "What does the plan say at the open?",
    "choices": [
-    "Sell part at the open",
+    "Sell part at the open; it is the rule",
     "Sell the whole position",
-    "Wait for a higher price",
-    "Wait for the first half hour"
+    "Wait 30 minutes; it is the rule",
+    "Your call: sell part or hold on"
    ],
-   "answer": "Sell part at the open",
-   "why": "At the open. If a stock opens above a level where you planned to sell, take that sale at the open. 3R is 61.53 and the open at 62.00 is above it. It is day 4, so the sell is not too early, and the rest stays on the plan.",
-   "lesson_line": "A gap past your planned sell level means you sell at the open.",
+   "answer": "Your call: sell part or hold on",
+   "why": "It is your call. 3R is 61.53 and the open at 62.00 is above it. It is day 4, so a sale is not too early. A gap past 3R is not an automatic sell. Selling part is one choice. Holding is another.",
+   "lesson_line": "A gap past your planned sell level is not an automatic sell. It is your call.",
    "facts": [
-    "h25",
-    "h06",
+    "g1",
     "r05",
     "r06"
    ],
    "wrong": {
-    "Wait for a higher price": "A level the day opens past is a sale at the open, not something to wait on.",
-    "Sell the whole position": "We sell part and keep the rest on the plan.",
-    "Wait for the first half hour": "The 30-minute wait is for a gap down through the stop. A gap up past a planned sell level is taken at the open."
+    "Sell the whole position": "Too much at once. If you sell, sell part and keep the rest on the plan.",
+    "Sell part at the open; it is the rule": "Selling part on a gap is one choice you may make. It is never a rule.",
+    "Wait 30 minutes; it is the rule": "No rule makes you wait. The gap is past 3R, and what you do about it is your call."
    },
    "house": true,
-   "story": "You bought at 57.42 with the stop at 56.05. Your plan is to sell part into a strong push. On day 4 the stock opens at 62.00, above 3R at 61.53.",
-   "simple": "Sell part at the open. The stock gapped past our planned sell level, so we sell at the open.",
+   "story": "You bought at 57.42 with the stop at 56.05. The first sell is a judgment, usually day 3 at the earliest. On day 4 the stock opens at 62.00, above 3R at 61.53.",
+   "simple": "A gap past 3R is not an automatic sell. Selling part at the open is allowed, and so is holding.",
    "deeper": {
-    "example": "Gaps skip levels. If you wait for a price you have already passed, you may watch the gain shrink with no rule to act on. The plan said sell into the push, the open is above 3R, so the plan says act now."
+    "example": "Gaps skip levels. The open is above 3R, and it is day 4, so selling part is a fair choice. Holding for a longer push is a fair choice too. The gap is a chance to decide, not a rule to follow."
    },
    "tier": "extended",
    "risk": {
@@ -2176,7 +2181,7 @@
      "computed level, 61.53 is given in the story"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings3"
   },
   {
    "key": "q34",
@@ -4127,8 +4132,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Q says first third; two retained wrong notes say trim level; reword."
+   "fixed": false,
+   "notes": "re-keyed to your call; 61.53 math ok; quote verbatim; style ok"
   },
   "q34": {
    "status": "pass",

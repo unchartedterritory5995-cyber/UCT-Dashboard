@@ -776,7 +776,7 @@
     "Exit"
    ],
    "answer": "Trim",
-   "why": "Trim. Our plans run Entry, Stop, Trim, Trail: get in, set the stop, take some off, then trail the rest. The owner's full line ends with Advance. The first sell is a judgment, rarely on day 1, and the last part trails.",
+   "why": "Trim. Our plans run Entry, Stop, Trim, Trail: get in, set the stop, take some off, then trail the rest. Our full line ends with Advance. The first sell is a judgment, rarely on day 1, and the last part trails.",
    "lesson_line": "Entry, Stop, Trim, Trail. Every trade plan we teach runs in that order.",
    "facts": [
     "o01",
@@ -1605,7 +1605,7 @@
    "house": true,
    "q": "Our plan fixes the first sell at a third of the position at 3R.",
    "answer": "False",
-   "why": "False. The first sell is a judgment that depends on many factors, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best.",
+   "why": "False. The first sell is a judgment that depends on many factors, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best.",
    "lesson_line": "The first sell is a judgment, not a fixed third at 3R.",
    "facts": [
     "r03",
@@ -2882,7 +2882,7 @@
    "wrong": {
     "Stop under the trigger day's low": "That's our stop. The day before's low is the wider choice.",
     "Entry as it trades up through it": "That's our entry: price trading up through the line, not a close.",
-    "First sell: day 3 at the earliest": "That fits how we sell. The owner very rarely sells on day 1, and the first sell is a judgment."
+    "First sell: day 3 at the earliest": "That fits how we sell. We very rarely sell on day 1, and the first sell is a judgment."
    },
    "simple": "The trail line is wrong, because our Slingshot trails under the 10-day average or each higher low, not the 4-day line.",
    "deeper": {

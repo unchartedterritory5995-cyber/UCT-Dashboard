@@ -2768,7 +2768,7 @@
   "difficulty": 1,
   "id": "si_200d39af6172",
   "lesson_origin": "session",
-  "lesson_text": "Sell partials into strength and trail the rising moving averages. That is our rule, in the owner's words. Take some off as it runs, and let the stop follow the trend up. Leave only the first stop, and a winner can turn into a loser. We hold winners by selling partials into strength and trailing the rising moving averages.",
+  "lesson_text": "Sell partials into strength and trail the rising moving averages. That is our rule. Take some off as it runs, and let the stop follow the trend up. Leave only the first stop, and a winner can turn into a loser. We hold winners by selling partials into strength and trailing the rising moving averages.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -2822,7 +2822,7 @@
    "simple": "We take some profit as it runs and let the stop follow the rising averages up.",
    "tier": "core",
    "unit": "F10.02",
-   "why": "Sell partials into strength and trail the rising moving averages. That is our rule, in the owner's words. Take some off as it runs, and let the stop follow the trend up. Leave only the first stop, and a winner can turn into a loser.",
+   "why": "Sell partials into strength and trail the rising moving averages. That is our rule. Take some off as it runs, and let the stop follow the trend up. Leave only the first stop, and a winner can turn into a loser.",
    "wrong": {
     "Add to the position as it keeps rising": "Not our way. We buy the full size at one price with one stop, and we never add to it.",
     "Leave the first stop where it is": "Then a winner can turn into a loser. The stop has to move up as the trade works.",
@@ -5391,7 +5391,7 @@
   "difficulty": 2,
   "id": "si_0fa8d0d4935a",
   "lesson_origin": "session",
-  "lesson_text": "$46. Your risk per share is the distance from the $40 entry down to the $38 stop. We call that distance R. 3R is three times it, added above the $40 entry. It is a measuring mark, not an order to sell. He rarely sells on day 1 and usually waits until day 3 at the earliest. Stop first. R is the stop distance, and 3R is three times it above the entry.",
+  "lesson_text": "$46. Your risk per share is the distance from the $40 entry down to the $38 stop. We call that distance R. 3R is three times it, added above the $40 entry. It is a measuring mark, not an order to sell. We rarely sell on day 1 and usually wait until day 3 at the earliest. Stop first. R is the stop distance, and 3R is three times it above the entry.",
   "module": "F10",
   "prompt_json": {
    "kind": "fill_numeric",
@@ -5460,7 +5460,7 @@
    "simple": "$46, because 3R means three times your risk, added above the entry.",
    "tier": "extended",
    "unit": "F10.03",
-   "why": "$46. Your risk per share is the distance from the $40 entry down to the $38 stop. We call that distance R. 3R is three times it, added above the $40 entry. It is a measuring mark, not an order to sell. He rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "why": "$46. Your risk per share is the distance from the $40 entry down to the $38 stop. We call that distance R. 3R is three times it, added above the $40 entry. It is a measuring mark, not an order to sell. We rarely sell on day 1 and usually wait until day 3 at the earliest."
   },
   "review_status": "draft",
   "skill_id": "orders.brackets",
@@ -6225,7 +6225,7 @@
   "difficulty": 3,
   "id": "si_7b3089640061",
   "lesson_origin": "session",
-  "lesson_text": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. He rarely sells on day 1 and usually waits until day 3 at the earliest. In the owner's words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run. One target for every share caps your best winners. Trim into strength and trail the rest.",
+  "lesson_text": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. We rarely sell on day 1 and usually wait until day 3 at the earliest. In the owner's words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run. One target for every share caps your best winners. Trim into strength and trail the rest.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -6297,7 +6297,7 @@
    "simple": "Sell part of the position and trail a stop on the rest, so you bank gains and still ride a long run.",
    "tier": "expert",
    "unit": "F10.03",
-   "why": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. He rarely sells on day 1 and usually waits until day 3 at the earliest. In the owner's words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run.",
+   "why": "Sell partials, trail the rest. The first sell is a judgment, not a fixed third at 3R. We rarely sell on day 1 and usually wait until day 3 at the earliest. In the owner's words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share sells you out early, just as a stock may start to run.",
    "wrong": {
     "No targets, hold every share": "That banks nothing into strength. We sell some into a push and let the rest run.",
     "One bigger target for all shares": "Then nothing gets banked if it stalls short of that price. We take some off along the way.",

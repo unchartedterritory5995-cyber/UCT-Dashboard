@@ -114,6 +114,16 @@
    "owner": "(agreed with the default)",
    "reading": "Default stands.",
    "changes_lessons": false
+  },
+  "GAP-TRIM": {
+   "owner": "Optional, my judgment",
+   "reading": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule; questions must not key it as required.",
+   "changes_lessons": true
+  },
+  "SHORT-ENTRY": {
+   "owner": "Through the trigger",
+   "reading": "Shorts enter like buys: as price trades through the trigger, never at the close.",
+   "changes_lessons": true
   }
  },
  "still_open": {

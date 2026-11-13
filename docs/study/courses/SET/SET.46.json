@@ -858,6 +858,12 @@
    "source": "h2",
    "quote": "Every setup buys as price trades through its trigger, during the day.",
    "claim": "Owner: every setup buys as price trades through its trigger, during the day."
+  },
+  {
+   "id": "rg1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
   }
  ],
  "walkthroughs": [
@@ -2201,26 +2207,27 @@
    "q": "What do you do at the open?",
    "story": "Your AVWAP long was bought Monday and has pushed up all week. It closed Thursday at 2.7R. Friday, day 5, it gaps open at 3.3R.",
    "choices": [
-    "Sell some into the gap at the open",
-    "Wait for the close to make the call",
+    "Weigh selling some into the gap",
+    "Sell a third; the gap makes it a rule",
     "Sell it all at the open today",
-    "Raise the stop and hold it all"
+    "Add shares because it gapped up"
    ],
-   "answer": "Sell some into the gap at the open",
-   "why": "Sell some into the gap at the open. Friday is day 5 of a push, inside the 3 to 7 day window where the first sell is often best. The gap hands you a better price. How much to sell is a judgment, not a fixed third.",
-   "lesson_line": "A gap into a multi-day push is a good time for the first sell.",
+   "answer": "Weigh selling some into the gap",
+   "why": "Weigh selling some into the gap. Friday is day 5 of a push, inside the 3 to 7 day window where the first sell is often best. Selling part at the open is one choice you may make by judgment, never a rule. How much to sell is also a judgment.",
+   "lesson_line": "A gap into a multi-day push is a time to weigh the first sell. It is never a rule.",
    "facts": [
+    "rg1",
     "r10",
     "r11",
     "r12"
    ],
    "wrong": {
-    "Wait for the close to make the call": "A gap can fade by the close. A gap into a push is a good time for the first sell.",
     "Sell it all at the open today": "The first sell is part of the position. The rest keeps working on the trail.",
-    "Raise the stop and hold it all": "The stop can rise too, but a gap into a push is a good time for the first sell."
+    "Sell a third; the gap makes it a rule": "A gap is no rule. Selling part at the open is a judgment, never a requirement.",
+    "Add shares because it gapped up": "No adds. The plan is one entry at one price with one stop."
    },
    "house": true,
-   "simple": "Sell some into the gap at the open, because day 5 of a strong push is a good time for a first sell.",
+   "simple": "Weigh selling some into the gap, because the first sell is a judgment and a gap never forces it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2228,7 +2235,7 @@
      "rests on the owner's rulebook, F63 and B19 (+2)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings3"
   },
   {
    "key": "q39",
@@ -3478,8 +3485,8 @@
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Re-key to day-5 push is right; drop the mechanical 'trim level' rule from why/wrong."
+   "fixed": false,
+   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
   },
   "q48": {
    "status": "pass",

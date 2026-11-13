@@ -762,6 +762,12 @@
    "source": "h2",
    "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
    "claim": "Very rarely sells on day 1; usually waits until day 3 at the earliest (D-013)"
+  },
+  {
+   "id": "g1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
   }
  ],
  "walkthroughs": [
@@ -3623,21 +3629,21 @@
    "format": "fill",
    "criterion": "vcp.trim_gap_open",
    "q": "Tap the word that fits the blank.",
-   "sentence": "A trim level the VCP gaps over is taken at the ___.",
+   "sentence": "Selling part on a gap over a trim level is a ___, never a rule.",
    "bank": [
-    "open",
-    "close",
-    "pivot",
-    "stop"
+    "judgment",
+    "trigger",
+    "stop",
+    "signal"
    ],
-   "answer": "open",
-   "why": "Open. If a stock opens above a level you planned to sell at, take that sale at the open. The gap does not change the plan, only the timing.",
-   "lesson_line": "If it gaps over your trim level, take the trim at the open.",
+   "answer": "judgment",
+   "why": "Judgment. A gap over a trim level is not an automatic sell. Selling part at the open is one choice you may make, never a rule.",
+   "lesson_line": "A gap over a trim level is your call, never a rule.",
    "facts": [
-    "h42"
+    "g1"
    ],
    "house": true,
-   "simple": "Open. When a stock gaps over a trim level, we take that trim at the open.",
+   "simple": "Judgment. Selling part on a gap is your call, never a rule.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -3647,7 +3653,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings3"
   },
   {
    "key": "q81",
@@ -3655,29 +3661,30 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "vcp.trim_gap_open",
-   "q": "How do you handle the second trim?",
+   "q": "What does the plan say about the open?",
    "choices": [
-    "Take the trim at the open",
-    "Wait for it to dip back to 21.40",
-    "Skip the trim and raise the stop",
-    "Sell it all at the open"
+    "The rule says take the trim at the open",
+    "The rule says wait for a dip to 21.40",
+    "Sell it all at the open",
+    "Your call: sell part or hold on"
    ],
-   "answer": "Take the trim at the open",
-   "why": "Take the trim at the open. Your 5R level is 21.40, and the stock opens at 22.10, above it. If a stock opens above a level you planned to sell at, we take that sale at the open. The rest is trailed.",
-   "lesson_line": "When a stock gaps over a trim level, the trim comes off at the open.",
+   "answer": "Your call: sell part or hold on",
+   "why": "It is your call. Your 5R level is 21.40, and the stock opens at 22.10, above it. A gap past a level is not an automatic sell. Selling part is one choice. Holding and trailing is another.",
+   "lesson_line": "When a stock gaps over a trim level, selling part is your call, not a rule.",
    "facts": [
-    "h42"
+    "g1",
+    "r05"
    ],
    "wrong": {
-    "Wait for it to dip back to 21.40": "The level is passed. The rule takes the sale at the open.",
-    "Skip the trim and raise the stop": "The plan has no skipped sales. The level was passed, so the sale comes off at the open.",
-    "Sell it all at the open": "The plan sells part and trails the rest. It does not sell everything."
+    "Sell it all at the open": "The plan sells part and trails the rest. It does not sell everything.",
+    "The rule says take the trim at the open": "Selling part on a gap is one choice you may make. It is never a rule.",
+    "The rule says wait for a dip to 21.40": "No rule asks you to wait for a dip. Waiting is a bet that it comes."
    },
    "house": true,
-   "story": "Your VCP buy has a planned sell at 5R, which is 21.40. An earlier third is already sold. The stock gaps up and opens at 22.10.",
-   "simple": "Take the trim at the open. The stock gapped over your 5R level, so you sell that third right away.",
+   "story": "Your VCP long is past day 3 and you have sold part already. The next planned sell level is 5R, which is 21.40. The stock gaps up and opens at 22.10.",
+   "simple": "A gap over 5R is not an automatic sell. Selling part at the open is allowed, and so is holding.",
    "deeper": {
-    "trap": "The trap is waiting for a dip back to 21.40. The level is already behind you. The rule takes the trim at the open."
+    "trap": "The trap is treating the gap as an order. The level is behind you, and selling part is one choice. It is never a rule."
    },
    "tier": "extended",
    "risk": {
@@ -3687,7 +3694,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings3"
   },
   {
    "key": "q82",
@@ -4291,13 +4298,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "notes": "fill now judgment; ok"
   },
   "q81": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok; softened the thirds wording in a wrong note"
+   "fixed": false,
+   "notes": "re-keyed to your call; 5R reuses the 3R ruling as the same principle; ok"
   },
   "q82": {
    "status": "pass",

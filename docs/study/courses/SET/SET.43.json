@@ -897,6 +897,12 @@
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "rg1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
   }
  ],
  "walkthroughs": [
@@ -1630,7 +1636,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "map.trim_1",
-   "q": "A buy hits 3R on its first day. What does the owner's plan say about selling?",
+   "q": "A buy hits 3R on its first day. What does our plan say about selling?",
    "choices": [
     "Sell a third now; 3R is the rule",
     "Sell half now and lock the gain",
@@ -4080,32 +4086,32 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "map.trim_gap_open",
-   "story": "You bought a pullback and sold a first third into the push. Your 5R level is 42.50. News hits overnight, and the stock opens at 43.10.",
-   "q": "What does the plan do now?",
+   "story": "You bought a pullback on Monday. Your 5R level is 42.50. News hits overnight, and on Thursday, day 4, the stock opens at 43.10.",
+   "q": "What fits our plan at the open?",
    "choices": [
-    "Sell the second third at the open",
+    "Weigh selling some into the gap",
+    "Sell the second third; 5R is a rule",
     "Sell everything left at the open",
-    "Wait for a dip back to the 5R price",
-    "Skip the trim; trail all that is left"
+    "Add shares because it gapped up"
    ],
-   "answer": "Sell the second third at the open",
-   "why": "Sell the second third at the open. If a stock opens above a trim level, 3R or 5R, take that trim at the open. 43.10 is above 42.50, so the 5R trim is due now. The last third stays on the trail.",
-   "lesson_line": "A gap over your next trim level means that trim sells at the open.",
+   "answer": "Weigh selling some into the gap",
+   "why": "Weigh selling some into the gap. A gap past a trim level is not an automatic sell. Selling part at the open is one choice you may make by judgment, never a rule. Day 4 of a push is also a fair time for a first sell.",
+   "lesson_line": "A gap over a trim level is a time to weigh a sale, not a rule.",
    "facts": [
-    "hF63",
-    "cGapOpen",
-    "hE51",
-    "c25"
+    "rg1",
+    "r70",
+    "r72",
+    "hA5b"
    ],
    "wrong": {
-    "Sell everything left at the open": "Only the 5R third sells at the open. The last third is trailed, not sold at a trim level.",
-    "Wait for a dip back to the 5R price": "The level is already behind you. The rule takes the trim at the open, not on a dip back.",
-    "Skip the trim; trail all that is left": "The 5R third still comes off. The gap only moves that trim to the open."
+    "Sell everything left at the open": "The plan sells in parts and trails the rest. It does not exit on a gap.",
+    "Sell the second third; 5R is a rule": "No trim level is a rule. The first sell is a judgment, and a gap does not force it.",
+    "Add shares because it gapped up": "No adds. The plan is one entry at one price with one stop."
    },
    "house": true,
-   "simple": "Sell the second third at the open, because the stock opened above the 5R level and the last third keeps trailing.",
+   "simple": "Weigh selling some into the gap, because a gap past a trim level never forces a sale and the sale is a judgment.",
    "deeper": {
-    "trap": "A gap is not a reason to sell everything. Only the trim the open has passed comes off. The last third still rides the trail."
+    "trap": "A gap past a trim level feels like an order to sell. It is not. Selling part at the open is one choice you may make, and holding the rest on the trail is another."
    },
    "tier": "extended",
    "risk": {
@@ -4114,7 +4120,7 @@
      "rests on the owner's rulebook (F63, take the trim at the open; E51, a third at 5R)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings3"
   }
  ],
  "conflicts": [
@@ -4674,7 +4680,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story now says first third into the push; 5R second-trim gap rule left; ok."
+   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
   }
  }
 }

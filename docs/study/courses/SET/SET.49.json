@@ -1075,6 +1075,12 @@
    "source": "h2",
    "quote": "Every setup buys as price trades through its trigger, during the day.",
    "claim": "Owner: every setup buys as price trades through its trigger, during the day."
+  },
+  {
+   "id": "rg1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
   }
  ],
  "walkthroughs": [
@@ -2546,29 +2552,30 @@
    "criterion": "cap.trim_gap_open",
    "q": "What do you do at the open?",
    "choices": [
-    "Sell part into the gap at the open",
-    "Wait for a pullback to the 20 EMA",
-    "Hold everything and let it run",
+    "Weigh selling some into the gap",
+    "Sell a third; the gap makes it a rule",
+    "Hold everything; never sell this early",
     "Add more at 26.00 on the gap"
    ],
    "story": "You bought at 22.13 with a stop at 21.72. 5R is 24.18. The next day opens at 26.00.",
-   "answer": "Sell part into the gap at the open",
-   "why": "Sell part into the gap at the open. The open of 26.00 is far past the 5R line of 24.18, in the 5 to 10R zone where selling is often best. How much to sell is a judgment. MP opened there, then closed at 21.94, through its stop.",
-   "lesson_line": "A gap far past 5R is a chance to sell into strength.",
+   "answer": "Weigh selling some into the gap",
+   "why": "Weigh selling some into the gap. The first sell is a judgment. We very rarely sell on day 1 and usually wait until day 3, but selling part at the open on a big gap is one choice we may make. The open of 26.00 is far past the 5R line of 24.18. MP opened there, then closed at 21.94, through its stop.",
+   "lesson_line": "A big gap is a time to weigh a part sale. It is a judgment, never a rule.",
    "facts": [
-    "d19",
-    "r11",
-    "r10"
+    "rg1",
+    "r10",
+    "r12",
+    "d19"
    ],
    "house": true,
    "wrong": {
-    "Wait for a pullback to the 20 EMA": "A pullback may never come. A big gap is a chance to sell.",
-    "Hold everything and let it run": "Holding it all gave back the gain. MP closed through its stop.",
-    "Add more at 26.00 on the gap": "We never add. The full size goes in at one price with one stop."
+    "Add more at 26.00 on the gap": "We never add. The full size goes in at one price with one stop.",
+    "Sell a third; the gap makes it a rule": "A gap is no rule. Selling part at the open is a judgment, never a requirement.",
+    "Hold everything; never sell this early": "Never is too strong. An early sell is rare, not banned. Holding it all gave back the gain, and MP closed through its stop."
    },
-   "simple": "Sell part into the gap at the open, because the open is far past 5R and a gap is a good time to sell.",
+   "simple": "Weigh selling some into the gap, because the first sell is a judgment and a gap never forces it.",
    "deeper": {
-    "trap": "The open looked like a big win: 26.00 against a 5R line of 24.18. MP then closed at 21.94, through its stop. A trim level the day opens past is taken at the open, before the day can take it back. Waiting to see if it runs is how the gain is lost."
+    "trap": "The open looked like a big win: 26.00 against a 5R line of 24.18. MP then closed at 21.94, through its stop. A big gap is a fair time to weigh a part sale. It is a judgment, not a rule, and holding it all with no plan gave the gain back."
    },
    "tier": "extended",
    "risk": {
@@ -2580,7 +2587,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "rulings2"
+   "batch": "rulings3"
   },
   {
    "key": "q42",
@@ -4275,7 +4282,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key (sell part into a gap far past 5R) is defensible; remove the mechanical trim-level rule from why/wrong/facts."
+   "notes": "story opens the day after the buy (day 2), so the day-1 wording mismatched; reworded choice and why; \"He\" given an antecedent"
   },
   "q42": {
    "status": "pass",

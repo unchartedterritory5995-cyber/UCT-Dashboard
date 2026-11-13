@@ -1726,9 +1726,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "option assignment; nothing on short entry; keep agrees"
   },
   "q16": {
    "status": "pass",

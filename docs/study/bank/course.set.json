@@ -2068,37 +2068,44 @@
  },
  {
   "answer_json": {
-   "answer": "Sell some, right at the open"
+   "answer": "Selling some now is your call"
   },
   "difficulty": 2,
   "id": "si_06b450a95126",
   "lesson_origin": "session",
-  "lesson_text": "Sell some at the open. It is day 4, past the day 3 earliest mark, and the gap is the push. If a stock opens above a level where you planned to sell, take that sale at the open. The rest stays on the plan. A gap through your planned sell level is the sale. Take it at the open.",
+  "lesson_text": "Selling some now is your call. A gap past 3R is not an automatic sell. It is day 4, past the day 3 earliest mark, so selling some is a fair choice. Holding and trailing is a fair choice too. A gap past 3R is not an automatic sell. Selling some is your call.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Hold it all; keep the stop",
-    "Sell some, right at the open",
-    "Wait and decide at the close",
-    "Sell the whole position now"
+    "A gap day is never a day to sell",
+    "Selling some now is your call",
+    "A gap past 3R is an automatic sell",
+    "A gap past 3R means sell it all"
    ],
    "kind": "mcq",
-   "q": "What do you do on Friday?",
-   "story": "Your flat base long is on day 4. Your plan is to sell some into a strong push. It closed Thursday at 2.6R. Friday it gaps open to 3.4R.",
+   "q": "What is true about Friday's gap?",
+   "story": "Your flat base long is on day 4. It closed Thursday at 2.6R. Friday it gaps open to 3.4R.",
    "subject": "SET.07#q38"
   },
   "reveal_json": {
    "deeper": {
-    "example": "Gaps happen. Friday's open is already past 3R, and it is day 4, so the push is here. Waiting for the close only gives the move a chance to fade. Sell some at the open and leave the rest to the trail."
+    "example": "Friday's open is past 3R and it is day 4, so selling some is a fair choice. So is holding it all and trailing. Take the gap as a chance, not an order. Either way, keep the stop."
    },
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-12",
@@ -2106,29 +2113,22 @@
       "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
       "tier": 3,
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
-      "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "F63: a trim level the day opens past is taken at the open. D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest. D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+    "summary": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment. D-013: the first sell is a judgment, not a fixed third at 3R. D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest."
    },
    "facts": {
-    "given": "What do you do on Friday? Your flat base long is on day 4. Your plan is to sell some into a strong push. It closed Thursday at 2.6R. Friday it gaps open to 3.4R. Sell some, right at the open Wait and decide at the close Sell the whole position now Hold it all; keep the stop"
+    "given": "What is true about Friday's gap? Your flat base long is on day 4. It closed Thursday at 2.6R. Friday it gaps open to 3.4R. Selling some now is your call A gap past 3R is an automatic sell A gap past 3R means sell it all A gap day is never a day to sell"
    },
-   "lesson_line": "A gap through your planned sell level is the sale. Take it at the open.",
-   "simple": "Sell some at the open, because the stock gapped past the level where the plan says to sell.",
+   "lesson_line": "A gap past 3R is not an automatic sell. Selling some is your call.",
+   "simple": "A gap past 3R is not an automatic sell. Selling some at the open is your call, and so is holding.",
    "tier": "extended",
    "unit": "SET.07",
-   "why": "Sell some at the open. It is day 4, past the day 3 earliest mark, and the gap is the push. If a stock opens above a level where you planned to sell, take that sale at the open. The rest stays on the plan.",
+   "why": "Selling some now is your call. A gap past 3R is not an automatic sell. It is day 4, past the day 3 earliest mark, so selling some is a fair choice. Holding and trailing is a fair choice too.",
    "wrong": {
-    "Hold it all; keep the stop": "The stop stays, but your plan was to sell some into a push, and the gap is that push.",
-    "Sell the whole position now": "Too much at once. Sell some into the push and keep the rest on the plan.",
-    "Wait and decide at the close": "The level is already passed. Waiting gives the gap a chance to fill."
+    "A gap day is never a day to sell": "It is allowed. Selling part into a big gap is one choice you may make.",
+    "A gap past 3R is an automatic sell": "No gap is an automatic sell. Selling part on a big gap is a judgment, never a rule.",
+    "A gap past 3R means sell it all": "Too much at once. The first sell is a judgment, and the rest stays on the plan."
    }
   },
   "review_status": "draft",
@@ -15743,44 +15743,37 @@
  },
  {
   "answer_json": {
-   "answer": "Sell part at the open"
+   "answer": "Your call: sell part or hold on"
   },
   "difficulty": 3,
   "id": "si_dd566c9b3de2",
   "lesson_origin": "session",
-  "lesson_text": "Sell part at the open. It is day 4, past the day 3 earliest mark, and the stock gapped above 3R. If a stock opens above a level where you planned to sell, take that sale at the open. Here 3R was 93.15 and the stock opened at 94.20. A gap over your planned sell level means you sell at the open.",
+  "lesson_text": "It is your call. It is day 4, past the day 3 earliest mark, and the stock gapped above 3R. A gap past 3R is not an automatic sell. Selling part at the open is one choice you may make. Holding is another. A gap past your planned sell level is not an automatic sell. It is your call.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Sell part at the open",
-    "Sell two thirds at open",
-    "Sell it at the close",
-    "Wait for a dip to 93.15"
+    "Your call: sell part or hold on",
+    "Wait for a dip to 93.15; it is the rule",
+    "Sell two thirds at the open",
+    "Sell part at the open; it is the rule"
    ],
    "kind": "mcq",
-   "q": "What do you do at the open?",
-   "story": "Your plan is to sell part into a strong push after day 3. You bought at 91.29 with the stop at 90.67, so 3R is 93.15. On day 4 the stock opens at 94.20.",
+   "q": "What does the plan say at the open?",
+   "story": "The first sell is a judgment, usually day 3 at the earliest. You bought at 91.29 with the stop at 90.67, so 3R is 93.15. On day 4 the stock opens at 94.20.",
    "subject": "SET.09#q85"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Do not treat 93.15 as a limit order sitting in the market. When a stock gaps over it, the price you can get is the open. Waiting for a fall back to 93.15 is a bet that it comes."
+    "trap": "Do not read the gap as an order to sell. 93.15 is a mark, not a trigger. The gap lets you sell part by judgment. It does not make you."
    },
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: Cup with Handle criteria card (docs/study/setups/criteria/04-cup-handle.json, as of 2026-11-09)",
-      "quote": "If it opens above a trim level, take that trim at the open.",
-      "tier": 3,
-      "url": "repo:docs/study/setups/criteria/04-cup-handle.json"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-12",
@@ -15797,20 +15790,20 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "F63: if a stock opens above a trim level, take that trim at the open. The card: if it opens above a trim level, take that trim at the open. D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest. D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+    "summary": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment. D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest. D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
    },
    "facts": {
-    "given": "What do you do at the open? Your plan is to sell part into a strong push after day 3. You bought at 91.29 with the stop at 90.67, so 3R is 93.15. On day 4 the stock opens at 94.20. Sell part at the open Wait for a dip to 93.15 Sell two thirds at open Sell it at the close"
+    "given": "What does the plan say at the open? The first sell is a judgment, usually day 3 at the earliest. You bought at 91.29 with the stop at 90.67, so 3R is 93.15. On day 4 the stock opens at 94.20. Sell part at the open; it is the rule Wait for a dip to 93.15; it is the rule Sell two thirds at the open Your call: sell part or hold on"
    },
-   "lesson_line": "A gap over your planned sell level means you sell at the open.",
-   "simple": "When a stock opens above a level where we planned to sell, we sell at the open and do not wait.",
+   "lesson_line": "A gap past your planned sell level is not an automatic sell. It is your call.",
+   "simple": "A gap past 3R is not an automatic sell. Selling part at the open is allowed, and so is holding.",
    "tier": "expert",
    "unit": "SET.09",
-   "why": "Sell part at the open. It is day 4, past the day 3 earliest mark, and the stock gapped above 3R. If a stock opens above a level where you planned to sell, take that sale at the open. Here 3R was 93.15 and the stock opened at 94.20.",
+   "why": "It is your call. It is day 4, past the day 3 earliest mark, and the stock gapped above 3R. A gap past 3R is not an automatic sell. Selling part at the open is one choice you may make. Holding is another.",
    "wrong": {
-    "Sell it at the close": "The rule says at the open.",
-    "Sell two thirds at open": "Too much at once. Sell part into the gap and keep the rest on the plan.",
-    "Wait for a dip to 93.15": "Our rule is to take it at the open, not to bet on a pullback."
+    "Sell part at the open; it is the rule": "Selling part on a gap is one choice you may make. It is never a rule.",
+    "Sell two thirds at the open": "Too much at once. If you sell, sell part and keep the rest on the plan.",
+    "Wait for a dip to 93.15; it is the rule": "No rule asks you to wait for a dip. Waiting is a bet that it comes."
    }
   },
   "review_status": "draft",
@@ -18563,44 +18556,37 @@
  },
  {
   "answer_json": {
-   "answer": "Sell part at the open"
+   "answer": "Your call: sell part or hold on"
   },
   "difficulty": 2,
   "id": "si_a627c704a7e2",
   "lesson_origin": "session",
-  "lesson_text": "At the open. If a stock opens above a level where you planned to sell, take that sale at the open. 3R is 61.53 and the open at 62.00 is above it. It is day 4, so the sell is not too early, and the rest stays on the plan. A gap past your planned sell level means you sell at the open.",
+  "lesson_text": "It is your call. 3R is 61.53 and the open at 62.00 is above it. It is day 4, so a sale is not too early. A gap past 3R is not an automatic sell. Selling part is one choice. Holding is another. A gap past your planned sell level is not an automatic sell. It is your call.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Wait for the first half hour",
-    "Wait for a higher price",
+    "Wait 30 minutes; it is the rule",
     "Sell the whole position",
-    "Sell part at the open"
+    "Sell part at the open; it is the rule",
+    "Your call: sell part or hold on"
    ],
    "kind": "mcq",
-   "q": "What do you do at the open?",
-   "story": "You bought at 57.42 with the stop at 56.05. Your plan is to sell part into a strong push. On day 4 the stock opens at 62.00, above 3R at 61.53.",
+   "q": "What does the plan say at the open?",
+   "story": "You bought at 57.42 with the stop at 56.05. The first sell is a judgment, usually day 3 at the earliest. On day 4 the stock opens at 62.00, above 3R at 61.53.",
    "subject": "SET.10#q33"
   },
   "reveal_json": {
    "deeper": {
-    "example": "Gaps skip levels. If you wait for a price you have already passed, you may watch the gain shrink with no rule to act on. The plan said sell into the push, the open is above 3R, so the plan says act now."
+    "example": "Gaps skip levels. The open is above 3R, and it is day 4, so selling part is a fair choice. Holding for a longer push is a fair choice too. The gap is a chance to decide, not a rule to follow."
    },
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-12",
@@ -18617,20 +18603,20 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "F63: a trim level the day opens past is taken at the open. B20: on a gap through the stop, the first 30-minute low is the new stop. D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest. D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+    "summary": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment. D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest. D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
    },
    "facts": {
-    "given": "What do you do at the open? You bought at 57.42 with the stop at 56.05. Your plan is to sell part into a strong push. On day 4 the stock opens at 62.00, above 3R at 61.53. Sell part at the open Sell the whole position Wait for a higher price Wait for the first half hour"
+    "given": "What does the plan say at the open? You bought at 57.42 with the stop at 56.05. The first sell is a judgment, usually day 3 at the earliest. On day 4 the stock opens at 62.00, above 3R at 61.53. Sell part at the open; it is the rule Sell the whole position Wait 30 minutes; it is the rule Your call: sell part or hold on"
    },
-   "lesson_line": "A gap past your planned sell level means you sell at the open.",
-   "simple": "Sell part at the open. The stock gapped past our planned sell level, so we sell at the open.",
+   "lesson_line": "A gap past your planned sell level is not an automatic sell. It is your call.",
+   "simple": "A gap past 3R is not an automatic sell. Selling part at the open is allowed, and so is holding.",
    "tier": "extended",
    "unit": "SET.10",
-   "why": "At the open. If a stock opens above a level where you planned to sell, take that sale at the open. 3R is 61.53 and the open at 62.00 is above it. It is day 4, so the sell is not too early, and the rest stays on the plan.",
+   "why": "It is your call. 3R is 61.53 and the open at 62.00 is above it. It is day 4, so a sale is not too early. A gap past 3R is not an automatic sell. Selling part is one choice. Holding is another.",
    "wrong": {
-    "Sell the whole position": "We sell part and keep the rest on the plan.",
-    "Wait for a higher price": "A level the day opens past is a sale at the open, not something to wait on.",
-    "Wait for the first half hour": "The 30-minute wait is for a gap down through the stop. A gap up past a planned sell level is taken at the open."
+    "Sell part at the open; it is the rule": "Selling part on a gap is one choice you may make. It is never a rule.",
+    "Sell the whole position": "Too much at once. If you sell, sell part and keep the rest on the plan.",
+    "Wait 30 minutes; it is the rule": "No rule makes you wait. The gap is past 3R, and what you do about it is your call."
    }
   },
   "review_status": "draft",
@@ -30329,46 +30315,46 @@
  },
  {
   "answer_json": {
-   "answer": "open"
+   "answer": "judgment"
   },
   "difficulty": 1,
   "id": "si_707552e77939",
   "lesson_origin": "session",
-  "lesson_text": "Open. If a stock opens above a level you planned to sell at, take that sale at the open. The gap does not change the plan, only the timing. If it gaps over your trim level, take the trim at the open.",
+  "lesson_text": "Judgment. A gap over a trim level is not an automatic sell. Selling part at the open is one choice you may make, never a rule. A gap over a trim level is your call, never a rule.",
   "module": "SET",
   "prompt_json": {
    "bank": [
-    "open",
-    "close",
-    "pivot",
-    "stop"
+    "judgment",
+    "trigger",
+    "stop",
+    "signal"
    ],
    "kind": "fill",
    "q": "Tap the word that fits the blank.",
-   "sentence": "A trim level the VCP gaps over is taken at the ___.",
+   "sentence": "Selling part on a gap over a trim level is a ___, never a rule.",
    "subject": "SET.12#q80"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "F63: if a stock opens above a trim level, take that trim at the open."
+    "summary": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
    },
    "facts": {
-    "given": "Tap the word that fits the blank. A trim level the VCP gaps over is taken at the ___."
+    "given": "Tap the word that fits the blank. Selling part on a gap over a trim level is a ___, never a rule."
    },
-   "lesson_line": "If it gaps over your trim level, take the trim at the open.",
-   "simple": "Open. When a stock gaps over a trim level, we take that trim at the open.",
+   "lesson_line": "A gap over a trim level is your call, never a rule.",
+   "simple": "Judgment. Selling part on a gap is your call, never a rule.",
    "tier": "core",
    "unit": "SET.12",
-   "why": "Open. If a stock opens above a level you planned to sell at, take that sale at the open. The gap does not change the plan, only the timing."
+   "why": "Judgment. A gap over a trim level is not an automatic sell. Selling part at the open is one choice you may make, never a rule."
   },
   "review_status": "draft",
   "skill_id": "setup.vcp",
@@ -30379,53 +30365,60 @@
  },
  {
   "answer_json": {
-   "answer": "Take the trim at the open"
+   "answer": "Your call: sell part or hold on"
   },
   "difficulty": 3,
   "id": "si_da0da45471e6",
   "lesson_origin": "session",
-  "lesson_text": "Take the trim at the open. Your 5R level is 21.40, and the stock opens at 22.10, above it. If a stock opens above a level you planned to sell at, we take that sale at the open. The rest is trailed. When a stock gaps over a trim level, the trim comes off at the open.",
+  "lesson_text": "It is your call. Your 5R level is 21.40, and the stock opens at 22.10, above it. A gap past a level is not an automatic sell. Selling part is one choice. Holding and trailing is another. When a stock gaps over a trim level, selling part is your call, not a rule.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Skip the trim and raise the stop",
-    "Wait for it to dip back to 21.40",
-    "Take the trim at the open",
+    "The rule says wait for a dip to 21.40",
+    "The rule says take the trim at the open",
+    "Your call: sell part or hold on",
     "Sell it all at the open"
    ],
    "kind": "mcq",
-   "q": "How do you handle the second trim?",
-   "story": "Your VCP buy has a planned sell at 5R, which is 21.40. An earlier third is already sold. The stock gaps up and opens at 22.10.",
+   "q": "What does the plan say about the open?",
+   "story": "Your VCP long is past day 3 and you have sold part already. The next planned sell level is 5R, which is 21.40. The stock gaps up and opens at 22.10.",
    "subject": "SET.12#q81"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is waiting for a dip back to 21.40. The level is already behind you. The rule takes the trim at the open."
+    "trap": "The trap is treating the gap as an order. The level is behind you, and selling part is one choice. It is never a rule."
    },
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "F63: if a stock opens above a trim level, take that trim at the open."
+    "summary": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment. Very rarely sells on day 1; usually waits until day 3 at the earliest (D-013)"
    },
    "facts": {
-    "given": "How do you handle the second trim? Your VCP buy has a planned sell at 5R, which is 21.40. An earlier third is already sold. The stock gaps up and opens at 22.10. Take the trim at the open Wait for it to dip back to 21.40 Skip the trim and raise the stop Sell it all at the open"
+    "given": "What does the plan say about the open? Your VCP long is past day 3 and you have sold part already. The next planned sell level is 5R, which is 21.40. The stock gaps up and opens at 22.10. The rule says take the trim at the open The rule says wait for a dip to 21.40 Sell it all at the open Your call: sell part or hold on"
    },
-   "lesson_line": "When a stock gaps over a trim level, the trim comes off at the open.",
-   "simple": "Take the trim at the open. The stock gapped over your 5R level, so you sell that third right away.",
+   "lesson_line": "When a stock gaps over a trim level, selling part is your call, not a rule.",
+   "simple": "A gap over 5R is not an automatic sell. Selling part at the open is allowed, and so is holding.",
    "tier": "extended",
    "unit": "SET.12",
-   "why": "Take the trim at the open. Your 5R level is 21.40, and the stock opens at 22.10, above it. If a stock opens above a level you planned to sell at, we take that sale at the open. The rest is trailed.",
+   "why": "It is your call. Your 5R level is 21.40, and the stock opens at 22.10, above it. A gap past a level is not an automatic sell. Selling part is one choice. Holding and trailing is another.",
    "wrong": {
     "Sell it all at the open": "The plan sells part and trails the rest. It does not sell everything.",
-    "Skip the trim and raise the stop": "The plan has no skipped sales. The level was passed, so the sale comes off at the open.",
-    "Wait for it to dip back to 21.40": "The level is passed. The rule takes the sale at the open."
+    "The rule says take the trim at the open": "Selling part on a gap is one choice you may make. It is never a rule.",
+    "The rule says wait for a dip to 21.40": "No rule asks you to wait for a dip. Waiting is a bet that it comes."
    }
   },
   "review_status": "draft",
@@ -52985,7 +52978,7 @@
   "difficulty": 2,
   "id": "si_cbbbca1a34a9",
   "lesson_origin": "session",
-  "lesson_text": "No. The trigger day closes in the lower 40% of its range. This one closed at 56%. A mid-range close under the averages is undecided, so wait for the next close. LOW 2007-09-07 closed at 56%; shorted at the close, it was stopped at 0R. Where the day closes is the vote. Mid-range is no vote.",
+  "lesson_text": "No. The trigger day closes in the lower 40% of its range. This one closed at 56%. A mid-range close under the averages is undecided, so wait for the next close. LOW 2007-09-07 closed at 56% and was a near miss. Where the day closes is the vote. Mid-range is no vote.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -53001,7 +52994,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "counter": "The card does not say a mid-range close can never work. It says the vote is not in yet. In one case, LOW closed at 56% of its range, and shorted at the close it was stopped at 0R."
+    "counter": "The card does not say a mid-range close can never work. It says the vote is not in yet. In one case, LOW closed at 56% of its range, and it stayed a near miss."
    },
    "depth": {
     "sources": [
@@ -53043,7 +53036,7 @@
    "simple": "No. The day has to close in the lower 40% of its range, and a close near the middle has not decided anything.",
    "tier": "core",
    "unit": "SET.17",
-   "why": "No. The trigger day closes in the lower 40% of its range. This one closed at 56%. A mid-range close under the averages is undecided, so wait for the next close. LOW 2007-09-07 closed at 56%; shorted at the close, it was stopped at 0R.",
+   "why": "No. The trigger day closes in the lower 40% of its range. This one closed at 56%. A mid-range close under the averages is undecided, so wait for the next close. LOW 2007-09-07 closed at 56% and was a near miss.",
    "wrong": {
     "No; it must close at the day's low": "The card asks for the lower 40% of the range, not the exact low. A close near the low counts.",
     "Yes, if volume was heavy that day": "Volume is not the test here. Where the day closes in its range is.",
@@ -55243,31 +55236,38 @@
  },
  {
   "answer_json": {
-   "answer": "Market 131.23; stop 134.79; cover day 3+"
+   "answer": "Through trigger; stop 134.79; day 3+"
   },
   "difficulty": 3,
   "id": "si_f711c941474d",
   "lesson_origin": "session",
-  "lesson_text": "Market at 131.23, stop 134.79, first cover on day 3 or later. The entry is a market order on the close. The stop is a few cents over the day's high of 134.76, 2.7% from the fill, inside the 3%. We very rarely sell on day 1 and usually wait until day 3 at the earliest. GS reached 3R on day 4. Entry, stop, cover, trail. Write it before the close; execute it without a debate.",
+  "lesson_text": "Short as price trades through the trigger, stop 134.79, first cover on day 3 or later. Shorts enter like buys, never at the close. The stop is a few cents over the day's high of 134.76, about 2.7% from 131.23, inside the 3%. We very rarely sell on day 1 and usually wait until day 3 at the earliest. Measured from the 131.23 close, GS reached 3R on day 4. Entry, stop, cover, trail. Write it before it triggers; execute it without a debate.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Market 131.23; stop 134.79; cover day 1",
-    "Market 131.23; stop 133.00; cover day 3+",
-    "Market 131.23; stop 134.79; cover day 3+",
-    "Limit 132.50; stop 134.79; cover day 3+"
+    "Through trigger; stop 134.79; day 1",
+    "Through trigger; stop 133.00; day 3+",
+    "Through trigger; stop 134.79; day 3+",
+    "At the close; stop 134.79; day 3+"
    ],
    "kind": "mcq",
-   "q": "Write the plan: entry, stop, first cover.",
-   "story": "GS, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it closes under both averages at 131.23 on 1.2x volume. The day's high is 134.76.",
+   "q": "Write the plan: entry, stop, first cover day.",
+   "story": "GS, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it trades down through both averages and the stall low, and closes at 131.23 on 1.2x volume. The day's high is 134.76.",
    "subject": "SET.17#q60"
   },
   "reveal_json": {
    "deeper": {
-    "example": "GS, 2011-08-02: the bounce died at the falling 50-day, then a four-day stall, then the close at 131.23. The stop at 134.79 was 2.7% away. 3R came on day 4. At best it reached 13.2R, a high-water mark on a fixed stop, not a result to bank."
+    "example": "GS, 2011-08-02: the bounce died at the falling 50-day, then a four-day stall, then a close at 131.23. The stop at 134.79 was about 2.7% away. Measured from that close, 3R came on day 4. At best it reached 13.2R, a high-water mark on a fixed stop, not a result to bank."
    },
    "depth": {
     "sources": [
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Shorts enter like buys: as price trades through the trigger, never at the close.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
      {
       "accessed": "2026-11-10",
       "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
@@ -55325,20 +55325,20 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "E57: entries are market orders. F62: the stop sits a few cents past the day's extreme, not exactly on it. GS, trigger 2011-08-02: a 4-day stall 4.4% wide, 15.1% under the 200-day; short 131.23, stop 134.79 (2.7%); 13.2R, 3R on day 4. GS: the bounce dies at the falling 50-day and the whole move follows the averages down. The stop: a few cents over the trigger day's high, or over the two-day high. A stop more than about 3% away: skip or size down; never pull it in. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest."
+    "summary": "SHORT-ENTRY: shorts enter as price trades through the trigger, never at the close. E57: entries are market orders. F62: the stop sits a few cents past the day's extreme, not exactly on it. GS, trigger 2011-08-02: a 4-day stall 4.4% wide, 15.1% under the 200-day; short 131.23, stop 134.79 (2.7%); 13.2R, 3R on day 4. GS: the bounce dies at the falling 50-day and the whole move follows the averages down. The stop: a few cents over the trigger day's high, or over the two-day high. A stop more than about 3% away: skip or size down; never pull it in. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest."
    },
    "facts": {
-    "given": "Write the plan: entry, stop, first cover. GS, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it closes under both averages at 131.23 on 1.2x volume. The day's high is 134.76. Market 131.23; stop 134.79; cover day 3+ Market 131.23; stop 134.79; cover day 1 Limit 132.50; stop 134.79; cover day 3+ Market 131.23; stop 133.00; cover day 3+"
+    "given": "Write the plan: entry, stop, first cover day. GS, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it trades down through both averages and the stall low, and closes at 131.23 on 1.2x volume. The day's high is 134.76. Through trigger; stop 134.79; day 3+ Through trigger; stop 134.79; day 1 At the close; stop 134.79; day 3+ Through trigger; stop 133.00; day 3+"
    },
-   "lesson_line": "Entry, stop, cover, trail. Write it before the close; execute it without a debate.",
-   "simple": "Enter at market, put the stop a few cents over the day's high, and make the first cover on day 3 or later.",
+   "lesson_line": "Entry, stop, cover, trail. Write it before it triggers; execute it without a debate.",
+   "simple": "Short through the trigger, stop a few cents over the day's high, first cover on day 3 or later.",
    "tier": "expert",
    "unit": "SET.17",
-   "why": "Market at 131.23, stop 134.79, first cover on day 3 or later. The entry is a market order on the close. The stop is a few cents over the day's high of 134.76, 2.7% from the fill, inside the 3%. We very rarely sell on day 1 and usually wait until day 3 at the earliest. GS reached 3R on day 4.",
+   "why": "Short as price trades through the trigger, stop 134.79, first cover on day 3 or later. Shorts enter like buys, never at the close. The stop is a few cents over the day's high of 134.76, about 2.7% from 131.23, inside the 3%. We very rarely sell on day 1 and usually wait until day 3 at the earliest. Measured from the 131.23 close, GS reached 3R on day 4.",
    "wrong": {
-    "Limit 132.50; stop 134.79; cover day 3+": "Entries are market orders, and a limit above the close may never fill.",
-    "Market 131.23; stop 133.00; cover day 3+": "A stop at 133.00 sits inside the day's range, under the high of 134.76.",
-    "Market 131.23; stop 134.79; cover day 1": "We very rarely sell on day 1 of the buy. The first cover is a judgment, usually day 3 or later."
+    "At the close; stop 134.79; day 3+": "Shorts enter like buys, as price trades through the trigger. Never at the close.",
+    "Through trigger; stop 133.00; day 3+": "A stop at 133.00 sits inside the day's range, under the high of 134.76.",
+    "Through trigger; stop 134.79; day 1": "We very rarely sell on day 1 of the buy. The first cover is a judgment, usually day 3 or later."
    }
   },
   "review_status": "draft",
@@ -68299,7 +68299,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "counter": "Kullamagi calls volume the number one thing to focus on, and some traders treat it as a must. Our owner says it only raises the grade. AAPL's light volume costs it grade, not its place."
+    "counter": "Kullamagi calls volume the number one thing to focus on, and some traders treat it as a must. We say it only raises the grade. AAPL's light volume costs it grade, not its place."
    },
    "depth": {
     "sources": [
@@ -113312,7 +113312,7 @@
   "difficulty": 1,
   "id": "si_cc47898ef12c",
   "lesson_origin": "session",
-  "lesson_text": "True. Our rulebook makes the parabolic long the mirror image of Bracco's burst, a burst down, and the owner confirmed it. Bracco's own post has no parabolic long. The card lists three straight lower closes, two gap-down opens, bigger losses, rising volume and a climax gap down. Read Bracco's burst upside down. That is our parabolic long.",
+  "lesson_text": "True. Our rulebook makes the parabolic long the mirror image of Bracco's burst, a burst down. Bracco's own post has no parabolic long. The card lists three straight lower closes, two gap-down opens, bigger losses, rising volume and a climax gap down. Read Bracco's burst upside down. That is our parabolic long.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -113364,7 +113364,7 @@
    "simple": "True. We read Bracco's burst upside down, so the long is three down days, two gap downs and rising volume.",
    "tier": "core",
    "unit": "SET.30",
-   "why": "True. Our rulebook makes the parabolic long the mirror image of Bracco's burst, a burst down, and the owner confirmed it. Bracco's own post has no parabolic long. The card lists three straight lower closes, two gap-down opens, bigger losses, rising volume and a climax gap down."
+   "why": "True. Our rulebook makes the parabolic long the mirror image of Bracco's burst, a burst down. Bracco's own post has no parabolic long. The card lists three straight lower closes, two gap-down opens, bigger losses, rising volume and a climax gap down."
   },
   "review_status": "draft",
   "skill_id": "setup.parabolic_long",
@@ -115269,7 +115269,7 @@
   "difficulty": 2,
   "id": "si_c502f78ee24b",
   "lesson_origin": "session",
-  "lesson_text": "True. The card moves the stop to breakeven at 2R, the low end of the house window. The owner's rule is to move it at 2R to 5R, ideally, so 2R is the early end of that range, not a separate rule. Two R and the stop goes to the fill. The bounce does not wait for you.",
+  "lesson_text": "True. The card moves the stop to breakeven at 2R, the low end of the house window. Our rule is to move it at 2R to 5R, ideally, so 2R is the early end of that range, not a separate rule. Two R and the stop goes to the fill. The bounce does not wait for you.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -115307,7 +115307,7 @@
    "simple": "True. Our card moves the stop to breakeven at 2R, the earliest point of our 2R to 5R window.",
    "tier": "core",
    "unit": "SET.30",
-   "why": "True. The card moves the stop to breakeven at 2R, the low end of the house window. The owner's rule is to move it at 2R to 5R, ideally, so 2R is the early end of that range, not a separate rule."
+   "why": "True. The card moves the stop to breakeven at 2R, the low end of the house window. Our rule is to move it at 2R to 5R, ideally, so 2R is the early end of that range, not a separate rule."
   },
   "review_status": "draft",
   "skill_id": "setup.parabolic_long",
@@ -124914,7 +124914,7 @@
   "difficulty": 1,
   "id": "si_c2eeccdc493b",
   "lesson_origin": "session",
-  "lesson_text": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. At 2R the stop may go to breakeven, but nothing is sold yet. No fixed third at 3R. The first sell is a judgment, and it rarely comes on day one.",
+  "lesson_text": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. At 2R the stop may go to breakeven, but nothing is sold yet. No fixed third at 3R. The first sell is a judgment, and it rarely comes on day one.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -124971,10 +124971,10 @@
    "simple": "Hold. The first sell is a judgment, and it rarely comes on day one.",
    "tier": "core",
    "unit": "SET.32",
-   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. At 2R the stop may go to breakeven, but nothing is sold yet.",
+   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. At 2R the stop may go to breakeven, but nothing is sold yet.",
    "wrong": {
     "A third at 3R, even if that is today": "A fixed third at 3R is no longer the rule. The first sell is a judgment.",
-    "A third now, since it is up 2R": "The owner very rarely sells on day 1. At 2R the stop may go to breakeven, but nothing is sold.",
+    "A third now, since it is up 2R": "We very rarely sell on day 1. At 2R the stop may go to breakeven, but nothing is sold.",
     "All of it at the close of day one": "We swing trade. Selling everything on day 1 is not a swing trade."
    }
   },
@@ -125822,7 +125822,7 @@
   "difficulty": 2,
   "id": "si_fdaee32a3ca1",
   "lesson_origin": "session",
-  "lesson_text": "Not yet. The first sell is a judgment, not a fixed third at 3R. Tuesday is the day after the buy, and the owner usually waits until day 3 at the earliest. A gap past 3R the day after the buy is not an automatic sell. Judge the push.",
+  "lesson_text": "Not yet. The first sell is a judgment, not a fixed third at 3R. Tuesday is the day after the buy, and we usually wait until day 3 at the earliest. A gap past 3R the day after the buy is not an automatic sell. Judge the push.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -125863,7 +125863,7 @@
    "simple": "Not yet. The first sell is a judgment, and it usually waits until day 3 at the earliest.",
    "tier": "extended",
    "unit": "SET.32",
-   "why": "Not yet. The first sell is a judgment, not a fixed third at 3R. Tuesday is the day after the buy, and the owner usually waits until day 3 at the earliest.",
+   "why": "Not yet. The first sell is a judgment, not a fixed third at 3R. Tuesday is the day after the buy, and we usually wait until day 3 at the earliest.",
    "wrong": {
     "At the close, once it settles": "The first sell is a judgment, and it usually waits until day 3 at the earliest.",
     "At the open; the level is passed": "3R is not a fixed sell level. Tuesday is only the day after the buy.",
@@ -129689,7 +129689,7 @@
   "difficulty": 1,
   "id": "si_864498b2a99c",
   "lesson_origin": "session",
-  "lesson_text": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. The stop may go to breakeven between 2R and 5R. No fixed third at 3R. Day one is rarely a sell day, so wait for the push.",
+  "lesson_text": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. The stop may go to breakeven between 2R and 5R. No fixed third at 3R. Day one is rarely a sell day, so wait for the push.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -129740,12 +129740,12 @@
     "given": "Your pivot long reaches 3R the same afternoon, on day one of the buy. What is our plan? Hold; first sell comes later Sell a third; stop to breakeven Sell half; stop to breakeven Sell it all and bank the day"
    },
    "lesson_line": "No fixed third at 3R. Day one is rarely a sell day, so wait for the push.",
-   "simple": "Hold. The first sell is a judgment, and the owner rarely sells on day one.",
+   "simple": "Hold. The first sell is a judgment, and we rarely sell on day one.",
    "tier": "core",
    "unit": "SET.33",
-   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. The stop may go to breakeven between 2R and 5R.",
+   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. The stop may go to breakeven between 2R and 5R.",
    "wrong": {
-    "Sell a third; stop to breakeven": "A fixed third at 3R is no longer the rule. Day 1 is the day the owner very rarely sells.",
+    "Sell a third; stop to breakeven": "A fixed third at 3R is no longer the rule. Day 1 is the day we very rarely sell.",
     "Sell half; stop to breakeven": "Not half, and not on day 1. The first sell is a judgment, usually on day 3 or later.",
     "Sell it all and bank the day": "We swing trade, days to a few weeks, so we do not bank the day. The first sell usually waits until day 3."
    }
@@ -131903,7 +131903,7 @@
   "difficulty": 3,
   "id": "si_dd534b7f7494",
   "lesson_origin": "session",
-  "lesson_text": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. Selling it all at 1R to 2R as a day trade is a named mistake. We swing trade, days to a few weeks. The originator's quick 2025 exits are an option, not ours. The pivot is a swing entry with a tight stop. Let it become a swing.",
+  "lesson_text": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. Selling it all at 1R to 2R as a day trade is a named mistake. We swing trade, days to a few weeks. The originator's quick 2025 exits are an option, not ours. The pivot is a swing entry with a tight stop. Let it become a swing.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -131975,7 +131975,7 @@
    "simple": "Hold. We swing trade, so day one is rarely a sell day, and the first sell is a judgment.",
    "tier": "expert",
    "unit": "SET.33",
-   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. Selling it all at 1R to 2R as a day trade is a named mistake. We swing trade, days to a few weeks. The originator's quick 2025 exits are an option, not ours.",
+   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. Selling it all at 1R to 2R as a day trade is a named mistake. We swing trade, days to a few weeks. The originator's quick 2025 exits are an option, not ours.",
    "wrong": {
     "Hold it all; skip every trim": "Holding it all forever is not the plan. The first sell is a judgment into the push, usually on day 3 or later.",
     "Sell half now, trail the rest": "Not half, and not on day 1. The first sell is a judgment, usually on day 3 or later.",
@@ -134612,7 +134612,7 @@
   "difficulty": 2,
   "id": "si_3f539f05ebbe",
   "lesson_origin": "session",
-  "lesson_text": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. This is day 2, so the gap alone is not the sell. A gap past 3R on day 2 is not an automatic sell. Judge the push from day 3.",
+  "lesson_text": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. This is day 2, so the gap alone is not the sell. A gap past 3R on day 2 is not an automatic sell. Judge the push from day 3.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -134653,7 +134653,7 @@
    "simple": "Hold. This is day 2, and the first sell is a judgment that usually waits until day 3.",
    "tier": "extended",
    "unit": "SET.34",
-   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. This is day 2, so the gap alone is not the sell.",
+   "why": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. This is day 2, so the gap alone is not the sell.",
    "wrong": {
     "Sell it all at the open now": "Selling it all at the open gives up the run. The first sell is a judgment, usually on day 3 or later.",
     "Take a third off at the open": "A fixed third at 3R is no longer the rule. This is day 2, and the usual first sell waits until day 3.",
@@ -151647,7 +151647,7 @@
     "Sell half now and lock the gain"
    ],
    "kind": "mcq",
-   "q": "A buy hits 3R on its first day. What does the owner's plan say about selling?",
+   "q": "A buy hits 3R on its first day. What does our plan say about selling?",
    "subject": "SET.43#q21"
   },
   "reveal_json": {
@@ -151681,7 +151681,7 @@
     "summary": "Owner: the first sell is a judgment, not a fixed third at 3R. Owner: he very rarely sells on day 1 and usually waits until day 3. Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
    },
    "facts": {
-    "given": "A buy hits 3R on its first day. What does the owner's plan say about selling? Sell a third now; 3R is the rule Sell half now and lock the gain Judge it; he rarely sells on day 1 Sell it all before the close"
+    "given": "A buy hits 3R on its first day. What does our plan say about selling? Sell a third now; 3R is the rule Sell half now and lock the gain Judge it; he rarely sells on day 1 Sell it all before the close"
    },
    "lesson_line": "The first sell is a judgment. Rarely day 1, often day 3 or later.",
    "simple": "No fixed sale at 3R. The first sell is a judgment, and he rarely sells on day 1.",
@@ -155392,74 +155392,74 @@
  },
  {
   "answer_json": {
-   "answer": "Sell the second third at the open"
+   "answer": "Weigh selling some into the gap"
   },
   "difficulty": 2,
   "id": "si_2ab366b246b6",
   "lesson_origin": "session",
-  "lesson_text": "Sell the second third at the open. If a stock opens above a trim level, 3R or 5R, take that trim at the open. 43.10 is above 42.50, so the 5R trim is due now. The last third stays on the trail. A gap over your next trim level means that trim sells at the open.",
+  "lesson_text": "Weigh selling some into the gap. A gap past a trim level is not an automatic sell. Selling part at the open is one choice you may make by judgment, never a rule. Day 4 of a push is also a fair time for a first sell. A gap over a trim level is a time to weigh a sale, not a rule.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Wait for a dip back to the 5R price",
     "Sell everything left at the open",
-    "Skip the trim; trail all that is left",
-    "Sell the second third at the open"
+    "Sell the second third; 5R is a rule",
+    "Add shares because it gapped up",
+    "Weigh selling some into the gap"
    ],
    "kind": "mcq",
-   "q": "What does the plan do now?",
-   "story": "You bought a pullback and sold a first third into the push. Your 5R level is 42.50. News hits overnight, and the stock opens at 43.10.",
+   "q": "What fits our plan at the open?",
+   "story": "You bought a pullback on Monday. Your 5R level is 42.50. News hits overnight, and on Thursday, day 4, the stock opens at 43.10.",
    "subject": "SET.43#q89"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "A gap is not a reason to sell everything. Only the trim the open has passed comes off. The last third still rides the trail."
+    "trap": "A gap past a trim level feels like an order to sell. It is not. Selling part at the open is one choice you may make, and holding the rest on the trail is another."
    },
    "depth": {
     "sources": [
      {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
       "accessed": "2026-11-10",
       "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+      "quote": "The full size at one price with one stop; no adding.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: Pullback to the Moving Averages criteria card (docs/study/setups/criteria/12-ma-pullbacks.json, as of 2026-11-09)",
-      "quote": "If it opens above a trim level, take that trim at the open.",
-      "tier": 3,
-      "url": "repo:docs/study/setups/criteria/12-ma-pullbacks.json"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: Pullback to the Moving Averages criteria card (docs/study/setups/criteria/12-ma-pullbacks.json, as of 2026-11-09)",
-      "quote": "Sell a third at 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/setups/criteria/12-ma-pullbacks.json"
      }
     ],
-    "summary": "F63: if a stock opens above a trim level, take that trim at the open. Card: if it opens above a trim level, take that trim at the open. E51: after the first third at 3R, another third at 5R, then trail the last third. Card: sell a third at 5R."
+    "summary": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule. Owner: the first sell is a judgment, not a fixed third at 3R. Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. A5: full size at one price with one stop; no adding."
    },
    "facts": {
-    "given": "What does the plan do now? You bought a pullback and sold a first third into the push. Your 5R level is 42.50. News hits overnight, and the stock opens at 43.10. Sell the second third at the open Sell everything left at the open Wait for a dip back to the 5R price Skip the trim; trail all that is left"
+    "given": "What fits our plan at the open? You bought a pullback on Monday. Your 5R level is 42.50. News hits overnight, and on Thursday, day 4, the stock opens at 43.10. Weigh selling some into the gap Sell the second third; 5R is a rule Sell everything left at the open Add shares because it gapped up"
    },
-   "lesson_line": "A gap over your next trim level means that trim sells at the open.",
-   "simple": "Sell the second third at the open, because the stock opened above the 5R level and the last third keeps trailing.",
+   "lesson_line": "A gap over a trim level is a time to weigh a sale, not a rule.",
+   "simple": "Weigh selling some into the gap, because a gap past a trim level never forces a sale and the sale is a judgment.",
    "tier": "extended",
    "unit": "SET.43",
-   "why": "Sell the second third at the open. If a stock opens above a trim level, 3R or 5R, take that trim at the open. 43.10 is above 42.50, so the 5R trim is due now. The last third stays on the trail.",
+   "why": "Weigh selling some into the gap. A gap past a trim level is not an automatic sell. Selling part at the open is one choice you may make by judgment, never a rule. Day 4 of a push is also a fair time for a first sell.",
    "wrong": {
-    "Sell everything left at the open": "Only the 5R third sells at the open. The last third is trailed, not sold at a trim level.",
-    "Skip the trim; trail all that is left": "The 5R third still comes off. The gap only moves that trim to the open.",
-    "Wait for a dip back to the 5R price": "The level is already behind you. The rule takes the trim at the open, not on a dip back."
+    "Add shares because it gapped up": "No adds. The plan is one entry at one price with one stop.",
+    "Sell everything left at the open": "The plan sells in parts and trails the rest. It does not exit on a gap.",
+    "Sell the second third; 5R is a rule": "No trim level is a rule. The first sell is a judgment, and a gap does not force it."
    }
   },
   "review_status": "draft",
@@ -156954,7 +156954,7 @@
     "A quarter, on the first green day"
    ],
    "kind": "mcq",
-   "q": "What does the owner's plan say about the first sell on a Holy Grail winner?",
+   "q": "What does our plan say about the first sell on a Holy Grail winner?",
    "subject": "SET.44#q18"
   },
   "reveal_json": {
@@ -156985,7 +156985,7 @@
     "summary": "Owner: the first sell is a judgment, not a fixed third at 3R. Owner: he very rarely sells on day 1 and usually waits until day 3. Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
    },
    "facts": {
-    "given": "What does the owner's plan say about the first sell on a Holy Grail winner? A judgment, often day 3 or later A third, the moment it hits 3R Half, the moment it hits 3R A quarter, on the first green day"
+    "given": "What does our plan say about the first sell on a Holy Grail winner? A judgment, often day 3 or later A third, the moment it hits 3R Half, the moment it hits 3R A quarter, on the first green day"
    },
    "lesson_line": "The first sell is a judgment. He waits, often to day 3 or later.",
    "simple": "The first sell is a judgment, not a fixed third at 3R, and he rarely sells on day 1.",
@@ -157673,7 +157673,7 @@
     "Add shares because it gapped up"
    ],
    "kind": "mcq",
-   "q": "What fits the owner's plan at the open?",
+   "q": "What fits our plan at the open?",
    "story": "You bought a Holy Grail long on Monday. Thursday it closes at 2.5R. Friday, the fifth session of the trade, it gaps open to 3.4R.",
    "subject": "SET.44#q28"
   },
@@ -157705,7 +157705,7 @@
     "summary": "Owner: the first sell is a judgment, not a fixed third at 3R. Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. A5: the full size at one price with one stop; no adding."
    },
    "facts": {
-    "given": "What fits the owner's plan at the open? You bought a Holy Grail long on Monday. Thursday it closes at 2.5R. Friday, the fifth session of the trade, it gaps open to 3.4R. Weigh selling some into the push Sell a third; 3R is a fixed rule Sell the whole position at the open Add shares because it gapped up"
+    "given": "What fits our plan at the open? You bought a Holy Grail long on Monday. Thursday it closes at 2.5R. Friday, the fifth session of the trade, it gaps open to 3.4R. Weigh selling some into the push Sell a third; 3R is a fixed rule Sell the whole position at the open Add shares because it gapped up"
    },
    "lesson_line": "A gap up is a push. Weigh the first sell, do not sell by a fixed rule.",
    "simple": "Weigh selling some into the push, because the first sell is a judgment and not a fixed third at 3R.",
@@ -161392,54 +161392,54 @@
  },
  {
   "answer_json": {
-   "answer": "open"
+   "answer": "judgment"
   },
   "difficulty": 1,
   "id": "si_ef268fa9edd7",
   "lesson_origin": "session",
-  "lesson_text": "Open. A stock that gaps above a planned trim level is already past it. You take that trim at the open, not at a pullback or a later dip. Gap above a trim level: take it at the open.",
+  "lesson_text": "Judgment. A gap above a trim level is not an automatic sell. Selling part at the open is one choice you may make, never a rule. Gap above a trim level: selling part at the open is a judgment.",
   "module": "SET",
   "prompt_json": {
    "bank": [
-    "open",
-    "close",
-    "high",
-    "pullback",
-    "next dip"
+    "judgment",
+    "rule",
+    "duty",
+    "signal",
+    "stop"
    ],
    "kind": "fill",
    "q": "Tap the word that fits the blank.",
-   "sentence": "If a stock gaps above a planned trim level, take that trim at the ___.",
+   "sentence": "A gap above a trim level never forces a sale. Selling part at the open is your ___.",
    "subject": "SET.45#q106"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: Qullamaggie Breakout and the Kell Cycle criteria card (docs/study/setups/criteria/18-qullamaggie-kell.json, as of 2026-11-09)",
-      "quote": "If it opens above a trim level, take that trim at the open.",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
-      "url": "repo:docs/study/setups/criteria/18-qullamaggie-kell.json"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "F63: if a stock opens above a trim level, take that trim at the open. Card: if it opens above a trim level, take that trim at the open."
+    "summary": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule. Owner: the first sell is a judgment, not a fixed third at 3R."
    },
    "facts": {
-    "given": "Tap the word that fits the blank. If a stock gaps above a planned trim level, take that trim at the ___."
+    "given": "Tap the word that fits the blank. A gap above a trim level never forces a sale. Selling part at the open is your ___."
    },
-   "lesson_line": "Gap above a trim level: take it at the open.",
-   "simple": "If a stock gaps above a trim level, you sell that trim at the open, not later.",
+   "lesson_line": "Gap above a trim level: selling part at the open is a judgment.",
+   "simple": "A gap never forces a sale. Selling part at the open is a judgment call you may make or skip.",
    "tier": "core",
    "unit": "SET.45",
-   "why": "Open. A stock that gaps above a planned trim level is already past it. You take that trim at the open, not at a pullback or a later dip."
+   "why": "Judgment. A gap above a trim level is not an automatic sell. Selling part at the open is one choice you may make, never a rule."
   },
   "review_status": "draft",
   "skill_id": "setup.qullamaggie_kell",
@@ -161465,7 +161465,7 @@
     "Sell the whole position at the open"
    ],
    "kind": "mcq",
-   "q": "What fits the owner's plan at the open?",
+   "q": "What fits our plan at the open?",
    "story": "You bought at 40.00 with the stop at 38.00, so 3R is 46.00. On the fifth day of the trade the stock opens at 47.50.",
    "subject": "SET.45#q107"
   },
@@ -161497,7 +161497,7 @@
     "summary": "Owner: the first sell is a judgment, not a fixed third at 3R. Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. A5: full size at one price with one stop; no adding."
    },
    "facts": {
-    "given": "What fits the owner's plan at the open? You bought at 40.00 with the stop at 38.00, so 3R is 46.00. On the fifth day of the trade the stock opens at 47.50. Weigh selling some into the push Sell a third; 3R is a fixed rule Sell the whole position at the open Add shares because it gapped up"
+    "given": "What fits our plan at the open? You bought at 40.00 with the stop at 38.00, so 3R is 46.00. On the fifth day of the trade the stock opens at 47.50. Weigh selling some into the push Sell a third; 3R is a fixed rule Sell the whole position at the open Add shares because it gapped up"
    },
    "lesson_line": "A gap up is a push. Weigh the first sell, do not sell by a fixed rule.",
    "simple": "Weigh selling some into the push, because the first sell is a judgment and not a fixed third at 3R.",
@@ -170618,19 +170618,19 @@
  },
  {
   "answer_json": {
-   "answer": "Sell some into the gap at the open"
+   "answer": "Weigh selling some into the gap"
   },
   "difficulty": 2,
   "id": "si_1126a59785f5",
   "lesson_origin": "session",
-  "lesson_text": "Sell some into the gap at the open. Friday is day 5 of a push, inside the 3 to 7 day window where the first sell is often best. The gap hands you a better price. How much to sell is a judgment, not a fixed third. A gap into a multi-day push is a good time for the first sell.",
+  "lesson_text": "Weigh selling some into the gap. Friday is day 5 of a push, inside the 3 to 7 day window where the first sell is often best. Selling part at the open is one choice you may make by judgment, never a rule. How much to sell is also a judgment. A gap into a multi-day push is a time to weigh the first sell. It is never a rule.",
   "module": "SET",
   "prompt_json": {
    "choices": [
     "Sell it all at the open today",
-    "Wait for the close to make the call",
-    "Raise the stop and hold it all",
-    "Sell some into the gap at the open"
+    "Sell a third; the gap makes it a rule",
+    "Add shares because it gapped up",
+    "Weigh selling some into the gap"
    ],
    "kind": "mcq",
    "q": "What do you do at the open?",
@@ -170640,6 +170640,13 @@
   "reveal_json": {
    "depth": {
     "sources": [
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
      {
       "accessed": "2026-11-12",
       "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
@@ -170662,20 +170669,20 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Owner: the first sell is a judgment, not a fixed third at 3R. Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Owner: he usually waits until day 3 at the earliest to sell."
+    "summary": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule. Owner: the first sell is a judgment, not a fixed third at 3R. Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Owner: he usually waits until day 3 at the earliest to sell."
    },
    "facts": {
-    "given": "What do you do at the open? Your AVWAP long was bought Monday and has pushed up all week. It closed Thursday at 2.7R. Friday, day 5, it gaps open at 3.3R. Sell some into the gap at the open Wait for the close to make the call Sell it all at the open today Raise the stop and hold it all"
+    "given": "What do you do at the open? Your AVWAP long was bought Monday and has pushed up all week. It closed Thursday at 2.7R. Friday, day 5, it gaps open at 3.3R. Weigh selling some into the gap Sell a third; the gap makes it a rule Sell it all at the open today Add shares because it gapped up"
    },
-   "lesson_line": "A gap into a multi-day push is a good time for the first sell.",
-   "simple": "Sell some into the gap at the open, because day 5 of a strong push is a good time for a first sell.",
+   "lesson_line": "A gap into a multi-day push is a time to weigh the first sell. It is never a rule.",
+   "simple": "Weigh selling some into the gap, because the first sell is a judgment and a gap never forces it.",
    "tier": "extended",
    "unit": "SET.46",
-   "why": "Sell some into the gap at the open. Friday is day 5 of a push, inside the 3 to 7 day window where the first sell is often best. The gap hands you a better price. How much to sell is a judgment, not a fixed third.",
+   "why": "Weigh selling some into the gap. Friday is day 5 of a push, inside the 3 to 7 day window where the first sell is often best. Selling part at the open is one choice you may make by judgment, never a rule. How much to sell is also a judgment.",
    "wrong": {
-    "Raise the stop and hold it all": "The stop can rise too, but a gap into a push is a good time for the first sell.",
-    "Sell it all at the open today": "The first sell is part of the position. The rest keeps working on the trail.",
-    "Wait for the close to make the call": "A gap can fade by the close. A gap into a push is a good time for the first sell."
+    "Add shares because it gapped up": "No adds. The plan is one entry at one price with one stop.",
+    "Sell a third; the gap makes it a rule": "A gap is no rule. Selling part at the open is a judgment, never a requirement.",
+    "Sell it all at the open today": "The first sell is part of the position. The rest keeps working on the trail."
    }
   },
   "review_status": "draft",
@@ -176915,18 +176922,18 @@
  },
  {
   "answer_json": {
-   "answer": "Sell part of it into the gap"
+   "answer": "Weigh selling some into the gap"
   },
   "difficulty": 2,
   "id": "si_668c7a48cd63",
   "lesson_origin": "session",
-  "lesson_text": "Sell part of it into the gap, at the open. Thursday is day 4 of a push, inside the 3 to 7 day window where the first sell is often best. The gap hands you a better price. How much to sell is a judgment. A gap in a multi-day push is a good time for a first sell.",
+  "lesson_text": "Weigh selling some into the gap. Thursday is day 4 of a push, inside the 3 to 7 day window where the first sell is often best. Selling part at the open is one choice you may make by judgment, never a rule. A gap in a multi-day push is a time to weigh a first sell. It is never a rule.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Hold it all and move the stop up",
-    "Sell part of it into the gap",
-    "Wait for a dip back to the 3R level",
+    "Add shares because it gapped up",
+    "Weigh selling some into the gap",
+    "Sell a third; the gap makes it a rule",
     "Sell it all at the open"
    ],
    "kind": "mcq",
@@ -176937,6 +176944,13 @@
   "reveal_json": {
    "depth": {
     "sources": [
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
      {
       "accessed": "2026-11-12",
       "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
@@ -176959,20 +176973,20 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Owner: the first sell is a judgment, not a fixed third at 3R. Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Owner: he usually waits until day 3 at the earliest to sell."
+    "summary": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule. Owner: the first sell is a judgment, not a fixed third at 3R. Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Owner: he usually waits until day 3 at the earliest to sell."
    },
    "facts": {
-    "given": "What do you do at the open? You bought a News Failure long on Monday at 31.83 with the stop at 30.23. It has pushed up for three sessions. Thursday, day 4, it opens at 38.10, above your 3R level, and you have sold nothing. Sell part of it into the gap Wait for a dip back to the 3R level Sell it all at the open Hold it all and move the stop up"
+    "given": "What do you do at the open? You bought a News Failure long on Monday at 31.83 with the stop at 30.23. It has pushed up for three sessions. Thursday, day 4, it opens at 38.10, above your 3R level, and you have sold nothing. Weigh selling some into the gap Sell a third; the gap makes it a rule Sell it all at the open Add shares because it gapped up"
    },
-   "lesson_line": "A gap in a multi-day push is a good time for a first sell.",
-   "simple": "Sell part of it at the open, because a gap on day 4 of a push is a good time for a first sell.",
+   "lesson_line": "A gap in a multi-day push is a time to weigh a first sell. It is never a rule.",
+   "simple": "Weigh selling some into the gap, because the first sell is a judgment and a gap never forces it.",
    "tier": "extended",
    "unit": "SET.47",
-   "why": "Sell part of it into the gap, at the open. Thursday is day 4 of a push, inside the 3 to 7 day window where the first sell is often best. The gap hands you a better price. How much to sell is a judgment.",
+   "why": "Weigh selling some into the gap. Thursday is day 4 of a push, inside the 3 to 7 day window where the first sell is often best. Selling part at the open is one choice you may make by judgment, never a rule.",
    "wrong": {
-    "Hold it all and move the stop up": "The stop can follow later. A gap into a push is a good time for the first sell.",
-    "Sell it all at the open": "The first sell is part of the position. The rest keeps working.",
-    "Wait for a dip back to the 3R level": "A dip may never come. A gap into a push is a good time for the first sell."
+    "Add shares because it gapped up": "No adds. The plan is one entry at one price with one stop.",
+    "Sell a third; the gap makes it a rule": "A gap is no rule. Selling part at the open is a judgment, never a requirement.",
+    "Sell it all at the open": "The first sell is part of the position. The rest keeps working."
    }
   },
   "review_status": "draft",
@@ -184071,19 +184085,19 @@
  },
  {
   "answer_json": {
-   "answer": "Sell part into the gap at the open"
+   "answer": "Weigh selling some into the gap"
   },
   "difficulty": 2,
   "id": "si_76162227ab1e",
   "lesson_origin": "session",
-  "lesson_text": "Sell part into the gap at the open. The open of 26.00 is far past the 5R line of 24.18, in the 5 to 10R zone where selling is often best. How much to sell is a judgment. MP opened there, then closed at 21.94, through its stop. A gap far past 5R is a chance to sell into strength.",
+  "lesson_text": "Weigh selling some into the gap. The first sell is a judgment. We very rarely sell on day 1 and usually wait until day 3, but selling part at the open on a big gap is one choice we may make. The open of 26.00 is far past the 5R line of 24.18. MP opened there, then closed at 21.94, through its stop. A big gap is a time to weigh a part sale. It is a judgment, never a rule.",
   "module": "SET",
   "prompt_json": {
    "choices": [
     "Add more at 26.00 on the gap",
-    "Sell part into the gap at the open",
-    "Wait for a pullback to the 20 EMA",
-    "Hold everything and let it run"
+    "Weigh selling some into the gap",
+    "Sell a third; the gap makes it a rule",
+    "Hold everything; never sell this early"
    ],
    "kind": "mcq",
    "q": "What do you do at the open?",
@@ -184092,21 +184106,14 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The open looked like a big win: 26.00 against a 5R line of 24.18. MP then closed at 21.94, through its stop. A trim level the day opens past is taken at the open, before the day can take it back. Waiting to see if it runs is how the gain is lost."
+    "trap": "The open looked like a big win: 26.00 against a 5R line of 24.18. MP then closed at 21.94, through its stop. A big gap is a fair time to weigh a part sale. It is a judgment, not a rule, and holding it all with no plan gave the gain back."
    },
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-10",
-      "name": "UCT setup research (examples read from our own daily bars): Capitulation dossier, sections 12 and 14: examples, failures and near-misses from our data",
-      "quote": "day 1 opened 26.00, above the 5R line (24.18), then closed 21.94 in its lower tenth through the stop.",
-      "tier": 3,
-      "url": "repo:docs/study/setups/research/34-capitulation.md#12-examples-from-our-data"
-     },
-     {
       "accessed": "2026-11-12",
       "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+      "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
       "tier": 3,
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
@@ -184116,22 +184123,36 @@
       "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "I usually wait until day 3 at the earliest.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Capitulation dossier, sections 12 and 14: examples, failures and near-misses from our data",
+      "quote": "day 1 opened 26.00, above the 5R line (24.18), then closed 21.94 in its lower tenth through the stop.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/34-capitulation.md#12-examples-from-our-data"
      }
     ],
-    "summary": "MP: day 1 opened 26.00, above the 5R line of 24.18, then closed 21.94 through the stop. Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Owner: the first sell is a judgment, not a fixed third at 3R."
+    "summary": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule. Owner: the first sell is a judgment, not a fixed third at 3R. Owner: he usually waits until day 3 at the earliest to sell. MP: day 1 opened 26.00, above the 5R line of 24.18, then closed 21.94 through the stop."
    },
    "facts": {
-    "given": "What do you do at the open? You bought at 22.13 with a stop at 21.72. 5R is 24.18. The next day opens at 26.00. Sell part into the gap at the open Wait for a pullback to the 20 EMA Hold everything and let it run Add more at 26.00 on the gap"
+    "given": "What do you do at the open? You bought at 22.13 with a stop at 21.72. 5R is 24.18. The next day opens at 26.00. Weigh selling some into the gap Sell a third; the gap makes it a rule Hold everything; never sell this early Add more at 26.00 on the gap"
    },
-   "lesson_line": "A gap far past 5R is a chance to sell into strength.",
-   "simple": "Sell part into the gap at the open, because the open is far past 5R and a gap is a good time to sell.",
+   "lesson_line": "A big gap is a time to weigh a part sale. It is a judgment, never a rule.",
+   "simple": "Weigh selling some into the gap, because the first sell is a judgment and a gap never forces it.",
    "tier": "extended",
    "unit": "SET.49",
-   "why": "Sell part into the gap at the open. The open of 26.00 is far past the 5R line of 24.18, in the 5 to 10R zone where selling is often best. How much to sell is a judgment. MP opened there, then closed at 21.94, through its stop.",
+   "why": "Weigh selling some into the gap. The first sell is a judgment. We very rarely sell on day 1 and usually wait until day 3, but selling part at the open on a big gap is one choice we may make. The open of 26.00 is far past the 5R line of 24.18. MP opened there, then closed at 21.94, through its stop.",
    "wrong": {
     "Add more at 26.00 on the gap": "We never add. The full size goes in at one price with one stop.",
-    "Hold everything and let it run": "Holding it all gave back the gain. MP closed through its stop.",
-    "Wait for a pullback to the 20 EMA": "A pullback may never come. A big gap is a chance to sell."
+    "Hold everything; never sell this early": "Never is too strong. An early sell is rare, not banned. Holding it all gave back the gain, and MP closed through its stop.",
+    "Sell a third; the gap makes it a rule": "A gap is no rule. Selling part at the open is a judgment, never a requirement."
    }
   },
   "review_status": "draft",
@@ -207117,7 +207138,7 @@
   "difficulty": 1,
   "id": "si_e663aeb85816",
   "lesson_origin": "session",
-  "lesson_text": "Day 3 at the earliest. The first sell is a judgment, not a fixed level. The owner very rarely sells on day 1 of the buy and usually waits until day 3. Being up 2R by noon changes nothing: the sale is not a clock or a price. The first sell is a judgment, usually day 3 or later. Rarely day 1.",
+  "lesson_text": "Day 3 at the earliest. The first sell is a judgment, not a fixed level. We very rarely sell on day 1 of the buy and usually wait until day 3. Being up 2R by noon changes nothing: the sale is not a clock or a price. The first sell is a judgment, usually day 3 or later. Rarely day 1.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -207161,13 +207182,13 @@
     "given": "Your drive is up 2R by noon on the buy day. When does the first sell usually come? Right now, at noon on day one At the close of the buy day Day 3 at the earliest, by judgment Whenever the first red candle prints"
    },
    "lesson_line": "The first sell is a judgment, usually day 3 or later. Rarely day 1.",
-   "simple": "Day 3 at the earliest, because the owner very rarely sells on day one and picks the first sell by judgment.",
+   "simple": "Day 3 at the earliest, because we very rarely sell on day one and picks the first sell by judgment.",
    "tier": "core",
    "unit": "SET.54",
-   "why": "Day 3 at the earliest. The first sell is a judgment, not a fixed level. The owner very rarely sells on day 1 of the buy and usually waits until day 3. Being up 2R by noon changes nothing: the sale is not a clock or a price.",
+   "why": "Day 3 at the earliest. The first sell is a judgment, not a fixed level. We very rarely sell on day 1 of the buy and usually wait until day 3. Being up 2R by noon changes nothing: the sale is not a clock or a price.",
    "wrong": {
-    "At the close of the buy day": "That is still day 1. There is no time-of-day sale, and the owner rarely sells on day 1.",
-    "Right now, at noon on day one": "The owner very rarely sells on day 1 of the buy. Being up 2R is no reason to sell.",
+    "At the close of the buy day": "That is still day 1. There is no time-of-day sale, and we rarely sell on day 1.",
+    "Right now, at noon on day one": "We very rarely sell on day 1 of the buy. Being up 2R is no reason to sell.",
     "Whenever the first red candle prints": "A red candle is not a sell signal. The first sell is a judgment, usually day 3 or later."
    }
   },
@@ -207300,7 +207321,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "example": "SITM filled at 581.57 with the stop at 572.82. 3R, 607.82, came at 9:50 the same day, which is day 1, when the owner very rarely sells. 5R came at the open two sessions later, which is day 3. The first sell stays a judgment."
+    "example": "SITM filled at 581.57 with the stop at 572.82. 3R, 607.82, came at 9:50 the same day, which is day 1, when we very rarely sell. 5R came at the open two sessions later, which is day 3. The first sell stays a judgment."
    },
    "depth": {
     "sources": [
@@ -208529,7 +208550,7 @@
   "difficulty": 2,
   "id": "si_97edd325517c",
   "lesson_origin": "session",
-  "lesson_text": "The first sell is a judgment, not a rule. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. CNC's 3R came on day 2, and a hold gave the move back. That is the cost of judging, not a broken rule. This is our plan laid on the scan's prices, not a simulated trade. A 3R print on day 2 is not a sell order. The first sell is a judgment.",
+  "lesson_text": "The first sell is a judgment, not a rule. We very rarely sell on day 1 and usually wait until day 3 at the earliest. CNC's 3R came on day 2, and a hold gave the move back. That is the cost of judging, not a broken rule. This is our plan laid on the scan's prices, not a simulated trade. A 3R print on day 2 is not a sell order. The first sell is a judgment.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -208584,7 +208605,7 @@
    "simple": "The first sell is a judgment, not a fixed rule, and CNC gave back the move because the hold was a judgment call.",
    "tier": "extended",
    "unit": "SET.54",
-   "why": "The first sell is a judgment, not a rule. The owner very rarely sells on day 1 and usually waits until day 3 at the earliest. CNC's 3R came on day 2, and a hold gave the move back. That is the cost of judging, not a broken rule. This is our plan laid on the scan's prices, not a simulated trade.",
+   "why": "The first sell is a judgment, not a rule. We very rarely sell on day 1 and usually wait until day 3 at the earliest. CNC's 3R came on day 2, and a hold gave the move back. That is the cost of judging, not a broken rule. This is our plan laid on the scan's prices, not a simulated trade.",
    "wrong": {
     "A third at 3R is the rule; we missed it": "There is no fixed third at 3R. The first sell is a judgment, usually day 3 or later.",
     "Sell everything at the first 3R touch": "Selling it all at one price is not our plan. We sell in parts, by judgment.",
@@ -208749,7 +208770,7 @@
   "difficulty": 2,
   "id": "si_d8000e7c7029",
   "lesson_origin": "session",
-  "lesson_text": "False. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left trails. No fixed third at 3R. The first sell is a judgment, then the rest trails.",
+  "lesson_text": "False. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left trails. No fixed third at 3R. The first sell is a judgment, then the rest trails.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -208808,7 +208829,7 @@
    "simple": "False, because the first sell is a judgment and not a set third at 3R.",
    "tier": "extended",
    "unit": "SET.54",
-   "why": "False. The first sell is a judgment, not a fixed third at 3R. The owner very rarely sells on day 1 and usually waits until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left trails."
+   "why": "False. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left trails."
   },
   "review_status": "draft",
   "skill_id": "setup.opening_drive",
@@ -209137,7 +209158,7 @@
   "difficulty": 3,
   "id": "si_c8cb0e6d3a42",
   "lesson_origin": "session",
-  "lesson_text": "No. The full size goes on at one price with one stop; there is no adding. SMB adds a reason to wait. It does not trust trends in the first 30 minutes, since stocks do not trend on the open. Our card names mistaking a drive for a trend and adding size in the first 30 minutes as a mistake. Up 1R is not a sell point either; the owner very rarely sells on day 1. A drive is not yet a trend. Full size at one price, no adding.",
+  "lesson_text": "No. The full size goes on at one price with one stop; there is no adding. SMB adds a reason to wait. It does not trust trends in the first 30 minutes, since stocks do not trend on the open. Our card names mistaking a drive for a trend and adding size in the first 30 minutes as a mistake. Up 1R is not a sell point either; we very rarely sell on day 1. A drive is not yet a trend. Full size at one price, no adding.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -209216,7 +209237,7 @@
    "simple": "No, because we buy full size once at one price, and a drive this early is not yet a trend.",
    "tier": "extended",
    "unit": "SET.54",
-   "why": "No. The full size goes on at one price with one stop; there is no adding. SMB adds a reason to wait. It does not trust trends in the first 30 minutes, since stocks do not trend on the open. Our card names mistaking a drive for a trend and adding size in the first 30 minutes as a mistake. Up 1R is not a sell point either; the owner very rarely sells on day 1.",
+   "why": "No. The full size goes on at one price with one stop; there is no adding. SMB adds a reason to wait. It does not trust trends in the first 30 minutes, since stocks do not trend on the open. Our card names mistaking a drive for a trend and adding size in the first 30 minutes as a mistake. Up 1R is not a sell point either; we very rarely sell on day 1.",
    "wrong": {
     "No; trim a third right away": "Selling on day 1 is rare. The first sell is a judgment, usually day 3 or later.",
     "Yes; add a third more at 2R": "No adding at all. One price, one stop.",
@@ -209237,7 +209258,7 @@
   "difficulty": 3,
   "id": "si_6afead25a6c6",
   "lesson_origin": "session",
-  "lesson_text": "The plan working: a 1R loss. The stop sat under the day's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 came on day 1, when the owner very rarely sells. A tight stop is not a free stop. The stop under the day's low sets the loss at the buy. A stop-out is the plan, not a mistake.",
+  "lesson_text": "The plan working: a 1R loss. The stop sat under the day's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 came on day 1, when we very rarely sell. A tight stop is not a free stop. The stop under the day's low sets the loss at the buy. A stop-out is the plan, not a mistake.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -209309,7 +209330,7 @@
    "simple": "It was the plan working, because the stop sat where the rule puts it and the loss was the 1R you planned.",
    "tier": "expert",
    "unit": "SET.54",
-   "why": "The plan working: a 1R loss. The stop sat under the day's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 came on day 1, when the owner very rarely sells. A tight stop is not a free stop.",
+   "why": "The plan working: a 1R loss. The stop sat under the day's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 came on day 1, when we very rarely sell. A tight stop is not a free stop.",
    "wrong": {
     "A broken rule; the stop was tight": "The stop sat under the day's low, as the rule says. The rule was followed.",
     "A reason to widen the next stop": "The stop only moves up, never down or wider. The stop under the day's low did its job.",
@@ -209861,7 +209882,7 @@
    "why": "Market 277.24, stop 272.75, first sell on day 3 or later. The buy is a market order the moment price trades through the first bar's high, 277.23, so 277.24. The stop sits a few cents under the day's low, here the first bar's low of 272.80, so 272.75. The first sell is a judgment, rarely on day 1. LRCX reached 3R at the next session's open and 16.8R at its best.",
    "wrong": {
     "Limit 275.00; stop 268.00; out at 2R": "A limit under the first bar's high never fills on the break. A stop down at 268.00 is nowhere near the day's low.",
-    "Market 277.24; stop 272.75; sell day 1": "The owner very rarely sells on day 1 of the buy. The first sell is a judgment, usually day 3 or later.",
+    "Market 277.24; stop 272.75; sell day 1": "We very rarely sell on day 1 of the buy. The first sell is a judgment, usually day 3 or later.",
     "Market at 9:40 close; stop 272.80; hold": "The trigger is the trade through, not the close, and the stop sits under the low, not on it."
    }
   },

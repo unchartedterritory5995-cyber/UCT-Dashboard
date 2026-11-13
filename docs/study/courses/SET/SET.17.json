@@ -1121,6 +1121,12 @@
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "g1",
+   "source": "h2",
+   "quote": "Shorts enter like buys: as price trades through the trigger, never at the close.",
+   "claim": "SHORT-ENTRY: shorts enter as price trades through the trigger, never at the close."
   }
  ],
  "walkthroughs": [
@@ -2050,7 +2056,7 @@
     "No; it must close at the day's low"
    ],
    "answer": "No; it must close in the lower 40%",
-   "why": "No. The trigger day closes in the lower 40% of its range. This one closed at 56%. A mid-range close under the averages is undecided, so wait for the next close. LOW 2007-09-07 closed at 56%; shorted at the close, it was stopped at 0R.",
+   "why": "No. The trigger day closes in the lower 40% of its range. This one closed at 56%. A mid-range close under the averages is undecided, so wait for the next close. LOW 2007-09-07 closed at 56% and was a near miss.",
    "lesson_line": "Where the day closes is the vote. Mid-range is no vote.",
    "facts": [
     "c13",
@@ -2066,7 +2072,7 @@
    },
    "simple": "No. The day has to close in the lower 40% of its range, and a close near the middle has not decided anything.",
    "deeper": {
-    "counter": "The card does not say a mid-range close can never work. It says the vote is not in yet. In one case, LOW closed at 56% of its range, and shorted at the close it was stopped at 0R."
+    "counter": "The card does not say a mid-range close can never work. It says the vote is not in yet. In one case, LOW closed at 56% of its range, and it stayed a near miss."
    },
    "tier": "core",
    "risk": {
@@ -2076,7 +2082,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "wave2"
+   "batch": "rulings3"
   },
   {
    "key": "q26",
@@ -3401,18 +3407,19 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "wd.order",
-   "story": "GS, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it closes under both averages at 131.23 on 1.2x volume. The day's high is 134.76.",
-   "q": "Write the plan: entry, stop, first cover.",
+   "story": "GS, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it trades down through both averages and the stall low, and closes at 131.23 on 1.2x volume. The day's high is 134.76.",
+   "q": "Write the plan: entry, stop, first cover day.",
    "choices": [
-    "Market 131.23; stop 134.79; cover day 3+",
-    "Market 131.23; stop 134.79; cover day 1",
-    "Limit 132.50; stop 134.79; cover day 3+",
-    "Market 131.23; stop 133.00; cover day 3+"
+    "Through trigger; stop 134.79; day 3+",
+    "Through trigger; stop 134.79; day 1",
+    "At the close; stop 134.79; day 3+",
+    "Through trigger; stop 133.00; day 3+"
    ],
-   "answer": "Market 131.23; stop 134.79; cover day 3+",
-   "why": "Market at 131.23, stop 134.79, first cover on day 3 or later. The entry is a market order on the close. The stop is a few cents over the day's high of 134.76, 2.7% from the fill, inside the 3%. We very rarely sell on day 1 and usually wait until day 3 at the earliest. GS reached 3R on day 4.",
-   "lesson_line": "Entry, stop, cover, trail. Write it before the close; execute it without a debate.",
+   "answer": "Through trigger; stop 134.79; day 3+",
+   "why": "Short as price trades through the trigger, stop 134.79, first cover on day 3 or later. Shorts enter like buys, never at the close. The stop is a few cents over the day's high of 134.76, about 2.7% from 131.23, inside the 3%. We very rarely sell on day 1 and usually wait until day 3 at the earliest. Measured from the 131.23 close, GS reached 3R on day 4.",
+   "lesson_line": "Entry, stop, cover, trail. Write it before it triggers; execute it without a debate.",
    "facts": [
+    "g1",
     "h20",
     "h22",
     "d07",
@@ -3424,13 +3431,13 @@
    ],
    "house": true,
    "wrong": {
-    "Market 131.23; stop 134.79; cover day 1": "We very rarely sell on day 1 of the buy. The first cover is a judgment, usually day 3 or later.",
-    "Limit 132.50; stop 134.79; cover day 3+": "Entries are market orders, and a limit above the close may never fill.",
-    "Market 131.23; stop 133.00; cover day 3+": "A stop at 133.00 sits inside the day's range, under the high of 134.76."
+    "Through trigger; stop 134.79; day 1": "We very rarely sell on day 1 of the buy. The first cover is a judgment, usually day 3 or later.",
+    "At the close; stop 134.79; day 3+": "Shorts enter like buys, as price trades through the trigger. Never at the close.",
+    "Through trigger; stop 133.00; day 3+": "A stop at 133.00 sits inside the day's range, under the high of 134.76."
    },
-   "simple": "Enter at market, put the stop a few cents over the day's high, and make the first cover on day 3 or later.",
+   "simple": "Short through the trigger, stop a few cents over the day's high, first cover on day 3 or later.",
    "deeper": {
-    "example": "GS, 2011-08-02: the bounce died at the falling 50-day, then a four-day stall, then the close at 131.23. The stop at 134.79 was 2.7% away. 3R came on day 4. At best it reached 13.2R, a high-water mark on a fixed stop, not a result to bank."
+    "example": "GS, 2011-08-02: the bounce died at the falling 50-day, then a four-day stall, then a close at 131.23. The stop at 134.79 was about 2.7% away. Measured from that close, 3R came on day 4. At best it reached 13.2R, a high-water mark on a fixed stop, not a result to bank."
    },
    "tier": "expert",
    "risk": {
@@ -3440,7 +3447,7 @@
      "the short entry on the close is not covered by D-003"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings3"
   },
   {
    "key": "q61",
@@ -3970,8 +3977,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c13 (lower 40% of range, a gate on the card) and d31 (LOW closed at 56%, stopped at 0R). 56% fails the rule whichever end it is measured from. Choices distinct; no tell."
+   "fixed": true,
+   "notes": "Drop the 0R outcome: it was measured from a close entry, which SHORT-ENTRY rules out."
   },
   "q26": {
    "status": "pass",
@@ -4068,7 +4075,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers 52.58, 53.70, 54.33 are d25 and d26. Stop is the exit (h02, c21); new short needs a new trigger (h25)."
+   "notes": "no entry timing claimed; stop-out logic; keep agrees"
   },
   "q42": {
    "status": "pass",
@@ -4186,7 +4193,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "entry through trigger; at-the-close is a wrong choice; quote verbatim; R figures labeled as from the close"
   },
   "q61": {
    "status": "pass",

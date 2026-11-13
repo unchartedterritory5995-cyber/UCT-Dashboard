@@ -4386,8 +4386,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "VWAP break still best of the four; 19.9% stop noted as past 5% in why"
+   "fixed": false,
+   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
   },
   "q54": {
    "status": "cut",

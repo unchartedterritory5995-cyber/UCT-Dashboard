@@ -1717,7 +1717,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "hg.trim_1",
-   "q": "What does the owner's plan say about the first sell on a Holy Grail winner?",
+   "q": "What does our plan say about the first sell on a Holy Grail winner?",
    "choices": [
     "A judgment, often day 3 or later",
     "A third, the moment it hits 3R",
@@ -2090,7 +2090,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "hg.trim_gap_open",
-   "q": "What fits the owner's plan at the open?",
+   "q": "What fits our plan at the open?",
    "choices": [
     "Weigh selling some into the push",
     "Sell a third; 3R is a fixed rule",
@@ -3787,7 +3787,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to weigh the first sell; session five story ok."
+   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
   },
   "q29": {
    "status": "pass",

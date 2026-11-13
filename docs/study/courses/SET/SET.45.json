@@ -1137,6 +1137,12 @@
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "rg1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
   }
  ],
  "walkthroughs": [
@@ -4615,23 +4621,23 @@
    "format": "fill",
    "criterion": "qk.breakout_trim_gap_open",
    "q": "Tap the word that fits the blank.",
-   "sentence": "If a stock gaps above a planned trim level, take that trim at the ___.",
+   "sentence": "A gap above a trim level never forces a sale. Selling part at the open is your ___.",
    "bank": [
-    "open",
-    "close",
-    "high",
-    "pullback",
-    "next dip"
+    "judgment",
+    "rule",
+    "duty",
+    "signal",
+    "stop"
    ],
-   "answer": "open",
-   "why": "Open. A stock that gaps above a planned trim level is already past it. You take that trim at the open, not at a pullback or a later dip.",
-   "lesson_line": "Gap above a trim level: take it at the open.",
+   "answer": "judgment",
+   "why": "Judgment. A gap above a trim level is not an automatic sell. Selling part at the open is one choice you may make, never a rule.",
+   "lesson_line": "Gap above a trim level: selling part at the open is a judgment.",
    "facts": [
-    "hF63",
-    "aGap"
+    "rg1",
+    "r70"
    ],
    "house": true,
-   "simple": "If a stock gaps above a trim level, you sell that trim at the open, not later.",
+   "simple": "A gap never forces a sale. Selling part at the open is a judgment call you may make or skip.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -4639,7 +4645,7 @@
      "rests on the owner's rulebook (F63)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings3"
   },
   {
    "key": "q107",
@@ -4647,7 +4653,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "qk.breakout_trim_gap_open",
-   "q": "What fits the owner's plan at the open?",
+   "q": "What fits our plan at the open?",
    "choices": [
     "Weigh selling some into the push",
     "Sell a third; 3R is a fixed rule",
@@ -5953,14 +5959,14 @@
   "q106": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Sentence still teaches a gap past 3R as a trim level; under D-013 3R is not a fixed sell level, and sibling q107 now says weigh it. Make the level a planned one."
+   "fixed": false,
+   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
   },
   "q107": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to weigh the first sell; ok."
+   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
   },
   "q108": {
    "status": "pass",

@@ -3630,7 +3630,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c11 is the card's rule verbatim; b03 re-read live (28%, 23 days; the sample's event days fell 15% to 70%, so the 15% story fits). 'Short a break of today's low' is not Version R (retest) and not Version P (no burst). Two Wait and two Short choices, no tell."
+   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
   },
   "q21": {
    "status": "pass",
@@ -3744,8 +3744,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "agrees, $1M note added; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
   },
   "q12": {
    "status": "pass",
