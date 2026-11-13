@@ -1126,3 +1126,14 @@ def test_F4_a_written_back_stamp_is_never_stored_and_never_served(store, monkeyp
         c.execute("UPDATE user_definitions SET definition = ? WHERE id = ?", (json.dumps(d), rid))
     served = _client().get(f"/api/user-definitions/{ADX['id']}").json()["definition"]["meta"]
     assert not any(k in served for k in rt.RUN_READ_STAMPS)
+
+
+def test_F2_the_route_charges_the_calling_members_own_budget(store, monkeypatch):
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    rt._reset_capability_cache(persisted=True)
+    router_mod._runtime_admission_calls.clear()
+    assert _client().post("/api/user-definitions/runtime-admission",
+                          json={"source": MEMBER_COPY + "// route\n"}).json()["admitted"] is True
+    assert rt._verdict_member_spent(USER, time.monotonic()) > 0
+    assert rt._verdict_member_spent("<anonymous>", time.monotonic()) == 0
+    rt._reset_capability_cache(persisted=True)
