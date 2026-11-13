@@ -419,9 +419,12 @@ describe('a chart racing through symbols asks for the one it stops on', () => {
   })
 
   it('the hold follows the cadence, between its floor and its ceiling', async () => {
-    const cases = [[10, SETTLE_MIN_MS], [100, 100 * SETTLE_FACTOR], [RAPID_MS - 1, SETTLE_MAX_MS]]
+    // (2026-11-13: the ceiling rose from 250 to 500 ms, above the 260 to 300 ms a deep chart
+    // takes to draw; a single step under RAPID_MS no longer reaches it. The ceiling itself,
+    // and the two-step cadence, are pinned in serverLaneCadence.test.js.)
+    const cases = [[10, SETTLE_MIN_MS], [100, 100 * SETTLE_FACTOR], [RAPID_MS - 10, (RAPID_MS - 10) * SETTLE_FACTOR]]
     expect(SETTLE_MIN_MS).toBeLessThan(100 * SETTLE_FACTOR)
-    expect(SETTLE_MAX_MS).toBeLessThan((RAPID_MS - 1) * SETTLE_FACTOR)
+    expect((RAPID_MS - 10) * SETTLE_FACTOR).toBeLessThan(SETTLE_MAX_MS)
     let n = 0
     for (const [gap, hold] of cases) {
       clearServerColumns(); batchCalls.length = 0

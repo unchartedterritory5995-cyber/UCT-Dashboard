@@ -46,6 +46,13 @@ _log = logging.getLogger("boot_probe")
 _T0 = time.monotonic()
 
 BOOT_WINDOW_S = 420.0        # `[boot-probe]` summary lines only inside this window
+#: ⭐ After the boot window, one `[cpu-probe]` line per STEADY_S (2026-11-13): which threads
+#: burned the CPU over the last 5 minutes, the worst event-loop lag, the busiest anyio
+#: reading. On 11/13 every small member endpoint (auth/me, preferences, accounts,
+#: watchlists) took 0.2-2.5 s INSIDE the pod during market hours while bars reads took
+#: 4 ms: the pod was CPU-bound and nothing said by what, because the per-thread view only
+#: existed for the first 7 minutes after boot.
+STEADY_S = float(os.environ.get("CPU_PROBE_EVERY_S", "300"))
 ENTRY_LOG_WINDOW_S = 600.0   # route-entry lines only inside this window
 TICK_S = 5.0
 STACK_AT_S = (10.0, 30.0, 90.0, 180.0, 360.0)
@@ -344,6 +351,8 @@ def generic_pool_work(before: Dict[int, float], after: Dict[int, float],
 
 
 class _Deltas:
+    top = 4
+
     def __init__(self) -> None:
         self.cpu = time.process_time()
         self.wall = time.monotonic()
@@ -364,7 +373,7 @@ class _Deltas:
         threads = _thread_cpu_ticks()
         if threads is not None and self.threads is not None:
             names = {getattr(t, "native_id", None): t.name for t in threading.enumerate()}
-            hot = hot_threads(self.threads, threads, dw, names)
+            hot = hot_threads(self.threads, threads, dw, names, top=self.top)
             if hot:
                 parts.append(f"hot={hot}")
             if any(g in hot for g in _GENERIC_GROUPS):
@@ -390,17 +399,34 @@ async def run_sampler(tick: float = TICK_S, boot_window: float = BOOT_WINDOW_S) 
     also log one `[boot-probe]` summary. Runs ON the event loop (the anyio limiter can only
     be read from it); every reading is a few ms."""
     deltas = _Deltas()
+    steady: Optional[_Deltas] = None
+    lag_max = 0.0
     while True:
         t_before = time.monotonic()
         await asyncio.sleep(tick)
         lag = max(0.0, time.monotonic() - t_before - tick)
+        lag_max = max(lag_max, lag)
         try:
             for line in slow_stacks():
                 _log.warning(line)
             if boot_age() < boot_window:
                 _log.info(summary_line(lag, deltas))
+            elif STEADY_S > 0:
+                if steady is None:
+                    steady, lag_max = _Deltas(), 0.0
+                    steady.top = 8
+                elif time.monotonic() - steady.wall >= STEADY_S:
+                    _log.info(steady_line(lag_max, steady))
+                    lag_max = 0.0
         except Exception as exc:               # noqa: BLE001 -- the probe never dies on a reading
             _log.debug("[boot-probe] tick failed: %s", exc)
+
+
+def steady_line(lag_max: float, deltas: "_Deltas") -> str:
+    """One `[cpu-probe]` line covering everything since the previous one."""
+    return (f"[cpu-probe] up={boot_age():.0f}s over={time.monotonic() - deltas.wall:.0f}s "
+            f"anyio {_anyio_tokens()} threads={threading.active_count()} "
+            f"loop-lag-max={lag_max * 1000:.0f}ms {deltas.step()}")
 
 
 def reset_for_tests() -> None:
