@@ -86,6 +86,7 @@
 import { IND_TOKENS } from '../designTokens'
 import { paneMode } from './paneLayout'
 import { parsePaneOfTarget } from './sourceRef'
+import { readoutConditionOpen } from './readoutSchema'
 
 /**
  * Each preset's canvas colour. Taken from `designTokens.IND_TOKENS[p].surface`,
@@ -253,9 +254,26 @@ export const HIDDEN_AXIS_SCALE_ID = 'uct-axis-hidden'
  * read as VISIBLE. Only the exact string `'hidden'` hides; absent, `'visible'`,
  * `null` and anything else keep the axis, so no existing definition can change.
  */
-export function axisHiddenOf(def) {
+export function axisHiddenOf(def, instance) {
   const p = def && typeof def === 'object' ? def.placement : null
-  return !!(p && typeof p === 'object' && p.axis === 'hidden')
+  if (!(p && typeof p === 'object' && p.axis === 'hidden')) return false
+  // ⭐ 2026-11-12 — `placement.axisWhen`: while the instance's inputs meet it the
+  // numbers mean something (a line scaled to a rating), so the axis shows.
+  // Answered only with an instance to read; a context-free call keeps the
+  // declaration, exactly as before.
+  return !axisWantedBy(def, instance)
+}
+
+/**
+ * ⭐ 2026-11-12 — does this instance's inputs meet the definition's
+ * `placement.axisWhen` (the inputs' `activeWhen` grammar, declared defaults under
+ * the stored values)? `false` for a definition without one, or without an instance.
+ */
+export function axisWantedBy(def, instance) {
+  const p = def && typeof def === 'object' ? def.placement : null
+  if (!p || typeof p !== 'object' || !p.axisWhen || typeof p.axisWhen !== 'object') return false
+  if (!instance || typeof instance !== 'object') return false
+  return readoutConditionOpen(p.axisWhen, def, instance.inputs || {})
 }
 
 /**
@@ -608,7 +626,7 @@ export function resolvePlacement(instance, def, ctx) {
       // the host's `'right'`; whether the pane's axis hides is a question about
       // EVERY tenant of the pane, answered by `applyAxisTenancy`, which moves the
       // guest onto the host's hidden overlay only when the whole pane agrees.
-      ...(axisHiddenOf(def) ? { axis: 'hidden' } : {}),
+      ...(axisHiddenOf(def, instance) ? { axis: 'hidden' } : {}),
     }
   }
 
@@ -770,7 +788,7 @@ export function resolvePlacement(instance, def, ctx) {
     // The candles' axis (price branch) and the volume pane's ladders (overlay
     // branch) belong to somebody else and never hide; in `'bands'` mode the scale
     // is already an overlay named after the definition, with no axis to hide.
-    const hidden = axisHiddenOf(def)
+    const hidden = axisHiddenOf(def, instance)
     if (hidden) {
       return {
         paneIndex: pane.index,
