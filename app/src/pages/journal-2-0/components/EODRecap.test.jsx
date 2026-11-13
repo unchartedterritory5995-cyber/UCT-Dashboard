@@ -124,3 +124,28 @@ describe('EODRecap: the Daily folder is said (fix round 1)', () => {
     vi.doUnmock('react-router-dom')
   })
 })
+
+// Pass 2 final fix (R1): this card can be the first door of the day. A recap on a day with no note makes it from the
+// member's daily template and asks for today's plan lines (draftDailyReview applies the seed only to today's day).
+describe('EODRecap: the day note is made like the Notebook makes it (R1)', () => {
+  it("sends the member's daily template and the seed", async () => {
+    vi.resetModules()
+    const draft = vi.fn(async () => ({ note: { id: 'daily1' }, created: true }))
+    vi.doMock('../lib/reviewDrafts', () => ({
+      reviewDraftsEnabled: () => true,
+      draftDailyReview: draft,
+      todayDayIso: () => SAMPLE.day,
+    }))
+    vi.doMock('../../../hooks/usePreferences', () => ({
+      default: () => ({ prefs: { notebook_daily_template: 'tpl7' }, setPref: () => {} }),
+    }))
+    const { default: EODRecapFresh } = await import('./EODRecap')
+    const user = userEvent.setup()
+    render(<MemoryRouter><EODRecapFresh recap={SAMPLE} onFeedback={() => {}} onRegenerate={() => {}} onForget={() => {}} /></MemoryRouter>)
+    await user.click(screen.getByRole('button', { name: /draft in today/i }))
+    await waitFor(() => expect(draft).toHaveBeenCalledTimes(1))
+    expect(draft.mock.calls[0][0]).toMatchObject({ day: SAMPLE.day, templateId: 'tpl7', seedToday: true })
+    vi.doUnmock('../lib/reviewDrafts')
+    vi.doUnmock('../../../hooks/usePreferences')
+  })
+})
