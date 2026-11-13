@@ -135,7 +135,8 @@ describe('on the slim definition every shape draws the RATIO line and sends none
   it('the method keys fall back to the server defaults: tolerance and anchor are not sent; lookback 52 is', () => {
     const sent = pickServerInputs(SLIM, resolveInputs(SLIM, SHAPES.methodKeys.inputs))
     expect(sent).toEqual({ lookback: 52, mansfieldLength: 52, maLength: 21, maType: 'EMA', showNewHigh: true,
-      showNewHighBeforePrice: true, showRedDay: false, benchmark: 'SPY', customBenchmark: '' })
+      showNewHighBeforePrice: true, showRedDay: false, benchmark: 'SPY', customBenchmark: '',
+      sectorBenchmark: 'XLK', themeBenchmark: '' })
   })
 
   it('every rendered input defaults around a v1 instance; the legacy ones default too and are never rendered', () => {

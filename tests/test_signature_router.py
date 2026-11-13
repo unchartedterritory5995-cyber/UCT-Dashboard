@@ -142,7 +142,8 @@ def test_a_free_user_is_refused_on_EVERY_route_DERIVED_FROM_THE_ROUTER(client, m
         assert r.status_code == 402, f"{route.path} -> {r.status_code}"
         assert r.json()["detail"] == "UCT Signature indicators require a paid plan"
         seen += 1
-    assert seen == 7, f"the router mounts {seen} routes — re-read this rail"
+    # 8 since 2026-11-12: `/rs-themes`, the RS "Pick a theme" list.
+    assert seen == 8, f"the router mounts {seen} routes — re-read this rail"
 
 
 def test_every_route_declares_its_OWN_require_paid_dependency(client):
@@ -1474,11 +1475,22 @@ def test_the_rs_line_benchmarks_are_ONE_list_across_BOTH_LANES():
     import re
     from api.services.signature import registry_defs as rd
     src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
+    src = src.replace("\r\n", "\n")
     block = src.split("key: 'benchmark'", 1)[1].split("options:", 1)[1].split("]],", 1)[0]
-    js = re.findall(r"\['([A-Z]+)',", block)
-    # ⭐ 3-08: the JS enum is the v4 menu (CUSTOM, "Your symbol", appended by name)
+    js = re.findall(r"\['([A-Z_]+)',", block)
+    # ⭐ 3-08: the JS enum is the v4 menu (CUSTOM, "Your symbol", appended by name);
+    # 2026-11-12: plus Pick a sector, Theme (auto) and Pick a theme, in the v4 order.
     assert js == list(rd.RS_LINE_BENCHMARKS_V4), (js, rd.RS_LINE_BENCHMARKS_V4)
     assert len(js) >= 2, "a one-option enum makes this comparison vacuous"
+    # ⭐ 2026-11-12 — ONE declaration: the menu above is the shared helper's, it is the
+    # ONLY benchmark enum in the file, and every RS definition with a benchmark spreads it.
+    assert src.count("key: 'benchmark', type: 'enum'") == 1, "a second benchmark menu was typed"
+    head = src.split("key: 'benchmark', type: 'enum'", 1)[0]
+    assert head.rfind("const rsSplitBenchmarkInputs = () => ([") > head.rfind("\n}\n"), \
+        "the one benchmark menu is the shared helper's"
+    for raw in ("RS_LINE_V5_RAW", "RS_LINE_SLIM_RAW", "RS_PHASES_RAW", "RS_VS_EMA_RAW", "RS_EXIT_RAW"):
+        body = src.split(f"const {raw} = {{", 1)[1].split("\n}\n", 1)[0]
+        assert "rsSplitBenchmarkInputs()" in body, f"{raw} does not take the shared benchmark inputs"
 
 
 def test_a_provider_row_is_ALL_a_fourth_tenant_costs(client):

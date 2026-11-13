@@ -1056,6 +1056,18 @@ def server_definitions(_user: dict = Depends(require_paid)):
             "definitions": registry_defs.list_definitions()}
 
 
+@router.get("/rs-themes")
+def rs_benchmark_themes(_user: dict = Depends(require_paid)):
+    """The UCT themes the RS indicators' "Pick a theme" benchmark offers
+    (2026-11-12), ``{"options": [{"value": <theme id>, "label": <name>}]}`` in the
+    taxonomy's display order. The chart stores the ID, never the name, so a
+    rename keeps every saved chart; the resolver validates the ID again
+    (`rs_benchmarks.resolve_benchmark`, an unknown one falls back with a note).
+    Names only, one small read (`theme_db.get_theme_names`)."""
+    from api.services import rs_benchmarks
+    return {"options": [{"value": t["id"], "label": t["name"]} for t in rs_benchmarks.theme_choices()]}
+
+
 @router.get("/columns")
 def server_columns(
     response: Response,

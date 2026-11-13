@@ -11135,7 +11135,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [
@@ -13859,7 +13859,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [
@@ -15169,7 +15169,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [
@@ -16136,7 +16136,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [
@@ -16747,7 +16747,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [
@@ -17358,7 +17358,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [
@@ -18325,7 +18325,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [
@@ -21752,7 +21752,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [
@@ -22364,7 +22364,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [
@@ -22975,7 +22975,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [
@@ -23586,7 +23586,7 @@
      {
       "defId": "rsLine",
       "name": "UCT Relative Strength",
-      "settings": "benchmark SPY|RSP|SECTOR|QQQ|IWM|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
+      "settings": "benchmark SPY|RSP|QQQ|IWM|SECTOR|INDUSTRY (SPY); maLength int 2-200 (21); showNewHigh true|false (true); showNewHighBeforePrice true|false (true); showRating true|false (true); maType EMA|SMA (EMA); shadeVsAverage true|false (false); showCrossMarkers true|false (false); lineWidth int 1-4 (1); lookback int 20-500 (252); priceTolerance float 0-10 (2); shortHistoryDots true|false (true); showNewLow true|false (false); headlineRating ibd|fast|both (ibd); showComponents true|false (false); showRanksTable true|false (true); ratingBands true|false (true); showRedDay true|false (false); showMansfield true|false (false); mansfieldLength int 2-500 (200)"
      }
     ],
     "indicatorDrafts": [

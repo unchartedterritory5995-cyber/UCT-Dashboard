@@ -56,34 +56,37 @@ RS_SPLIT_CONTRACT = {
     },
     "rsPhases": {
         "columns": ["phase", "divergence"],
-        "inputs": ["benchmark", "customBenchmark", "shortEma", "longEma"],
+        "inputs": ["benchmark", "customBenchmark", "sectorBenchmark", "themeBenchmark", "shortEma", "longEma"],
         "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
-                  "benchmark.note", "benchmark.bars",
+                  "benchmark.note", "benchmark.bars", "benchmark.name",
                   "legend.summary", "legend.phase", "legend.phaseLabel", "legend.divergence",
                   "legend.rsTrend", "legend.benchTrend", "legend.asOf", "legend.stale",
-                  "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
+                  "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
+                  "inputs.themeBenchmark",
                   "inputs.shortEma", "inputs.longEma", "intraday", "state"],
     },
     "rsVsEma": {
         "columns": ["dist", "fast", "slow"],
-        "inputs": ["benchmark", "customBenchmark"],
+        "inputs": ["benchmark", "customBenchmark", "sectorBenchmark", "themeBenchmark"],
         "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
-                  "benchmark.note", "benchmark.bars",
+                  "benchmark.note", "benchmark.bars", "benchmark.name",
                   "legend.summary", "legend.pctFromMa", "legend.above", "legend.maSlope", "legend.index",
                   "legend.lastValue", "legend.asOf", "legend.stale", "legend.fast", "legend.slow",
-                  "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
+                  "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
+                  "inputs.themeBenchmark",
                   "inputs.maLength", "inputs.maType", "intraday", "state"],
     },
     # 2026-11-12: UCT RS Exit Warnings (Webster's Quick Break / Quicksand / Grateful Dead Break).
     "rsExit": {
         "columns": ["rsLine", "fast", "slow", "dotQuick", "dotQuicksand", "dotDead"],
-        "inputs": ["benchmark", "customBenchmark", "fastLength", "slowLength"],
+        "inputs": ["benchmark", "customBenchmark", "sectorBenchmark", "themeBenchmark", "fastLength", "slowLength"],
         "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
-                  "benchmark.note", "benchmark.bars",
+                  "benchmark.note", "benchmark.bars", "benchmark.name",
                   "legend.summary", "legend.chipText", "legend.blankReason", "legend.lastKind", "legend.lastLabel", "legend.barsAgo", "legend.lastAsOf",
                   "legend.status", "legend.statusLabel", "legend.rs", "legend.fast", "legend.slow",
                   "legend.fastLength", "legend.slowLength", "legend.asOf", "legend.stale",
-                  "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
+                  "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
+                  "inputs.themeBenchmark",
                   "inputs.fastLength", "inputs.slowLength", "inputs.maType", "intraday", "state"],
     },
 }
@@ -228,8 +231,10 @@ def test_member_copy_is_plain_english():
 def test_the_resolver_clamps_the_lengths_drops_colours_and_accepts_custom(split_rows):
     out = rd.resolve_inputs("rsPhases", {"benchmark": "CUSTOM", "customBenchmark": " smh ", "shortEma": 999,
                                          "longEma": 1, "lineColor": "#fff", "view": "rating"})
-    assert out == {"benchmark": "CUSTOM", "customBenchmark": "SMH", "shortEma": 20, "longEma": 3}
-    assert rd.resolve_inputs("rsVsEma", {"lookback": 20, "maLength": 50}) == {"benchmark": "SPY", "customBenchmark": ""}
+    assert out == {"benchmark": "CUSTOM", "customBenchmark": "SMH", "sectorBenchmark": "XLK",
+                   "themeBenchmark": "", "shortEma": 20, "longEma": 3}
+    assert rd.resolve_inputs("rsVsEma", {"lookback": 20, "maLength": 50}) == {
+        "benchmark": "SPY", "customBenchmark": "", "sectorBenchmark": "XLK", "themeBenchmark": ""}
     assert rd.resolve_inputs("rsRating", {"benchmark": "QQQ", "view": "rating"}) == {}
     with pytest.raises(rd.InputRejected, match="outside the enum vocabulary"):
         rd.resolve_inputs("rsPhases", {"benchmark": "TSLA"})
@@ -302,7 +307,8 @@ def test_the_phases_envelope_draws_the_formula_and_reads_its_legend(split_rows, 
     leg = env["payload"]["legend"]
     assert leg["phase"] in (None, 0, 1) and leg["summary"] and leg["asOf"] and leg["stale"] is False
     assert leg["divergence"] == pytest.approx(pure["divergence"][-1])
-    assert env["payload"]["inputs"] == {"benchmark": "SPY", "customBenchmark": "", "shortEma": 3, "longEma": 10}
+    assert env["payload"]["inputs"] == {"benchmark": "SPY", "customBenchmark": "", "sectorBenchmark": "",
+                                        "themeBenchmark": "", "shortEma": 3, "longEma": 10}
     assert env["payload"]["state"] == "ok" and env["payload"]["benchmark"]["resolved"] == "SPY"
 
 

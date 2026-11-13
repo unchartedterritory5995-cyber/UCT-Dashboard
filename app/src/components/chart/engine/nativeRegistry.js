@@ -4149,6 +4149,62 @@ const RS_VARS_VIEW = Object.freeze({ key: 'view', equals: 'vars' })
 const RS_RATING_VIEW = Object.freeze({ key: 'view', equals: 'rating' })
 /** 3-08 — the member's own ticker box wakes only under "Your symbol". */
 const RS_CUSTOM_BENCHMARK = Object.freeze({ key: 'benchmark', equals: 'CUSTOM' })
+/** 2026-11-12 — the sector list wakes only under "Pick a sector", the theme
+ *  chooser only under "Pick a theme". */
+const RS_SECTOR_PICK_BENCHMARK = Object.freeze({ key: 'benchmark', equals: 'SECTOR_PICK' })
+const RS_THEME_PICK_BENCHMARK = Object.freeze({ key: 'benchmark', equals: 'THEME_PICK' })
+
+/**
+ * ⭐⭐ THE RS BENCHMARK INPUTS — ONE DECLARATION FOR EVERY RS INDICATOR THAT
+ * TAKES A BENCHMARK (2026-11-12, owner: "benchmark to sector, theme etc").
+ *
+ * The UCT RS Line (both shapes), RS Phases, RS vs 21 EMA and RS Exit Warnings
+ * all spread this, so one saved benchmark choice means the same thing on every
+ * one of them and a menu change lands everywhere at once. The server twin is
+ * `registry_defs.RS_LINE_BENCHMARKS_V4` + `rs_benchmark_choice_inputs()`;
+ * `test_the_rs_line_benchmarks_are_ONE_list_across_BOTH_LANES` diffs the menu
+ * and the row rails diff every field. Fresh objects per call: a definition's
+ * inputs are its own.
+ *
+ * The menu: the four indexes, then the groups from widest to narrowest, then
+ * the member's own ticker. Option KEYS never change (saved charts and bound
+ * alerts carry them); `Sector ETF (auto)` reads `Sector (auto)` now. Every
+ * option added after Phase 2 is `requiresServer`, listed only once the live row
+ * names it. Each "pick" option has a companion that wakes under it and stands
+ * in for it wherever the benchmark is printed as identity (`identityFor`): the
+ * typed ticker, the picked sector ETF, the picked theme's name.
+ *
+ * ⚠️ The name says "split" for history (the split rows used it first); the
+ * python rails parse it by this name.
+ */
+const rsSplitBenchmarkInputs = () => ([
+  {
+    key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
+    tooltip: 'What the RS line compares the stock against: an index, its sector, its industry group, a UCT theme or a symbol you choose.',
+    options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['QQQ', 'Nasdaq 100 (QQQ)'],
+      ['IWM', 'Russell 2000 (IWM)'], ['SECTOR', 'Sector (auto)'],
+      ['SECTOR_PICK', 'Pick a sector', { requiresServer: true }], ['INDUSTRY', 'Industry group (auto)'],
+      ['THEME', 'Theme (auto)', { requiresServer: true }], ['THEME_PICK', 'Pick a theme', { requiresServer: true }],
+      ['CUSTOM', 'Your symbol', { requiresServer: true }]],
+  },
+  { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple',
+    requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK, identityFor: 'benchmark',
+    pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
+    placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
+    tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
+  { key: 'sectorBenchmark', type: 'enum', label: 'Sector', default: 'XLK', group: 'Simple',
+    requiresServer: true, activeWhen: RS_SECTOR_PICK_BENCHMARK, identityFor: 'benchmark',
+    options: [['XLK', 'Technology (XLK)'], ['XLV', 'Health Care (XLV)'], ['XLF', 'Financials (XLF)'],
+      ['XLY', 'Consumer Discretionary (XLY)'], ['XLP', 'Consumer Staples (XLP)'], ['XLE', 'Energy (XLE)'],
+      ['XLI', 'Industrials (XLI)'], ['XLB', 'Materials (XLB)'], ['XLU', 'Utilities (XLU)'],
+      ['XLRE', 'Real Estate (XLRE)'], ['XLC', 'Communication Services (XLC)']],
+    tooltip: 'The sector to compare against, as its SPDR sector fund.' },
+  { key: 'themeBenchmark', type: 'string', label: 'Theme', default: '', group: 'Simple',
+    requiresServer: true, activeWhen: RS_THEME_PICK_BENCHMARK, identityFor: 'benchmark',
+    optionsSource: 'rsThemes', pattern: '^[a-z0-9][a-z0-9_\\-]{0,63}$', maxLength: 64,
+    placeholder: 'Search themes', hint: 'Pick a theme from the list',
+    tooltip: 'A UCT theme to compare against: an equal-weight average of the theme\'s stocks, leaving this stock out.' },
+])
 /** VA2 — the Rating group's controls dim while the rating is switched off. */
 const RS_RATING_ON = Object.freeze({ key: 'showRating', equals: true })
 /** VA2 — the band gate every rating row shares: the member's Rating colours switch. */
@@ -4237,7 +4293,7 @@ const RS_LINE_V5_RAW = {
     serverInputs: ['benchmark', 'maLength', 'maType', 'lookback', 'priceTolerance',
       'redDayThreshold', 'showNewHigh', 'showNewHighBeforePrice', 'shortHistoryDots',
       'mansfieldLength', 'showMansfield', 'showRedDay', 'showNewLow',
-      'view', 'customBenchmark', 'rrgRatioLength', 'rrgMomentumLength', 'clenowWindow',
+      'view', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'rrgRatioLength', 'rrgMomentumLength', 'clenowWindow',
       'clenowGapPct', 'atrLength', 'varsLookback', 'anchorDate'],
     // Read by the settings dialog, the Chart Settings inspector and the phone
     // sheet (plan §6.3): these groups open collapsed so the Simple group is what
@@ -4392,30 +4448,11 @@ const RS_LINE_V5_RAW = {
   placement: { target: 'pane', pane: { height: 0.20, minPx: 64 }, axis: 'hidden', ownScale: true },
   inputs: [
     // ⭐ STILL AN `enum`, NOT A `symbol` (decision A3 and platform C-A3 stand).
-    // SECTOR and INDUSTRY are enum values the SERVER resolves from the universe
-    // sector/industry map; RSP is the equal-weight S&P. A free-text benchmark is
-    // a Phase 3 `string` input validated server-side, so `symbol` stays reserved.
-    {
-      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
-      tooltip: 'What we compare against. Change the benchmark and the question changes. Equal-weight or the sector isolates the stock\'s own strength when a few giants carry the index.',
-      // ⭐ v4 (unit 3-08, decision D4): "Your symbol" is `requiresServer`, listed
-      // only once the live row's benchmark options name CUSTOM.
-      options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['SECTOR', 'Sector ETF (auto)'],
-        ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)'], ['INDUSTRY', 'Industry group (auto)'],
-        ['CUSTOM', 'Your symbol', { requiresServer: true }]],
-    },
-    // ⭐ THE MEMBER'S OWN BENCHMARK (D4): any listed ticker, ETFs included, no
-    // index symbols. The pattern and the length are the server row's own
-    // (`rs_benchmarks.CUSTOM_SYMBOL_RE`, railed by `test_rs_columns_provider.py`);
-    // the box upper-cases what is typed. Wakes only under "Your symbol".
-    // ⭐ 3-09b: `identityFor` — what is typed here IS the benchmark wherever it
-    // is printed as identity (`UCT RS · SMH`, and `UCT RS · Your symbol` while
-    // the box is empty), never the raw `CUSTOM` (`defSchema.validateIdentityFor`).
-    { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple',
-      requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK, identityFor: 'benchmark',
-      pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
-      placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
-      tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
+    // SECTOR, INDUSTRY and THEME are enum values the SERVER resolves; the pick
+    // options carry their second value in a companion input. ⭐ 2026-11-12: the
+    // whole benchmark family (menu, custom ticker, picked sector, picked theme)
+    // is ONE declaration shared by every RS indicator (`rsSplitBenchmarkInputs`).
+    ...rsSplitBenchmarkInputs(),
     // ⭐ THE READING (decision D2): one choice, one pane. The server keeps the
     // chosen view's columns and blanks the rest, so two readings never share a
     // scale. Every option is a v4 server value (`registry_defs.RS_VIEWS`).
@@ -4801,14 +4838,14 @@ const RS_LINE_V5_RAW = {
     // or a benchmark gap (`No SPY bar for Nov 5 yet`).
     { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
       note: 'scalar:benchmark.note',
-      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server.',
+      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The benchmark actually used is printed: a ticker, an industry group or a UCT theme, worked out on the server for the auto choices.',
         origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
         evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer; the Agreement row reads the same line against SPY, the equal-weight index and the sector.',
         learn: 'rsLine' } },
     // What the member picked, as the option reads (`Sector ETF (auto)`), then what
     // the server resolved it to.
     { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
-    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
+    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.name', format: 'text', chip: true,
       detailOf: 'benchmarkName' },
     // The card repeats the menu's second line as a sentence (the raw fallback code,
     // `no sector`, is the server's vocabulary, not the member's).
@@ -5075,7 +5112,8 @@ const RS_LINE_SLIM_RAW = {
     // key stays or goes). `test_rs_columns_provider.py` diffs the v5 list, not
     // this one, until U10 trims the row to match (map §(a) U10).
     serverInputs: ['benchmark', 'maLength', 'maType', 'lookback', 'redDayThreshold',
-      'showNewHigh', 'showNewHighBeforePrice', 'mansfieldLength', 'showRedDay', 'customBenchmark'],
+      'showNewHigh', 'showNewHighBeforePrice', 'mansfieldLength', 'showRedDay', 'customBenchmark',
+      'sectorBenchmark', 'themeBenchmark'],
     // Simple opens; the four folded groups hold the average, the line's look, the
     // dots' look and the rating's presentation.
     groupsCollapsed: ['Average', 'Line', 'New highs', 'Rating'],
@@ -5124,18 +5162,8 @@ const RS_LINE_SLIM_RAW = {
   placement: { target: 'price', ownScale: true, pane: { height: 0.20, minPx: 64 }, axis: 'hidden' },
   inputs: [
     // ── rendered: Simple ──
-    {
-      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
-      tooltip: 'What we compare against. Change the benchmark and the question changes. Equal-weight or the sector isolates the stock\'s own strength when a few giants carry the index.',
-      options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['SECTOR', 'Sector ETF (auto)'],
-        ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)'], ['INDUSTRY', 'Industry group (auto)'],
-        ['CUSTOM', 'Your symbol', { requiresServer: true }]],
-    },
-    { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple',
-      requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK, identityFor: 'benchmark',
-      pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
-      placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
-      tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
+    // The benchmark family, shared by every RS indicator (2026-11-12).
+    ...rsSplitBenchmarkInputs(),
     { key: 'showAverage', type: 'bool', label: 'Show average', default: false, group: 'Simple',
       tooltip: 'Draw the RS line\'s moving average, dashed, with a green tint while the line is above it and a red tint while it is below. On when you add the indicator (like Deepvue\'s 21 EMA); turn it off for the line alone.' },
     { key: 'showNewHigh', type: 'bool', label: 'RS new highs', default: true, group: 'Simple',
@@ -5252,12 +5280,12 @@ const RS_LINE_SLIM_RAW = {
   readout: [
     { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
       note: 'scalar:benchmark.note',
-      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server.',
+      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The benchmark actually used is printed: a ticker, an industry group or a UCT theme, worked out on the server for the auto choices.',
         origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
         evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer.',
         learn: 'rsLine' } },
     { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
-    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
+    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.name', format: 'text', chip: true,
       detailOf: 'benchmarkName' },
     { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.note', format: 'text',
       when: 'scalar:benchmark.note', detailOf: 'benchmarkName' },
@@ -5363,24 +5391,8 @@ export { RS_LINE_V5_RAW, RS_LINE_SLIM_RAW }
 // ⭐ COLOURS ARE THE RS TOKENS ABOVE: info blue for the RS hue, the neutral for
 // averages and guides, red only for a loss-shaped reading, no gold.
 
-/** The benchmark pair, declared exactly as `rsLine` declares it (the server row
- *  shares `_rs_split_benchmark_inputs`, so one saved benchmark choice is legal
- *  on every ratio indicator). Fresh objects per call: a definition's inputs are
- *  its own. */
-const rsSplitBenchmarkInputs = () => ([
-  {
-    key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
-    tooltip: 'What we compare against. Change the benchmark and the question changes. Equal-weight or the sector isolates the stock\'s own strength when a few giants carry the index.',
-    options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['SECTOR', 'Sector ETF (auto)'],
-      ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)'], ['INDUSTRY', 'Industry group (auto)'],
-      ['CUSTOM', 'Your symbol', { requiresServer: true }]],
-  },
-  { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple',
-    requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK, identityFor: 'benchmark',
-    pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
-    placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
-    tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
-])
+// The benchmark family (`rsSplitBenchmarkInputs`) is declared once, above the
+// RS line, and shared by every RS indicator that takes a benchmark.
 
 /** The Benchmark card and its chip row, the RS line's own copy (`rsLine`'s
  *  `benchmarkName` family): the resolved ticker rides the pane label
@@ -5389,12 +5401,12 @@ const rsSplitBenchmarkInputs = () => ([
 const rsSplitBenchmarkRows = () => ([
   { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
     note: 'scalar:benchmark.note',
-    card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server.',
+    card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The benchmark actually used is printed: a ticker, an industry group or a UCT theme, worked out on the server for the auto choices.',
       origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
       evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer.',
       learn: 'rsLine' } },
   { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
-  { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
+  { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.name', format: 'text', chip: true,
     detailOf: 'benchmarkName' },
   { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.note', format: 'text',
     when: 'scalar:benchmark.note', detailOf: 'benchmarkName' },
@@ -5557,7 +5569,7 @@ const RS_PHASES_RAW = {
     legendFallback: [{ source: 'scalar:legend.summary', format: 'text' }],
     // ⭐ THE ROW'S FOUR KEYS (`registry_defs._rs_phases_row`), diffed by
     // `tests/test_rs_split_js_rows.py`.
-    serverInputs: ['benchmark', 'customBenchmark', 'shortEma', 'longEma'],
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'shortEma', 'longEma'],
     learn: [{ key: 'rsLine', label: 'Manrav on the RS line: Relative Strength Workshop' }],
     glossaryHref: '/methodology/relative-strength',
   },
@@ -5636,7 +5648,7 @@ const RS_VS_EMA_RAW = {
     legendFallback: [{ source: 'scalar:legend.summary', format: 'text' }],
     // ⭐ THE ROW'S TWO KEYS (`registry_defs._rs_vs_ema_row`), diffed by
     // `tests/test_rs_split_js_rows.py`.
-    serverInputs: ['benchmark', 'customBenchmark'],
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark'],
     learn: [
       { key: 'phase', label: 'Manrav on the RS line and its 21 EMA' },
       { key: 'rsLine', label: 'Manrav on the RS line: Relative Strength Workshop' },
@@ -5722,7 +5734,7 @@ const RS_EXIT_RAW = {
     legendFallback: [{ source: 'scalar:legend.blankReason', format: 'text' }],
     // ⭐ THE ROW'S FOUR KEYS (`registry_defs._rs_exit_row`), diffed by
     // `tests/test_rs_split_js_rows.py`.
-    serverInputs: ['benchmark', 'customBenchmark', 'fastLength', 'slowLength'],
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'fastLength', 'slowLength'],
     groupsCollapsed: ['Averages', 'Style'],
     glossaryHref: '/methodology/relative-strength',
   },

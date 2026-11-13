@@ -1,4 +1,5 @@
 import { useMemo, useState, useId, useSyncExternalStore } from 'react'
+import OptionsSourcePicker from '../../../components/chart/OptionsSourcePicker'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import haptics from '../../../components/mobile/haptics'
@@ -309,6 +310,26 @@ function TextRow({ inputKey, label, labelId, tip, tipId, active = true, value, f
   )
 }
 
+/** ⭐ 2026-11-12 — a `string` input naming a server-owned list (`optionsSource`,
+ *  the RS "Pick a theme" benchmark): the shared searchable chooser, the same one
+ *  the dialog and the inspector render, in the text box's 44 px / 16 px chrome.
+ *  One write per pick. */
+function PickRow({ inputKey, label, labelId, tip, tipId, active = true, value, field, onChange }) {
+  const aria = controlAria(tipId, active)
+  return (
+    // stacked: the label above, the chooser and its list the row's full width
+    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active} stacked>
+      <OptionsSourcePicker
+        field={field} value={value == null ? '' : String(value)} disabled={!active}
+        inputClassName={`${styles.textInput} ${styles.pickInput}`}
+        idBase={`${labelId}-pick`}
+        aria={{ 'aria-labelledby': labelId, ...aria }}
+        onPick={onChange}
+      />
+    </ParamRow>
+  )
+}
+
 /** Bool input as the sheet's iOS-style switch. */
 function SwitchRow({ inputKey, label, labelId, tip, tipId, active = true, value, onChange }) {
   const aria = controlAria(tipId, active)
@@ -563,6 +584,8 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
         // keyed by instance too, so a half-typed draft never follows the member
         // into another copy's editor
         return <TextRow key={`${studyInst.instanceId}:${f.key}`} {...common} value={cur} field={f} onChange={write} />
+      case 'pick':
+        return <PickRow key={`${studyInst.instanceId}:${f.key}`} {...common} value={cur} field={f} onChange={write} />
       default:
         // `source`, `datetime`, `session`: no phone control yet — the same gap
         // the hand loop had (returned null for them), named rather than hidden.
