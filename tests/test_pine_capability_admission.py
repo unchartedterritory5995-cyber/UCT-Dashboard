@@ -458,12 +458,24 @@ def test_the_door_with_the_flag_off_admits_nothing(store):
 
 def test_B1_with_the_flag_off_the_door_never_runs_the_detector(store, monkeypatch):
     """B1a: OFF answers a constant; no request can spend server time on a door that admits nothing."""
-    def boom(_s):
-        raise AssertionError("the detector ran with the flag off")
-    monkeypatch.setattr(pc, "capabilities_of", boom)
+    # a SPY, not a raiser: `capability_admitted` swallows an exception into "unreadable", which
+    # would let a door that DID run the detector pass (mutant B1c survived that version)
+    calls = []
+
+    def spy(src):
+        calls.append(1)
+        return frozenset({"core"})
+    monkeypatch.setattr(pc, "capabilities_of", spy)
     rt._CAPS_CACHE.clear()
-    r = _client().post("/api/user-definitions/runtime-admission", json={"source": MEMBER_COPY + "// x\n"})
-    assert r.status_code == 200 and r.json()["admitted"] is False
+    src = MEMBER_COPY + "// x\n"
+    r = _client().post("/api/user-definitions/runtime-admission", json={"source": src})
+    assert r.status_code == 200
+    assert r.json() == {"sha256": rt.source_hash(src), "admitted": False, "missing": []}
+    assert calls == []
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")             # CONTROL: on, the detector runs
+    rt._CAPS_CACHE.clear()
+    _client().post("/api/user-definitions/runtime-admission", json={"source": src})
+    assert calls == [1]
 
 
 def test_B1c_the_door_is_rate_limited_per_member(store, on):
