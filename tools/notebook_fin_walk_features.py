@@ -769,34 +769,32 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(pg, inst, "template gallery", "browse: the gallery opens from the template picker",
                "PASS" if opened and picks else "FAIL", opened=opened, picks=[p.get("title") or p.get("name") for p in picks][:12],
                regions=regions, scope=["[role=dialog]"])
-        # insert: preview a UCT pick, add it, make a note from it
+        # insert: use a UCT pick, it makes a note.
+        # Final fix (A2), read in the browser on the held sandbox: the library's picks are cards (StyleLibraryCard.jsx)
+        # with Preview (a read-only sheet, no Use in it), "Use <title>", "Customize first" and "Add to my templates".
+        # Master S9 (audit 2026-11-05, library/oneStepUse.js): "Use" makes the note AT ONCE, titled
+        # "<template> · <day>"; keeping a copy in Your templates is "Add to my templates" (its own words,
+        # `Added "<name>" to your templates.`). The old walk pressed the New note sheet's own "Preview <title>, from the
+        # Template library" button underneath the library (the library's layer took the press: 10 s timeout) and then
+        # waited for the two-step flow's "Added ... to Your templates." line, which this door no longer says.
         if picks:
             title = picks[0].get("title") or picks[0].get("name")
-            made, added, added_text, err = None, False, None, None
+            made, made_title, err = None, None, None
+            lib = pg.get_by_role("dialog").filter(has=pg.get_by_role("heading", name=re.compile(r"^Template library"))).last
             try:
-                pg.get_by_role("button", name=re.compile("^Preview " + re.escape(title))).first.click(timeout=10000)   # S7 adds ", from the Template library"
-                dlg = pg.get_by_role("dialog", name=title)
-                dlg.first.wait_for(state="visible", timeout=15000)
-                use = dlg.get_by_role("button", name=re.compile(r"^Use( this template)?$"))   # S7: "Use"
+                use = lib.get_by_role("button", name=f"Use {title}", exact=True)
                 use.first.click(timeout=10000)
-                # Final fix (A2): the gallery's own status line (TemplateGallery.jsx `use`, `[data-gallery-message]`)
-                # names the COPY it made (`out.template.name`), which is not always the pick's listed title.
-                added_msg = pg.locator("[data-gallery-message]").filter(has_text=re.compile(r"^Added “.+” to Your templates\."))
-                added = C.vis_loc(added_msg, 15000)
-                added_text = added_msg.first.inner_text().strip()[:200] if added else None
-                mk = pg.get_by_role("button", name="Make a note from it")
-                if C.vis_loc(mk, 8000):
-                    mk.first.click()
-                    pg.wait_for_url(lambda u: "note=" in u, timeout=30000)
-                    made = pg.url.split("note=")[-1].split("&")[0]
-                    pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
+                pg.wait_for_url(lambda u: "note=" in u, timeout=30000)
+                made = pg.url.split("note=")[-1].split("&")[0]
+                pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
             except Exception as e:  # noqa: BLE001
                 err = str(e)[:300]
-            body_len = len(json.dumps(note_json(made).get("bodyJson") or {})) if made else 0
+            made_json = note_json(made) if made else {}
+            made_title = made_json.get("title")
+            body_len = len(json.dumps(made_json.get("bodyJson") or {})) if made else 0
             C.step(pg, inst, "template gallery", "insert: use a UCT pick and make a note from it",
-                   "PASS" if added and made and body_len > 200 else "FAIL", pick=title, added_to_your_templates=added,
-                   added_line=added_text, note=made,
-                   note_body_chars=body_len, reach_error=err)
+                   "PASS" if made and body_len > 200 and (made_title or "").startswith(title) else "FAIL", pick=title,
+                   door=f"Use {title}", note=made, note_title=made_title, note_body_chars=body_len, reach_error=err)
         # publish for review: a member template made from the member's own note (the note's own route)
         src = S.get("first_note") or (C.notes_list(ctx, base)[0]["id"])
         name = f"Fin walk plan {int(time.time()) % 100000}"
