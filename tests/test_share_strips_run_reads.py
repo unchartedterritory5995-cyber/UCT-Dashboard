@@ -289,6 +289,8 @@ ROUTES = {
     ("POST", "/api/user-definitions/converse"): "none",
     ("GET", "/api/user-definitions/library"): "cross",
     ("GET", "/api/user-definitions/runtime-kill"): "none",
+    # WS-I Part 2: a verdict about the script the CALLER sends; it reads and stores nothing.
+    ("POST", "/api/user-definitions/runtime-admission"): "none",
     ("GET", "/api/user-definitions/{def_id}"): "own",
     ("PUT", "/api/user-definitions/{def_id}"): "own",
     ("POST", "/api/user-definitions/{def_id}/engine-status"): "own",

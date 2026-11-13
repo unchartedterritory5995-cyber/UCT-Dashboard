@@ -103,6 +103,13 @@ class EngineStatusIn(BaseModel):
     reason: str = Field(..., min_length=1, max_length=2000)
 
 
+class RuntimeAdmissionIn(BaseModel):
+    """WS-I Part 2 -- one script to ask capability admission about. ⛔ `source` is typed
+    `Any` and checked in the handler, NOT by a pydantic constraint: a constraint's 422
+    echoes the offending value back in its detail, and this door never repeats a script."""
+    source: Any = None
+
+
 class ProposeIn(BaseModel):
     """The English, the kind of formula wanted, and the bars the chart holds.
 
@@ -606,9 +613,37 @@ def runtime_kill(user: dict = Depends(require_paid)):
     # ⭐ GT (D6) — the starter allowlist rides the same read as the kill list:
     # the member door's preview declines a script not on it by name
     # (`runtime:not-yet-graded`). An empty list serves nothing.
-    return {"kill": runtime_definitions.kill_list(),
-            "allow": runtime_definitions.allow_list(),
-            "save_enabled": runtime_definitions.save_enabled()}
+    out = {"kill": runtime_definitions.kill_list(),
+           "allow": runtime_definitions.allow_list(),
+           "save_enabled": runtime_definitions.save_enabled()}
+    # ⭐ WS-I Part 2 -- while capability admission is ON the member door also asks
+    # `POST /runtime-admission` per script. The key is ABSENT while it is off, so this read
+    # is byte for byte what it was before Part 2 and a client never asks the new door.
+    if runtime_definitions.capability_admission_on():
+        out["capability_admission"] = True
+    return out
+
+
+@router.post("/runtime-admission")
+def runtime_admission(body: RuntimeAdmissionIn, user: dict = Depends(require_paid)):
+    """WS-I Part 2 -- ``{sha256, admitted, missing}``: may the runtime lane draw THIS script by
+    capability (`runtime_definitions.runtime_admission`)? The member door latches the answer per
+    source hash (`engine/runtimeKill.js`), beside the kill list it reads from `/runtime-kill`.
+
+    ⛔ STORES NOTHING AND NEVER LOGS THE SOURCE (not in a sentence, not in a 4xx detail).
+    ⛔ At most `RUNTIME_MAX_DEFINITION_BYTES` (128 KiB, UTF-8): the runtime document's own cap.
+    ⛔ DECLARED BEFORE `/{def_id}`, beside `/runtime-kill`, though no `POST /{def_id}` exists
+    to shadow it today."""
+    source = body.source
+    if not isinstance(source, str) or not source.strip():
+        raise HTTPException(status_code=400, detail="source: the Pine script to ask about, "
+                                                    "a non-empty string")
+    if len(source.encode("utf-8")) > runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES:
+        raise HTTPException(status_code=413, detail=(
+            "source: longer than the runtime lane's "
+            f"{runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES // 1024} KiB cap, so it is not "
+            "asked about"))
+    return runtime_definitions.runtime_admission(source)
 
 
 @router.get("/{def_id}")

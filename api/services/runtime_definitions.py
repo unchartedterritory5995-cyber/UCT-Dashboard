@@ -65,6 +65,23 @@ Three more variables, all read per call, and one function the server lanes ask:
 * ``server_lane_refusal(row, lane=...)`` -- the ONE admission question a server lane asks:
   kill list, allowlist (graded MATCH), pane stage, server stage, service set up, in that
   order. NOTHING CALLS IT YET (T13 onward wire it), so no member's behaviour changes.
+
+WS-I PART 2 (2026-11-13) -- ADMISSION BY CAPABILITY. A member's own copy of a script differs by a
+byte from any graded copy, so the per-script allowlist admits nothing a member brings. Two more
+variables, both read per call:
+
+* ``PINE_RUNTIME_CAPABILITY_ADMISSION`` -- ``off`` (the default; unset, empty or unrecognised all
+  read ``off``) or ``on``. With ``on``, `not_graded` ALSO admits a script whose every capability
+  (`pine_capabilities.capabilities_of`, one detector, over-declaring, closed world) is admitted
+  in the committed registry (`pine_runtime_allowlist.json` ``capabilities``, each admitted row
+  carrying vendor-graded MATCH evidence: `rollout_gate.pine_capability_admission`). The served
+  stamp, the save door and the allow report follow it because they ask `not_graded`. ⛔ The
+  SERVER lanes do not: `server_lane_refusal` asks ``graded_only=True``, which stays per-script.
+  With ``off`` every answer here is the one before Part 2, byte for byte.
+* ``PINE_RUNTIME_CAPABILITY_DENY`` -- capability ids SUBTRACTED from the admitted set (comma- or
+  whitespace-separated). ⛔ SUBTRACT-ONLY: no variable ever adds a capability; admitting one is a
+  commit to the registry, with its evidence. The kill list stays the per-script safety net and is
+  asked before admission at every door.
 """
 from __future__ import annotations
 
@@ -108,9 +125,19 @@ PINE_RUNTIME_MODE_FLAGS = {
     "PINE_RUNTIME_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT, STAGE_ALL)),
     # W5 T12 (ruling Q4): the SERVER lanes' stage, the same ladder in a variable of its own.
     "PINE_RUNTIME_SERVER_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT, STAGE_ALL)),
+    # WS-I Part 2 (2026-11-13): admission by capability, off until the owner arms it.
+    "PINE_RUNTIME_CAPABILITY_ADMISSION": ("off", ("off", "on")),
 }
 assert STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
 assert SERVER_STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
+
+# ─── WS-I Part 2: admission by capability (both variables read per call) ─────
+CAPABILITY_ADMISSION_ENV = "PINE_RUNTIME_CAPABILITY_ADMISSION"
+CAPABILITY_ADMISSION_OFF = "off"
+CAPABILITY_ADMISSION_ON = "on"
+CAPABILITY_DENY_ENV = "PINE_RUNTIME_CAPABILITY_DENY"
+assert CAPABILITY_ADMISSION_ENV in PINE_RUNTIME_MODE_FLAGS
+assert PINE_RUNTIME_MODE_FLAGS[CAPABILITY_ADMISSION_ENV][0] == CAPABILITY_ADMISSION_OFF
 
 # ─── GT: the starter allowlist (D6) ──────────────────────────────────────────
 ALLOW_ENV = "PINE_RUNTIME_ALLOWLIST"
@@ -393,11 +420,16 @@ def _allowlist_doc() -> Optional[dict]:
     return doc if isinstance(doc, dict) else None
 
 
-def allow_report() -> dict:
+def allow_report(*, with_capabilities: bool = True) -> dict:
     """WS-I (R1) — what the committed allowlist SERVES and what it WITHHOLDS, and
     why, plus the variable's entries (which carry no evidence: an operator
     override outside R1, reported so it is never invisible). Never raises on
-    the file: an unreadable one serves nothing (fail closed)."""
+    the file: an unreadable one serves nothing (fail closed).
+
+    WS-I Part 2: while ``PINE_RUNTIME_CAPABILITY_ADMISSION=on`` it also carries
+    ``capability_admission`` (`admitted_capabilities`: what is admitted, what is withheld and
+    why, what the deny variable subtracted). With the variable off the report is the one
+    before Part 2, key for key."""
     from api.services import rollout_gate
     doc = _allowlist_doc()
     served: list[dict] = []
@@ -417,7 +449,10 @@ def allow_report() -> dict:
         else:
             served.append(row)
     overrides = _allow_entries_from(re.split(r"[\s,]+", os.environ.get(ALLOW_ENV, "")))
-    return {"served": served, "withheld": withheld, "env_overrides": overrides}
+    report = {"served": served, "withheld": withheld, "env_overrides": overrides}
+    if with_capabilities and capability_admission_on():
+        report["capability_admission"] = admitted_capabilities()
+    return report
 
 
 def graded_allow_list() -> list[str]:
@@ -427,7 +462,7 @@ def graded_allow_list() -> list[str]:
     ⭐ The single authority for "graded" (W5 T12, ruling Q8): `allow_list` builds on it and
     the SERVER lanes ask it directly (`not_graded(..., graded_only=True)`), so the two can
     never disagree about what is graded. Read per call; an unreadable JSON serves nothing."""
-    return [r["sha256"] for r in allow_report()["served"]]
+    return [r["sha256"] for r in allow_report(with_capabilities=False)["served"]]
 
 
 def allow_list() -> list[str]:
@@ -461,12 +496,116 @@ def not_graded(source: Optional[str], *, graded_only: bool = False) -> Optional[
     The sentence is the reason; the code the member door declines with is
     ``runtime:not-yet-graded``. `graded_only=True` (the SERVER lanes, ruling Q8) admits
     only `graded_allow_list`, so an operator-variable entry is refused there; the default
-    (the browser pane) admits `allow_list`, the variable included."""
+    (the browser pane) admits `allow_list`, the variable included.
+
+    WS-I Part 2: with ``PINE_RUNTIME_CAPABILITY_ADMISSION=on`` the browser pane (never
+    ``graded_only``) ALSO admits a script `capability_admitted` admits. Off, nothing changes."""
     h = source_hash(source) if isinstance(source, str) else ""
     if h and any(h.startswith(e) for e in (graded_allow_list() if graded_only else allow_list())):
         return None
+    if h and not graded_only and capability_admission_on() and capability_admitted(source)[0]:
+        return None
     return (f"this script (sha256 {h[:12] or '?'}…) has not yet been graded against "
             "TradingView, so it is not drawn bar by bar")
+
+
+def capability_admission_on() -> bool:
+    """`PINE_RUNTIME_CAPABILITY_ADMISSION == "on"`, read PER CALL. ⛔ Unset, empty or any other
+    value (a typo: "1", "true", "yes") is ``off``: a typo never widens what the lane serves."""
+    v = os.environ.get(CAPABILITY_ADMISSION_ENV, CAPABILITY_ADMISSION_OFF).strip().lower()
+    return v == CAPABILITY_ADMISSION_ON
+
+
+def capability_deny() -> list[str]:
+    """`PINE_RUNTIME_CAPABILITY_DENY`, read per call: the capability ids to SUBTRACT from the
+    admitted set, lowercased, deduplicated. ⛔ It can only subtract (`admitted_capabilities`
+    takes them out); an id it names that is not admitted changes nothing."""
+    out: list[str] = []
+    for part in re.split(r"[\s,]+", os.environ.get(CAPABILITY_DENY_ENV, "")):
+        v = part.strip().lower()
+        if v and v not in out:
+            out.append(v)
+    return out
+
+
+def admitted_capabilities() -> dict:
+    """WS-I Part 2 -- the capabilities admitted for capability admission, read per call:
+    ``{"admitted": [...], "withheld": {name: [reasons]}, "denied": [...]}``.
+
+    A registry row admits its capability only when `rollout_gate.pine_capability_admission`
+    says so, the name is one the detector can return (`pine_capabilities.CAPABILITY_IDS`) and
+    `PINE_RUNTIME_CAPABILITY_DENY` does not name it. ⛔ FAIL CLOSED: an unreadable or malformed
+    JSON admits nothing. Never raises."""
+    from api.services import pine_capabilities, rollout_gate
+    doc = _allowlist_doc()
+    registry = doc.get("capabilities") if doc else None
+    deny = set(capability_deny())
+    admitted: list[str] = []
+    withheld: dict[str, list[str]] = {}
+    denied: list[str] = []
+    for name in sorted(k for k in registry if isinstance(k, str)) if isinstance(registry, dict) else []:
+        if name not in pine_capabilities.CAPABILITY_IDS:
+            withheld[name] = [f"`{name}` is not a capability the detector names"]
+            continue
+        reasons = rollout_gate.pine_capability_admission(name, registry[name])
+        if reasons:
+            withheld[name] = reasons
+        elif name in deny:
+            withheld[name] = [f"`{name}` is subtracted by {CAPABILITY_DENY_ENV}"]
+            denied.append(name)
+        else:
+            admitted.append(name)
+    return {"admitted": admitted, "withheld": withheld, "denied": denied}
+
+
+#: `capabilities_of` is pure in the source, so its answer is kept per source sha256 (a served
+#: list stamps every runtime row it returns). Bounded; the REGISTRY is never cached.
+_CAPS_CACHE: dict = {}
+_CAPS_CACHE_MAX = 256
+
+
+def _capabilities_of(source: str) -> frozenset:
+    from api.services import pine_capabilities
+    key = source_hash(source)
+    hit = _CAPS_CACHE.get(key)
+    if hit is None:
+        hit = pine_capabilities.capabilities_of(source)
+        if len(_CAPS_CACHE) >= _CAPS_CACHE_MAX:
+            _CAPS_CACHE.pop(next(iter(_CAPS_CACHE)))
+        _CAPS_CACHE[key] = hit
+    return hit
+
+
+def capability_admitted(source: Any) -> tuple:
+    """``(ok, missing)``: does EVERY capability this source uses carry admission? ``missing``
+    names, sorted, each capability it uses that is not admitted (a capability absent from the
+    registry is missing: CLOSED WORLD; an unreadable source is missing ``unreadable``).
+
+    Pure policy: it does NOT read `PINE_RUNTIME_CAPABILITY_ADMISSION` (`not_graded` does) and
+    does NOT read the kill list (every door asks `killed` first). Never raises."""
+    from api.services import pine_capabilities
+    if not isinstance(source, str) or not source.strip():
+        return False, [pine_capabilities.UNREADABLE]
+    try:
+        caps = _capabilities_of(source)
+        admitted = set(admitted_capabilities()["admitted"])
+    except Exception:  # noqa: BLE001 - fail closed: what cannot be read is not admitted
+        log.warning("[runtime_definitions] capability admission unreadable; not admitted")
+        return False, [pine_capabilities.UNREADABLE]
+    missing = sorted(c for c in caps if c not in admitted)
+    return (not missing), missing
+
+
+def runtime_admission(source: Any) -> dict:
+    """``POST /api/user-definitions/runtime-admission`` -- ``{sha256, admitted, missing}`` for one
+    source, the client's per-hash verdict (`engine/runtimeKill.js`). ``admitted`` is True only
+    when capability admission is ON, the script is not on the kill list, and
+    `capability_admitted` admits it. The allowlist is NOT folded in (the client asks its own
+    latched allowlist first). Nothing is stored and the source is never logged."""
+    h = source_hash(source) if isinstance(source, str) else None
+    ok, missing = capability_admitted(source)
+    admitted = bool(ok and capability_admission_on() and not killed(None, source))
+    return {"sha256": h, "admitted": admitted, "missing": missing}
 
 
 def save_permission(role: Any, user_id: Any = None) -> Optional[str]:

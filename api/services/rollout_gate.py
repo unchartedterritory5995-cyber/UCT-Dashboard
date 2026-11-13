@@ -528,3 +528,73 @@ def pine_runtime_admission(script, registry) -> list[str]:
     if not matched:
         reasons.append("has no TradingView capture graded MATCH with the runtime pane on (R1)")
     return reasons
+
+
+# --------------------------------------------------------------------------- #
+# ⭐⭐ WS-I PART 2 (2026-11-13) — ADMISSION BY CAPABILITY: WHEN A CAPABILITY IS
+# ADMITTED. A member's own copy of a script never hashes to a graded copy, so
+# `PINE_RUNTIME_CAPABILITY_ADMISSION=on` admits a script whose EVERY capability
+# (`api/services/pine_capabilities.py::capabilities_of`) is admitted here. A
+# registry row (`pine_runtime_allowlist.json` `capabilities{}`) admits its
+# capability only when ALL hold:
+#
+#   * `admitted: true` AND `status: conformant` (both: `admitted` is the
+#     stricter word, and R1's per-script gate keeps reading `status`);
+#   * at least TWO evidence entries `{capture, script, verdict: MATCH,
+#     runtimePane: on}`, naming TWO distinct captures of TWO distinct scripts;
+#   * for an object family (`obj:*`), each counted entry ALSO carries
+#     `objectsV2: MATCH` and `objectsLane: runtime` (a v2 objects grade with the
+#     RUN drawing them). No capture carries that today, so no `obj:*` row admits.
+#
+# Pure: no env, no I/O, never raises; a malformed row admits nothing. Whether an
+# evidence id is a real capture graded MATCH is held by the rail
+# (`tests/test_pine_capability_admission.py`, A8), not read here.
+# --------------------------------------------------------------------------- #
+
+PINE_CAPABILITY_MIN_CAPTURES = 2
+PINE_CAPABILITY_MIN_SCRIPTS = 2
+PINE_CAPABILITY_OBJECT_PREFIX = "obj:"
+PINE_OBJECTS_LANE_RUNTIME = "runtime"
+
+
+def _pine_capability_evidence_counts(name: str, entry) -> bool:
+    """Does this evidence entry count toward admitting capability `name`?"""
+    if not isinstance(entry, dict):
+        return False
+    for key in ("capture", "script"):
+        if not isinstance(entry.get(key), str) or not entry.get(key):
+            return False
+    if entry.get("verdict") != PINE_CAPTURE_MATCH or entry.get("runtimePane") != PINE_CAPTURE_PANE_ON:
+        return False
+    if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX):
+        return (entry.get("objectsV2") == PINE_CAPTURE_MATCH
+                and entry.get("objectsLane") == PINE_OBJECTS_LANE_RUNTIME)
+    return True
+
+
+def pine_capability_admission(name, row) -> list[str]:
+    """Why registry row `row` does NOT admit capability `name` (WS-I Part 2), or ``[]``.
+
+    ⛔ FAIL CLOSED: a row that cannot answer a question is not admitted, with the reason."""
+    if not isinstance(name, str) or not name:
+        return ["not a capability name"]
+    if not isinstance(row, dict):
+        return [f"capability `{name}` is not in the registry"]
+    reasons: list[str] = []
+    if row.get("admitted") is not True:
+        reasons.append(f"capability `{name}` is not marked admitted")
+    if row.get("status") != PINE_CAPABILITY_CONFORMANT:
+        reasons.append(f"capability `{name}` is {row.get('status') or 'ungraded'}, not conformant")
+    evidence = row.get("evidence")
+    counted = [e for e in (evidence if isinstance(evidence, list) else [])
+               if _pine_capability_evidence_counts(name, e)]
+    captures = {e["capture"] for e in counted}
+    scripts = {e["script"] for e in counted}
+    if len(captures) < PINE_CAPABILITY_MIN_CAPTURES or len(scripts) < PINE_CAPABILITY_MIN_SCRIPTS:
+        what = ("objects v2 MATCH captures with the run drawing them"
+                if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX)
+                else "MATCH captures with the runtime pane on")
+        reasons.append(f"capability `{name}` has {len(captures)} {what} from {len(scripts)} "
+                       f"script(s); admission needs {PINE_CAPABILITY_MIN_CAPTURES} from "
+                       f"{PINE_CAPABILITY_MIN_SCRIPTS}")
+    return reasons

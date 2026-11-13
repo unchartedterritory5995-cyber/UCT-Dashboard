@@ -105,6 +105,8 @@ def test_D1_the_default_is_pinned_in_SOURCE_not_only_in_behaviour():
         "PINE_RUNTIME_STAGE": ("off", ("off", "admins", "cohort", "all")),
         # W5 T12 (ruling Q4): the server lanes' stage; its own rails are tests/test_runtime_server_stage.py
         "PINE_RUNTIME_SERVER_STAGE": ("off", ("off", "admins", "cohort", "all")),
+        # WS-I Part 2 (2026-11-13): admission by capability; its rails are tests/test_pine_capability_admission.py
+        "PINE_RUNTIME_CAPABILITY_ADMISSION": ("off", ("off", "on")),
     }
     src = (ROOT / "api" / "services" / "runtime_definitions.py").read_text(encoding="utf-8")
     assert "os.environ.get(STAGE_ENV, STAGE_OFF)" in src
@@ -559,7 +561,9 @@ def test_WSI_R1_every_COMMITTED_script_passes_R1_and_its_evidence_is_real():
             assert rt.source_hash(cap["source"]["text"]) == s["sha256"], c["id"]
         assert rt.source_hash((ROOT / s["source"]).read_text(encoding="utf-8")) == s["sha256"]
     for name, row in doc["capabilities"].items():
-        for cid in row["evidence"]:
+        for e in row["evidence"]:
+            # WS-I Part 2: an evidence entry is {capture, script, verdict, runtimePane}
+            cid = e["capture"] if isinstance(e, dict) else e
             assert (HARNESS / f"{cid}.json").is_file(), (name, cid)
 
 

@@ -48,7 +48,10 @@ import { addInstance } from '../../engine/instanceControls'
 import { mergeChartSettings } from '../../chartDefaults'
 import { memberPaneEnabled } from '../../engine/memberPaneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
-import { setRuntimeKillList, setRuntimeAllowList, RUNTIME_KILL_PATH } from '../../engine/runtimeKill'
+import {
+  setRuntimeKillList, setRuntimeAllowList, setRuntimeCapabilityAdmission, runtimeCapabilityAdmissionOn,
+  runtimeAdmissionOf, requestRuntimeAdmission, RUNTIME_KILL_PATH,
+} from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
 import { usePineLibraries } from '../usePineLibraries'
@@ -63,6 +66,9 @@ const noop = () => {}
  *  surface doing both would double the work for one pane. Same recipe
  *  `PreviewPane` uses, and for the same reason. */
 const MEMBER_CHART_PROPS = Object.freeze({ liveUpdates: false, backgroundWarm: false })
+
+/** WS-I Part 2 — how long a source must sit still before its capability verdict is asked. */
+const ADMISSION_ASK_DEBOUNCE_MS = 250
 
 /**
  * @param {object} props
@@ -114,6 +120,9 @@ export default function MemberPane({
   // as it was: the store's own door refuses a listed script's SAVE regardless.
   const runtimeOn = live && runtimePaneEnabled()
   const [killVersion, setKillVersion] = useState(0)
+  // ⭐ WS-I Part 2 — whether the server admits by capability (the kill read's
+  // `capability_admission`, absent while it is off): only then is a verdict asked.
+  const [admissionOn, setAdmissionOn] = useState(false)
   useEffect(() => {
     if (!runtimeOn) return undefined
     let alive = true
@@ -125,11 +134,28 @@ export default function MemberPane({
         // ⭐ GT (D6) — the starter allowlist rides the same read. Until it lands
         // the lane declines every script (nothing graded), never the reverse.
         setRuntimeAllowList(d.allow)
+        setRuntimeCapabilityAdmission(d.capability_admission)
+        setAdmissionOn(runtimeCapabilityAdmissionOn())
         setKillVersion((n) => n + 1)
       })
       .catch(() => { /* the list stays as it was; the save door still checks */ })
     return () => { alive = false }
   }, [runtimeOn])
+
+  // ⭐⭐ WS-I Part 2 — THE PER-SCRIPT CAPABILITY VERDICT, beside the kill read. While
+  // capability admission is on, this script's verdict is asked once its source has
+  // been still for `ADMISSION_ASK_DEBOUNCE_MS` (not per keystroke), and the build
+  // re-runs when it lands (`killVersion`). Until then the lane declines it: fail
+  // closed, with the "still being checked" sentence (`engine/runtimeKill.js`).
+  useEffect(() => {
+    if (!runtimeOn || !admissionOn || !source) return undefined
+    if (runtimeAdmissionOf({ source })) return undefined
+    let alive = true
+    const t = setTimeout(() => {
+      requestRuntimeAdmission(source).then((v) => { if (alive && v) setKillVersion((n) => n + 1) })
+    }, ADMISSION_ASK_DEBOUNCE_MS)
+    return () => { alive = false; clearTimeout(t) }
+  }, [runtimeOn, admissionOn, source])
 
   // ⭐ THE BUILD IS MEMOISED ON THE SOURCE, not run per render: `translatePine`
   // on a real script is milliseconds, and milliseconds on every keystroke is a
